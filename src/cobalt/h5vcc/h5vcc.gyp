@@ -57,6 +57,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:net',

@@ -21,6 +21,7 @@
 #include "base/lazy_instance.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/embedded_resources.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
@@ -158,14 +159,14 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
   // Set a pointer to this class inside the JSContext.
   JS_SetContextPrivate(context_, this);
 
-#if defined(COBALT_GC_ZEAL)
-  // Set zeal level to "Collect when every frequency allocations." See
-  // https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/JSAPI_reference/JS_SetGCZeal
-  // for other valid options.
-  const uint8_t kZealLevel = 2;
-  const uint32_t kZealFrequency = 600;
-  JS_SetGCZeal(context_, kZealLevel, kZealFrequency);
-#endif
+  if (configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+    // Set zeal level to "Collect when every frequency allocations." See
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/JSAPI_reference/JS_SetGCZeal
+    // for other valid options.
+    const uint8_t kZealLevel = 2;
+    const uint32_t kZealFrequency = 600;
+    JS_SetGCZeal(context_, kZealLevel, kZealFrequency);
+  }
 
   JS_SetGCParameterForThread(context_, JSGC_MAX_CODE_CACHE_BYTES,
                              kMaxCodeCacheBytes);
@@ -595,7 +596,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   // an uncaught exception, that would be the object that was thrown; in the
   // case of a JavaScript error that would be an Error object. If there is no
   // corresponding object, then the null value must be used instead.
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
   if (exception.isObject()) {
     error_report.error.reset(new MozjsValueHandleHolder(context_, exception));
   }
@@ -614,7 +615,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   }
 
   // If the error is not handled, then the error may be reported to the user.
-  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors-in-documents
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors-in-documents
   std::string new_error_message = base::StringPrintf(
       "%s:%u:%u: %s", error_report.filename.c_str(), error_report.line_number,
       error_report.column_number, error_report.message.c_str());

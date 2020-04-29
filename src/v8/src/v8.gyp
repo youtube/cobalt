@@ -8,10 +8,14 @@
       '<(DEPTH)/v8/include',
     ],
     'defines': [
-      # TODO[johnx]: Remove WASM module from Cobalt's V8.
+      # TODO: Remove WASM module from Cobalt's V8.
       'DISABLE_GRAPHS_STARBOARD',
       'DISABLE_UNWIND_STARBOARD',
       'DISABLE_WASM_STARBOARD',
+      # TODO only enable this on some platforms
+      'DISABLE_WASM_COMPILER_ISSUE_STARBOARD',
+      'NO_ARRAY_MOVE_STARBOARD',
+      # 'V8_TARGET_OS_WIN', # TODO see if we need to turn on this macro for win32 build
       # Disable mitigations for executing untrusted code.
       # Disabled by default on x86 due to conflicting requirements with embedded
       # builtins. 
@@ -48,6 +52,10 @@
           'V8_EMBEDDED_BUILTINS',
         ],
       }],
+      ['v8_enable_embedded_builtins != 1 and cobalt_enable_jit != 1', {
+        # jitless mode requires embedded builtins.
+        'defines': ['<(gyp_static_assert_false)', ],
+      }],
     ],
   },
   'variables': {
@@ -55,7 +63,7 @@
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
     'v8_embed_script%': "",
-    'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+    'host_executable_suffix%': '<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
@@ -103,7 +111,7 @@
     'is_asan': 0,
     'v8_use_perfetto': 0,
     'v8_use_siphash': 0,
-    # TODO[johnx]: integrate the lite mode(exciting!)
+    # TODO: integrate the lite mode(exciting!)
     'v8_enable_lite_mode': 0,
     'want_separate_host_toolset': 1,
 
@@ -209,7 +217,7 @@
         {
           'action_name': 'run_torque_action',
           'inputs': [  # Order matters.
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(host_executable_suffix)',
             '<@(torque_files)',
           ],
           'outputs': [
@@ -329,7 +337,7 @@
         {
           'action_name': 'generate_bytecode_builtins_list_action',
           'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)bytecode_builtins_list_generator<(EXECUTABLE_SUFFIX)',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)bytecode_builtins_list_generator<(host_executable_suffix)',
           ],
           'outputs': [
             '<(generate_bytecode_builtins_list_output)',
@@ -505,7 +513,7 @@
         }],
         ['v8_enable_embedded_builtins==1', {
           'actions': [
-            {# This is not needed for linux, but necessary for MSVC which does not take .S files.
+            {
              'action_name': 'convert_asm_to_inline',
              'inputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
              'outputs': ['<(INTERMEDIATE_DIR)/embedded.cc'],
@@ -556,7 +564,7 @@
             ],
           },
           'inputs': [
-            '<(mksnapshot_exec)',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(host_executable_suffix)',
           ],
           'conditions': [
             ['v8_target_arch=="x86"', {
@@ -1625,7 +1633,7 @@
         {
           'action_name': 'run_gen-regexp-special-case_action',
           'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)gen-regexp-special-case<(EXECUTABLE_SUFFIX)',
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)gen-regexp-special-case<(host_executable_suffix)',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/src/regexp/special-case.cc',

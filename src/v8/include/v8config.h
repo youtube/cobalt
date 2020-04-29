@@ -279,6 +279,10 @@
 
 #endif
 
+// Cobalt-specific
+#if defined(SB_HAS_WINDOWS_CALLING)
+#define V8_TARGET_OS_WIN 1
+#endif
 
 // -----------------------------------------------------------------------------
 // Helper macros

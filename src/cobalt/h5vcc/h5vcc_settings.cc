@@ -19,14 +19,26 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSettings::H5vccSettings(media::MediaModule* media_module)
-    : media_module_(media_module) {}
+H5vccSettings::H5vccSettings(media::MediaModule* media_module,
+                             cobalt::network::NetworkModule* network_module)
+    : media_module_(media_module), network_module_(network_module) {}
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
+  const char kQUIC[] = "QUIC";
 
-  if (strncmp(name.c_str(), kMediaPrefix, sizeof(kMediaPrefix) - 1) == 0) {
+  if (SbStringCompare(name.c_str(), kMediaPrefix, sizeof(kMediaPrefix) - 1) ==
+      0) {
     return media_module_ ? media_module_->SetConfiguration(name, value) : false;
+  }
+
+  if (SbStringCompare(name.c_str(), kQUIC, sizeof(kQUIC) - 1) == 0) {
+    if (value != 0 || !network_module_) {
+      return false;
+    } else {
+      network_module_->DisableQuic();
+      return true;
+    }
   }
   return false;
 }

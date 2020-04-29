@@ -15,12 +15,15 @@
 #include "starboard/player.h"
 
 #include "starboard/android/shared/cobalt/android_media_session_client.h"
+#include "starboard/android/shared/video_decoder.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
+#include "starboard/string.h"
 
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
@@ -28,6 +31,7 @@ using starboard::shared::starboard::player::PlayerWorker;
 using starboard::android::shared::cobalt::kPlaying;
 using starboard::android::shared::cobalt::
     UpdateActiveSessionPlatformPlaybackState;
+using starboard::android::shared::VideoDecoder;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
@@ -76,9 +80,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                << "\".";
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       || !player_error_func
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       ) {
     return kSbPlayerInvalid;
   }
@@ -115,13 +117,31 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  // TODO: increase this once we support multiple video windows.
-  const int kMaxNumberOfPlayers = 1;
-  if (SbPlayerPrivate::number_of_players() >= kMaxNumberOfPlayers) {
-    return kSbPlayerInvalid;
+  if (SbStringGetLength(max_video_capabilities) == 0) {
+    // Check the availability of hardware video decoder. Main player must use a
+    // hardware codec, but Android doesn't support multiple concurrent hardware
+    // codecs. Since it's not safe to have multiple hardware codecs, we only
+    // support one main player on Android, which can be either in punch out mode
+    // or decode to target mode.
+    const int kMaxNumberOfHardwareDecoders = 1;
+    if (VideoDecoder::number_of_hardware_decoders() >=
+        kMaxNumberOfHardwareDecoders) {
+      return kSbPlayerInvalid;
+    }
+    // Only update session state for main player.
+    UpdateActiveSessionPlatformPlaybackState(kPlaying);
   }
 
-  UpdateActiveSessionPlatformPlaybackState(kPlaying);
+  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+    // Check the availability of the video window. As we only support one main
+    // player, and sub players are in decode to texture mode on Android, a
+    // single video window should be enough.
+    if (!starboard::android::shared::VideoSurfaceHolder::
+            IsVideoSurfaceAvailable()) {
+      SB_LOG(ERROR) << "Video surface is not available now.";
+      return kSbPlayerInvalid;
+    }
+  }
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
@@ -130,10 +150,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
       sample_deallocate_func, decoder_status_func, player_status_func,
       player_error_func, context, handler.Pass());
 
-  // TODO: accomplish this through more direct means.
-  // Set the bounds to initialize the VideoSurfaceView. The initial values don't
-  // matter.
-  SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+    // TODO: accomplish this through more direct means.
+    // Set the bounds to initialize the VideoSurfaceView. The initial values
+    // don't matter.
+    SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+  }
 
   return player;
 }

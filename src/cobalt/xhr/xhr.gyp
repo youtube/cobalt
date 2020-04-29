@@ -36,7 +36,7 @@
         '<(DEPTH)/net/net.gyp:net',
       ],
       'conditions': [
-        ['enable_xhr_header_filtering == 1', {
+        ['enable_xhr_header_filtering == 1 and sb_evergreen == 0', {
           'sources': [
             'xhr_modify_headers.h',
           ],

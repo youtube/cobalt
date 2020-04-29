@@ -10,10 +10,10 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/decode_status.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {

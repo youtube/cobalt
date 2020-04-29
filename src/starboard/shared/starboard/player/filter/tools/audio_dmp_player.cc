@@ -27,8 +27,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
-
 namespace {
 
 using starboard::shared::starboard::player::video_dmp::VideoDmpReader;
@@ -121,7 +119,7 @@ void ErrorCB(SbPlayerError error, const std::string& error_message) {
 
 void PrerolledCB() {
   SB_LOG(INFO) << "Playback started.";
-  s_player_components->GetAudioRenderer()->Play();
+  s_player_components->GetMediaTimeProvider()->Play();
 }
 
 void EndedCB() {
@@ -151,9 +149,9 @@ void Start(const char* filename) {
 
   s_player_components->GetAudioRenderer()->Initialize(
       std::bind(ErrorCB, _1, _2), std::bind(PrerolledCB), std::bind(EndedCB));
-  s_player_components->GetAudioRenderer()->SetPlaybackRate(1.0);
+  s_player_components->GetMediaTimeProvider()->SetPlaybackRate(1.0);
   s_player_components->GetAudioRenderer()->SetVolume(1.0);
-  s_player_components->GetAudioRenderer()->Seek(0);
+  s_player_components->GetMediaTimeProvider()->Seek(0);
   s_job_thread->job_queue()->Schedule(std::bind(OnTimer));
 }
 
@@ -188,20 +186,3 @@ void SbEventHandle(const SbEvent* event) {
       break;
   }
 }
-
-#else  // SB_HAS(PLAYER_FILTER_TESTS)
-
-void SbEventHandle(const SbEvent* event) {
-  switch (event->type) {
-    case kSbEventTypeStart:
-      SB_LOG(INFO) << "\"audio_dmp_player\" is only support in SB_API_VERSION"
-                   << " 10 or later, or when SB_HAS_PLAYER_FILTER_TESTS is"
-                   << " defined.";
-      SbSystemRequestStop(0);
-      break;
-    default:
-      break;
-  }
-}
-
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

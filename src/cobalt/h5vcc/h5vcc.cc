@@ -27,15 +27,17 @@ H5vcc::H5vcc(const Settings& settings) {
   crash_log_ = new H5vccCrashLog();
   runtime_ =
       new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
-  settings_ = new H5vccSettings(settings.media_module);
+  settings_ = new H5vccSettings(settings.media_module, settings.network_module);
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();
 #endif
   storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
   trace_event_ = new H5vccTraceEvent();
 #if SB_IS(EVERGREEN)
   updater_ = new H5vccUpdater(settings.updater_module);
+  system_ = new H5vccSystem(updater_);
+#else
+  system_ = new H5vccSystem();
 #endif
 }
 

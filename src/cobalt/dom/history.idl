@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html5/browsers.html#the-history-interface
+// https://www.w3.org/TR/html50/browsers.html#the-history-interface
 
 // The joint session history of a top-level browsing context is the union of
 // all the session histories of all browsing contexts of all the fully active

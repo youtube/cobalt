@@ -93,7 +93,7 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     SbPlayerSampleInfo player_sample_info =
-        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, ++index_);
+        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index_++);
 
     SbPlayerSampleInfo sample_info = {};
     sample_info.buffer = player_sample_info.buffer;
@@ -249,10 +249,18 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 
   WaitForPlayerState(kSbPlayerStatePresenting);
 
-  // Check that the playback time is > 0.
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player, &info);
-  ASSERT_GT(info.current_media_timestamp, 0);
+  // Wait until the playback time is > 0.
+  const SbTime kMaxWaitTime = 5 * kSbTimeSecond;
+  SbTime start_of_wait = SbTimeGetMonotonicNow();
+  SbPlayerInfo2 info = {};
+
+  while (SbTimeGetMonotonicNow() - start_of_wait < kMaxWaitTime &&
+         info.current_media_timestamp == 0) {
+    SbThreadSleep(kSbTimeMillisecond * 500);
+    SbPlayerGetInfo2(player, &info);
+  }
+
+  EXPECT_GT(info.current_media_timestamp, 0);
 
   SbPlayerDestroy(player);
 }
@@ -305,6 +313,9 @@ std::vector<const char*> GetSupportedTests() {
     VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                                "",  // content_type
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
                                 dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }

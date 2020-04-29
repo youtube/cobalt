@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION >= SB_GLES3_DEPRECATED_VERSION
+#error "Support for gles3 features has been deprecated."
+#endif
 
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 

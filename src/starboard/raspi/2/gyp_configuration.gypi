@@ -13,6 +13,12 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'variables': {
+      'sb_evergreen_compatible': 1,
+    },
+  },
+
   'target_defaults': {
     'default_configuration': 'raspi-2_debug',
     'configurations': {

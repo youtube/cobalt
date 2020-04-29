@@ -25,7 +25,7 @@ namespace dom {
 class Document;
 
 // These elements represent headings for their sections.
-//   https://www.w3.org/TR/html5/sections.html#the-h1,-h2,-h3,-h4,-h5,-and-h6-elements
+//   https://www.w3.org/TR/html50/sections.html#the-h1,-h2,-h3,-h4,-h5,-and-h6-elements
 class HTMLHeadingElement : public HTMLElement {
  public:
   static const int kTagNameCount;

@@ -27,6 +27,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -48,6 +49,7 @@ using cobalt::render_tree::FontMetrics;
 using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::LottieNode;
 using cobalt::render_tree::MatrixTransform3DNode;
 using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::NodeVisitor;
@@ -64,6 +66,7 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(CompositionNode* composition));
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
+  MOCK_METHOD1(Visit, void(LottieNode* lottie));
   MOCK_METHOD1(Visit, void(MatrixTransform3DNode* matrix_transform_3d_node));
   MOCK_METHOD1(Visit, void(MatrixTransformNode* matrix_transform_node));
   MOCK_METHOD1(Visit, void(PunchThroughVideoNode* punch_through_video_node));

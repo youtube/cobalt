@@ -467,10 +467,12 @@ class MediaCodecBridge {
     boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
-        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, findHDRDecoder);
+        MediaCodecUtil.findVideoDecoder(
+            mime, isSecure, 0, 0, 0, 0, findHDRDecoder, requireSoftwareCodec);
     if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
       // On second pass, forget HDR.
-      findVideoDecoderResult = MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false);
+      findVideoDecoderResult =
+          MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false, requireSoftwareCodec);
     }
     try {
       String decoderName = findVideoDecoderResult.name;
@@ -496,7 +498,7 @@ class MediaCodecBridge {
     boolean shouldConfigureHdr =
         android.os.Build.VERSION.SDK_INT >= 24
             && colorInfo != null
-            && MediaCodecUtil.isHdrCapableVp9Decoder(findVideoDecoderResult);
+            && MediaCodecUtil.isHdrCapableVideoDecoder(mime, findVideoDecoderResult);
     if (shouldConfigureHdr) {
       Log.d(TAG, "Setting HDR info.");
       mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);

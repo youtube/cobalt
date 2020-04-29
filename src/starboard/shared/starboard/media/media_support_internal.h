@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_
 
+#include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
@@ -28,6 +29,9 @@ extern "C" {
 // function returns |false|.
 //
 // |video_codec|: The video codec used in the media content.
+// |content_type|: The full content type passed to the corresponding dom
+//                 interface if there is any.  Otherwise it will be set to "".
+//                 It should never to set to NULL.
 // |profile|: The profile in the context of |video_codec|.  It should be set to
 //            -1 when it is unknown or not applicable.
 // |level|: The level in the context of |video_codec|.  It should be set to -1
@@ -54,6 +58,24 @@ extern "C" {
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                             const char* content_type,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps,
+                             bool decode_to_texture_required);
+
+#else  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
@@ -66,20 +88,31 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int frame_width,
                              int frame_height,
                              int64_t bitrate,
-                             int fps
-#if SB_API_VERSION >= 10
-                             ,
-                             bool decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
-                             );
+                             int fps,
+                             bool decode_to_texture_required);
+
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
 // returns |false|.
 //
 // |audio_codec|: The media's audio codec (|SbMediaAudioCodec|).
+// |content_type|: The full content type passed to the corresponding dom
+//                 interface if there is any.  Otherwise it will be set to "".
+//                 It should never to set to NULL.
 // |bitrate|: The media's bitrate.
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                             const char* content_type,
+                             int64_t bitrate);
+
+#else  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate);
+
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 // Indicates whether this platform supports |transfer_id| as a transfer

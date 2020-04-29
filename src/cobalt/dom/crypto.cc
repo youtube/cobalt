@@ -20,6 +20,12 @@
 namespace cobalt {
 namespace dom {
 
+// https://www.w3.org/TR/WebCryptoAPI/#Crypto-attribute-subtle
+scoped_refptr<subtlecrypto::SubtleCrypto> Crypto::subtle(
+    script::EnvironmentSettings* settings) const {
+  return new subtlecrypto::SubtleCrypto(settings);
+}
+
 // https://www.w3.org/TR/WebCryptoAPI/#dfn-Crypto-method-getRandomValues
 // static
 script::Handle<script::ArrayBufferView> Crypto::GetRandomValues(

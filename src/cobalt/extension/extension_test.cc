@@ -14,6 +14,7 @@
 
 #include <cmath>
 
+#include "cobalt/extension/configuration.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/extension/platform_service.h"
@@ -105,6 +106,45 @@ TEST(ExtensionTest, InstallationManager) {
   EXPECT_TRUE(extension_api->RequestRollForwardToInstallation != NULL);
   EXPECT_TRUE(extension_api->GetInstallationPath != NULL);
   EXPECT_TRUE(extension_api->SelectNewInstallationIndex != NULL);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, Configuration) {
+  typedef CobaltExtensionConfigurationApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionConfigurationName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_TRUE(extension_api->version == 1);
+  EXPECT_TRUE(extension_api->CobaltUserOnExitStrategy != NULL);
+  EXPECT_TRUE(extension_api->CobaltRenderDirtyRegionOnly != NULL);
+  EXPECT_TRUE(extension_api->CobaltEglSwapInterval != NULL);
+  EXPECT_TRUE(extension_api->CobaltFallbackSplashScreenUrl != NULL);
+  EXPECT_TRUE(extension_api->CobaltEnableQuic != NULL);
+  EXPECT_TRUE(extension_api->CobaltSkiaCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltOffscreenTargetCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltEncodedImageCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltImageCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltLocalTypefaceCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltRemoteTypefaceCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltMeshCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltSoftwareSurfaceCacheSizeInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltImageCacheCapacityMultiplierWhenPlayingVideo != NULL);
+  EXPECT_TRUE(extension_api->CobaltSkiaGlyphAtlasWidth != NULL);
+  EXPECT_TRUE(extension_api->CobaltSkiaGlyphAtlasHeight != NULL);
+  EXPECT_TRUE(extension_api->CobaltJsGarbageCollectionThresholdInBytes != NULL);
+  EXPECT_TRUE(extension_api->CobaltReduceCpuMemoryBy != NULL);
+  EXPECT_TRUE(extension_api->CobaltReduceGpuMemoryBy != NULL);
+  EXPECT_TRUE(extension_api->CobaltGcZeal != NULL);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

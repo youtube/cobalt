@@ -11,6 +11,8 @@
 #ifndef jsutil_h
 #define jsutil_h
 
+#include "cobalt/configuration/configuration.h"
+
 #include "mozilla/Assertions.h"
 #include "mozilla/Compiler.h"
 #include "mozilla/GuardObjects.h"
@@ -296,6 +298,12 @@ PodSet(T* aDst, T aSrc, size_t aNElem)
 static inline void*
 Poison(void* ptr, uint8_t value, size_t num)
 {
+    /* Enable poisoning in crash-diagnostics and zeal builds. */
+#if !defined(JS_CRASH_DIAGNOSTICS)
+    if (!cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        return ((void*)0);
+    }
+#endif
     static bool disablePoison = bool(js_sb_getenv("JSGC_DISABLE_POISONING"));
     if (disablePoison)
         return ptr;
@@ -332,12 +340,7 @@ Poison(void* ptr, uint8_t value, size_t num)
 # define JS_CRASH_DIAGNOSTICS 1
 #endif
 
-/* Enable poisoning in crash-diagnostics and zeal builds. */
-#if defined(JS_CRASH_DIAGNOSTICS) || defined(JS_GC_ZEAL)
 # define JS_POISON(p, val, size) Poison(p, val, size)
-#else
-# define JS_POISON(p, val, size) ((void) 0)
-#endif
 
 /* Enable even more poisoning in purely debug builds. */
 #if defined(DEBUG)

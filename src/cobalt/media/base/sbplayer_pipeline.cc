@@ -26,6 +26,7 @@
 #include "base/task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/channel_layout.h"
@@ -41,7 +42,6 @@
 #include "cobalt/media/base/starboard_player.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/configuration_constants.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -126,7 +126,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #if SB_HAS(PLAYER_WITH_URL)
   TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void GetNaturalVideoSize(gfx::Size* out_size) const override;
+  void GetNaturalVideoSize(math::Size* out_size) const override;
 
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
@@ -163,9 +163,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // StarboardPlayer::Host implementation.
   void OnNeedData(DemuxerStream::Type type) override;
   void OnPlayerStatus(SbPlayerState state) override;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
@@ -207,7 +205,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable bool did_loading_progress_;
 
   // Video's natural width and height.  Set by filters.
-  gfx::Size natural_size_;
+  math::Size natural_size_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
@@ -605,7 +603,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     player_->GetVideoResolution(&frame_width, &frame_height);
     if (frame_width != natural_size_.width() ||
         frame_height != natural_size_.height()) {
-      natural_size_ = gfx::Size(frame_width, frame_height);
+      natural_size_ = math::Size(frame_width, frame_height);
       content_size_change_cb_.Run();
     }
   }
@@ -677,7 +675,7 @@ TimeDelta SbPlayerPipeline::GetMediaStartDate() const {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
+void SbPlayerPipeline::GetNaturalVideoSize(math::Size* out_size) const {
   CHECK(out_size);
   base::AutoLock auto_lock(lock_);
   *out_size = natural_size_;
@@ -969,32 +967,6 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_AUDIOLESS_VIDEO)
-  if (!kSbHasAudiolessVideo) {
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_AUDIOLESS_VIDEO)
-    if (audio_stream == NULL) {
-      LOG(INFO) << "The video has to contain an audio track.";
-      ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
-                           "The video has to contain an audio track.");
-      return;
-    }
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_AUDIOLESS_VIDEO)
-  }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_AUDIOLESS_VIDEO)
-
-#if SB_API_VERSION < 10
-  if (video_stream == NULL) {
-    LOG(INFO) << "The video has to contain a video track.";
-    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
-                         "The video has to contain a video track.");
-    return;
-  }
-#endif  // SB_API_VERSION < 10
-
   if (audio_stream == NULL && video_stream == NULL) {
     LOG(INFO) << "The video has to contain an audio track or a video track.";
     ResetAndRunIfNotNull(
@@ -1200,7 +1172,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         player_->GetVideoResolution(&frame_width, &frame_height);
         bool natural_size_changed = (frame_width != natural_size_.width() ||
                                      frame_height != natural_size_.height());
-        natural_size_ = gfx::Size(frame_width, frame_height);
+        natural_size_ = math::Size(frame_width, frame_height);
         if (natural_size_changed) {
           content_size_change_cb_.Run();
         }
@@ -1218,16 +1190,9 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateDestroyed:
       break;
-#if !SB_HAS(PLAYER_ERROR_MESSAGE)
-    case kSbPlayerStateError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE,
-                           "Pipeline player state error.");
-      break;
-#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
                                      const std::string& message) {
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -1256,11 +1221,9 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
     case kSbPlayerErrorDecode:
       ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
       break;
-#if SB_API_VERSION >= 10
     case kSbPlayerErrorCapabilityChanged:
       ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
       break;
-#endif  // SB_API_VERSION >= 10
 #if SB_API_VERSION >= 11
     case kSbPlayerErrorMax:
       NOTREACHED();
@@ -1268,7 +1231,6 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
 #endif  // SB_API_VERSION >= 11
   }
 }
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void SbPlayerPipeline::DelayedNeedData() {
   DCHECK(task_runner_->BelongsToCurrentThread());

@@ -114,11 +114,9 @@ class PlayerComponents {
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
       SbPlayer player() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
         return player_;
       }
       SbPlayerOutputMode output_mode() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
         return output_mode_;
       }
       SbDecodeTargetGraphicsContextProvider*

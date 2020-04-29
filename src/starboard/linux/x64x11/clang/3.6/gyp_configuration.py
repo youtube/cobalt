@@ -19,6 +19,12 @@ import subprocess
 
 from starboard.linux.shared import gyp_configuration as shared_configuration
 from starboard.tools import build
+from starboard.tools.toolchain import ar
+from starboard.tools.toolchain import bash
+from starboard.tools.toolchain import clang
+from starboard.tools.toolchain import clangxx
+from starboard.tools.toolchain import cp
+from starboard.tools.toolchain import touch
 
 
 class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
@@ -65,6 +71,42 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
             '\"%s\"' % os.path.join(self.toolchain_top_dir, 'libstdc++-7'),
     })
     return variables
+
+  def GetTargetToolchain(self):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC']
+    cxx_path = environment_variables['CXX']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
+
+  def GetHostToolchain(self):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC_host']
+    cxx_path = environment_variables['CXX_host']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
 
 
 def CreatePlatformConfig():

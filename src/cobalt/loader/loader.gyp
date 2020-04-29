@@ -64,6 +64,10 @@
         'image/image.h',
         'image/jpeg_image_decoder.cc',
         'image/jpeg_image_decoder.h',
+        'image/lottie_animation.h',
+        'image/lottie_animation.cc',
+        'image/lottie_animation_decoder.cc',
+        'image/lottie_animation_decoder.h',
         'image/png_image_decoder.cc',
         'image/png_image_decoder.h',
         'image/stub_image_decoder.h',
@@ -102,6 +106,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/loader/origin.gyp:origin',
         '<(DEPTH)/cobalt/network/network.gyp:network',
@@ -125,19 +130,6 @@
             'about_fetcher.cc',
             'about_fetcher.h',
           ]
-        }],
-        ['enable_xhr_header_filtering == 1', {
-          'dependencies': [
-            '<@(cobalt_platform_dependencies)',
-          ],
-          'defines': [
-            'COBALT_ENABLE_XHR_HEADER_FILTERING',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'COBALT_ENABLE_XHR_HEADER_FILTERING',
-            ],
-          },
         }],
       ],
     },

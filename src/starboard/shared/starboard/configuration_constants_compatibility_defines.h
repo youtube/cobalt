@@ -47,8 +47,6 @@
 
 #define kSbHasAsyncAudioFramesReporting SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING
 
-#define kSbHasAudiolessVideo SB_HAS_AUDIOLESS_VIDEO
-
 #define kSbHasMediaWebmVp9Support SB_HAS_MEDIA_WEBM_VP9_SUPPORT
 
 #define kSbHasThreadPrioritySupport SB_HAS_THREAD_PRIORITY_SUPPORT
@@ -82,6 +80,8 @@
 #define kSbPathSepChar SB_PATH_SEP_CHAR
 
 #define kSbPathSepString SB_PATH_SEP_STRING
+
+#define kSbPreferredRgbaByteOrder SB_PREFERRED_RGBA_BYTE_ORDER
 
 #define kSbUserMaxSignedIn SB_USER_MAX_SIGNED_IN
 

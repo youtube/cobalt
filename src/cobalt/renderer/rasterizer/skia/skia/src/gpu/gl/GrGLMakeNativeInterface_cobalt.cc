@@ -74,7 +74,7 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(GetShaderInfoLog);
   REGISTER_GL_FUNCTION(GetShaderiv);
   REGISTER_GL_FUNCTION(GetString);
-#if defined(GLES3_SUPPORTED)
+#if SB_API_VERSION < SB_GLES3_DEPRECATED_VERSION && defined(GLES3_SUPPORTED)
   REGISTER_GL_FUNCTION(GetStringi);
 #endif
   REGISTER_GL_FUNCTION(GetUniformLocation);

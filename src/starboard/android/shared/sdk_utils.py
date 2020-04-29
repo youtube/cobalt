@@ -13,14 +13,11 @@
 # limitations under the License.
 """Utilities to use the toolchain from the Android NDK."""
 
-import ConfigParser
 import fcntl
-import hashlib
 import logging
 import os
 import re
 import shutil
-import StringIO
 import subprocess
 import sys
 import time
@@ -29,20 +26,26 @@ import zipfile
 
 from starboard.tools import build
 
+# Which version of the Android NDK and CMake to install and build with.
+# Note that build.gradle parses these out of this file too.
+_NDK_VERSION = '21.0.6113669'
+_CMAKE_VERSION = '3.10.2.4988404'
+
 # Packages to install in the Android SDK.
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
     'build-tools;29.0.2',
-    'cmake;3.10.2.4988404',
+    'cmake;' + _CMAKE_VERSION,
+    'cmdline-tools;1.0',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
     'lldb;3.1',
+    'ndk;' + _NDK_VERSION,
     'patcher;v4',
     'platforms;android-29',
     'platform-tools',
-    'tools',
 ]
 
 # Seconds to sleep before writing "y" for android sdk update license prompt.
@@ -50,7 +53,7 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
-_SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip'
+_SDK_URL = 'https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip'
 
 # Location from which to download the Android NDK.
 # see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
@@ -70,44 +73,10 @@ if _ANDROID_HOME:
 else:
   _SDK_PATH = _STARBOARD_TOOLCHAINS_SDK_DIR
 
-_ANDROID_NDK_HOME = os.environ.get('ANDROID_NDK_HOME')
-if _ANDROID_NDK_HOME:
-  _NDK_PATH = _ANDROID_NDK_HOME
-else:
-  _NDK_PATH = os.path.join(_SDK_PATH, 'ndk-bundle')
+_NDK_PATH = os.path.join(_SDK_PATH, 'ndk', _NDK_VERSION)
 
-_SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'tools', 'bin', 'sdkmanager')
-
-# Maps the Android ABI to the architecture name of the toolchain.
-_TOOLS_ABI_ARCH_MAP = {
-    'x86': 'x86',
-    'armeabi': 'arm',
-    'armeabi-v7a': 'arm',
-    'arm64-v8a': 'arm64',
-}
-
-_SCRIPT_HASH_PROPERTY = 'SdkUtils.Hash'
-
-with open(__file__, 'rb') as script:
-  _SCRIPT_HASH = hashlib.md5(script.read()).hexdigest()
-
-
-def _CheckStamp(dir_path):
-  """Checks that the specified directory is up-to-date with the NDK."""
-  stamp_path = os.path.join(dir_path, 'ndk.stamp')
-  return (os.path.exists(stamp_path) and
-          _ReadNdkRevision(stamp_path) == _GetInstalledNdkRevision() and
-          _ReadProperty(stamp_path, _SCRIPT_HASH_PROPERTY) == _SCRIPT_HASH)
-
-
-def _UpdateStamp(dir_path):
-  """Updates the stamp file in the specified directory to the NDK revision."""
-  path = GetNdkPath()
-  properties_path = os.path.join(path, 'source.properties')
-  stamp_path = os.path.join(dir_path, 'ndk.stamp')
-  shutil.copyfile(properties_path, stamp_path)
-  with open(stamp_path, 'a') as stamp:
-    stamp.write('{} = {}\n'.format(_SCRIPT_HASH_PROPERTY, _SCRIPT_HASH))
+_SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'cmdline-tools', '1.0', 'bin',
+                                'sdkmanager')
 
 
 def GetNdkPath():
@@ -116,32 +85,6 @@ def GetNdkPath():
 
 def GetSdkPath():
   return _SDK_PATH
-
-
-def _ReadNdkRevision(properties_path):
-  return _ReadProperty(properties_path, 'pkg.revision')
-
-
-def _ReadProperty(properties_path, property_key):
-  with open(properties_path, 'r') as f:
-    ini_str = '[properties]\n' + f.read()
-  config = ConfigParser.RawConfigParser()
-  config.readfp(StringIO.StringIO(ini_str))
-  try:
-    return config.get('properties', property_key)
-  except ConfigParser.NoOptionError:
-    return None
-
-
-def _GetInstalledNdkRevision():
-  """Returns the installed NDK's revision."""
-  path = GetNdkPath()
-  properties_path = os.path.join(path, 'source.properties')
-  try:
-    return _ReadNdkRevision(properties_path)
-  except IOError:
-    logging.error("Error: Can't read NDK properties in %s", properties_path)
-    sys.exit(1)
 
 
 def _DownloadAndUnzipFile(url, destination_path):
@@ -165,49 +108,34 @@ def InstallSdkIfNeeded():
     toolchains_dir_fd = os.open(_STARBOARD_TOOLCHAINS_DIR, os.O_RDONLY)
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_EX)
 
+    if os.environ.get('ANDROID_NDK_HOME'):
+      logging.warning('Warning: ANDROID_NDK_HOME is deprecated and ignored.')
+
     if _ANDROID_HOME:
       if not os.access(_SDKMANAGER_TOOL, os.X_OK):
-        logging.error('Error: ANDROID_HOME is set but SDK is not present!')
+        logging.error('Error: ANDROID_HOME is set but SDK is not present.')
         sys.exit(1)
       logging.warning('Warning: Using Android SDK in ANDROID_HOME,'
                       ' which is not automatically updated.\n'
                       '         The following package versions are installed:')
       installed_packages = _GetInstalledSdkPackages()
       for package in _ANDROID_SDK_PACKAGES:
-        version = installed_packages.get(package, '< MISSING! >')
+        version = installed_packages.get(package, '< NOT INSTALLED >')
         msg = '  {:30} : {}'.format(package, version)
         logging.warning(msg)
-    else:
-      logging.warning('Checking Android SDK.')
-      _DownloadInstallOrUpdateSdk()
 
-    ndk_path = GetNdkPath()
-    if _ANDROID_NDK_HOME:
-      logging.warning('Warning: ANDROID_NDK_HOME references NDK %s in %s,'
-                      ' which is not automatically updated.',
-                      _GetInstalledNdkRevision(), ndk_path)
+      if not os.path.exists(GetNdkPath()):
+        logging.error('Error: ANDROID_HOME is is missing NDK %s.',
+                      _NDK_VERSION)
+        sys.exit(1)
 
-    if _ANDROID_HOME or _ANDROID_NDK_HOME:
       reply = raw_input(
           'Do you want to continue using your custom Android tools? [y/N]')
       if reply.upper() != 'Y':
         sys.exit(1)
-    elif not _CheckStamp(ndk_path):
-      logging.warning('Downloading NDK from %s to %s', _NDK_URL, ndk_path)
-      if os.path.exists(ndk_path):
-        shutil.rmtree(ndk_path)
-      # Download the NDK into _STARBOARD_TOOLCHAINS_DIR and move the top
-      # _NDK_ZIP_REVISION directory that is in the zip to 'ndk-bundle'.
-      ndk_unzip_path = os.path.join(_STARBOARD_TOOLCHAINS_DIR,
-                                    _NDK_ZIP_REVISION)
-      if os.path.exists(ndk_unzip_path):
-        shutil.rmtree(ndk_unzip_path)
-      _DownloadAndUnzipFile(_NDK_URL, _STARBOARD_TOOLCHAINS_DIR)
-      # Move NDK into its proper final place.
-      os.rename(ndk_unzip_path, ndk_path)
-      _UpdateStamp(ndk_path)
-
-    logging.warning('Using Android NDK version %s', _GetInstalledNdkRevision())
+    else:
+      logging.warning('Checking Android SDK.')
+      _DownloadInstallOrUpdateSdk()
   finally:
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_UN)
     os.close(toolchains_dir_fd)
@@ -242,7 +170,8 @@ def _GetInstalledSdkPackages():
   new_style = False
   old_style = False
   for line in iter(p.stdout.readline, ''):
-
+    # Throw away loading progress indicators up to the last CR.
+    line = line.split('\r')[-1]
     if section_re.match(line):
       if new_style or old_style:
         # We left the new/old style installed packages section
@@ -292,6 +221,14 @@ def _DownloadInstallOrUpdateSdk():
     if os.path.exists(_STARBOARD_TOOLCHAINS_SDK_DIR):
       shutil.rmtree(_STARBOARD_TOOLCHAINS_SDK_DIR)
     _DownloadAndUnzipFile(_SDK_URL, _STARBOARD_TOOLCHAINS_SDK_DIR)
+    # TODO: Remove this workaround for sdkmanager incorrectly picking up the
+    # "tools" directory from the ZIP as the name of its component.
+    if not os.access(_SDKMANAGER_TOOL, os.X_OK):
+      old_tools_dir = os.path.join(_STARBOARD_TOOLCHAINS_SDK_DIR, 'tools')
+      new_tools_dir = os.path.join(_STARBOARD_TOOLCHAINS_SDK_DIR,
+                                   'cmdline-tools', '1.0')
+      os.mkdir(os.path.dirname(new_tools_dir))
+      os.rename(old_tools_dir, new_tools_dir)
     if not os.access(_SDKMANAGER_TOOL, os.X_OK):
       logging.error('SDK download failed.')
       sys.exit(1)

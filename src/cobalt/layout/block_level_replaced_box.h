@@ -39,7 +39,7 @@ class BlockLevelReplacedBox : public ReplacedBox {
       const base::Optional<LayoutUnit>& maybe_intrinsic_height,
       const base::Optional<float>& maybe_intrinsic_ratio,
       UsedStyleProvider* used_style_provider,
-      base::Optional<bool> is_video_punched_out,
+      base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
       const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.

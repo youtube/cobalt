@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 
 int SbCryptographyTransform(SbCryptographyTransformer transformer,
@@ -25,3 +28,5 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
   SB_UNREFERENCED_PARAMETER(out_data);
   return 0;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

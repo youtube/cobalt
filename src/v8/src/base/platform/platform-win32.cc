@@ -29,7 +29,7 @@
 
 #include <VersionHelpers.h>
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
 #include <crtdbg.h>  // NOLINT
 #endif               // defined(_MSC_VER)
 

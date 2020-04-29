@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #if SB_API_VERSION >= 11
@@ -31,6 +32,9 @@ using starboard::shared::starboard::media::IsSDRVideo;
 using starboard::shared::vpx::is_vpx_supported;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             const char* content_type,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,
@@ -42,12 +46,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int frame_width,
                              int frame_height,
                              int64_t bitrate,
-                             int fps
-#if SB_API_VERSION >= 10
-                             ,
-                             bool decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
-                             ) {
+                             int fps,
+                             bool decode_to_texture_required) {
 #if SB_API_VERSION < 11
   const auto kSbMediaVideoCodecAv1 = kSbMediaVideoCodecVp10;
 #endif  // SB_API_VERSION < 11
@@ -55,6 +55,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   SB_UNREFERENCED_PARAMETER(profile);
   SB_UNREFERENCED_PARAMETER(level);
+
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+  if (!content_type) {
+    SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
+    return false;
+  }
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {
@@ -67,7 +74,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
-#if SB_API_VERSION >= 10
   if (decode_to_texture_required) {
     bool has_gles_support = false;
 
@@ -83,7 +89,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     // Assume that all GLES2 Linux platforms can play decode-to-texture video
     // just as well as normal video.
   }
-#endif  // SB_API_VERSION >= 10
 
   return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
           video_codec == kSbMediaVideoCodecH264 ||

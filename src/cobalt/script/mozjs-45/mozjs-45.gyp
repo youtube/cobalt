@@ -80,6 +80,7 @@
         '<(DEPTH)/cobalt/script/shared/stub_script_debugger.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/mozjs-45/mozjs-45.gyp:mozjs-45_lib',
         'embed_mozjs_resources_as_header_files',

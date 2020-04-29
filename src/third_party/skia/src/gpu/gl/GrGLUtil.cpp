@@ -261,6 +261,16 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_INVALID_VER;
     }
 
+#if defined(STARBOARD) && \
+        (SB_API_VERSION >= SB_GLES3_DEPRECATED_VERSION || !defined(GLES3_SUPPORTED))
+    // If we are in a build that does not support GLES3 (or it is explicitly
+    // disabled), ensure that Skia returns GLES2 as the version being used by
+    // performing the check before attempting to parse the string below.
+    if (strstr(versionString, "OpenGL ES")) {
+        return GR_GL_VER(2, 0);
+    }
+#endif
+
     int major, minor;
 
     // check for mesa
@@ -282,12 +292,6 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
     // This is useful when a OpenGL 2.0 context is requested and received, but
     // the version string still shows version 3.0
     if (strstr(versionString, "OpenGL ES")) {
-#if defined(STARBOARD) && !defined(GLES3_SUPPORTED)
-        // If the platform has explicitly disabled GLES3, have Skia respect that
-        // it does not have GLES 3 support available.
-        return GR_GL_VER(2, 0);
-#endif
-
         EGLint client_type = -1;
         EGLBoolean success = false;
         do {

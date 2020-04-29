@@ -31,13 +31,9 @@ SbDrmSystem SbDrmCreateSystem(
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#if SB_API_VERSION >= 10
-    ,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
-    SbDrmSessionClosedFunc session_closed_callback
-#endif  // SB_API_VERSION >= 10
-    ) {
+    SbDrmSessionClosedFunc session_closed_callback) {
   using starboard::shared::widevine::DrmSystemWidevine;
   if (!update_request_callback || !session_updated_callback) {
     return kSbDrmSystemInvalid;
@@ -45,29 +41,17 @@ SbDrmSystem SbDrmCreateSystem(
   if (!key_statuses_changed_callback) {
     return kSbDrmSystemInvalid;
   }
-#if SB_API_VERSION >= 10
   if (!server_certificate_updated_callback || !session_closed_callback) {
     return kSbDrmSystemInvalid;
   }
-#endif  // SB_API_VERSION >= 10
   if (!DrmSystemWidevine::IsKeySystemSupported()) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
   SB_LOG(ERROR) << "|company_name| and |model_name| are set to \"www\", "
                 << "premium content playback resolution may be limited.";
-  return new DrmSystemWidevine(context, update_request_callback,
-                               session_updated_callback
-                               ,
-                               key_statuses_changed_callback
-#if SB_API_VERSION >= 10
-                               ,
-                               server_certificate_updated_callback
-#endif  // SB_API_VERSION >= 10
-#if SB_HAS(DRM_SESSION_CLOSED)
-                               ,
-                               session_closed_callback
-#endif  // SB_HAS(DRM_SESSION_CLOSED)
-                               ,
-                               kCompanyName, kModelName);
+  return new DrmSystemWidevine(
+      context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback, server_certificate_updated_callback,
+      session_closed_callback, kCompanyName, kModelName);
 }

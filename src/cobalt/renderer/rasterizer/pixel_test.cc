@@ -16,7 +16,10 @@
 #include <memory>
 
 #include "base/bind.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
+#include "base/path_service.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
@@ -33,6 +36,8 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_animation.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
@@ -92,6 +97,8 @@ using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::ImageDataDescriptor;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::LottieAnimation;
+using cobalt::render_tree::LottieNode;
 using cobalt::render_tree::LinearGradientBrush;
 using cobalt::render_tree::MapToMeshFilter;
 using cobalt::render_tree::MatrixTransform3DNode;
@@ -3969,6 +3976,7 @@ scoped_refptr<Node> CreateMapToMeshTestRenderTree(
 
   return new MatrixTransform3DNode(map_to_mesh_filter, projection * model_view);
 }
+
 }  // namespace
 
 TEST_F(PixelTest, MapToMeshRGBTest) {
@@ -4057,6 +4065,57 @@ TEST_F(PixelTest, ClearRectNodeTest) {
 
   TestTree(new CompositionNode(std::move(composition_node_builder)));
 }
+
+#if !SB_HAS(BLITTER)
+
+namespace {
+
+base::FilePath GetTestFilePath(const char* file_name) {
+  base::FilePath data_directory;
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
+  return data_directory.Append(FILE_PATH_LITERAL("cobalt"))
+      .Append(FILE_PATH_LITERAL("renderer"))
+      .Append(FILE_PATH_LITERAL("rasterizer"))
+      .Append(FILE_PATH_LITERAL("testdata"))
+      .Append(FILE_PATH_LITERAL(file_name));
+}
+
+std::vector<uint8> GetFileData(const base::FilePath& file_path) {
+  int64 size;
+  std::vector<uint8> image_data;
+
+  bool success = base::GetFileSize(file_path, &size);
+
+  CHECK(success) << "Could not get file size.";
+  CHECK_GT(size, 0);
+
+  image_data.resize(static_cast<size_t>(size));
+
+  int num_of_bytes =
+      base::ReadFile(file_path, reinterpret_cast<char*>(&image_data[0]),
+                     static_cast<int>(size));
+
+  CHECK_EQ(num_of_bytes, static_cast<int>(image_data.size()))
+      << "Could not read '" << file_path.value() << "'.";
+  return image_data;
+}
+
+}  // namespace
+
+TEST_F(PixelTest, SimpleLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("circle.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0.25);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+#endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
 }  // namespace renderer

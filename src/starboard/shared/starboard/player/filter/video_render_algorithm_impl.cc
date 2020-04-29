@@ -114,7 +114,7 @@ void VideoRenderAlgorithmImpl::Render(
 
   if (is_audio_eos_played) {
     while (frames->size() > 1) {
-      frames->pop_back();
+      frames->pop_front();
     }
   }
 
@@ -170,19 +170,19 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() < media_time) {
-    frame_rate_estimate_.Update(*frames);
-    auto frame_rate = frame_rate_estimate_.frame_rate();
-    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
-    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
-    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
-    SB_DCHECK(cadence_pattern_generator_.has_cadence());
-
     auto second_iter = frames->begin();
     ++second_iter;
 
     if ((*second_iter)->is_end_of_stream()) {
       break;
     }
+
+    frame_rate_estimate_.Update(*frames);
+    auto frame_rate = frame_rate_estimate_.frame_rate();
+    SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
+    cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
+    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
+    SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
     auto frame_duration =
         static_cast<SbTime>(kSbTimeSecond / refresh_rate);
@@ -245,7 +245,23 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
   if (is_audio_eos_played) {
     while (frames->size() > 1) {
-      frames->pop_back();
+      frames->pop_front();
+    }
+  }
+
+  if (frames->size() == 2) {
+    // When there are only two frames and the second one is end of stream, we
+    // want to advance to it explicitly if the current media time is later than
+    // the timestamp of the first frame, and the first frame has been displayed.
+    // This ensures that the video can be properly ended when there is no audio
+    // stream, where |is_audio_eos_played| will never be true.
+    auto second_iter = frames->begin();
+    ++second_iter;
+
+    if ((*second_iter)->is_end_of_stream() &&
+        media_time >= frames->front()->timestamp() &&
+        current_frame_rendered_times_ > 0) {
+      frames->pop_front();
     }
   }
 

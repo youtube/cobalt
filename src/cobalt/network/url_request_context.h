@@ -17,7 +17,9 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/macros.h"
+#include "base/threading/thread_checker.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"
@@ -45,7 +47,10 @@ class URLRequestContext : public net::URLRequestContext {
 
   void SetProxy(const std::string& custom_proxy_rules);
 
+  void DisableQuic();
+
  private:
+  THREAD_CHECKER(thread_checker_);
   net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
       persistent_cookie_store_;

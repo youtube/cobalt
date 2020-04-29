@@ -14,6 +14,8 @@
 
 // https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
 
+[Exposed=Window]
 interface Crypto {
+  [CallWith=EnvironmentSettings] readonly attribute SubtleCrypto subtle;
   [RaisesException] ArrayBufferView getRandomValues(ArrayBufferView array);
 };

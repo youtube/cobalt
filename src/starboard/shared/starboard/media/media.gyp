@@ -19,6 +19,8 @@
       'target_name': 'media_util',
       'type': 'static_library',
       'sources': [
+        '<(DEPTH)/starboard/shared/starboard/media/avc_util.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/avc_util.h',
         '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
         '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
         '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',

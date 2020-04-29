@@ -17,6 +17,11 @@ apply plugin: 'com.android.application'
 final DEFAULT_COBALT_TARGET = 'cobalt'
 final String[] SUPPORTED_ABIS = [ 'x86', 'armeabi-v7a', 'arm64-v8a' ]
 
+// Parse the NDK_VERSION and CMAKE_VERSION defined in sdk_utils.py
+final SDK_UTILS = project.rootProject.file('../shared/sdk_utils.py')
+final NDK_VERSION = SDK_UTILS.find { it.startsWith('_NDK_VERSION =') }.split("'")[1]
+final CMAKE_VERSION = SDK_UTILS.find { it.startsWith('_CMAKE_VERSION =') }.split("'")[1]
+
 ext {
     // Provide defaults if these properties aren't specified on the command line.
     buildAbi = project.hasProperty('cobaltBuildAbi') ? cobaltBuildAbi : SUPPORTED_ABIS
@@ -25,6 +30,8 @@ ext {
             project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
     cobaltContentDir =
             project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
+    enableVulkan =
+            project.hasProperty('enableVulkan') ? enableVulkan : 0
 
     buildIdFile = rootProject.file('build.id')
     buildId = buildIdFile.exists() ? buildIdFile.text.trim() : '0'
@@ -35,6 +42,7 @@ println "TARGET: ${cobaltTarget}"
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
+    ndkVersion NDK_VERSION
 
     signingConfigs {
         // A signing config that matches what is implicitly used for the "debug" build type.
@@ -58,6 +66,7 @@ android {
                 arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
                 arguments "-DCOBALT_CONTENT_DIR=${cobaltContentDir}"
                 arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
+                arguments "-DENABLE_VULKAN=${enableVulkan}"
             }
         }
     }
@@ -129,6 +138,7 @@ android {
     }
     externalNativeBuild {
         cmake {
+            version CMAKE_VERSION
             path 'CMakeLists.txt'
             // Move the staging directory to be a sibling of the build directory, which we moved
             // in the top-level build.gradle to be in a common top-level 'build' directory. Get

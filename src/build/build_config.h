@@ -133,16 +133,7 @@
 # else   // SB_IS(BIG_ENDIAN)
 #  define ARCH_CPU_ARMEL 1
 # endif  // SB_IS(BIG_ENDIAN)
-#elif SB_IS(ARCH_PPC)
-# define ARCH_CPU_PPC_FAMILY 1
-#elif SB_IS(ARCH_MIPS)
-# define ARCH_CPU_MIPS_FAMILY 1
-# if SB_IS(BIG_ENDIAN)
-#  define ARCH_CPU_MIPS 1
-# else   // SB_IS(BIG_ENDIAN)
-#  define ARCH_CPU_MIPSEL 1
-# endif  // SB_IS(BIG_ENDIAN)
-#endif  // SB_IS(ARCH_X86)
+#endif
 #elif defined(_M_X64) || defined(__x86_64__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86_64 1

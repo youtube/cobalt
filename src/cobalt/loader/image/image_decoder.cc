@@ -19,9 +19,11 @@
 
 #include "base/command_line.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
 #include "cobalt/loader/image/jpeg_image_decoder.h"
+#include "cobalt/loader/image/lottie_animation_decoder.h"
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
@@ -56,6 +58,10 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
     return ImageDecoder::kImageTypeJPEG;
   } else if (!memcmp(header, "GIF87a", 6) || !memcmp(header, "GIF89a", 6)) {
     return ImageDecoder::kImageTypeGIF;
+  } else if (!memcmp(header, "{", 1)) {
+    // TODO: Improve heuristics for determining whether the file contains valid
+    // Lottie JSON.
+    return ImageDecoder::kImageTypeJSON;
   } else if (!memcmp(header, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) {
     return ImageDecoder::kImageTypePNG;
   } else if (!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP", 6)) {
@@ -262,6 +268,8 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
       return "image/png";
     case ImageDecoder::kImageTypeGIF:
       return "image/gif";
+    case ImageDecoder::kImageTypeJSON:
+      return "application/json";
     case ImageDecoder::kImageTypeWebP:
       return "image/webp";
     case ImageDecoder::kImageTypeInvalid:
@@ -333,6 +341,9 @@ std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
   } else if (image_type == ImageDecoder::kImageTypeGIF) {
     return std::unique_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider));
+  } else if (image_type == ImageDecoder::kImageTypeJSON) {
+    return std::unique_ptr<ImageDataDecoder>(
+        new LottieAnimationDecoder(resource_provider));
   } else {
     return std::unique_ptr<ImageDataDecoder>();
   }
@@ -381,8 +392,7 @@ void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
 
 // static
 bool ImageDecoder::AllowDecodingToMultiPlane() {
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION && \
-    defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
   // Many image formats can produce native output in multi plane images in YUV
   // 420. Allowing these images to be decoded into multi plane image not only
   // reduces the space to store the decoded image to 37.5%, but also improves
@@ -394,7 +404,9 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
   // This also applies to skia based "hardware" rasterizers as the rendering
   // of multi plane images in such cases are not optimized, but this may be
   // improved in future.
-  bool allow_image_decoding_to_multi_plane = SbGetGlesInterface() != nullptr;
+  bool allow_image_decoding_to_multi_plane =
+      std::string(configuration::Configuration::GetInstance()
+                      ->CobaltRasterizerType()) == "direct-gles";
 #elif SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   bool allow_image_decoding_to_multi_plane = true;
 #else  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)

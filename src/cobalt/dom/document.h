@@ -190,7 +190,7 @@ class Document : public Node,
   scoped_refptr<Element> GetElementById(const std::string& id) const;
 
   // Web API: HTML5 (partial interface)
-  //   https://www.w3.org/TR/html5/dom.html#the-document-object
+  //   https://www.w3.org/TR/html50/dom.html#the-document-object
   //
   const scoped_refptr<Location>& location() const;
 
@@ -202,7 +202,7 @@ class Document : public Node,
 
   scoped_refptr<HTMLHeadElement> head() const;
 
-  // https://www.w3.org/TR/html5/editing.html#dom-document-hasfocus
+  // https://www.w3.org/TR/html50/editing.html#dom-document-hasfocus
   bool HasFocus() const;
 
   scoped_refptr<Element> active_element() const;
@@ -225,7 +225,7 @@ class Document : public Node,
     return default_timeline_;
   }
 
-  // https://www.w3.org/TR/html5/dom.html#dom-document-cookie
+  // https://www.w3.org/TR/html50/dom.html#dom-document-cookie
   void set_cookie(const std::string& cookie,
                   script::ExceptionState* exception_state);
   std::string cookie(script::ExceptionState* exception_state) const;
@@ -236,7 +236,7 @@ class Document : public Node,
 
   // Returns the document's ready state, i.e. whether the document's 'load'
   // event has fired yet or not.
-  // https://www.w3.org/TR/html5/dom.html#dom-document-readystate
+  // https://www.w3.org/TR/html50/dom.html#dom-document-readystate
   DocumentReadyState ready_state() const { return ready_state_; }
 
   // Custom, not in any spec: Node.
@@ -262,7 +262,7 @@ class Document : public Node,
   scoped_refptr<HTMLHtmlElement> html() const;
 
   // List of scripts that will execute in order as soon as possible.
-  //   https://www.w3.org/TR/html5/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
+  //   https://www.w3.org/TR/html50/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
   std::deque<HTMLScriptElement*>* scripts_to_be_executed() {
     return &scripts_to_be_executed_;
   }
@@ -285,7 +285,7 @@ class Document : public Node,
 
   // Returns whether the document has browsing context. Having the browsing
   // context means the document is shown on the screen.
-  //   https://www.w3.org/TR/html5/browsers.html#browsing-context
+  //   https://www.w3.org/TR/html50/browsers.html#browsing-context
   bool HasBrowsingContext() const { return !!window_; }
 
   void set_window(Window* window) { window_ = window; }

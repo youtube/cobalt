@@ -11,11 +11,11 @@
 #include "base/memory/ptr_util.h"
 #include "base/optional.h"
 #include "base/strings/string_number_conversions.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/test_data_util.h"
 #include "cobalt/media/filters/h264_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -57,7 +57,7 @@ class H264SPSTest : public ::testing::Test {
 
 TEST_F(H264SPSTest, GetCodedSize) {
   std::unique_ptr<H264SPS> sps = MakeSPS_BBB480p();
-  EXPECT_EQ(gfx::Size(848, 480), sps->GetCodedSize());
+  EXPECT_EQ(math::Size(848, 480), sps->GetCodedSize());
 
   // Overflow.
   sps->pic_width_in_mbs_minus1 = std::numeric_limits<int>::max();
@@ -66,7 +66,7 @@ TEST_F(H264SPSTest, GetCodedSize) {
 
 TEST_F(H264SPSTest, GetVisibleRect) {
   std::unique_ptr<H264SPS> sps = MakeSPS_BBB480p();
-  EXPECT_EQ(gfx::Rect(0, 0, 848, 480), sps->GetVisibleRect());
+  EXPECT_EQ(math::Rect(0, 0, 848, 480), sps->GetVisibleRect());
 
   // Add some cropping.
   sps->frame_cropping_flag = true;
@@ -74,14 +74,14 @@ TEST_F(H264SPSTest, GetVisibleRect) {
   sps->frame_crop_right_offset = 2;
   sps->frame_crop_top_offset = 3;
   sps->frame_crop_bottom_offset = 4;
-  EXPECT_EQ(gfx::Rect(2, 6, 848 - 6, 480 - 14), sps->GetVisibleRect());
+  EXPECT_EQ(math::Rect(2, 6, 848 - 6, 480 - 14), sps->GetVisibleRect());
 
   // Not quite invalid.
   sps->frame_crop_left_offset = 422;
   sps->frame_crop_right_offset = 1;
   sps->frame_crop_top_offset = 0;
   sps->frame_crop_bottom_offset = 0;
-  EXPECT_EQ(gfx::Rect(844, 0, 2, 480), sps->GetVisibleRect());
+  EXPECT_EQ(math::Rect(844, 0, 2, 480), sps->GetVisibleRect());
 
   // Invalid crop.
   sps->frame_crop_left_offset = 423;

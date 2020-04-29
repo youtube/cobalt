@@ -32,13 +32,6 @@ TEST(SbMutexCreateTest, SunnyDay) {
   SbMutex mutex;
   EXPECT_TRUE(SbMutexCreate(&mutex));
   EXPECT_TRUE(SbMutexDestroy(&mutex));
-  // TODO: Remove those logs once we get the measurements.
-  SB_LOG(INFO) << "SB_THREAD_TYPES: sizeof(SbMutex): " << sizeof(SbMutex);
-  SB_LOG(INFO) << "SB_THREAD_TYPES: sizeof(SbThread): " << sizeof(SbThread);
-  SB_LOG(INFO) << "SB_THREAD_TYPES: sizeof(SbOnceControl): "
-               << sizeof(SbOnceControl);
-  SB_LOG(INFO) << "SB_THREAD_TYPES: sizeof(SbConditionVariable): "
-               << sizeof(SbConditionVariable);
 }
 
 TEST(SbMutexCreateTest, SunnyDayAutoInit) {

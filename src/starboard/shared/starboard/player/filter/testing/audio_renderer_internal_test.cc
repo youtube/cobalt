@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
 
 #include <functional>
 #include <set>
@@ -22,13 +22,13 @@
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -113,7 +113,7 @@ class AudioRendererTest : public ::testing::Test {
 
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
-    audio_renderer_.reset(new AudioRenderer(
+    audio_renderer_.reset(new AudioRendererImpl(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioSampleInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
@@ -127,14 +127,14 @@ class AudioRendererTest : public ::testing::Test {
   // until the renderer reaches its preroll threshold.
   // Once the renderer is "full", an EndOfStream is written.
   // Returns the number of frames written.
-  int FillRendererWithDecodedAudioAndWriteEOS() {
+  int FillRendererWithDecodedAudioAndWriteEOS(SbTime start_timestamp) {
     const int kFramesPerBuffer = 1024;
 
     int frames_written = 0;
 
     while (!prerolled_) {
-      SbTime timestamp =
-          frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+      SbTime timestamp = start_timestamp + frames_written * kSbTimeSecond /
+                                               kDefaultSamplesPerSecond;
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
@@ -236,7 +236,7 @@ class AudioRendererTest : public ::testing::Test {
   AudioDecoder::ConsumedCB consumed_cb_;
   bool prerolled_ = true;
 
-  scoped_ptr<AudioRenderer> audio_renderer_;
+  scoped_ptr<AudioRendererImpl> audio_renderer_;
   MockAudioDecoder* audio_decoder_;
   MockAudioRendererSink* audio_renderer_sink_;
   AudioRendererSink::RenderCallback* renderer_callback_;
@@ -327,7 +327,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   bool is_playing = true;
   bool is_eos_played = true;
@@ -421,7 +421,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
   bool is_playing = false;
   bool is_eos_played = true;
   bool is_underflow = true;
@@ -453,7 +453,8 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
-  const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
+  const int frames_to_consume =
+      std::min(frames_written / kPlaybackRate, frames_in_buffer) / 2;
   SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
@@ -501,7 +502,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   audio_renderer_->Play();
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   SendDecoderOutput(new DecodedAudio);
 
@@ -862,7 +863,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  int frames_written = FillRendererWithDecodedAudioAndWriteEOS(0);
 
   bool is_playing;
   bool is_eos_played;
@@ -907,7 +908,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_GE(new_media_time, media_time);
   Seek(seek_time);
 
-  frames_written += FillRendererWithDecodedAudioAndWriteEOS();
+  frames_written += FillRendererWithDecodedAudioAndWriteEOS(seek_time);
 
   EXPECT_GE(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
                                                  &is_underflow),
@@ -946,4 +947,3 @@ TEST_F(AudioRendererTest, Seek) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

@@ -82,11 +82,11 @@ bool WebMVideoClient::InitializeConfig(
 
   if (display_unit_ == -1) display_unit_ = 0;
 
-  gfx::Size coded_size(pixel_width_, pixel_height_);
-  gfx::RectF visible_rect_float(crop_top_, crop_left_,
-                                pixel_width_ - (crop_left_ + crop_right_),
-                                pixel_height_ - (crop_top_ + crop_bottom_));
-  gfx::Rect visible_rect = math::Rect::RoundFromRectF(visible_rect_float);
+  math::Size coded_size(pixel_width_, pixel_height_);
+  math::RectF visible_rect_float(crop_top_, crop_left_,
+                                 pixel_width_ - (crop_left_ + crop_right_),
+                                 pixel_height_ - (crop_top_ + crop_bottom_));
+  math::Rect visible_rect = math::Rect::RoundFromRectF(visible_rect_float);
   if (display_unit_ == 0) {
     if (display_width_ <= 0) display_width_ = visible_rect.width();
     if (display_height_ <= 0) display_height_ = visible_rect.height();
@@ -97,7 +97,7 @@ bool WebMVideoClient::InitializeConfig(
         << "Unsupported display unit type " << display_unit_;
     return false;
   }
-  gfx::Size natural_size = gfx::Size(display_width_, display_height_);
+  math::Size natural_size = math::Size(display_width_, display_height_);
 
   config->Initialize(video_codec, profile, format, COLOR_SPACE_HD_REC709,
                      coded_size, visible_rect, natural_size, codec_private,

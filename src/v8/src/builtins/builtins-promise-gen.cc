@@ -2038,7 +2038,11 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
   // instead, recurse outwards.
   SetForwardingHandlerIfTrue(
       native_context, IsDebugActive(),
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       LoadObjectField(capability, PromiseCapability::kRejectOffset));
+#else
+      static_cast<Node*>(LoadObjectField(capability, PromiseCapability::kRejectOffset)));
+#endif
 
   TNode<Context> resolve_element_context =
       Cast(CreatePromiseAllResolveElementContext(capability, native_context));

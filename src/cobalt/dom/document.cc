@@ -314,12 +314,12 @@ void Document::set_dir(const std::string& value) {
 }
 
 // Algorithm for body:
-//   https://www.w3.org/TR/html5/dom.html#dom-document-body
+//   https://www.w3.org/TR/html50/dom.html#dom-document-body
 scoped_refptr<HTMLBodyElement> Document::body() const {
   // The body element of a document is the first child of the html element that
   // is either a body element or a frameset element. If there is no such
   // element, it is null.
-  //   https://www.w3.org/TR/html5/dom.html#the-body-element-0
+  //   https://www.w3.org/TR/html50/dom.html#the-body-element-0
   HTMLHtmlElement* html_element = html().get();
   if (!html_element) {
     return NULL;
@@ -338,7 +338,7 @@ scoped_refptr<HTMLBodyElement> Document::body() const {
 }
 
 // Algorithm for set_body:
-//   https://www.w3.org/TR/html5/dom.html#dom-document-body
+//   https://www.w3.org/TR/html50/dom.html#dom-document-body
 void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
@@ -370,11 +370,11 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
 }
 
 // Algorithm for head:
-//   https://www.w3.org/TR/html5/dom.html#dom-document-head
+//   https://www.w3.org/TR/html50/dom.html#dom-document-head
 scoped_refptr<HTMLHeadElement> Document::head() const {
   // The head element of a document is the first head element that is a child of
   // the html element, if there is one, or null otherwise.
-  //   https://www.w3.org/TR/html5/dom.html#the-head-element-0
+  //   https://www.w3.org/TR/html50/dom.html#the-head-element-0
   HTMLHtmlElement* html_element = html().get();
   if (!html_element) {
     return NULL;
@@ -396,7 +396,7 @@ bool Document::HasFocus() const {
   return page_visibility_state()->HasWindowFocus();
 }
 
-// https://www.w3.org/TR/html5/editing.html#dom-document-activeelement
+// https://www.w3.org/TR/html50/editing.html#dom-document-activeelement
 scoped_refptr<Element> Document::active_element() const {
   // The activeElement attribute on Document objects must return the element in
   // the document that is focused. If no element in the Document is focused,
@@ -515,7 +515,7 @@ scoped_refptr<Node> Document::Duplicate() const {
 scoped_refptr<HTMLHtmlElement> Document::html() const {
   // The html element of a document is the document's root element, if there is
   // one and it's an html element, or null otherwise.
-  //   https://www.w3.org/TR/html5/dom.html#the-html-element-0
+  //   https://www.w3.org/TR/html50/dom.html#the-html-element-0
   Element* root = document_element().get();
   if (!root) {
     return NULL;
@@ -867,8 +867,6 @@ void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void Document::SetPartialLayout(bool enabled) {
   partial_layout_is_enabled_ = enabled;
-  DLOG(INFO) << "Partial Layout is "
-             << (partial_layout_is_enabled_ ? "on" : "off");
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 

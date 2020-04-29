@@ -240,6 +240,7 @@ class Node : public EventTarget {
   }
 
   DEFINE_WRAPPABLE_TYPE(Node);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kNode; }
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:

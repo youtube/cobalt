@@ -86,6 +86,7 @@ class DOMException : public script::ScriptException {
                     script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(DOMException);
+  JSObjectType GetJSObjectType() override { return JSObjectType::kError; }
 
  private:
   ExceptionCode code_;

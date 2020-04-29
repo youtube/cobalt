@@ -33,6 +33,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
@@ -46,6 +47,7 @@
 #include "cobalt/renderer/rasterizer/skia/image.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkNV122RGBShader.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkYUV2RGBShader.h"
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
 #include "third_party/skia/include/core/SkClipOp.h"
@@ -707,6 +709,24 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();
 #endif
+}
+
+void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
+  TRACE_EVENT0("cobalt::renderer", "Visit(LottieNode)");
+#endif
+  skia::SkottieAnimation* animation =
+      base::polymorphic_downcast<skia::SkottieAnimation*>(
+          lottie_node->data().animation.get());
+  animation->SetAnimationTime(lottie_node->data().animation_time);
+
+  sk_sp<skottie::Animation> skottie = animation->GetSkottieAnimation();
+  SkCanvas* render_target = draw_state_.render_target;
+  math::RectF bounding_rect = lottie_node->data().destination_rect;
+  const SkRect sk_bounding_rect =
+      SkRect::MakeXYWH(bounding_rect.x(), bounding_rect.y(),
+                       bounding_rect.width(), bounding_rect.height());
+  skottie->render(render_target, &sk_bounding_rect);
 }
 
 void RenderTreeNodeVisitor::Visit(

@@ -21,6 +21,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -32,27 +33,6 @@ namespace testing {
 namespace {
 
 const char kTestFilename[] = "beneath_the_canopy_aac_stereo.dmp";
-
-std::string GetTestInputDirectory() {
-  using std::string;
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kPathSize));
-  string directory_path =
-      string(content_path.data()) + kSbFileSepChar + "test" + kSbFileSepChar +
-      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
-      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
 
 class FileCacheReaderTest : public ::testing::Test {
  public:

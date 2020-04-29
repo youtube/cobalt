@@ -250,10 +250,10 @@ MediaSourceDemuxer::MediaSourceDemuxer(const std::vector<uint8>& content)
   // Try to load it as an ivf first.
   if (LoadIVF(content, Bind(&MediaSourceDemuxer::AppendBuffer,
                             base::Unretained(this)))) {
-    config_.Initialize(::media::kCodecVP9, ::media::VP9PROFILE_MAIN,
-                       ::media::VideoFrame::YV12,
-                       ::media::COLOR_SPACE_HD_REC709, gfx::Size(1, 1),
-                       gfx::Rect(1, 1), gfx::Size(1, 1), NULL, 0, false, false);
+    config_.Initialize(
+        ::media::kCodecVP9, ::media::VP9PROFILE_MAIN, ::media::VideoFrame::YV12,
+        ::media::COLOR_SPACE_HD_REC709, math::Size(1, 1), math::Rect(1, 1),
+        math::Size(1, 1), NULL, 0, false, false);
     valid_ = descs_.size() > 0;
     return;
   }

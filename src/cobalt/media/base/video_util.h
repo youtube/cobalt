@@ -6,10 +6,10 @@
 #define COBALT_MEDIA_BASE_VIDEO_UTIL_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -17,9 +17,9 @@ namespace media {
 class VideoFrame;
 
 // Computes the size of |visible_size| for a given aspect ratio.
-MEDIA_EXPORT gfx::Size GetNaturalSize(const gfx::Size& visible_size,
-                                      int aspect_ratio_numerator,
-                                      int aspect_ratio_denominator);
+MEDIA_EXPORT math::Size GetNaturalSize(const math::Size& visible_size,
+                                       int aspect_ratio_numerator,
+                                       int aspect_ratio_denominator);
 
 // Fills |frame| containing YUV data to the given color values.
 MEDIA_EXPORT void FillYUV(VideoFrame* frame, uint8_t y, uint8_t u, uint8_t v);
@@ -32,7 +32,7 @@ MEDIA_EXPORT void FillYUVA(VideoFrame* frame, uint8_t y, uint8_t u, uint8_t v,
 // |view_area| are black. The size and position of |view_area|
 // must be even to align correctly with the color planes.
 // Only YV12 format video frames are currently supported.
-MEDIA_EXPORT void LetterboxYUV(VideoFrame* frame, const gfx::Rect& view_area);
+MEDIA_EXPORT void LetterboxYUV(VideoFrame* frame, const math::Rect& view_area);
 
 // Rotates |src| plane by |rotation| degree with possible flipping vertically
 // and horizontally.
@@ -53,22 +53,22 @@ MEDIA_EXPORT void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest,
 // Return the largest centered rectangle with the same aspect ratio of |content|
 // that fits entirely inside of |bounds|.  If |content| is empty, its aspect
 // ratio would be undefined; and in this case an empty Rect would be returned.
-MEDIA_EXPORT gfx::Rect ComputeLetterboxRegion(const gfx::Rect& bounds,
-                                              const gfx::Size& content);
+MEDIA_EXPORT math::Rect ComputeLetterboxRegion(const math::Rect& bounds,
+                                               const math::Size& content);
 
 // Return a scaled |size| whose area is less than or equal to |target|, where
 // one of its dimensions is equal to |target|'s.  The aspect ratio of |size| is
 // preserved as closely as possible.  If |size| is empty, the result will be
 // empty.
-MEDIA_EXPORT gfx::Size ScaleSizeToFitWithinTarget(const gfx::Size& size,
-                                                  const gfx::Size& target);
+MEDIA_EXPORT math::Size ScaleSizeToFitWithinTarget(const math::Size& size,
+                                                   const math::Size& target);
 
 // Return a scaled |size| whose area is greater than or equal to |target|, where
 // one of its dimensions is equal to |target|'s.  The aspect ratio of |size| is
 // preserved as closely as possible.  If |size| is empty, the result will be
 // empty.
-MEDIA_EXPORT gfx::Size ScaleSizeToEncompassTarget(const gfx::Size& size,
-                                                  const gfx::Size& target);
+MEDIA_EXPORT math::Size ScaleSizeToEncompassTarget(const math::Size& size,
+                                                   const math::Size& target);
 
 // Returns |size| with only one of its dimensions increased such that the result
 // matches the aspect ratio of |target|.  This is different from
@@ -76,13 +76,13 @@ MEDIA_EXPORT gfx::Size ScaleSizeToEncompassTarget(const gfx::Size& size,
 // ratio of |target| rather than that of |size|.  2) Only one of the dimensions
 // of |size| may change, and it may only be increased (padded).  If either
 // |size| or |target| is empty, the result will be empty.
-MEDIA_EXPORT gfx::Size PadToMatchAspectRatio(const gfx::Size& size,
-                                             const gfx::Size& target);
+MEDIA_EXPORT math::Size PadToMatchAspectRatio(const math::Size& size,
+                                              const math::Size& target);
 
 // Copy an RGB bitmap into the specified |region_in_frame| of a YUV video frame.
 // Fills the regions outside |region_in_frame| with black.
 MEDIA_EXPORT void CopyRGBToVideoFrame(const uint8_t* source, int stride,
-                                      const gfx::Rect& region_in_frame,
+                                      const math::Rect& region_in_frame,
                                       VideoFrame* frame);
 
 // Converts a frame with YV12A format into I420 by dropping alpha channel.

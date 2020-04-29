@@ -61,9 +61,11 @@ class NativesStore {
     // We expect the libraries in the following format:
     //   int: # of sources.
     //   2N blobs: N pairs of source name + actual source.
-    int library_count = source->GetInt();
-    for (int i = 0; i < library_count; ++i)
+    // Cobalt's manual cherry-pick of Chromium V8 change 1809374.
+    int library_count = source->GetIntSlow();
+    for (int i = 0; i < library_count; ++i) {
       store->ReadNameAndContentPair(source);
+    }
 
     return store;
   }

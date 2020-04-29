@@ -50,7 +50,7 @@ class MockPipelineClient : public Pipeline::Client {
   MOCK_METHOD2(OnAddTextTrack,
                void(const TextTrackConfig&, const AddTextTrackDoneCB&));
   MOCK_METHOD0(OnWaitingForDecryptionKey, void());
-  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
+  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const math::Size&));
   MOCK_METHOD1(OnVideoOpacityChange, void(bool));
 };
 
@@ -214,7 +214,7 @@ class MockRendererClient : public RendererClient {
   MOCK_METHOD1(OnStatisticsUpdate, void(const PipelineStatistics&));
   MOCK_METHOD1(OnBufferingStateChange, void(BufferingState));
   MOCK_METHOD0(OnWaitingForDecryptionKey, void());
-  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
+  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const math::Size&));
   MOCK_METHOD1(OnVideoOpacityChange, void(bool));
   MOCK_METHOD1(OnDurationChange, void(base::TimeDelta));
 };

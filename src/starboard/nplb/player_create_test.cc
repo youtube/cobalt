@@ -48,12 +48,10 @@ void DummyStatusFunc(SbPlayer player,
                      SbPlayerState state,
                      int ticket) {}
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void DummyErrorFunc(SbPlayer player,
                     void* context,
                     SbPlayerError error,
                     const char* message) {}
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
@@ -93,18 +91,13 @@ SbPlayer CallSbPlayerCreate(
 #else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   return SbPlayerCreate(window, video_codec, audio_codec,
-#if SB_API_VERSION < 10
-                        SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
                         kSbDrmSystemInvalid, audio_sample_info,
 #if SB_API_VERSION >= 11
                         max_video_capabilities,
 #endif  // SB_API_VERSION >= 11
                         sample_deallocate_func, decoder_status_func,
                         player_status_func,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
                         DummyErrorFunc,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                         context, output_mode, context_provider);
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
@@ -152,7 +145,6 @@ TEST_F(SbPlayerTest, SunnyDay) {
   }
 }
 
-#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, NullCallbacks) {
   SbMediaAudioSampleInfo audio_sample_info =
       CreateAudioSampleInfo(kSbMediaAudioCodecAac);
@@ -206,8 +198,6 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayerDestroy(player);
     }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
     {
@@ -243,19 +233,10 @@ TEST_F(SbPlayerTest, NullCallbacks) {
     }
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
-#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
-  if (!kSbHasAudiolessVideo) {
-    return;
-  }
-
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
 
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
@@ -283,10 +264,7 @@ TEST_F(SbPlayerTest, Audioless) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_AUDIOLESS_VIDEO)
 
-#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, AudioOnly) {
   SbMediaAudioSampleInfo audio_sample_info =
       CreateAudioSampleInfo(kSbMediaAudioCodecAac);
@@ -419,7 +397,6 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= 10
 
 }  // namespace
 }  // namespace nplb

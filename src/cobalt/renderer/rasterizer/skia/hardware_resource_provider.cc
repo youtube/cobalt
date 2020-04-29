@@ -33,6 +33,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
@@ -214,9 +215,7 @@ uint32_t DecodeTargetFormatToGLFormat(
       }
 #endif  // SB_API_VERSION >= 7
     } break;
-#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
-#endif
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
 #if SB_API_VERSION >= 7 && defined(GL_RED_EXT)
@@ -242,11 +241,9 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
     } break;
-#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020;
     } break;
-#endif
     default: { NOTREACHED(); }
   }
   return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
@@ -544,6 +541,14 @@ float HardwareResourceProvider::GetTextWidth(
     render_tree::FontVector* maybe_used_fonts) {
   return text_shaper_.GetTextWidth(text_buffer, text_length, language, is_rtl,
                                    font_provider, maybe_used_fonts);
+}
+
+scoped_refptr<render_tree::LottieAnimation>
+HardwareResourceProvider::CreateLottieAnimation(const char* data,
+                                                size_t length) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareResourceProvider::CreateLottieAnimation()");
+  return base::WrapRefCounted(new SkottieAnimation(data, length));
 }
 
 scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(

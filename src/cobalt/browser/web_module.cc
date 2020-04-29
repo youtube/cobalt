@@ -38,6 +38,7 @@
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
@@ -1304,7 +1305,8 @@ void WebModule::DestructionObserver::WillDestroyCurrentMessageLoop() {
 WebModule::Options::Options()
     : name("WebModule"),
       layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-      mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES) {}
+      mesh_cache_capacity(configuration::Configuration::GetInstance()
+                              ->CobaltMeshCacheSizeInBytes()) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,

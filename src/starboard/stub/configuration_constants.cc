@@ -55,9 +55,6 @@ const bool kSbHasAc3Audio = true;
 // Specifies whether this platform updates audio frames asynchronously.
 const bool kSbHasAsyncAudioFramesReporting = false;
 
-// Allow playing audioless video.
-const bool kSbHasAudiolessVideo = true;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = false;
@@ -139,6 +136,11 @@ const char kSbPathSepChar = ':';
 
 // The string form of SB_PATH_SEP_CHAR.
 const char* kSbPathSepString = ":";
+
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;

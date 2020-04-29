@@ -171,11 +171,11 @@ GetBuildConfiguration(JSContext* cx, unsigned argc, Value* vp)
     if (!JS_SetProperty(cx, info, "tsan", value))
         return false;
 
-#ifdef JS_GC_ZEAL
-    value = BooleanValue(true);
-#else
-    value = BooleanValue(false);
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        value = BooleanValue(true);
+    } else {
+        value = BooleanValue(false);
+    }
     if (!JS_SetProperty(cx, info, "has-gczeal", value))
         return false;
 
@@ -540,7 +540,6 @@ GCPreserveCode(JSContext* cx, unsigned argc, Value* vp)
     return true;
 }
 
-#ifdef JS_GC_ZEAL
 static bool
 GCZeal(JSContext* cx, unsigned argc, Value* vp)
 {
@@ -700,7 +699,6 @@ DeterministicGC(JSContext* cx, unsigned argc, Value* vp)
     args.rval().setUndefined();
     return true;
 }
-#endif /* JS_GC_ZEAL */
 
 static bool
 StartGC(JSContext* cx, unsigned argc, Value* vp)
@@ -1142,9 +1140,9 @@ OOMTest(JSContext* cx, unsigned argc, Value* vp)
         threadEnd = threadOption + 1;
     }
 
-#if defined(JS_GC_ZEAL)
-    JS_SetGCZeal(cx, 0, JS_DEFAULT_ZEAL_FREQ);
-#endif
+    if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+        JS_SetGCZeal(cx, 0, JS_DEFAULT_ZEAL_FREQ);
+    }
 
     for (unsigned thread = threadStart; thread < threadEnd; thread++) {
         if (verbose)
@@ -3268,7 +3266,6 @@ static const JSFunctionSpecWithHelp TestingFunctions[] = {
 "gcPreserveCode()",
 "  Preserve JIT code during garbage collections."),
 
-#ifdef JS_GC_ZEAL
     JS_FN_HELP("gczeal", GCZeal, 2, 0,
 "gczeal(level, [N])",
 gc::ZealModeHelpText),
@@ -3298,7 +3295,6 @@ gc::ZealModeHelpText),
     JS_FN_HELP("deterministicgc", DeterministicGC, 1, 0,
 "deterministicgc(true|false)",
 "  If true, only allow determinstic GCs to run."),
-#endif
 
     JS_FN_HELP("startgc", StartGC, 1, 0,
 "startgc([n [, 'shrinking']])",

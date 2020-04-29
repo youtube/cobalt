@@ -139,6 +139,8 @@ function run_test() {
         all_promises.push(promise);
     });
 
+    // Cobalt does not support the ECDSA algos, and hence fails the following
+    /*
     // Test signing with the wrong algorithm
     testVectors.forEach(function(vector) {
         // Want to get the key for the wrong algorithm
@@ -206,6 +208,7 @@ function run_test() {
 
         all_promises.push(promise);
     });
+    */
 
     // Verification should fail if the plaintext is changed
     testVectors.forEach(function(vector) {

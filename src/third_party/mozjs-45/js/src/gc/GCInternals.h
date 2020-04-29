@@ -91,8 +91,6 @@ class IncrementalSafety
 IncrementalSafety
 IsIncrementalGCSafe(JSRuntime* rt);
 
-#ifdef JS_GC_ZEAL
-
 class MOZ_RAII AutoStopVerifyingBarriers
 {
     GCRuntime* gc;
@@ -102,34 +100,32 @@ class MOZ_RAII AutoStopVerifyingBarriers
     AutoStopVerifyingBarriers(JSRuntime* rt, bool isShutdown)
       : gc(&rt->gc)
     {
-        restartPreVerifier = gc->endVerifyPreBarriers() && !isShutdown;
+        if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+            restartPreVerifier = gc->endVerifyPreBarriers() && !isShutdown;
+        }
     }
 
     ~AutoStopVerifyingBarriers() {
-        // Nasty special case: verification runs a minor GC, which *may* nest
-        // inside of an outer minor GC. This is not allowed by the
-        // gc::Statistics phase tree. So we pause the "real" GC, if in fact one
-        // is in progress.
-        gcstats::Phase outer = gc->stats.currentPhase();
-        if (outer != gcstats::PHASE_NONE)
-            gc->stats.endPhase(outer);
-        MOZ_ASSERT((gc->stats.currentPhase() == gcstats::PHASE_NONE) ||
-                   (gc->stats.currentPhase() == gcstats::PHASE_GC_BEGIN) ||
-                   (gc->stats.currentPhase() == gcstats::PHASE_GC_END));
+        if (cobalt::configuration::Configuration::GetInstance()->CobaltGcZeal()) {
+            // Nasty special case: verification runs a minor GC, which *may* nest
+            // inside of an outer minor GC. This is not allowed by the
+            // gc::Statistics phase tree. So we pause the "real" GC, if in fact one
+            // is in progress.
+            gcstats::Phase outer = gc->stats.currentPhase();
+            if (outer != gcstats::PHASE_NONE)
+                gc->stats.endPhase(outer);
+            MOZ_ASSERT((gc->stats.currentPhase() == gcstats::PHASE_NONE) ||
+                       (gc->stats.currentPhase() == gcstats::PHASE_GC_BEGIN) ||
+                       (gc->stats.currentPhase() == gcstats::PHASE_GC_END));
 
-        if (restartPreVerifier)
-            gc->startVerifyPreBarriers();
+            if (restartPreVerifier)
+                gc->startVerifyPreBarriers();
 
-        if (outer != gcstats::PHASE_NONE)
-            gc->stats.beginPhase(outer);
+            if (outer != gcstats::PHASE_NONE)
+                gc->stats.beginPhase(outer);
+        }
     }
 };
-#else
-struct MOZ_RAII AutoStopVerifyingBarriers
-{
-    AutoStopVerifyingBarriers(JSRuntime*, bool) {}
-};
-#endif /* JS_GC_ZEAL */
 
 #ifdef JSGC_HASH_TABLE_CHECKS
 void

@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 10
 void SbPlayerSeek2(SbPlayer player, SbTime seek_to_timestamp, int ticket) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -26,4 +25,3 @@ void SbPlayerSeek2(SbPlayer player, SbTime seek_to_timestamp, int ticket) {
 
   player->Seek(seek_to_timestamp, ticket);
 }
-#endif  // SB_API_VERSION >= 10

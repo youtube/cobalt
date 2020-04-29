@@ -76,6 +76,10 @@
 
 #include <stdint.h>
 
+// We include this to avoid mozjs-45 defining its own DISALLOW_COPY_AND_ASSIGN
+// macro.
+#include "cobalt/configuration/configuration.h"
+
 // The following macro works on both 32 and 64-bit platforms.
 // Usage: instead of writing 0x1234567890123456
 //      write UINT64_2PART_C(0x12345678,90123456);

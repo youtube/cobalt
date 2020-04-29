@@ -21,6 +21,8 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/math/rect.h"
+#include "cobalt/math/size.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
@@ -28,8 +30,6 @@
 #include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
-#include "ui/gfx/rect.h"
-#include "ui/gfx/size.h"
 
 namespace cobalt {
 namespace media {
@@ -56,7 +56,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
-  typedef base::Callback<bool(const gfx::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
@@ -202,7 +202,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will
   // be 0.
-  virtual void GetNaturalVideoSize(gfx::Size* out_size) const = 0;
+  virtual void GetNaturalVideoSize(math::Size* out_size) const = 0;
 
   // Return true if loading progress has been made since the last time this
   // method was called.

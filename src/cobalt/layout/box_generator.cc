@@ -29,6 +29,7 @@
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/lottie_player.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
@@ -41,6 +42,7 @@
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
+#include "cobalt/loader/image/lottie_animation.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
@@ -69,6 +71,14 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
     DCHECK(frame_provider);
     return NULL;
   }
+}
+
+scoped_refptr<render_tree::Image> GetLottieAnimation(
+    scoped_refptr<loader::image::Image> lottie_animation) {
+  TRACE_EVENT0("cobalt::layout", "GetLottieAnimation()");
+  return base::polymorphic_downcast<loader::image::LottieAnimation*>(
+             lottie_animation.get())
+      ->animation();
 }
 
 }  // namespace
@@ -150,6 +160,13 @@ void BoxGenerator::Visit(dom::Element* element) {
     return;
   }
 
+  scoped_refptr<dom::LottiePlayer> lottie_player =
+      html_element->AsLottiePlayer();
+  if (lottie_player) {
+    VisitLottiePlayer(lottie_player);
+    return;
+  }
+
   VisitNonReplacedElement(html_element);
 }
 
@@ -157,18 +174,18 @@ namespace {
 
 class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
-  ReplacedBoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
-                           css_computed_style_declaration,
-                       const ReplacedBox::ReplaceImageCB& replace_image_cb,
-                       const ReplacedBox::SetBoundsCB& set_bounds_cb,
-                       const scoped_refptr<Paragraph>& paragraph,
-                       int32 text_position,
-                       const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-                       const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-                       const base::Optional<float>& maybe_intrinsic_ratio,
-                       const BoxGenerator::Context* context,
-                       base::Optional<bool> is_video_punched_out,
-                       math::SizeF content_size)
+  ReplacedBoxGenerator(
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
+      const ReplacedBox::ReplaceImageCB& replace_image_cb,
+      const ReplacedBox::SetBoundsCB& set_bounds_cb,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+      const base::Optional<LayoutUnit>& maybe_intrinsic_width,
+      const base::Optional<LayoutUnit>& maybe_intrinsic_height,
+      const base::Optional<float>& maybe_intrinsic_ratio,
+      const BoxGenerator::Context* context,
+      base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
+      math::SizeF content_size)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -178,7 +195,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_height_(maybe_intrinsic_height),
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
         context_(context),
-        is_video_punched_out_(is_video_punched_out),
+        replaced_box_mode_(replaced_box_mode),
         content_size_(content_size) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) override;
@@ -196,7 +213,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::Optional<LayoutUnit> maybe_intrinsic_height_;
   const base::Optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
-  base::Optional<bool> is_video_punched_out_;
+  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
@@ -212,7 +229,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_, content_size_,
+          context_->used_style_provider, replaced_box_mode_, content_size_,
           context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
@@ -226,7 +243,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_, content_size_,
+          context_->used_style_provider, replaced_box_mode_, content_size_,
           context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
@@ -324,12 +341,15 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
-  base::Optional<bool> is_punch_out;
+  base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
   if (video_element->GetVideoFrameProvider()) {
     VideoFrameProvider::OutputMode output_mode =
         video_element->GetVideoFrameProvider()->GetOutputMode();
     if (output_mode != VideoFrameProvider::kOutputModeInvalid) {
-      is_punch_out = output_mode == VideoFrameProvider::kOutputModePunchOut;
+      replaced_box_mode =
+          (output_mode == VideoFrameProvider::kOutputModePunchOut)
+              ? ReplacedBox::ReplacedBoxMode::kPunchOutVideo
+              : ReplacedBox::ReplacedBoxMode::kVideo;
     }
   }
 
@@ -340,7 +360,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out,
+      base::nullopt, base::nullopt, base::nullopt, context_, replaced_box_mode,
       video_element->GetVideoSize());
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
@@ -402,6 +422,42 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
 
   br_text_box->SetUiNavItem(br_element->GetUiNavItem());
   boxes_.push_back(br_text_box);
+}
+
+void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
+  int32 text_position =
+      (*paragraph_)
+          ->AppendCodePoint(Paragraph::kObjectReplacementCharacterCodePoint);
+
+  ReplacedBoxGenerator replaced_box_generator(
+      lottie_player->css_computed_style_declaration(),
+      lottie_player->cached_image()->TryGetResource()
+          ? base::Bind(GetLottieAnimation,
+                       lottie_player->cached_image()->TryGetResource())
+          : ReplacedBox::ReplaceImageCB(),
+      ReplacedBox::SetBoundsCB(), *paragraph_, text_position, base::nullopt,
+      base::nullopt, base::nullopt, context_,
+      ReplacedBox::ReplacedBoxMode::kLottie,
+      math::Size() /* only relevant to punch out video */);
+  lottie_player->computed_style()->display()->Accept(&replaced_box_generator);
+
+  scoped_refptr<ReplacedBox> replaced_box =
+      replaced_box_generator.replaced_box();
+  if (replaced_box.get() == NULL) {
+    // The element with "display: none" generates no boxes and has no effect
+    // on layout. Descendant elements do not generate any boxes either.
+    // This behavior cannot be overridden by setting the "display" property on
+    // the descendants.
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
+    return;
+  }
+
+#ifdef COBALT_BOX_DUMP_ENABLED
+  replaced_box->SetGeneratingNode(lottie_player);
+#endif  // COBALT_BOX_DUMP_ENABLED
+
+  replaced_box->SetUiNavItem(lottie_player->GetUiNavItem());
+  boxes_.push_back(replaced_box);
 }
 
 namespace {

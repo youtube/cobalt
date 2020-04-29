@@ -30,7 +30,7 @@ namespace dom {
 // document of their Document's browsing context, and allow the current entry of
 // the browsing context's session history to be changed, by adding or replacing
 // entries in the history object.
-//   https://www.w3.org/TR/html5/browsers.html#the-location-interface
+//   https://www.w3.org/TR/html50/browsers.html#the-location-interface
 class Location : public script::Wrappable {
  public:
   // If any navigation is triggered, all these callbacks should be provided,

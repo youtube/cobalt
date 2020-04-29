@@ -7013,12 +7013,17 @@ CompiledWasmModule::CompiledWasmModule(
 }
 
 OwnedBuffer CompiledWasmModule::Serialize() {
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
   if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
     return {};
   return {std::move(buffer), buffer_size};
+#else
+  // The std::move(uint8_t[]) issue
+  return OwnedBuffer();
+#endif
 }
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
@@ -7033,6 +7038,7 @@ WasmModuleObject::GetTransferrableModule() {
         i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
     return TransferrableModule(obj->shared_native_module());
   } else {
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     CompiledWasmModule compiled_module = GetCompiledModule();
     OwnedBuffer serialized_module = compiled_module.Serialize();
     MemorySpan<const uint8_t> wire_bytes_ref =
@@ -7042,6 +7048,10 @@ WasmModuleObject::GetTransferrableModule() {
     memcpy(wire_bytes_copy.get(), wire_bytes_ref.data(), wire_size);
     return TransferrableModule(std::move(serialized_module),
                                {std::move(wire_bytes_copy), wire_size});
+#else
+    // The std::move(uint8_t[]) issue
+    return TransferrableModule(OwnedBuffer(), OwnedBuffer());
+#endif
   }
 }
 
@@ -7425,7 +7435,7 @@ i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
   bool is_wasm_memory =
-#if defined(DISABLE_WASM_STARBOARD)
+#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       false;
 #else
       i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);

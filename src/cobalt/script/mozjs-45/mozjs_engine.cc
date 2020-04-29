@@ -259,7 +259,12 @@ std::unique_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {
-  return std::string("mozjs/") + MOZILLA_VERSION;
+  return std::string("mozjs/") + MOZILLA_VERSION
+#if defined(ENGINE_SUPPORTS_JIT)
+      + "-jit";
+#else
+      + "-jitless";
+#endif
 }
 
 }  // namespace script

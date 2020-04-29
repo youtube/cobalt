@@ -31,10 +31,9 @@ import sys
 
 def main(argv):
   dmp_dir = argv[1]
-  sha1 = hashlib.sha1()
 
-  dmp_sha1_dir = os.path.join(dmp_dir, 'dmp_sha1_files')
-  gs_dir = os.path.join(dmp_dir, 'gs_files')
+  dmp_sha1_dir = os.path.join(dmp_dir, "dmp_sha1_files")
+  gs_dir = os.path.join(dmp_dir, "gs_files")
 
   if not os.path.exists(dmp_sha1_dir):
     os.mkdir(dmp_sha1_dir)
@@ -43,25 +42,33 @@ def main(argv):
 
   for filename in os.listdir(dmp_dir):
     _, ext = os.path.splitext(filename)
-    if ext == '.dmp':
+    if ext == ".dmp":
+      print "*"
+      print "File: " + filename
       # Compute the sha1 of the file
       filepath = os.path.join(dmp_dir, filename)
-      with open(filepath, 'rb') as filehandle:
+      with open(filepath, "rb") as filehandle:
+        sha1 = hashlib.sha1()
         buf = filehandle.read(65536)
         while buf:
           sha1.update(buf)
           buf = filehandle.read(65536)
         sha1sum = sha1.hexdigest()
 
+        print "SHA1: " + sha1sum
+
         # Rename the original DMP to its |SHA1| with no extension.
-        shutil.copyfile(filepath, os.path.join(gs_dir, sha1sum))
+        gs_out = os.path.join(gs_dir, sha1sum)
+        shutil.copyfile(filepath, gs_out)
+        print "Copied \'" + filepath + "\' => \'" + gs_out + "\'"
 
         # Create a new file with the |SHA1| of the DMP as its contents.
-        dmp_sha1_filename = os.path.join(dmp_sha1_dir, filename + '.sha1')
-        with open(dmp_sha1_filename, 'w') as dmp_sha1_file:
+        dmp_sha1_filename = os.path.join(dmp_sha1_dir, filename + ".sha1")
+        with open(dmp_sha1_filename, "w") as dmp_sha1_file:
           dmp_sha1_file.write(sha1sum)
           dmp_sha1_file.close()
+          print "Created \'" + dmp_sha1_filename + "\'"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   sys.exit(main(sys.argv))

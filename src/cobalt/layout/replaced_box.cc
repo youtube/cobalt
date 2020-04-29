@@ -35,6 +35,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/lottie_node.h"
 #include "cobalt/render_tree/map_to_mesh_filter.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
@@ -46,6 +47,7 @@ namespace layout {
 using render_tree::CompositionNode;
 using render_tree::FilterNode;
 using render_tree::ImageNode;
+using render_tree::LottieNode;
 using render_tree::MapToMeshFilter;
 using render_tree::Node;
 using render_tree::PunchThroughVideoNode;
@@ -103,8 +105,8 @@ ReplacedBox::ReplacedBox(
     const base::Optional<LayoutUnit>& maybe_intrinsic_height,
     const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::Optional<bool> is_video_punched_out, const math::SizeF& content_size,
-    LayoutStatTracker* layout_stat_tracker)
+    base::Optional<ReplacedBoxMode> replaced_box_mode,
+    const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
       maybe_intrinsic_width_(maybe_intrinsic_width),
@@ -117,7 +119,7 @@ ReplacedBox::ReplacedBox(
       set_bounds_cb_(set_bounds_cb),
       paragraph_(paragraph),
       text_position_(text_position),
-      is_video_punched_out_(is_video_punched_out),
+      replaced_box_mode_(replaced_box_mode),
       content_size_(content_size) {}
 
 WrapResult ReplacedBox::TryWrapAt(
@@ -282,6 +284,18 @@ void AnimateVideoWithLetterboxing(
   }
 }
 
+void AnimateLottie(const ReplacedBox::ReplaceImageCB& replace_image_cb,
+                   math::RectF destination_rect,
+                   LottieNode::Builder* node_builder,
+                   base::TimeDelta time_elapsed) {
+  scoped_refptr<render_tree::Image> animation = replace_image_cb.Run();
+  node_builder->animation =
+      base::polymorphic_downcast<render_tree::LottieAnimation*>(
+          animation.get());
+  node_builder->destination_rect = destination_rect;
+  node_builder->animation_time = time_elapsed;
+}
+
 }  // namespace
 
 void ReplacedBox::RenderAndAnimateContent(
@@ -295,7 +309,7 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
-  if (is_video_punched_out_ == base::nullopt) {
+  if (replaced_box_mode_ == base::nullopt) {
     // If we don't have a data stream associated with this video [yet], then
     // we don't yet know if it is punched out or not, and so render black.
     border_node_builder->AddChild(new RectNode(
@@ -306,20 +320,32 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
+  if (*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kLottie) {
+    AnimateNode::Builder animate_node_builder;
+    scoped_refptr<LottieNode> lottie_node =
+        new LottieNode(nullptr, math::RectF());
+    animate_node_builder.Add(lottie_node,
+                             base::Bind(&AnimateLottie, replace_image_cb_,
+                                        math::RectF(content_box_size())));
+    border_node_builder->AddChild(
+        new AnimateNode(animate_node_builder, lottie_node));
+    return;
+  }
+
   const cssom::MapToMeshFunction* mtm_filter_function =
       cssom::MapToMeshFunction::ExtractFromFilterList(
           computed_style()->filter());
 
   if (mtm_filter_function && mtm_filter_function->mesh_spec().mesh_type() !=
                                  cssom::MapToMeshFunction::kRectangular) {
-    DCHECK(!*is_video_punched_out_)
+    DCHECK(*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kVideo)
         << "We currently do not support punched out video with map-to-mesh "
            "filters.";
     RenderAndAnimateContentWithMapToMesh(border_node_builder,
                                          mtm_filter_function);
   } else {
 #if defined(FORCE_VIDEO_EXTERNAL_MESH)
-    if (!*is_video_punched_out_) {
+    if (*replaced_box_mode_ == ReplacedBox : ReplacedBoxMode::kVideo) {
       AnimateNode::Builder animate_node_builder;
       scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
       animate_node_builder.Add(
@@ -744,7 +770,7 @@ void ReplacedBox::RenderAndAnimateContentWithLetterboxing(
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-  if (*is_video_punched_out_) {
+  if (*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kPunchOutVideo) {
     LetterboxDimensions letterbox_dims =
         GetLetterboxDimensions(content_size_, content_box_size());
     AddLetterboxedPunchThroughVideoNodeToRenderTree(

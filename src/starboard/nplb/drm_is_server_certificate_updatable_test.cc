@@ -21,8 +21,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 10
-
 TEST(SbDrmIsServerCertificateUpdatableTest, SunnyDay) {
   // Ensure that |SbDrmIsServerCertificateUpdatable| can be called over all key
   // systems.
@@ -49,8 +47,6 @@ TEST(SbDrmIsServerCertificateUpdatableTest, Consistency) {
     SbDrmDestroySystem(drm_system);
   }
 }
-
-#endif  // SB_API_VERSION >= 10
 
 }  // namespace
 }  // namespace nplb

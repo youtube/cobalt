@@ -23,7 +23,7 @@ namespace cobalt {
 namespace dom {
 
 // The MediaError represents a media element error with an error code.
-//   https://www.w3.org/TR/html5/embedded-content-0.html#mediaerror
+//   https://www.w3.org/TR/html50/embedded-content-0.html#mediaerror
 // kMediaErrEncrypted(MEDIA_ERR_ENCRYPTED) is introduced in EME 0.1b.
 //   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-mediakeyerror
 class MediaError : public script::Wrappable {

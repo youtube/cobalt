@@ -9,6 +9,8 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/optional.h"
+#include "cobalt/math/geometry/rect.h"
+#include "cobalt/math/geometry/size.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_util.h"
 #include "media/base/stream_parser_buffer.h"
@@ -17,8 +19,6 @@
 #include "media/filters/h264_parser.h"
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -249,10 +249,10 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
   int sar_width = (sps->sar_width == 0) ? 1 : sps->sar_width;
   int sar_height = (sps->sar_height == 0) ? 1 : sps->sar_height;
 
-  base::Optional<gfx::Size> coded_size = sps->GetCodedSize();
+  base::Optional<math::Size> coded_size = sps->GetCodedSize();
   if (!coded_size) return false;
 
-  base::Optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
+  base::Optional<math::Rect> visible_rect = sps->GetVisibleRect();
   if (!visible_rect) return false;
 
   if (visible_rect->width() > std::numeric_limits<int>::max() / sar_width) {
@@ -260,8 +260,8 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
              << visible_rect->width() << " sar_width=" << sar_width;
     return false;
   }
-  gfx::Size natural_size((visible_rect->width() * sar_width) / sar_height,
-                         visible_rect->height());
+  math::Size natural_size((visible_rect->width() * sar_width) / sar_height,
+                          visible_rect->height());
   if (natural_size.width() == 0) return false;
 
   VideoDecoderConfig video_decoder_config(

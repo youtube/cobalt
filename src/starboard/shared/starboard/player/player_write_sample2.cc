@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 10
 void SbPlayerWriteSample2(SbPlayer player,
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
@@ -35,4 +34,3 @@ void SbPlayerWriteSample2(SbPlayer player,
   player->WriteSample(sample_type, *sample_infos);
 #endif  // SB_API_VERSION >= 11
 }
-#endif  // SB_API_VERSION >= 10

@@ -17,6 +17,9 @@
 #include "starboard/media.h"
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec /*video_codec*/,
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                             const char* /*content_type*/,
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int /*profile*/,
                              int /*level*/,
@@ -28,11 +31,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec /*video_codec*/,
                              int /*frame_width*/,
                              int /*frame_height*/,
                              int64_t /*bitrate*/,
-                             int /*fps*/
-#if SB_API_VERSION >= 10
-                             ,
-                             bool /*decode_to_texture_required*/
-#endif  // SB_API_VERSION >= 10
-                             ) {
+                             int /*fps*/,
+                             bool /*decode_to_texture_required*/) {
   return false;
 }

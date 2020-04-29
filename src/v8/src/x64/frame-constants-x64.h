@@ -10,7 +10,7 @@ namespace internal {
 
 class EntryFrameConstants : public AllStatic {
  public:
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   static const int kCalleeSaveXMMRegisters = 10;
   static const int kXMMRegisterSize = 16;
   static const int kXMMRegistersBlockSize =

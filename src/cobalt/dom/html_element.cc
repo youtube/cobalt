@@ -56,6 +56,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/lottie_player.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
@@ -211,7 +212,7 @@ void HTMLElement::set_tab_index(int32 tab_index) {
 }
 
 // Algorithm for Focus:
-//   https://www.w3.org/TR/html5/editing.html#dom-focus
+//   https://www.w3.org/TR/html50/editing.html#dom-focus
 void HTMLElement::Focus() {
   // 1. If the element is marked as locked for focus, then abort these steps.
   if (locked_for_focus_) {
@@ -235,7 +236,7 @@ void HTMLElement::Focus() {
 }
 
 // Algorithm for Blur:
-//   https://www.w3.org/TR/html5/editing.html#dom-blur
+//   https://www.w3.org/TR/html50/editing.html#dom-blur
 void HTMLElement::Blur() {
   // The blur() method, when invoked, should run the unfocusing steps for the
   // element on which the method was called instead. User agents may selectively
@@ -879,6 +880,8 @@ scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
 }
 
+scoped_refptr<LottiePlayer> HTMLElement::AsLottiePlayer() { return NULL; }
+
 void HTMLElement::ClearRuleMatchingState() {
   ClearRuleMatchingStateInternal(true /*invalidate_descendants*/);
 }
@@ -1228,7 +1231,7 @@ void HTMLElement::OnRemovedFromDocument() {
   // For example, this might happen because the element is removed from its
   // Document, or has a hidden attribute added. It would also happen to an input
   // element when the element gets disabled.
-  //   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
+  //   https://www.w3.org/TR/html50/editing.html#unfocusing-steps
   Document* document = node_document();
   DCHECK(document);
   if (document->active_element() == this->AsElement()) {
@@ -1271,18 +1274,18 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
 }
 
 // Algorithm for IsFocusable:
-//   https://www.w3.org/TR/html5/editing.html#focusable
+//   https://www.w3.org/TR/html50/editing.html#focusable
 bool HTMLElement::IsFocusable() {
   return HasTabindexFocusFlag() && IsBeingRendered();
 }
 
 // Algorithm for HasTabindexFocusFlag:
-//  https://www.w3.org/TR/html5/editing.html#specially-focusable
+//  https://www.w3.org/TR/html50/editing.html#specially-focusable
 bool HTMLElement::HasTabindexFocusFlag() const { return tabindex_.has_value(); }
 
 // An element is being rendered if it has any associated CSS layout boxes, SVG
 // layout boxes, or some equivalent in other styling languages.
-//   https://www.w3.org/TR/html5/rendering.html#being-rendered
+//   https://www.w3.org/TR/html50/rendering.html#being-rendered
 bool HTMLElement::IsBeingRendered() {
   Document* document = node_document();
   if (!document) {
@@ -1299,7 +1302,7 @@ bool HTMLElement::IsBeingRendered() {
 }
 
 // Algorithm for RunFocusingSteps:
-//   https://www.w3.org/TR/html5/editing.html#focusing-steps
+//   https://www.w3.org/TR/html50/editing.html#focusing-steps
 void HTMLElement::RunFocusingSteps() {
   // 1. If the element is not in a Document, or if the element's Document has
   // no browsing context, or if the element's Document's browsing context has no
@@ -1363,7 +1366,7 @@ void HTMLElement::RunFocusingSteps() {
 }
 
 // Algorithm for RunUnFocusingSteps:
-//   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
+//   https://www.w3.org/TR/html50/editing.html#unfocusing-steps
 void HTMLElement::RunUnFocusingSteps() {
   // 1. Not needed by Cobalt.
 

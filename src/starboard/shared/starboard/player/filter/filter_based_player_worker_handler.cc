@@ -125,11 +125,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   update_media_info_cb_ = update_media_info_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
   update_player_error_cb_ = update_player_error_cb;
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  SB_DCHECK(!update_player_error_cb);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   scoped_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
@@ -185,11 +181,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_LOG(INFO) << "Initialize audio renderer with volume " << volume_;
 
     audio_renderer_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeAudio),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -202,11 +194,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SB_LOG(INFO) << "Initialize video renderer.";
 
     video_renderer_->Initialize(
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeVideo),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -408,12 +396,19 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
     const PlayerWorker::Bounds& bounds) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  SB_LOG(INFO) << "Set bounds to "
-               << "x: " << bounds.x << ", y: " << bounds.y
-               << ", width: " << bounds.width << ", height: " << bounds.height
-               << ", z_index: " << bounds.z_index;
-
   if (SbMemoryCompare(&bounds_, &bounds, sizeof(bounds_)) != 0) {
+    // |z_index| is changed quite frequently.  Assign |z_index| first, so we
+    // only log when the other members of |bounds| have been changed to avoid
+    // spamming the log.
+    bounds_.z_index = bounds.z_index;
+    bool bounds_changed =
+        SbMemoryCompare(&bounds_, &bounds, sizeof(bounds_)) != 0;
+    SB_LOG_IF(INFO, bounds_changed)
+        << "Set bounds to "
+        << "x: " << bounds.x << ", y: " << bounds.y
+        << ", width: " << bounds.width << ", height: " << bounds.height
+        << ", z_index: " << bounds.z_index;
+
     bounds_ = bounds;
     if (video_renderer_) {
       // TODO: Force a frame update
@@ -425,7 +420,6 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
   return true;
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
                                              const std::string& error_message) {
   if (!BelongsToCurrentThread()) {
@@ -440,16 +434,6 @@ void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
                                        : error_message);
   }
 }
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-void FilterBasedPlayerWorkerHandler::OnError() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
-    return;
-  }
-
-  update_player_state_cb_(kSbPlayerStateError);
-}
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if (!BelongsToCurrentThread()) {
@@ -473,6 +457,10 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if ((!audio_renderer_ || audio_prerolled_) &&
       (!video_renderer_ || video_prerolled_)) {
     update_player_state_cb_(kSbPlayerStatePresenting);
+    // The call is required to improve the calculation of media time in
+    // PlayerInternal, because it updates the system monotonic time used as the
+    // base of media time extrapolation.
+    Update();
     if (!paused_) {
       media_time_provider_->Play();
     }
@@ -547,6 +535,9 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
+  if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
+    return kSbDecodeTargetInvalid;
+  }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
   if (player_components_existence_mutex_.AcquireTry()) {
     if (video_renderer_) {

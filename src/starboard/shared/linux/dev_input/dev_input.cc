@@ -1051,9 +1051,7 @@ DevInput::Event* CreateAnalogButtonKeyEvent(SbWindow window,
 
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
-#if SB_API_VERSION >= 10
   data->timestamp = SbTimeGetMonotonicNow();
-#endif  // SB_API_VERSION >= 10
   data->window = window;
   data->type = type;
   data->device_type = kSbInputDeviceTypeGamepad;
@@ -1074,9 +1072,7 @@ DevInput::Event* CreateMoveEventWithKey(SbWindow window,
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 
-#if SB_API_VERSION >= 10
   data->timestamp = SbTimeGetMonotonicNow();
-#endif  // SB_API_VERSION >= 10
   data->window = window;
   data->type = kSbInputEventTypeMove;
   data->device_type = kSbInputDeviceTypeGamepad;
@@ -1103,9 +1099,7 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
 
-#if SB_API_VERSION >= 10
   data->timestamp = SbTimeGetMonotonicNow();
-#endif  // SB_API_VERSION >= 10
   data->window = window;
   data->type = type;
   data->device_type = kSbInputDeviceTypeTouchPad;
@@ -1295,9 +1289,7 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
 
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
-#if SB_API_VERSION >= 10
   data->timestamp = SbTimeGetMonotonicNow();
-#endif  // SB_API_VERSION >= 10
   data->window = window_;
   data->type =
       (event.value == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);

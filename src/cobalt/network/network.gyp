@@ -52,6 +52,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',
@@ -76,8 +77,12 @@
           ],
         }],
         ['enable_configure_request_job_factory == 1', {
-          'dependencies': [
-            '<@(cobalt_platform_dependencies)',
+          'conditions': [
+            ['sb_evergreen == 0', {
+              'dependencies': [
+                '<@(cobalt_platform_dependencies)',
+              ],
+            }],
           ],
           'defines': [
             'ENABLE_CONFIGURE_REQUEST_JOB_FACTORY',

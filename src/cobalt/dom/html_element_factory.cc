@@ -35,6 +35,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/lottie_player.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -160,6 +161,7 @@ HTMLElementFactory::HTMLElementFactory() {
   RegisterHTMLElementWithSingleTagName<HTMLStyleElement>();
   RegisterHTMLElementWithSingleTagName<HTMLTitleElement>();
   RegisterHTMLElementWithSingleTagName<HTMLVideoElement>();
+  RegisterHTMLElementWithSingleTagName<LottiePlayer>();
 
   // Register HTML elements that have multiple tag names in the map.
   RegisterHTMLElementWithMultipleTagName<HTMLHeadingElement>();

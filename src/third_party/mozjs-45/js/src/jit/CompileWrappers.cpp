@@ -76,13 +76,11 @@ CompileRuntime::addressOfLastCachedNativeIterator()
     return &runtime()->nativeIterCache.last;
 }
 
-#ifdef JS_GC_ZEAL
 const void*
 CompileRuntime::addressOfGCZeal()
 {
     return runtime()->gc.addressOfZealMode();
 }
-#endif
 
 const void*
 CompileRuntime::addressOfInterruptUint32()

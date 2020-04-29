@@ -25,7 +25,7 @@ namespace dom {
 
 // The TimeRanges interface is used to describe a series of time ranges. Each of
 // them has a start time and an end time.
-//   https://www.w3.org/TR/html5/embedded-content-0.html#timeranges
+//   https://www.w3.org/TR/html50/embedded-content-0.html#timeranges
 //
 // Note that in our implementation it is always normalized, i.e. all contained
 // ranges are sorted ascendantly and not overlapped.  The limits of the range

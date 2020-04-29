@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
@@ -37,9 +38,9 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/url_request/data_protocol_handler.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 
@@ -126,11 +127,12 @@ URLRequestContext::URLRequestContext(
       std::make_unique<net::HttpServerPropertiesImpl>());
 
   net::HttpNetworkSession::Params params;
-#if defined(COBALT_ENABLE_QUIC)
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
-  params.use_quic_for_unknown_origins = params.enable_quic;
-#endif
+
+  if (configuration::Configuration::GetInstance()->CobaltEnableQuic()) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
+    params.use_quic_for_unknown_origins = params.enable_quic;
+  }
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;
   if (ignore_certificate_errors) {
@@ -186,6 +188,11 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   // ProxyService takes ownership of the ProxyConfigService.
   proxy_resolution_service()->ResetConfigService(
       std::make_unique<ProxyConfigService>(proxy_config));
+}
+
+void URLRequestContext::DisableQuic() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  storage_.http_network_session()->DisableQuic();
 }
 
 #if defined(ENABLE_DEBUGGER)

@@ -56,7 +56,6 @@ void StarboardPlayer::CallbackHelper::OnPlayerStatus(SbPlayer player,
   }
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void StarboardPlayer::CallbackHelper::OnPlayerError(
     SbPlayer player, SbPlayerError error, const std::string& message) {
   base::AutoLock auto_lock(lock_);
@@ -64,7 +63,6 @@ void StarboardPlayer::CallbackHelper::OnPlayerError(
     player_->OnPlayerError(player, error, message);
   }
 }
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void StarboardPlayer::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
@@ -245,7 +243,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+void StarboardPlayer::SetBounds(int z_index, const math::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;
@@ -291,12 +289,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-#if SB_API_VERSION < 10
-  SbPlayerSeek(player_, SB_TIME_TO_SB_MEDIA_TIME(time.InMicroseconds()),
-               ticket_);
-#else  // SB_API_VERSION < 10
   SbPlayerSeek2(player_, time.InMicroseconds(), ticket_);
-#endif  // SB_API_VERSION < 10
 
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
@@ -582,9 +575,6 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec,
-#if SB_API_VERSION < 10
-      SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
       drm_system_, has_audio ? &audio_sample_info_ : NULL,
 #if SB_API_VERSION >= 11
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
@@ -592,9 +582,7 @@ void StarboardPlayer::CreatePlayer() {
 #endif  // SB_API_VERSION >= 11
       &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
       &StarboardPlayer::PlayerStatusCB,
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
       &StarboardPlayer::PlayerErrorCB,
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       this, output_mode_,
       get_decode_target_graphics_context_provider_func_.Run());
 
@@ -695,15 +683,6 @@ void StarboardPlayer::WriteBufferInternal(
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #else  // SB_API_VERSION >= 11
   video_sample_info_.is_key_frame = buffer->is_key_frame();
-#if SB_API_VERSION < 10
-  SbPlayerWriteSample(
-      player_, sample_type,
-      allocations.buffers(), allocations.buffer_sizes(),
-      allocations.number_of_buffers(),
-      SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
-      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
-      drm_info.subsample_count > 0 ? &drm_info : NULL);
-#else   // SB_API_VERSION < 10
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
   SbPlayerSampleInfo sample_info = {
       allocations.buffers()[0], allocations.buffer_sizes()[0],
@@ -711,7 +690,6 @@ void StarboardPlayer::WriteBufferInternal(
       type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL};
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
-#endif  // SB_API_VERSION < 10
 #endif  // SB_API_VERSION >= 11
 }
 
@@ -742,14 +720,6 @@ void StarboardPlayer::GetInfo_Locked(uint32* video_frames_decoded,
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < 10
-  SbPlayerInfo info;
-  SbPlayerGetInfo(player_, &info);
-  if (media_time) {
-    *media_time = base::TimeDelta::FromMicroseconds(
-        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
-  }
-#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
 
@@ -757,7 +727,6 @@ void StarboardPlayer::GetInfo_Locked(uint32* video_frames_decoded,
     *media_time =
         base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
   }
-#endif  // SB_API_VERSION < 10
   if (video_frames_decoded) {
     *video_frames_decoded = info.total_video_frames;
   }
@@ -852,13 +821,7 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
-#if SB_API_VERSION < 10
-    SbPlayerSeek(player_,
-                 SB_TIME_TO_SB_MEDIA_TIME(preroll_timestamp_.InMicroseconds()),
-                 ticket_);
-#else   // SB_API_VERSION < 10
     SbPlayerSeek2(player_, preroll_timestamp_.InMicroseconds(), ticket_);
-#endif  // SB_API_VERSION < 10
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;
@@ -866,7 +829,6 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
                                     const std::string& message) {
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -876,7 +838,6 @@ void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
   }
   host_->OnPlayerError(error, message);
 }
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
@@ -917,7 +878,6 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
                             helper->callback_helper_, player, state, ticket));
 }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
 // static
 void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
                                     SbPlayerError error, const char* message) {
@@ -927,7 +887,6 @@ void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
                             helper->callback_helper_, player, error,
                             message ? std::string(message) : ""));
 }
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 // static
 void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,

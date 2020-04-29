@@ -21,7 +21,7 @@ namespace cobalt {
 namespace dom {
 
 // The HTMLAudioElement is used to play audios.
-//   https://www.w3.org/TR/html5/embedded-content-0.html#the-audio-element
+//   https://www.w3.org/TR/html50/embedded-content-0.html#the-audio-element
 class HTMLAudioElement : public HTMLMediaElement {
  public:
   static const char kTagName[];

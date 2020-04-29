@@ -23,7 +23,9 @@
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
 #include "starboard/cryptography.h"
+#endif
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"

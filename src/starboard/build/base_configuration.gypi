@@ -105,7 +105,8 @@
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
     #   'none'   - No EGL + GLES implementation is available on this platform.
-    #   'system_gles3' - Use the system implementation of EGL + GLES3. The
+    #   'system_gles3' - Deprecated. Use system_gles2 instead.
+    #                    Use the system implementation of EGL + GLES3. The
     #                    headers and libraries must be on the system include and
     #                    link paths.
     #   'system_gles2' - Use the system implementation of EGL + GLES2. The
@@ -208,7 +209,7 @@
       ['host_os=="linux"', {
         'conditions': [
           ['target_arch=="arm" or target_arch=="x86" or target_arch=="mips" or \
-	    target_arch=="mipsel" or target_arch=="ppc"', {
+            target_arch=="mipsel" or target_arch=="ppc"', {
             # All the 32 bit CPU architectures v8 supports.
             'compiler_flags_cc_host%': [
               '-m32',

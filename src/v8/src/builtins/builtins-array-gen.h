@@ -138,7 +138,9 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   static ElementsKind ElementsKindForInstanceType(InstanceType type);
 
   void VisitAllTypedArrayElements(Node* array_buffer,
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
                                   const CallResultProcessor& processor,
+#endif
                                   Label* detached, ForEachDirection direction,
                                   TNode<JSTypedArray> typed_array);
 

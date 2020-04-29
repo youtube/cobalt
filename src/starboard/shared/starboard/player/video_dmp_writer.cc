@@ -24,7 +24,6 @@
 #include "starboard/once.h"
 #include "starboard/shared/starboard/application.h"
 
-#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -211,4 +210,3 @@ int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-#endif  // SB_HAS(PLAYER_FILTER_TESTS)

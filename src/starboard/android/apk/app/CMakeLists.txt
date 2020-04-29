@@ -17,7 +17,7 @@
 # be started:
 # Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Dual
 
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.10.2)
 
 # Map Android ABI to Cobalt architecture
 if(ANDROID_ABI STREQUAL x86)
@@ -92,3 +92,25 @@ add_library(native SHARED  ${CMAKE_CURRENT_BINARY_DIR}/phony.cpp)
 # Add a dependency to run the external cobalt build as a side effect of
 # building the phony native library.
 add_dependencies(native external_cobalt_build)
+
+if (ENABLE_VULKAN)
+  # Add angle shared libraries.
+  list(APPEND angle_libs EGL_angle GLESv1_CM_angle
+      GLESv2_angle feature_support_angle c++_shared)
+
+  # Copy each library into APK.
+  foreach(angle_lib IN LISTS angle_libs)
+    add_dependencies(native ${angle_lib}_lib)
+    add_library(${angle_lib} SHARED IMPORTED)
+    set_target_properties(${angle_lib} PROPERTIES
+        IMPORTED_LOCATION
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${angle_lib}.so
+    )
+    add_custom_target(${angle_lib}_lib
+        DEPENDS external_cobalt_build
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${COBALT_PRODUCT_DIR}/lib/lib${angle_lib}.so
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${angle_lib}.so
+    )
+  endforeach()
+endif()

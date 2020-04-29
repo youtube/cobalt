@@ -15,6 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_CRYPTOGRAPHY_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_CRYPTOGRAPHY_INTERNAL_H_
 
+#if SB_API_VERSION >= SB_CRYPTOAPI_DEPRECATED_VERSION
+#error "Starboard Crypto API is deprecated"
+#else
+
 #include "starboard/cryptography.h"
 
 #include "starboard/shared/internal_only.h"
@@ -47,5 +51,7 @@ struct SbCryptographyTransformerPrivate {
   uint8_t ecount_buf[SB_AES_BLOCK_SIZE];
   uint32_t counter;
 };
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
 
 #endif  // STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_CRYPTOGRAPHY_INTERNAL_H_

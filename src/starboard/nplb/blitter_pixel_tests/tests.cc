@@ -32,6 +32,7 @@
 // including image diffs between the actual results and expected results.
 
 #include "starboard/blitter.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/blitter_pixel_tests/fixture.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -262,15 +263,16 @@ SbBlitterSurface CreateCheckerImageWithPixelData(SbBlitterDevice device,
                                                  int height) {
   SbBlitterPixelDataFormat pixel_data_format;
 
-#if SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
-  pixel_data_format = kSbBlitterPixelDataFormatRGBA8;
-#elif SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
-  pixel_data_format = kSbBlitterPixelDataFormatBGRA8;
-#elif SB_PREFERRED_RGBA_BYTE_ORDER == SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
-  pixel_data_format = kSbBlitterPixelDataFormatARGB8;
-#else
-#error "Platform's preferred RGBA byte order is not yet supported."
-#endif
+  if (kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_RGBA) {
+    pixel_data_format = kSbBlitterPixelDataFormatRGBA8;
+  } else if (kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA) {
+    pixel_data_format = kSbBlitterPixelDataFormatBGRA8;
+  } else if (kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_ARGB) {
+    pixel_data_format = kSbBlitterPixelDataFormatARGB8;
+  } else {
+    SB_CHECK(false)
+        << "Platform's preferred RGBA byte order is not yet supported.";
+  }
 
   // RGBA byte-offsets into each pixel.
   int r, g, b, a;

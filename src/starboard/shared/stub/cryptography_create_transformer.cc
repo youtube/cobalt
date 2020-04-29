@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 
 SbCryptographyTransformer SbCryptographyCreateTransformer(
@@ -34,3 +37,5 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
   SB_UNREFERENCED_PARAMETER(key_size);
   return kSbCryptographyInvalidTransformer;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

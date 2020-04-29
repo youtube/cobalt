@@ -195,10 +195,12 @@
 // API. The basic requirement is a scaled, clipped, alpha-blended blit.
 #define SB_HAS_BLITTER 0
 
+#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Specifies the preferred byte order of color channels in a pixel. Refer to
 // starboard/configuration.h for the possible values. EGL/GLES platforms should
 // generally prefer a byte order of RGBA, regardless of endianness.
 #define SB_PREFERRED_RGBA_BYTE_ORDER SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
+#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 // Indicates whether or not the given platform supports bilinear filtering.
 // This can be checked to enable/disable renderer tests that verify that this is
@@ -256,11 +258,6 @@
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
-#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
-
-#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
-// Allow playing audioless video.
-#define SB_HAS_AUDIOLESS_VIDEO 1
 #endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION

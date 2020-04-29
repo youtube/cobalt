@@ -64,9 +64,6 @@ extern const bool kSbHasAc3Audio;
 // Specifies whether this platform updates audio frames asynchronously.
 extern const bool kSbHasAsyncAudioFramesReporting;
 
-// Allow playing audioless video.
-extern const bool kSbHasAudiolessVideo;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 extern const bool kSbHasMediaWebmVp9Support;
@@ -141,6 +138,11 @@ extern const uint32_t kSbNetworkReceiveBufferSize;
 // platforms require sharing thread handles with other kinds of system handles,
 // like mutexes, so we want to keep this manageable.
 extern const uint32_t kSbMaxThreads;
+
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+extern const int kSbPreferredRgbaByteOrder;
 
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a

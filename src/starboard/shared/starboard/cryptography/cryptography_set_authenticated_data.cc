@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"
@@ -32,3 +35,5 @@ bool SbCryptographySetAuthenticatedData(
   int result = AES_gcm128_aad(&transformer->gcm_context, data, data_size);
   return result == 1;
 }
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

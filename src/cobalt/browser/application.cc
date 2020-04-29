@@ -25,6 +25,7 @@
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -59,6 +60,7 @@
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -248,7 +250,8 @@ base::Optional<GURL> GetFallbackSplashScreenURL() {
     fallback_splash_screen_string =
         command_line->GetSwitchValueASCII(switches::kFallbackSplashScreenURL);
   } else {
-    fallback_splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
+    fallback_splash_screen_string = configuration::Configuration::GetInstance()
+                                        ->CobaltFallbackSplashScreenUrl();
   }
   if (IsStringNone(fallback_splash_screen_string)) {
     return base::Optional<GURL>();
@@ -449,6 +452,11 @@ const char kMemoryTrackerCommandLongHelp[] =
 
 }  // namespace
 
+// Helper stub to disable histogram tracking in StatisticsRecorder
+struct RecordCheckerStub : public base::RecordHistogramChecker {
+  bool ShouldRecord(uint64_t) const override { return false; }
+};
+
 // Static user logs
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
@@ -517,6 +525,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
+
+  // Disable histogram tracking before TaskScheduler creates StatisticsRecorder
+  // instances.
+  auto record_checker = std::make_unique<RecordCheckerStub>();
+  base::StatisticsRecorder::SetRecordChecker(std::move(record_checker));
 
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
@@ -1023,9 +1036,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
-#if SB_API_VERSION >= 10
       DCHECK(SbSystemSupportsResume());
-#endif  // SB_API_VERSION >= 10
       DLOG(INFO) << "Got resume event.";
       app_status_ = kPausedAppStatus;
       ++app_resume_count_;

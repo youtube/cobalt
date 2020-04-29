@@ -191,7 +191,11 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
 
     BIND(&distinguish_types);
 
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     generator(this);
+#else
+    TypedArrayMapResultGenerator();
+#endif
 
     if (direction == ForEachDirection::kForward) {
       k_.Bind(SmiConstant(0));
@@ -211,18 +215,30 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &throw_detached and throw a TypeError
       // instead.
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       VisitAllTypedArrayElements(array_buffer, processor, &done, direction,
                                  typed_array);
+#else
+      VisitAllTypedArrayElements(array_buffer, &done, direction, typed_array);
+#endif
       Goto(&done);
       // No exception, return success
       BIND(&done);
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       action(this);
+#else
+      NullPostLoopAction();
+#endif
       ReturnFromBuiltin(a_.value());
     }
   }
 
   void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       Node* array_buffer, const CallResultProcessor& processor, Label* detached,
+#else
+      Node* array_buffer, Label* detached,
+#endif
       ForEachDirection direction, TNode<JSTypedArray> typed_array) {
     VariableList list({&a_, &k_, &to_}, zone());
 
@@ -232,7 +248,11 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
       Node* value = LoadFixedTypedArrayElementAsTagged(
           data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
       k_.Bind(index);
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       a_.Bind(processor(this, value, index));
+#else
+      a_.Bind(TypedArrayMapProcessor(value, index));
+#endif
     };
     Node* start = SmiConstant(0);
     Node* end = len_;
@@ -843,10 +863,17 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       "%TypedArray%.prototype.map",
       &ArrayBuiltinsAssembler::TypedArrayMapResultGenerator,
       &ArrayBuiltinsAssembler::TypedArrayMapProcessor,
       &ArrayBuiltinsAssembler::NullPostLoopAction);
+#else
+      "%TypedArray%.prototype.map",
+        BuiltinResultGenerator(),
+        CallResultProcessor(),
+        PostLoopAction());
+#endif
 }
 
 TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {

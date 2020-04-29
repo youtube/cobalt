@@ -60,6 +60,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 
 #include "starboard/common/byte_swap.h"
@@ -1568,3 +1572,5 @@ void AES_gcm128_tag(GCM128_CONTEXT *ctx, void *tag, size_t len) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

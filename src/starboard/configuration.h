@@ -38,7 +38,7 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 6
+#define SB_MINIMUM_API_VERSION 10
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
@@ -96,6 +96,10 @@
 // Blitter API is no longer supported on any platform. Use the OpenGL ES
 // interface instead.
 #define SB_BLITTER_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Crypto API is no longer supported on any platform. BoringSSL CPU
+// optimizations are used instead.
+#define SB_CRYPTOAPI_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Require the captions API.
 // The system must implement the captions functions in
@@ -262,6 +266,28 @@
 
 // Add link register to SbThreadContext.
 #define SB_THREAD_CONTEXT_LINK_REGISTER_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Make GYP configuration variables cobalt extensions instead.
+// This change moves all of the GYP configuration variables to be members of
+// the struct declared in "cobalt/extension/configuration.h". All members are
+// function pointers that can be set for each platform, otherwise defaults
+// will be used. These can be referenced through functions declared in
+// "cobalt/configuration/configuration.h", which will use the extension API if
+// available, but will otherwise fall back onto default values.
+#define SB_FEATURE_GYP_CONFIGURATION_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add the PCLMULQDQ instruction feature to the Starboard CPU features interface
+// for x86 architectures.
+#define SB_CPU_FEATURE_PCLMULQDQ SB_EXPERIMENTAL_API_VERSION
+
+// |content_type| is added to SbMediaIsVideoSupported() and
+// SbMediaIsAudioSupported().
+#define SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate support for gles3 features.
+#define SB_GLES3_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -337,7 +363,7 @@ struct CompileAssert {};
   TypeName(const TypeName&) = delete;         \
   void operator=(const TypeName&) = delete
 
-// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
+// An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
 // passing pixel data from one library to another.  Note that these definitions
 // are in byte-order and so are endianness-independent.
@@ -545,8 +571,8 @@ struct CompileAssert {};
 #error "Your platform's SB_API_VERSION < SB_MINIMUM_API_VERSION."
 #endif
 
-#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64) && !SB_IS(ARCH_MIPS) && \
-    !SB_IS(ARCH_PPC) && !SB_IS(ARCH_X86) && !SB_IS(ARCH_X64)
+#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64) && !SB_IS(ARCH_X86) && \
+    !SB_IS(ARCH_X64)
 #error "Your platform doesn't define a known architecture."
 #endif
 
@@ -740,13 +766,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_HAS_AUDIOLESS_VIDEO)
-#error \
-    "SB_HAS_AUDIOLESS_VIDEO should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasAudiolessVideo in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 #error \
     "SB_HAS_MEDIA_WEBM_VP9_SUPPORT should not be defined in Starboard " \
@@ -862,6 +881,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
+#if defined(SB_PREFERRED_RGBA_BYTE_ORDER)
+#error \
+    "SB_PREFERRED_RGBA_BYTE_ORDER should not be defined in Starboard " \
+"versions 12 and later. Instead, define kSbPreferredRgbaByteOrder in " \
+"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+#endif
+
 #if defined(SB_USER_MAX_SIGNED_IN)
 #error \
     "SB_USER_MAX_SIGNED_IN should not be defined in Starboard " \
@@ -889,17 +915,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= 10
 #if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #error \
     "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
     "version 10 or later."
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >= 10
-
-#if SB_API_VERSION >= 10
-#define SB_HAS_AUDIOLESS_VIDEO 1
-#endif
 
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
@@ -941,6 +961,20 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
+#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
+// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
+// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
+// If your platform uses GLES, you should set this to
+// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
+#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
+#endif
+
+#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
+#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
+#endif
+
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
 #if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
@@ -957,20 +991,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
-#endif
-
-#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
-// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
-// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
-// If your platform uses GLES, you should set this to
-// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
-#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
-#endif
-
-#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
-#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
 #endif
 
 #if !defined(SB_HAS_BILINEAR_FILTERING_SUPPORT)
@@ -993,15 +1013,97 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 #endif
 
+#if SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+#if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
+#error "|max_cobalt_cpu_usage| is deprecated "
+#error "SbSystemGetTotalCPUMemory() instead."
+#endif
+#if defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
+#error "|max_cobalt_gpu_usage| is deprecated. "
+#error "Implement SbSystemGetTotalGPUMemory() instead."
+#endif
+#endif  // SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+
+#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
+#error "Implement |SbMediaGetAudioBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+
+#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
+#error "COBALT_MEDIA_BUFFER_ALIGNMENT is deprecated."
+#error "Implement |SbMediaGetBufferAlignment| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
+
+#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
+#error "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT is deprecated."
+#error "Implement |SbMediaGetBufferAllocationUnit| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
+
+#if defined( \
+    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+#error "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS"
+#error "is deprecated. Implement"
+#error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
+#endif  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+
+#if defined(COBALT_MEDIA_BUFFER_PADDING)
+#error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
+#error "Implement |SbMediaGetBufferPadding| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
+
+#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
+#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE is deprecated."
+#error "Implement |SbMediaGetBufferStorageType| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
+
+#if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
+#error "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY is deprecated."
+#error "Implement |SbMediaGetBufferStorageType| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
+
+#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+#error "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY is deprecated."
+#error "implement |SbMediaGetInitialBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P is deprecated."
+#error "Implement |SbMediaGetMaxBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+#error "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K is deprecated."
+#error "Implement |SbMediaGetMaxBufferCapacity| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+
+#if defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
+#error "COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET is deprecated."
+#error "Implement |SbMediaGetProgressiveBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
+
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
+#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P is deprecated."
+#error "Implement |SbMediaGetVideoBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P)
+
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
+#error "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K is deprecated."
+#error "Implement |SbMediaGetVideoBufferBudget| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K)
+
+#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+#error "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND is deprecated."
+#error "Implement |SbMediaIsBufferPoolAllocateOnDemand| instead."
+#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
-#error "Use gyp variable |cobalt_media_buffer_non_video_budget| instead."
+#error "Implement function |SbMediaGetAudioBufferBudget| instead."
 #endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT is deprecated."
-#error "Use gyp variable |cobalt_media_buffer_video_budget_1080p| instead."
-#error "Use gyp variable |cobalt_media_buffer_video_budget_4k| instead."
+#error "Implement function |SbMediaGetVideoBufferBudget| instead."
 #endif  // defined(SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT)
 
 #if defined(SB_MEDIA_MAIN_BUFFER_BUDGET)
@@ -1011,6 +1113,10 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+
+#if defined(SB_HAS_AUDIOLESS_VIDEO)
+#error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
+#endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if SB_API_VERSION >= 11
 #if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
@@ -1024,15 +1130,9 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
-#if !SB_HAS(DRM_SESSION_CLOSED)
-#error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
-#endif  // !SB_HAS(DRM_SESSION_CLOSED)
-#else   // defined(SB_HAS_DRM_SESSION_CLOSED)
-#define SB_HAS_DRM_SESSION_CLOSED 1
+#error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
@@ -1053,23 +1153,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
 
-#if SB_HAS(CAPTIONS) && (SB_API_VERSION < 10)
-#error "SB_HAS_CAPTIONS not supported in this API version."
-#endif
+#if defined(SB_HAS_PLAYER_FILTER_TESTS)
+#error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
+#endif  // defined(SB_HAS_PLAYER_FILTER_TESTS)
 
-#if SB_API_VERSION >= 10
-#define SB_HAS_PLAYER_FILTER_TESTS 1
-#endif
-
-#if SB_API_VERSION >= 10
-#define SB_HAS_PLAYER_ERROR_MESSAGE 1
-#endif
-
-#if SB_API_VERSION < 10
-#if !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
-#endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-#endif  // SB_API_VERSION < 10
+#if defined(SB_HAS_PLAYER_ERROR_MESSAGE)
+#error "SB_HAS_PLAYER_ERROR_MESSAGE should not be defined in API versions >= 10."
+#endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
 #if SB_API_VERSION >= \
     SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION

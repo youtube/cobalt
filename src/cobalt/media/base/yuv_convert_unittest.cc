@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/media/base/djb2.h"
 #include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 #include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
@@ -20,7 +21,6 @@
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/rect.h"
 
 // Size of raw image.
 static const int kSourceWidth = 640;
@@ -445,7 +445,7 @@ TEST(YUVConvertTest, DownScaleYUVToRGB32WithRect) {
   // The API currently only supports down-scaling, so we don't test up-scaling.
   const size_t size_of_rgb_scaled = kDownScaledWidth * kDownScaledHeight * kBpp;
   std::unique_ptr<uint8_t[]> rgb_scaled_bytes(new uint8_t[size_of_rgb_scaled]);
-  gfx::Rect sub_rect(0, 0, kDownScaledWidth, kDownScaledHeight);
+  math::Rect sub_rect(0, 0, kDownScaledWidth, kDownScaledHeight);
 
   // We can't compare with the full-frame scaler because it uses slightly
   // different sampling coordinates.

@@ -25,7 +25,7 @@ namespace dom {
 class Document;
 
 // The br element represents a line break.
-//   https://www.w3.org/TR/html5/text-level-semantics.html#the-br-element
+//   https://www.w3.org/TR/html50/text-level-semantics.html#the-br-element
 class HTMLBRElement : public HTMLElement {
  public:
   static const char kTagName[];

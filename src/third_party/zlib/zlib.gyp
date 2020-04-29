@@ -16,6 +16,8 @@
       }],
     ],
     'use_system_minizip%': 0,
+    'use_x86_x64_optimizations%': 0,
+    'use_arm_neon_optimizations%': 0,
   },
   'targets': [
     {
@@ -25,24 +27,23 @@
         ['use_system_zlib==0', {
           'sources': [
             'adler32.c',
+            'chromeconf.h',
             'compress.c',
             'crc32.c',
             'crc32.h',
             'deflate.c',
             'deflate.h',
-            'gzio.c',
             'infback.c',
             'inffast.c',
             'inffast.h',
             'inffixed.h',
-            'inflate.c',
             'inflate.h',
             'inftrees.c',
             'inftrees.h',
-            'mozzconf.h',
             'trees.c',
             'trees.h',
             'uncompr.c',
+            'x86.h',
             'zconf.h',
             'zlib.h',
             'zutil.c',
@@ -62,15 +63,40 @@
               '.',
             ],
           },
+          'defines': [
+            'ZLIB_IMPLEMENTATION',
+          ],
           'conditions': [
             ['OS!="win"', {
               'product_name': 'chrome_zlib',
-            }], ['OS=="android"', {
+            }],
+            ['OS=="android"', {
               'toolsets': ['target', 'host'],
             }],
-            ['OS=="starboard" or OS=="lb_shell"', {
+            ['OS=="starboard"', {
               'sources!': [
-                'gzio.c',
+                'gzclose.c',
+                'gzguts.h',
+                'gzlib.c',
+                'gzread.c',
+                'gzwrite.c',
+              ],
+            }],
+            ['use_x86_x64_optimizations==1', {
+              # TODO: Enable optimizaitons for x86_x64.
+              'sources': [],
+            }, {
+              'sources': [
+                'simd_stub.c',
+              ],
+            }],
+            ['use_arm_neon_optimizations==1', {
+              # TODO: Enable optimizaitons for x86_x64.
+              'sources': [],
+            }],
+            ['use_x86_x64_optimizations==0 and use_arm_neon_optimizations==0', {
+              'sources': [
+                'inflate.c',
               ],
             }],
           ],
@@ -162,9 +188,24 @@
           ],
         }],
       ],
-      'dependencies': [
-        'zlib',
+    },
+    {
+      'target_name': 'zip',
+      'type': 'static_library',
+      'sources': [
+        'google/zip.cc',
+        'google/zip.h',
+        'google/zip_internal.cc',
+        'google/zip_internal.h',
+        'google/zip_reader.cc',
+        'google/zip_reader.h',
+        'google/zip_writer.cc',
+        'google/zip_writer.h',
       ],
-    }
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/third_party/zlib/zlib.gyp:minizip',
+      ],
+    },
   ],
 }

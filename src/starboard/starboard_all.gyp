@@ -64,6 +64,7 @@
         '<(DEPTH)/starboard/examples/blitter/blitter.gyp:*',
         '<(DEPTH)/starboard/examples/window/window.gyp:*',
         '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
+        '<(DEPTH)/starboard/nplb/nplb_evergreen_compat_tests/nplb_evergreen_compat_tests.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
         '<(DEPTH)/starboard/starboard.gyp:*',
         '<(DEPTH)/starboard/tools/tools.gyp:*',
@@ -85,7 +86,7 @@
         }],
         ['sb_filter_based_player==1', {
           'dependencies': [
-            '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:*',
+            '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:player_filter_tests_deploy',
             '<(DEPTH)/starboard/shared/starboard/player/filter/tools/tools.gyp:*',
           ],
         }],

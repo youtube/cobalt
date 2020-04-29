@@ -22,7 +22,6 @@ GRADLE_ARGS=()
 while [ "$1" ]; do
   case "$1" in
     --sdk) shift; ANDROID_HOME="$1" ;;
-    --ndk) shift; ANDROID_NDK_HOME="$1" ;;
     --cache) shift; mkdir -p "$1";
              GRADLE_ARGS+=("--project-cache-dir" $(cd "$1"; pwd)) ;;
     --reset) RESET_GRADLE=1 ;;
@@ -34,7 +33,7 @@ GRADLE_ARGS+=("$@")
 
 # Cleanup Gradle from previous builds. Used as part of the GYP step.
 if [[ "${RESET_GRADLE}" ]]; then
-  echo "Cleaning Gradle deamons and locks."
+  echo "Cleaning Gradle daemons and locks."
   # If there are any lock files, kill any hung processes still waiting on them.
   if compgen -G '/var/lock/cobalt-gradle.lock.*'; then
     lsof -t /var/lock/cobalt-gradle.lock.* | xargs -rt kill
@@ -50,15 +49,22 @@ if [[ "${RESET_GRADLE}" ]]; then
 fi
 
 export ANDROID_HOME
-export ANDROID_NDK_HOME
 echo "ANDROID_HOME=${ANDROID_HOME}"
-echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
-echo "TASK: ${GRADLE_ARGS[-1]}"
 
 # Allow parallel gradle builds, as defined by a COBALT_GRADLE_BUILD_COUNT envvar
 # or default to 1 if that's not set (so buildbot only runs 1 gradle at a time).
 BUCKETS=${COBALT_GRADLE_BUILD_COUNT:-1}
+if [ "$BUCKETS"==1 ]; then
+  echo "Gradle daemon and parallel gradle disabled for Cobalt build"
+  GRADLE_ARGS+=(
+    "-Dorg.gradle.parallel=false"
+    "-Dorg.gradle.workers.max=1"
+    "-Dorg.gradle.daemon=false"
+  )
+fi
+
 MD5=$(echo "${GRADLE_ARGS[@]}" | md5sum)
 LOCKNUM=$(( ${BUCKETS} * 0x${MD5:0:6} / 0x1000000 ))
 
+echo "TASK: ${GRADLE_ARGS[-1]}"
 flock /var/lock/cobalt-gradle.lock.${LOCKNUM} $(dirname "$0")/gradlew "${GRADLE_ARGS[@]}"

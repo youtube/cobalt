@@ -15,13 +15,55 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
+#include <vector>
+
+#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/avc_util.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace media {
+
+// This class captures necessary information to describe a video config.  It can
+// be used to detect config change of video stream during the playback.
+// The class only supports h264 and vp9 for now, which is checked in its ctor.
+class VideoConfig {
+ public:
+  // |data| must point to the encoded data of a key frame.
+  VideoConfig(SbMediaVideoCodec video_codec,
+              int width,
+              int height,
+              const uint8_t* data,
+              size_t size);
+
+#if SB_API_VERSION >= 11
+  VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
+              const uint8_t* data,
+              size_t size);
+#endif  // SB_API_VERSION >= 11
+
+  bool is_valid() const { return video_codec_ != kSbMediaVideoCodecNone; }
+
+  const AvcParameterSets& avc_parameter_sets() const {
+    SB_DCHECK(is_valid());
+    SB_DCHECK(video_codec_ == kSbMediaVideoCodecH264);
+    SB_DCHECK(avc_parameter_sets_);
+    return avc_parameter_sets_.value();
+  }
+
+  bool operator==(const VideoConfig& that) const;
+  bool operator!=(const VideoConfig& that) const;
+
+ private:
+  SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
+  int width_ = -1;
+  int height_ = -1;
+  // Only valid when |video_codec_| is |kSbMediaVideoCodecH264|.
+  optional<AvcParameterSets> avc_parameter_sets_;
+};
 
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec);
 

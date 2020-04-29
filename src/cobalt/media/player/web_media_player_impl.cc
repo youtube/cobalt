@@ -433,10 +433,10 @@ bool WebMediaPlayerImpl::HasAudio() const {
   return pipeline_->HasAudio();
 }
 
-gfx::Size WebMediaPlayerImpl::GetNaturalSize() const {
+math::Size WebMediaPlayerImpl::GetNaturalSize() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
-  gfx::Size size;
+  math::Size size;
   pipeline_->GetNaturalVideoSize(&size);
   return size;
 }

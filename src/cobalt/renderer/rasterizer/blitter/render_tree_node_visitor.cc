@@ -275,6 +275,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
           image_node->data().destination_rect)));
 }
 
+void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
+  // Use Skottie to render Lottie animations.
+  RenderWithSoftwareRenderer(lottie_node);
+}
+
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransform3DNode* matrix_transform_3d_node) {
   TRACE_EVENT0_IF_ENABLED("Visit(MatrixTransform3DNode)");

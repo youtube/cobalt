@@ -29,6 +29,19 @@
     }                                                         \
   } while (false)
 
+#if defined(ADDRESS_SANITIZER)
+// By default, Leak Sanitizer and Address Sanitizer is expected to exist
+// together. However, this is not true for all platforms.
+// HAS_LEAK_SANTIZER=0 explicitly removes the Leak Sanitizer from code.
+#ifndef HAS_LEAK_SANITIZER
+#define HAS_LEAK_SANITIZER 1
+#endif  // HAS_LEAK_SANITIZER
+#endif  // defined(ADDRESS_SANITIZER)
+
+#if HAS_LEAK_SANITIZER
+#include <sanitizer/lsan_interface.h>
+#endif  // HAS_LEAK_SANITIZER
+
 namespace starboard {
 namespace shared {
 namespace alsa {
@@ -105,8 +118,14 @@ void* AlsaOpenPlaybackDevice(int channel,
             sample_type == SND_PCM_FORMAT_S16);
 
   PcmHandle playback_handle;
+#if HAS_LEAK_SANITIZER
+  __lsan_disable();
+#endif  // HAS_LEAK_SANITIZER
   int error =
       snd_pcm_open(&playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
+#if HAS_LEAK_SANITIZER
+  __lsan_enable();
+#endif  // HAS_LEAK_SANITIZER
   ALSA_CHECK(error, snd_pcm_open, NULL);
   playback_handle.set_valid();
 

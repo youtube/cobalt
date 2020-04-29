@@ -15,6 +15,7 @@
 #include "cobalt/h5vcc/h5vcc_system.h"
 
 #include "base/strings/stringprintf.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 #include "starboard/system.h"
@@ -22,7 +23,11 @@
 namespace cobalt {
 namespace h5vcc {
 
+#if SB_IS(EVERGREEN)
+H5vccSystem::H5vccSystem(H5vccUpdater* updater) : updater_(updater) {}
+#else
 H5vccSystem::H5vccSystem() {}
+#endif
 
 bool H5vccSystem::are_keys_reversed() const {
   return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);
@@ -63,10 +68,18 @@ bool H5vccSystem::TriggerHelp() const { return false; }
 uint32 H5vccSystem::user_on_exit_strategy() const {
   // Convert from the Cobalt gyp setting variable's enum options to the H5VCC
   // interface enum options.
-  std::string exit_strategy_str(COBALT_USER_ON_EXIT_STRATEGY);
+  std::string exit_strategy_str(
+      configuration::Configuration::GetInstance()->CobaltUserOnExitStrategy());
   if (exit_strategy_str == "stop") {
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
   } else if (exit_strategy_str == "suspend") {
+#if SB_IS(EVERGREEN)
+    // Note: The status string used here must be synced with the
+    // ComponentState::kUpdated status string defined in updater_module.cc.
+    if (updater_->GetUpdateStatus() == "Update installed, pending restart") {
+      return static_cast<UserOnExitStrategy>(kUserOnExitStrategyClose);
+    }
+#endif
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyMinimize);
   } else if (exit_strategy_str == "noexit") {
     return static_cast<UserOnExitStrategy>(kUserOnExitStrategyNoExit);

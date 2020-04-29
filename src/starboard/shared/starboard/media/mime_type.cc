@@ -85,7 +85,8 @@ Strings SplitAndTrim(const std::string& str, char ch) {
 
 const int MimeType::kInvalidParamIndex = -1;
 
-MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
+MimeType::MimeType(const std::string& content_type)
+    : raw_content_type_(content_type), is_valid_(false) {
   Strings components = SplitAndTrim(content_type, ';');
 
   if (components.empty()) {

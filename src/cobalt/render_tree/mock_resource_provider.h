@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
@@ -80,6 +81,9 @@ class MockResourceProvider : public ResourceProvider {
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts));
+
+  MOCK_METHOD2(CreateLottieAnimationMock,
+               LottieAnimation*(const char* data, size_t length));
 
   MOCK_METHOD2(CreateMeshMock,
                render_tree::Mesh*(std::vector<render_tree::Mesh::Vertex>*,
@@ -161,6 +165,12 @@ class MockResourceProvider : public ResourceProvider {
     return scoped_refptr<render_tree::GlyphBuffer>(
         CreateGlyphBufferMock(utf8_string, font.get()));
   }
+  scoped_refptr<LottieAnimation> CreateLottieAnimation(const char* data,
+                                                       size_t length) {
+    return scoped_refptr<LottieAnimation>(
+        CreateLottieAnimationMock(data, length));
+  }
+
   virtual scoped_refptr<Mesh> CreateMesh(
       std::unique_ptr<std::vector<Mesh::Vertex> > vertices,
       Mesh::DrawMode draw_mode) {
