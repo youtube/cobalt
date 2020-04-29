@@ -17,5 +17,5 @@
 int SbAudioSinkGetMinBufferSizeInFrames(int /*channels*/,
                                         SbMediaAudioSampleType /*sample_type*/,
                                         int /*sampling_frequency_hz*/) {
-  return 8 * 1024;
+  return 5 * 1024;
 }
