@@ -376,6 +376,7 @@ class VideoDecoderTest
         if (event.frame->is_end_of_stream()) {
           end_of_stream_decoded = true;
           if (!outstanding_inputs_.empty()) {
+            SB_LOG(WARNING) << "|outstanding_inputs_| is not empty.";
             if (error_occurred) {
               *error_occurred = true;
             } else {
