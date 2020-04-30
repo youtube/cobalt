@@ -20,6 +20,14 @@
 #if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 bool SbAccessibilityGetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
-  return false;
+  if (!caption_settings ||
+      !SbMemoryIsZero(caption_settings,
+                      sizeof(SbAccessibilityCaptionSettings))) {
+    return false;
+  }
+
+  // Since kSbAccessibilityCaptionStateUnsupported == 0, there is no need to
+  // explicitly set states to kSbAccessibilityCaptionStateUnsupported.
+  return true;
 }
 #endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
