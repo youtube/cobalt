@@ -33,6 +33,24 @@ namespace dom {
 
 const char LottiePlayer::kTagName[] = "lottie-player";
 
+std::string LottiePlayer::src() const {
+  return GetAttribute("src").value_or("");
+}
+
+void LottiePlayer::set_src(const std::string& src) { SetAttribute("src", src); }
+
+bool LottiePlayer::loop() const { return GetBooleanAttribute("loop"); }
+
+void LottiePlayer::set_loop(bool loop) {
+  // The value of 'loop' is true when the 'loop' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (loop) {
+    SetBooleanAttribute("loop", true);
+  } else {
+    SetBooleanAttribute("loop", false);
+  }
+}
+
 void LottiePlayer::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_image_loaded_callback_handler_) {
     return;

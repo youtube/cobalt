@@ -27,8 +27,18 @@ SkottieAnimation::SkottieAnimation(const char* data, size_t length) {
   json_size_in_bytes_ = builder.getStats().fJsonSize;
 }
 
+void SkottieAnimation::SetProperties(
+    render_tree::LottieAnimation::LottieProperties properties) {
+  properties_ = properties;
+}
+
 void SkottieAnimation::SetAnimationTime(base::TimeDelta animation_time) {
-  skottie_animation_->seekFrameTime(animation_time.InSecondsF());
+  double frame_time = animation_time.InSecondsF();
+  if (properties_.loop) {
+    frame_time =
+        std::fmod(animation_time.InSecondsF(), skottie_animation_->duration());
+  }
+  skottie_animation_->seekFrameTime(frame_time);
 }
 
 }  // namespace skia
