@@ -106,7 +106,10 @@ ReplacedBox::ReplacedBox(
     const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
     base::Optional<ReplacedBoxMode> replaced_box_mode,
-    const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker)
+    const math::SizeF& content_size,
+    base::Optional<render_tree::LottieAnimation::LottieProperties>
+        lottie_properties,
+    LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
       maybe_intrinsic_width_(maybe_intrinsic_width),
@@ -120,7 +123,8 @@ ReplacedBox::ReplacedBox(
       paragraph_(paragraph),
       text_position_(text_position),
       replaced_box_mode_(replaced_box_mode),
-      content_size_(content_size) {}
+      content_size_(content_size),
+      lottie_properties_(lottie_properties) {}
 
 WrapResult ReplacedBox::TryWrapAt(
     WrapAtPolicy /*wrap_at_policy*/,
@@ -284,14 +288,17 @@ void AnimateVideoWithLetterboxing(
   }
 }
 
-void AnimateLottie(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-                   math::RectF destination_rect,
-                   LottieNode::Builder* node_builder,
-                   base::TimeDelta time_elapsed) {
+void AnimateLottie(
+    const ReplacedBox::ReplaceImageCB& replace_image_cb,
+    const render_tree::LottieAnimation::LottieProperties& lottie_properties,
+    math::RectF destination_rect, LottieNode::Builder* node_builder,
+    base::TimeDelta time_elapsed) {
   scoped_refptr<render_tree::Image> animation = replace_image_cb.Run();
-  node_builder->animation =
+  render_tree::LottieAnimation* lottie =
       base::polymorphic_downcast<render_tree::LottieAnimation*>(
           animation.get());
+  lottie->SetProperties(lottie_properties);
+  node_builder->animation = lottie;
   node_builder->destination_rect = destination_rect;
   node_builder->animation_time = time_elapsed;
 }
@@ -324,9 +331,10 @@ void ReplacedBox::RenderAndAnimateContent(
     AnimateNode::Builder animate_node_builder;
     scoped_refptr<LottieNode> lottie_node =
         new LottieNode(nullptr, math::RectF());
-    animate_node_builder.Add(lottie_node,
-                             base::Bind(&AnimateLottie, replace_image_cb_,
-                                        math::RectF(content_box_size())));
+    animate_node_builder.Add(
+        lottie_node,
+        base::Bind(&AnimateLottie, replace_image_cb_, *lottie_properties_,
+                   math::RectF(content_box_size())));
     border_node_builder->AddChild(
         new AnimateNode(animate_node_builder, lottie_node));
     return;

@@ -42,8 +42,10 @@ class LottiePlayer : public HTMLElement {
 
   // Web API: LottiePlayer
   //
-  std::string src() const { return GetAttribute("src").value_or(""); }
-  void set_src(const std::string& src) { SetAttribute("src", src); }
+  std::string src() const;
+  void set_src(const std::string& src);
+  bool loop() const;
+  void set_loop(bool loop);
 
   // Custom, not in any spec
   //
