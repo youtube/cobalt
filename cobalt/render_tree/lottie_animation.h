@@ -27,6 +27,16 @@ namespace render_tree {
 // LottieAnimation object.
 class LottieAnimation : public Image {
  public:
+  struct LottieProperties {
+    LottieProperties() = default;
+
+    explicit LottieProperties(bool loop) : loop(loop) {}
+
+    bool loop;
+  };
+
+  virtual void SetProperties(LottieProperties properties) = 0;
+
   virtual void SetAnimationTime(base::TimeDelta animation_time) = 0;
 
  protected:

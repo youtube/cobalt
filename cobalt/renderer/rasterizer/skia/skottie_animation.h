@@ -37,6 +37,9 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   bool IsOpaque() const override { return false; }
 
+  void SetProperties(
+      render_tree::LottieAnimation::LottieProperties properties) override;
+
   void SetAnimationTime(base::TimeDelta animation_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
@@ -45,6 +48,8 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   sk_sp<skottie::Animation> skottie_animation_;
   math::Size animation_size_;
   uint32 json_size_in_bytes_;
+
+  render_tree::LottieAnimation::LottieProperties properties_;
 };
 
 }  // namespace skia

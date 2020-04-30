@@ -185,7 +185,9 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       const base::Optional<float>& maybe_intrinsic_ratio,
       const BoxGenerator::Context* context,
       base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
-      math::SizeF content_size)
+      math::SizeF content_size,
+      base::Optional<render_tree::LottieAnimation::LottieProperties>
+          lottie_properties)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -196,7 +198,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
         context_(context),
         replaced_box_mode_(replaced_box_mode),
-        content_size_(content_size) {}
+        content_size_(content_size),
+        lottie_properties_(lottie_properties) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) override;
 
@@ -215,6 +218,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const BoxGenerator::Context* context_;
   base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
+  base::Optional<render_tree::LottieAnimation::LottieProperties>
+      lottie_properties_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -230,7 +235,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
           context_->used_style_provider, replaced_box_mode_, content_size_,
-          context_->layout_stat_tracker));
+          lottie_properties_, context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -244,7 +249,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
           context_->used_style_provider, replaced_box_mode_, content_size_,
-          context_->layout_stat_tracker));
+          lottie_properties_, context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -361,7 +366,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
       base::nullopt, base::nullopt, base::nullopt, context_, replaced_box_mode,
-      video_element->GetVideoSize());
+      video_element->GetVideoSize(), base::nullopt);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -429,6 +434,9 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
       (*paragraph_)
           ->AppendCodePoint(Paragraph::kObjectReplacementCharacterCodePoint);
 
+  render_tree::LottieAnimation::LottieProperties lottie_properties(
+      lottie_player->loop());
+
   ReplacedBoxGenerator replaced_box_generator(
       lottie_player->css_computed_style_declaration(),
       lottie_player->cached_image()->TryGetResource()
@@ -438,7 +446,7 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
       ReplacedBox::SetBoundsCB(), *paragraph_, text_position, base::nullopt,
       base::nullopt, base::nullopt, context_,
       ReplacedBox::ReplacedBoxMode::kLottie,
-      math::Size() /* only relevant to punch out video */);
+      math::Size() /* only relevant to punch out video */, lottie_properties);
   lottie_player->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =

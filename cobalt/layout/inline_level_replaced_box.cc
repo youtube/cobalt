@@ -30,12 +30,15 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
     const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
     base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
-    const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker)
+    const math::SizeF& content_size,
+    base::Optional<render_tree::LottieAnimation::LottieProperties>
+        lottie_properties,
+    LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb,
                   set_bounds_cb, paragraph, text_position,
                   maybe_intrinsic_width, maybe_intrinsic_height,
                   maybe_intrinsic_ratio, used_style_provider, replaced_box_mode,
-                  content_size, layout_stat_tracker),
+                  content_size, lottie_properties, layout_stat_tracker),
       is_hidden_by_ellipsis_(false),
       was_hidden_by_ellipsis_(false) {}
 

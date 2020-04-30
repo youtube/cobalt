@@ -26,6 +26,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 
 namespace cobalt {
@@ -55,6 +56,8 @@ class ReplacedBox : public Box {
               UsedStyleProvider* used_style_provider,
               base::Optional<ReplacedBoxMode> replaced_box_mode,
               const math::SizeF& content_size,
+              base::Optional<render_tree::LottieAnimation::LottieProperties>
+                  lottie_properties,
               LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
@@ -123,6 +126,8 @@ class ReplacedBox : public Box {
   int32 text_position_;
   base::Optional<ReplacedBoxMode> replaced_box_mode_;
   math::SizeF content_size_;
+  base::Optional<render_tree::LottieAnimation::LottieProperties>
+      lottie_properties_;
 };
 
 }  // namespace layout
