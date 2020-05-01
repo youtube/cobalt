@@ -24,8 +24,8 @@ import StringIO
 import subprocess
 import sys
 import time
-import urllib
 import zipfile
+import requests
 
 from starboard.tools import build
 
@@ -145,7 +145,10 @@ def _GetInstalledNdkRevision():
 
 
 def _DownloadAndUnzipFile(url, destination_path):
-  dl_file, dummy_headers = urllib.urlretrieve(url)
+  os.makedirs(destination_path)
+  dl_file = os.path.join(destination_path, 'tmp.zip')
+  request = requests.get(url, allow_redirects=True)
+  open(dl_file, 'wb').write(request.content)
   _UnzipFile(dl_file, destination_path)
 
 
@@ -235,8 +238,8 @@ def _GetInstalledSdkPackages():
   section_re = re.compile(r'^[A-Z][^:]*:$')
   version_re = re.compile(r'^\s+Version:\s+(\S+)')
 
-  p = subprocess.Popen(
-      [_SDKMANAGER_TOOL, '--list', '--verbose'], stdout=subprocess.PIPE)
+  p = subprocess.Popen([_SDKMANAGER_TOOL, '--list', '--verbose'],
+                       stdout=subprocess.PIPE)
 
   installed_package_versions = {}
   new_style = False
