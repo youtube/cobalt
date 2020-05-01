@@ -297,6 +297,9 @@
 // instead. See cobalt/doc/platform_services.md.
 #define SB_WEBAPI_EXTENSION_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Enables a test that checks that Opus is supported.
+#define SB_REQUIRES_OPUS_AUDIO_CODEC_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
