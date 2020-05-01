@@ -430,7 +430,6 @@ class Component {
 
 #if defined(OS_STARBOARD)
   int installation_index_ = IM_EXT_INVALID_INDEX;
-  bool is_channel_changed_ = false;
 #endif
 
   // The error information for full and differential updates.
