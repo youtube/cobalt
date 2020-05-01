@@ -70,6 +70,10 @@ SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 // Populates |out_entry| with the next entry in the specified directory stream,
 // and moves the stream forward by one entry.
 //
+// Platforms may, but are not required to, return |.| (referring to the
+// directory itself) and/or |..| (referring to the directory's parent directory)
+// as entries in the directory stream.
+//
 // This function returns |true| if there was a next directory, and |false|
 // at the end of the directory stream or if |out_entry_size| is smaller than
 // kSbFileMaxName.
@@ -86,6 +90,10 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
 #else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 // Populates |out_entry| with the next entry in the specified directory stream,
 // and moves the stream forward by one entry.
+//
+// Platforms may, but are not required to, return |.| (referring to the
+// directory itself) and/or |..| (referring to the directory's parent directory)
+// as entries in the directory stream.
 //
 // This function returns |true| if there was a next directory, and |false|
 // at the end of the directory stream.
