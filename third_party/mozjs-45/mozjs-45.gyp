@@ -89,8 +89,8 @@
           'JS_PUNBOX64=1',
           # arm64 jit appears to not be ready, won't even compile without
           # compiling in the simulator.  It is highly recommended that
-          # |cobalt_enable_jit| be set to |0| when building for architecture
-          # |arm64|.
+          # |CobaltExtensionConfigurationApi::CobaltEnableJit()| return false
+          # when building for architecture |arm64|.
           'JS_SIMULATOR=1',
           'JS_SIMULATOR_ARM64=1',
         ],
@@ -123,17 +123,6 @@
       }]
     ],
   },
-  # Required GYP massaging to allow |cobalt_enable_jit| to be a default
-  # variable.  Just pretend this is part of |variables| above.
-  'conditions': [
-    ['cobalt_enable_jit != 1', {
-      'variables': {
-        'common_defines': [
-          'COBALT_DISABLE_JIT=1',
-        ],
-      },
-    }],
-  ],
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
     'msvs_settings': {

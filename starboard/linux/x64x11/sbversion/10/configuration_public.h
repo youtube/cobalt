@@ -91,4 +91,7 @@
 // Whether the current platform implements the on screen keyboard interface.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
 
+// Whether the current platform has JIT support
+#define ENGINE_SUPPORTS_JIT 1
+
 #endif  // STARBOARD_LINUX_X64X11_SBVERSION_10_CONFIGURATION_PUBLIC_H_

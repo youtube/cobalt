@@ -30,7 +30,6 @@ class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
     variables = super(Raspi2MozjsPlatformConfig, self).GetVariables(config_name)
     variables.update({
         'javascript_engine': 'mozjs-45',
-        'cobalt_enable_jit': 0,
     })
     return variables
 
