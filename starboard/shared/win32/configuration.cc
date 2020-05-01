@@ -28,6 +28,7 @@ const char* CobaltFallbackSplashScreenUrl() {
 }
 
 const char* CobaltRasterizerType() {
+  // Use a hardware rasterizer and graphical setup.
   return "hardware";
 }
 

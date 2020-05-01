@@ -15,15 +15,11 @@
   'variables': {
     'target_os': 'win',
 
-    # Use a hardware rasterizer and graphical setup.
-    'rasterizer_type': 'hardware',
-
     # Link with angle
     'gl_type': 'angle',
     'angle_platform_windows': 1,
 
     'cobalt_splash_screen_file': '<(DEPTH)/cobalt/browser/splash_screen/youtube_splash_screen.html',
-    'fallback_splash_screen_url': 'file:///cobalt/browser/splash_screen/youtube_splash_screen.html',
 
     # MSVS has a hard limit of 65535 bytes per string and the embedded builtins which is a very long
     # string of assembly can not be compiled. Change this if we can switch to clang or use MASM(ml.exe)

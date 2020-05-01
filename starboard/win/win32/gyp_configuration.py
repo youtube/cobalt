@@ -125,6 +125,5 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     # These variables will tell gyp to compile with V8.
     variables.update({
         'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
     })
     return variables

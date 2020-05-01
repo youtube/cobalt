@@ -27,7 +27,6 @@ class Raspi0PlatformConfig(shared_configuration.RaspiPlatformConfig):
     variables = super(Raspi0PlatformConfig, self).GetVariables(config_name)
     variables.update({
         'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
     })
     return variables
 

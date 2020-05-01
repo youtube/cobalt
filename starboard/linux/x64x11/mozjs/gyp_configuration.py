@@ -25,7 +25,6 @@ class LinuxX64X11MozjsConfiguration(linux_configuration.LinuxX64X11Configuration
                       self).GetVariables(config_name)
     variables.update({
         'javascript_engine': 'mozjs-45',
-        'cobalt_enable_jit': 0,
     })
     return variables
 

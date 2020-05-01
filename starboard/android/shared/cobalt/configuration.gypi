@@ -21,28 +21,11 @@
     'custom_media_session_client': 1,
     'enable_account_manager': 1,
 
-    'cobalt_enable_quic': 0,
-
-    # Some Android devices do not advertise their support for
-    # EGL_SWAP_BEHAVIOR_PRESERVED_BIT properly, so, we play it safe and disable
-    # relying on it for Android.
-    'render_dirty_region_only': 0,
-
     # The 'android_system' font package installs only minimal fonts, with a
     # fonts.xml referencing the superset of font files we expect to find on any
     # Android platform. The Android SbFileOpen implementation falls back to
     # system fonts when it can't find the font file in the cobalt content.
     'cobalt_font_package': 'android_system',
-
-    # On Android, we almost never want to actually terminate the process, so
-    # instead indicate that we would instead like to be suspended when users
-    # initiate an "exit".
-    'cobalt_user_on_exit_strategy': 'suspend',
-
-    # Switch Android's SurfaceFlinger queue to "async mode" so that we don't
-    # queue up rendered frames which would interfere with frame timing and
-    # more importantly lead to input latency.
-    'cobalt_egl_swap_interval': 0,
 
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [

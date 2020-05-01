@@ -17,9 +17,5 @@
 {
   'variables': {
     'in_app_dial%': 0,
-
-    # This atlas size works better than the auto-mem setting.
-    'skia_glyph_atlas_width%': '2048',
-    'skia_glyph_atlas_height%': '2048',
   }, # end of variables
 }
