@@ -203,25 +203,6 @@ TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 }
 
-TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
-  ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-  const std::string& path = dir.filename();
-  ASSERT_TRUE(SbDirectoryCreate(path.c_str()));
-  SbFileError error = kSbFileErrorMax;
-  SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
-  ASSERT_TRUE(SbDirectoryIsValid(directory));
-  ASSERT_EQ(kSbFileOk, error);
-
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(kSbFileMaxName, 0);
-  EXPECT_FALSE(SbDirectoryGetNext(directory, entry.data(), entry.size()));
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  SbDirectoryEntry entry = {0};
-  EXPECT_FALSE(SbDirectoryGetNext(directory, &entry));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  ASSERT_TRUE(SbDirectoryClose(directory));
-}
-
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
