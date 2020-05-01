@@ -52,10 +52,6 @@
           'V8_EMBEDDED_BUILTINS',
         ],
       }],
-      ['v8_enable_embedded_builtins != 1 and cobalt_enable_jit != 1', {
-        # jitless mode requires embedded builtins.
-        'defines': ['<(gyp_static_assert_false)', ],
-      }],
     ],
   },
   'variables': {

@@ -15,6 +15,8 @@
 #include "jit/CompileWrappers.h"
 #include "jit/JitOptions.h"
 
+#include "cobalt/configuration/configuration.h"
+
 namespace js {
 namespace jit {
 
@@ -155,12 +157,16 @@ static inline bool
 IsIonEnabled(JSContext* cx)
 {
     // The ARM64 Ion engine is not yet implemented.
-#if defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_ARM64) || defined(COBALT_DISABLE_JIT)
-    return false;
+#if defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_ARM64)
+  return false;
 #else
+  if (cobalt::configuration::Configuration::GetInstance()->CobaltEnableJit()) {
     return cx->runtime()->options().ion() &&
            cx->runtime()->options().baseline() &&
            cx->runtime()->jitSupportsFloatingPoint;
+  } else {
+    return false;
+  }
 #endif
 }
 
