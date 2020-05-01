@@ -495,6 +495,68 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+// Requests that the application move into the Blurred state at the next
+// convenient point. This should roughly correspond to "unfocused application"
+// in a traditional window manager, where the application may be partially
+// visible.
+//
+// This function eventually causes a |kSbEventTypeBlur| event to be dispatched
+// to the application. Before the |kSbEventTypeBlur| event is dispatched, some
+// work may continue to be done, and unrelated system events may be dispatched.
+SB_EXPORT void SbSystemRequestBlur();
+
+// Requests that the application move into the Started state at the next
+// convenient point. This should roughly correspond to a "focused application"
+// in a traditional window manager, where the application is fully visible and
+// the primary receiver of input events.
+//
+// This function eventually causes a |kSbEventTypeFocus| event to be
+// dispatched to the application. Before |kSbEventTypeFocus| is dispatched,
+// some work may continue to be done, and unrelated system events may be
+// dispatched.
+SB_EXPORT void SbSystemRequestFocus();
+
+// Requests that the application move into the Concealed state at the next
+// convenient point. This should roughly correspond to "minimization" in a
+// traditional window manager, where the application is no longer visible.
+// However, the background tasks can still be running.
+//
+// This function eventually causes a |kSbEventTypeConceal| event to be
+// dispatched to the application. Before the |kSbEventTypeConceal| event is
+// dispatched, some work may continue to be done, and unrelated system events
+// may be dispatched.
+//
+// In the Concealed state, the application will be invisible, but probably
+// still be running background tasks. The expectation is that an external
+// system event will bring the application out of the Concealed state.
+SB_EXPORT void SbSystemRequestConceal();
+
+// Requests that the application move into the Blurred state at the next
+// convenient point. This should roughly correspond to a "focused application"
+// in a traditional window manager, where the application is fully visible and
+// the primary receiver of input events.
+//
+// This function eventually causes a |kSbEventTypeReveal| event to be
+// dispatched to the application. Before the |kSbEventTypeReveal| event is
+// dispatched, some work may continue to be done, and unrelated system events
+// may be dispatched.
+SB_EXPORT void SbSystemRequestReveal();
+
+// Requests that the application move into the Frozen state at the next
+// convenient point.
+//
+// This function eventually causes a |kSbEventTypeFreeze| event to be
+// dispatched to the application. Before the |kSbEventTypeSuspend| event is
+// dispatched, some work may continue to be done, and unrelated system events
+// may be dispatched.
+//
+// In the Frozen state, the application will be resident, but probably not
+// running. The expectation is that an external system event will bring the
+// application out of the Frozen state.
+SB_EXPORT void SbSystemRequestFreeze();
+#else
 // Requests that the application move into the Paused state at the next
 // convenient point. This should roughly correspond to "unfocused application"
 // in a traditional window manager, where the application may be partially
@@ -529,6 +591,8 @@ SB_EXPORT void SbSystemRequestUnpause();
 // running. The expectation is that an external system event will bring the
 // application out of the Suspended state.
 SB_EXPORT void SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and

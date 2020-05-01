@@ -247,10 +247,21 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
+  #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+      SB_HAS(CONCEALED_STATE)
+  REGISTER_SYMBOL(SbSystemRequestBlur);
+  REGISTER_SYMBOL(SbSystemRequestConceal);
+  REGISTER_SYMBOL(SbSystemRequestFocus);
+  REGISTER_SYMBOL(SbSystemRequestFreeze);
+  REGISTER_SYMBOL(SbSystemRequestReveal);
+  REGISTER_SYMBOL(SbSystemRequestStop);
+  #else
   REGISTER_SYMBOL(SbSystemRequestPause);
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
+  #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+          // SB_HAS(CONCEALED_STATE)
   REGISTER_SYMBOL(SbSystemSort);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadCreate);
