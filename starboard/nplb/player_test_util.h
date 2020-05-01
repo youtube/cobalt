@@ -24,6 +24,28 @@
 namespace starboard {
 namespace nplb {
 
+std::string ResolveTestFileName(const char* filename);
+
+void DummyDeallocateSampleFunc(SbPlayer player,
+                               void* context,
+                               const void* sample_buffer);
+
+void DummyDecoderStatusFunc(SbPlayer player,
+                            void* context,
+                            SbMediaType type,
+                            SbPlayerDecoderState state,
+                            int ticket);
+
+void DummyPlayerStatusFunc(SbPlayer player,
+                           void* context,
+                           SbPlayerState state,
+                           int ticket);
+
+void DummyErrorFunc(SbPlayer player,
+                    void* context,
+                    SbPlayerError error,
+                    const char* message);
+
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
@@ -41,6 +63,13 @@ SbPlayer CallSbPlayerCreate(
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaVideoCodec codec);
+
+bool IsMediaConfigSupported(SbMediaVideoCodec video_codec,
+                            SbMediaAudioCodec audio_codec,
+                            SbDrmSystem drm_system,
+                            const SbMediaAudioSampleInfo* audio_sample_info,
+                            const char* max_video_capabilities,
+                            SbPlayerOutputMode output_mode);
 
 }  // namespace nplb
 }  // namespace starboard
