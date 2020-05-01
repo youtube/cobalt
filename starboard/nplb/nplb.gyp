@@ -186,6 +186,8 @@
         'player_creation_param_helpers.h',
         'player_get_preferred_output_mode_test.cc',
         'player_output_mode_supported_test.cc',
+        'player_test_util.cc',
+        'player_test_util.h',
         'random_helpers.cc',
         'recursive_mutex_test.cc',
         'rwlock_test.cc',
