@@ -88,7 +88,10 @@ def GetSdkPath():
 
 
 def _DownloadAndUnzipFile(url, destination_path):
-  os.makedirs(destination_path)
+  try:
+    os.makedirs(destination_path)
+  except FileExistsError:
+    pass
   dl_file = os.path.join(destination_path, 'tmp.zip')
   request = requests.get(url, allow_redirects=True)
   open(dl_file, 'wb').write(request.content)
