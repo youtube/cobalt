@@ -23,15 +23,16 @@ namespace skia {
 
 namespace {
 
+// This atlas size works better than the auto-mem setting.
 int CobaltSkiaGlyphAtlasWidth() {
   return 2048;
 }
-
 int CobaltSkiaGlyphAtlasHeight() {
   return 2048;
 }
 
 const char* CobaltRasterizerType() {
+  // Use the skia hardware rasterizer.
   return "hardware";
 }
 

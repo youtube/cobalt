@@ -47,7 +47,6 @@ class StubConfiguration(config.base.PlatformConfigBase):
         configuration, use_clang=1)
     variables.update({
         'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
     })
     return variables
 

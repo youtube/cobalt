@@ -25,10 +25,14 @@ namespace gczeal {
 namespace {
 
 int CobaltEglSwapInterval() {
+  // This platform uses a compositor to present the rendering output, so
+  // set the swap interval to update the buffer immediately. That buffer
+  // will then be presented by the compositor on its own time.
   return 0;
 }
 
 bool CobaltGcZeal() {
+  // Enable zealous garbage collection.
   return true;
 }
 

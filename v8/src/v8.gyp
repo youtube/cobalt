@@ -35,11 +35,6 @@
           'V8_ENABLE_ALLOCATION_TIMEOUT=1',
         ],
       }],
-      ['cobalt_gc_zeal == 1', {
-        'defines': [
-          'COBALT_GC_ZEAL=1',
-        ],
-      }],
       ['host_os=="win"', {
         'compiler_flags_host': ['/wd4267', '/wd4312', '/wd4351', '/wd4355', '/wd4800', '/wd4838', '/wd4715', '/EHsc'],
       }],

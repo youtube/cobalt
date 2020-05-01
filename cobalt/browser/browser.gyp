@@ -20,9 +20,6 @@
     {
       'target_name': 'browser',
       'type': 'static_library',
-      'includes': [
-        '../renderer/renderer_parameters_setup.gypi',
-      ],
       'sources': [
         'application.cc',
         'application.h',
@@ -109,21 +106,6 @@
         'web_module_stat_tracker.cc',
         'web_module_stat_tracker.h',
       ],
-      'defines': [
-        'COBALT_FALLBACK_SPLASH_SCREEN_URL="<(fallback_splash_screen_url)"',
-        'COBALT_SKIA_CACHE_SIZE_IN_BYTES=<(skia_cache_size_in_bytes)',
-        'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',
-        'COBALT_SKIA_GLYPH_ATLAS_HEIGHT=<(skia_glyph_atlas_height)',
-        'COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES=<(encoded_image_cache_size_in_bytes)',
-        'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
-        'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_font_cache_size_in_bytes)',
-        'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
-        'COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES=<(offscreen_target_cache_size_in_bytes)',
-        'COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES=<(software_surface_cache_size_in_bytes)',
-        'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
-        'COBALT_REDUCE_CPU_MEMORY_BY=<(reduce_cpu_memory_by)',
-        'COBALT_REDUCE_GPU_MEMORY_BY=<(reduce_gpu_memory_by)',
-      ],
       'dependencies': [
         '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
@@ -196,15 +178,6 @@
           ],
           'dependencies': [
             '<(DEPTH)/cobalt/debug/debug.gyp:debug',
-          ],
-        }],
-        ['mesh_cache_size_in_bytes == "auto"', {
-          'defines': [
-            'COBALT_MESH_CACHE_SIZE_IN_BYTES=1*1024*1024',
-          ],
-        }, {
-          'defines': [
-            'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
           ],
         }],
         ['sb_evergreen == 1', {

@@ -101,9 +101,6 @@
         'url_fetcher_string_writer.cc',
         'url_fetcher_string_writer.h',
       ],
-      'includes': [
-        '<(DEPTH)/cobalt/renderer/renderer_parameters_setup.gypi',
-      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',

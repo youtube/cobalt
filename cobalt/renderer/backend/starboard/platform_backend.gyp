@@ -18,10 +18,6 @@
       'target_name': 'renderer_platform_backend',
       'type': 'static_library',
 
-      'includes': [
-        '../../renderer_parameters_setup.gypi',
-      ],
-
       'dependencies': [
         '../blitter/blitter_backend.gyp:blitter_backend',
         '../egl/egl_backend.gyp:egl_backend',
