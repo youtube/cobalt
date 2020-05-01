@@ -304,6 +304,11 @@
 #define SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Allows calling SbGetCurrentDecodeTarget() on a player initialized with
+// non-|kSbPlayerOutputModeDecodeToTexture| output mode.
+#define SB_PUNCHOUT_MODE_HAS_INVALID_DECODE_TARGET_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
