@@ -34,6 +34,8 @@
 #include "irregexp/RegExpMacroAssembler.h"
 #include "jit/JitCommon.h"
 
+#include "cobalt/configuration/configuration.h"
+
 using namespace js;
 using namespace js::irregexp;
 
@@ -1643,10 +1645,12 @@ SampleChars(FrequencyCollator* collator, const CharT* chars, size_t length)
 static bool
 IsNativeRegExpEnabled(JSContext* cx)
 {
-#if defined(JS_CODEGEN_NONE) || defined(COBALT_DISABLE_JIT)
-    return false;
+#if defined(JS_CODEGEN_NONE)
+  return false;
 #else
-    return cx->runtime()->options().nativeRegExp();
+  return cobalt::configuration::Configuration::GetInstance()->CobaltEnableJit()
+             ? cx->runtime()->options().nativeRegExp()
+             : false;
 #endif
 }
 
