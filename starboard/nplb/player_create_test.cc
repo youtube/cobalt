@@ -55,26 +55,6 @@ class SbPlayerTest : public ::testing::TestWithParam<SbPlayerOutputMode> {
   SbPlayerOutputMode output_mode_;
 };
 
-void DummyDeallocateSampleFunc(SbPlayer player,
-                               void* context,
-                               const void* sample_buffer) {}
-
-void DummyDecoderStatusFunc(SbPlayer player,
-                            void* context,
-                            SbMediaType type,
-                            SbPlayerDecoderState state,
-                            int ticket) {}
-
-void DummyStatusFunc(SbPlayer player,
-                     void* context,
-                     SbPlayerState state,
-                     int ticket) {}
-
-void DummyErrorFunc(SbPlayer player,
-                    void* context,
-                    SbPlayerError error,
-                    const char* message) {}
-
 TEST_P(SbPlayerTest, SunnyDay) {
   SbMediaAudioSampleInfo audio_sample_info =
       CreateAudioSampleInfo(kSbMediaAudioCodecAac);
@@ -88,7 +68,7 @@ TEST_P(SbPlayerTest, SunnyDay) {
       fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
       kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
-      DummyDecoderStatusFunc, DummyStatusFunc, DummyErrorFunc,
+      DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
       fake_graphics_context_provider_.decoder_target_provider());
   EXPECT_TRUE(SbPlayerIsValid(player));
@@ -112,7 +92,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
         kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
         "" /* max_video_capabilities */, NULL /* deallocate_sample_func */,
-        DummyDecoderStatusFunc, DummyStatusFunc, DummyErrorFunc,
+        DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
         NULL /* context */, output_mode_,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_FALSE(SbPlayerIsValid(player));
@@ -125,7 +105,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
         kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
         "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
-        NULL /* decoder_status_func */, DummyStatusFunc, DummyErrorFunc,
+        NULL /* decoder_status_func */, DummyPlayerStatusFunc, DummyErrorFunc,
         NULL /* context */, output_mode_,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_FALSE(SbPlayerIsValid(player));
@@ -150,8 +130,9 @@ TEST_P(SbPlayerTest, NullCallbacks) {
     SbPlayer player = CallSbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
         kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info, "",
-        DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyStatusFunc,
-        NULL /* error_func */, NULL /* context */, output_mode_,
+        DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
+        DummyPlayerStatusFunc, NULL /* error_func */, NULL /* context */,
+        output_mode_,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_FALSE(SbPlayerIsValid(player));
 
@@ -170,7 +151,7 @@ TEST_P(SbPlayerTest, Audioless) {
       fake_graphics_context_provider_.window(), kVideoCodec,
       kSbMediaAudioCodecNone, kSbDrmSystemInvalid, NULL /* audio_sample_info */,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
-      DummyDecoderStatusFunc, DummyStatusFunc, DummyErrorFunc,
+      DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
       fake_graphics_context_provider_.decoder_target_provider());
   EXPECT_TRUE(SbPlayerIsValid(player));
@@ -194,7 +175,7 @@ TEST_P(SbPlayerTest, AudioOnly) {
       fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
       kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
-      DummyDecoderStatusFunc, DummyStatusFunc, DummyErrorFunc,
+      DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
       fake_graphics_context_provider_.decoder_target_provider());
   EXPECT_TRUE(SbPlayerIsValid(player));
@@ -286,7 +267,7 @@ TEST_P(SbPlayerTest, MultiPlayer) {
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_sample_info,
               "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
-              DummyDecoderStatusFunc, DummyStatusFunc, DummyErrorFunc,
+              DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
               NULL /* context */, kOutputModes[j],
               fake_graphics_context_provider_.decoder_target_provider()));
           if (!SbPlayerIsValid(created_players.back())) {
@@ -305,6 +286,58 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     SbPlayerDestroy(player);
   }
 }
+
+TEST(SbMediaAudioCodecSupportTest, RequireAacSupport) {
+  uint8_t kAacAudioSpecificConfig[] = {0x12, 0x10};
+
+  SbMediaAudioSampleInfo kAacAudioSampleInfo {
+#if SB_API_VERSION >= 11
+    .codec = kSbMediaAudioCodecAac,
+#endif  // SB_API_VERSION >= 11
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    .mime = "",
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    .format_tag = 255, .number_of_channels = 2,
+    .samples_per_second = 44100, .average_bytes_per_second = 1,
+    .block_alignment = 4, .bits_per_sample = 16,
+    .audio_specific_config_size = sizeof(kAacAudioSpecificConfig),
+    .audio_specific_config = kAacAudioSpecificConfig
+  };
+
+  ASSERT_TRUE(IsMediaConfigSupported(kSbMediaVideoCodecNone,
+                                     kSbMediaAudioCodecAac, kSbDrmSystemInvalid,
+                                     &kAacAudioSampleInfo,
+                                     "",  // max_video_capabilities
+                                     kSbPlayerOutputModePunchOut));
+}
+
+#if SB_API_VERSION >= SB_REQUIRES_OPUS_AUDIO_CODEC_SUPPORT_VERSION
+TEST(SbMediaAudioCodecSupportTest, RequireOpusSupport) {
+  uint8_t kOpusAudioSpecificConfig[] = {
+      0x4F, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64, 0x01, 0x02,
+      0x38, 0x01, 0x80, 0xBB, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  SbMediaAudioSampleInfo kOpusAudioSampleInfo {
+#if SB_API_VERSION >= 11
+    .codec = kSbMediaAudioCodecOpus,
+#endif  // SB_API_VERSION >= 11
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    .mime = "",
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    .format_tag = 255, .number_of_channels = 2,
+    .samples_per_second = 48000, .average_bytes_per_second = 1,
+    .block_alignment = 4, .bits_per_sample = 32,
+    .audio_specific_config_size = sizeof(kOpusAudioSpecificConfig),
+    .audio_specific_config = kOpusAudioSpecificConfig
+  };
+
+  ASSERT_TRUE(IsMediaConfigSupported(kSbMediaVideoCodecNone,
+                                     kSbMediaAudioCodecOpus,
+                                     kSbDrmSystemInvalid, &kOpusAudioSampleInfo,
+                                     "",  // max_video_capabilities
+                                     kSbPlayerOutputModePunchOut));
+}
+#endif  // SB_API_VERSION >= SB_REQUIRES_OPUS_AUDIO_CODEC_SUPPORT_VERSION
 
 INSTANTIATE_TEST_CASE_P(SbPlayerTests,
                         SbPlayerTest,
