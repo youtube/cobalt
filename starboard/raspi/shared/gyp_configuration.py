@@ -144,6 +144,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
+          'SbMediaAudioCodecSupportTest.RequireOpusSupport',
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete

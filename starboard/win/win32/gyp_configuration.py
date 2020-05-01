@@ -64,7 +64,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           # This single test takes >15 minutes.
           'SbPlayerTest.MultiPlayer',
@@ -72,6 +72,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
           # attribute.
           'SbSystemGetStackTest.SunnyDayStackDirection',
+          'SbMediaAudioCodecSupportTest.RequireOpusSupport'
       ],
       'player_filter_tests': [
           # This test fails on win-win32.

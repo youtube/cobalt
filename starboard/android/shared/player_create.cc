@@ -112,7 +112,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   auto output_mode = creation_param->output_mode;
-  if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
+  if (video_codec != kSbMediaVideoCodecNone &&
+      SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
