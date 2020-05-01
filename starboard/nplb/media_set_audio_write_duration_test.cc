@@ -18,8 +18,8 @@
 #include "starboard/common/spin_lock.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
+#include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -36,34 +36,6 @@ using ::testing::ValuesIn;
 
 const SbTime kDuration = kSbTimeSecond / 2;
 const SbTime kSmallWaitInterval = 10 * kSbTimeMillisecond;
-
-std::string GetTestInputDirectory() {
-  std::vector<char> content_path(kSbFileMaxPath);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kSbFileMaxPath));
-  std::string directory_path =
-      std::string(content_path.data()) + kSbFileSepChar + "test" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "shared" +
-      kSbFileSepChar + "starboard" + kSbFileSepChar + "player" +
-      kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
-static void DeallocateSampleFunc(SbPlayer player,
-                                 void* context,
-                                 const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  auto ret = GetTestInputDirectory() + kSbFileSepChar + filename;
-  return ret;
-}
 
 class SbMediaSetAudioWriteDurationTest
     : public ::testing::TestWithParam<const char*> {
@@ -312,11 +284,13 @@ std::vector<const char*> GetSupportedTests() {
   for (auto filename : kFilenames) {
     VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
-                                "",  // content_type
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
-                                dmp_reader.audio_bitrate())) {
+
+    const SbMediaAudioSampleInfo* audio_sample_info =
+        &dmp_reader.audio_sample_info();
+    if (IsMediaConfigSupported(kSbMediaVideoCodecNone, dmp_reader.audio_codec(),
+                               kSbDrmSystemInvalid, audio_sample_info,
+                               "",  // max_video_capabilities
+                               kSbPlayerOutputModePunchOut)) {
       test_params.push_back(filename);
     }
   }
