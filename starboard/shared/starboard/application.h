@@ -52,6 +52,34 @@ class Application {
   // Signature for a function that will be called at the beginning of Teardown.
   typedef void (*TeardownCallback)(void);
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // Enumeration of states that the application can be in.
+  enum State {
+    // The initial Unstarted state.
+    kStateUnstarted,
+
+    // The normal foreground, fully-visible state after receiving the initial
+    // START event or after FOCUS from Blurred.
+    kStateStarted,
+
+    // The background-but-visible or partially-obscured state after receiving a
+    // BLUR event from Started or REVEAL event from Concealed.
+    kStateBlurred,
+
+    // The background-invisible state after receving a CONCEAL event from
+    // Blurred or UNFREEZE event from Frozen.
+    kStateConcealed,
+
+    // The fully-obscured or about-to-be-terminated state after receiving a
+    // FREEZE event in Concealed.
+    kStateFrozen,
+
+    // The completely terminated state after receiving the STOP event in the
+    // Frozen.
+    kStateStopped,
+  };
+#else
   // Enumeration of states that the application can be in.
   enum State {
     // The initial Unstarted state.
@@ -78,6 +106,8 @@ class Application {
     // Suspended state.
     kStateStopped,
   };
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
