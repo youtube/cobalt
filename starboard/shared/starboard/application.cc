@@ -125,6 +125,33 @@ const CommandLine* Application::GetCommandLine() {
   return command_line_.get();
 }
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+void Application::Blur(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeBlur, context, callback));
+}
+
+void Application::Focus(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeFocus, context, callback));
+}
+
+void Application::Conceal(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeConceal, context, callback));
+}
+
+void Application::Reveal(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeReveal, context, callback));
+}
+
+void Application::Freeze(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeFreeze, context, callback));
+}
+
+void Application::Unfreeze(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeUnfreeze, context, callback));
+}
+
+#else
 void Application::Pause(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypePause, context, callback));
 }
@@ -140,6 +167,8 @@ void Application::Suspend(void* context, EventHandledCallback callback) {
 void Application::Resume(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeResume, context, callback));
 }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
 void Application::Stop(int error_level) {
   Event* event = new Event(kSbEventTypeStop, NULL, NULL);
