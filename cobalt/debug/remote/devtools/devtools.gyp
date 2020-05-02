@@ -2206,10 +2206,13 @@
         'variables': {
           'script_path': 'scripts/build/copy_devtools_modules.py',
           'input_path': '.',
+          # TODO: The rsp file should be in <(SHARED_INTERMEDIATE_DIR), but it's not resolved for pymod_do_main.
+          'rsp_file': 'copy_devtools_modules.rsp',
         },
         'inputs': [
           '<(script_path)',
           '<@(all_devtools_modules)',
+          '<!@pymod_do_main(cobalt.debug.remote.devtools.scripts.build.copy_devtools_modules --gen_rsp <(rsp_file) <@(all_devtools_modules))',
         ],
         'outputs': [
           '<@(copied_devtools_modules)',
@@ -2217,7 +2220,8 @@
         'action': [
           'python',
           '<(script_path)',
-          '<@(all_devtools_modules)',
+          '--rsp',
+          '<(rsp_file)',
           '--input_path',
           '<(input_path)',
           '--output_path',
