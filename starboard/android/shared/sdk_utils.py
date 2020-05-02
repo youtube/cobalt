@@ -13,6 +13,7 @@
 # limitations under the License.
 """Utilities to use the toolchain from the Android NDK."""
 
+import errno
 import fcntl
 import logging
 import os
@@ -88,10 +89,12 @@ def GetSdkPath():
 
 
 def _DownloadAndUnzipFile(url, destination_path):
+  shutil.rmtree(destination_path, ignore_errors=True)
   try:
     os.makedirs(destination_path)
-  except FileExistsError:
-    pass
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
   dl_file = os.path.join(destination_path, 'tmp.zip')
   request = requests.get(url, allow_redirects=True)
   open(dl_file, 'wb').write(request.content)
