@@ -34,5 +34,23 @@ def main(argv):
         write_file(join(output_path, relpath(file_name, 'front_end')), minified)
 
 
+def DoMain(argv):
+    if '--gen_rsp' in argv:
+        # Write all following args to the specified rsp file.
+        rsp_index = argv.index('--gen_rsp')
+        rsp_path = argv[rsp_index + 1]
+        with open(rsp_path, 'w') as rsp_file:
+            rsp_file.writelines("%s\n" % a for a in argv[rsp_index + 2:])
+        return rsp_path  # Return the rsp path for GYP's <(pymod_do_main ...)
+    elif '--rsp' in argv:
+        # Replace the --rsp arg with the contents of the rsp file.
+        rsp_index = argv.index('--rsp')
+        rsp_path = argv[rsp_index + 1]
+        with open(rsp_path, 'r') as rsp_file:
+            rsp_args = [line.strip() for line in rsp_file]
+        return main(argv[:rsp_index] + rsp_args + argv[rsp_index + 2:])
+    else:
+        return main(argv)
+
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(DoMain(sys.argv))
