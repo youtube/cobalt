@@ -15,6 +15,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_
 #define STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/client_porting/eztime/eztime.h"
 
 namespace starboard {
@@ -63,5 +65,7 @@ static const EzTimeT kTestTimeNextCentury = SB_INT64_C(4133980800);
 }  // namespace eztime
 }  // namespace client_porting
 }  // namespace starboard
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_

@@ -15,6 +15,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_ICU_INIT_ICU_INIT_H_
 #define STARBOARD_CLIENT_PORTING_ICU_INIT_ICU_INIT_H_
 
+#if defined(STARBOARD)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,5 +30,7 @@ void SbIcuInit();
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_ICU_INIT_ICU_INIT_H_
