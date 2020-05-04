@@ -144,6 +144,7 @@
     'win32_shared_misc_files': [
       '<(DEPTH)/starboard/common/thread.cc',
       '<(DEPTH)/starboard/common/thread.h',
+      '<(DEPTH)/starboard/shared/starboard/memory.cc',
       '<(DEPTH)/starboard/shared/starboard/net_log.cc',
       '<(DEPTH)/starboard/shared/starboard/net_log.h',
       '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',

@@ -20,6 +20,7 @@
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
+        '<(DEPTH)/starboard/shared/starboard/memory.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
