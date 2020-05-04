@@ -285,6 +285,7 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_set_output_protection.cc',
       '<(DEPTH)/starboard/shared/starboard/media/mime_type.cc',
       '<(DEPTH)/starboard/shared/starboard/media/mime_type.h',
+      '<(DEPTH)/starboard/shared/starboard/memory.cc',
       '<(DEPTH)/starboard/shared/starboard/new.cc',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.h',

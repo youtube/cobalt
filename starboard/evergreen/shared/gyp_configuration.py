@@ -90,8 +90,7 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     return filters
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': ['MemoryReportingTest.CapturesMemMapUnmap',
-               'MemoryReportingTest.CapturesOperatorDeleteNothrow',
+      'nplb': ['MemoryReportingTest.CapturesOperatorDeleteNothrow',
                'SbAudioSinkTest.*',
                'SbDrmTest.AnySupportedKeySystems'],
 

@@ -397,6 +397,7 @@
         '<(DEPTH)/starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc',
         '<(DEPTH)/starboard/shared/starboard/microphone/microphone_open.cc',
         '<(DEPTH)/starboard/shared/starboard/microphone/microphone_read.cc',
+        '<(DEPTH)/starboard/shared/starboard/memory.cc',
         '<(DEPTH)/starboard/shared/starboard/new.cc',
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.h',
