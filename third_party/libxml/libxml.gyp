@@ -12,6 +12,7 @@
       }],
       ['OS=="mac"', {'os_include': 'mac'}],
       ['OS=="win"', {'os_include': 'win32'}],
+      ['OS=="starboard"', {'os_include': 'starboard'}],
     ],
     'use_system_libxml%': 0,
   },
@@ -24,8 +25,8 @@
             ['os_posix == 1 and OS != "mac" and OS != "ios"', {
               'type': 'static_library',
               'sources': [
-                'chromium/libxml_utils.h',
-                'chromium/libxml_utils.cc',
+                # 'chromium/libxml_utils.h',
+                # 'chromium/libxml_utils.cc',
               ],
               'cflags': [
                 '<!@(pkg-config --cflags libxml-2.0)',
@@ -33,6 +34,25 @@
               'defines': [
                 'USE_SYSTEM_LIBXML',
               ],
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(pkg-config --cflags libxml-2.0)',
+                ],
+                'defines': [
+                  'USE_SYSTEM_LIBXML',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(pkg-config --libs-only-L --libs-only-other libxml-2.0)',
+                ],
+                'libraries': [
+                  '<!@(pkg-config --libs-only-l libxml-2.0)',
+                ],
+              },
+            }],
+            ['tizen_os == 1', {
+              'type': 'none',
               'direct_dependent_settings': {
                 'cflags': [
                   '<!@(pkg-config --cflags libxml-2.0)',
@@ -79,8 +99,8 @@
         }, {  # else: !use_system_libxml
           'type': 'static_library',
           'sources': [
-            'chromium/libxml_utils.h',
-            'chromium/libxml_utils.cc',
+            # 'chromium/libxml_utils.h',
+            # 'chromium/libxml_utils.cc',
             'linux/config.h',
             'linux/include/libxml/xmlversion.h',
             'mac/config.h',
@@ -138,7 +158,7 @@
             'src/chvalid.c',
             'src/debugXML.c',
             'src/dict.c',
-            'src/DOCBparser.c',
+            # 'src/DOCBparser.c',
             'src/elfgcchack.h',
             'src/enc.h',
             'src/encoding.c',
@@ -177,14 +197,14 @@
             'src/xmlIO.c',
             'src/xmlmemory.c',
             'src/xmlmodule.c',
-            'src/xmlreader.c',
+            # 'src/xmlreader.c',
             'src/xmlregexp.c',
             'src/xmlsave.c',
             'src/xmlschemas.c',
             'src/xmlschemastypes.c',
             'src/xmlstring.c',
             'src/xmlunicode.c',
-            'src/xmlwriter.c',
+            # 'src/xmlwriter.c',
             'src/xpath.c',
             'src/xpointer.c',
             #'src/xzlib.c',
@@ -199,29 +219,6 @@
             # defines the macro FOO as 1.)
             'LIBXML_STATIC=',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # libxml passes `const unsigned char*` through `const char*`.
-              '-Wno-pointer-sign',
-              # pattern.c and uri.c both have an intentional
-              # `for (...);` / `while(...);` loop. I submitted a patch to
-              # move the `'` to its own line, but until that's landed
-              # suppress the warning:
-              '-Wno-empty-body',
-              # debugXML.c compares array 'arg' to NULL.
-              '-Wno-tautological-pointer-compare',
-              # See http://crbug.com/138571#c8
-              '-Wno-ignored-attributes',
-              # libxml casts from int to long to void*.
-              '-Wno-int-to-void-pointer-cast',
-              # libxml passes a volatile LPCRITICAL_SECTION* to a function
-              # expecting a void* volatile*.
-              '-Wno-incompatible-pointer-types',
-              # trio_is_special_quantity and trio_is_negative are only
-              # used with certain preprocessor defines set.
-              '-Wno-unused-function',
-            ],
-          },
           'include_dirs': [
             '<(os_include)',
             '<(os_include)/include',
@@ -243,7 +240,26 @@
               'src/include',
             ],
           },
+          'msvs_disabled_warnings': [
+            # Disable unimportant 'unused variable' warning.
+            # signed/unsigned comparison.
+            4018,
+            # TODO(jschuh): http://crbug.com/167187 size_t -> int
+            4267,
+            # TODO(brucedawson): http://crbug.com/554200 fix C4311 warnings
+            # C4311 is a VS 2015 64-bit warning for pointer truncation
+            4311,
+            # Conversion from long (possibly 32-bit) to void*
+            4312,
+            # Uninitialized local variable used.
+            4700
+          ],
           'conditions': [
+            ['OS=="starboard" or OS=="lb_shell"', {
+              'dependencies!': [
+                '../zlib/zlib.gyp:zlib',
+              ],
+            }],
             ['OS=="linux"', {
               'link_settings': {
                 'libraries': [
@@ -258,15 +274,36 @@
             # in chrome. On linux, this is picked up by transitivity from
             # pkg-config output from build/linux/system.gyp.
             ['OS=="mac" or OS=="android"', {'defines': ['_REENTRANT']}],
-            ['OS=="win"', {
+            ['target_arch=="win"', {
               'product_name': 'libxml2',
-              # Disable unimportant 'unused variable' warning.
-              # TODO(jschuh): http://crbug.com/167187 size_t -> int
-              # TODO(brucedawson): http://crbug.com/554200 fix C4311 warnings
-              # C4311 is a VS 2015 64-bit warning for pointer truncation
-              'msvs_disabled_warnings': [ 4018, 4267, 4311, ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
+            }],
+            ['clang == 1', {
+              'cflags': [
+                # libxml passes `const unsigned char*` through `const char*`.
+                '-Wno-pointer-sign',
+                # pattern.c and uri.c both have an intentional
+                # `for (...);` / `while(...);` loop. I submitted a patch to
+                # move the `'` to its own line, but until that's landed
+                # suppress the warning:
+                '-Wno-empty-body',
+                # debugXML.c compares array 'arg' to NULL.
+                '-Wno-tautological-pointer-compare',
+                # See http://crbug.com/138571#c8
+                '-Wno-ignored-attributes',
+                # libxml casts from int to long to void*.
+                '-Wno-int-to-void-pointer-cast',
+                # libxml passes a volatile LPCRITICAL_SECTION* to a function
+                # expecting a void* volatile*.
+                '-Wno-incompatible-pointer-types',
+                # trio_is_special_quantity and trio_is_negative are only
+                # used with certain preprocessor defines set.
+                '-Wno-unused-function',
+                # xpath.c xmlXPathNodeCollectAndTest compares 'xmlElementType'
+                # and 'xmlXPathTypeVal'.
+                '-Wno-enum-compare',
+              ],
             }],
           ],
         }],
@@ -277,3 +314,4 @@
     },
   ],
 }
+

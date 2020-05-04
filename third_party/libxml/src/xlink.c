@@ -12,7 +12,9 @@
 #include "libxml.h"
 
 #ifdef LIBXML_XPTR_ENABLED
+#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only */
+#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
@@ -161,7 +163,7 @@ xlinkIsLink	(xmlDocPtr doc, xmlNodePtr node) {
 			ret = XLINK_TYPE_EXTENDED_SET;
 		} else {
 		    xmlChar buf[200];
-		    snprintf((char *) buf, sizeof(buf), "%s:external-linkset",
+		    XML_SNPRINTF((char *) buf, sizeof(buf), "%s:external-linkset",
 			     (char *) xlink->prefix);
                     buf[sizeof(buf) - 1] = 0;
 		    if (xmlStrEqual(role, buf))

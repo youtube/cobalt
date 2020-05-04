@@ -10,7 +10,9 @@
 #ifndef __XML_IO_H__
 #define __XML_IO_H__
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #include <libxml/xmlversion.h>
 
 #ifdef __cplusplus
@@ -169,9 +171,11 @@ XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFilename	(const char *URI,
                                                  xmlCharEncoding enc);
+#ifndef COBALT
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFile		(FILE *file,
                                                  xmlCharEncoding enc);
+#endif
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFd		(int fd,
 	                                         xmlCharEncoding enc);
@@ -227,9 +231,11 @@ XMLPUBFUN xmlOutputBufferPtr XMLCALL
 					 xmlCharEncodingHandlerPtr encoder,
 					 int compression);
 
+#ifndef COBALT
 XMLPUBFUN xmlOutputBufferPtr XMLCALL
 	xmlOutputBufferCreateFile	(FILE *file,
 					 xmlCharEncodingHandlerPtr encoder);
+#endif
 
 XMLPUBFUN xmlOutputBufferPtr XMLCALL
 	xmlOutputBufferCreateBuffer	(xmlBufferPtr buffer,
