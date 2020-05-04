@@ -49,6 +49,9 @@ void __funcs_on_exit()
 
 void __cxa_finalize(void *dso)
 {
+#ifdef STARBOARD
+  __funcs_on_exit();
+#endif  // STARBOARD
 }
 
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
