@@ -35,14 +35,19 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
   *is_eos_reached = false;
 }
 
+#if SB_API_VERSION >=                                             \
+        SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION || \
+    !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
+#else   // SB_API_VERSION >=                                          \
+        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||  \
+        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 void ConsumeFramesFuncStub(int frames_consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                            SbTime frames_consumed_at,
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-                           // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                           void* context) {
-}
+                           void* context) {}
+#endif  // SB_API_VERSION >=
+        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||
+        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
 }  // namespace
 

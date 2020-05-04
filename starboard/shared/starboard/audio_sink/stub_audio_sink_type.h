@@ -34,11 +34,11 @@ class StubAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkFrameBuffers frame_buffers,
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
       SbAudioSinkPrivate::ErrorFunc error_func,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
-      void* context);
+      void* context) override;
 
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
