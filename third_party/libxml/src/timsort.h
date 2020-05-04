@@ -16,6 +16,16 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#if defined(STARBOARD)
+#include <stdarg.h>
+#include "starboard/memory.h"
+#include "starboard/system.h"
+#include "starboard/types.h"
+#define exit(x) SbSystemBreakIntoDebugger()
+#define free SbMemoryDeallocate
+#define memcpy SbMemoryCopy
+#define realloc SbMemoryReallocate
+#else
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,6 +38,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 #endif
+#endif
+#endif
+
+#if defined(STARBOARD)
+void xml_logerr(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  SbLogFormat(format, args);
+  va_end(args);
+}
+#else
+void xml_logerr(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+}
 #endif
 
 #ifndef MK_UINT64
@@ -323,7 +350,7 @@ static void TIM_SORT_RESIZE(TEMP_STORAGE_T *store, const size_t new_size)
     SORT_TYPE *tempstore = (SORT_TYPE *)realloc(store->storage, new_size * sizeof(SORT_TYPE));
     if (tempstore == NULL)
     {
-      fprintf(stderr, "Error allocating temporary storage for tim sort: need %llu bytes", (unsigned long long)(sizeof(SORT_TYPE) * new_size));
+      xml_logerr("Error allocating temporary storage for tim sort: need %llu bytes", (unsigned long long)(sizeof(SORT_TYPE) * new_size));
       exit(1);
     }
     store->storage = tempstore;

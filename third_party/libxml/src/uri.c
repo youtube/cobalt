@@ -11,7 +11,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/xmlmemory.h>
 #include <libxml/uri.h>
@@ -325,17 +327,18 @@ static int
 xmlParse3986Port(xmlURIPtr uri, const char **str)
 {
     const char *cur = *str;
+    unsigned port = 0; /* unsigned for defined overflow behavior */
 
     if (ISA_DIGIT(cur)) {
-	if (uri != NULL)
-	    uri->port = 0;
-	while (ISA_DIGIT(cur)) {
-	    if (uri != NULL)
-		uri->port = uri->port * 10 + (*cur - '0');
-	    cur++;
-	}
-	*str = cur;
-	return(0);
+        while (ISA_DIGIT(cur)) {
+            port = port * 10 + (*cur - '0');
+
+            cur++;
+        }
+        if (uri != NULL)
+            uri->port = port & USHRT_MAX; /* port value modulo INT_MAX+1 */
+        *str = cur;
+        return(0);
     }
     return(1);
 }
@@ -1016,7 +1019,7 @@ xmlCreateURI(void) {
         xmlURIErrMemory("creating URI structure\n");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlURI));
+    XML_MEMSET(ret, 0, sizeof(xmlURI));
     return(ret);
 }
 
@@ -1161,7 +1164,7 @@ xmlSaveUri(xmlURIPtr uri) {
 			if (temp == NULL) goto mem_error;
 			ret = temp;
 		    }
-		    len += snprintf((char *) &ret[len], max - len, ":%d", uri->port);
+		    len += XML_SNPRINTF((char *) &ret[len], max - len, ":%d", uri->port);
 		}
 	    }
 	} else if (uri->authority != NULL) {
@@ -1320,6 +1323,7 @@ mem_error:
     return(NULL);
 }
 
+#ifndef STARBOARD
 /**
  * xmlPrintURI:
  * @stream:  a FILE* for the output
@@ -1337,6 +1341,7 @@ xmlPrintURI(FILE *stream, xmlURIPtr uri) {
 	xmlFree(out);
     }
 }
+#endif
 
 /**
  * xmlCleanURI:
@@ -1530,7 +1535,7 @@ xmlNormalizeURIPath(char *path) {
           cur[0] = '\0';
           break;
         }
-        /* Valgrind complained, strcpy(cur, segp + 3); */
+        /* Valgrind complained, XML_STRCPY(cur, segp + 3); */
         /* string will overlap, do not use strcpy */
         tmp = cur;
         segp += 3;
@@ -1614,7 +1619,7 @@ xmlURIUnescapeString(const char *str, int len, char *target) {
 
     if (str == NULL)
 	return(NULL);
-    if (len <= 0) len = strlen(str);
+    if (len <= 0) len = XML_STRLEN(str);
     if (len < 0) return(NULL);
 
     if (target == NULL) {
@@ -1809,7 +1814,7 @@ xmlURIEscape(const xmlChar * str)
     if (uri->port) {
         xmlChar port[10];
 
-        snprintf((char *) port, 10, "%d", uri->port);
+        XML_SNPRINTF((char *) port, 10, "%d", uri->port);
         ret = xmlStrcat(ret, BAD_CAST ":");
         ret = xmlStrcat(ret, port);
     }
@@ -2050,9 +2055,9 @@ xmlBuildURI(const xmlChar *URI, const xmlChar *base) {
      */
     len = 2; /* extra / and 0 */
     if (ref->path != NULL)
-	len += strlen(ref->path);
+	len += XML_STRLEN(ref->path);
     if (bas->path != NULL)
-	len += strlen(bas->path);
+	len += XML_STRLEN(bas->path);
     res->path = (char *) xmlMallocAtomic(len);
     if (res->path == NULL) {
         xmlURIErrMemory("resolving URI against base\n");
@@ -2334,10 +2339,10 @@ xmlBuildRelativeURI (const xmlChar * URI, const xmlChar * base)
     if (uptr != NULL) {
         if ((vptr > val) && (len > 0) &&
 	    (uptr[0] == '/') && (vptr[-1] == '/')) {
-	    memcpy (vptr, uptr + 1, len - 1);
+	    XML_MEMCPY (vptr, uptr + 1, len - 1);
 	    vptr[len - 2] = 0;
 	} else {
-	    memcpy (vptr, uptr, len);
+	    XML_MEMCPY (vptr, uptr, len);
 	    vptr[len - 1] = 0;
 	}
     } else {
@@ -2481,7 +2486,7 @@ path_processing:
 	/* Put in leading '/' plus path */
 	uri->path[0] = '/';
 	p = uri->path + 1;
-	strncpy(p, path, len + 1);
+	XML_STRNCPY(p, path, len + 1);
     } else {
 	uri->path = xmlStrdup(path);
 	if (uri->path == NULL) {
@@ -2556,7 +2561,7 @@ xmlPathToURI(const xmlChar *path)
 	ret++;
     }
 #endif
-    memset(&temp, 0, sizeof(temp));
+    XML_MEMSET(&temp, 0, sizeof(temp));
     temp.path = (char *) cal;
     ret = xmlSaveUri(&temp);
     xmlFree(cal);

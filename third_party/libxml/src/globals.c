@@ -17,7 +17,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/globals.h>
 #include <libxml/xmlmemory.h>
@@ -90,44 +92,44 @@ xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
  * xmlFree:
  * @mem: an already allocated block of memory
  *
- * The variable holding the libxml free() implementation
+ * The variable holding the libxml XML_FREE() implementation
  */
-xmlFreeFunc xmlFree = (xmlFreeFunc) free;
+xmlFreeFunc xmlFree = (xmlFreeFunc) XML_FREE;
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
  *
- * The variable holding the libxml malloc() implementation
+ * The variable holding the libxml XML_MALLOC() implementation
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMalloc = (xmlMallocFunc) malloc;
+xmlMallocFunc xmlMalloc = (xmlMallocFunc) XML_MALLOC;
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
  *
- * The variable holding the libxml malloc() implementation for atomic
+ * The variable holding the libxml XML_MALLOC() implementation for atomic
  * data (i.e. blocks not containings pointers), useful when using a
  * garbage collecting allocator.
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) malloc;
+xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
  * @size:  the new size requested in bytes
  *
- * The variable holding the libxml realloc() implementation
+ * The variable holding the libxml XML_REALLOC() implementation
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = (xmlReallocFunc) realloc;
+xmlReallocFunc xmlRealloc = (xmlReallocFunc) XML_REALLOC;
 /**
  * xmlMemStrdup:
  * @str: a zero terminated string
  *
- * The variable holding the libxml strdup() implementation
+ * The variable holding the libxml XML_STRDUP() implementation
  *
  * Returns the copy of the string or NULL in case of error
  */
@@ -532,10 +534,10 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
-    gs->xmlFree = (xmlFreeFunc) free;
-    gs->xmlMalloc = (xmlMallocFunc) malloc;
-    gs->xmlMallocAtomic = (xmlMallocFunc) malloc;
-    gs->xmlRealloc = (xmlReallocFunc) realloc;
+    gs->xmlFree = (xmlFreeFunc) XML_FREE;
+    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;
@@ -560,7 +562,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
 
 	gs->xmlParserInputBufferCreateFilenameValue = xmlParserInputBufferCreateFilenameValueThrDef;
 	gs->xmlOutputBufferCreateFilenameValue = xmlOutputBufferCreateFilenameValueThrDef;
-    memset(&gs->xmlLastError, 0, sizeof(xmlError));
+    XML_MEMSET(&gs->xmlLastError, 0, sizeof(xmlError));
 
     xmlMutexUnlock(xmlThrDefMutex);
 }

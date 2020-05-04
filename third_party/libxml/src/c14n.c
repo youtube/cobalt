@@ -17,7 +17,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -259,7 +261,7 @@ xmlC14NIsNodeInNodeset(xmlNodeSetPtr nodes, xmlNodePtr node, xmlNodePtr parent) 
 	} else {
 	    xmlNs ns;
 
-	    memcpy(&ns, node, sizeof(ns));
+	    XML_MEMCPY(&ns, node, sizeof(ns));
 
 	    /* this is a libxml hack! check xpath.c for details */
 	    if((parent != NULL) && (parent->type == XML_ATTRIBUTE_NODE)) {
@@ -287,7 +289,7 @@ xmlC14NVisibleNsStackCreate(void) {
         xmlC14NErrMemory("creating namespaces stack");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlC14NVisibleNsStack));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlC14NVisibleNsStack));
     return(ret);
 }
 
@@ -298,14 +300,14 @@ xmlC14NVisibleNsStackDestroy(xmlC14NVisibleNsStackPtr cur) {
         return;
     }
     if(cur->nsTab != NULL) {
-	memset(cur->nsTab, 0, cur->nsMax * sizeof(xmlNsPtr));
+	XML_MEMSET(cur->nsTab, 0, cur->nsMax * sizeof(xmlNsPtr));
 	xmlFree(cur->nsTab);
     }
     if(cur->nodeTab != NULL) {
-	memset(cur->nodeTab, 0, cur->nsMax * sizeof(xmlNodePtr));
+	XML_MEMSET(cur->nodeTab, 0, cur->nsMax * sizeof(xmlNodePtr));
 	xmlFree(cur->nodeTab);
     }
-    memset(cur, 0, sizeof(xmlC14NVisibleNsStack));
+    XML_MEMSET(cur, 0, sizeof(xmlC14NVisibleNsStack));
     xmlFree(cur);
 
 }
@@ -326,8 +328,8 @@ xmlC14NVisibleNsStackAdd(xmlC14NVisibleNsStackPtr cur, xmlNsPtr ns, xmlNodePtr n
 	    xmlC14NErrMemory("adding node to stack");
 	    return;
 	}
-	memset(cur->nsTab, 0 , XML_NAMESPACES_DEFAULT * sizeof(xmlNsPtr));
-	memset(cur->nodeTab, 0 , XML_NAMESPACES_DEFAULT * sizeof(xmlNodePtr));
+	XML_MEMSET(cur->nsTab, 0 , XML_NAMESPACES_DEFAULT * sizeof(xmlNsPtr));
+	XML_MEMSET(cur->nodeTab, 0 , XML_NAMESPACES_DEFAULT * sizeof(xmlNodePtr));
         cur->nsMax = XML_NAMESPACES_DEFAULT;
     } else if(cur->nsMax == cur->nsCurEnd) {
 	void *tmp;
@@ -653,7 +655,7 @@ xmlC14NProcessNamespacesAxis(xmlC14NCtxPtr ctx, xmlNodePtr cur, int visible)
     if(visible && !has_empty_ns) {
         static xmlNs ns_default;
 
-        memset(&ns_default, 0, sizeof(ns_default));
+        XML_MEMSET(&ns_default, 0, sizeof(ns_default));
         if(!xmlC14NVisibleNsStackFind(ctx->ns_rendered, &ns_default)) {
 	    xmlC14NPrintNamespaces(&ns_default, ctx);
 	}
@@ -820,7 +822,7 @@ xmlExcC14NProcessNamespacesAxis(xmlC14NCtxPtr ctx, xmlNodePtr cur, int visible)
 	    !has_empty_ns && !has_empty_ns_in_inclusive_list) {
         static xmlNs ns_default;
 
-        memset(&ns_default, 0, sizeof(ns_default));
+        XML_MEMSET(&ns_default, 0, sizeof(ns_default));
 
         already_rendered = xmlExcC14NVisibleNsStackFind(ctx->ns_rendered, &ns_default, ctx);
 	if(!already_rendered) {
@@ -829,7 +831,7 @@ xmlExcC14NProcessNamespacesAxis(xmlC14NCtxPtr ctx, xmlNodePtr cur, int visible)
     } else if(visible && !has_empty_ns && has_empty_ns_in_inclusive_list) {
         static xmlNs ns_default;
 
-        memset(&ns_default, 0, sizeof(ns_default));
+        XML_MEMSET(&ns_default, 0, sizeof(ns_default));
         if(!xmlC14NVisibleNsStackFind(ctx->ns_rendered, &ns_default)) {
 	    xmlC14NPrintNamespaces(&ns_default, ctx);
 	}
@@ -1438,7 +1440,7 @@ xmlC14NProcessElementNode(xmlC14NCtxPtr ctx, xmlNodePtr cur, int visible)
     /*
      * Save ns_rendered stack position
      */
-    memset(&state, 0, sizeof(state));
+    XML_MEMSET(&state, 0, sizeof(state));
     xmlC14NVisibleNsStackSave(ctx->ns_rendered, &state);
 
     if (visible) {
@@ -1809,7 +1811,7 @@ xmlC14NNewCtx(xmlDocPtr doc,
 	xmlC14NErrMemory("creating context");
         return (NULL);
     }
-    memset(ctx, 0, sizeof(xmlC14NCtx));
+    XML_MEMSET(ctx, 0, sizeof(xmlC14NCtx));
 
     /*
      * initialize C14N context
