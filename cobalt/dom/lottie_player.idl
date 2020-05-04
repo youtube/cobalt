@@ -16,5 +16,6 @@
 
 interface LottiePlayer : HTMLElement {
   attribute DOMString src;
+  attribute boolean autoplay;
   attribute boolean loop;
 };
