@@ -44,7 +44,11 @@
 #include "trionan.h"
 
 #include <math.h>
+#if !defined(STARBOARD)
+// Avoid "cannot apply asm label to function after its first use" error on
+// memcpy when building with Android NDK.
 #include <string.h>
+#endif
 #include <limits.h>
 #include <float.h>
 #if defined(TRIO_PLATFORM_UNIX)

@@ -21,8 +21,12 @@
 
 /* #define DEBUG_ERR */
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
@@ -435,7 +439,7 @@ xmlRegEpxFromParse(xmlRegParserCtxtPtr ctxt) {
 	xmlRegexpErrMemory(ctxt, "compiling regexp");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlRegexp));
+    XML_MEMSET(ret, 0, sizeof(xmlRegexp));
     ret->string = ctxt->string;
     ret->nbStates = ctxt->nbStates;
     ret->states = ctxt->states;
@@ -549,7 +553,7 @@ xmlRegEpxFromParse(xmlRegParserCtxtPtr ctxt) {
 	    xmlFree(ret);
 	    return(NULL);
 	}
-	memset(transitions, 0, (nbstates + 1) * (nbatoms + 1) * sizeof(int));
+	XML_MEMSET(transitions, 0, (nbstates + 1) * (nbatoms + 1) * sizeof(int));
 
 	/*
 	 * Allocate the transition table. The first entry for each
@@ -578,7 +582,7 @@ xmlRegEpxFromParse(xmlRegParserCtxtPtr ctxt) {
 		    transdata = (void **) xmlMalloc(nbstates * nbatoms *
 			                            sizeof(void *));
 		    if (transdata != NULL)
-			memset(transdata, 0,
+			XML_MEMSET(transdata, 0,
 			       nbstates * nbatoms * sizeof(void *));
 		    else {
 			xmlRegexpErrMemory(ctxt, "compiling regexp");
@@ -688,7 +692,7 @@ xmlRegNewParserCtxt(const xmlChar *string) {
     ret = (xmlRegParserCtxtPtr) xmlMalloc(sizeof(xmlRegParserCtxt));
     if (ret == NULL)
 	return(NULL);
-    memset(ret, 0, sizeof(xmlRegParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRegParserCtxt));
     if (string != NULL)
 	ret->string = xmlStrdup(string);
     ret->cur = ret->string;
@@ -792,7 +796,7 @@ xmlRegNewAtom(xmlRegParserCtxtPtr ctxt, xmlRegAtomType type) {
 	xmlRegexpErrMemory(ctxt, "allocating atom");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlRegAtom));
+    XML_MEMSET(ret, 0, sizeof(xmlRegAtom));
     ret->type = type;
     ret->quant = XML_REGEXP_QUANT_ONCE;
     ret->min = 0;
@@ -844,7 +848,7 @@ xmlRegCopyAtom(xmlRegParserCtxtPtr ctxt, xmlRegAtomPtr atom) {
 	xmlRegexpErrMemory(ctxt, "copying atom");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlRegAtom));
+    XML_MEMSET(ret, 0, sizeof(xmlRegAtom));
     ret->type = atom->type;
     ret->quant = atom->quant;
     ret->min = atom->min;
@@ -881,7 +885,7 @@ xmlRegNewState(xmlRegParserCtxtPtr ctxt) {
 	xmlRegexpErrMemory(ctxt, "allocating state");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlRegState));
+    XML_MEMSET(ret, 0, sizeof(xmlRegState));
     ret->type = XML_REGEXP_TRANS_STATE;
     ret->mark = XML_REGEXP_MARK_NORMAL;
     return(ret);
@@ -940,6 +944,7 @@ xmlRegFreeParserCtxt(xmlRegParserCtxtPtr ctxt) {
  *									*
  ************************************************************************/
 
+#ifndef STARBOARD
 static void
 xmlRegPrintAtomType(FILE *output, xmlRegAtomType type) {
     switch (type) {
@@ -1205,6 +1210,7 @@ xmlRegPrintCtxt(FILE *output, xmlRegParserCtxtPtr ctxt) {
 		                                ctxt->counters[i].max);
     }
 }
+#endif
 #endif
 
 /************************************************************************
@@ -3000,7 +3006,11 @@ xmlRegCheckCharacter(xmlRegAtomPtr atom, int codepoint) {
 	    return(accept);
 	}
         case XML_REGEXP_STRING:
+#ifndef STARBOARD
 	    printf("TODO: XML_REGEXP_STRING\n");
+#else
+        SbLogRaw("TODO: XML_REGEXP_STRING\n");
+#endif
 	    return(-1);
         case XML_REGEXP_ANYCHAR:
         case XML_REGEXP_ANYSPACE:
@@ -3106,7 +3116,7 @@ xmlFARegExecSave(xmlRegExecCtxtPtr exec) {
 	    exec->maxRollbacks = 0;
 	    return;
 	}
-	memset(exec->rollbacks, 0,
+	XML_MEMSET(exec->rollbacks, 0,
 	       exec->maxRollbacks * sizeof(xmlRegExecRollback));
     } else if (exec->nbRollbacks >= exec->maxRollbacks) {
 	xmlRegExecRollback *tmp;
@@ -3122,7 +3132,7 @@ xmlFARegExecSave(xmlRegExecCtxtPtr exec) {
 	}
 	exec->rollbacks = tmp;
 	tmp = &exec->rollbacks[len];
-	memset(tmp, 0, (exec->maxRollbacks - len) * sizeof(xmlRegExecRollback));
+	XML_MEMSET(tmp, 0, (exec->maxRollbacks - len) * sizeof(xmlRegExecRollback));
     }
     exec->rollbacks[exec->nbRollbacks].state = exec->state;
     exec->rollbacks[exec->nbRollbacks].index = exec->index;
@@ -3137,7 +3147,7 @@ xmlFARegExecSave(xmlRegExecCtxtPtr exec) {
 		return;
 	    }
 	}
-	memcpy(exec->rollbacks[exec->nbRollbacks].counts, exec->counts,
+	XML_MEMCPY(exec->rollbacks[exec->nbRollbacks].counts, exec->counts,
 	       exec->comp->nbCounters * sizeof(int));
     }
     exec->nbRollbacks++;
@@ -3158,12 +3168,16 @@ xmlFARegExecRollBack(xmlRegExecCtxtPtr exec) {
     exec->transno = exec->rollbacks[exec->nbRollbacks].nextbranch;
     if (exec->comp->nbCounters > 0) {
 	if (exec->rollbacks[exec->nbRollbacks].counts == NULL) {
+#ifndef STARBOARD
 	    fprintf(stderr, "exec save: allocation failed");
+#else
+        SbLog(kSbLogPriorityError, "exec save: allocation failed");
+#endif
 	    exec->status = -6;
 	    return;
 	}
 	if (exec->counts) {
-	    memcpy(exec->counts, exec->rollbacks[exec->nbRollbacks].counts,
+	    XML_MEMCPY(exec->counts, exec->rollbacks[exec->nbRollbacks].counts,
 	       exec->comp->nbCounters * sizeof(int));
 	}
     }
@@ -3206,7 +3220,7 @@ xmlFARegExec(xmlRegexpPtr comp, const xmlChar *content) {
 	    xmlRegexpErrMemory(NULL, "running regexp");
 	    return(-1);
 	}
-        memset(exec->counts, 0, comp->nbCounters * sizeof(int));
+        XML_MEMSET(exec->counts, 0, comp->nbCounters * sizeof(int));
     } else
 	exec->counts = NULL;
     while ((exec->status == 0) && (exec->state != NULL) &&
@@ -3270,7 +3284,11 @@ xmlFARegExec(xmlRegexpPtr comp, const xmlChar *content) {
 		if ((ret) && (counter->min != counter->max))
 		    deter = 0;
 	    } else if (atom == NULL) {
+#ifndef STARBOARD
 		fprintf(stderr, "epsilon transition left at runtime\n");
+#else
+        SbLog(kSbLogPriorityError, "epsilon transition left at runtime\n");
+#endif
 		exec->status = -2;
 		break;
 	    } else if (exec->inputString[exec->index] != 0) {
@@ -3510,7 +3528,7 @@ xmlRegNewExecCtxt(xmlRegexpPtr comp, xmlRegExecCallbacks callback, void *data) {
 	xmlRegexpErrMemory(NULL, "creating execution context");
 	return(NULL);
     }
-    memset(exec, 0, sizeof(xmlRegExecCtxt));
+    XML_MEMSET(exec, 0, sizeof(xmlRegExecCtxt));
     exec->inputString = NULL;
     exec->index = 0;
     exec->determinist = 1;
@@ -3537,7 +3555,7 @@ xmlRegNewExecCtxt(xmlRegexpPtr comp, xmlRegExecCallbacks callback, void *data) {
 	    xmlFree(exec);
 	    return(NULL);
 	}
-        memset(exec->counts, 0, comp->nbCounters * sizeof(int) * 2);
+        XML_MEMSET(exec->counts, 0, comp->nbCounters * sizeof(int) * 2);
 	exec->errCounts = &exec->counts[comp->nbCounters];
     } else {
 	exec->counts = NULL;
@@ -3909,7 +3927,11 @@ xmlRegExecPushStringInternal(xmlRegExecCtxtPtr exec, const xmlChar *value,
 #endif
 		ret = ((count >= counter->min) && (count <= counter->max));
 	    } else if (atom == NULL) {
-		fprintf(stderr, "epsilon transition left at runtime\n");
+#ifndef STARBOARD
+        fprintf(stderr, "epsilon transition left at runtime\n");
+#else
+        SbLog(kSbLogPriorityError, "epsilon transition left at runtime\n");
+#endif
 		exec->status = -2;
 		break;
 	    } else if (value != NULL) {
@@ -4036,7 +4058,7 @@ xmlRegExecPushStringInternal(xmlRegExecCtxtPtr exec, const xmlChar *value,
 			xmlFree(exec->errString);
 		    exec->errString = xmlStrdup(value);
 		    exec->errState = exec->state;
-		    memcpy(exec->errCounts, exec->counts,
+		    XML_MEMCPY(exec->errCounts, exec->counts,
 			   exec->comp->nbCounters * sizeof(int));
 		}
 		exec->state = exec->comp->states[trans->to];
@@ -4084,7 +4106,7 @@ rollback:
 		    xmlFree(exec->errString);
 		exec->errString = xmlStrdup(value);
 		exec->errState = exec->state;
-		memcpy(exec->errCounts, exec->counts,
+		XML_MEMCPY(exec->errCounts, exec->counts,
 		       exec->comp->nbCounters * sizeof(int));
 	    }
 
@@ -4163,8 +4185,8 @@ xmlRegExecPushString2(xmlRegExecCtxtPtr exec, const xmlChar *value,
     if (value2 == NULL)
         return(xmlRegExecPushString(exec, value, data));
 
-    lenn = strlen((char *) value2);
-    lenp = strlen((char *) value);
+    lenn = XML_STRLEN((char *) value2);
+    lenp = XML_STRLEN((char *) value);
 
     if (150 < lenn + lenp + 2) {
 	str = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
@@ -4175,9 +4197,9 @@ xmlRegExecPushString2(xmlRegExecCtxtPtr exec, const xmlChar *value,
     } else {
 	str = buf;
     }
-    memcpy(&str[0], value, lenp);
+    XML_MEMCPY(&str[0], value, lenp);
     str[lenp] = XML_REG_STRING_SEPARATOR;
-    memcpy(&str[lenp + 1], value2, lenn);
+    XML_MEMCPY(&str[lenp + 1], value2, lenn);
     str[lenn + lenp + 1] = 0;
 
     if (exec->comp->compact != NULL)
@@ -5402,6 +5424,7 @@ xmlFAParseRegExp(xmlRegParserCtxtPtr ctxt, int top) {
  *									*
  ************************************************************************/
 
+#ifndef STARBOARD
 /**
  * xmlRegexpPrint:
  * @output: the file for the output debug
@@ -5438,6 +5461,7 @@ xmlRegexpPrint(FILE *output, xmlRegexpPtr regexp) {
 		                                regexp->counters[i].max);
     }
 }
+#endif
 
 /**
  * xmlRegexpCompile:
@@ -5753,17 +5777,17 @@ xmlAutomataNewTransition2(xmlAutomataPtr am, xmlAutomataStatePtr from,
 	int lenn, lenp;
 	xmlChar *str;
 
-	lenn = strlen((char *) token2);
-	lenp = strlen((char *) token);
+	lenn = XML_STRLEN((char *) token2);
+	lenp = XML_STRLEN((char *) token);
 
 	str = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
 	if (str == NULL) {
 	    xmlRegFreeAtom(atom);
 	    return(NULL);
 	}
-	memcpy(&str[0], token, lenp);
+	XML_MEMCPY(&str[0], token, lenp);
 	str[lenp] = '|';
-	memcpy(&str[lenp + 1], token2, lenn);
+	XML_MEMCPY(&str[lenp + 1], token2, lenn);
 	str[lenn + lenp + 1] = 0;
 
 	atom->valuep = str;
@@ -5815,22 +5839,22 @@ xmlAutomataNewNegTrans(xmlAutomataPtr am, xmlAutomataStatePtr from,
 	int lenn, lenp;
 	xmlChar *str;
 
-	lenn = strlen((char *) token2);
-	lenp = strlen((char *) token);
+	lenn = XML_STRLEN((char *) token2);
+	lenp = XML_STRLEN((char *) token);
 
 	str = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
 	if (str == NULL) {
 	    xmlRegFreeAtom(atom);
 	    return(NULL);
 	}
-	memcpy(&str[0], token, lenp);
+	XML_MEMCPY(&str[0], token, lenp);
 	str[lenp] = '|';
-	memcpy(&str[lenp + 1], token2, lenn);
+	XML_MEMCPY(&str[lenp + 1], token2, lenn);
 	str[lenn + lenp + 1] = 0;
 
 	atom->valuep = str;
     }
-    snprintf((char *) err_msg, 199, "not %s", (const char *) atom->valuep);
+    XML_SNPRINTF((char *) err_msg, 199, "not %s", (const char *) atom->valuep);
     err_msg[199] = 0;
     atom->valuep2 = xmlStrdup(err_msg);
 
@@ -5885,17 +5909,17 @@ xmlAutomataNewCountTrans2(xmlAutomataPtr am, xmlAutomataStatePtr from,
 	int lenn, lenp;
 	xmlChar *str;
 
-	lenn = strlen((char *) token2);
-	lenp = strlen((char *) token);
+	lenn = XML_STRLEN((char *) token2);
+	lenp = XML_STRLEN((char *) token);
 
 	str = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
 	if (str == NULL) {
 	    xmlRegFreeAtom(atom);
 	    return(NULL);
 	}
-	memcpy(&str[0], token, lenp);
+	XML_MEMCPY(&str[0], token, lenp);
 	str[lenp] = '|';
-	memcpy(&str[lenp + 1], token2, lenn);
+	XML_MEMCPY(&str[lenp + 1], token2, lenn);
 	str[lenn + lenp + 1] = 0;
 
 	atom->valuep = str;
@@ -6040,17 +6064,17 @@ xmlAutomataNewOnceTrans2(xmlAutomataPtr am, xmlAutomataStatePtr from,
 	int lenn, lenp;
 	xmlChar *str;
 
-	lenn = strlen((char *) token2);
-	lenp = strlen((char *) token);
+	lenn = XML_STRLEN((char *) token2);
+	lenp = XML_STRLEN((char *) token);
 
 	str = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
 	if (str == NULL) {
 	    xmlRegFreeAtom(atom);
 	    return(NULL);
 	}
-	memcpy(&str[0], token, lenp);
+	XML_MEMCPY(&str[0], token, lenp);
 	str[lenp] = '|';
-	memcpy(&str[lenp + 1], token2, lenn);
+	XML_MEMCPY(&str[lenp + 1], token2, lenn);
 	str[lenn + lenp + 1] = 0;
 
 	atom->valuep = str;
@@ -6362,7 +6386,7 @@ xmlExpNewCtxt(int maxNodes, xmlDictPtr dict) {
     ret = (xmlExpCtxtPtr) xmlMalloc(sizeof(xmlExpCtxt));
     if (ret == NULL)
         return(NULL);
-    memset(ret, 0, sizeof(xmlExpCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlExpCtxt));
     ret->size = size;
     ret->nbElems = 0;
     ret->maxNodes = maxNodes;
@@ -6371,7 +6395,7 @@ xmlExpNewCtxt(int maxNodes, xmlDictPtr dict) {
         xmlFree(ret);
 	return(NULL);
     }
-    memset(ret->table, 0, size * sizeof(xmlExpNodePtr));
+    XML_MEMSET(ret->table, 0, size * sizeof(xmlExpNodePtr));
     if (dict == NULL) {
         ret->dict = xmlDictCreate();
 	if (ret->dict == NULL) {
@@ -6534,7 +6558,7 @@ xmlExpNewNode(xmlExpCtxtPtr ctxt, xmlExpNodeType type) {
     ret = (xmlExpNodePtr) xmlMalloc(sizeof(xmlExpNode));
     if (ret == NULL)
         return(NULL);
-    memset(ret, 0, sizeof(xmlExpNode));
+    XML_MEMSET(ret, 0, sizeof(xmlExpNode));
     ret->type = type;
     ret->next = NULL;
     ctxt->nb_nodes++;
@@ -7889,7 +7913,12 @@ xmlExpParseOr(xmlExpCtxtPtr ctxt) {
 	ret = xmlExpParseExpr(ctxt);
 	SKIP_BLANKS
 	if (*ctxt->cur != ')') {
-	    fprintf(stderr, "unbalanced '(' : %s\n", base);
+#ifndef STARBOARD
+        fprintf(stderr, "epsilon transition left at runtime\n");
+#else
+        SbLogFormatF("unbalanced '(' : %s\n", base);
+#endif
+
 	    xmlExpFree(ctxt, ret);
 	    return(NULL);
 	}
@@ -8086,18 +8115,22 @@ xmlExpDumpInt(xmlBufferPtr buf, xmlExpNodePtr expr, int glob) {
 		rep[0] = '+';
 		rep[1] = 0;
 	    } else if (expr->exp_max == expr->exp_min) {
-	        snprintf(rep, 39, "{%d}", expr->exp_min);
+	        XML_SNPRINTF(rep, 39, "{%d}", expr->exp_min);
 	    } else if (expr->exp_max < 0) {
-	        snprintf(rep, 39, "{%d,inf}", expr->exp_min);
+	        XML_SNPRINTF(rep, 39, "{%d,inf}", expr->exp_min);
 	    } else {
-	        snprintf(rep, 39, "{%d,%d}", expr->exp_min, expr->exp_max);
+	        XML_SNPRINTF(rep, 39, "{%d,%d}", expr->exp_min, expr->exp_max);
 	    }
 	    rep[39] = 0;
 	    xmlBufferWriteChar(buf, rep);
 	    break;
 	}
 	default:
-	    fprintf(stderr, "Error in tree\n");
+#ifndef STARBOARD
+        fprintf(stderr, "Error in tree\n");
+#else
+        SbLog(kSbLogPriorityError, "Error in tree\n");
+#endif
     }
     if (glob)
         xmlBufferWriteChar(buf, ")");

@@ -11,7 +11,9 @@
 #ifndef __XML_DICT_H__
 #define __XML_DICT_H__
 
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <libxml/xmlversion.h>
 #include <libxml/tree.h>
 

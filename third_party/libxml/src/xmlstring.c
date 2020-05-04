@@ -16,8 +16,12 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parserInternals.h>
 #include <libxml/xmlstring.h>
@@ -47,7 +51,7 @@ xmlStrndup(const xmlChar *cur, int len) {
         xmlErrMemory(NULL, NULL);
         return(NULL);
     }
-    memcpy(ret, cur, len * sizeof(xmlChar));
+    XML_MEMCPY(ret, cur, len * sizeof(xmlChar));
     ret[len] = 0;
     return(ret);
 }
@@ -211,7 +215,7 @@ xmlStrncmp(const xmlChar *str1, const xmlChar *str2, int len) {
     if (str1 == NULL) return(-1);
     if (str2 == NULL) return(1);
 #ifdef __GNUC__
-    tmp = strncmp((const char *)str1, (const char *)str2, len);
+    tmp = XML_STRNCMP((const char *)str1, (const char *)str2, len);
     return tmp;
 #else
     do {
@@ -462,7 +466,7 @@ xmlStrncat(xmlChar *cur, const xmlChar *add, int len) {
         xmlErrMemory(NULL, NULL);
         return(cur);
     }
-    memcpy(&ret[size], add, len * sizeof(xmlChar));
+    XML_MEMCPY(&ret[size], add, len * sizeof(xmlChar));
     ret[size + len] = 0;
     return(ret);
 }
@@ -497,8 +501,8 @@ xmlStrncatNew(const xmlChar *str1, const xmlChar *str2, int len) {
         xmlErrMemory(NULL, NULL);
         return(xmlStrndup(str1, size));
     }
-    memcpy(ret, str1, size * sizeof(xmlChar));
-    memcpy(&ret[size], str2, len * sizeof(xmlChar));
+    XML_MEMCPY(ret, str1, size * sizeof(xmlChar));
+    XML_MEMCPY(&ret[size], str2, len * sizeof(xmlChar));
     ret[size + len] = 0;
     return(ret);
 }
@@ -538,7 +542,7 @@ xmlStrcat(xmlChar *cur, const xmlChar *add) {
  * Returns the number of characters written to @buf or -1 if an error occurs.
  */
 int XMLCDECL
-xmlStrPrintf(xmlChar *buf, int len, const xmlChar *msg, ...) {
+xmlStrPrintf(xmlChar *buf, int len, const char *msg, ...) {
     va_list args;
     int ret;
 
@@ -547,7 +551,7 @@ xmlStrPrintf(xmlChar *buf, int len, const xmlChar *msg, ...) {
     }
 
     va_start(args, msg);
-    ret = vsnprintf((char *) buf, len, (const char *) msg, args);
+    ret = XML_VSNPRINTF((char *) buf, len, (const char *) msg, args);
     va_end(args);
     buf[len - 1] = 0; /* be safe ! */
 
@@ -573,7 +577,7 @@ xmlStrVPrintf(xmlChar *buf, int len, const xmlChar *msg, va_list ap) {
         return(-1);
     }
 
-    ret = vsnprintf((char *) buf, len, (const char *) msg, ap);
+    ret = XML_VSNPRINTF((char *) buf, len, (const char *) msg, ap);
     buf[len - 1] = 0; /* be safe ! */
 
     return(ret);
@@ -868,7 +872,7 @@ xmlUTF8Strndup(const xmlChar *utf, int len) {
                 (len + 1) * (long)sizeof(xmlChar));
         return(NULL);
     }
-    memcpy(ret, utf, i * sizeof(xmlChar));
+    XML_MEMCPY(ret, utf, i * sizeof(xmlChar));
     ret[i] = 0;
     return(ret);
 }
@@ -978,6 +982,61 @@ xmlUTF8Strsub(const xmlChar *utf, int start, int len) {
     }
 
     return(xmlUTF8Strndup(utf, len));
+}
+
+/**
+ * xmlEscapeFormatString:
+ * @msg:  a pointer to the string in which to escape '%' characters.
+ * Must be a heap-allocated buffer created by libxml2 that may be
+ * returned, or that may be freed and replaced.
+ *
+ * Replaces the string pointed to by 'msg' with an escaped string.
+ * Returns the same string with all '%' characters escaped.
+ */
+xmlChar *
+xmlEscapeFormatString(xmlChar **msg)
+{
+    xmlChar *msgPtr = NULL;
+    xmlChar *result = NULL;
+    xmlChar *resultPtr = NULL;
+    size_t count = 0;
+    size_t msgLen = 0;
+    size_t resultLen = 0;
+
+    if (!msg || !*msg)
+        return(NULL);
+
+    for (msgPtr = *msg; *msgPtr != '\0'; ++msgPtr) {
+        ++msgLen;
+        if (*msgPtr == '%')
+            ++count;
+    }
+
+    if (count == 0)
+        return(*msg);
+
+    resultLen = msgLen + count + 1;
+    result = (xmlChar *) xmlMallocAtomic(resultLen * sizeof(xmlChar));
+    if (result == NULL) {
+        /* Clear *msg to prevent format string vulnerabilities in
+           out-of-memory situations. */
+        xmlFree(*msg);
+        *msg = NULL;
+        xmlErrMemory(NULL, NULL);
+        return(NULL);
+    }
+
+    for (msgPtr = *msg, resultPtr = result; *msgPtr != '\0'; ++msgPtr, ++resultPtr) {
+        *resultPtr = *msgPtr;
+        if (*msgPtr == '%')
+            *(++resultPtr) = '%';
+    }
+    result[resultLen - 1] = '\0';
+
+    xmlFree(*msg);
+    *msg = result;
+
+    return *msg;
 }
 
 #define bottom_xmlstring

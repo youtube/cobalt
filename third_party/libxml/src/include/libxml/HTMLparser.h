@@ -144,6 +144,10 @@ XMLPUBFUN int XMLCALL
 			htmlIsScriptAttribute(const xmlChar *name);
 XMLPUBFUN int XMLCALL
 			htmlHandleOmittedElem(int val);
+#if defined(COBALT)
+XMLPUBFUN void XMLCALL
+			htmlEmitImpliedRootLevelParagraph(int val);
+#endif  // defined(COBALT)
 
 #ifdef LIBXML_PUSH_ENABLED
 /**

@@ -18,8 +18,12 @@
 
 #ifdef LIBXML_SCHEMAS_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
@@ -766,7 +770,7 @@ xmlRelaxNGNewRelaxNG(xmlRelaxNGParserCtxtPtr ctxt)
         xmlRngPErrMemory(ctxt, NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNG));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNG));
 
     return (ret);
 }
@@ -845,7 +849,7 @@ xmlRelaxNGNewGrammar(xmlRelaxNGParserCtxtPtr ctxt)
         xmlRngPErrMemory(ctxt, NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGGrammar));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGGrammar));
 
     return (ret);
 }
@@ -920,7 +924,7 @@ xmlRelaxNGNewDefine(xmlRelaxNGParserCtxtPtr ctxt, xmlNodePtr node)
         xmlRngPErrMemory(ctxt, "allocating define\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGDefine));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGDefine));
     ctxt->defTab[ctxt->defNr++] = ret;
     ret->node = node;
     ret->depth = -1;
@@ -1213,7 +1217,7 @@ xmlRelaxNGNewValidState(xmlRelaxNGValidCtxtPtr ctxt, xmlNodePtr node)
             xmlRngVErrMemory(ctxt, "allocating states\n");
             return (NULL);
         }
-        memset(ret, 0, sizeof(xmlRelaxNGValidState));
+        XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidState));
     }
     ret->value = NULL;
     ret->endvalue = NULL;
@@ -1251,7 +1255,7 @@ xmlRelaxNGNewValidState(xmlRelaxNGValidCtxtPtr ctxt, xmlNodePtr node)
         }
         ret->nbAttrs = nbAttrs;
         if (nbAttrs < MAX_ATTR) {
-            memcpy(ret->attrs, attrs, sizeof(xmlAttrPtr) * nbAttrs);
+            XML_MEMCPY(ret->attrs, attrs, sizeof(xmlAttrPtr) * nbAttrs);
         } else {
             attr = node->properties;
             nbAttrs = 0;
@@ -1295,11 +1299,11 @@ xmlRelaxNGCopyValidState(xmlRelaxNGValidCtxtPtr ctxt,
             xmlRngVErrMemory(ctxt, "allocating states\n");
             return (NULL);
         }
-        memset(ret, 0, sizeof(xmlRelaxNGValidState));
+        XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidState));
     }
     attrs = ret->attrs;
     maxAttrs = ret->maxAttrs;
-    memcpy(ret, state, sizeof(xmlRelaxNGValidState));
+    XML_MEMCPY(ret, state, sizeof(xmlRelaxNGValidState));
     ret->attrs = attrs;
     ret->maxAttrs = maxAttrs;
     if (state->nbAttrs > 0) {
@@ -1325,7 +1329,7 @@ xmlRelaxNGCopyValidState(xmlRelaxNGValidCtxtPtr ctxt,
             ret->maxAttrs = state->maxAttrs;
             ret->attrs = tmp;
         }
-        memcpy(ret->attrs, state->attrs,
+        XML_MEMCPY(ret->attrs, state->attrs,
                state->nbAttrs * sizeof(xmlAttrPtr));
     }
     return (ret);
@@ -1639,7 +1643,7 @@ xmlRelaxNGLoadInclude(xmlRelaxNGParserCtxtPtr ctxt, const xmlChar * URL,
         xmlFreeDoc(doc);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGInclude));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGInclude));
     ret->doc = doc;
     ret->href = xmlStrdup(URL);
     ret->next = ctxt->includes;
@@ -1969,7 +1973,7 @@ xmlRelaxNGLoadExternalRef(xmlRelaxNGParserCtxtPtr ctxt,
         xmlFreeDoc(doc);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGDocument));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGDocument));
     ret->doc = doc;
     ret->href = xmlStrdup(URL);
     ret->next = ctxt->documents;
@@ -2101,27 +2105,27 @@ xmlRelaxNGGetErrorString(xmlRelaxNGValidErr err, const xmlChar * arg1,
         case XML_RELAXNG_ERR_MEMORY:
             return (xmlCharStrdup("out of memory\n"));
         case XML_RELAXNG_ERR_TYPE:
-            snprintf(msg, 1000, "failed to validate type %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "failed to validate type %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_TYPEVAL:
-            snprintf(msg, 1000, "Type %s doesn't allow value '%s'\n", arg1,
+            XML_SNPRINTF(msg, 1000, "Type %s doesn't allow value '%s'\n", arg1,
                      arg2);
             break;
         case XML_RELAXNG_ERR_DUPID:
-            snprintf(msg, 1000, "ID %s redefined\n", arg1);
+            XML_SNPRINTF(msg, 1000, "ID %s redefined\n", arg1);
             break;
         case XML_RELAXNG_ERR_TYPECMP:
-            snprintf(msg, 1000, "failed to compare type %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "failed to compare type %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_NOSTATE:
             return (xmlCharStrdup("Internal error: no state\n"));
         case XML_RELAXNG_ERR_NODEFINE:
             return (xmlCharStrdup("Internal error: no define\n"));
         case XML_RELAXNG_ERR_INTERNAL:
-            snprintf(msg, 1000, "Internal error: %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Internal error: %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_LISTEXTRA:
-            snprintf(msg, 1000, "Extra data in list: %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Extra data in list: %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_INTERNODATA:
             return (xmlCharStrdup
@@ -2129,78 +2133,78 @@ xmlRelaxNGGetErrorString(xmlRelaxNGValidErr err, const xmlChar * arg1,
         case XML_RELAXNG_ERR_INTERSEQ:
             return (xmlCharStrdup("Invalid sequence in interleave\n"));
         case XML_RELAXNG_ERR_INTEREXTRA:
-            snprintf(msg, 1000, "Extra element %s in interleave\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Extra element %s in interleave\n", arg1);
             break;
         case XML_RELAXNG_ERR_ELEMNAME:
-            snprintf(msg, 1000, "Expecting element %s, got %s\n", arg1,
+            XML_SNPRINTF(msg, 1000, "Expecting element %s, got %s\n", arg1,
                      arg2);
             break;
         case XML_RELAXNG_ERR_ELEMNONS:
-            snprintf(msg, 1000, "Expecting a namespace for element %s\n",
+            XML_SNPRINTF(msg, 1000, "Expecting a namespace for element %s\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_ELEMWRONGNS:
-            snprintf(msg, 1000,
+            XML_SNPRINTF(msg, 1000,
                      "Element %s has wrong namespace: expecting %s\n", arg1,
                      arg2);
             break;
         case XML_RELAXNG_ERR_ELEMWRONG:
-            snprintf(msg, 1000, "Did not expect element %s there\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Did not expect element %s there\n", arg1);
             break;
         case XML_RELAXNG_ERR_TEXTWRONG:
-            snprintf(msg, 1000,
+            XML_SNPRINTF(msg, 1000,
                      "Did not expect text in element %s content\n", arg1);
             break;
         case XML_RELAXNG_ERR_ELEMEXTRANS:
-            snprintf(msg, 1000, "Expecting no namespace for element %s\n",
+            XML_SNPRINTF(msg, 1000, "Expecting no namespace for element %s\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_ELEMNOTEMPTY:
-            snprintf(msg, 1000, "Expecting element %s to be empty\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Expecting element %s to be empty\n", arg1);
             break;
         case XML_RELAXNG_ERR_NOELEM:
-            snprintf(msg, 1000, "Expecting an element %s, got nothing\n",
+            XML_SNPRINTF(msg, 1000, "Expecting an element %s, got nothing\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_NOTELEM:
             return (xmlCharStrdup("Expecting an element got text\n"));
         case XML_RELAXNG_ERR_ATTRVALID:
-            snprintf(msg, 1000, "Element %s failed to validate attributes\n",
+            XML_SNPRINTF(msg, 1000, "Element %s failed to validate attributes\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_CONTENTVALID:
-            snprintf(msg, 1000, "Element %s failed to validate content\n",
+            XML_SNPRINTF(msg, 1000, "Element %s failed to validate content\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_EXTRACONTENT:
-            snprintf(msg, 1000, "Element %s has extra content: %s\n",
+            XML_SNPRINTF(msg, 1000, "Element %s has extra content: %s\n",
                      arg1, arg2);
             break;
         case XML_RELAXNG_ERR_INVALIDATTR:
-            snprintf(msg, 1000, "Invalid attribute %s for element %s\n",
+            XML_SNPRINTF(msg, 1000, "Invalid attribute %s for element %s\n",
                      arg1, arg2);
             break;
         case XML_RELAXNG_ERR_LACKDATA:
-            snprintf(msg, 1000, "Datatype element %s contains no data\n",
+            XML_SNPRINTF(msg, 1000, "Datatype element %s contains no data\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_DATAELEM:
-            snprintf(msg, 1000, "Datatype element %s has child elements\n",
+            XML_SNPRINTF(msg, 1000, "Datatype element %s has child elements\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_VALELEM:
-            snprintf(msg, 1000, "Value element %s has child elements\n",
+            XML_SNPRINTF(msg, 1000, "Value element %s has child elements\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_LISTELEM:
-            snprintf(msg, 1000, "List element %s has child elements\n",
+            XML_SNPRINTF(msg, 1000, "List element %s has child elements\n",
                      arg1);
             break;
         case XML_RELAXNG_ERR_DATATYPE:
-            snprintf(msg, 1000, "Error validating datatype %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Error validating datatype %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_VALUE:
-            snprintf(msg, 1000, "Error validating value %s\n", arg1);
+            XML_SNPRINTF(msg, 1000, "Error validating value %s\n", arg1);
             break;
         case XML_RELAXNG_ERR_LIST:
             return (xmlCharStrdup("Error validating list\n"));
@@ -2212,10 +2216,11 @@ xmlRelaxNGGetErrorString(xmlRelaxNGValidErr err, const xmlChar * arg1,
             return (xmlCharStrdup("Unknown error !\n"));
     }
     if (msg[0] == 0) {
-        snprintf(msg, 1000, "Unknown error code %d\n", err);
+        XML_SNPRINTF(msg, 1000, "Unknown error code %d\n", err);
     }
     msg[1000 - 1] = 0;
-    return (xmlStrdup((xmlChar *) msg));
+    xmlChar *result = xmlCharStrdup(msg);
+    return (xmlEscapeFormatString(&result));
 }
 
 /**
@@ -2775,7 +2780,7 @@ xmlRelaxNGRegisterTypeLibrary(const xmlChar * namespace, void *data,
         xmlRngVErrMemory(NULL, "adding types library\n");
         return (-1);
     }
-    memset(lib, 0, sizeof(xmlRelaxNGTypeLibrary));
+    XML_MEMSET(lib, 0, sizeof(xmlRelaxNGTypeLibrary));
     lib->namespace = xmlStrdup(namespace);
     lib->data = data;
     lib->have = have;
@@ -3227,9 +3232,14 @@ xmlRelaxNGCompile(xmlRelaxNGParserCtxtPtr ctxt, xmlRelaxNGDefinePtr def)
         case XML_RELAXNG_LIST:
         case XML_RELAXNG_PARAM:
         case XML_RELAXNG_VALUE:
+#ifndef STARBOARD
             /* This should not happen and generate an internal error */
             fprintf(stderr, "RNG internal error trying to compile %s\n",
                     xmlRelaxNGDefName(def));
+#else
+            SbLogFormatF("RNG internal error trying to compile %s\n",
+                    xmlRelaxNGDefName(def));
+#endif
             break;
     }
     return (ret);
@@ -3782,7 +3792,7 @@ xmlRelaxNGCompareNameClasses(xmlRelaxNGDefinePtr def1,
     xmlNs ns;
     xmlRelaxNGValidCtxt ctxt;
 
-    memset(&ctxt, 0, sizeof(xmlRelaxNGValidCtxt));
+    XML_MEMSET(&ctxt, 0, sizeof(xmlRelaxNGValidCtxt));
 
     ctxt.flags = FLAGS_IGNORABLE | FLAGS_NOERROR;
 
@@ -4368,7 +4378,7 @@ xmlRelaxNGComputeInterleaves(xmlRelaxNGDefinePtr def,
         xmlMalloc(sizeof(xmlRelaxNGPartition));
     if (partitions == NULL)
         goto error;
-    memset(partitions, 0, sizeof(xmlRelaxNGPartition));
+    XML_MEMSET(partitions, 0, sizeof(xmlRelaxNGPartition));
     partitions->nbgroups = nbgroups;
     partitions->triage = xmlHashCreate(nbgroups);
     for (i = 0; i < nbgroups; i++) {
@@ -4492,7 +4502,7 @@ xmlRelaxNGParseInterleave(xmlRelaxNGParserCtxtPtr ctxt, xmlNodePtr node)
     } else {
         char name[32];
 
-        snprintf(name, 32, "interleave%d", ctxt->nbInterleaves++);
+        XML_SNPRINTF(name, 32, "interleave%d", ctxt->nbInterleaves++);
         if (xmlHashAddEntry(ctxt->interleaves, BAD_CAST name, def) < 0) {
             xmlRngPErr(ctxt, node, XML_RNGP_INTERLEAVE_ADD,
                        "Failed to add %s to hash table\n",
@@ -5818,7 +5828,7 @@ xmlRelaxNGCheckCombine(xmlRelaxNGDefinePtr define,
         } else {
             char tmpname[32];
 
-            snprintf(tmpname, 32, "interleave%d", ctxt->nbInterleaves++);
+            XML_SNPRINTF(tmpname, 32, "interleave%d", ctxt->nbInterleaves++);
             if (xmlHashAddEntry(ctxt->interleaves, BAD_CAST tmpname, cur) <
                 0) {
                 xmlRngPErr(ctxt, define->node, XML_RNGP_INTERLEAVE_CREATE_FAILED,
@@ -5923,7 +5933,7 @@ xmlRelaxNGCombineStart(xmlRelaxNGParserCtxtPtr ctxt,
         } else {
             char tmpname[32];
 
-            snprintf(tmpname, 32, "interleave%d", ctxt->nbInterleaves++);
+            XML_SNPRINTF(tmpname, 32, "interleave%d", ctxt->nbInterleaves++);
             if (xmlHashAddEntry(ctxt->interleaves, BAD_CAST tmpname, cur) <
                 0) {
                 xmlRngPErr(ctxt, cur->node, XML_RNGP_INTERLEAVE_CREATE_FAILED,
@@ -6736,7 +6746,7 @@ xmlRelaxNGNewParserCtxt(const char *URL)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->URL = xmlStrdup((const xmlChar *) URL);
     ret->error = xmlGenericError;
     ret->userData = xmlGenericErrorContext;
@@ -6767,7 +6777,7 @@ xmlRelaxNGNewMemParserCtxt(const char *buffer, int size)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->buffer = buffer;
     ret->size = size;
     ret->error = xmlGenericError;
@@ -6803,7 +6813,7 @@ xmlRelaxNGNewDocParserCtxt(xmlDocPtr doc)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->document = copy;
     ret->freedoc = 1;
     ret->userData = xmlGenericErrorContext;
@@ -7933,24 +7943,40 @@ xmlRelaxNGValidateCompiledCallback(xmlRegExecCtxtPtr exec ATTRIBUTE_UNUSED,
                     "Compiled callback for: '%s'\n", token);
 #endif
     if (ctxt == NULL) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing context\n", token);
+#else
+        SbLogFormatF("callback on %s missing context\n", token);
+#endif
         return;
     }
     if (define == NULL) {
         if (token[0] == '#')
             return;
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing define\n", token);
+#else
+        SbLogFormatF("callback on %s missing define\n", token);
+#endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         return;
     }
     if ((ctxt == NULL) || (define == NULL)) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing info\n", token);
+#else
+        SbLogFormatF("callback on %s missing info\n", token);
+#endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         return;
     } else if (define->type != XML_RELAXNG_ELEMENT) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s define is not element\n", token);
+#else
+        SbLogFormatF("callback on %s define is not element\n", token);
+#endif
         if (ctxt->errNo == XML_RELAXNG_OK)
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         return;
@@ -8148,7 +8174,11 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
                     "Progressive callback for: '%s'\n", token);
 #endif
     if (ctxt == NULL) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing context\n", token);
+#else
+        SbLogFormatF("callback on %s missing context\n", token);
+#endif
         return;
     }
     node = ctxt->pnode;
@@ -8156,20 +8186,32 @@ xmlRelaxNGValidateProgressiveCallback(xmlRegExecCtxtPtr exec
     if (define == NULL) {
         if (token[0] == '#')
             return;
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing define\n", token);
+#else
+        SbLogFormatF("callback on %s missing define\n", token);
+#endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         ctxt->pstate = -1;
         return;
     }
     if ((ctxt == NULL) || (define == NULL)) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s missing info\n", token);
+#else
+        SbLogFormatF("callback on %s missing info\n", token);
+#endif
         if ((ctxt != NULL) && (ctxt->errNo == XML_RELAXNG_OK))
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         ctxt->pstate = -1;
         return;
     } else if (define->type != XML_RELAXNG_ELEMENT) {
+#ifndef STARBOARD
         fprintf(stderr, "callback on %s define is not element\n", token);
+#else
+        SbLogFormatF("callback on %s define is not element\n", token);
+#endif
         if (ctxt->errNo == XML_RELAXNG_OK)
             ctxt->errNo = XML_RELAXNG_ERR_INTERNAL;
         ctxt->pstate = -1;
@@ -9335,13 +9377,13 @@ xmlRelaxNGValidateInterleave(xmlRelaxNGValidCtxtPtr ctxt,
         xmlRngVErrMemory(ctxt, "validating\n");
         return (-1);
     }
-    memset(list, 0, nbgroups * sizeof(xmlNodePtr));
+    XML_MEMSET(list, 0, nbgroups * sizeof(xmlNodePtr));
     lasts = (xmlNodePtr *) xmlMalloc(nbgroups * sizeof(xmlNodePtr));
     if (lasts == NULL) {
         xmlRngVErrMemory(ctxt, "validating\n");
         return (-1);
     }
-    memset(lasts, 0, nbgroups * sizeof(xmlNodePtr));
+    XML_MEMSET(lasts, 0, nbgroups * sizeof(xmlNodePtr));
 
     /*
      * Walk the sequence of children finding the right group and
@@ -10792,7 +10834,7 @@ xmlRelaxNGValidateDocument(xmlRelaxNGValidCtxtPtr ctxt, xmlDocPtr doc)
     if (ctxt->idref == 1) {
         xmlValidCtxt vctxt;
 
-        memset(&vctxt, 0, sizeof(xmlValidCtxt));
+        XML_MEMSET(&vctxt, 0, sizeof(xmlValidCtxt));
         vctxt.valid = 1;
         vctxt.error = ctxt->error;
         vctxt.warning = ctxt->warning;
@@ -10886,7 +10928,7 @@ xmlRelaxNGNewValidCtxt(xmlRelaxNGPtr schema)
         xmlRngVErrMemory(NULL, "building context\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGValidCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidCtxt));
     ret->schema = schema;
     ret->error = xmlGenericError;
     ret->userData = xmlGenericErrorContext;

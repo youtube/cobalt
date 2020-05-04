@@ -25,7 +25,9 @@
 
 #ifdef LIBXML_SCHEMATRON_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/uri.h>
@@ -163,7 +165,9 @@ struct _xmlSchematronValidCtxt {
     xmlSchematronPtr schema;
     xmlXPathContextPtr xctxt;
 
+#ifndef STARBOARD
     FILE *outputFile;		/* if using XML_SCHEMATRON_OUT_FILE */
+#endif
     xmlBufferPtr outputBuffer;	/* if using XML_SCHEMATRON_OUT_BUFFER */
 #ifdef LIBXML_OUTPUT_ENABLED
     xmlOutputWriteCallback iowrite; /* if using XML_SCHEMATRON_OUT_IO */
@@ -333,7 +337,7 @@ xmlSchematronAddTest(xmlSchematronParserCtxtPtr ctxt,
         xmlSchematronPErrMemory(ctxt, "allocating schema test", node);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronTest));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronTest));
     ret->type = type;
     ret->node = node;
     ret->test = test;
@@ -416,7 +420,7 @@ xmlSchematronAddRule(xmlSchematronParserCtxtPtr ctxt, xmlSchematronPtr schema,
         xmlSchematronPErrMemory(ctxt, "allocating schema rule", node);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronRule));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronRule));
     ret->node = node;
     ret->context = context;
     ret->pattern = pattern;
@@ -494,7 +498,7 @@ xmlSchematronAddPattern(xmlSchematronParserCtxtPtr ctxt,
         xmlSchematronPErrMemory(ctxt, "allocating schema pattern", node);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronPattern));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronPattern));
     ret->name = name;
     ret->next = NULL;
     if (schema->patterns == NULL) {
@@ -546,7 +550,7 @@ xmlSchematronNewSchematron(xmlSchematronParserCtxtPtr ctxt)
         xmlSchematronPErrMemory(ctxt, "allocating schema", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematron));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematron));
     ret->dict = ctxt->dict;
     xmlDictReference(ret->dict);
 
@@ -602,7 +606,7 @@ xmlSchematronNewParserCtxt(const char *URL)
                                 NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronParserCtxt));
     ret->type = XML_STRON_CTXT_PARSER;
     ret->dict = xmlDictCreate();
     ret->URL = xmlDictLookup(ret->dict, (const xmlChar *) URL, -1);
@@ -644,7 +648,7 @@ xmlSchematronNewMemParserCtxt(const char *buffer, int size)
                                 NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronParserCtxt));
     ret->buffer = buffer;
     ret->size = size;
     ret->dict = xmlDictCreate();
@@ -683,7 +687,7 @@ xmlSchematronNewDocParserCtxt(xmlDocPtr doc)
                                 NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronParserCtxt));
     ret->doc = doc;
     ret->dict = xmlDictCreate();
     /* The application has responsibility for the document */
@@ -1275,7 +1279,11 @@ xmlSchematronReportOutput(xmlSchematronValidCtxtPtr ctxt ATTRIBUTE_UNUSED,
                           xmlNodePtr cur ATTRIBUTE_UNUSED,
                           const char *msg) {
     /* TODO */
+#ifndef STARBOARD
     fprintf(stderr, "%s", msg);
+#else
+    SbLogFormatF("%s", msg);
+#endif
 }
 
 /**
@@ -1404,7 +1412,7 @@ xmlSchematronReportSuccess(xmlSchematronValidCtxtPtr ctxt,
             report = xmlStrdup((const xmlChar *) "node failed report");
 	    }
 	    }
-	    snprintf(msg, 999, "%s line %ld: %s\n", (const char *) path,
+	    XML_SNPRINTF(msg, 999, "%s line %ld: %s\n", (const char *) path,
 		     line, (const char *) report);
 
     if (ctxt->flags & XML_SCHEMATRON_OUT_ERROR) {
@@ -1460,7 +1468,7 @@ xmlSchematronReportPattern(xmlSchematronValidCtxtPtr ctxt,
 
 	if (pattern->name == NULL)
 	    return;
-	snprintf(msg, 999, "Pattern: %s\n", (const char *) pattern->name);
+	XML_SNPRINTF(msg, 999, "Pattern: %s\n", (const char *) pattern->name);
 	xmlSchematronReportOutput(ctxt, NULL, &msg[0]);
     }
 }
@@ -1513,7 +1521,7 @@ xmlSchematronNewValidCtxt(xmlSchematronPtr schema, int options)
                                 NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchematronValidCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchematronValidCtxt));
     ret->type = XML_STRON_CTXT_VALIDATOR;
     ret->schema = schema;
     ret->xctxt = xmlXPathNewContext(NULL);
