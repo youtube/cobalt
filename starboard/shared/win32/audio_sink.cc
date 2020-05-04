@@ -83,7 +83,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
                   SbAudioSinkFrameBuffers frame_buffers,
                   int frame_buffers_size_in_frames,
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-                  SbAudioSinkConsumeFramesFunc consume_frame_func,
+                  ConsumeFramesFunc consume_frames_func,
                   void* context);
   ~XAudioAudioSink() override {};
 
@@ -140,7 +140,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
 
   XAudioAudioSinkType* const type_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  const SbAudioSinkConsumeFramesFunc consume_frame_func_;
+  const ConsumeFramesFunc consume_frames_func_;
   void* const context_;
 
   SbAudioSinkFrameBuffers frame_buffers_;
@@ -182,7 +182,7 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
       SbAudioSinkFrameBuffers frame_buffers,
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context);
 
@@ -267,13 +267,13 @@ XAudioAudioSink::XAudioAudioSink(
     SbAudioSinkFrameBuffers frame_buffers,
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frame_func,
+    ConsumeFramesFunc consume_frames_func,
     void* context)
     : stop_callbacks_(0),
       type_(type),
       source_voice_(source_voice),
       update_source_status_func_(update_source_status_func),
-      consume_frame_func_(consume_frame_func),
+      consume_frames_func_(consume_frames_func),
       context_(context),
       frame_buffers_(frame_buffers),
       frame_buffers_size_in_frames_(frame_buffers_size_in_frames),
@@ -362,12 +362,7 @@ void XAudioAudioSink::Process() {
   SB_DCHECK(consumed_frames <= std::numeric_limits<int>::max());
   int consumed_frames_int = static_cast<int>(consumed_frames);
 
-  consume_frame_func_(
-      consumed_frames_int,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-      (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-      context_);
+  consume_frames_func_(consumed_frames_int, SbTimeGetMonotonicNow(), context_);
   submited_frames_ -= consumed_frames_int;
   samples_played_ = voice_state.SamplesPlayed;
   queued_buffers_ = voice_state.BuffersQueued;
@@ -432,7 +427,7 @@ SbAudioSink XAudioAudioSinkType::Create(
     SbAudioSinkFrameBuffers frame_buffers,
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   SB_DCHECK(audio_frame_storage_type ==

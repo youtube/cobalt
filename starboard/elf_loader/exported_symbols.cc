@@ -432,7 +432,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
   REGISTER_SYMBOL(kSbHasAc3Audio);
-  REGISTER_SYMBOL(kSbHasAsyncAudioFramesReporting);
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
@@ -452,7 +451,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-}
+}  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];

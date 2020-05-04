@@ -60,11 +60,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
                                      bool* is_eos_reached,
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 SbTime frames_consumed_at,
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                 void* context);
   static void ErrorFunc(bool capability_changed, void* context);
 

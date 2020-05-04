@@ -70,7 +70,7 @@ class PulseAudioSink : public SbAudioSinkPrivate {
                  SbAudioSinkFrameBuffers frame_buffers,
                  int frames_per_channel,
                  SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-                 SbAudioSinkConsumeFramesFunc consume_frame_func,
+                 ConsumeFramesFunc consume_frames_func,
                  void* context);
   ~PulseAudioSink() override;
 
@@ -103,7 +103,7 @@ class PulseAudioSink : public SbAudioSinkPrivate {
   const uint8_t* const frame_buffer_;
   const int frames_per_channel_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  const SbAudioSinkConsumeFramesFunc consume_frame_func_;
+  const ConsumeFramesFunc consume_frames_func_;
   void* const context_;
   const size_t bytes_per_frame_;
 
@@ -131,11 +131,11 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
       SbAudioSinkPrivate::ErrorFunc error_func,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
-      void* context);
+      void* context) override;
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
@@ -175,7 +175,7 @@ PulseAudioSink::PulseAudioSink(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frame_func,
+    ConsumeFramesFunc consume_frames_func,
     void* context)
     : type_(type),
       channels_(channels),
@@ -184,12 +184,12 @@ PulseAudioSink::PulseAudioSink(
       frame_buffer_(static_cast<uint8_t*>(frame_buffers[0])),
       frames_per_channel_(frames_per_channel),
       update_source_status_func_(update_source_status_func),
-      consume_frame_func_(consume_frame_func),
+      consume_frames_func_(consume_frames_func),
       context_(context),
       bytes_per_frame_(static_cast<size_t>(channels) *
                        GetBytesPerSample(sample_type)) {
   SB_DCHECK(update_source_status_func_);
-  SB_DCHECK(consume_frame_func_);
+  SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
 }
@@ -278,12 +278,7 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
       SB_DCHECK(total_frames_played_ <= new_total_frames_played);
       int64_t consume = new_total_frames_played - total_frames_played_;
       if (consume > 0) {
-        consume_frame_func_(
-            consume,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-            (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-            context_);
+        consume_frames_func_(consume, SbTimeGetMonotonicNow(), context_);
         total_frames_played_ = new_total_frames_played;
       }
     }
@@ -403,7 +398,7 @@ SbAudioSink PulseAudioSinkType::Create(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
     SbAudioSinkPrivate::ErrorFunc error_func,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION

@@ -61,9 +61,6 @@ extern const char* kSbFileSepString;
 // Allow ac3 and ec3 support
 extern const bool kSbHasAc3Audio;
 
-// Specifies whether this platform updates audio frames asynchronously.
-extern const bool kSbHasAsyncAudioFramesReporting;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 extern const bool kSbHasMediaWebmVp9Support;

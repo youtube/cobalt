@@ -75,10 +75,12 @@ SbAudioSink SbAudioSinkCreate(
     SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
     return kSbAudioSinkInvalid;
   }
+
   SbAudioSink audio_sink = audio_sink_type->Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func,
+      update_source_status_func,
+      SbAudioSinkPrivate::GetConsumeFramesFunc(consume_frames_func),
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
       NULL /*error_func*/,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
@@ -95,7 +97,8 @@ SbAudioSink SbAudioSinkCreate(
   audio_sink = fallback_audio_sink_type->Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func,
+      update_source_status_func,
+      SbAudioSinkPrivate::GetConsumeFramesFunc(consume_frames_func),
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
       NULL /*error_func*/,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION

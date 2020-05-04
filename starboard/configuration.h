@@ -300,6 +300,10 @@
 #define SB_PLAYER_DEPRECATE_UNUSED_DECODER_STATES_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate the |SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING| macro.
+#define SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -771,13 +775,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#error \
-    "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasAsyncAudioFramesReporting in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
-#endif
-
 #if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 #error \
     "SB_HAS_MEDIA_WEBM_VP9_SUPPORT should not be defined in Starboard " \
@@ -927,11 +924,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
 
-#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#error \
-    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
-    "version 10 or later."
-#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+#if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING has been deprecated."
+#endif  // defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#endif
 
 #if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
 #error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."

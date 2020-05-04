@@ -14,11 +14,17 @@
 
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
+#include <functional>
+
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 #include "starboard/shared/starboard/command_line.h"
 
 namespace {
+
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
 
 bool is_fallback_to_stub_enabled;
 SbAudioSinkPrivate::Type* primary_audio_sink_type;
@@ -27,6 +33,24 @@ SbAudioSinkPrivate::Type* fallback_audio_sink_type;
 // Command line switch that controls whether we default to the stub audio sink,
 // even when the primary audio sink may be available.
 const char kUseStubAudioSink[] = "use_stub_audio_sink";
+
+void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
+                           int frames_consumed,
+                           SbTime frames_consumed_at,
+                           void* context) {
+#if SB_API_VERSION >= SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+  SB_UNREFERENCED_PARAMETER(frames_consumed_at);
+  sb_consume_frames_func(frames_consumed, context);
+#else  // SB_API_VERSION >=
+  // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+  sb_consume_frames_func(frames_consumed,
+#if SB_HAS(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+                         frames_consumed_at,
+#endif
+                         context);
+#endif  // SB_API_VERSION >=
+        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+}
 
 }  // namespace
 
@@ -83,4 +107,11 @@ SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPreferredType() {
     SB_LOG(WARNING) << "Fallback audio sink type is not enabled.";
   }
   return audio_sink_type;
+}
+
+// static
+SbAudioSinkPrivate::ConsumeFramesFunc SbAudioSinkPrivate::GetConsumeFramesFunc(
+    SbAudioSinkConsumeFramesFunc sb_consume_frames_func) {
+  return std::bind(&::WrapConsumeFramesFunc, sb_consume_frames_func, _1, _2,
+                   _3);
 }

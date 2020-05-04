@@ -136,14 +136,7 @@ class AudioRendererImpl : public AudioRenderer,
                        int* offset_in_frames,
                        bool* is_playing,
                        bool* is_eos_reached) override;
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  void ConsumeFrames(int frames_consumed) override;
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void OnError(bool capability_changed) override;
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
