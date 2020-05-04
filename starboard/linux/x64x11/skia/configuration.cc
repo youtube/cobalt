@@ -32,6 +32,10 @@ const char* CobaltRasterizerType() {
   return "hardware";
 }
 
+bool CobaltEnableJit() {
+  return true;
+}
+
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
     1,
@@ -56,7 +60,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &CobaltRasterizerType,
-    &common::CobaltEnableJitDefault,
+    &CobaltEnableJit,
 };
 
 }  // namespace
