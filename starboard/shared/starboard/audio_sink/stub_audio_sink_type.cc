@@ -33,7 +33,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
   StubAudioSink(Type* type,
                 int sampling_frequency_hz,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-                SbAudioSinkConsumeFramesFunc consume_frame_func,
+                ConsumeFramesFunc consume_frames_func,
                 void* context);
   ~StubAudioSink() override;
 
@@ -51,7 +51,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
 
   Type* type_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  SbAudioSinkConsumeFramesFunc consume_frame_func_;
+  ConsumeFramesFunc consume_frames_func_;
   void* context_;
 
   int sampling_frequency_hz_;
@@ -66,12 +66,12 @@ StubAudioSink::StubAudioSink(
     Type* type,
     int sampling_frequency_hz,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frame_func,
+    ConsumeFramesFunc consume_frames_func,
     void* context)
     : type_(type),
       sampling_frequency_hz_(sampling_frequency_hz),
       update_source_status_func_(update_source_status_func),
-      consume_frame_func_(consume_frame_func),
+      consume_frames_func_(consume_frames_func),
       context_(context),
       audio_out_thread_(kSbThreadInvalid),
       destroying_(false) {
@@ -117,15 +117,8 @@ void StubAudioSink::AudioThreadFunc() {
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
       SbThreadSleep(frames_to_consume * kSbTimeSecond / sampling_frequency_hz_);
-      consume_frame_func_(frames_to_consume,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-                          kSbHasAsyncAudioFramesReporting
-                              ? SbTimeGetMonotonicNow()
-                              : (SbTime)kSbTimeMax,
-#elif SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                          SbTimeGetMonotonicNow(),
-#endif
-                          context_);
+      consume_frames_func_(frames_to_consume, SbTimeGetMonotonicNow(),
+                           context_);
     } else {
       // Wait for five millisecond if we are paused.
       SbThreadSleep(kSbTimeMillisecond * 5);
@@ -143,7 +136,7 @@ SbAudioSink StubAudioSinkType::Create(
     SbAudioSinkFrameBuffers frame_buffers,
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
 #if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
     SbAudioSinkPrivate::ErrorFunc error_func,
 #endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION

@@ -52,9 +52,6 @@ const char* kSbFileSepString = "/";
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = true;
 
-// Specifies whether this platform updates audio frames asynchronously.
-const bool kSbHasAsyncAudioFramesReporting = true;
-
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = true;

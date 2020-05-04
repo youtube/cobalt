@@ -51,9 +51,9 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkFrameBuffers frame_buffers,
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
-      void* context);
+      void* context) override;
 
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
@@ -91,7 +91,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       int frames_per_channel,
       int preferred_buffer_size,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-      SbAudioSinkConsumeFramesFunc consume_frame_func,
+      ConsumeFramesFunc consume_frames_func,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -115,7 +115,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   void* frame_buffer_;
   int frames_per_channel_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
-  SbAudioSinkConsumeFramesFunc consume_frame_func_;
+  ConsumeFramesFunc consume_frames_func_;
   void* context_;
   int last_playback_head_position_;
   jobject j_audio_track_bridge_;
