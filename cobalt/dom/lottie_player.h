@@ -37,13 +37,14 @@ class LottiePlayer : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit LottiePlayer(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+  explicit LottiePlayer(Document* document);
 
   // Web API: LottiePlayer
   //
   std::string src() const;
   void set_src(const std::string& src);
+  bool autoplay() const;
+  void set_autoplay(bool loop);
   bool loop() const;
   void set_loop(bool loop);
 
@@ -55,6 +56,8 @@ class LottiePlayer : public HTMLElement {
   const scoped_refptr<loader::image::CachedImage>& cached_image() {
     return cached_image_;
   }
+
+  bool playing();
 
   DEFINE_WRAPPABLE_TYPE(LottiePlayer);
 
@@ -89,6 +92,10 @@ class LottiePlayer : public HTMLElement {
 
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_load_complete_;
+
+  // Indicates whether playback is dictated by the "autoplay" attributes, or
+  // if other playback methods have been called.
+  bool autoplaying_;
 };
 
 }  // namespace dom

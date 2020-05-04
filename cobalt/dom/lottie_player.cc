@@ -33,11 +33,26 @@ namespace dom {
 
 const char LottiePlayer::kTagName[] = "lottie-player";
 
+LottiePlayer::LottiePlayer(Document* document)
+    : HTMLElement(document, base::Token(kTagName)), autoplaying_(true) {}
+
 std::string LottiePlayer::src() const {
   return GetAttribute("src").value_or("");
 }
 
 void LottiePlayer::set_src(const std::string& src) { SetAttribute("src", src); }
+
+bool LottiePlayer::autoplay() const { return GetBooleanAttribute("autoplay"); }
+
+void LottiePlayer::set_autoplay(bool autoplay) {
+  // The value of 'autoplay' is true when the 'autoplay' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (autoplay) {
+    SetBooleanAttribute("autoplay", true);
+  } else {
+    SetBooleanAttribute("autoplay", false);
+  }
+}
 
 bool LottiePlayer::loop() const { return GetBooleanAttribute("loop"); }
 
@@ -50,6 +65,8 @@ void LottiePlayer::set_loop(bool loop) {
     SetBooleanAttribute("loop", false);
   }
 }
+
+bool LottiePlayer::playing() { return autoplaying_ && autoplay(); }
 
 void LottiePlayer::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_image_loaded_callback_handler_) {

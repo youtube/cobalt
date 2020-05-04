@@ -439,7 +439,8 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
 
   ReplacedBoxGenerator replaced_box_generator(
       lottie_player->css_computed_style_declaration(),
-      lottie_player->cached_image()->TryGetResource()
+      lottie_player->playing() &&
+              lottie_player->cached_image()->TryGetResource()
           ? base::Bind(GetLottieAnimation,
                        lottie_player->cached_image()->TryGetResource())
           : ReplacedBox::ReplaceImageCB(),
