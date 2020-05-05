@@ -31,10 +31,14 @@
 namespace cobalt {
 namespace dom {
 
+using render_tree::LottieAnimation;
+
 const char LottiePlayer::kTagName[] = "lottie-player";
 
 LottiePlayer::LottiePlayer(Document* document)
-    : HTMLElement(document, base::Token(kTagName)), autoplaying_(true) {}
+    : HTMLElement(document, base::Token(kTagName)),
+      autoplaying_(true),
+      state_(LottieAnimation::AnimationState::kStopped) {}
 
 std::string LottiePlayer::src() const {
   return GetAttribute("src").value_or("");
@@ -66,7 +70,25 @@ void LottiePlayer::set_loop(bool loop) {
   }
 }
 
-bool LottiePlayer::playing() { return autoplaying_ && autoplay(); }
+void LottiePlayer::Play() {
+  UpdateState(LottieAnimation::AnimationState::kPlaying);
+}
+
+void LottiePlayer::Pause() {
+  UpdateState(LottieAnimation::AnimationState::kPaused);
+}
+
+void LottiePlayer::Stop() {
+  UpdateState(LottieAnimation::AnimationState::kStopped);
+}
+
+LottieAnimation::AnimationState LottiePlayer::state() const {
+  if (autoplaying_) {
+    return autoplay() ? LottieAnimation::AnimationState::kPlaying
+                      : LottieAnimation::AnimationState::kStopped;
+  }
+  return state_;
+}
 
 void LottiePlayer::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_image_loaded_callback_handler_) {
@@ -192,6 +214,26 @@ void LottiePlayer::DestroyScopedPreventGC(
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   scoped_prevent_gc.reset();
+}
+
+void LottiePlayer::UpdateState(LottieAnimation::AnimationState state) {
+  // It is not possible to pause a stopped animation.
+  if (state == LottieAnimation::AnimationState::kPaused &&
+      state_ == LottieAnimation::AnimationState::kStopped) {
+    return;
+  }
+
+  if (autoplaying_) {
+    state_ = autoplay() ? LottieAnimation::AnimationState::kPlaying
+                        : LottieAnimation::AnimationState::kStopped;
+  }
+  autoplaying_ = false;
+
+  if (state_ != state) {
+    state_ = state;
+    InvalidateLayoutBoxesOfNodeAndAncestors();
+    node_document()->RecordMutation();
+  }
 }
 
 }  // namespace dom
