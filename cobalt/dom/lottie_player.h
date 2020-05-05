@@ -35,7 +35,7 @@ typedef render_tree::LottieAnimation LottieAnimation;
 // Although LottiePlayer does not inherit from HTMLImageElement, much of its
 // functionality is based off that of HTMLImageElement - in particular, loading
 // the animation pointed to by the "src" attribute.
-//   https://github.com/LottieFiles/lottie-player
+//   https://lottiefiles.github.io/lottie-player/
 class LottiePlayer : public HTMLElement {
  public:
   static const char kTagName[];
@@ -48,11 +48,19 @@ class LottiePlayer : public HTMLElement {
   void set_src(const std::string& src);
   bool autoplay() const;
   void set_autoplay(bool loop);
+  int direction() const;
+  void set_direction(int direction);
   bool loop() const;
   void set_loop(bool loop);
+  double speed() const;
+  void set_speed(double speed);
+  std::string renderer() const;
   void Play();
   void Pause();
   void Stop();
+  void SetDirection(int direction);
+  void SetLooping(bool loop);
+  void SetSpeed(double speed);
 
   // Custom, not in any spec
   //
@@ -63,7 +71,7 @@ class LottiePlayer : public HTMLElement {
     return cached_image_;
   }
 
-  LottieAnimation::AnimationState state() const;
+  LottieAnimation::LottieProperties GetUpdatedProperties();
 
   DEFINE_WRAPPABLE_TYPE(LottiePlayer);
 
@@ -92,7 +100,8 @@ class LottiePlayer : public HTMLElement {
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
-  void UpdateState(LottieAnimation::AnimationState state);
+  void UpdateState(LottieAnimation::LottieState state);
+  void UpdateLottieObjects();
 
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
@@ -104,7 +113,7 @@ class LottiePlayer : public HTMLElement {
   // Indicates whether playback is dictated by the "autoplay" attributes, or
   // if other playback methods have been called.
   bool autoplaying_;
-  LottieAnimation::AnimationState state_;
+  LottieAnimation::LottieProperties properties_;
 };
 
 }  // namespace dom
