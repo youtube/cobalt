@@ -4102,15 +4102,41 @@ std::vector<uint8> GetFileData(const base::FilePath& file_path) {
 
 }  // namespace
 
-TEST_F(PixelTest, SimpleLottieAnimationTest) {
+TEST_F(PixelTest, BeginningOfLottieAnimationTest) {
   std::vector<uint8> animation_data =
-      GetFileData(GetTestFilePath("circle.json"));
+      GetFileData(GetTestFilePath("skottie_sample_1.json"));
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
-  node_builder.animation_time = base::TimeDelta::FromSecondsD(0.25);
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, MiddleOfLottieAnimationITest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("skottie_sample_1.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(1.5);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, EndOfLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("skottie_sample_1.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(3.33);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
 }
