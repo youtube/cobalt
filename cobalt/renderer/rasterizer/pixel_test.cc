@@ -4108,6 +4108,10 @@ TEST_F(PixelTest, BeginningOfLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  render_tree::LottieAnimation::LottieProperties lottie_properties(
+      render_tree::LottieAnimation::AnimationState::kPlaying, false);
+  animation->SetProperties(lottie_properties);
+
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
@@ -4121,6 +4125,10 @@ TEST_F(PixelTest, MiddleOfLottieAnimationITest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  render_tree::LottieAnimation::LottieProperties lottie_properties(
+      render_tree::LottieAnimation::AnimationState::kPlaying, false);
+  animation->SetProperties(lottie_properties);
+
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(1.5);
@@ -4134,6 +4142,10 @@ TEST_F(PixelTest, EndOfLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  render_tree::LottieAnimation::LottieProperties lottie_properties(
+      render_tree::LottieAnimation::AnimationState::kPlaying, false);
+  animation->SetProperties(lottie_properties);
+
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(3.33);
