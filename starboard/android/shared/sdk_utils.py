@@ -111,6 +111,14 @@ def _UpdateStamp(dir_path):
     stamp.write('{} = {}\n'.format(_SCRIPT_HASH_PROPERTY, _SCRIPT_HASH))
 
 
+def _MakeDirs(destination_path):
+  try:
+    os.makedirs(destination_path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
+
+
 def GetNdkPath():
   return _NDK_PATH
 
@@ -147,11 +155,7 @@ def _GetInstalledNdkRevision():
 
 def _DownloadAndUnzipFile(url, destination_path):
   shutil.rmtree(destination_path, ignore_errors=True)
-  try:
-    os.makedirs(destination_path)
-  except OSError as e:
-    if e.errno != errno.EEXIST:
-      raise
+  _MakeDirs(destination_path)
   dl_file = os.path.join(destination_path, 'tmp.zip')
   request = requests.get(url, allow_redirects=True)
   open(dl_file, 'wb').write(request.content)
@@ -213,6 +217,7 @@ def InstallSdkIfNeeded():
         shutil.rmtree(ndk_unzip_path)
       _DownloadAndUnzipFile(_NDK_URL, _STARBOARD_TOOLCHAINS_DIR)
       # Move NDK into its proper final place.
+      _MakeDirs(ndk_path)
       os.rename(ndk_unzip_path, ndk_path)
       _UpdateStamp(ndk_path)
 
