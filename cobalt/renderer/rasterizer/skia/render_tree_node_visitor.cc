@@ -720,6 +720,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
           lottie_node->data().animation.get());
   animation->SetAnimationTime(lottie_node->data().animation_time);
 
+  // The Skottie animation should not render if it is in a stopped state.
+  if (animation->stopped()) {
+    return;
+  }
+
   sk_sp<skottie::Animation> skottie = animation->GetSkottieAnimation();
   SkCanvas* render_target = draw_state_.render_target;
   math::RectF bounding_rect = lottie_node->data().destination_rect;
