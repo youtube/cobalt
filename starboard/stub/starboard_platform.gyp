@@ -24,8 +24,11 @@
         'application_stub.cc',
         'application_stub.h',
         'atomic_public.h',
+        'configuration.cc',
+        'configuration.h',
         'configuration_constants.cc',
         'main.cc',
+        'system_get_extensions.cc',
         'thread_types_public.h',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',

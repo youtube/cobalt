@@ -237,7 +237,6 @@
         '<(DEPTH)/starboard/shared/stub/system_get_connection_type.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_device_type.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_error_string.cc',
-        '<(DEPTH)/starboard/shared/stub/system_get_extensions.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_last_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_locale_id.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_number_of_processors.cc',
