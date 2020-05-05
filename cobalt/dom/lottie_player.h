@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 
@@ -26,6 +27,8 @@ namespace cobalt {
 namespace dom {
 
 class Document;
+
+typedef render_tree::LottieAnimation LottieAnimation;
 
 // Custom element that represents a Lottie web player, which embeds and plays
 // Lottie animations.
@@ -47,6 +50,9 @@ class LottiePlayer : public HTMLElement {
   void set_autoplay(bool loop);
   bool loop() const;
   void set_loop(bool loop);
+  void Play();
+  void Pause();
+  void Stop();
 
   // Custom, not in any spec
   //
@@ -57,7 +63,7 @@ class LottiePlayer : public HTMLElement {
     return cached_image_;
   }
 
-  bool playing();
+  LottieAnimation::AnimationState state() const;
 
   DEFINE_WRAPPABLE_TYPE(LottiePlayer);
 
@@ -86,6 +92,8 @@ class LottiePlayer : public HTMLElement {
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
+  void UpdateState(LottieAnimation::AnimationState state);
+
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
@@ -96,6 +104,7 @@ class LottiePlayer : public HTMLElement {
   // Indicates whether playback is dictated by the "autoplay" attributes, or
   // if other playback methods have been called.
   bool autoplaying_;
+  LottieAnimation::AnimationState state_;
 };
 
 }  // namespace dom

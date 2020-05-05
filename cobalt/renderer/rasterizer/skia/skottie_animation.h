@@ -40,9 +40,14 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   void SetProperties(
       render_tree::LottieAnimation::LottieProperties properties) override;
 
-  void SetAnimationTime(base::TimeDelta animation_time) override;
+  void SetAnimationTime(base::TimeDelta animate_function_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
+
+  bool stopped() const {
+    return properties_.current_state ==
+           render_tree::LottieAnimation::AnimationState::kStopped;
+  }
 
  private:
   sk_sp<skottie::Animation> skottie_animation_;
@@ -50,6 +55,14 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   uint32 json_size_in_bytes_;
 
   render_tree::LottieAnimation::LottieProperties properties_;
+
+  // The last timestamp from the animation function in which we updated the
+  // the frame time for |skottie_animation_|. Used for calculating the time
+  // elapsed and updating the frame time again.
+  base::TimeDelta last_updated_animate_function_time_;
+
+  // The most recently updated frame time for |skottie_animation_|.
+  base::TimeDelta current_animation_time_;
 };
 
 }  // namespace skia

@@ -32,13 +32,23 @@ void SkottieAnimation::SetProperties(
   properties_ = properties;
 }
 
-void SkottieAnimation::SetAnimationTime(base::TimeDelta animation_time) {
-  double frame_time = animation_time.InSecondsF();
-  if (properties_.loop) {
-    frame_time =
-        std::fmod(animation_time.InSecondsF(), skottie_animation_->duration());
+void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
+  if (properties_.current_state == AnimationState::kPlaying) {
+    // Only update |current_animation_time_| if the animation is playing.
+    current_animation_time_ +=
+        animate_function_time - last_updated_animate_function_time_;
+  } else if (properties_.current_state == AnimationState::kStopped) {
+    // Reset to the start of the animation if it has been stopped.
+    current_animation_time_ = base::TimeDelta();
   }
-  skottie_animation_->seekFrameTime(frame_time);
+
+  double current_frame_time = current_animation_time_.InSecondsF();
+  if (properties_.loop) {
+    current_frame_time = std::fmod(current_animation_time_.InSecondsF(),
+                                   skottie_animation_->duration());
+  }
+  skottie_animation_->seekFrameTime(current_frame_time);
+  last_updated_animate_function_time_ = animate_function_time;
 }
 
 }  // namespace skia
