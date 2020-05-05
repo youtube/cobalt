@@ -37,24 +37,20 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   bool IsOpaque() const override { return false; }
 
-  void SetProperties(
-      render_tree::LottieAnimation::LottieProperties properties) override;
+  void SetProperties(LottieProperties properties) override;
 
   void SetAnimationTime(base::TimeDelta animate_function_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
-  bool stopped() const {
-    return properties_.current_state ==
-           render_tree::LottieAnimation::AnimationState::kStopped;
-  }
+  bool stopped() const { return properties_.state == LottieState::kStopped; }
 
  private:
   sk_sp<skottie::Animation> skottie_animation_;
   math::Size animation_size_;
   uint32 json_size_in_bytes_;
 
-  render_tree::LottieAnimation::LottieProperties properties_;
+  LottieProperties properties_;
 
   // The last timestamp from the animation function in which we updated the
   // the frame time for |skottie_animation_|. Used for calculating the time

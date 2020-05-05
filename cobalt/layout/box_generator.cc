@@ -434,9 +434,6 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
       (*paragraph_)
           ->AppendCodePoint(Paragraph::kObjectReplacementCharacterCodePoint);
 
-  render_tree::LottieAnimation::LottieProperties lottie_properties(
-      lottie_player->state(), lottie_player->loop());
-
   ReplacedBoxGenerator replaced_box_generator(
       lottie_player->css_computed_style_declaration(),
       lottie_player->cached_image()->TryGetResource()
@@ -446,7 +443,8 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
       ReplacedBox::SetBoundsCB(), *paragraph_, text_position, base::nullopt,
       base::nullopt, base::nullopt, context_,
       ReplacedBox::ReplacedBoxMode::kLottie,
-      math::Size() /* only relevant to punch out video */, lottie_properties);
+      math::Size() /* only relevant to punch out video */,
+      lottie_player->GetUpdatedProperties());
   lottie_player->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =

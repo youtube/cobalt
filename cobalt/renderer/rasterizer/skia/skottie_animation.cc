@@ -27,17 +27,17 @@ SkottieAnimation::SkottieAnimation(const char* data, size_t length) {
   json_size_in_bytes_ = builder.getStats().fJsonSize;
 }
 
-void SkottieAnimation::SetProperties(
-    render_tree::LottieAnimation::LottieProperties properties) {
+void SkottieAnimation::SetProperties(LottieProperties properties) {
   properties_ = properties;
 }
 
 void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
-  if (properties_.current_state == AnimationState::kPlaying) {
+  if (properties_.state == LottieState::kPlaying) {
     // Only update |current_animation_time_| if the animation is playing.
-    current_animation_time_ +=
+    base::TimeDelta time_elapsed =
         animate_function_time - last_updated_animate_function_time_;
-  } else if (properties_.current_state == AnimationState::kStopped) {
+    current_animation_time_ += time_elapsed * properties_.speed;
+  } else if (properties_.state == LottieState::kStopped) {
     // Reset to the start of the animation if it has been stopped.
     current_animation_time_ = base::TimeDelta();
   }
@@ -46,6 +46,9 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
   if (properties_.loop) {
     current_frame_time = std::fmod(current_animation_time_.InSecondsF(),
                                    skottie_animation_->duration());
+  }
+  if (properties_.direction == -1) {
+    current_frame_time = skottie_animation_->duration() - current_frame_time;
   }
   skottie_animation_->seekFrameTime(current_frame_time);
   last_updated_animate_function_time_ = animate_function_time;

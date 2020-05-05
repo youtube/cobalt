@@ -27,16 +27,66 @@ namespace render_tree {
 // LottieAnimation object.
 class LottieAnimation : public Image {
  public:
-  enum class AnimationState { kPlaying, kPaused, kStopped };
+  enum class LottieState { kPlaying, kPaused, kStopped };
 
+  // https://lottiefiles.github.io/lottie-player/properties.html
+  // Custom, not in any spec: |state| indicates whether the animation is playing
+  // (visible and animating), paused (visible but not animating), or stopped
+  // (not visible and frame time = 0).
   struct LottieProperties {
+    static constexpr int kDefaultDirection = 1;
+    static constexpr bool kDefaultLoop = false;
+    static constexpr double kDefaultSpeed = 1;
+
     LottieProperties() = default;
 
-    LottieProperties(AnimationState current_state, bool loop)
-        : current_state(current_state), loop(loop) {}
+    // Return true if |state| is updated to a new & valid LottieState.
+    bool UpdateState(LottieState new_state) {
+      // It is not possible to pause a stopped animation.
+      if (new_state == LottieState::kPaused && state == LottieState::kStopped) {
+        return false;
+      }
+      if (new_state == state) {
+        return false;
+      }
+      state = new_state;
+      return true;
+    }
 
-    AnimationState current_state;
-    bool loop;
+    // Return true if |direction| is updated to a new & valid direction.
+    bool UpdateDirection(int new_direction) {
+      // |direction| can either be 1 or -1.
+      if ((new_direction != 1 && new_direction != -1) ||
+          (new_direction == direction)) {
+        return false;
+      }
+      direction = new_direction;
+      return true;
+    }
+
+    // Return true if |loop| is updated.
+    bool UpdateLoop(bool new_loop) {
+      if (new_loop == loop) {
+        return false;
+      }
+      loop = new_loop;
+      return true;
+    }
+
+    // Return true is |speed| is updated to a new & valid speed.
+    bool UpdateSpeed(double new_speed) {
+      // |speed| must be a nonnegative value.
+      if (new_speed < 0 || new_speed == speed) {
+        return false;
+      }
+      speed = new_speed;
+      return true;
+    }
+
+    LottieState state = LottieState::kPlaying;
+    int direction = kDefaultDirection;
+    bool loop = kDefaultLoop;
+    double speed = kDefaultSpeed;
   };
 
   virtual void SetProperties(LottieProperties properties) = 0;

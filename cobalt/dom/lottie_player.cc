@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/message_loop/message_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -36,9 +37,7 @@ using render_tree::LottieAnimation;
 const char LottiePlayer::kTagName[] = "lottie-player";
 
 LottiePlayer::LottiePlayer(Document* document)
-    : HTMLElement(document, base::Token(kTagName)),
-      autoplaying_(true),
-      state_(LottieAnimation::AnimationState::kStopped) {}
+    : HTMLElement(document, base::Token(kTagName)), autoplaying_(true) {}
 
 std::string LottiePlayer::src() const {
   return GetAttribute("src").value_or("");
@@ -58,7 +57,13 @@ void LottiePlayer::set_autoplay(bool autoplay) {
   }
 }
 
-bool LottiePlayer::loop() const { return GetBooleanAttribute("loop"); }
+int LottiePlayer::direction() const { return properties_.direction; }
+
+void LottiePlayer::set_direction(int direction) {
+  SetAttribute("direction", base::Int32ToString(direction));
+}
+
+bool LottiePlayer::loop() const { return properties_.loop; }
 
 void LottiePlayer::set_loop(bool loop) {
   // The value of 'loop' is true when the 'loop' attribute is present.
@@ -70,24 +75,64 @@ void LottiePlayer::set_loop(bool loop) {
   }
 }
 
+double LottiePlayer::speed() const { return properties_.speed; }
+
+void LottiePlayer::set_speed(double speed) {
+  SetAttribute("speed", base::NumberToString(speed));
+}
+
+std::string LottiePlayer::renderer() const {
+  // Cobalt uses a custom compiled-in renderer.
+  return "skottie-m79";
+}
+
 void LottiePlayer::Play() {
-  UpdateState(LottieAnimation::AnimationState::kPlaying);
+  // https://lottiefiles.github.io/lottie-player/methods.html#play--void
+  UpdateState(LottieAnimation::LottieState::kPlaying);
 }
 
 void LottiePlayer::Pause() {
-  UpdateState(LottieAnimation::AnimationState::kPaused);
+  // https://lottiefiles.github.io/lottie-player/methods.html#pause--void
+  UpdateState(LottieAnimation::LottieState::kPaused);
 }
 
 void LottiePlayer::Stop() {
-  UpdateState(LottieAnimation::AnimationState::kStopped);
+  // https://lottiefiles.github.io/lottie-player/methods.html#stop--void
+  UpdateState(LottieAnimation::LottieState::kStopped);
 }
 
-LottieAnimation::AnimationState LottiePlayer::state() const {
-  if (autoplaying_) {
-    return autoplay() ? LottieAnimation::AnimationState::kPlaying
-                      : LottieAnimation::AnimationState::kStopped;
+void LottiePlayer::SetDirection(int direction) {
+  // https://lottiefiles.github.io/lottie-player/methods.html#setdirectionvalue-number--void
+  if (properties_.UpdateDirection(direction)) {
+    UpdateLottieObjects();
   }
-  return state_;
+}
+
+void LottiePlayer::SetLooping(bool loop) {
+  // https://lottiefiles.github.io/lottie-player/methods.html#setloopingvalue-boolean--void
+  if (properties_.UpdateLoop(loop)) {
+    UpdateLottieObjects();
+  }
+}
+
+void LottiePlayer::SetSpeed(double speed) {
+  // https://lottiefiles.github.io/lottie-player/methods.html#setspeedvalue-number--void
+  if (properties_.UpdateSpeed(speed)) {
+    UpdateLottieObjects();
+  }
+}
+
+LottieAnimation::LottieProperties LottiePlayer::GetUpdatedProperties() {
+  // The state may not have be initialized properly if the animation is
+  // autoplaying.
+  if (autoplaying_) {
+    LottieAnimation::LottieState state =
+        autoplay() ? LottieAnimation::LottieState::kPlaying
+                   : LottieAnimation::LottieState::kStopped;
+    properties_.UpdateState(state);
+  }
+
+  return properties_;
 }
 
 void LottiePlayer::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
@@ -103,6 +148,16 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
                                   const std::string& value) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "direction") {
+    int direction;
+    base::StringToInt32(value, &direction);
+    SetDirection(direction);
+  } else if (name == "loop") {
+    SetLooping(true);
+  } else if (name == "speed") {
+    double speed;
+    base::StringToDouble(value, &speed);
+    SetSpeed(speed);
   } else {
     HTMLElement::OnSetAttribute(name, value);
   }
@@ -111,6 +166,12 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
 void LottiePlayer::OnRemoveAttribute(const std::string& name) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "direction") {
+    SetDirection(LottieAnimation::LottieProperties::kDefaultDirection);
+  } else if (name == "loop") {
+    SetLooping(LottieAnimation::LottieProperties::kDefaultLoop);
+  } else if (name == "speed") {
+    SetSpeed(LottieAnimation::LottieProperties::kDefaultSpeed);
   } else {
     HTMLElement::OnRemoveAttribute(name);
   }
@@ -174,8 +235,7 @@ void LottiePlayer::OnLoadingSuccess() {
 
   // Set up the Lottie objects in the box and render trees once the file has
   // successfully loaded.
-  node_document()->RecordMutation();
-  InvalidateLayoutBoxRenderTreeNodes();
+  UpdateLottieObjects();
 }
 
 void LottiePlayer::OnLoadingError() {
@@ -216,24 +276,16 @@ void LottiePlayer::DestroyScopedPreventGC(
   scoped_prevent_gc.reset();
 }
 
-void LottiePlayer::UpdateState(LottieAnimation::AnimationState state) {
-  // It is not possible to pause a stopped animation.
-  if (state == LottieAnimation::AnimationState::kPaused &&
-      state_ == LottieAnimation::AnimationState::kStopped) {
-    return;
-  }
-
-  if (autoplaying_) {
-    state_ = autoplay() ? LottieAnimation::AnimationState::kPlaying
-                        : LottieAnimation::AnimationState::kStopped;
-  }
+void LottiePlayer::UpdateState(LottieAnimation::LottieState state) {
   autoplaying_ = false;
-
-  if (state_ != state) {
-    state_ = state;
-    InvalidateLayoutBoxesOfNodeAndAncestors();
-    node_document()->RecordMutation();
+  if (properties_.UpdateState(state)) {
+    UpdateLottieObjects();
   }
+}
+
+void LottiePlayer::UpdateLottieObjects() {
+  node_document()->RecordMutation();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
 }  // namespace dom
