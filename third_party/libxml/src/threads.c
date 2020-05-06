@@ -10,9 +10,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #include <libxml/threads.h>
 #include <libxml/globals.h>
@@ -400,7 +398,7 @@ xmlRMutexUnlock(xmlRMutexPtr tok ATTRIBUTE_UNUSED)
     if (tok->held == 0) {
         if (tok->waiters)
             pthread_cond_signal(&tok->cv);
-        XML_MEMSET(&tok->tid, 0, sizeof(tok->tid));
+        memset(&tok->tid, 0, sizeof(tok->tid));
     }
     pthread_mutex_unlock(&tok->lock);
 #elif defined HAVE_WIN32_THREADS
@@ -586,7 +584,7 @@ xmlNewGlobalState(void)
         return (NULL);
     }
 
-    XML_MEMSET(gs, 0, sizeof(xmlGlobalState));
+    memset(gs, 0, sizeof(xmlGlobalState));
     xmlInitializeGlobalState(gs);
     return (gs);
 }
@@ -773,7 +771,7 @@ xmlGetThreadId(void)
         return (0);
     id = pthread_self();
     /* horrible but preserves compat, see warning above */
-    XML_MEMCPY(&ret, &id, sizeof(ret));
+    memcpy(&ret, &id, sizeof(ret));
     return (ret);
 #elif defined HAVE_WIN32_THREADS
     return GetCurrentThreadId();

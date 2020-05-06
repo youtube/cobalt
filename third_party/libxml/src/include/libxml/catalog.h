@@ -17,9 +17,7 @@
 #ifndef __XML_CATALOG_H__
 #define __XML_CATALOG_H__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
 
 #include <libxml/xmlversion.h>
 #include <libxml/xmlstring.h>

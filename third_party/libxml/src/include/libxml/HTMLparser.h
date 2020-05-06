@@ -144,7 +144,7 @@ XMLPUBFUN int XMLCALL
 			htmlIsScriptAttribute(const xmlChar *name);
 XMLPUBFUN int XMLCALL
 			htmlHandleOmittedElem(int val);
-#if defined(COBALT)
+#if defined(STARBOARD)
 XMLPUBFUN void XMLCALL
 			htmlEmitImpliedRootLevelParagraph(int val);
 #endif  // defined(COBALT)

@@ -11,9 +11,7 @@
 #ifndef __XML_DICT_H__
 #define __XML_DICT_H__
 
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 #include <libxml/xmlversion.h>
 
 #ifdef __cplusplus
