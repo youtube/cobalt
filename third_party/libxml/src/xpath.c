@@ -22,15 +22,19 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-<<<<<<< HEAD
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-=======
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+#endif
+
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -3143,19 +3147,12 @@ xmlXPathFormatNumber(double number, char buffer[], int buffersize)
     default:
 	if (xmlXPathIsNaN(number)) {
 	    if (buffersize > (int)sizeof("NaN"))
-<<<<<<< HEAD
 		XML_SNPRINTF(buffer, buffersize, "NaN");
-	} else if (number == 0 && xmlXPathGetSign(number) != 0) {
-	    XML_SNPRINTF(buffer, buffersize, "0");
-	} else if (number == ((int) number)) {
-=======
-		snprintf(buffer, buffersize, "NaN");
 	} else if (number == 0) {
             /* Omit sign for negative zero. */
-	    snprintf(buffer, buffersize, "0");
+	    XML_SNPRINTF(buffer, buffersize, "0");
 	} else if ((number > INT_MIN) && (number < INT_MAX) &&
                    (number == (int) number)) {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	    char work[30];
 	    char *ptr, *cur;
 	    int value = (int) number;
@@ -3608,40 +3605,6 @@ xmlXPathNodeSetCreate(xmlNodePtr val) {
 }
 
 /**
-<<<<<<< HEAD
- * xmlXPathNodeSetCreateSize:
- * @size:  the initial size of the set
- *
- * Create a new xmlNodeSetPtr of type double and of value @val
- *
- * Returns the newly created object.
- */
-static xmlNodeSetPtr
-xmlXPathNodeSetCreateSize(int size) {
-    xmlNodeSetPtr ret;
-
-    ret = (xmlNodeSetPtr) xmlMalloc(sizeof(xmlNodeSet));
-    if (ret == NULL) {
-        xmlXPathErrMemory(NULL, "creating nodeset\n");
-	return(NULL);
-    }
-    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlNodeSet));
-    if (size < XML_NODESET_DEFAULT)
-	size = XML_NODESET_DEFAULT;
-    ret->nodeTab = (xmlNodePtr *) xmlMalloc(size * sizeof(xmlNodePtr));
-    if (ret->nodeTab == NULL) {
-	xmlXPathErrMemory(NULL, "creating nodeset\n");
-	xmlFree(ret);
-	return(NULL);
-    }
-    XML_MEMSET(ret->nodeTab, 0 , size * (size_t) sizeof(xmlNodePtr));
-    ret->nodeMax = size;
-    return(ret);
-}
-
-/**
-=======
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
  * xmlXPathNodeSetContains:
  * @cur:  the node-set
  * @val:  the node
@@ -3994,24 +3957,7 @@ xmlXPathNodeSetMerge(xmlNodeSetPtr val1, xmlNodeSetPtr val2) {
 static xmlNodeSetPtr
 xmlXPathNodeSetMergeAndClear(xmlNodeSetPtr set1, xmlNodeSetPtr set2)
 {
-<<<<<<< HEAD
-    if ((set1 == NULL) && (hasNullEntries == 0)) {
-	/*
-	* Note that doing a memcpy of the list, namespace nodes are
-	* just assigned to set1, since set2 is cleared anyway.
-	*/
-	set1 = xmlXPathNodeSetCreateSize(set2->nodeNr);
-	if (set1 == NULL)
-	    return(NULL);
-	if (set2->nodeNr != 0) {
-	    XML_MEMCPY(set1->nodeTab, set2->nodeTab,
-		set2->nodeNr * sizeof(xmlNodePtr));
-	    set1->nodeNr = set2->nodeNr;
-	}
-    } else {
-=======
     {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	int i, j, initNbSet1;
 	xmlNodePtr n1, n2;
 
@@ -4092,26 +4038,7 @@ skip_node:
 static xmlNodeSetPtr
 xmlXPathNodeSetMergeAndClearNoDupls(xmlNodeSetPtr set1, xmlNodeSetPtr set2)
 {
-<<<<<<< HEAD
-    if (set2 == NULL)
-	return(set1);
-    if ((set1 == NULL) && (hasNullEntries == 0)) {
-	/*
-	* Note that doing a memcpy of the list, namespace nodes are
-	* just assigned to set1, since set2 is cleared anyway.
-	*/
-	set1 = xmlXPathNodeSetCreateSize(set2->nodeNr);
-	if (set1 == NULL)
-	    return(NULL);
-	if (set2->nodeNr != 0) {
-	    XML_MEMCPY(set1->nodeTab, set2->nodeTab,
-		set2->nodeNr * sizeof(xmlNodePtr));
-	    set1->nodeNr = set2->nodeNr;
-	}
-    } else {
-=======
     {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	int i;
 	xmlNodePtr n2;
 

@@ -11,13 +11,9 @@
 #ifndef __XML_DICT_H__
 #define __XML_DICT_H__
 
-<<<<<<< HEAD
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-=======
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+#endif
 #include <libxml/xmlversion.h>
 
 #ifdef __cplusplus

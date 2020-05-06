@@ -17,11 +17,10 @@
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
-<<<<<<< HEAD
 #endif
-=======
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -2241,12 +2240,8 @@ xmlSAX2StartElementNs(void *ctx,
         ret = ctxt->freeElems;
 	ctxt->freeElems = ret->next;
 	ctxt->freeElemsNr--;
-<<<<<<< HEAD
 	XML_MEMSET(ret, 0, sizeof(xmlNode));
-=======
-	memset(ret, 0, sizeof(xmlNode));
         ret->doc = ctxt->myDoc;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	ret->type = XML_ELEMENT_NODE;
 
 	if (ctxt->dictNames)

@@ -20,12 +20,11 @@
 
 #ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
-<<<<<<< HEAD
+#endif
+#ifdef HAVE_STDDEF_H
+#include <stddef.h>
 #endif
 #ifdef HAVE_LIMITS_H
-=======
-#include <stddef.h>
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #include <limits.h>
 #endif
 #ifdef HAVE_CTYPE_H
