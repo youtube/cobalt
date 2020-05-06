@@ -77,7 +77,7 @@ void xmlMallocBreakpoint(void);
 #endif
 
 /*
- * Each of the blocks allocated begin with a header containing informations
+ * Each of the blocks allocated begin with a header containing information
  */
 
 #define MEMTAG 0x5aa5
@@ -111,8 +111,9 @@ typedef struct memnod {
 #define RESERVE_SIZE (((HDR_SIZE + (ALIGN_SIZE-1)) \
 		      / ALIGN_SIZE ) * ALIGN_SIZE)
 
+#define MAX_SIZE_T ((size_t)-1)
 
-#define CLIENT_2_HDR(a) ((MEMHDR *) (((char *) (a)) - RESERVE_SIZE))
+#define CLIENT_2_HDR(a) ((void *) (((char *) (a)) - RESERVE_SIZE))
 #define HDR_2_CLIENT(a)    ((void *) (((char *) (a)) + RESERVE_SIZE))
 
 
@@ -173,7 +174,18 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
+<<<<<<< HEAD
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+=======
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMallocLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
+
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+>>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -219,7 +231,7 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
 /**
  * xmlMallocAtomicLoc:
- * @size:  an int specifying the size in byte to allocate.
+ * @size:  an unsigned int specifying the size in byte to allocate.
  * @file:  the file name or NULL
  * @line:  the line number
  *
@@ -242,11 +254,22 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
+<<<<<<< HEAD
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+=======
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMallocAtomicLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
+
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+>>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
-		"xmlMallocLoc : Out of free space\n");
+		"xmlMallocAtomicLoc : Out of free space\n");
 	xmlMemoryDump();
 	return(NULL);
     }
@@ -346,7 +369,18 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
+<<<<<<< HEAD
     tmp = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
+=======
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlReallocLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
+
+    tmp = (MEMHDR *) realloc(p,RESERVE_SIZE+size);
+>>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     if (!tmp) {
 	 XML_FREE(p);
 	 goto error;
@@ -467,7 +501,7 @@ xmlMemFree(void *ptr)
 
 error:
     xmlGenericError(xmlGenericErrorContext,
-	    "xmlMemFree(%lX) error\n", (unsigned long) ptr);
+	    "xmlMemFree(%p) error\n", ptr);
     xmlMallocBreakpoint();
     return;
 }
@@ -493,7 +527,18 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
     if (!xmlMemInitialized) xmlInitMemory();
     TEST_POINT
 
+<<<<<<< HEAD
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+=======
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMemStrdupLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
+
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+>>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     if (!p) {
       goto error;
     }
@@ -556,7 +601,12 @@ xmlMemoryStrdup(const char *str) {
 
 int
 xmlMemUsed(void) {
-     return(debugMemSize);
+    int res;
+
+    xmlMutexLock(xmlMemMutex);
+    res = debugMemSize;
+    xmlMutexUnlock(xmlMemMutex);
+    return(res);
 }
 
 /**
@@ -569,7 +619,12 @@ xmlMemUsed(void) {
 
 int
 xmlMemBlocks(void) {
-     return(debugMemBlocks);
+    int res;
+
+    xmlMutexLock(xmlMemMutex);
+    res = debugMemBlocks;
+    xmlMutexUnlock(xmlMemMutex);
+    return(res);
 }
 
 #ifdef MEM_LIST
