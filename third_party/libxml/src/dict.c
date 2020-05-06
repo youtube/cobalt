@@ -19,9 +19,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -45,9 +43,7 @@
 #define DICT_RANDOMIZATION
 #endif
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #else
@@ -287,7 +283,7 @@ xmlDictAddString(xmlDictPtr dict, const xmlChar *name, unsigned int namelen) {
     }
 found_pool:
     ret = pool->free;
-    XML_MEMCPY(pool->free, name, namelen);
+    memcpy(pool->free, name, namelen);
     pool->free += namelen;
     *(pool->free++) = 0;
     pool->nbStrings++;
@@ -355,10 +351,10 @@ xmlDictAddQString(xmlDictPtr dict, const xmlChar *prefix, unsigned int plen,
     }
 found_pool:
     ret = pool->free;
-    XML_MEMCPY(pool->free, prefix, plen);
+    memcpy(pool->free, prefix, plen);
     pool->free += plen;
     *(pool->free++) = ':';
-    XML_MEMCPY(pool->free, name, namelen);
+    memcpy(pool->free, name, namelen);
     pool->free += namelen;
     *(pool->free++) = 0;
     pool->nbStrings++;
@@ -598,7 +594,7 @@ xmlDictCreate(void) {
 	dict->strings = NULL;
 	dict->subdict = NULL;
         if (dict->dict) {
-	    XML_MEMSET(dict->dict, 0, MIN_DICT_SIZE * sizeof(xmlDictEntry));
+	    memset(dict->dict, 0, MIN_DICT_SIZE * sizeof(xmlDictEntry));
 #ifdef DICT_RANDOMIZATION
             dict->seed = __xmlRandom();
 #else
@@ -702,7 +698,7 @@ xmlDictGrow(xmlDictPtr dict, size_t size) {
 	dict->dict = olddict;
 	return(-1);
     }
-    XML_MEMSET(dict->dict, 0, size * sizeof(xmlDictEntry));
+    memset(dict->dict, 0, size * sizeof(xmlDictEntry));
     dict->size = size;
 
     /*	If the two loops are merged, there would be situations where
@@ -722,7 +718,7 @@ xmlDictGrow(xmlDictPtr dict, size_t size) {
 	key = okey % dict->size;
 
 	if (dict->dict[key].valid == 0) {
-	    XML_MEMCPY(&(dict->dict[key]), &(olddict[i]), sizeof(xmlDictEntry));
+	    memcpy(&(dict->dict[key]), &(olddict[i]), sizeof(xmlDictEntry));
 	    dict->dict[key].next = NULL;
 	    dict->dict[key].okey = okey;
 	} else {
@@ -764,7 +760,7 @@ xmlDictGrow(xmlDictPtr dict, size_t size) {
 		okey = xmlDictComputeKey(dict, iter->name, iter->len);
 	    key = okey % dict->size;
 	    if (dict->dict[key].valid == 0) {
-		XML_MEMCPY(&(dict->dict[key]), iter, sizeof(xmlDictEntry));
+		memcpy(&(dict->dict[key]), iter, sizeof(xmlDictEntry));
 		dict->dict[key].next = NULL;
 		dict->dict[key].valid = 1;
 		dict->dict[key].okey = okey;
@@ -877,7 +873,7 @@ xmlDictLookup(xmlDictPtr dict, const xmlChar *name, int len) {
 	return(NULL);
 
     if (len < 0)
-        l = XML_STRLEN((const char *) name);
+        l = strlen((const char *) name);
     else
         l = len;
 
@@ -897,7 +893,7 @@ xmlDictLookup(xmlDictPtr dict, const xmlChar *name, int len) {
 	     insert = insert->next) {
 #ifdef __GNUC__
 	    if ((insert->okey == okey) && (insert->len == l)) {
-		if (!XML_MEMCMP(insert->name, name, l))
+		if (!memcmp(insert->name, name, l))
 		    return(insert->name);
 	    }
 #else
@@ -909,7 +905,7 @@ xmlDictLookup(xmlDictPtr dict, const xmlChar *name, int len) {
 	}
 #ifdef __GNUC__
 	if ((insert->okey == okey) && (insert->len == l)) {
-	    if (!XML_MEMCMP(insert->name, name, l))
+	    if (!memcmp(insert->name, name, l))
 		return(insert->name);
 	}
 #else
@@ -939,7 +935,7 @@ xmlDictLookup(xmlDictPtr dict, const xmlChar *name, int len) {
 		 tmp = tmp->next) {
 #ifdef __GNUC__
 		if ((tmp->okey == skey) && (tmp->len == l)) {
-		    if (!XML_MEMCMP(tmp->name, name, l))
+		    if (!memcmp(tmp->name, name, l))
 			return(tmp->name);
 		}
 #else
@@ -951,7 +947,7 @@ xmlDictLookup(xmlDictPtr dict, const xmlChar *name, int len) {
 	    }
 #ifdef __GNUC__
 	    if ((tmp->okey == skey) && (tmp->len == l)) {
-		if (!XML_MEMCMP(tmp->name, name, l))
+		if (!memcmp(tmp->name, name, l))
 		    return(tmp->name);
 	    }
 #else
@@ -1015,7 +1011,7 @@ xmlDictExists(xmlDictPtr dict, const xmlChar *name, int len) {
 	return(NULL);
 
     if (len < 0)
-        l = XML_STRLEN((const char *) name);
+        l = strlen((const char *) name);
     else
         l = len;
     if (((dict->limit > 0) && (l >= dict->limit)) ||
@@ -1034,7 +1030,7 @@ xmlDictExists(xmlDictPtr dict, const xmlChar *name, int len) {
 	     insert = insert->next) {
 #ifdef __GNUC__
 	    if ((insert->okey == okey) && (insert->len == l)) {
-		if (!XML_MEMCMP(insert->name, name, l))
+		if (!memcmp(insert->name, name, l))
 		    return(insert->name);
 	    }
 #else
@@ -1046,7 +1042,7 @@ xmlDictExists(xmlDictPtr dict, const xmlChar *name, int len) {
 	}
 #ifdef __GNUC__
 	if ((insert->okey == okey) && (insert->len == l)) {
-	    if (!XML_MEMCMP(insert->name, name, l))
+	    if (!memcmp(insert->name, name, l))
 		return(insert->name);
 	}
 #else
@@ -1076,7 +1072,7 @@ xmlDictExists(xmlDictPtr dict, const xmlChar *name, int len) {
 		 tmp = tmp->next) {
 #ifdef __GNUC__
 		if ((tmp->okey == skey) && (tmp->len == l)) {
-		    if (!XML_MEMCMP(tmp->name, name, l))
+		    if (!memcmp(tmp->name, name, l))
 			return(tmp->name);
 		}
 #else
@@ -1088,7 +1084,7 @@ xmlDictExists(xmlDictPtr dict, const xmlChar *name, int len) {
 	    }
 #ifdef __GNUC__
 	    if ((tmp->okey == skey) && (tmp->len == l)) {
-		if (!XML_MEMCMP(tmp->name, name, l))
+		if (!memcmp(tmp->name, name, l))
 		    return(tmp->name);
 	    }
 #else
@@ -1126,8 +1122,8 @@ xmlDictQLookup(xmlDictPtr dict, const xmlChar *prefix, const xmlChar *name) {
     if (prefix == NULL)
         return(xmlDictLookup(dict, name, -1));
 
-    l = len = XML_STRLEN((const char *) name);
-    plen = XML_STRLEN((const char *) prefix);
+    l = len = strlen((const char *) name);
+    plen = strlen((const char *) prefix);
     len += 1 + plen;
 
     /*

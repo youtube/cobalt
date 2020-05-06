@@ -48,10 +48,6 @@
 
 #define MAX_ERR_MSG_SIZE 64000
 
-#ifdef STARBOARD
-  #define VA_COPY(dest, src) SB_VA_COPY(dest, src)
-#endif
-
 /*
  * The following VA_COPY was coded following an example in
  * the Samba project.  It may not be sufficient for some
@@ -69,7 +65,7 @@
         #define VA_COPY(dest,src) (dest) = (src)
       #else
         #include <string.h>
-        #define VA_COPY(dest,src) XML_MEMCPY((char *)(dest),(char *)(src),sizeof(va_list))
+        #define VA_COPY(dest,src) memcpy((char *)(dest),(char *)(src),sizeof(va_list))
       #endif
     #endif
   #endif
@@ -2084,7 +2080,7 @@ xmlNewTextReader(xmlParserInputBufferPtr input, const char *URI) {
 		"xmlNewTextReader : malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlTextReader));
+    memset(ret, 0, sizeof(xmlTextReader));
     ret->doc = NULL;
     ret->entTab = NULL;
     ret->entMax = 0;
@@ -4743,7 +4739,7 @@ xmlTextReaderBuildMessage(const char *msg, va_list ap) {
 
     while (1) {
         VA_COPY(aq, ap);
-        chars = XML_VSNPRINTF(str, size, msg, aq);
+        chars = vsnprintf(str, size, msg, aq);
         va_end(aq);
         if (chars < 0) {
 	    xmlGenericError(xmlGenericErrorContext, "vsnprintf failed !\n");
@@ -5365,7 +5361,7 @@ xmlReaderWalker(xmlDocPtr doc)
 		"xmlNewTextReader : malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlTextReader));
+    memset(ret, 0, sizeof(xmlTextReader));
     ret->entNr = 0;
     ret->input = NULL;
     ret->mode = XML_TEXTREADER_MODE_INITIAL;
@@ -5903,7 +5899,7 @@ main(int argc, char **argv)
 
     char output3[100];
 
-    unsigned long inlen = XML_STRLEN(input);
+    unsigned long inlen = strlen(input);
 
     unsigned long outlen = 100;
 

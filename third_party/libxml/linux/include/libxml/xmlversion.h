@@ -118,9 +118,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Whether the serialization/saving support is configured in
  */
 #if 1
-#ifndef COBALT
 #define LIBXML_OUTPUT_ENABLED
-#endif
 #endif
 
 /**
@@ -138,9 +136,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Whether the xmlReader parsing interface is configured in
  */
 #if 1
-#ifndef COBALT
 #define LIBXML_READER_ENABLED
-#endif
 #endif
 
 /**
@@ -158,9 +154,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Whether the xmlWriter saving interface is configured in
  */
 #if 1
-#ifndef COBALT
 #define LIBXML_WRITER_ENABLED
-#endif
 #endif
 
 /**
@@ -305,7 +299,6 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  */
 #if 0
 #define LIBXML_DEBUG_ENABLED
-#endif
 #endif
 
 /**

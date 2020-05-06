@@ -16,9 +16,7 @@
 #define XML_DIR_SEP '/'
 #endif
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
@@ -92,7 +90,7 @@ xmlCheckVersion(int version) {
 #else
     SbLogFormatF("Fatal: program compiled against libxml %d using libxml %d\n",
         (version / 10000), (myversion / 10000));
-#endif
+#endif  // #ifndef STARBOARD
     }
     if ((myversion / 100) < (version / 100)) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -561,7 +559,7 @@ encoding_error:
     } else {
         char buffer[150];
 
-	XML_SNPRINTF(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	snprintf(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
 			ctxt->input->cur[0], ctxt->input->cur[1],
 			ctxt->input->cur[2], ctxt->input->cur[3]);
 	__xmlErrEncoding(ctxt, XML_ERR_INVALID_CHAR,
@@ -727,7 +725,7 @@ encoding_error:
     {
         char buffer[150];
 
-	XML_SNPRINTF(&buffer[0], 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	snprintf(&buffer[0], 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
 			ctxt->input->cur[0], ctxt->input->cur[1],
 			ctxt->input->cur[2], ctxt->input->cur[3]);
 	__xmlErrEncoding(ctxt, XML_ERR_INVALID_CHAR,
@@ -840,7 +838,7 @@ encoding_error:
     {
         char buffer[150];
 
-	XML_SNPRINTF(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	snprintf(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
 			ctxt->input->cur[0], ctxt->input->cur[1],
 			ctxt->input->cur[2], ctxt->input->cur[3]);
 	__xmlErrEncoding(ctxt, XML_ERR_INVALID_CHAR,
@@ -1184,13 +1182,13 @@ xmlSwitchInputEncodingInt(xmlParserCtxtPtr ctxt, xmlParserInputPtr input,
              * UTF-16
              */
             if ((handler->name != NULL) &&
-                (!XML_STRCMP(handler->name, "UTF-16LE") ||
-                 !XML_STRCMP(handler->name, "UTF-16")) &&
+                (!strcmp(handler->name, "UTF-16LE") ||
+                 !strcmp(handler->name, "UTF-16")) &&
                 (input->cur[0] == 0xFF) && (input->cur[1] == 0xFE)) {
                 input->cur += 2;
             }
             if ((handler->name != NULL) &&
-                (!XML_STRCMP(handler->name, "UTF-16BE")) &&
+                (!strcmp(handler->name, "UTF-16BE")) &&
                 (input->cur[0] == 0xFE) && (input->cur[1] == 0xFF)) {
                 input->cur += 2;
             }
@@ -1200,7 +1198,7 @@ xmlSwitchInputEncodingInt(xmlParserCtxtPtr ctxt, xmlParserInputPtr input,
              * UTF-8
              */
             if ((handler->name != NULL) &&
-                (!XML_STRCMP(handler->name, "UTF-8")) &&
+                (!strcmp(handler->name, "UTF-8")) &&
                 (input->cur[0] == 0xEF) &&
                 (input->cur[1] == 0xBB) && (input->cur[2] == 0xBF)) {
                 input->cur += 3;
@@ -1351,7 +1349,7 @@ xmlFreeInputStream(xmlParserInputPtr input) {
     if (input->encoding != NULL) xmlFree((char *) input->encoding);
     if (input->version != NULL) xmlFree((char *) input->version);
     if ((input->free != NULL) && (input->base != NULL))
-        input->free ((xmlChar *) input->base);
+        input->free((xmlChar *) input->base);
     if (input->buf != NULL)
         xmlFreeParserInputBuffer(input->buf);
     xmlFree(input);
@@ -1374,7 +1372,7 @@ xmlNewInputStream(xmlParserCtxtPtr ctxt) {
         xmlErrMemory(ctxt,  "couldn't allocate a new input stream\n");
 	return(NULL);
     }
-    XML_MEMSET(input, 0, sizeof(xmlParserInput));
+    memset(input, 0, sizeof(xmlParserInput));
     input->line = 1;
     input->col = 1;
     input->standalone = -1;
@@ -1879,7 +1877,7 @@ xmlNewParserCtxt(void)
 	xmlErrMemory(NULL, "cannot allocate parser context\n");
 	return(NULL);
     }
-    XML_MEMSET(ctxt, 0, sizeof(xmlParserCtxt));
+    memset(ctxt, 0, sizeof(xmlParserCtxt));
     if (xmlInitParserCtxt(ctxt) < 0) {
         xmlFreeParserCtxt(ctxt);
 	return(NULL);

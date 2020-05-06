@@ -10,9 +10,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -887,7 +885,7 @@ xmlValidCtxtPtr xmlNewValidCtxt(void) {
 	return (NULL);
     }
 
-    (void) XML_MEMSET(ret, 0, sizeof (xmlValidCtxt));
+    (void) memset(ret, 0, sizeof (xmlValidCtxt));
 
     return (ret);
 }
@@ -956,7 +954,7 @@ xmlNewDocElementContent(xmlDocPtr doc, const xmlChar *name,
 	xmlVErrMemory(NULL, "malloc failed");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlElementContent));
+    memset(ret, 0, sizeof(xmlElementContent));
     ret->type = type;
     ret->ocur = XML_ELEMENT_CONTENT_ONCE;
     if (name != NULL) {
@@ -1021,7 +1019,7 @@ xmlCopyDocElementContent(xmlDocPtr doc, xmlElementContentPtr cur) {
 	xmlVErrMemory(NULL, "malloc failed");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlElementContent));
+    memset(ret, 0, sizeof(xmlElementContent));
     ret->type = cur->type;
     ret->ocur = cur->ocur;
     if (cur->name != NULL) {
@@ -1050,7 +1048,7 @@ xmlCopyDocElementContent(xmlDocPtr doc, xmlElementContentPtr cur) {
 		xmlVErrMemory(NULL, "malloc failed");
 		return(ret);
 	    }
-	    XML_MEMSET(tmp, 0, sizeof(xmlElementContent));
+	    memset(tmp, 0, sizeof(xmlElementContent));
 	    tmp->type = cur->type;
 	    tmp->ocur = cur->ocur;
 	    prev->c2 = tmp;
@@ -1300,16 +1298,16 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
     int len;
 
     if (content == NULL) return;
-    len = XML_STRLEN(buf);
+    len = strlen(buf);
     if (size - len < 50) {
 	if ((size - len > 4) && (buf[len - 1] != '.'))
-	    XML_STRNCAT(buf, " ...", size);
+	    strcat(buf, " ...");
 	return;
     }
-    if (englob) XML_STRNCAT(buf, "(", size);
+    if (englob) strcat(buf, "(");
     switch (content->type) {
         case XML_ELEMENT_CONTENT_PCDATA:
-            XML_STRNCAT(buf, "#PCDATA", size);
+            strcat(buf, "#PCDATA");
 	    break;
 	case XML_ELEMENT_CONTENT_ELEMENT: {
             int qnameLen = xmlStrlen(content->name);
@@ -1325,7 +1323,7 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
 		strcat(buf, ":");
 	    }
 	    if (content->name != NULL)
-		XML_STRNCAT(buf, (char *) content->name, size);
+		strcat(buf, (char *) content->name);
 	    break;
         }
 	case XML_ELEMENT_CONTENT_SEQ:
@@ -1334,13 +1332,13 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
 		xmlSnprintfElementContent(buf, size, content->c1, 1);
 	    else
 		xmlSnprintfElementContent(buf, size, content->c1, 0);
-	    len = XML_STRLEN(buf);
+	    len = strlen(buf);
 	    if (size - len < 50) {
 		if ((size - len > 4) && (buf[len - 1] != '.'))
-		    XML_STRNCAT(buf, " ...", size);
+		    strcat(buf, " ...");
 		return;
 	    }
-            XML_STRNCAT(buf, " , ", size);
+            strcat(buf, " , ");
 	    if (((content->c2->type == XML_ELEMENT_CONTENT_OR) ||
 		 (content->c2->ocur != XML_ELEMENT_CONTENT_ONCE)) &&
 		(content->c2->type != XML_ELEMENT_CONTENT_ELEMENT))
@@ -1354,13 +1352,13 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
 		xmlSnprintfElementContent(buf, size, content->c1, 1);
 	    else
 		xmlSnprintfElementContent(buf, size, content->c1, 0);
-	    len = XML_STRLEN(buf);
+	    len = strlen(buf);
 	    if (size - len < 50) {
 		if ((size - len > 4) && (buf[len - 1] != '.'))
-		    XML_STRNCAT(buf, " ...", size);
+		    strcat(buf, " ...");
 		return;
 	    }
-            XML_STRNCAT(buf, " | ", size);
+            strcat(buf, " | ");
 	    if (((content->c2->type == XML_ELEMENT_CONTENT_SEQ) ||
 		 (content->c2->ocur != XML_ELEMENT_CONTENT_ONCE)) &&
 		(content->c2->type != XML_ELEMENT_CONTENT_ELEMENT))
@@ -1371,18 +1369,18 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
     }
     if (size - strlen(buf) <= 2) return;
     if (englob)
-        XML_STRNCAT(buf, ")", size);
+        strcat(buf, ")");
     switch (content->ocur) {
         case XML_ELEMENT_CONTENT_ONCE:
 	    break;
         case XML_ELEMENT_CONTENT_OPT:
-	    XML_STRNCAT(buf, "?", size);
+	    strcat(buf, "?");
 	    break;
         case XML_ELEMENT_CONTENT_MULT:
-	    XML_STRNCAT(buf, "*", size);
+	    strcat(buf, "*");
 	    break;
         case XML_ELEMENT_CONTENT_PLUS:
-	    XML_STRNCAT(buf, "+", size);
+	    strcat(buf, "+");
 	    break;
     }
 }
@@ -1563,7 +1561,7 @@ xmlAddElementDecl(xmlValidCtxtPtr ctxt,
 	        xmlFree(ns);
 	    return(NULL);
 	}
-	XML_MEMSET(ret, 0, sizeof(xmlElement));
+	memset(ret, 0, sizeof(xmlElement));
 	ret->type = XML_ELEMENT_DECL;
 
 	/*
@@ -1677,7 +1675,7 @@ xmlCopyElement(void *payload, const xmlChar *name ATTRIBUTE_UNUSED) {
 	xmlVErrMemory(NULL, "malloc failed");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlElement));
+    memset(cur, 0, sizeof(xmlElement));
     cur->type = XML_ELEMENT_DECL;
     cur->etype = elem->etype;
     if (elem->name != NULL)
@@ -1816,7 +1814,7 @@ xmlCreateEnumeration(const xmlChar *name) {
 	xmlVErrMemory(NULL, "malloc failed");
         return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlEnumeration));
+    memset(ret, 0, sizeof(xmlEnumeration));
 
     if (name != NULL)
         ret->name = xmlStrdup(name);
@@ -2084,7 +2082,7 @@ xmlAddAttributeDecl(xmlValidCtxtPtr ctxt,
 	xmlFreeEnumeration(tree);
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlAttribute));
+    memset(ret, 0, sizeof(xmlAttribute));
     ret->type = XML_ATTRIBUTE_DECL;
 
     /*
@@ -2229,7 +2227,7 @@ xmlCopyAttribute(void *payload, const xmlChar *name ATTRIBUTE_UNUSED) {
 	xmlVErrMemory(NULL, "malloc failed");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlAttribute));
+    memset(cur, 0, sizeof(xmlAttribute));
     cur->type = XML_ATTRIBUTE_DECL;
     cur->atype = attr->atype;
     cur->def = attr->def;
@@ -2445,7 +2443,7 @@ xmlAddNotationDecl(xmlValidCtxtPtr ctxt, xmlDtdPtr dtd,
 	xmlVErrMemory(ctxt, "malloc failed");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlNotation));
+    memset(ret, 0, sizeof(xmlNotation));
 
     /*
      * fill the structure.
@@ -2749,8 +2747,8 @@ int
 xmlIsID(xmlDocPtr doc, xmlNodePtr elem, xmlAttrPtr attr) {
     if ((attr == NULL) || (attr->name == NULL)) return(0);
     if ((attr->ns != NULL) && (attr->ns->prefix != NULL) &&
-        (!XML_STRCMP((char *) attr->name, "id")) &&
-        (!XML_STRCMP((char *) attr->ns->prefix, "xml")))
+        (!strcmp((char *) attr->name, "id")) &&
+        (!strcmp((char *) attr->ns->prefix, "xml")))
 	return(1);
     if (doc == NULL) return(0);
     if ((doc->intSubset == NULL) && (doc->extSubset == NULL) &&
@@ -3287,7 +3285,7 @@ xmlGetDtdElementDesc2(xmlDtdPtr dtd, const xmlChar *name, int create) {
 	    xmlVErrMemory(NULL, "malloc failed");
 	    return(NULL);
 	}
-	XML_MEMSET(cur, 0, sizeof(xmlElement));
+	memset(cur, 0, sizeof(xmlElement));
 	cur->type = XML_ELEMENT_DECL;
 
 	/*
@@ -5228,13 +5226,13 @@ xmlSnprintfElements(char *buf, int size, xmlNodePtr node, int glob) {
     int len;
 
     if (node == NULL) return;
-    if (glob) XML_STRNCAT(buf, "(", size);
+    if (glob) strcat(buf, "(");
     cur = node;
     while (cur != NULL) {
-	len = XML_STRLEN(buf);
+	len = strlen(buf);
 	if (size - len < 50) {
 	    if ((size - len > 4) && (buf[len - 1] != '.'))
-		XML_STRNCAT(buf, " ...", size);
+		strcat(buf, " ...");
 	    return;
 	}
         switch (cur->type) {
@@ -5242,20 +5240,20 @@ xmlSnprintfElements(char *buf, int size, xmlNodePtr node, int glob) {
 		if ((cur->ns != NULL) && (cur->ns->prefix != NULL)) {
 		    if (size - len < xmlStrlen(cur->ns->prefix) + 10) {
 			if ((size - len > 4) && (buf[len - 1] != '.'))
-			    XML_STRNCAT(buf, " ...", size);
+			    strcat(buf, " ...");
 			return;
 		    }
-		    XML_STRNCAT(buf, (char *) cur->ns->prefix, size);
-		    XML_STRNCAT(buf, ":", size);
+		    strcat(buf, (char *) cur->ns->prefix);
+		    strcat(buf, ":");
 		}
                 if (size - len < xmlStrlen(cur->name) + 10) {
 		    if ((size - len > 4) && (buf[len - 1] != '.'))
-			XML_STRNCAT(buf, " ...", size);
+			strcat(buf, " ...");
 		    return;
 		}
-	        XML_STRNCAT(buf, (char *) cur->name, size);
+	        strcat(buf, (char *) cur->name);
 		if (cur->next != NULL)
-		    XML_STRNCAT(buf, " ", size);
+		    strcat(buf, " ");
 		break;
             case XML_TEXT_NODE:
 		if (xmlIsBlankNode(cur))
@@ -5263,9 +5261,9 @@ xmlSnprintfElements(char *buf, int size, xmlNodePtr node, int glob) {
                 /* Falls through. */
             case XML_CDATA_SECTION_NODE:
             case XML_ENTITY_REF_NODE:
-	        XML_STRNCAT(buf, "CDATA", size);
+	        strcat(buf, "CDATA");
 		if (cur->next != NULL)
-		    XML_STRNCAT(buf, " ", size);
+		    strcat(buf, " ");
 		break;
             case XML_ATTRIBUTE_NODE:
             case XML_DOCUMENT_NODE:
@@ -5277,9 +5275,9 @@ xmlSnprintfElements(char *buf, int size, xmlNodePtr node, int glob) {
             case XML_DOCUMENT_FRAG_NODE:
             case XML_NOTATION_NODE:
 	    case XML_NAMESPACE_DECL:
-	        XML_STRNCAT(buf, "???", size);
+	        strcat(buf, "???");
 		if (cur->next != NULL)
-		    XML_STRNCAT(buf, " ", size);
+		    strcat(buf, " ");
 		break;
             case XML_ENTITY_NODE:
             case XML_PI_NODE:
@@ -5294,7 +5292,7 @@ xmlSnprintfElements(char *buf, int size, xmlNodePtr node, int glob) {
 	}
 	cur = cur->next;
     }
-    if (glob) XML_STRNCAT(buf, ")", size);
+    if (glob) strcat(buf, ")");
 }
 
 /**
@@ -7056,7 +7054,7 @@ xmlValidGetValidElements(xmlNode *prev, xmlNode *next, const xmlChar **names,
     if (names == NULL) return(-1);
     if (max <= 0) return(-1);
 
-    XML_MEMSET(&vctxt, 0, sizeof (xmlValidCtxt));
+    memset(&vctxt, 0, sizeof (xmlValidCtxt));
     vctxt.error = xmlNoValidityErr;	/* this suppresses err/warn output */
 
     nb_valid_elements = 0;

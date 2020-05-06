@@ -31,10 +31,6 @@ _SYSTEM_HEADER_SUFFIX = '#endif'
 
 # Includes that should be wrapped by .
 _INCLUDES_TO_WRAP = [
-    r'limits',
-    r'stdio',
-    r'stdlib',
-    r'string',
 ]
 
 # References to these symbols should be wrapped with the previx so that we
@@ -42,42 +38,9 @@ _INCLUDES_TO_WRAP = [
 _SYSTEM_FUNCTIONS = [
     r'abort',
     r'assert',
-    r'atoi',
-    r'fabs',
-    r'floor',
     r'free',
-    r'isalnum',
-    r'isdigit',
-    r'isspace',
-    r'isupper',
-    r'isxdigit',
-    r'labs',
     r'malloc',
-    r'memchr',
-    r'memcmp',
-    r'memcpy',
-    r'memmove',
-    r'memset',
-    r'qsort',
     r'realloc',
-    r'snprintf',
-    r'sscanf',
-    r'strcasecmp',
-    r'strcat',
-    r'strchr',
-    r'strcmp',
-    r'strcpy',
-    r'strdup',
-    r'strerror',
-    r'strlen',
-    r'strncasecmp',
-    r'strncmp',
-    r'strncpy',
-    r'strrchr',
-    r'strtoul',
-    r'tolower',
-    r'vsnprintf',
-    r'toupper',
 ]
 
 # Matches all "system" include lines. Note that this does NOT match include
