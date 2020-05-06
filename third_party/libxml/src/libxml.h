@@ -48,9 +48,7 @@ int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef WITH_TRIO
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
 #else
 /**
  * TRIO_REPLACE_STDIO:
@@ -74,10 +72,14 @@ int vfprintf(FILE *, const char *, va_list);
 #define XML_POP_WARNINGS
 #endif
 
-#if defined(__clang__) || \
-    (defined(__GNUC__) && (__GNUC__ >= 8))
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
 #define ATTRIBUTE_NO_SANITIZE(arg) __attribute__((no_sanitize(arg)))
-#else
+#endif
+#elif (defined(__GNUC__) && (__GNUC__ >= 8))
+#define ATTRIBUTE_NO_SANITIZE(arg) __attribute__((no_sanitize(arg)))
+#endif
+#if !defined(ATTRIBUTE_NO_SANITIZE)
 #define ATTRIBUTE_NO_SANITIZE(arg)
 #endif
 

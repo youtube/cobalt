@@ -11,9 +11,7 @@
 #include "libxml.h"
 #ifdef LIBXML_HTML_ENABLED
 
-#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
-#endif
 
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -178,7 +176,7 @@ htmlSetMetaEncoding(htmlDocPtr doc, const xmlChar *encoding) {
         return(-1);
 
     if (encoding != NULL) {
-	XML_SNPRINTF(newcontent, sizeof(newcontent), "text/html; charset=%s",
+	snprintf(newcontent, sizeof(newcontent), "text/html; charset=%s",
                 (char *)encoding);
 	newcontent[sizeof(newcontent) - 1] = 0;
     }
@@ -424,7 +422,7 @@ htmlBufNodeDumpFormat(xmlBufPtr buf, xmlDocPtr doc, xmlNodePtr cur,
         htmlSaveErrMemory("allocating HTML output buffer");
 	return (-1);
     }
-    XML_MEMSET(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
+    memset(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
     outbuf->buffer = buf;
     outbuf->encoder = NULL;
     outbuf->writecallback = NULL;
@@ -742,7 +740,7 @@ htmlAttrDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc, xmlAttrPtr cur,
 
 		    /* Do not escape anything within server side includes. */
 		    *start = '<'; /* Restore the first character of "<!--". */
-		    end += 3; /* XML_STRLEN("-->") */
+		    end += 3; /* strlen("-->") */
 		    endChar = *end;
 		    *end = '\0';
 		    xmlBufCat(buf->buffer, start);

@@ -17,9 +17,7 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #include <libxml/globals.h>
 #include <libxml/xmlmemory.h>
@@ -92,9 +90,9 @@ xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
  * xmlFree:
  * @mem: an already allocated block of memory
  *
- * The variable holding the libxml XML_FREE() implementation
+ * The variable holding the libxml free() implementation
  */
-xmlFreeFunc xmlFree = free;
+xmlFreeFunc xmlFree = XML_FREE;
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
@@ -103,7 +101,7 @@ xmlFreeFunc xmlFree = free;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMalloc = malloc;
+xmlMallocFunc xmlMalloc = XML_MALLOC;
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
@@ -114,17 +112,17 @@ xmlMallocFunc xmlMalloc = malloc;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMallocAtomic = malloc;
+xmlMallocFunc xmlMallocAtomic = XML_MALLOC;
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
  * @size:  the new size requested in bytes
  *
- * The variable holding the libxml XML_REALLOC() implementation
+ * The variable holding the libxml realloc() implementation
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = realloc;
+xmlReallocFunc xmlRealloc = SbMemoryReallocate;
 /**
  * xmlPosixStrdup
  * @cur:  the input char *
@@ -141,7 +139,7 @@ xmlPosixStrdup(const char *cur) {
  * xmlMemStrdup:
  * @str: a zero terminated string
  *
- * The variable holding the libxml XML_STRDUP() implementation
+ * The variable holding the libxml strdup() implementation
  *
  * Returns the copy of the string or NULL in case of error
  */
@@ -547,9 +545,9 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
     gs->xmlFree = (xmlFreeFunc) XML_FREE;
-    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
+    gs->xmlMalloc = (xmlMallocFunc) SbMemoryAllocate;
+    gs->xmlMallocAtomic = (xmlMallocFunc) SbMemoryAllocate;
+    gs->xmlRealloc = (xmlReallocFunc) SbMemoryReallocate;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;
@@ -574,7 +572,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
 
 	gs->xmlParserInputBufferCreateFilenameValue = xmlParserInputBufferCreateFilenameValueThrDef;
 	gs->xmlOutputBufferCreateFilenameValue = xmlOutputBufferCreateFilenameValueThrDef;
-    XML_MEMSET(&gs->xmlLastError, 0, sizeof(xmlError));
+    memset(&gs->xmlLastError, 0, sizeof(xmlError));
 
     xmlMutexUnlock(xmlThrDefMutex);
 }

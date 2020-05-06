@@ -19,7 +19,6 @@
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -87,9 +86,7 @@
 #define HAVE_MATH_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 #define HAVE_MEMORY_H 1
-#endif
 
 /* Define to 1 if you have the `mmap' function. */
 #define HAVE_MMAP 1
@@ -138,10 +135,8 @@
 /* Define to 1 if you have the `signal' function. */
 #define HAVE_SIGNAL 1
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
-#endif
 
 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_SNPRINTF 1
@@ -214,10 +209,8 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
 /* Whether va_copy() is available */
 #define HAVE_VA_COPY 1
-#endif
 
 /* Define to 1 if you have the `vfprintf' function. */
 #define HAVE_VFPRINTF 1
@@ -287,107 +280,6 @@
 /* ss_family is not defined here, use __ss_family instead */
 /* #undef ss_family */
 
-/* Win32 Std C name mangling work-around */
-/* #undef vsnprintf */
-
-/* Define to 1 if you have the <stdio.h> header file. */
-#define HAVE_STDIO_H 1
-
-/* Define to 1 if you have getenv. If not defined, some features will be
- * disabled */
-#define HAVE_GETENV 1
-
-/* toupper() wrapping */
-#define XML_TOUPPER toupper
-
-/* floor() wrapping */
-#define XML_FLOOR floor
-
-/* fabs() wrapping */
-#define XML_FABS fabs
-
-/* labs() wrapping */
-#define XML_LABS labs
-
-
-#if defined(__LB_PS3__)
-
-// The value of XML_MALLOC is read during global initialization, but that
-// function is not loaded until posix_emulation is loaded.
-// Use these wrappers instead.
-void* malloc(size_t);
-void* realloc(void*, size_t);
-void free(void*);
-
-static inline void* malloc_wrapper(size_t size) {
-  return malloc(size);
-}
-
-static inline void* realloc_wrapper(void* ptr, size_t size) {
-  return realloc(ptr, size);
-}
-static inline void free_wrapper(void* ptr) {
-  free(ptr);
-}
-
-#define XML_MALLOC malloc_wrapper
-
-/* realloc() wrapping */
-#define XML_REALLOC realloc_wrapper
-
-/* free() wrapping */
-#define XML_FREE free_wrapper
-#else
-
-/* malloc() wrapping */
-#define XML_MALLOC malloc
-
-/* realloc() wrapping */
-#define XML_REALLOC realloc
-
-/* free() wrapping */
-#define XML_FREE free
-
-#endif
-
-/* memcpy() wrapping */
-#define XML_MEMCPY memcpy
-
-/* memchr() wrapping */
-#define XML_MEMCHR memchr
-
-/* memcmp() wrapping */
-#define XML_MEMCMP memcmp
-
-/* memcpy() wrapping */
-#define XML_MEMSET memset
-
-/* memmove() wrapping */
-#define XML_MEMMOVE memmove
-
-/* snprintf() wrapping */
-#define XML_SNPRINTF snprintf
-
-/* sscanf() wrapping */
-#define XML_SSCANF sscanf
-
-/* strlen() wrapping */
-#define XML_STRLEN strlen
-
-/* strncpy() wrapping */
-#define XML_STRNCPY strncpy
-
-/* strncat() wrapping */
-#define XML_STRNCAT strncat
-
-/* strcmp() wrapping */
-#define XML_STRCMP strcmp
-
-/* strncmp() wrapping */
-#define XML_STRNCMP strncmp
-
-/* strchr() wrapping */
-#define XML_STRCHR strchr
-
-/* vsnprintf() wrapping */
-#define XML_VSNPRINTF vsnprintf
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+/* #undef uint32_t */

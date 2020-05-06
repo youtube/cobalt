@@ -151,7 +151,7 @@ static int glob(const char *pattern, ATTRIBUTE_UNUSED int flags,
     if (hFind == INVALID_HANDLE_VALUE)
         return(0);
     nb_paths = 20;
-    ret->gl_pathv = (char **) malloc(nb_paths * sizeof(char *));
+    ret->gl_pathv = (char **) XML_MALLOC(nb_paths * sizeof(char *));
     if (ret->gl_pathv == NULL) {
 	FindClose(hFind);
         return(-1);
@@ -165,7 +165,7 @@ static int glob(const char *pattern, ATTRIBUTE_UNUSED int flags,
         if (FindFileData.cFileName[0] == '.')
 	    continue;
         if (ret->gl_pathc + 2 > nb_paths) {
-            char **tmp = realloc(ret->gl_pathv, nb_paths * 2 * sizeof(char *));
+            char **tmp = XML_REALLOC(ret->gl_pathv, nb_paths * 2 * sizeof(char *));
             if (tmp == NULL)
                 break;
             ret->gl_pathv = tmp;
@@ -193,7 +193,7 @@ static void globfree(glob_t *pglob) {
 
     for (i = 0;i < pglob->gl_pathc;i++) {
          if (pglob->gl_pathv[i] != NULL)
-             free(pglob->gl_pathv[i]);
+             XML_FREE(pglob->gl_pathv[i]);
     }
 }
 
@@ -729,11 +729,11 @@ static int loadMem(const char *filename, const char **mem, int *size) {
     int siz = 0;
     if (stat(filename, &info) < 0)
 	return(-1);
-    base = malloc(info.st_size + 1);
+    base = XML_MALLOC(info.st_size + 1);
     if (base == NULL)
 	return(-1);
     if ((fd = open(filename, RD_FLAGS)) < 0) {
-        free(base);
+        XML_FREE(base);
 	return(-1);
     }
     while ((res = read(fd, &base[siz], info.st_size - siz)) > 0) {
@@ -742,7 +742,7 @@ static int loadMem(const char *filename, const char **mem, int *size) {
     close(fd);
 #if !defined(_WIN32)
     if (siz != info.st_size) {
-        free(base);
+        XML_FREE(base);
 	return(-1);
     }
 #endif
@@ -753,7 +753,7 @@ static int loadMem(const char *filename, const char **mem, int *size) {
 }
 
 static int unloadMem(const char *mem) {
-    free((char *)mem);
+    XML_FREE((char *)mem);
     return(0);
 }
 
@@ -1707,7 +1707,7 @@ saxParseTest(const char *filename, const char *result,
     SAXdebug = fopen(temp, "wb");
     if (SAXdebug == NULL) {
         fprintf(stderr, "Failed to write to %s\n", temp);
-	free(temp);
+	XML_FREE(temp);
 	return(-1);
     }
 
@@ -1772,7 +1772,7 @@ saxParseTest(const char *filename, const char *result,
 done:
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
 
     /* switch back to structured error handling */
@@ -1847,7 +1847,7 @@ oldParseTest(const char *filename, const char *result,
 
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     return(res);
 }
@@ -1924,7 +1924,7 @@ pushParseTest(const char *filename, const char *result,
 #endif
     res = ctxt->wellFormed;
     xmlFreeParserCtxt(ctxt);
-    free((char *)base);
+    XML_FREE((char *)base);
     if (!res) {
 	xmlFreeDoc(doc);
 	fprintf(stderr, "Failed to parse %s\n", filename);
@@ -2055,7 +2055,7 @@ noentParseTest(const char *filename, const char *result,
 
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     return(res);
 }
@@ -2185,7 +2185,7 @@ streamProcessTest(const char *filename, const char *result, const char *err,
 	t = fopen(temp, "wb");
 	if (t == NULL) {
 	    fprintf(stderr, "Can't open temp file %s\n", temp);
-	    free(temp);
+	    XML_FREE(temp);
 	    return(-1);
 	}
     }
@@ -2198,7 +2198,7 @@ streamProcessTest(const char *filename, const char *result, const char *err,
 	    fclose(t);
             if (temp != NULL) {
                 unlink(temp);
-                free(temp);
+                XML_FREE(temp);
             }
 	    return(0);
 	}
@@ -2227,7 +2227,7 @@ streamProcessTest(const char *filename, const char *result, const char *err,
 	ret = compareFiles(temp, result);
         if (temp != NULL) {
             unlink(temp);
-            free(temp);
+            XML_FREE(temp);
         }
 	if (ret) {
 	    fprintf(stderr, "Result for %s failed in %s\n", filename, result);
@@ -2324,7 +2324,7 @@ streamMemParseTest(const char *filename, const char *result, const char *err,
     }
     reader = xmlReaderForMemory(base, size, filename, NULL, options);
     ret = streamProcessTest(filename, result, err, reader, NULL, options);
-    free((char *)base);
+    XML_FREE((char *)base);
     xmlFreeTextReader(reader);
     return(ret);
 }
@@ -2414,7 +2414,7 @@ xpathCommonTest(const char *filename, const char *result,
     xpathOutput = fopen(temp, "wb");
     if (xpathOutput == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
 
@@ -2422,7 +2422,7 @@ xpathCommonTest(const char *filename, const char *result,
     if (input == NULL) {
         xmlGenericError(xmlGenericErrorContext,
 		"Cannot open %s for reading\n", filename);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
     while (fgets(expression, 4500, input) != NULL) {
@@ -2451,7 +2451,7 @@ xpathCommonTest(const char *filename, const char *result,
 
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     return(ret);
 }
@@ -2614,7 +2614,7 @@ xmlidDocTest(const char *filename,
     if (xpathOutput == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
         xmlFreeDoc(xpathDocument);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
 
@@ -2631,7 +2631,7 @@ xmlidDocTest(const char *filename,
 
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     xmlFreeDoc(xpathDocument);
 
@@ -2711,7 +2711,7 @@ uriCommonTest(const char *filename,
     o = fopen(temp, "wb");
     if (o == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
     f = fopen(filename, "rb");
@@ -2720,7 +2720,7 @@ uriCommonTest(const char *filename,
 	fclose(o);
         if (temp != NULL) {
             unlink(temp);
-            free(temp);
+            XML_FREE(temp);
         }
 	return(-1);
     }
@@ -2766,7 +2766,7 @@ uriCommonTest(const char *filename,
 
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     return(res);
 }
@@ -3016,7 +3016,7 @@ schemasOneTest(const char *sch,
     if (schemasOutput == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
 	xmlFreeDoc(doc);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
 
@@ -3040,7 +3040,7 @@ schemasOneTest(const char *sch,
     }
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
 
     if ((validResult != 0) && (err != NULL)) {
@@ -3187,7 +3187,7 @@ rngOneTest(const char *sch,
     if (schemasOutput == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
 	xmlFreeDoc(doc);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
 
@@ -3212,7 +3212,7 @@ rngOneTest(const char *sch,
     }
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
 
     if (err != NULL) {
@@ -3537,7 +3537,7 @@ patternTest(const char *filename,
     if (o == NULL) {
 	fprintf(stderr, "failed to open output file %s\n", temp);
 	fclose(f);
-        free(temp);
+        XML_FREE(temp);
 	return(-1);
     }
     while (1) {
@@ -3623,7 +3623,7 @@ patternTest(const char *filename,
     }
     if (temp != NULL) {
         unlink(temp);
-        free(temp);
+        XML_FREE(temp);
     }
     return(ret);
 }
@@ -3865,7 +3865,7 @@ c14nRunTest(const char* xml_filename, int with_comments, int mode,
     if (result != NULL) xmlFree(result);
     if(xpath != NULL) xmlXPathFreeObject(xpath);
     if (inclusive_namespaces != NULL) xmlFree(inclusive_namespaces);
-    if (nslist != NULL) free((char *) nslist);
+    if (nslist != NULL) XML_FREE((char *) nslist);
     xmlFreeDoc(doc);
 
     return(ret);
@@ -3912,9 +3912,9 @@ c14nCommonTest(const char *filename, int with_comments, int mode,
                     xpath, ns, result) < 0)
         ret = 1;
 
-    if (result != NULL) free(result);
-    if (xpath != NULL) free(xpath);
-    if (ns != NULL) free(ns);
+    if (result != NULL) XML_FREE(result);
+    if (xpath != NULL) XML_FREE(xpath);
+    if (ns != NULL) XML_FREE(ns);
     return(ret);
 }
 
@@ -4492,9 +4492,9 @@ launchTests(testDescPtr tst) {
 		testErrorsSize = 0;
 	    }
 	    if (result)
-		free(result);
+		XML_FREE(result);
 	    if (error)
-		free(error);
+		XML_FREE(error);
 	}
 	globfree(&globbuf);
     } else {

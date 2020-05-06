@@ -12,9 +12,7 @@
 #ifndef __DEBUG_MEMORY_ALLOC__
 #define __DEBUG_MEMORY_ALLOC__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
 #include <libxml/xmlversion.h>
 
 /**
@@ -143,14 +141,12 @@ XMLPUBFUN int XMLCALL
 	xmlMemUsed	(void);
 XMLPUBFUN int XMLCALL
 	xmlMemBlocks	(void);
-#ifndef COBALT
 XMLPUBFUN void XMLCALL
 	xmlMemDisplay	(FILE *fp);
 XMLPUBFUN void XMLCALL
 	xmlMemDisplayLast(FILE *fp, long nbBytes);
 XMLPUBFUN void XMLCALL
 	xmlMemShow	(FILE *fp, int nr);
-#endif
 XMLPUBFUN void XMLCALL
 	xmlMemoryDump	(void);
 XMLPUBFUN void * XMLCALL

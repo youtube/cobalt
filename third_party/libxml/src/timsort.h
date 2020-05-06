@@ -31,44 +31,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#if defined(STARBOARD)
-#include <stdarg.h>
-#include "starboard/memory.h"
-#include "starboard/system.h"
-#include "starboard/types.h"
-#define exit(x) SbSystemBreakIntoDebugger()
-#define free SbMemoryDeallocate
-#define memcpy SbMemoryCopy
-#define realloc SbMemoryReallocate
-#else
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(STARBOARD)
 typedef unsigned __int64 uint64_t;
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define exit(x) SbSystemBreakIntoDebugger()
+#endif  // #if defined(STARBOARD)
+
 #ifndef SORT_NAME
 #error "Must declare SORT_NAME"
-#endif
-#endif
-
-#if defined(STARBOARD)
-void xml_logerr(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  SbLogFormat(format, args);
-  va_end(args);
-}
-#else
-void xml_logerr(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-}
 #endif
 
 #ifndef SORT_TYPE
@@ -382,7 +360,7 @@ typedef struct {
 
 static void TIM_SORT_RESIZE(TEMP_STORAGE_T *store, const size_t new_size) {
   if (store->alloc < new_size) {
-    SORT_TYPE *tempstore = (SORT_TYPE *)realloc(store->storage, new_size * sizeof(SORT_TYPE));
+    SORT_TYPE *tempstore = (SORT_TYPE *)XML_REALLOC(store->storage, new_size * sizeof(SORT_TYPE));
 
     if (tempstore == NULL) {
       fprintf(stderr, "Error allocating temporary storage for tim sort: need %lu bytes",
@@ -545,7 +523,7 @@ static __inline int PUSH_NEXT(SORT_TYPE *dst,
     }
 
     if (store->storage != NULL) {
-      free(store->storage);
+      XML_FREE(store->storage);
       store->storage = NULL;
     }
 

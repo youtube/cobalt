@@ -18,15 +18,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
-#endif
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
@@ -234,8 +228,8 @@ xmlBuildQName(const xmlChar *ncname, const xmlChar *prefix,
     if (ncname == NULL) return(NULL);
     if (prefix == NULL) return((xmlChar *) ncname);
 
-    lenn = XML_STRLEN((char *) ncname);
-    lenp = XML_STRLEN((char *) prefix);
+    lenn = strlen((char *) ncname);
+    lenp = strlen((char *) prefix);
 
     if ((memory == NULL) || (len < lenn + lenp + 2)) {
 	ret = (xmlChar *) xmlMallocAtomic(lenn + lenp + 2);
@@ -246,9 +240,9 @@ xmlBuildQName(const xmlChar *ncname, const xmlChar *prefix,
     } else {
 	ret = memory;
     }
-    XML_MEMCPY(&ret[0], prefix, lenp);
+    memcpy(&ret[0], prefix, lenp);
     ret[lenp] = ':';
-    XML_MEMCPY(&ret[lenp + 1], ncname, lenn);
+    memcpy(&ret[lenp + 1], ncname, lenn);
     ret[lenn + lenp + 1] = 0;
     return(ret);
 }
@@ -765,7 +759,7 @@ xmlNewNs(xmlNodePtr node, const xmlChar *href, const xmlChar *prefix) {
 	xmlTreeErrMemory("building namespace");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNs));
+    memset(cur, 0, sizeof(xmlNs));
     cur->type = XML_LOCAL_NAMESPACE;
 
     if (href != NULL)
@@ -901,7 +895,7 @@ xmlNewDtd(xmlDocPtr doc, const xmlChar *name,
 	xmlTreeErrMemory("building DTD");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0 , sizeof(xmlDtd));
+    memset(cur, 0 , sizeof(xmlDtd));
     cur->type = XML_DTD_NODE;
 
     if (name != NULL)
@@ -975,7 +969,7 @@ xmlCreateIntSubset(xmlDocPtr doc, const xmlChar *name,
 	xmlTreeErrMemory("building internal subset");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlDtd));
+    memset(cur, 0, sizeof(xmlDtd));
     cur->type = XML_DTD_NODE;
 
     if (name != NULL) {
@@ -1179,7 +1173,7 @@ xmlNewDoc(const xmlChar *version) {
 	xmlTreeErrMemory("building doc");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlDoc));
+    memset(cur, 0, sizeof(xmlDoc));
     cur->type = XML_DOCUMENT_NODE;
 
     cur->version = xmlStrdup(version);
@@ -1703,11 +1697,8 @@ xmlNodeListGetString(xmlDocPtr doc, const xmlNode *list, int inLine)
             } else {
                 xmlChar *buffer = NULL;
 
-		if (attr) {
-#ifdef LIBXML_OUTPUT_ENABLED
+		if (attr)
 		    buffer = xmlEncodeAttributeEntities(doc, node->content);
-#endif
-        }
 		else
 		    buffer = xmlEncodeEntitiesReentrant(doc, node->content);
                 if (buffer != NULL) {
@@ -1872,7 +1863,7 @@ xmlNewPropInternal(xmlNodePtr node, xmlNsPtr ns,
         xmlTreeErrMemory("building attribute");
         return (NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlAttr));
+    memset(cur, 0, sizeof(xmlAttr));
     cur->type = XML_ATTRIBUTE_NODE;
 
     cur->parent = node;
@@ -2040,7 +2031,7 @@ xmlNewDocProp(xmlDocPtr doc, const xmlChar *name, const xmlChar *value) {
 	xmlTreeErrMemory("building attribute");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlAttr));
+    memset(cur, 0, sizeof(xmlAttr));
     cur->type = XML_ATTRIBUTE_NODE;
 
     if ((doc != NULL) && (doc->dict != NULL))
@@ -2190,7 +2181,7 @@ xmlNewDocPI(xmlDocPtr doc, const xmlChar *name, const xmlChar *content) {
 	xmlTreeErrMemory("building PI");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_PI_NODE;
 
     if ((doc != NULL) && (doc->dict != NULL))
@@ -2252,7 +2243,7 @@ xmlNewNode(xmlNsPtr ns, const xmlChar *name) {
 	xmlTreeErrMemory("building node");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_ELEMENT_NODE;
 
     cur->name = xmlStrdup(name);
@@ -2295,7 +2286,7 @@ xmlNewNodeEatName(xmlNsPtr ns, xmlChar *name) {
 	/* we can't check here that name comes from the doc dictionary */
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_ELEMENT_NODE;
 
     cur->name = name;
@@ -2428,7 +2419,7 @@ xmlNewDocFragment(xmlDocPtr doc) {
 	xmlTreeErrMemory("building fragment");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_DOCUMENT_FRAG_NODE;
 
     cur->doc = doc;
@@ -2458,7 +2449,7 @@ xmlNewText(const xmlChar *content) {
 	xmlTreeErrMemory("building text");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_TEXT_NODE;
 
     cur->name = xmlStringText;
@@ -2576,7 +2567,7 @@ xmlNewCharRef(xmlDocPtr doc, const xmlChar *name) {
 	xmlTreeErrMemory("building character reference");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_ENTITY_REF_NODE;
 
     cur->doc = doc;
@@ -2620,7 +2611,7 @@ xmlNewReference(const xmlDoc *doc, const xmlChar *name) {
 	xmlTreeErrMemory("building reference");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_ENTITY_REF_NODE;
 
     cur->doc = (xmlDoc *)doc;
@@ -2689,7 +2680,7 @@ xmlNewTextLen(const xmlChar *content, int len) {
 	xmlTreeErrMemory("building text");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_TEXT_NODE;
 
     cur->name = xmlStringText;
@@ -2740,7 +2731,7 @@ xmlNewComment(const xmlChar *content) {
 	xmlTreeErrMemory("building comment");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_COMMENT_NODE;
 
     cur->name = xmlStringComment;
@@ -2774,7 +2765,7 @@ xmlNewCDataBlock(xmlDocPtr doc, const xmlChar *content, int len) {
 	xmlTreeErrMemory("building CDATA");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlNode));
+    memset(cur, 0, sizeof(xmlNode));
     cur->type = XML_CDATA_SECTION_NODE;
     cur->doc = doc;
 
@@ -4245,7 +4236,7 @@ xmlStaticCopyNode(xmlNodePtr node, xmlDocPtr doc, xmlNodePtr parent,
 	xmlTreeErrMemory("copying node");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlNode));
+    memset(ret, 0, sizeof(xmlNode));
     ret->type = node->type;
 
     ret->doc = doc;
@@ -4734,7 +4725,7 @@ xmlGetNodePath(const xmlNode *node)
             name = (const char *) cur->name;
             if (cur->ns) {
 		if (cur->ns->prefix != NULL) {
-                    XML_SNPRINTF(nametemp, sizeof(nametemp) - 1, "%s:%s",
+                    snprintf(nametemp, sizeof(nametemp) - 1, "%s:%s",
 			(char *)cur->ns->prefix, (char *)cur->name);
 		    nametemp[sizeof(nametemp) - 1] = 0;
 		    name = nametemp;
@@ -4840,7 +4831,7 @@ xmlGetNodePath(const xmlNode *node)
                 occur++;
         } else if (cur->type == XML_PI_NODE) {
             sep = "/";
-	    XML_SNPRINTF(nametemp, sizeof(nametemp) - 1,
+	    snprintf(nametemp, sizeof(nametemp) - 1,
 		     "processing-instruction('%s')", (char *)cur->name);
             nametemp[sizeof(nametemp) - 1] = 0;
             name = nametemp;
@@ -4875,10 +4866,10 @@ xmlGetNodePath(const xmlNode *node)
             name = (const char *) (((xmlAttrPtr) cur)->name);
             if (cur->ns) {
 	        if (cur->ns->prefix != NULL)
-                    XML_SNPRINTF(nametemp, sizeof(nametemp) - 1, "%s:%s",
+                    snprintf(nametemp, sizeof(nametemp) - 1, "%s:%s",
 			(char *)cur->ns->prefix, (char *)cur->name);
 		else
-		    XML_SNPRINTF(nametemp, sizeof(nametemp) - 1, "%s",
+		    snprintf(nametemp, sizeof(nametemp) - 1, "%s",
 			(char *)cur->name);
                 nametemp[sizeof(nametemp) - 1] = 0;
                 name = nametemp;
@@ -4912,12 +4903,12 @@ xmlGetNodePath(const xmlNode *node)
             buf = temp;
         }
         if (occur == 0)
-            XML_SNPRINTF((char *) buf, buf_len, "%s%s%s",
+            snprintf((char *) buf, buf_len, "%s%s%s",
                      sep, name, (char *) buffer);
         else
-            XML_SNPRINTF((char *) buf, buf_len, "%s%s[%d]%s",
+            snprintf((char *) buf, buf_len, "%s%s[%d]%s",
                      sep, name, occur, (char *) buffer);
-        XML_SNPRINTF((char *) buffer, buf_len, "%s", (char *)buf);
+        snprintf((char *) buffer, buf_len, "%s", (char *)buf);
         cur = next;
     } while (cur != NULL);
     xmlFree(buf);
@@ -6012,7 +6003,7 @@ xmlTreeEnsureXMLDecl(xmlDocPtr doc)
 		"allocating the XML namespace");
 	    return (NULL);
 	}
-	XML_MEMSET(ns, 0, sizeof(xmlNs));
+	memset(ns, 0, sizeof(xmlNs));
 	ns->type = XML_LOCAL_NAMESPACE;
 	ns->href = xmlStrdup(XML_XML_NAMESPACE);
 	ns->prefix = xmlStrdup((const xmlChar *)"xml");
@@ -6057,7 +6048,7 @@ xmlSearchNs(xmlDocPtr doc, xmlNodePtr node, const xmlChar *nameSpace) {
 		xmlTreeErrMemory("searching namespace");
 		return(NULL);
 	    }
-	    XML_MEMSET(cur, 0, sizeof(xmlNs));
+	    memset(cur, 0, sizeof(xmlNs));
 	    cur->type = XML_LOCAL_NAMESPACE;
 	    cur->href = xmlStrdup(XML_XML_NAMESPACE);
 	    cur->prefix = xmlStrdup((const xmlChar *)"xml");
@@ -6190,7 +6181,7 @@ xmlSearchNsByHref(xmlDocPtr doc, xmlNodePtr node, const xmlChar * href)
 		xmlTreeErrMemory("searching namespace");
                 return (NULL);
             }
-            XML_MEMSET(cur, 0, sizeof(xmlNs));
+            memset(cur, 0, sizeof(xmlNs));
             cur->type = XML_LOCAL_NAMESPACE;
             cur->href = xmlStrdup(XML_XML_NAMESPACE);
             cur->prefix = xmlStrdup((const xmlChar *) "xml");
@@ -6290,17 +6281,17 @@ xmlNewReconciledNs(xmlDocPtr doc, xmlNodePtr tree, xmlNsPtr ns) {
      * Let's strip namespace prefixes longer than 20 chars !
      */
     if (ns->prefix == NULL)
-	XML_SNPRINTF((char *) prefix, sizeof(prefix), "default");
+	snprintf((char *) prefix, sizeof(prefix), "default");
     else
-	XML_SNPRINTF((char *) prefix, sizeof(prefix), "%.20s", (char *)ns->prefix);
+	snprintf((char *) prefix, sizeof(prefix), "%.20s", (char *)ns->prefix);
 
     def = xmlSearchNs(doc, tree, prefix);
     while (def != NULL) {
         if (counter > 1000) return(NULL);
 	if (ns->prefix == NULL)
-	    XML_SNPRINTF((char *) prefix, sizeof(prefix), "default%d", counter++);
+	    snprintf((char *) prefix, sizeof(prefix), "default%d", counter++);
 	else
-	    XML_SNPRINTF((char *) prefix, sizeof(prefix), "%.20s%d",
+	    snprintf((char *) prefix, sizeof(prefix), "%.20s%d",
 		(char *)ns->prefix, counter++);
 	def = xmlSearchNs(doc, tree, prefix);
     }
@@ -7271,14 +7262,14 @@ xmlBufferShrink(xmlBufferPtr buf, unsigned int len) {
 	if ((buf->alloc == XML_BUFFER_ALLOC_IO) && (buf->contentIO != NULL)) {
 	    size_t start_buf = buf->content - buf->contentIO;
 	    if (start_buf >= buf->size) {
-		XML_MEMMOVE(buf->contentIO, &buf->content[0], buf->use);
+		memmove(buf->contentIO, &buf->content[0], buf->use);
 		buf->content = buf->contentIO;
 		buf->content[buf->use] = 0;
 		buf->size += start_buf;
 	    }
 	}
     } else {
-	XML_MEMMOVE(buf->content, &buf->content[len], buf->use);
+	memmove(buf->content, &buf->content[len], buf->use);
 	buf->content[buf->use] = 0;
     }
     return(len);
@@ -7340,7 +7331,6 @@ xmlBufferGrow(xmlBufferPtr buf, unsigned int len) {
     return(buf->size - buf->use);
 }
 
-#ifndef COBALT
 /**
  * xmlBufferDump:
  * @file:  the file output
@@ -7372,7 +7362,6 @@ xmlBufferDump(FILE *file, xmlBufferPtr buf) {
     ret = fwrite(buf->content, sizeof(xmlChar), buf->use, file);
     return(ret);
 }
-#endif
 
 /**
  * xmlBufferContent:
@@ -7482,7 +7471,7 @@ xmlBufferResize(xmlBufferPtr buf, unsigned int size)
 
         if (start_buf > newSize) {
 	    /* move data back to start */
-	    XML_MEMMOVE(buf->contentIO, buf->content, buf->use);
+	    memmove(buf->contentIO, buf->content, buf->use);
 	    buf->content = buf->contentIO;
 	    buf->content[buf->use] = 0;
 	    buf->size += start_buf;
@@ -7508,7 +7497,7 @@ xmlBufferResize(xmlBufferPtr buf, unsigned int size)
 	     */
 	    rebuf = (xmlChar *) xmlMallocAtomic(newSize);
 	    if (rebuf != NULL) {
-		XML_MEMCPY(rebuf, buf->content, buf->use);
+		memcpy(rebuf, buf->content, buf->use);
 		xmlFree(buf->content);
 		rebuf[buf->use] = 0;
 	    }
@@ -7567,7 +7556,7 @@ xmlBufferAdd(xmlBufferPtr buf, const xmlChar *str, int len) {
         }
     }
 
-    XML_MEMMOVE(&buf->content[buf->use], str, len*sizeof(xmlChar));
+    memmove(&buf->content[buf->use], str, len*sizeof(xmlChar));
     buf->use += len;
     buf->content[buf->use] = 0;
     return 0;
@@ -7621,7 +7610,7 @@ xmlBufferAddHead(xmlBufferPtr buf, const xmlChar *str, int len) {
 	     * We can add it in the space previously shrunk
 	     */
 	    buf->content -= len;
-            XML_MEMMOVE(&buf->content[0], str, len);
+            memmove(&buf->content[0], str, len);
 	    buf->use += len;
 	    buf->size += len;
 	    return(0);
@@ -7635,8 +7624,8 @@ xmlBufferAddHead(xmlBufferPtr buf, const xmlChar *str, int len) {
         }
     }
 
-    XML_MEMMOVE(&buf->content[len], &buf->content[0], buf->use);
-    XML_MEMMOVE(&buf->content[0], str, len);
+    memmove(&buf->content[len], &buf->content[0], buf->use);
+    memmove(&buf->content[0], str, len);
     buf->use += len;
     buf->content[buf->use] = 0;
     return 0;
@@ -7939,7 +7928,7 @@ xmlDOMWrapNsMapAddItem(xmlNsMapPtr *nsmap, int position,
 	    xmlTreeErrMemory("allocating namespace map");
 	    return (NULL);
 	}
-	XML_MEMSET(map, 0, sizeof(struct xmlNsMap));
+	memset(map, 0, sizeof(struct xmlNsMap));
 	*nsmap = map;
     }
 
@@ -7949,7 +7938,7 @@ xmlDOMWrapNsMapAddItem(xmlNsMapPtr *nsmap, int position,
 	*/
 	ret = map->pool;
 	map->pool = ret->next;
-	XML_MEMSET(ret, 0, sizeof(struct xmlNsMapItem));
+	memset(ret, 0, sizeof(struct xmlNsMapItem));
     } else {
 	/*
 	* Create a new item.
@@ -7959,7 +7948,7 @@ xmlDOMWrapNsMapAddItem(xmlNsMapPtr *nsmap, int position,
 	    xmlTreeErrMemory("allocating namespace map item");
 	    return (NULL);
 	}
-	XML_MEMSET(ret, 0, sizeof(struct xmlNsMapItem));
+	memset(ret, 0, sizeof(struct xmlNsMapItem));
     }
 
     if (map->first == NULL) {
@@ -8054,7 +8043,7 @@ xmlDOMWrapNewCtxt(void)
 	xmlTreeErrMemory("allocating DOM-wrapper context");
 	return (NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlDOMWrapCtxt));
+    memset(ret, 0, sizeof(xmlDOMWrapCtxt));
     return (ret);
 }
 
@@ -8604,10 +8593,10 @@ ns_next_prefix:
 	if (counter > 1000)
 	    return (NULL);
 	if (prefix == NULL) {
-	    XML_SNPRINTF((char *) buf, sizeof(buf),
+	    snprintf((char *) buf, sizeof(buf),
 		"ns_%d", counter);
 	} else
-	    XML_SNPRINTF((char *) buf, sizeof(buf),
+	    snprintf((char *) buf, sizeof(buf),
 	    "%.30s_%d", (char *)prefix, counter);
 	pref = BAD_CAST buf;
     }
@@ -9505,7 +9494,7 @@ xmlDOMWrapCloneNode(xmlDOMWrapCtxtPtr ctxt,
 		    xmlTreeErrMemory("xmlDOMWrapCloneNode(): allocating a node");
 		    goto internal_error;
 		}
-		XML_MEMSET(clone, 0, sizeof(xmlNode));
+		memset(clone, 0, sizeof(xmlNode));
 		/*
 		* Set hierarchical links.
 		*/
@@ -9529,7 +9518,7 @@ xmlDOMWrapCloneNode(xmlDOMWrapCtxtPtr ctxt,
 		    xmlTreeErrMemory("xmlDOMWrapCloneNode(): allocating an attr-node");
 		    goto internal_error;
 		}
-		XML_MEMSET(clone, 0, sizeof(xmlAttr));
+		memset(clone, 0, sizeof(xmlAttr));
 		/*
 		* Set hierarchical links.
 		* TODO: Change this to add to the end of attributes.
@@ -9611,7 +9600,7 @@ xmlDOMWrapCloneNode(xmlDOMWrapCtxtPtr ctxt,
 				"allocating namespace");
 			    return(-1);
 			}
-			XML_MEMSET(cloneNs, 0, sizeof(xmlNs));
+			memset(cloneNs, 0, sizeof(xmlNs));
 			cloneNs->type = XML_LOCAL_NAMESPACE;
 
 			if (ns->href != NULL)
