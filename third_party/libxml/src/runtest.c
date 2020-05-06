@@ -1895,16 +1895,10 @@ pushParseTest(const char *filename, const char *result,
 #endif
     ctxt = xmlCreatePushParserCtxt(NULL, NULL, base + cur, chunkSize, filename);
     xmlCtxtUseOptions(ctxt, options);
-<<<<<<< HEAD
-    cur += 4;
-    do {
-        if (cur + 1024 >= size) {
-=======
     cur += chunkSize;
     chunkSize = 1024;
     do {
         if (cur + chunkSize >= size) {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #ifdef LIBXML_HTML_ENABLED
 	    if (options & XML_PARSE_HTML)
 		htmlParseChunk(ctxt, base + cur, size - cur, 1);

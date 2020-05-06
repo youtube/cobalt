@@ -117,11 +117,7 @@ int __xmlRandom(void);
 #endif
 
 XMLPUBFUN xmlChar * XMLCALL xmlEscapeFormatString(xmlChar **msg);
-<<<<<<< HEAD
-int xmlNop(void);
-=======
 int xmlInputReadCallbackNop(void *context, char *buffer, int len);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
 #ifdef IN_LIBXML
 #ifdef __GNUC__

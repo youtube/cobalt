@@ -98,11 +98,7 @@ XMLPUBFUN int XMLCALL
                 xmlStrPrintf             (xmlChar *buf,
                                          int len,
                                          const char *msg,
-<<<<<<< HEAD
-                                         ...);
-=======
                                          ...) LIBXML_ATTR_FORMAT(3,4);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 XMLPUBFUN int XMLCALL
                 xmlStrVPrintf                (xmlChar *buf,
                                          int len,

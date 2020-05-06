@@ -2099,11 +2099,7 @@ xmlNewTextReader(xmlParserInputBufferPtr input, const char *URI) {
     }
     /* no operation on a reader should require a huge buffer */
     xmlBufSetAllocationScheme(ret->buffer,
-<<<<<<< HEAD
-        XML_BUFFER_ALLOC_BOUNDED);
-=======
 			      XML_BUFFER_ALLOC_BOUNDED);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ret->sax = (xmlSAXHandler *) xmlMalloc(sizeof(xmlSAXHandler));
     if (ret->sax == NULL) {
 	xmlBufFree(ret->buffer);
@@ -3633,11 +3629,7 @@ xmlTextReaderConstValue(xmlTextReaderPtr reader) {
 	    return(((xmlNsPtr) node)->href);
         case XML_ATTRIBUTE_NODE:{
 	    xmlAttrPtr attr = (xmlAttrPtr) node;
-<<<<<<< HEAD
-        const xmlChar *ret;
-=======
 	    const xmlChar *ret;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
 	    if ((attr->children != NULL) &&
 	        (attr->children->type == XML_TEXT_NODE) &&
@@ -3651,23 +3643,6 @@ xmlTextReaderConstValue(xmlTextReaderPtr reader) {
                                         "xmlTextReaderSetup : malloc failed\n");
                         return (NULL);
                     }
-<<<<<<< HEAD
-                    xmlBufSetAllocationScheme(reader->buffer,
-                        XML_BUFFER_ALLOC_BOUNDED);
-                } else
-                    xmlBufEmpty(reader->buffer);
-	        xmlBufGetNodeContent(reader->buffer, node);
-    		ret = xmlBufContent(reader->buffer);
-            if (ret == NULL) {
-               /* error on the buffer best to reallocate */
-               xmlBufFree(reader->buffer);
-               reader->buffer = xmlBufCreateSize(100);
-               xmlBufSetAllocationScheme(reader->buffer,
-                                         XML_BUFFER_ALLOC_BOUNDED);
-               ret = BAD_CAST "";
-            }
-            return(ret);
-=======
 		    xmlBufSetAllocationScheme(reader->buffer,
 		                              XML_BUFFER_ALLOC_BOUNDED);
                 } else
@@ -3683,7 +3658,6 @@ xmlTextReaderConstValue(xmlTextReaderPtr reader) {
 		    ret = BAD_CAST "";
 		}
 		return(ret);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	    }
 	    break;
 	}
@@ -5194,11 +5168,7 @@ xmlTextReaderSetup(xmlTextReaderPtr reader,
     }
     /* no operation on a reader should require a huge buffer */
     xmlBufSetAllocationScheme(reader->buffer,
-<<<<<<< HEAD
-        XML_BUFFER_ALLOC_BOUNDED);
-=======
 			      XML_BUFFER_ALLOC_BOUNDED);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     if (reader->sax == NULL)
 	reader->sax = (xmlSAXHandler *) xmlMalloc(sizeof(xmlSAXHandler));
     if (reader->sax == NULL) {

@@ -1321,23 +1321,9 @@ xmlSnprintfElementContent(char *buf, int size, xmlElementContentPtr content, int
 		return;
 	    }
 	    if (content->prefix != NULL) {
-<<<<<<< HEAD
-		if (size - len < xmlStrlen(content->prefix) + 10) {
-		    XML_STRNCAT(buf, " ...", size);
-		    return;
-		}
-		XML_STRNCAT(buf, (char *) content->prefix, size);
-		XML_STRNCAT(buf, ":", size);
-	    }
-	    if (size - len < xmlStrlen(content->name) + 10) {
-		XML_STRNCAT(buf, " ...", size);
-		return;
-	    }
-=======
 		strcat(buf, (char *) content->prefix);
 		strcat(buf, ":");
 	    }
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	    if (content->name != NULL)
 		XML_STRNCAT(buf, (char *) content->name, size);
 	    break;

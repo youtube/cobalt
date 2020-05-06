@@ -94,44 +94,27 @@ xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
  *
  * The variable holding the libxml XML_FREE() implementation
  */
-<<<<<<< HEAD
-xmlFreeFunc xmlFree = (xmlFreeFunc) XML_FREE;
-=======
 xmlFreeFunc xmlFree = free;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
  *
- * The variable holding the libxml XML_MALLOC() implementation
+ * The variable holding the libxml malloc() implementation
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-<<<<<<< HEAD
-xmlMallocFunc xmlMalloc = (xmlMallocFunc) XML_MALLOC;
-=======
 xmlMallocFunc xmlMalloc = malloc;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
  *
-<<<<<<< HEAD
- * The variable holding the libxml XML_MALLOC() implementation for atomic
- * data (i.e. blocks not containings pointers), useful when using a
-=======
  * The variable holding the libxml malloc() implementation for atomic
  * data (i.e. blocks not containing pointers), useful when using a
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
  * garbage collecting allocator.
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-<<<<<<< HEAD
-xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
-=======
 xmlMallocFunc xmlMallocAtomic = malloc;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
@@ -141,9 +124,6 @@ xmlMallocFunc xmlMallocAtomic = malloc;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-<<<<<<< HEAD
-xmlReallocFunc xmlRealloc = (xmlReallocFunc) XML_REALLOC;
-=======
 xmlReallocFunc xmlRealloc = realloc;
 /**
  * xmlPosixStrdup
@@ -157,7 +137,6 @@ static char *
 xmlPosixStrdup(const char *cur) {
     return((char*) xmlCharStrdup(cur));
 }
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 /**
  * xmlMemStrdup:
  * @str: a zero terminated string

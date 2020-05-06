@@ -13,11 +13,10 @@
 
 #ifdef HAVE_STRING_H
 #include <string.h>
-<<<<<<< HEAD
 #endif
-=======
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+#endi
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -45,14 +44,8 @@
 #include <lzma.h>
 #endif
 
-<<<<<<< HEAD
-#if (!defined(STARBOARD) && (defined(WIN32) || defined(HAVE_WIN32)) && !defined(__LB_XB1__) &&  \
-    !defined(__LB_XB360__))
-#define HAVE_WIN32
-=======
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define WIN32_LEAN_AND_MEAN
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #include <windows.h>
 #endif
 
@@ -60,40 +53,6 @@
 #include <winnls.h> /* for CP_UTF8 */
 #endif
 
-<<<<<<< HEAD
-/* Figure a portable way to know if a file is a directory. */
-#ifndef HAVE_STAT
-#  ifdef HAVE__STAT
-     /* MS C library seems to define stat and _stat. The definition
-        is identical. Still, mapping them to each other causes a warning. */
-#    ifndef _MSC_VER
-#      define stat(x,y) _stat(x,y)
-#    endif
-#    define HAVE_STAT
-#  endif
-#else
-#  ifdef HAVE__STAT
-#    if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
-#      define stat _stat
-#    endif
-#  endif
-#endif
-#ifdef HAVE_STAT
-#  ifndef S_ISDIR
-#    ifdef _S_ISDIR
-#      define S_ISDIR(x) _S_ISDIR(x)
-#    else
-#      ifdef S_IFDIR
-#        ifndef S_IFMT
-#          ifdef _S_IFMT
-#            define S_IFMT _S_IFMT
-#          endif
-#        endif
-#        ifdef S_IFMT
-#          define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-#        endif
-#      endif
-=======
 #ifndef S_ISDIR
 #  ifdef _S_ISDIR
 #    define S_ISDIR(x) _S_ISDIR(x)
@@ -102,7 +61,6 @@
 #      define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #    elif defined(_S_IFMT)
 #      define S_ISDIR(m) (((m) & _S_IFMT) == S_IFDIR)
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #    endif
 #  endif
 #endif
@@ -922,13 +880,8 @@ xmlFileOpen_real (const char *filename) {
         return(NULL);
 #endif
 
-<<<<<<< HEAD
-#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
-    fd = xmlWrapOpen(path, 0);
-=======
 #if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapOpenUtf8(path, 0);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #else
     fd = fopen(path, "r");
 #endif /* WIN32 */
@@ -1003,15 +956,10 @@ xmlFileOpenW (const char *filename) {
     if (path == NULL)
 	return(NULL);
 
-<<<<<<< HEAD
-#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
-    fd = xmlWrapOpen(path, 1);
-=======
 #if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapOpenUtf8(path, 1);
 #elif(__MVS__)
     fd = fopen(path, "w");
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #else
     fd = fopen(path, "wb");
 #endif /* WIN32 */
@@ -1212,13 +1160,8 @@ xmlGzfileOpen_real (const char *filename) {
     if (!xmlCheckFilename(path))
         return(NULL);
 
-<<<<<<< HEAD
-#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
-    fd = xmlWrapGzOpen(path, "rb");
-=======
 #if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapGzOpenUtf8(path, "rb");
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #else
     fd = gzopen(path, "rb");
 #endif
@@ -1294,13 +1237,8 @@ xmlGzfileOpenW (const char *filename, int compression) {
     if (path == NULL)
 	return(NULL);
 
-<<<<<<< HEAD
-#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
-    fd = xmlWrapGzOpen(path, mode);
-=======
 #if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapGzOpenUtf8(path, mode);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #else
     fd = gzopen(path, mode);
 #endif

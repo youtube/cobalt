@@ -639,12 +639,8 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
 	(channel == xmlParserValidityError) ||
 	(channel == xmlParserValidityWarning))
 	xmlReportError(to, ctxt, str, NULL, NULL);
-<<<<<<< HEAD
 #ifndef STARBOARD
-    else if ((channel == (xmlGenericErrorFunc) fprintf) ||
-=======
     else if (((void(*)(void)) channel == (void(*)(void)) fprintf) ||
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
              (channel == xmlGenericErrorDefaultFunc))
 	xmlReportError(to, ctxt, str, channel, data);
 #endif

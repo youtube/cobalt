@@ -2346,12 +2346,7 @@ xmlNodeDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur,
     if (encoding == NULL)
         encoding = "UTF-8";
 
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = doc;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = buf;
     ctxt.level = level;
     ctxt.format = format ? 1 : 0;
@@ -2436,12 +2431,7 @@ xmlDocDumpFormatMemoryEnc(xmlDocPtr out_doc, xmlChar **doc_txt_ptr,
         return;
     }
 
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = out_doc;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = out_buff;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2559,12 +2549,7 @@ xmlDocFormatDump(FILE *f, xmlDocPtr cur, int format) {
     }
     buf = xmlOutputBufferCreateFile(f, handler);
     if (buf == NULL) return(-1);
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2613,12 +2598,7 @@ xmlSaveFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur, const char *encoding) {
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = 0;
@@ -2657,12 +2637,7 @@ xmlSaveFormatFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur,
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2716,12 +2691,7 @@ xmlSaveFormatFileEnc( const char * filename, xmlDocPtr cur,
      */
     buf = xmlOutputBufferCreateFilename(filename, handler, cur->compression);
     if (buf == NULL) return(-1);
-<<<<<<< HEAD
     XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
-=======
-    memset(&ctxt, 0, sizeof(ctxt));
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
