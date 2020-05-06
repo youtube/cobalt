@@ -2510,20 +2510,6 @@ retry:
                     content[0], content[1],
                     content[2], content[3]);
 #endif
-<<<<<<< HEAD
-		/*
-		 * Removes the UTF8 sequence, and replace it by a charref
-		 * and continue the transcoding phase, hoping the error
-		 * did not mangle the encoder state.
-		 */
-		charref_len = XML_SNPRINTF((char *) &charref[0], sizeof(charref),
-				 "&#%d;", cur);
-		xmlBufShrink(in, len);
-		xmlBufAddHead(in, charref, -1);
-
-		goto retry;
-	    } else {
-=======
             /*
              * Removes the UTF8 sequence, and replace it by a charref
              * and continue the transcoding phase, hoping the error
@@ -2539,7 +2525,6 @@ retry:
                                     charref, &c_in);
 
 	    if ((ret < 0) || (c_in != charrefLen)) {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 		char buf[50];
 
 		XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
@@ -2689,20 +2674,6 @@ retry:
                     in->content[0], in->content[1],
                     in->content[2], in->content[3]);
 #endif
-<<<<<<< HEAD
-		/*
-		 * Removes the UTF8 sequence, and replace it by a charref
-		 * and continue the transcoding phase, hoping the error
-		 * did not mangle the encoder state.
-		 */
-		charref_len = XML_SNPRINTF((char *) &charref[0], sizeof(charref),
-				 "&#%d;", cur);
-		xmlBufferShrink(in, len);
-		xmlBufferAddHead(in, charref, -1);
-
-		goto retry;
-	    } else {
-=======
             /*
              * Removes the UTF8 sequence, and replace it by a charref
              * and continue the transcoding phase, hoping the error
@@ -2718,7 +2689,6 @@ retry:
                                     charref, &toconv);
 
 	    if ((ret < 0) || (toconv != charrefLen)) {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 		char buf[50];
 
 		XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",

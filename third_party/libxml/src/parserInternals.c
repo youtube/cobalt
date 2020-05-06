@@ -1112,17 +1112,10 @@ xmlSwitchEncoding(xmlParserCtxtPtr ctxt, xmlCharEncoding enc)
     ret = xmlSwitchToEncodingInt(ctxt, handler, len);
     if ((ret < 0) || (ctxt->errNo == XML_I18N_CONV_FAILED)) {
         /*
-<<<<<<< HEAD
-        * on encoding conversion errors, stop the parser
-        */
-        xmlStopParser(ctxt);
-    ctxt->errNo = XML_I18N_CONV_FAILED;
-=======
 	 * on encoding conversion errors, stop the parser
 	 */
         xmlStopParser(ctxt);
 	ctxt->errNo = XML_I18N_CONV_FAILED;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     }
     return(ret);
 }

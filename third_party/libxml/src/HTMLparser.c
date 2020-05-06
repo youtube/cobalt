@@ -2484,13 +2484,8 @@ htmlParseName(htmlParserCtxtPtr ctxt) {
 	       (*in == ':') || (*in == '.'))
 	    in++;
 
-<<<<<<< HEAD
-    if (in == ctxt->input->end)
-        return(NULL);
-=======
 	if (in == ctxt->input->end)
 	    return(NULL);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
 	if ((*in > 0) && (*in < 0x80)) {
 	    count = in - ctxt->input->cur;
@@ -2551,12 +2546,6 @@ htmlParseNameComplex(xmlParserCtxtPtr ctxt) {
         return (NULL);
     }
 
-<<<<<<< HEAD
-    if (ctxt->input->base > ctxt->input->cur - len)
-        return(NULL);
-
-=======
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     return(xmlDictLookup(ctxt->dict, ctxt->input->cur - len, len));
 }
 
@@ -2814,17 +2803,6 @@ htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
     if (CUR == '"') {
         NEXT;
 
-<<<<<<< HEAD
-    if (CUR_PTR < BASE_PTR)
-        return(ret);
-    startPosition = CUR_PTR - BASE_PTR;
-
-    while ((IS_CHAR_CH(CUR)) && (CUR != '"')) {
-        NEXT;
-        len++;
-    }
-
-=======
         if (CUR_PTR < BASE_PTR)
             return(ret);
         startPosition = CUR_PTR - BASE_PTR;
@@ -2833,7 +2811,6 @@ htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
 	    NEXT;
 	    len++;
 	}
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	if (!IS_CHAR_CH(CUR)) {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 			 "Unfinished SystemLiteral\n", NULL, NULL);
@@ -2843,16 +2820,6 @@ htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
         }
     } else if (CUR == '\'') {
         NEXT;
-<<<<<<< HEAD
-	if (CUR_PTR < BASE_PTR)
-        return(ret);
-    startPosition = CUR_PTR - BASE_PTR;
-
-    while ((IS_CHAR_CH(CUR)) && (CUR != '\'')) {
-        NEXT;
-        len++;
-    }
-=======
 
         if (CUR_PTR < BASE_PTR)
             return(ret);
@@ -2862,7 +2829,6 @@ htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
 	    NEXT;
 	    len++;
 	}
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	if (!IS_CHAR_CH(CUR)) {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 			 "Unfinished SystemLiteral\n", NULL, NULL);
@@ -2905,42 +2871,8 @@ htmlParsePubidLiteral(htmlParserCtxtPtr ctxt) {
     while (IS_PUBIDCHAR_CH(CUR)) {
         len++;
         NEXT;
-<<<<<<< HEAD
-    }
-
-    if (CUR != '"') {
-       htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
-                    "Unfinished PubidLiteral\n", NULL, NULL);
-    } else {
-       ret = xmlStrndup((BASE_PTR + startPosition), len);
-       NEXT;
-    }
-    } else if (CUR == '\'') {
-        NEXT;
-	if (CUR_PTR < BASE_PTR)
-=======
 
         if (CUR_PTR < BASE_PTR)
-            return(ret);
-        startPosition = CUR_PTR - BASE_PTR;
-
-        while (IS_PUBIDCHAR_CH(CUR)) {
-            len++;
-            NEXT;
-        }
-
-	if (CUR != '"') {
-	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
-	                 "Unfinished PubidLiteral\n", NULL, NULL);
-	} else {
-	    ret = xmlStrndup((BASE_PTR + startPosition), len);
-	    NEXT;
-	}
-    } else if (CUR == '\'') {
-        NEXT;
-
-        if (CUR_PTR < BASE_PTR)
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
             return(ret);
         startPosition = CUR_PTR - BASE_PTR;
 
@@ -2948,10 +2880,7 @@ htmlParsePubidLiteral(htmlParserCtxtPtr ctxt) {
             len++;
             NEXT;
         }
-<<<<<<< HEAD
-=======
 
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	if (CUR != '\'') {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 	                 "Unfinished PubidLiteral\n", NULL, NULL);
@@ -3436,14 +3365,9 @@ htmlParseComment(htmlParserCtxtPtr ctxt) {
 	ctxt->instate = state;
 	return;
     }
-<<<<<<< HEAD
-unfinished:
-   htmlParseErr(ctxt, XML_ERR_COMMENT_NOT_FINISHED,
-=======
 
 unfinished:
     htmlParseErr(ctxt, XML_ERR_COMMENT_NOT_FINISHED,
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 		 "Comment not terminated \n<!--%.50s\n", buf, NULL);
     xmlFree(buf);
 }

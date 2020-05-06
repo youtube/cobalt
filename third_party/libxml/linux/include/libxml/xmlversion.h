@@ -90,14 +90,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the thread support is configured in
  */
-<<<<<<< HEAD
-#if 1
-#if defined(_REENTRANT) || defined(__MT__) || \
-    (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE - 0 >= 199506L)) || \
-    defined(__LB_SHELL__)
-=======
 #if 0
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #define LIBXML_THREAD_ENABLED
 #endif
 
@@ -310,12 +303,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether Debugging module is configured in
  */
-<<<<<<< HEAD
-#if 1
-#ifndef COBALT
-=======
 #if 0
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #define LIBXML_DEBUG_ENABLED
 #endif
 #endif
@@ -406,11 +394,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * the string suffix used by dynamic modules (usually shared libraries)
  */
-<<<<<<< HEAD
-#define LIBXML_MODULE_EXTENSION ".so"
-=======
 #define LIBXML_MODULE_EXTENSION "" 
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 #endif
 
 /**

@@ -24,12 +24,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Have dlopen based dso */
-<<<<<<< HEAD
-#define HAVE_DLOPEN /**/
-#endif
-=======
 /* #undef HAVE_DLOPEN */
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
 /* Define to 1 if you have the <dl.h> header file. */
 /* #undef HAVE_DL_H */
@@ -234,14 +229,7 @@
 #define HAVE_VSPRINTF 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
-<<<<<<< HEAD
-/* #define HAVE_ZLIB_H 1 */
-
-/* Define to 1 if you have the `_stat' function. */
-/* #undef HAVE__STAT */
-=======
 /* #undef HAVE_ZLIB_H */
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 
 /* Whether __va_copy() is available */
 /* #undef HAVE___VA_COPY */

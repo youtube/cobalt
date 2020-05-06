@@ -305,11 +305,7 @@ xmlBufSetAllocationScheme(xmlBufPtr buf,
         (scheme == XML_BUFFER_ALLOC_EXACT) ||
         (scheme == XML_BUFFER_ALLOC_HYBRID) ||
         (scheme == XML_BUFFER_ALLOC_IMMUTABLE) ||
-<<<<<<< HEAD
-        (scheme == XML_BUFFER_ALLOC_BOUNDED)) {
-=======
 	(scheme == XML_BUFFER_ALLOC_BOUNDED)) {
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
 	buf->alloc = scheme;
         if (buf->buffer)
             buf->buffer->alloc = scheme;
@@ -470,17 +466,6 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
 
     if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
         /*
-<<<<<<< HEAD
-    * Used to provide parsing limits
-    */
-    if ((buf->use + len >= XML_MAX_TEXT_LENGTH) ||
-        (buf->size >= XML_MAX_TEXT_LENGTH)) {
-        xmlBufMemoryError(buf, "buffer error: text too long\n");
-    return(0);
-    }
-    if (size >= XML_MAX_TEXT_LENGTH)
-       size = XML_MAX_TEXT_LENGTH;
-=======
 	 * Used to provide parsing limits
 	 */
         if ((buf->use + len >= XML_MAX_TEXT_LENGTH) ||
@@ -490,7 +475,6 @@ xmlBufGrowInternal(xmlBufPtr buf, size_t len) {
 	}
 	if (size >= XML_MAX_TEXT_LENGTH)
 	    size = XML_MAX_TEXT_LENGTH;
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     }
     if ((buf->alloc == XML_BUFFER_ALLOC_IO) && (buf->contentIO != NULL)) {
         size_t start_buf = buf->content - buf->contentIO;
@@ -776,15 +760,6 @@ xmlBufResize(xmlBufPtr buf, size_t size)
 
     if (buf->alloc == XML_BUFFER_ALLOC_IMMUTABLE) return(0);
     if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
-<<<<<<< HEAD
-    /*
-    * Used to provide parsing limits
-    */
-        if (size >= XML_MAX_TEXT_LENGTH) {
-       xmlBufMemoryError(buf, "buffer error: text too long\n");
-       return(0);
-    }
-=======
         /*
 	 * Used to provide parsing limits
 	 */
@@ -792,7 +767,6 @@ xmlBufResize(xmlBufPtr buf, size_t size)
 	    xmlBufMemoryError(buf, "buffer error: text too long\n");
 	    return(0);
 	}
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     }
 
     /* Don't resize if we don't have to */
@@ -922,17 +896,6 @@ xmlBufAdd(xmlBufPtr buf, const xmlChar *str, int len) {
 
     needSize = buf->use + len + 2;
     if (needSize > buf->size){
-<<<<<<< HEAD
-        if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
-        /*
-        * Used to provide parsing limits
-        */
-        if (needSize >= XML_MAX_TEXT_LENGTH) {
-        xmlBufMemoryError(buf, "buffer error: text too long\n");
-        return(-1);
-        }
-        }
-=======
 	if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
 	    /*
 	     * Used to provide parsing limits
@@ -942,7 +905,6 @@ xmlBufAdd(xmlBufPtr buf, const xmlChar *str, int len) {
 		return(-1);
 	    }
 	}
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
         if (!xmlBufResize(buf, needSize)){
 	    xmlBufMemoryError(buf, "growing buffer");
             return XML_ERR_NO_MEMORY;
@@ -1014,17 +976,6 @@ xmlBufAddHead(xmlBufPtr buf, const xmlChar *str, int len) {
     }
     needSize = buf->use + len + 2;
     if (needSize > buf->size){
-<<<<<<< HEAD
-        if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
-            /*
-            * Used to provide parsing limits
-            */
-            if (needSize >= XML_MAX_TEXT_LENGTH) {
-            xmlBufMemoryError(buf, "buffer error: text too long\n");
-            return(-1);
-            }
-        }
-=======
 	if (buf->alloc == XML_BUFFER_ALLOC_BOUNDED) {
 	    /*
 	     * Used to provide parsing limits
@@ -1034,7 +985,6 @@ xmlBufAddHead(xmlBufPtr buf, const xmlChar *str, int len) {
 		return(-1);
 	    }
 	}
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
         if (!xmlBufResize(buf, needSize)){
 	    xmlBufMemoryError(buf, "growing buffer");
             return XML_ERR_NO_MEMORY;

@@ -174,9 +174,6 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-<<<<<<< HEAD
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
-=======
     if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
 	xmlGenericError(xmlGenericErrorContext,
 		"xmlMallocLoc : Unsigned overflow\n");
@@ -184,8 +181,7 @@ xmlMallocLoc(size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -254,9 +250,6 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-<<<<<<< HEAD
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
-=======
     if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
 	xmlGenericError(xmlGenericErrorContext,
 		"xmlMallocAtomicLoc : Unsigned overflow\n");
@@ -264,8 +257,7 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -369,9 +361,6 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-<<<<<<< HEAD
-    tmp = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
-=======
     if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
 	xmlGenericError(xmlGenericErrorContext,
 		"xmlReallocLoc : Unsigned overflow\n");
@@ -379,8 +368,7 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    tmp = (MEMHDR *) realloc(p,RESERVE_SIZE+size);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+    tmp = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
     if (!tmp) {
 	 XML_FREE(p);
 	 goto error;
@@ -527,9 +515,6 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
     if (!xmlMemInitialized) xmlInitMemory();
     TEST_POINT
 
-<<<<<<< HEAD
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
-=======
     if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
 	xmlGenericError(xmlGenericErrorContext,
 		"xmlMemStrdupLoc : Unsigned overflow\n");
@@ -537,8 +522,7 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
     if (!p) {
       goto error;
     }

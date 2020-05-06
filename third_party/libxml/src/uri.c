@@ -327,20 +327,6 @@ static int
 xmlParse3986Port(xmlURIPtr uri, const char **str)
 {
     const char *cur = *str;
-<<<<<<< HEAD
-    unsigned port = 0; /* unsigned for defined overflow behavior */
-
-    if (ISA_DIGIT(cur)) {
-        while (ISA_DIGIT(cur)) {
-            port = port * 10 + (*cur - '0');
-
-            cur++;
-        }
-        if (uri != NULL)
-            uri->port = port & USHRT_MAX; /* port value modulo INT_MAX+1 */
-        *str = cur;
-        return(0);
-=======
     int port = 0;
 
     if (ISA_DIGIT(cur)) {
@@ -355,7 +341,6 @@ xmlParse3986Port(xmlURIPtr uri, const char **str)
 	    uri->port = port;
 	*str = cur;
 	return(0);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
     }
     return(1);
 }
@@ -2488,11 +2473,7 @@ path_processing:
 	/* Put in leading '/' plus path */
 	uri->path[0] = '/';
 	p = uri->path + 1;
-<<<<<<< HEAD
-	XML_STRNCPY(p, path, len + 1);
-=======
-	strncpy(p, (char *) path, len + 1);
->>>>>>> 85fdbcb50ebf19214d8c474593a789cf8b4ed451
+	XML_STRNCPY(p, (char *) path, len + 1);
     } else {
 	uri->path = (char *) xmlStrdup(path);
 	if (uri->path == NULL) {
