@@ -35,8 +35,10 @@ MimeType::ParamType GetParamTypeByValue(const std::string& value) {
     return MimeType::kParamTypeInteger;
   }
   float f;
-  if (SbStringScanF(value.c_str(), "%g%n", &f, &count) == 1 &&
-      count == value.size()) {
+  std::stringstream buffer(value);
+  buffer.imbue(std::locale::classic());
+  buffer >> f;
+  if (!buffer.fail() && buffer.rdbuf()->in_avail() == 0) {
     return MimeType::kParamTypeFloat;
   }
   return MimeType::kParamTypeString;
@@ -197,7 +199,9 @@ float MimeType::GetParamFloatValue(int index) const {
   }
 
   float f;
-  SbStringScanF(params_[index].value.c_str(), "%g", &f);
+  std::stringstream buffer(params_[index].value.c_str());
+  buffer.imbue(std::locale::classic());
+  buffer >> f;
 
   return f;
 }
