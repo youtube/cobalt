@@ -166,10 +166,11 @@ static const MimeInfo kSecondaryMappings[] = {
 // TODO[johnx]: deprecate the following legacy functions.
 // From WebKit's WebCore/platform/MIMETypeRegistry.cpp:
 static const char* const supported_image_types[] = {
-    "image/jpeg",     "image/pjpeg", "image/jpg", "image/webp",
-    "image/png",      "image/gif",   "image/bmp",
-    "image/x-icon",    // ico
-    "image/x-xbitmap"  // xbm
+    "image/jpeg",      "image/pjpeg", "image/jpg", "image/webp",
+    "image/png",       "image/gif",   "image/bmp",
+    "image/x-icon",     // ico
+    "image/x-xbitmap",  // xbm
+    "application/json"  //  Lottie animations
 };
 
 void MimeUtil::InitializeMimeTypesMaps() {
