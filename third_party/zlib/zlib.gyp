@@ -18,13 +18,11 @@
       }, {
         'use_system_zlib%': 0,
       }],
-      # Disable all optimizations temporarily to allow before-and-after metric
-      # from all platforms without having to personally build each.
       ['target_arch=="x86" or target_arch=="x64"', {
-        'use_x86_x64_optimizations%': 0,
+        'use_x86_x64_optimizations%': 1,
       }],
       ['target_arch=="arm" or target_arch=="arm64"', {
-        'use_arm_neon_optimizations%': 0,
+        'use_arm_neon_optimizations%': 1,
       }],
     ],
   },
