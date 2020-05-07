@@ -39,9 +39,11 @@ static void _x86_check_features(void)
     x86_cpu_enable_ssse3 = features.x86.has_ssse3;
     x86_cpu_enable_simd = features.x86.has_sse2 &&
                           features.x86.has_sse42 &&
-                          /* TODO: Update when SbCPUFeatures supports
-                           * has_pclmulqdq. */
+#if defined(SB_CPU_FEATURE_PCLMULQDQ)
+                          features.x86.has_pclmulqdq;
+#else
                           false;
+#endif
   }
 #endif
 
