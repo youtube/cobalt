@@ -100,7 +100,7 @@ TEST_F(CSSFontFaceRuleTest, SrcSetter) {
   font_face->AttachToCSSStyleSheet(css_style_sheet_);
 
   const std::string src =
-      "local(Roboto), url('../assets/icons.ttf') format('truetype')";
+      "local(Roboto), url('../assets/icons.woff2') format('woff2')";
 
   EXPECT_CALL(
       css_parser_,
@@ -166,7 +166,7 @@ TEST_F(CSSFontFaceRuleTest, CSSTextSetter) {
 
   std::string css_text =
       "font-family: 'youtube-icons'; "
-      "src: url('../assets/icons.ttf') format('truetype')";
+      "src: url('../assets/icons.woff2') format('woff2')";
 
   EXPECT_CALL(css_parser_, ParseFontFaceDeclarationList(css_text, _))
       .WillOnce(Return(scoped_refptr<CSSFontFaceDeclarationData>()));
@@ -182,7 +182,7 @@ TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
   src_builder->reserve(2);
   src_builder->push_back(new LocalSrcValue("Roboto"));
   src_builder->push_back(
-      new UrlSrcValue(new URLValue("'../assets/icons.ttf'"), "truetype"));
+      new UrlSrcValue(new URLValue("'../assets/icons.woff2'"), "woff2"));
   scoped_refptr<PropertyListValue> src(
       new PropertyListValue(std::move(src_builder)));
 
@@ -211,7 +211,7 @@ TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
   EXPECT_EQ(font_face->css_text(NULL),
             "font-family: 'youtube-icons'; "
             "src: local('Roboto'), "
-            "url('../assets/icons.ttf') format('truetype'); "
+            "url('../assets/icons.woff2') format('woff2'); "
             "font-style: italic; "
             "font-weight: bold; "
             "unicode-range: U+100, U+1000-2000;");

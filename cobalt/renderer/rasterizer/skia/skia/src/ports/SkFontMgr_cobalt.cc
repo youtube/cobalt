@@ -286,19 +286,19 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
 
   auto command_line = base::CommandLine::ForCurrentProcess();
   SkFontStyleSet_Cobalt::FontFormatSetting font_format =
-      SkFontStyleSet_Cobalt::kTtf;
+      SkFontStyleSet_Cobalt::kWoff2Preferred;
   if (command_line->HasSwitch(switches::kFontFormat)) {
     std::string setting =
         command_line->GetSwitchValueASCII(switches::kFontFormat);
     if (setting.compare("woff2") == 0) {
       font_format = SkFontStyleSet_Cobalt::kWoff2;
-    } else if (setting.compare("woff2-preferred") == 0) {
-      font_format = SkFontStyleSet_Cobalt::kWoff2Preferred;
+    } else if (setting.compare("ttf") == 0) {
+      font_format = SkFontStyleSet_Cobalt::kTtf;
     } else if (setting.compare("ttf-preferred") == 0) {
       font_format = SkFontStyleSet_Cobalt::kTtfPreferred;
-    } else if (setting.compare("ttf") != 0) {
+    } else if (setting.compare("woff2-preferred") != 0) {
       LOG(WARNING) << "Invalid setting specified for font format. "
-                   << "Using default TTF.";
+                   << "Using default: Woff2 with TTF fallbacks.";
     }
   }
 

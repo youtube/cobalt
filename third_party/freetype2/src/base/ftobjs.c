@@ -1422,8 +1422,6 @@
       goto Fail;
     }
 
-    *aface = face;
-
   Fail:
     if ( error )
     {
@@ -1431,10 +1429,9 @@
       if ( clazz->done_face )
         clazz->done_face( face );
       FT_FREE( internal );
-      FT_FREE( face );
-      *aface = NULL;
     }
 
+    *aface = face;
     return error;
   }
 
@@ -2476,6 +2473,10 @@
                              num_params, params, &face );
           if ( !error )
             goto Success;
+
+          external_stream = (face->face_flags & FT_FACE_FLAG_EXTERNAL_STREAM) != 0;
+          FT_FREE(face);
+          face = NULL;
 
 #ifdef FT_CONFIG_OPTION_MAC_FONTS
           if ( test_mac_fonts                                           &&
