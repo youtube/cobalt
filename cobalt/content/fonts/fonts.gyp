@@ -162,7 +162,7 @@
         [ 'copy_font_files == 0', {
           'copies': [{
             # Copy at least the fallback Roboto Subsetted font.
-            'files': [ '<(source_font_files_dir)/Roboto-Regular-Subsetted.ttf' ],
+            'files': [ '<(source_font_files_dir)/Roboto-Regular-Subsetted.woff2' ],
             'destination': '<(sb_static_contents_output_data_dir)/fonts/',
           }],
         }, {
