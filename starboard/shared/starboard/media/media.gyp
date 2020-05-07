@@ -25,6 +25,8 @@
         '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
         '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
+        '<(DEPTH)/starboard/shared/starboard/media/vp9_util.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/vp9_util.h',
       ],
       'dependencies': [
         '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
