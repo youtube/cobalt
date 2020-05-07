@@ -18,6 +18,7 @@
 #include "components/update_client/patcher.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzipper.h"
+#include "starboard/system.h"
 
 #include "url/gurl.h"
 
@@ -103,6 +104,26 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));
   params.insert(std::make_pair("updaterchannelchanged",
                                IsChannelChanged() ? "True" : "False"));
+
+  // Get brand and model information
+  const size_t kSystemPropertyMaxLength = 1024;
+  char value[kSystemPropertyMaxLength];
+  bool result;
+
+  // Brand
+  result = SbSystemGetProperty(kSbSystemPropertyBrandName, value,
+                               kSystemPropertyMaxLength);
+  if (result) {
+    params.insert(std::make_pair("brand", std::string(value)));
+  }
+
+  // Model name
+  result = SbSystemGetProperty(kSbSystemPropertyModelName, value,
+                               kSystemPropertyMaxLength);
+  if (result) {
+    params.insert(std::make_pair("model", std::string(value)));
+  }
+
   return params;
 }
 
