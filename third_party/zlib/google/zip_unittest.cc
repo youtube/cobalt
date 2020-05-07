@@ -208,8 +208,6 @@ class ZipTest : public PlatformTest {
       if (base::PathExists(unzipped_entry_path) &&
           !base::DirectoryExists(unzipped_entry_path)) {
         // It's a file, check its contents are what we zipped.
-        // TODO(774156): figure out why the commented out EXPECT_TRUE below
-        // fails on the build bots (but not on the try-bots).
         base::FilePath relative_path;
         bool append_relative_path_success =
             test_dir_.AppendRelativePath(unzipped_entry_path, &relative_path);
@@ -219,13 +217,9 @@ class ZipTest : public PlatformTest {
                      << unzipped_entry_path.value();
         }
         base::FilePath original_path = original_dir.Append(relative_path);
-        LOG(ERROR) << "Comparing original " << original_path.value()
-                   << " and unzipped file " << unzipped_entry_path.value()
-                   << " result: "
-                   << base::ContentsEqual(original_path, unzipped_entry_path);
-        // EXPECT_TRUE(base::ContentsEqual(original_path, unzipped_entry_path))
-        //    << "Contents differ between original " << original_path.value()
-        //    << " and unzipped file " << unzipped_entry_path.value();
+        EXPECT_TRUE(base::ContentsEqual(original_path, unzipped_entry_path))
+           << "Contents differ between original " << original_path.value()
+           << " and unzipped file " << unzipped_entry_path.value();
       }
       unzipped_entry_path = files.Next();
     }
