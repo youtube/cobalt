@@ -39,7 +39,6 @@ _ANDROID_SDK_PACKAGES = [
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
-    'lldb;3.1',
     'ndk;' + _NDK_VERSION,
     'patcher;v4',
     'platforms;android-28',
