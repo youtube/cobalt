@@ -90,7 +90,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       raise RuntimeError('RasPi builds require $RASPI_HOME/sysroot '
                          'to be a valid directory.')
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -108,7 +108,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_host']
     cxx_path = environment_variables['CXX_host']

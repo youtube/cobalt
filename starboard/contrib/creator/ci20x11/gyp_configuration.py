@@ -28,10 +28,10 @@ class CreatorCI20X11Configuration(shared_configuration.CreatorConfiguration):
   def __init__(self, platform_name='creator-ci20x11'):
     super(CreatorCI20X11Configuration, self).__init__(platform_name)
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']

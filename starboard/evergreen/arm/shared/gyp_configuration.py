@@ -43,10 +43,10 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self._host_toolchain = None
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
