@@ -667,6 +667,7 @@ class FileWriterDelegateTest : public ::testing::Test {
 
 #if defined(OS_STARBOARD)
   void TearDown() override {
+    file_.Close();
     ASSERT_TRUE(base::DeleteFile(temp_file_path_, false));
   }
 #endif
