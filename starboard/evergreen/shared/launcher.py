@@ -173,6 +173,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def SendSuspend(self):
     return self.launcher.SendSuspend()
 
+  def SendConceal(self):
+    return self.launcher.SendConceal()
+
+  def SendFocus(self):
+    return self.launcher.SendFocus()
+
+  def SendFreeze(self):
+    return self.launcher.SendFreeze()
+
+  def SendStop(self):
+    return self.launcher.SendStop()
+
   def SupportsDeepLink(self):
     return self.launcher.SupportsDeepLink()
 

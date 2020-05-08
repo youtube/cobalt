@@ -133,6 +133,22 @@ class CobaltRunner(object):
     """Sends a system signal to put Cobalt into suspend state."""
     self.launcher.SendSuspend()
 
+  def SendConceal(self):
+    """Sends a system signal to put Cobalt into concealed state."""
+    self.launcher.SendConceal()
+
+  def SendFocus(self):
+    """Sends a system signal to put Cobalt into started state."""
+    self.launcher.SendFocus()
+
+  def SendFreeze(self):
+    """Sends a system signal to put Cobalt into frozen state."""
+    self.launcher.SendFreeze()
+
+  def SendStop(self):
+    """Sends a system signal to put Cobalt into stopped state."""
+    self.launcher.SendStop()
+
   def SendDeepLink(self, link):
     """Sends a deep link to Cobalt."""
     return self.launcher.SendDeepLink(link)
