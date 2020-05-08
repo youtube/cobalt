@@ -14,54 +14,10 @@
 
 #include "starboard/nplb/player_test_util.h"
 
-#include "starboard/directory.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
-#include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
 namespace nplb {
-
-namespace {
-
-using testing::FakeGraphicsContextProvider;
-
-}  // namespace
-
-std::string ResolveTestFileName(const char* filename) {
-  std::vector<char> content_path(kSbFileMaxPath);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kSbFileMaxPath));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  auto ret = directory_path + kSbFileSepChar + filename;
-  return ret;
-}
-
-void DummyDeallocateSampleFunc(SbPlayer player,
-                               void* context,
-                               const void* sample_buffer) {}
-
-void DummyDecoderStatusFunc(SbPlayer player,
-                            void* context,
-                            SbMediaType type,
-                            SbPlayerDecoderState state,
-                            int ticket) {}
-
-void DummyPlayerStatusFunc(SbPlayer player,
-                           void* context,
-                           SbPlayerState state,
-                           int ticket) {}
-
-void DummyErrorFunc(SbPlayer player,
-                    void* context,
-                    SbPlayerError error,
-                    const char* message) {}
 
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
@@ -122,24 +78,6 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   return SbPlayerOutputModeSupported(output_mode, codec, kSbDrmSystemInvalid);
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-}
-
-bool IsMediaConfigSupported(SbMediaVideoCodec video_codec,
-                            SbMediaAudioCodec audio_codec,
-                            SbDrmSystem drm_system,
-                            const SbMediaAudioSampleInfo* audio_sample_info,
-                            const char* max_video_capabilities,
-                            SbPlayerOutputMode output_mode) {
-  FakeGraphicsContextProvider fake_graphics_context_provider;
-  SbPlayer dummy_player = CallSbPlayerCreate(
-      fake_graphics_context_provider.window(), video_codec, audio_codec,
-      drm_system, audio_sample_info, max_video_capabilities,
-      DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyPlayerStatusFunc,
-      DummyErrorFunc, NULL, output_mode,
-      fake_graphics_context_provider.decoder_target_provider());
-  bool is_supported = SbPlayerIsValid(dummy_player);
-  SbPlayerDestroy(dummy_player);
-  return is_supported;
 }
 
 }  // namespace nplb
