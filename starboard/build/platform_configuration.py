@@ -290,14 +290,14 @@ class PlatformConfiguration(object):
     """Returns the instance of the toolchain implementation class."""
     return None
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     """Returns a list of target tools."""
     # TODO: If this method throws |NotImplementedError|, GYP will fall back to
     #       the legacy toolchain. Once all platforms are migrated to the
     #       abstract toolchain, this method should be made |@abstractmethod|.
     raise NotImplementedError()
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     """Returns a list of host tools."""
     # TODO: If this method throws |NotImplementedError|, GYP will fall back to
     #       the legacy toolchain. Once all platforms are migrated to the

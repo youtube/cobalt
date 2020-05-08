@@ -63,7 +63,7 @@ class StubConfiguration(config.base.PlatformConfigBase):
     })
     return env_variables
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -81,7 +81,7 @@ class StubConfiguration(config.base.PlatformConfigBase):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_host']
     cxx_path = environment_variables['CXX_host']

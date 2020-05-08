@@ -39,10 +39,10 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
         goma_supports_compiler,
         sabi_json_path=sabi_json_path)
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']

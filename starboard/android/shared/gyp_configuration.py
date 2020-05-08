@@ -142,7 +142,7 @@ class AndroidConfiguration(PlatformConfiguration):
 
     return env_variables
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     if not self._target_toolchain:
       tool_prefix = os.path.join(sdk_utils.GetNdkPath(), 'toolchains', 'llvm',
                                  'prebuilt', 'linux-x86_64', 'bin', '')
@@ -242,7 +242,7 @@ class AndroidConfiguration(PlatformConfiguration):
       ]
     return self._target_toolchain
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
