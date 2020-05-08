@@ -146,6 +146,7 @@ V8cEngine::~V8cEngine() {
 
   IsolateFellowship::GetInstance()->platform->UnregisterIsolateOnThread(
       isolate_);
+  DCHECK(!isolate_->InContext());  // global object must be out of scope now.
   // Send a low memory notification to V8 in order to force a garbage
   // collection before shut down.  This is required to run weak callbacks that
   // are responsible for freeing native objects that live in the internal
