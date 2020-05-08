@@ -174,8 +174,39 @@ class AbstractLauncher(object):
     Raises:
       RuntimeError: Suspend signal not supported on platform.
     """
-
     raise RuntimeError("Suspend not supported for this platform.")
+
+  def SendConceal(self):
+    """sends conceal signal to the launcher's executable.
+
+    Raises:
+      RuntimeError: Conceal signal not supported on platform.
+    """
+    raise RuntimeError("Conceal not supported for this platform.")
+
+  def SendFocus(self):
+    """sends focus signal to the launcher's executable.
+
+    Raises:
+      RuntimeError: focus signal not supported on platform.
+    """
+    raise RuntimeError("Focus not supported for this platform.")
+
+  def SendFreeze(self):
+    """sends freeze signal to the launcher's executable.
+
+    Raises:
+      RuntimeError: Freeze signal not supported on platform.
+    """
+    raise RuntimeError("Freeze not supported for this platform.")
+
+  def SendStop(self):
+    """sends stop signal to the launcher's executable.
+
+    Raises:
+      RuntimeError: Stop signal not supported on platform.
+    """
+    raise RuntimeError("Stop not supported for this platform.")
 
   def SupportsDeepLink(self):
     return False
