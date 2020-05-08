@@ -39,10 +39,10 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
                          goma_supports_compiler, sabi_json_path)
     self._host_toolchain = None
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(

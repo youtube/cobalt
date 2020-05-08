@@ -70,7 +70,7 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
     }
     return env_variables
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -88,7 +88,7 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_HOST']
     cxx_path = environment_variables['CXX_HOST']
