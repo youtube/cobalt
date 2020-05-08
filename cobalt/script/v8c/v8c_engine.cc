@@ -26,6 +26,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "starboard/once.h"
@@ -195,12 +196,11 @@ std::unique_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {
-  return std::string("v8/") + v8::V8::GetVersion()
-#if defined(ENGINE_SUPPORTS_JIT)
-      + "-jit";
-#else
-      + "-jitless";
-#endif
+  static std::string jit_flag =
+      configuration::Configuration::GetInstance()->CobaltEnableJit()
+          ? "-jit"
+          : "-jitless";
+  return std::string("v8/") + v8::V8::GetVersion() + jit_flag;
 }
 
 }  // namespace script

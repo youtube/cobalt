@@ -32,6 +32,15 @@
             'COBALT_FORCE_DIRECT_GLES_RASTERIZER',
           ],
         }],
+        ['cobalt_enable_jit != -1', {
+          'conditions': [
+            ['cobalt_enable_jit == 1', {
+              'defines': [ 'ENGINE_SUPPORTS_JIT' ],
+            }, {
+              'defines': [ 'COBALT_DISABLE_JIT' ],
+            }],
+          ],
+        }],
       ],
     },
   ],
