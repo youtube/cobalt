@@ -31,14 +31,14 @@ from starboard.tools import build
 
 # Which version of the Android NDK and CMake to install and build with.
 # Note that build.gradle parses these out of this file too.
-_NDK_VERSION = '21.0.6113669'
+_NDK_VERSION = '21.1.6352462'
 _CMAKE_VERSION = '3.10.2.4988404'
 
 # Packages to install in the Android SDK.
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;29.0.2',
+    'build-tools;30.0.0-rc4',  # TODO: Change to the stable released SDK
     'cmake;' + _CMAKE_VERSION,
     'cmdline-tools;1.0',
     'emulator',
@@ -254,8 +254,13 @@ def _DownloadInstallOrUpdateSdk():
       [_SDKMANAGER_TOOL, '--verbose'] + _ANDROID_SDK_PACKAGES, stdin=stdin)
 
   if _IsOnBuildbot():
-    time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
     try:
+      # Accept "Terms and Conditions" (android-sdk-license)
+      time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
+      p.stdin.write('y\n')
+      # Accept "SDK Preview" license (android-sdk-preview-license)
+      # TODO: Remove when no longer on prerelease SDK (build-tools;30.0.0-rc4).
+      time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
       p.stdin.write('y\n')
     except IOError:
       logging.warning('There were no SDK licenses to accept.')
