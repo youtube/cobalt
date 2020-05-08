@@ -1033,6 +1033,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kSuspendedAppStatus;
       ++app_suspend_count_;
       browser_module_->Suspend();
+#if SB_IS(EVERGREEN)
+      updater_module_->Suspend();
+#endif
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
@@ -1041,6 +1044,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kPausedAppStatus;
       ++app_resume_count_;
       browser_module_->Resume();
+#if SB_IS(EVERGREEN)
+      updater_module_->Resume();
+#endif
       DLOG(INFO) << "Finished resuming.";
       break;
     case kSbEventTypeLowMemory:
