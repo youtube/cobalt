@@ -102,14 +102,37 @@ UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
 
   DETACH_FROM_THREAD(thread_checker_);
   // Initialize the underlying update client.
+  is_updater_running_ = true;
   updater_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
 }
 
 UpdaterModule::~UpdaterModule() {
-  updater_thread_.task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+  if (is_updater_running_) {
+    is_updater_running_ = false;
+    updater_thread_.task_runner()->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+  }
+}
+
+void UpdaterModule::Suspend() {
+  if (is_updater_running_) {
+    is_updater_running_ = false;
+    updater_thread_.task_runner()->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+  }
+}
+
+void UpdaterModule::Resume() {
+  if (!is_updater_running_) {
+    is_updater_running_ = true;
+    updater_thread_.task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
+  }
 }
 
 void UpdaterModule::Initialize() {
@@ -175,6 +198,10 @@ void UpdaterModule::MarkSuccessful() {
 
 void UpdaterModule::Update() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // If updater_configurator_ is nullptr, the updater is suspended.
+  if (updater_configurator_ == nullptr) {
+    return;
+  }
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
 
