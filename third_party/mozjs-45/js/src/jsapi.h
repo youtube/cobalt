@@ -40,8 +40,6 @@
 #include "starboard/file.h"
 #endif
 
-#include "cobalt/configuration/configuration.h"
-
 /************************************************************************/
 
 namespace JS {
@@ -1092,19 +1090,27 @@ class JS_PUBLIC_API(RuntimeOptions) {
   public:
     RuntimeOptions()
       :
+#if defined(COBALT_DISABLE_JIT)
+        baseline_(false),
+        ion_(false),
+        asmJS_(false),
+#else
+        baseline_(true),
+        ion_(true),
+        asmJS_(true),
+#endif
         throwOnAsmJSValidationFailure_(false),
+#if defined(COBALT_DISABLE_JIT)
+        nativeRegExp_(false),
+#else
+        nativeRegExp_(true),
+#endif
         unboxedArrays_(false),
         asyncStack_(true),
         werror_(false),
         strictMode_(false),
         extraWarnings_(false)
     {
-      bool enable_jit = cobalt::configuration::Configuration::GetInstance()
-                            ->CobaltEnableJit();
-      baseline_ = enable_jit;
-      ion_ = enable_jit;
-      asmJS_ = enable_jit;
-      nativeRegExp_ = enable_jit;
     }
 
     bool baseline() const { return baseline_; }

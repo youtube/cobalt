@@ -23,7 +23,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
-#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "starboard/once.h"
 #include "third_party/mozjs-45/cobalt_config/include/js-confdefs.h"
@@ -136,12 +135,13 @@ MozjsEngine::MozjsEngine(const Options& options) : options_(options) {
   // Callback to be called at different points during garbage collection.
   JS_SetGCCallback(runtime_, &MozjsEngine::GCCallback, this);
 
-  const bool enable_jit =
-      configuration::Configuration::GetInstance()->CobaltEnableJit();
-  if (enable_jit) {
-    js::SetDOMProxyInformation(NULL /*domProxyHandlerFamily*/,
-                               kJSProxySlotExpando, DOMProxyShadowsCheck);
-  }
+#if defined(ENGINE_SUPPORTS_JIT)
+  const bool enable_jit = true;
+  js::SetDOMProxyInformation(NULL /*domProxyHandlerFamily*/,
+                             kJSProxySlotExpando, DOMProxyShadowsCheck);
+#else
+  const bool enable_jit = false;
+#endif
   JS::RuntimeOptionsRef(runtime_)
       .setUnboxedArrays(true)
       .setBaseline(enable_jit)
@@ -259,11 +259,12 @@ std::unique_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {
-  static std::string jit_flag =
-      configuration::Configuration::GetInstance()->CobaltEnableJit()
-          ? "-jit"
-          : "-jitless";
-  return std::string("mozjs/") + MOZILLA_VERSION + jit_flag;
+  return std::string("mozjs/") + MOZILLA_VERSION
+#if defined(ENGINE_SUPPORTS_JIT)
+      + "-jit";
+#else
+      + "-jitless";
+#endif
 }
 
 }  // namespace script
