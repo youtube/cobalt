@@ -1049,7 +1049,8 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS"
 #error "is deprecated. Implement"
 #error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
-#endif  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+#endif  // defined(
+        // COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
 
 #if defined(COBALT_MEDIA_BUFFER_PADDING)
 #error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
@@ -1163,7 +1164,9 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_PLAYER_FILTER_TESTS)
 
 #if defined(SB_HAS_PLAYER_ERROR_MESSAGE)
-#error "SB_HAS_PLAYER_ERROR_MESSAGE should not be defined in API versions >= 10."
+#error \
+    "SB_HAS_PLAYER_ERROR_MESSAGE should not be defined in API versions " \
+       ">= 10."
 #endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
 #if SB_API_VERSION >= \
