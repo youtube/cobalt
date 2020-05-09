@@ -78,7 +78,7 @@
           ['use_system_protobuf==0', {
             'protoc': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
           }, { # use_system_protobuf==1
-            'protoc': '<!(which protoc)',
+            'protoc': '<!pymod_do_main(starboard.build.gyp_functions find_program protoc)',
           }],
         ],
       }],

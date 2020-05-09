@@ -169,8 +169,10 @@
       '<@(win32_shared_media_player_files)',
     ],
 
-    'xlb_files':
-      '<!(find <(DEPTH)/cobalt/content/i18n/platform/xb1/*.xlb)',
+    'xlb_files': [
+      '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/cobalt/content/i18n/platform/xb1/ *.xlb)'
+    ],
+
   },
   'targets': [
     {
@@ -456,7 +458,7 @@
         '<(DEPTH)/starboard/shared/win32/time_utils.h',
         '<(DEPTH)/starboard/shared/win32/wchar_utils.h',
         # Include private stubs, if present.
-        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
+        '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private/shared/stub *.cc)',
         '<@(starboard_platform_dependent_files)',
       ],
       'defines': [
