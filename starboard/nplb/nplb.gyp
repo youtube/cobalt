@@ -311,9 +311,9 @@
         'window_get_size_test.cc',
         '<@(sabi_sources)',
         # Include private c headers, if present.
-        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "nplb/include_all_private.c")',
+        '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private/nplb/ include_all_private.c)',
         # Include private tests, if present.
-        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "nplb/*_test.cc")',
+        '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private/nplb/ *_test.cc)',
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
