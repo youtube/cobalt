@@ -1183,7 +1183,7 @@
                     '_CRT_RAND_S'  # for rand_s()
                   ],
                   'variables': {
-                    'gyp_generators': '<!(echo $GYP_GENERATORS)',
+                    'gyp_generators': '<!pymod_do_main(starboard.build.gyp_functions getenv GYP_GENERATORS)',
                   },
                   'sources': [
                     'base/debug/stack_trace_win.cc',
