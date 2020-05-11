@@ -51,6 +51,11 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   uint32 json_size_in_bytes_;
 
   LottieProperties properties_;
+  // |seek_counter_| is used to indicate whether a particular seek has already
+  // been processed. When |LottieProperties::seek_counter| is different, then
+  // the requested seek should be performed and |seek_counter_| updated to match
+  // LottieProperties.
+  size_t seek_counter_ = 0;
 
   // The last timestamp from the animation function in which we updated the
   // the frame time for |skottie_animation_|. Used for calculating the time

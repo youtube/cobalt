@@ -30,9 +30,6 @@ class LottieAnimation : public Image {
   enum class LottieState { kPlaying, kPaused, kStopped };
 
   // https://lottiefiles.github.io/lottie-player/properties.html
-  // Custom, not in any spec: |state| indicates whether the animation is playing
-  // (visible and animating), paused (visible but not animating), or stopped
-  // (not visible and frame time = 0).
   struct LottieProperties {
     static constexpr int kDefaultDirection = 1;
     static constexpr bool kDefaultLoop = false;
@@ -83,10 +80,33 @@ class LottieAnimation : public Image {
       return true;
     }
 
-    LottieState state = LottieState::kPlaying;
+    // Update |seek_frame| and |seek_counter| to indicate that a seek needs to
+    // occur.
+    void Seek(double new_seek_frame) {
+      // A stopped animation will become paused (i.e. will not be hidden)
+      // if seek() has been called.
+      if (state == LottieState::kStopped) {
+        state = LottieState::kPaused;
+      }
+
+      seek_frame = new_seek_frame;
+      ++seek_counter;
+    }
+
+    // |state| indicates whether the animation is playing (visible and
+    // animating), paused (visible but not animating), or stopped (not visible
+    // and frame time = 0).
+    LottieState state = LottieState::kStopped;
+
     int direction = kDefaultDirection;
     bool loop = kDefaultLoop;
     double speed = kDefaultSpeed;
+
+    // |seek_frame| indicates which frame the animation should seek to.
+    double seek_frame;
+    // |seek_counter| is incremented every time "seek()" is called on a Lottie
+    // animation.
+    size_t seek_counter = 0;
   };
 
   virtual void SetProperties(LottieProperties properties) = 0;
