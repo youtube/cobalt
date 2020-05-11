@@ -32,6 +32,17 @@ void SkottieAnimation::SetProperties(LottieProperties properties) {
 }
 
 void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
+  // Seeking to a particular frame takes precedence over normal playback.
+  // Check whether "seek()" has been called but has yet to occur.
+  if (seek_counter_ != properties_.seek_counter) {
+    skottie_animation_->seekFrame(properties_.seek_frame);
+    current_animation_time_ = base::TimeDelta::FromSecondsD(
+        properties_.seek_frame / skottie_animation_->fps());
+    last_updated_animate_function_time_ = animate_function_time;
+    seek_counter_ = properties_.seek_counter;
+    return;
+  }
+
   if (properties_.state == LottieState::kPlaying) {
     // Only update |current_animation_time_| if the animation is playing.
     base::TimeDelta time_elapsed =

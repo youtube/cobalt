@@ -101,6 +101,16 @@ void LottiePlayer::Stop() {
   UpdateState(LottieAnimation::LottieState::kStopped);
 }
 
+void LottiePlayer::Seek(FrameType frame) {
+  // https://lottiefiles.github.io/lottie-player/methods.html#seekvalue-number--string--void
+  // TODO: Support percent strings as well.
+  if (frame.IsType<double>()) {
+    autoplaying_ = false;
+    properties_.Seek(frame.AsType<double>());
+    UpdateLottieObjects();
+  }
+}
+
 void LottiePlayer::SetDirection(int direction) {
   // https://lottiefiles.github.io/lottie-player/methods.html#setdirectionvalue-number--void
   if (properties_.UpdateDirection(direction)) {

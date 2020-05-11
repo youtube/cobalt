@@ -22,6 +22,7 @@
 #include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/union_type.h"
 
 namespace cobalt {
 namespace dom {
@@ -39,6 +40,8 @@ typedef render_tree::LottieAnimation LottieAnimation;
 class LottiePlayer : public HTMLElement {
  public:
   static const char kTagName[];
+
+  typedef script::UnionType2<double, std::string> FrameType;
 
   explicit LottiePlayer(Document* document);
 
@@ -58,6 +61,7 @@ class LottiePlayer : public HTMLElement {
   void Play();
   void Pause();
   void Stop();
+  void Seek(FrameType frame);
   void SetDirection(int direction);
   void SetLooping(bool loop);
   void SetSpeed(double speed);
