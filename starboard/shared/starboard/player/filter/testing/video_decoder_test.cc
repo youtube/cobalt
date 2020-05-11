@@ -225,7 +225,7 @@ class VideoDecoderTest
     ASSERT_TRUE(event);
 
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
-    while (SbTimeGetMonotonicNow() - start < timeout) {
+    do {
       job_queue_.RunUntilIdle();
       GetDecodeTargetWhenSupported();
       {
@@ -244,7 +244,7 @@ class VideoDecoderTest
         }
       }
       SbThreadSleep(kSbTimeMillisecond);
-    }
+    } while (SbTimeGetMonotonicNow() - start < timeout);
     event->status = kTimeout;
   }
 
