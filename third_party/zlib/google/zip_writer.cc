@@ -5,6 +5,7 @@
 #include "third_party/zlib/google/zip_writer.h"
 
 #include "base/files/file.h"
+#include "base/files/file_util.h"
 #include "base/strings/string_util.h"
 #include "third_party/zlib/google/zip_internal.h"
 
@@ -182,7 +183,15 @@ bool ZipWriter::FlushEntriesIfNeeded(bool force) {
         // Missing file or directory case.
         base::Time last_modified =
             file_accessor_->GetLastModifiedTime(absolute_path);
+// Not all platforms provide a mechanism of retrieving the "last modified"
+// timestamp of a file, and thus fail the condition below because the returned
+// value would be |0|. For OS_STARBOARD, simply check if the directory exists or
+// not and assume the timestamp provided is what is desired.
+#if defined(OS_STARBOARD)
+        if (!file_accessor_->DirectoryExists(absolute_path)) {
+#else
         if (last_modified.is_null()) {
+#endif
           LOG(ERROR) << "Failed to write entry " << relative_path.value()
                      << " to ZIP file.";
           return false;
