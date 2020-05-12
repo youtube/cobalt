@@ -340,8 +340,6 @@ void V8cScriptDebugger::consoleAPIMessage(
     const v8_inspector::StringView& message,
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* trace) {
-  SB_UNREFERENCED_PARAMETER(contextGroupId);
-  SB_UNREFERENCED_PARAMETER(trace);
 
   std::string source;
   if (url.length()) {

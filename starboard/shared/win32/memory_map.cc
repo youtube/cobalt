@@ -20,7 +20,6 @@
 #include "starboard/shared/starboard/memory_reporter_internal.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
-  SB_UNREFERENCED_PARAMETER(name);
   if (size_bytes == 0) {
     return SB_MEMORY_MAP_FAILED;
   }

@@ -143,7 +143,6 @@ PNGImageDecoder::~PNGImageDecoder() {
 // static
 void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
   TRACK_MEMORY_SCOPE("Rendering");
-  SB_UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
@@ -154,7 +153,6 @@ void PNGImageDecoder::HeaderAvailable(png_structp png, png_infop info) {
 // static
 void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
                                    png_uint_32 row_index, int interlace_pass) {
-  SB_UNREFERENCED_PARAMETER(interlace_pass);
   PNGImageDecoder* decoder =
       static_cast<PNGImageDecoder*>(png_get_progressive_ptr(png));
   decoder->RowAvailableCallback(row_buffer, row_index);
@@ -164,7 +162,6 @@ void PNGImageDecoder::RowAvailable(png_structp png, png_bytep row_buffer,
 // static
 void PNGImageDecoder::DecodeDone(png_structp png, png_infop info) {
   TRACK_MEMORY_SCOPE("Rendering");
-  SB_UNREFERENCED_PARAMETER(info);
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::DecodeDone()");
 
   PNGImageDecoder* decoder =

@@ -30,7 +30,7 @@
 #endif
 #   define U_ASSERT(exp) assert(exp)
 #else
-#   define U_ASSERT(exp) SB_UNREFERENCED_PARAMETER(exp)
+#   define U_ASSERT(exp)
 #endif
 #endif
 

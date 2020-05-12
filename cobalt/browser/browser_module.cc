@@ -169,7 +169,6 @@ void ScreenshotCompleteCallback(const base::FilePath& output_path) {
 
 void OnScreenshotMessage(BrowserModule* browser_module,
                          const std::string& message) {
-  SB_UNREFERENCED_PARAMETER(message);
   base::FilePath dir;
   if (!base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir)) {
     NOTREACHED() << "Failed to get debug out directory.";
@@ -196,8 +195,6 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(global_environment);
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
 }
 

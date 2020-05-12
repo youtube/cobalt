@@ -154,7 +154,6 @@ class VideoDecoderTest
   }
 
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
-    SB_UNREFERENCED_PARAMETER(draw_frame_cb);
   }
 
   void OnDecoderStatusUpdate(VideoDecoder::Status status,

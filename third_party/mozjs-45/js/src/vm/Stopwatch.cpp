@@ -255,7 +255,6 @@ AutoStopwatch::~AutoStopwatch()
 
 #if defined(STARBOARD)
     auto unused = exit();
-    SB_UNREFERENCED_PARAMETER(unused);
 #else
     mozilla::Unused << exit(); // Sadly, there is nothing we can do about an error at this point.
 #endif

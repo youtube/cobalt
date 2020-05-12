@@ -17,7 +17,5 @@
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  SB_UNREFERENCED_PARAMETER(output_index);
-  SB_UNREFERENCED_PARAMETER(out_configuration);
   return false;
 }

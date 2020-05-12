@@ -376,7 +376,6 @@ AnimateNode::TraverseListEntry AnimateNode::BoundsVisitor::AdvanceIterator(
 }
 
 void AnimateNode::BoundsVisitor::ApplyTransform(Node* node) {
-  SB_UNREFERENCED_PARAMETER(node);
 }
 
 void AnimateNode::BoundsVisitor::ApplyTransform(CompositionNode* node) {
@@ -649,7 +648,6 @@ math::RectF AnimateNode::GetAnimationBoundsSince(
 namespace {
 // Helper function to always return an empty bounding rectangle.
 math::RectF ReturnTrivialEmptyRectBound(base::TimeDelta since) {
-  SB_UNREFERENCED_PARAMETER(since);
   return math::RectF();
 }
 }  // namespace

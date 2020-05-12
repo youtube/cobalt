@@ -85,9 +85,6 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override {
-    SB_UNREFERENCED_PARAMETER(ticket);
-    SB_UNREFERENCED_PARAMETER(certificate);
-    SB_UNREFERENCED_PARAMETER(certificate_size);
   }
 
  private:

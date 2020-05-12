@@ -86,12 +86,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
   }
-  SB_UNREFERENCED_PARAMETER(content_type);
-  SB_UNREFERENCED_PARAMETER(profile);
-  SB_UNREFERENCED_PARAMETER(level);
   // While not necessarily true, for now we assume that all Android devices
   // can play decode-to-texture video just as well as normal video.
-  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
 
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {

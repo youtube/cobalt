@@ -112,7 +112,6 @@ void PersistentCookieStore::Load(const LoadedCallback& loaded_callback,
 
 void PersistentCookieStore::LoadCookiesForKey(
     const std::string& key, const LoadedCallback& loaded_callback) {
-  SB_UNREFERENCED_PARAMETER(key);
   // We don't support loading of individual cookies.
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See

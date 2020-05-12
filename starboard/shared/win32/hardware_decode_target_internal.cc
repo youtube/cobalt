@@ -376,7 +376,6 @@ bool HardwareDecodeTargetPrivate::Update(
     return false;
   }
 
-  SB_UNREFERENCED_PARAMETER(d3d_device);
   UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
                 video_processor, video_sample, video_area);
   return true;

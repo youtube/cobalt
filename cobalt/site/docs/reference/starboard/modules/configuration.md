@@ -216,11 +216,6 @@ Declare numeric literals of unsigned 64-bit type.
 
 Macro for hinting that an expression is likely to be false.
 
-### SB_UNREFERENCED_PARAMETER(x) ###
-
-Trivially references a parameter that is otherwise unreferenced, preventing a
-compiler warning on some platforms.
-
 ### SB_WARN_UNUSED_RESULT ###
 
 Causes the annotated (at the end) function to generate a warning if the result

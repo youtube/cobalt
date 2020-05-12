@@ -43,8 +43,6 @@ std::unique_ptr<cobalt::speech::Microphone>
 MicrophoneAudioSource::CreateMicrophone(
     const cobalt::speech::Microphone::Options& options, int buffer_size_bytes) {
 #if !defined(ENABLE_MICROPHONE_IDL)
-  SB_UNREFERENCED_PARAMETER(options);
-  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
   return std::unique_ptr<speech::Microphone>();
 #else
   std::unique_ptr<speech::Microphone> mic;
@@ -54,7 +52,6 @@ MicrophoneAudioSource::CreateMicrophone(
     mic.reset(new speech::MicrophoneFake(options));
   }
 #else
-  SB_UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   if (!mic) {

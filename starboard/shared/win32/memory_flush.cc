@@ -25,8 +25,6 @@
 
 void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {
   SB_NOTIMPLEMENTED();
-  SB_UNREFERENCED_PARAMETER(virtual_address);
-  SB_UNREFERENCED_PARAMETER(size_bytes);
   // TODO: Enable the following implementation when xb1 can compile it.
   // FlushInstructionCache(GetCurrentProcess(), virtual_address, size_bytes);
 }

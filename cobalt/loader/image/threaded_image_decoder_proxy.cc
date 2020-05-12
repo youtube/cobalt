@@ -91,7 +91,6 @@ ThreadedImageDecoderProxy::~ThreadedImageDecoderProxy() {
 
 LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
     Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  SB_UNREFERENCED_PARAMETER(fetcher);
   return image_decoder_->OnResponseStarted(fetcher, headers);
 }
 

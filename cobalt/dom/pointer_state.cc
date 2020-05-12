@@ -156,7 +156,6 @@ scoped_refptr<HTMLElement> PointerState::GetPointerCaptureOverrideElement(
 
 void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
                                      script::ExceptionState* exception_state) {
-  SB_UNREFERENCED_PARAMETER(element);
   // Algorithm for Setting Pointer Capture
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#setting-pointer-capture
 
@@ -192,7 +191,6 @@ void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
 void PointerState::ReleasePointerCapture(
     int32_t pointer_id, Element* element,
     script::ExceptionState* exception_state) {
-  SB_UNREFERENCED_PARAMETER(element);
   // Algorithm for Releasing Pointer Capture
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#releasing-pointer-capture
 

@@ -24,7 +24,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 #endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
                              int64_t bitrate) {
 #if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
-  SB_UNREFERENCED_PARAMETER(content_type);
 #endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 
   if (audio_codec == kSbMediaAudioCodecAac) {

@@ -25,7 +25,6 @@ namespace {
 SB_COMPILE_ASSERT(sizeof(int32_t) < sizeof(int64_t), int32_less_than_int64);
 
 void TheUnreferencer(int unreferenced) {
-  SB_UNREFERENCED_PARAMETER(unreferenced);
 }
 
 struct PossiblyFunnySize {

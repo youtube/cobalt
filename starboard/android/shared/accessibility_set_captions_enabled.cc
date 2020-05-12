@@ -16,6 +16,5 @@
 #include "starboard/configuration.h"
 
 bool SbAccessibilitySetCaptionsEnabled(bool enabled) {
-  SB_UNREFERENCED_PARAMETER(enabled);
   return false;
 }

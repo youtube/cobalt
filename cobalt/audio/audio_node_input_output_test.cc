@@ -60,8 +60,6 @@ class AudioDestinationNodeMock : public AudioNode,
   // From AudioDevice::RenderCallback.
   void FillAudioBus(bool all_consumed, ShellAudioBus* audio_bus,
                     bool* silence) override {
-    SB_UNREFERENCED_PARAMETER(all_consumed);
-
     AudioLock::AutoLock lock(audio_lock());
 
     bool all_finished;

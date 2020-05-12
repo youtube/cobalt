@@ -22,8 +22,5 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         const char* key_system) {
   using ::starboard::shared::win32::DrmSystemPlayready;
 
-  SB_UNREFERENCED_PARAMETER(video_codec);
-  SB_UNREFERENCED_PARAMETER(audio_codec);
-
   return DrmSystemPlayready::IsKeySystemSupported(key_system);
 }

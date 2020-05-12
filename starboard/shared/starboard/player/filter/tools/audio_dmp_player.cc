@@ -74,9 +74,6 @@ SbTime s_duration;
 static void DeallocateSampleFunc(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
 }
 
 starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {

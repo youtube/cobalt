@@ -35,7 +35,6 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
 #if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
   if (std::string(configuration::Configuration::GetInstance()
                       ->CobaltRasterizerType()) == "stub") {
-    SB_UNREFERENCED_PARAMETER(system_window);
     return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
   } else {
     return std::unique_ptr<GraphicsSystem>(
@@ -45,10 +44,8 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
 #if SB_HAS(GLES2)
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
 #elif SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
-  SB_UNREFERENCED_PARAMETER(system_window);
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemBlitter());
 #else
-  SB_UNREFERENCED_PARAMETER(system_window);
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
 #endif
 #endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION

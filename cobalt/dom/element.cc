@@ -96,7 +96,6 @@ base::Optional<std::string> Element::GetAttributeNS(
     const std::string& namespace_uri, const std::string& name) const {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return GetAttribute(name);
 }
 
@@ -104,7 +103,6 @@ bool Element::HasAttributeNS(const std::string& namespace_uri,
                              const std::string& name) const {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return HasAttribute(name);
 }
 

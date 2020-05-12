@@ -22,9 +22,6 @@ bool SbCryptographyGetTag(
     SbCryptographyTransformer transformer,
     void* out_tag,
     int out_tag_size) {
-  SB_UNREFERENCED_PARAMETER(transformer);
-  SB_UNREFERENCED_PARAMETER(out_tag);
-  SB_UNREFERENCED_PARAMETER(out_tag_size);
   return false;
 }
 

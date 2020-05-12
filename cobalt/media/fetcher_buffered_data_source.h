@@ -76,7 +76,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   void Stop() override;
   bool GetSize(int64* size_out) override;
   bool IsStreaming() override { return false; }
-  void SetBitrate(int bitrate) override { SB_UNREFERENCED_PARAMETER(bitrate); }
+  void SetBitrate(int bitrate) override {}
 
   // BufferedDataSource methods.
   void SetDownloadingStatusCB(

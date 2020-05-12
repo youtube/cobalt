@@ -22,10 +22,6 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
                             const void* in_data,
                             int in_data_size,
                             void* out_data) {
-  SB_UNREFERENCED_PARAMETER(transformer);
-  SB_UNREFERENCED_PARAMETER(in_data);
-  SB_UNREFERENCED_PARAMETER(in_data_size);
-  SB_UNREFERENCED_PARAMETER(out_data);
   return 0;
 }
 

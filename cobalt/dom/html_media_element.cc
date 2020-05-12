@@ -347,7 +347,6 @@ bool HTMLMediaElement::seeking() const {
 
 float HTMLMediaElement::current_time(
     script::ExceptionState* exception_state) const {
-  SB_UNREFERENCED_PARAMETER(exception_state);
 
   if (!player_) {
     MLOG() << 0 << " (because player is NULL)";
@@ -552,7 +551,6 @@ void HTMLMediaElement::set_controls(bool controls) {
 }
 
 float HTMLMediaElement::volume(script::ExceptionState* exception_state) const {
-  SB_UNREFERENCED_PARAMETER(exception_state);
   MLOG() << volume_;
   return volume_;
 }

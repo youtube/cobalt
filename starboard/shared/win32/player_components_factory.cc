@@ -96,8 +96,6 @@ scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(drm_system);
   return output_mode == kSbPlayerOutputModeDecodeToTexture;
 }
 

@@ -85,7 +85,6 @@ bool g_hard_abort = false;
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   // This is only used on Posix, we don't need to use it for anything.
-  SB_UNREFERENCED_PARAMETER(gc_fake_mmap);
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
@@ -397,7 +396,6 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 //
 
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
-  SB_UNREFERENCED_PARAMETER(length);
   SbStringCopy(dest, src, n);
 }
 

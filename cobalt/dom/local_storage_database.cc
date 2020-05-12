@@ -29,7 +29,6 @@ namespace {
 
 void LocalStorageInit(const storage::MemoryStore& memory_store) {
   LOG(INFO) << "local_storage Init";
-  SB_UNREFERENCED_PARAMETER(memory_store);
 }
 
 void LocalStorageReadValues(

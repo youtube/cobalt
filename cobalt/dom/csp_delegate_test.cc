@@ -84,10 +84,6 @@ class ScopedLogInterceptor {
 
   static bool LogHandler(int severity, const char* file, int line,
                          size_t message_start, const std::string& str) {
-    SB_UNREFERENCED_PARAMETER(severity);
-    SB_UNREFERENCED_PARAMETER(file);
-    SB_UNREFERENCED_PARAMETER(line);
-    SB_UNREFERENCED_PARAMETER(message_start);
     *log_interceptor_->output_ += str;
     return true;
   }

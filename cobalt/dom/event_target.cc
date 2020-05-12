@@ -260,7 +260,6 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::TraceMembers(script::Tracer* tracer) {
-  SB_UNREFERENCED_PARAMETER(tracer);
   // TODO: EventListenerInfo references can be removed and logically live here
   // instead.
 }

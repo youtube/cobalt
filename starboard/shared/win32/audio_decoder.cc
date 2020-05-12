@@ -77,7 +77,6 @@ AudioDecoder::~AudioDecoder() {
 void AudioDecoder::Initialize(const OutputCB& output_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_UNREFERENCED_PARAMETER(error_cb);
 
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);

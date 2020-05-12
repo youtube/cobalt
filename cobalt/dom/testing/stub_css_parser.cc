@@ -20,8 +20,6 @@ namespace testing {
 
 scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(input);
-  SB_UNREFERENCED_PARAMETER(input_location);
   cssom::CSSStyleSheet* new_style_sheet = new cssom::CSSStyleSheet();
   new_style_sheet->SetOriginClean(true);
   return new_style_sheet;
@@ -29,33 +27,24 @@ scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
 
 scoped_refptr<cssom::CSSRule> StubCSSParser::ParseRule(
     const std::string& input, const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(input);
-  SB_UNREFERENCED_PARAMETER(input_location);
   return NULL;
 }
 
 scoped_refptr<cssom::CSSDeclaredStyleData>
 StubCSSParser::ParseStyleDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(input);
-  SB_UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSDeclaredStyleData();
 }
 
 scoped_refptr<cssom::CSSFontFaceDeclarationData>
 StubCSSParser::ParseFontFaceDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(input);
-  SB_UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSFontFaceDeclarationData();
 }
 
 scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location) {
-  SB_UNREFERENCED_PARAMETER(property_name);
-  SB_UNREFERENCED_PARAMETER(property_value);
-  SB_UNREFERENCED_PARAMETER(property_location);
   return NULL;
 }
 
@@ -63,24 +52,16 @@ void StubCSSParser::ParsePropertyIntoDeclarationData(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location,
     cssom::CSSDeclarationData* declaration_data) {
-  SB_UNREFERENCED_PARAMETER(property_name);
-  SB_UNREFERENCED_PARAMETER(property_value);
-  SB_UNREFERENCED_PARAMETER(property_location);
-  SB_UNREFERENCED_PARAMETER(declaration_data);
 }
 
 scoped_refptr<cssom::MediaList> StubCSSParser::ParseMediaList(
     const std::string& media_list, const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(media_list);
-  SB_UNREFERENCED_PARAMETER(input_location);
   return new cssom::MediaList();
 }
 
 scoped_refptr<cssom::MediaQuery> StubCSSParser::ParseMediaQuery(
     const std::string& media_query,
     const base::SourceLocation& input_location) {
-  SB_UNREFERENCED_PARAMETER(media_query);
-  SB_UNREFERENCED_PARAMETER(input_location);
   return new cssom::MediaQuery();
 }
 

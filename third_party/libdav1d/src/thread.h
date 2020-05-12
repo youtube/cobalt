@@ -139,7 +139,6 @@ int dav1d_pthread_attr_setstacksize(dav1d_pthread_attr_t* const attr,
 // static
 int dav1d_pthread_mutex_init(dav1d_pthread_mutex_t* const mutex,
                              const void* const attr) {
-  SB_UNREFERENCED_PARAMETER(attr);
   SbMutexCreate(mutex);
   return 0;
 }
@@ -165,7 +164,6 @@ int dav1d_pthread_mutex_unlock(dav1d_pthread_mutex_t* const mutex) {
 // static
 int dav1d_pthread_cond_init(dav1d_pthread_cond_t* const cond,
                             const void* const attr) {
-  SB_UNREFERENCED_PARAMETER(attr);
   SbConditionVariableCreate(cond, NULL);
   return 0;
 }

@@ -1221,7 +1221,6 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
       response_text.as_string().c_str());
   out << xhr_out;
 #else
-  SB_UNREFERENCED_PARAMETER(xhr);
 #endif
   return out;
 }

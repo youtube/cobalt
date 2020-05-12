@@ -110,7 +110,6 @@ class DummyImage : public Image {
 
 class DummyBrush : public Brush {
   void Accept(BrushVisitor* visitor) const override {
-    SB_UNREFERENCED_PARAMETER(visitor);
   }
 
   base::TypeId GetTypeId() const override {

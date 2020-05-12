@@ -71,9 +71,6 @@ void InlineLevelReplacedBox::UpdateHorizontalMargins(
     LayoutUnit containing_block_width, LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& maybe_margin_left,
     const base::Optional<LayoutUnit>& maybe_margin_right) {
-  SB_UNREFERENCED_PARAMETER(containing_block_direction);
-  SB_UNREFERENCED_PARAMETER(containing_block_width);
-  SB_UNREFERENCED_PARAMETER(border_box_width);
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".

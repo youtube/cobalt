@@ -413,7 +413,6 @@ void InterpolateVisitor::VisitFontWeight(
 }
 
 void InterpolateVisitor::VisitInteger(IntegerValue* integer_value) {
-  SB_UNREFERENCED_PARAMETER(integer_value);
   interpolated_value_ = end_value_;
 }
 

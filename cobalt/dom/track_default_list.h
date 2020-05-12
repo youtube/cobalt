@@ -36,7 +36,6 @@ class TrackDefaultList : public script::Wrappable {
   // Web API: TrackDefaultList
   //
   explicit TrackDefaultList(script::ExceptionState* exception_state) {
-    SB_UNREFERENCED_PARAMETER(exception_state);
   }
   TrackDefaultList(
       const script::Sequence<scoped_refptr<TrackDefault> >& track_defaults,
