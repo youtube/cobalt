@@ -29,7 +29,7 @@
 
 namespace {
 // The max number of installations slots.
-const int kMaxNumInstallations = 3;
+const int kMaxNumInstallations = 2;
 
 // Relative path for the Cobalt so file.
 const char kCobaltLibraryPath[] = "lib";
