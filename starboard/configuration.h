@@ -293,6 +293,10 @@
 #define SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Deprecate Web Extension support. The Platform Services API should be used
+// instead. See cobalt/doc/platform_services.md.
+#define SB_WEBAPI_EXTENSION_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
