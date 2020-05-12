@@ -17,7 +17,6 @@
 
 #if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 bool SbAccessibilitySetCaptionsEnabled(bool enabled) {
-  SB_UNREFERENCED_PARAMETER(enabled);
   return false;
 }
 #endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)

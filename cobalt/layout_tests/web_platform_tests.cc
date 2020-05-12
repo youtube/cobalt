@@ -65,7 +65,6 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
       const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
-    SB_UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(std::move(violation_reporter), url,
                                      require_csp, policy_changed_callback);
   }

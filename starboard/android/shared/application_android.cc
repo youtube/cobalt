@@ -137,7 +137,6 @@ void ApplicationAndroid::Teardown() {
 }
 
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
-  SB_UNREFERENCED_PARAMETER(options);
   if (SbWindowIsValid(window_)) {
     return kSbWindowInvalid;
   }

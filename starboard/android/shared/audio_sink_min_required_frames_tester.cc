@@ -168,8 +168,6 @@ void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
 void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
                                                 SbTime frames_consumed_at,
                                                 void* context) {
-  SB_UNREFERENCED_PARAMETER(frames_consumed_at);
-
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);
   SB_DCHECK(tester);

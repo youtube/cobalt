@@ -38,10 +38,8 @@ class BufferedDataSource : public DataSource {
 
   virtual void SetDownloadingStatusCB(
       const DownloadingStatusCB& downloading_status_cb) {
-    SB_UNREFERENCED_PARAMETER(downloading_status_cb);
   }
   virtual void SetPreload(Preload preload) {
-    SB_UNREFERENCED_PARAMETER(preload);
   }
   virtual bool HasSingleOrigin() { return true; }
   virtual bool DidPassCORSAccessCheck() const { return true; }

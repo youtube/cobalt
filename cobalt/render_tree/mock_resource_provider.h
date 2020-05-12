@@ -106,7 +106,6 @@ class MockResourceProvider : public ResourceProvider {
 #if SB_HAS(GRAPHICS)
 
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
-    SB_UNREFERENCED_PARAMETER(target);
     return NULL;
   }
 

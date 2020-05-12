@@ -18,10 +18,6 @@ int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(resolution_width);
-  SB_UNREFERENCED_PARAMETER(resolution_height);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
   // TODO: refine this to a more reasonable value, taking into account
   // resolution. On most platforms this is 36 * 1024 * 1024 for 1080p, and
   // 65 * 1024 * 1024 for 4k.

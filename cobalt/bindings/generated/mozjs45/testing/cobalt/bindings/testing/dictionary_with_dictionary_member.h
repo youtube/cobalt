@@ -79,7 +79,6 @@ class DictionaryWithDictionaryMember {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::DictionaryWithDictionaryMember& in) {
-  SB_UNREFERENCED_PARAMETER(in);
   stream << "[DictionaryWithDictionaryMember]";
   return stream;
 }

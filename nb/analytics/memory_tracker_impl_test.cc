@@ -45,7 +45,6 @@ struct CustomObject {
 }
 
 void* operator new(std::size_t size, CustomObject ignored) {
-  SB_UNREFERENCED_PARAMETER(ignored);
   // Volatile prevents optimization and elimination of operator new by the
   // optimizing compiler.
   volatile void* ptr = ::operator new(size);

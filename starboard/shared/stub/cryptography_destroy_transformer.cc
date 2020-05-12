@@ -19,7 +19,6 @@
 #include "starboard/cryptography.h"
 
 void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
-  SB_UNREFERENCED_PARAMETER(transformer);
 }
 
 #endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

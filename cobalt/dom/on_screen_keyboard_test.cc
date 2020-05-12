@@ -22,8 +22,8 @@
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
@@ -112,8 +112,6 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
 
   void UpdateSuggestions(const script::Sequence<std::string>& suggestions,
                          int ticket) override {
-    SB_UNREFERENCED_PARAMETER(suggestions);
-    SB_UNREFERENCED_PARAMETER(ticket);
     // TODO: implement and test this.
     SB_NOTIMPLEMENTED();
   }

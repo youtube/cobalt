@@ -23,7 +23,6 @@
 #endif  // SB_API_VERSION >= 11
 
 void SbLog(SbLogPriority priority, const char* message) {
-  SB_UNREFERENCED_PARAMETER(priority);
 #if SB_API_VERSION < 11
   fprintf(stderr, "%s", message);
   fflush(stderr);

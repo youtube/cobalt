@@ -22,12 +22,5 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(key_system);
-  SB_UNREFERENCED_PARAMETER(update_request_callback);
-  SB_UNREFERENCED_PARAMETER(session_updated_callback);
-  SB_UNREFERENCED_PARAMETER(key_statuses_changed_callback);
-  SB_UNREFERENCED_PARAMETER(server_certificate_updated_callback);
-  SB_UNREFERENCED_PARAMETER(session_closed_callback);
   return kSbDrmSystemInvalid;
 }

@@ -37,15 +37,12 @@ class StubImageDecoder : public ImageDataDecoder {
   std::string GetTypeString() const override { return "StubImageDecoder"; }
 
   static bool IsValidSignature(const uint8* header) {
-    SB_UNREFERENCED_PARAMETER(header);
     return true;
   }
 
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override {
-    SB_UNREFERENCED_PARAMETER(data);
-    SB_UNREFERENCED_PARAMETER(input_byte);
     if (!decoded_image_data_) {
       decoded_image_data_ = AllocateImageData(math::Size(4, 4), true);
       DCHECK(decoded_image_data_);

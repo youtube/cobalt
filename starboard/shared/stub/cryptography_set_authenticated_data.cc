@@ -22,9 +22,6 @@ bool SbCryptographySetAuthenticatedData(
     SbCryptographyTransformer transformer,
     const void* data,
     int data_size) {
-  SB_UNREFERENCED_PARAMETER(transformer);
-  SB_UNREFERENCED_PARAMETER(data);
-  SB_UNREFERENCED_PARAMETER(data_size);
   return false;
 }
 

@@ -61,7 +61,6 @@ class TestDimensionSetting : public DimensionSetting {
   explicit TestDimensionSetting(const std::string& name)
       : DimensionSetting(name) {}
   virtual void ScaleMemory(double absolute_constraining_value) {
-    SB_UNREFERENCED_PARAMETER(absolute_constraining_value);
   }
 };
 

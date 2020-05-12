@@ -136,11 +136,6 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   }
 
   void SetBounds(int z_index, int x, int y, int width, int height) override {
-    SB_UNREFERENCED_PARAMETER(z_index);
-    SB_UNREFERENCED_PARAMETER(x);
-    SB_UNREFERENCED_PARAMETER(y);
-    SB_UNREFERENCED_PARAMETER(width);
-    SB_UNREFERENCED_PARAMETER(height);
   }
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,

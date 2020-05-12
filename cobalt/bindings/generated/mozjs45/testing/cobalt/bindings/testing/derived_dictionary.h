@@ -75,7 +75,6 @@ class DerivedDictionary : public cobalt::bindings::testing::TestDictionary {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::DerivedDictionary& in) {
-  SB_UNREFERENCED_PARAMETER(in);
   stream << "[DerivedDictionary]";
   return stream;
 }

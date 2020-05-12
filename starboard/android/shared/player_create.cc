@@ -41,8 +41,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
-  SB_UNREFERENCED_PARAMETER(window);
-
   if (!creation_param) {
     SB_LOG(ERROR) << "CreationParam cannot be null.";
     return kSbPlayerInvalid;

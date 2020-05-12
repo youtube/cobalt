@@ -96,7 +96,6 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnDone(Fetcher* fetcher) override {

@@ -34,8 +34,6 @@ struct ItemImpl {
 NativeItem CreateItem(NativeItemType type,
                       const NativeCallbacks* callbacks,
                       void* callback_context) {
-  SB_UNREFERENCED_PARAMETER(callbacks);
-  SB_UNREFERENCED_PARAMETER(callback_context);
   return reinterpret_cast<NativeItem>(new ItemImpl(type));
 }
 
@@ -44,51 +42,32 @@ void DestroyItem(NativeItem item) {
 }
 
 void SetFocus(NativeItem item) {
-  SB_UNREFERENCED_PARAMETER(item);
 }
 
 void SetItemEnabled(NativeItem item, bool enabled) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(enabled);
 }
 
 void SetItemDir(NativeItem item, NativeItemDir dir) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(dir);
 }
 
 void SetItemSize(NativeItem item, float width, float height) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(width);
-  SB_UNREFERENCED_PARAMETER(height);
 }
 
 void SetItemTransform(NativeItem item, const NativeMatrix2x3* transform) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(transform);
 }
 
 bool GetItemFocusTransform(NativeItem item, NativeMatrix4* out_transform) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(out_transform);
   return false;
 }
 
 bool GetItemFocusVector(NativeItem item, float* out_x, float* out_y) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(out_x);
-  SB_UNREFERENCED_PARAMETER(out_y);
   return false;
 }
 
 void SetItemContainerWindow(NativeItem item, SbWindow window) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(window);
 }
 
 void SetItemContainerItem(NativeItem item, NativeItem container) {
-  SB_UNREFERENCED_PARAMETER(item);
-  SB_UNREFERENCED_PARAMETER(container);
 }
 
 void SetItemContentOffset(NativeItem item,

@@ -143,7 +143,6 @@ class ReuseAllocatorBase : public Allocator {
                                                    FreeBlockSet::iterator begin,
                                                    FreeBlockSet::iterator end,
                                                    bool* allocate_from_front) {
-    SB_UNREFERENCED_PARAMETER(context);
     return FindFreeBlock(size, alignment, begin, end, allocate_from_front);
   }
 

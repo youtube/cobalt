@@ -27,8 +27,6 @@ using starboard::android::shared::SupportedAudioCodecToMimeType;
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
                              int64_t bitrate) {
-  SB_UNREFERENCED_PARAMETER(content_type);
-
   // Android now uses libopus based opus decoder.
   if (audio_codec == kSbMediaAudioCodecOpus &&
       bitrate < kSbMediaMaxAudioBitrateInBitsPerSecond) {

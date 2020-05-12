@@ -48,12 +48,10 @@ class Loader::FetcherHandlerToDecoderAdapter : public Fetcher::Handler {
   }
 
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnReceivedPassed(Fetcher* fetcher,
                         std::unique_ptr<std::string> data) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunkPassed(std::move(data));
   }
   void OnDone(Fetcher* fetcher) override {

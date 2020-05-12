@@ -103,7 +103,6 @@ void VideoDmpWriter::OnPlayerCreate(
     SbDrmSystem drm_system,
     const SbMediaAudioSampleInfo* audio_sample_info) {
   // TODO: Allow dump of drm initialization data
-  SB_UNREFERENCED_PARAMETER(drm_system);
 
   PlayerToWriterMap* map = GetOrCreatePlayerToWriterMap();
   if (!map->dump_video_data()) {

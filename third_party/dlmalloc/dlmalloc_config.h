@@ -171,7 +171,6 @@
 #define close SbFileClose
 
 void oom_fprintf(int ignored, const char *format, ...) {
-  SB_UNREFERENCED_PARAMETER(ignored);
   va_list arguments;
   va_start(arguments, format);
   SbLogRawFormat(format, arguments);

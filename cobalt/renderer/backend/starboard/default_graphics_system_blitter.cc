@@ -25,7 +25,6 @@ namespace backend {
 
 std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     system_window::SystemWindow* system_window) {
-  SB_UNREFERENCED_PARAMETER(system_window);
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemBlitter());
 }
 

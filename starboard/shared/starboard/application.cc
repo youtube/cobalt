@@ -76,7 +76,6 @@ Application::Application()
           reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
           reinterpret_cast<SbAtomicPtr>(this)));
   SB_DCHECK(!old_instance);
-  SB_UNREFERENCED_PARAMETER(old_instance);
 }
 
 Application::~Application() {

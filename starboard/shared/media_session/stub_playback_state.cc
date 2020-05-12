@@ -21,7 +21,6 @@ namespace shared {
 namespace media_session {
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
-  SB_UNREFERENCED_PARAMETER(state);
   SB_NOTIMPLEMENTED();
 }
 

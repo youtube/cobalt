@@ -22,9 +22,6 @@ void SbCryptographySetInitializationVector(
     SbCryptographyTransformer transformer,
     const void* initialization_vector,
     int initialization_vector_size) {
-  SB_UNREFERENCED_PARAMETER(transformer);
-  SB_UNREFERENCED_PARAMETER(initialization_vector);
-  SB_UNREFERENCED_PARAMETER(initialization_vector_size);
 }
 
 #endif  // SB_CRYPTOAPI_DEPRECATED_VERSION

@@ -54,9 +54,6 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
                                int certificate_size) override {
-    SB_UNREFERENCED_PARAMETER(ticket);
-    SB_UNREFERENCED_PARAMETER(certificate);
-    SB_UNREFERENCED_PARAMETER(certificate_size);
   }
 
   jobject GetMediaCrypto() const { return j_media_crypto_; }
