@@ -352,28 +352,6 @@ void ReplacedBox::RenderAndAnimateContent(
     RenderAndAnimateContentWithMapToMesh(border_node_builder,
                                          mtm_filter_function);
   } else {
-#if defined(FORCE_VIDEO_EXTERNAL_MESH)
-    if (*replaced_box_mode_ == ReplacedBox : ReplacedBoxMode::kVideo) {
-      AnimateNode::Builder animate_node_builder;
-      scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
-      animate_node_builder.Add(
-          image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
-
-      render_tree::StereoMode stereo_mode = render_tree::kMono;
-
-      if (mtm_filter_function) {
-        // For rectangular stereo.
-        stereo_mode = ReadStereoMode(mtm_filter_function->stereo_mode());
-      }
-
-      // Attach an empty map to mesh filter node to signal the need for an
-      // external mesh.
-      border_node_builder->AddChild(new FilterNode(
-          MapToMeshFilter(stereo_mode, render_tree::kRectangular),
-          new AnimateNode(animate_node_builder, image_node)));
-      return;
-    }
-#endif
     RenderAndAnimateContentWithLetterboxing(border_node_builder);
   }
 }
