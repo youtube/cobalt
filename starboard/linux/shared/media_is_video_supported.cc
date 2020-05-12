@@ -53,8 +53,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #endif  // SB_API_VERSION < 11
 
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  SB_UNREFERENCED_PARAMETER(profile);
-  SB_UNREFERENCED_PARAMETER(level);
 
 #if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
   if (!content_type) {

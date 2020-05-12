@@ -167,7 +167,6 @@ void Camera3DInputPoller::ClampAngles() {
 
 scoped_refptr<Camera3D> CreatedDefaultCamera3D(
     SbWindow window, const scoped_refptr<InputPoller>& input_poller) {
-  SB_UNREFERENCED_PARAMETER(window);
   return new Camera3DInputPoller(input_poller);
 }
 

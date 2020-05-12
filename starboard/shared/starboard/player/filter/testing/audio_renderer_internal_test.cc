@@ -273,7 +273,6 @@ class AudioRendererTest : public ::testing::Test {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer) {
-    SB_UNREFERENCED_PARAMETER(player);
     AudioRendererTest* test = static_cast<AudioRendererTest*>(context);
     EXPECT_TRUE(test != NULL);
     test->OnDeallocateSample(sample_buffer);

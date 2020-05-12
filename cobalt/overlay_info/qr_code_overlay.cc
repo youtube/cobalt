@@ -154,7 +154,6 @@ scoped_refptr<Image> CreateImageForQrCode(const QrCode& qr_code,
 void AnimateCB(math::Size screen_size, int slots,
                ResourceProvider* resource_provider,
                ImageNode::Builder* image_node, base::TimeDelta time) {
-  SB_UNREFERENCED_PARAMETER(time);
   DCHECK(image_node);
 
   TRACE_EVENT0("cobalt::overlay_info", "AnimateCB()");

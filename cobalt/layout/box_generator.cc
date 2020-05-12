@@ -64,7 +64,6 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 #if SB_HAS(GRAPHICS)
     return resource_provider->CreateImageFromSbDecodeTarget(decode_target);
 #else   // SB_HAS(GRAPHICS)
-    SB_UNREFERENCED_PARAMETER(resource_provider);
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   } else {

@@ -137,7 +137,6 @@ HardwareRasterizer::Impl::~Impl() {
 #if defined(ENABLE_DEBUGGER)
 void HardwareRasterizer::Impl::OnToggleHighlightSoftwareDraws(
     const std::string& message) {
-  SB_UNREFERENCED_PARAMETER(message);
   toggle_highlight_software_draws_ = !toggle_highlight_software_draws_;
 }
 #endif

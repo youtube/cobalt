@@ -262,7 +262,6 @@ scoped_refptr<render_tree::Mesh> SoftwareResourceProvider::CreateMesh(
 
 scoped_refptr<render_tree::Image> SoftwareResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
-  SB_UNREFERENCED_PARAMETER(root);
   return scoped_refptr<render_tree::Image>(NULL);
 }
 

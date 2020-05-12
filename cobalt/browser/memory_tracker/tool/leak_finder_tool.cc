@@ -102,7 +102,6 @@ void LeakFinderTool::OnMemoryAllocation(
 void LeakFinderTool::OnMemoryDeallocation(
     const void* memory_block, const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack) {
-  SB_UNREFERENCED_PARAMETER(callstack);
 
   const std::string* symbol_str = NULL;
 

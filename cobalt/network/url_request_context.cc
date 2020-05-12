@@ -159,7 +159,6 @@ URLRequestContext::URLRequestContext(
   context.net_log = net_log;
   set_net_log(net_log);
 #else
-  SB_UNREFERENCED_PARAMETER(net_log);
 #endif
   context.socket_performance_watcher_factory = NULL;
   context.network_quality_provider = NULL;

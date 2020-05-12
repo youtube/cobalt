@@ -647,12 +647,8 @@ class CValStub {
   CValStub(const std::string& name, const T& initial_value,
            const std::string& description)
       : value_(initial_value) {
-    SB_UNREFERENCED_PARAMETER(name);
-    SB_UNREFERENCED_PARAMETER(description);
   }
   CValStub(const std::string& name, const std::string& description) {
-    SB_UNREFERENCED_PARAMETER(name);
-    SB_UNREFERENCED_PARAMETER(description);
   }
 
   operator T() const { return value_; }

@@ -99,7 +99,8 @@ class Element : public Node {
                                              const std::string& name) const;
   bool HasAttributeNS(const std::string& namespace_uri,
                       const std::string& name) const;
-  bool Matches(const std::string& selectors,script::ExceptionState* exception_state);
+  bool Matches(const std::string& selectors,
+               script::ExceptionState* exception_state);
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& local_name) const;
@@ -177,7 +178,6 @@ class Element : public Node {
   // opening_tag_location points to ">" of opening tag.
   virtual void OnParserStartTag(
       const base::SourceLocation& opening_tag_location) {
-    SB_UNREFERENCED_PARAMETER(opening_tag_location);
   }
   virtual void OnParserEndTag() {}
 

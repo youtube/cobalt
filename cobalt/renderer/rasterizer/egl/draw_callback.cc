@@ -33,14 +33,10 @@ DrawCallback::DrawCallback(const base::Closure& rasterize_callback)
 
 void DrawCallback::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
-  SB_UNREFERENCED_PARAMETER(graphics_state);
-  SB_UNREFERENCED_PARAMETER(program_manager);
 }
 
 void DrawCallback::ExecuteRasterize(GraphicsState* graphics_state,
                                     ShaderProgramManager* program_manager) {
-  SB_UNREFERENCED_PARAMETER(graphics_state);
-  SB_UNREFERENCED_PARAMETER(program_manager);
   if (!rasterize_callback_.is_null()) {
     rasterize_callback_.Run();
   }

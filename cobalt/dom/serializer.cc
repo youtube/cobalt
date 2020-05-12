@@ -113,7 +113,6 @@ void Serializer::Visit(const Comment* comment) {
 }
 
 void Serializer::Visit(const Document* document) {
-  SB_UNREFERENCED_PARAMETER(document);
 }
 
 void Serializer::Visit(const DocumentType* document_type) {

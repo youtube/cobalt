@@ -56,9 +56,6 @@ std::string GetTestInputDirectory() {
 void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
 }
 
 std::string ResolveTestFileName(const char* filename) {

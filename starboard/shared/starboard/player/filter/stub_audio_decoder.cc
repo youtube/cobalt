@@ -46,7 +46,6 @@ StubAudioDecoder::StubAudioDecoder(
 
 void StubAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
-  SB_UNREFERENCED_PARAMETER(error_cb);
   output_cb_ = output_cb;
 }
 

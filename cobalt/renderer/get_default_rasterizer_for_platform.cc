@@ -36,7 +36,6 @@ namespace {
 std::unique_ptr<rasterizer::Rasterizer> CreateStubRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
-  SB_UNREFERENCED_PARAMETER(graphics_context);
   return std::unique_ptr<rasterizer::Rasterizer>(
       new rasterizer::stub::Rasterizer());
 }

@@ -205,7 +205,6 @@ Window::Window(
       ui_nav_root_(ui_nav_root),
       enable_map_to_mesh_(enable_map_to_mesh) {
 #if !defined(ENABLE_TEST_RUNNER)
-  SB_UNREFERENCED_PARAMETER(clock_type);
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);

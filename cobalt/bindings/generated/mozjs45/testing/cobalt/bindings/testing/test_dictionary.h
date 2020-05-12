@@ -281,7 +281,6 @@ class TestDictionary {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::TestDictionary& in) {
-  SB_UNREFERENCED_PARAMETER(in);
   stream << "[TestDictionary]";
   return stream;
 }

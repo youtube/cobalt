@@ -18,9 +18,6 @@
 bool SbThreadContextGetPointer(SbThreadContext context,
                                SbThreadContextProperty property,
                                void** out_value) {
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(property);
-  SB_UNREFERENCED_PARAMETER(out_value);
   return false;
 }
 #endif  // SB_API_VERSION >= 11

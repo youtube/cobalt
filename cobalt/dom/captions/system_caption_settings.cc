@@ -555,7 +555,6 @@ void SystemCaptionSettings::set_is_enabled(bool active) {
   DCHECK(supports_set_enabled());
   SbAccessibilitySetCaptionsEnabled(active);
 #else
-  SB_UNREFERENCED_PARAMETER(active);
 #endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 }
 

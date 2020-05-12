@@ -107,9 +107,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbDecodeTargetGraphicsContextProvider* provider) {
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-  SB_UNREFERENCED_PARAMETER(window);
 #if SB_API_VERSION >= 11
-  SB_UNREFERENCED_PARAMETER(max_video_capabilities);
 #endif  // SB_API_VERSION >= 11
 #if SB_API_VERSION >= 11
   if (audio_sample_info) {

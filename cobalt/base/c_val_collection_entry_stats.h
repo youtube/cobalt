@@ -320,18 +320,13 @@ class CValCollectionEntryStatsStub {
   typedef typename FlushResults::OnFlushCallback OnFlushCallback;
 
   explicit CValCollectionEntryStatsStub(const std::string& name) {
-    SB_UNREFERENCED_PARAMETER(name);
   }
   CValCollectionEntryStatsStub(
       const std::string& name, size_t max_size, bool enable_entry_list_c_val,
       const OnFlushCallback& on_flush = OnFlushCallback()) {
-    SB_UNREFERENCED_PARAMETER(name);
-    SB_UNREFERENCED_PARAMETER(max_size);
-    SB_UNREFERENCED_PARAMETER(enable_entry_list_c_val);
-    SB_UNREFERENCED_PARAMETER(on_flush);
   }
 
-  void AddEntry(const EntryType& value) { SB_UNREFERENCED_PARAMETER(value); }
+  void AddEntry(const EntryType& value) {}
   void Flush() {}
 };
 #endif  // ENABLE_DEBUG_C_VAL

@@ -45,12 +45,8 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   // Functions to map input keys to camera controls.
   virtual void CreateKeyMapping(int keycode, uint32 camera_axis,
                                 float degrees_per_second) {
-    SB_UNREFERENCED_PARAMETER(keycode);
-    SB_UNREFERENCED_PARAMETER(camera_axis);
-    SB_UNREFERENCED_PARAMETER(degrees_per_second);
   }
   virtual void ClearKeyMapping(int keycode) {
-    SB_UNREFERENCED_PARAMETER(keycode);
   }
   virtual void ClearAllKeyMappings() {}
 
@@ -66,8 +62,6 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   // Updates the camera's perspective parameters.
   virtual void UpdatePerspective(float width_to_height_aspect_ratio,
                                  float vertical_fov) {
-    SB_UNREFERENCED_PARAMETER(width_to_height_aspect_ratio);
-    SB_UNREFERENCED_PARAMETER(vertical_fov);
   }
 
   // Returns the camera's view and projection matrices, setup according to the

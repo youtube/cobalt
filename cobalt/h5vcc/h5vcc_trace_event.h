@@ -29,8 +29,6 @@ namespace h5vcc {
 
 #define DEFINE_H5VCC_TRACE_EVENT0(Name, FunctionName)                      \
   void Trace##Name(const std::string& category, const std::string& name) { \
-    SB_UNREFERENCED_PARAMETER(category);                                   \
-    SB_UNREFERENCED_PARAMETER(name);                                       \
     TRACE_EVENT_COPY_##FunctionName##0(category.c_str(), name.c_str());    \
   }
 
@@ -43,10 +41,6 @@ namespace h5vcc {
 #define DEFINE_H5VCC_TRACE_EVENT1(TraceName, FunctionName, CppType)           \
   void Trace##TraceName(const std::string& category, const std::string& name, \
                         const std::string& arg1_name, CppType arg1_value) {   \
-    SB_UNREFERENCED_PARAMETER(category);                                      \
-    SB_UNREFERENCED_PARAMETER(name);                                          \
-    SB_UNREFERENCED_PARAMETER(arg1_name);                                     \
-    SB_UNREFERENCED_PARAMETER(arg1_value);                                    \
     TRACE_EVENT_COPY_##FunctionName##1(category.c_str(), name.c_str(),        \
                                        arg1_name.c_str(), arg1_value);        \
   }

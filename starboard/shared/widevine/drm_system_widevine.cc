@@ -631,14 +631,11 @@ void DrmSystemWidevine::onKeyStatusesChange(
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
   SB_NOTIMPLEMENTED();
 }
 
 void DrmSystemWidevine::onDeferredComplete(const std::string& wvcdm_session_id,
                                            wv3cdm::Status result) {
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
-  SB_UNREFERENCED_PARAMETER(result);
   SB_NOTIMPLEMENTED();
 }
 
