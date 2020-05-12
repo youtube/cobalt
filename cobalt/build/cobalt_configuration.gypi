@@ -163,6 +163,9 @@
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
 
+    # NOTE: Web Extension support is deprecated. Please use Platform Services
+    # (cobalt/doc/platform_services.md) instead.
+    #
     # Override this to inject a custom interface into Cobalt's JavaScript
     # `window` global object.  This implies that you will have to provide your
     # own IDL files to describe that interface and all interfaces that it
