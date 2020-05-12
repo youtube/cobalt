@@ -1,5 +1,12 @@
 # Cobalt Web Extension Support
 
+## Deprecation
+Please note that Web Extension support is deprecated. Please use Platform
+Services (cobalt/doc/platform_services.md) instead. This is an effort to move
+away from injecting compile-time modules into the Cobalt layer in favor of
+using runtime extensions provided by the Starboard layer.
+
+## Overview
 Cobalt provides a facility for extending the JavaScript Web API.  This allows
 custom web apps running on Cobalt to make calls through a custom API to
 C++ Cobalt code defined per Starboard platform.  This can allow for closer
@@ -22,7 +29,7 @@ Starboard's
 [Application Customization](../../starboard/doc/building.md#application-customization)
 for more information):
 
-1. `cobalt_webapi_extension_source_idl_files`  
+1. `cobalt_webapi_extension_source_idl_files`
    This should be a list of [IDL files](https://en.wikipedia.org/wiki/Web_IDL)
    that define the collection of new interfaces introduced by your extensions.
    One of these new interfaces can be selected to be injected into the `window`
@@ -33,12 +40,12 @@ for more information):
    declared in the IDL file, as well as an implementation of all the methods
    within it (either inline in the header file or in a corresponding source
    file).
-2. `cobalt_webapi_extension_generated_header_idl_files`  
+2. `cobalt_webapi_extension_generated_header_idl_files`
    This is a list of all files that may result in automatic header file
    generation that might be referenced from other C++ code.  An example of
    this is the definition of `enum`s that may then be referenced as types in
    a file from 1. `cobalt_webapi_extension_source_idl_files`.
-3. `cobalt_webapi_extension_gyp_target`  
+3. `cobalt_webapi_extension_gyp_target`
    This is the gyp target that will provide the IDL interface implementations,
    as well as any necessary auxiliary code.  It will be added as a dependency of
    [browser/cobalt.gyp:cobalt](../browser/cobalt.gyp).  It is expected that
@@ -72,7 +79,7 @@ contains the following variable definitions:
 ## Implementing the [webapi_extension.h](../browser/webapi_extension.h) interface
 
 As discussed above in 3. `cobalt_webapi_extension_gyp_target`, you must provide
-an implementation of the two functions declared in 
+an implementation of the two functions declared in
 [browser/webapi_extension.h](../browser/webapi_extension.h).
 
 ### `GetWebAPIExtensionObjectPropertyName()`

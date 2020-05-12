@@ -216,6 +216,11 @@
             '<@(cobalt_platform_dependencies)',
           ],
         }],
+        ['"<(cobalt_webapi_extension_source_idl_files)"!="" or "<(cobalt_webapi_extension_generated_header_idl_files)"!=""', {
+          'defines': [
+            'COBALT_WEBAPI_EXTENSION_DEFINED',
+          ],
+        }],
       ],
     },
 

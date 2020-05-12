@@ -201,11 +201,13 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
 }
 
+#if SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
   return CreateWebAPIExtensionObject(window, global_environment);
 }
+#endif
 
 renderer::RendererModule::Options RendererModuleWithCameraOptions(
     renderer::RendererModule::Options options,
@@ -389,6 +391,7 @@ BrowserModule::BrowserModule(const GURL& url,
       !command_line->HasSwitch(switches::kDisablePartialLayout);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+#if SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
   base::Optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {
@@ -396,6 +399,7 @@ BrowserModule::BrowserModule(const GURL& url,
         .injected_window_attributes[*extension_object_name] =
         base::Bind(&CreateExtensionInterface);
   }
+#endif
 
 #if defined(ENABLE_DEBUGGER) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {

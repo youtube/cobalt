@@ -48,6 +48,13 @@ This document records all notable changes made to Cobalt since the last release.
    playback.  The lower CPU utilization of the MainWebModule thread allows it to
    process other tasks (like Javascript execution) more responsively.
 
+ - **Web Extension support is deprecated.**
+
+   Web Extension support is deprecated. Please migrate to Platform Services
+   (cobalt/doc/platform_services.md) instead. This is part of an effort to move
+   away from injecting compile-time modules into the Cobalt layer in favor of
+   using runtime extensions provided by the Starboard layer.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**

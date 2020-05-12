@@ -22,8 +22,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
@@ -36,7 +34,6 @@ import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
-import dev.cobalt.feedback.FeedbackService;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
 import dev.cobalt.media.CobaltMediaSession;
@@ -62,7 +59,6 @@ public class StarboardBridge {
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   private UserAuthorizer userAuthorizer;
-  private FeedbackService feedbackService;
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private VoiceRecognizer voiceRecognizer;
@@ -96,7 +92,6 @@ public class StarboardBridge {
       Context appContext,
       Holder<Activity> activityHolder,
       UserAuthorizer userAuthorizer,
-      FeedbackService feedbackService,
       String[] args,
       String startDeepLink) {
 
@@ -111,7 +106,6 @@ public class StarboardBridge {
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext, stopRequester);
     this.userAuthorizer = userAuthorizer;
-    this.feedbackService = feedbackService;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
@@ -152,7 +146,6 @@ public class StarboardBridge {
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
     cobaltMediaSession.resume();
-    feedbackService.connect();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
@@ -166,7 +159,6 @@ public class StarboardBridge {
     // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
     // can take their time suspending after that.
     cobaltMediaSession.suspend();
-    feedbackService.disconnect();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeSuspend();
     }
@@ -417,21 +409,6 @@ public class StarboardBridge {
   @UsedByNative
   UserAuthorizer getUserAuthorizer() {
     return userAuthorizer;
-  }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
-  void sendFeedback(
-      HashMap<String, String> productSpecificData, String categoryTag, byte[] screenshotData) {
-    // Convert the screenshot byte array into a Bitmap.
-    Bitmap screenshotBitmap = null;
-    if ((screenshotData != null) && (screenshotData.length > 0)) {
-      screenshotBitmap = BitmapFactory.decodeByteArray(screenshotData, 0, screenshotData.length);
-      if (screenshotBitmap == null) {
-        Log.e(TAG, "Unable to decode a screenshot from the data.");
-      }
-    }
-    feedbackService.sendFeedback(productSpecificData, categoryTag, screenshotBitmap);
   }
 
   @SuppressWarnings("unused")
