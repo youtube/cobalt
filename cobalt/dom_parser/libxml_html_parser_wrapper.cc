@@ -128,6 +128,13 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
                                  static_cast<int>(current_chunk.size()),
                                  NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
 
+    // ASCII whitespace before the html element, at the start of the html
+    // element and before the head element, will be dropped when the document is
+    // parsed. ASCII whitespace after the html element will be parsed as if it
+    // were at the end of the body element. Set option XML_PARSE_NOBLANKS to
+    // omit those non signaficant whitespaces.
+    htmlCtxtUseOptions(html_parser_context_, XML_PARSE_NOBLANKS);
+
     if (!html_parser_context_) {
       static const char kErrorUnableCreateParser[] =
           "Unable to create the libxml2 parser.";
