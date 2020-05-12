@@ -44,6 +44,16 @@ android {
     buildToolsVersion "29.0.2"
     ndkVersion NDK_VERSION
 
+    aaptOptions {
+        // The following pattern matches the default aapt pattern with the
+        // exception that it is missing the blanket ignore wildcard (!.*) that
+        // matches any "hidden" file, i.e. files with names beginning with |.|.
+        //
+        // For more information check out |gDefaultIgnoreAssets| in AOSP
+        // frameworks/base/tools/aapt/AaptAssets.cpp.
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+
     signingConfigs {
         // A signing config that matches what is implicitly used for the "debug" build type.
         debugConfig {
