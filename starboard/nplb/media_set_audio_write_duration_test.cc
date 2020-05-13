@@ -20,6 +20,7 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -278,13 +279,15 @@ std::vector<const char*> GetSupportedTests() {
 
     const SbMediaAudioSampleInfo* audio_sample_info =
         &dmp_reader.audio_sample_info();
-    if (IsMediaConfigSupported(kSbMediaVideoCodecNone, dmp_reader.audio_codec(),
-                               kSbDrmSystemInvalid, audio_sample_info,
-                               "",  // max_video_capabilities
-                               kSbPlayerOutputModePunchOut)) {
+    if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
+#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                                "",  // content_type
+#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+                                dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }
   }
+  SB_DCHECK(!test_params.empty());
   return test_params;
 }
 

@@ -171,14 +171,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  if (video_codec != kSbMediaVideoCodecNone &&
-      SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
+  if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  if (video_codec != kSbMediaVideoCodecNone &&
-      !SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
+  if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
