@@ -1276,6 +1276,17 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       return new Event(kSbEventTypeInput, data.release(),
                        &DeleteDestructor<SbInputData>);
     }
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case FocusIn: {
+      Focus(NULL, NULL);
+      return NULL;
+    }
+    case FocusOut: {
+      Blur(NULL, NULL);
+      return NULL;
+    }
+#else
     case FocusIn: {
       Unpause(NULL, NULL);
       return NULL;
@@ -1284,6 +1295,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       Pause(NULL, NULL);
       return NULL;
     }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     case ConfigureNotify: {
 #if SB_API_VERSION >= 8
       XConfigureEvent* x_configure_event =
