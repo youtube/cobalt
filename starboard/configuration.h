@@ -288,17 +288,17 @@
 // Deprecate support for gles3 features.
 #define SB_GLES3_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Deprecate unused enum |kSbPlayerDecoderStateDestroyed| for indicating the
-// destruction of the player from the decoder.
-#define SB_PLAYER_DECODER_STATE_DESTROYED_REMOVED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
 // Deprecate Web Extension support. The Platform Services API should be used
 // instead. See cobalt/doc/platform_services.md.
 #define SB_WEBAPI_EXTENSION_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Enables a test that checks that Opus is supported.
 #define SB_REQUIRES_OPUS_AUDIO_CODEC_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecate unused enums |kSbPlayerDecoderStateBufferFull| and
+// |kSbPlayerDecoderStateDestroyed|.
+#define SB_PLAYER_DEPRECATE_UNUSED_DECODER_STATES_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
