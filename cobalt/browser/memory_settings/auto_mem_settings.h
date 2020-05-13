@@ -33,11 +33,7 @@ struct AutoMemSettings {
     kTypeCommandLine,
   };
 
-  explicit AutoMemSettings(Type type) : type(type), has_blitter(false) {
-    if (type == kTypeBuild) {
-      max_cpu_in_bytes = 0;
-    }
-  }
+  explicit AutoMemSettings(Type type) : type(type), has_blitter(false) {}
 
   Type type;
   bool has_blitter;
