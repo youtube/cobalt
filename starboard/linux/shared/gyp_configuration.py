@@ -97,11 +97,5 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     return self.sabi_json_path
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': [
-          'SbDrmTest.AnySupportedKeySystems',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteLimitedInput/0',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteContinuedLimitedInput/0',
-      ],
+      'nplb': ['SbDrmTest.AnySupportedKeySystems',],
   }
