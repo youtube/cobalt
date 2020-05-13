@@ -25,6 +25,8 @@
         '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
         '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
+        '<(DEPTH)/starboard/shared/starboard/media/video_capabilities.cc',
+        '<(DEPTH)/starboard/shared/starboard/media/video_capabilities.h',
         '<(DEPTH)/starboard/shared/starboard/media/vp9_util.cc',
         '<(DEPTH)/starboard/shared/starboard/media/vp9_util.h',
       ],
