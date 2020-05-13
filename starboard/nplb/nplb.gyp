@@ -153,7 +153,6 @@
         # files.
         'media_buffer_test.cc',
         'media_can_play_mime_and_key_system_test.cc',
-        'media_set_audio_write_duration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -322,6 +321,12 @@
         'copy_nplb_file_tests_data',
       ],
       'conditions': [
+        ['sb_evergreen != 1', {
+          'sources': [
+            # Segfaults or causes unresolved symbols for Cobalt Evergreen.
+            'media_set_audio_write_duration_test.cc',
+          ],
+        }],
         ['gl_type != "none"', {
           'dependencies': [
              # This is needed because SbPlayerTest depends on
