@@ -108,8 +108,10 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   };
 
   std::vector<FileEnumerator::FileInfo> ret;
-  // We test if SbDirectoryGetNext returns parent directory file descriptor(..)
-  // because the definition of SbDirectoryGetNext does not guarantee that.
+  // We test if SbDirectoryGetNext returns the parent directory, i.e. |..|,
+  // because whether or not it is returned is platform-dependent and we need to
+  // be able to guarantee it is returned when the INCLUDE_DOT_DOT bitflag is
+  // set.
   bool found_dot_dot = false;
 
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
@@ -134,7 +136,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   }
 #endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
 
-  if (!found_dot_dot) {
+  if ((INCLUDE_DOT_DOT & file_type_) && !found_dot_dot) {
     ret.push_back(GenerateEntry(".."));
   }
 
