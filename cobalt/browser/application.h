@@ -210,14 +210,6 @@ class Application {
   static int64 lifetime_in_ms_;
 
   static AppStatus app_status_;
-  static int app_suspend_count_;
-  static int app_resume_count_;
-  static int app_pause_count_;
-  static int app_unpause_count_;
-
-  static NetworkStatus network_status_;
-  static int network_connect_count_;
-  static int network_disconnect_count_;
 
   CValStats c_val_stats_;
 
