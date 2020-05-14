@@ -14,7 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-SbSocketError SbSocketConnect(SbSocket /*socket*/,
-                              const SbSocketAddress* /*address*/) {
+SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
   return kSbSocketErrorFailed;
 }

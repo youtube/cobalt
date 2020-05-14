@@ -14,8 +14,6 @@
 
 #include "starboard/common/string.h"
 
-uint64_t SbStringParseUInt64(const char* /*start*/,
-                             char** /*out_end*/,
-                             int /*base*/) {
+uint64_t SbStringParseUInt64(const char* start, char** out_end, int base) {
   return static_cast<uint64_t>(0);
 }

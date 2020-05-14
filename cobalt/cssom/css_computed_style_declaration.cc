@@ -22,14 +22,14 @@ namespace cssom {
 // This returns the result of serializing a CSS declaration block.
 //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSComputedStyleDeclaration::css_text(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   // The current implementation does not handle shorthands.
   NOTIMPLEMENTED();
   return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();
 }
 
 void CSSComputedStyleDeclaration::set_css_text(
-    const std::string& /*css_text*/, script::ExceptionState* exception_state) {
+    const std::string& css_text, script::ExceptionState* exception_state) {
   dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
                            exception_state);
 }
@@ -76,15 +76,15 @@ std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
 }
 
 void CSSComputedStyleDeclaration::SetPropertyValue(
-    const std::string& /*property_name*/, const std::string& /*property_value*/,
+    const std::string& property_name, const std::string& property_value,
     script::ExceptionState* exception_state) {
   dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
                            exception_state);
 }
 
 void CSSComputedStyleDeclaration::SetProperty(
-    const std::string& /*property_name*/, const std::string& /*property_value*/,
-    const std::string& /*priority*/, script::ExceptionState* exception_state) {
+    const std::string& property_name, const std::string& property_value,
+    const std::string& priority, script::ExceptionState* exception_state) {
   dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
                            exception_state);
 }

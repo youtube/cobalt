@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketClearLastError(SbSocket /*socket*/) {
+bool SbSocketClearLastError(SbSocket socket) {
   return false;
 }

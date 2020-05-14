@@ -45,9 +45,7 @@ Callback BindToLoop(const Callback& callback, base::MessageLoop* message_loop) {
   return base::Bind(&PostCallbackToMessageLoop, callback, message_loop);
 }
 
-void OnError(const GURL& /* url */, const std::string& error) {
-  LOG(ERROR) << error;
-}
+void OnError(const GURL& url, const std::string& error) { LOG(ERROR) << error; }
 
 }  // namespace
 

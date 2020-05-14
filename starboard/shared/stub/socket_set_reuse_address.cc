@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketSetReuseAddress(SbSocket /*socket*/, bool /*value*/) {
+bool SbSocketSetReuseAddress(SbSocket socket, bool value) {
   return false;
 }

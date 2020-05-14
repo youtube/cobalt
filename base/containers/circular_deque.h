@@ -1080,7 +1080,7 @@ class circular_deque {
   // No-op versions of these functions for release builds.
   void CheckValidIndex(size_t) const {}
   void CheckValidIndexOrEnd(size_t) const {}
-  void ValidateIterator(const const_iterator& /*i*/) const {}
+  void ValidateIterator(const const_iterator& i) const {}
   void IncrementGeneration() {}
 #endif
 

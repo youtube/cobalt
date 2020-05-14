@@ -14,7 +14,6 @@
 
 #include "starboard/thread.h"
 
-SbThreadLocalKey SbThreadCreateLocalKey(
-    SbThreadLocalDestructor /*destructor*/) {
+SbThreadLocalKey SbThreadCreateLocalKey(SbThreadLocalDestructor destructor) {
   return kSbThreadLocalKeyInvalid;
 }

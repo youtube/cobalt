@@ -16,22 +16,22 @@
 
 #include "starboard/media.h"
 
-bool SbMediaIsVideoSupported(SbMediaVideoCodec /*video_codec*/,
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
-                             const char* /*content_type*/,
+                             const char* content_type,
 #endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                             int /*profile*/,
-                             int /*level*/,
-                             int /*bit_depth*/,
-                             SbMediaPrimaryId /*primary_id*/,
-                             SbMediaTransferId /*transfer_id*/,
-                             SbMediaMatrixId /*matrix_id*/,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                             int /*frame_width*/,
-                             int /*frame_height*/,
-                             int64_t /*bitrate*/,
-                             int /*fps*/,
-                             bool /*decode_to_texture_required*/) {
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps,
+                             bool decode_to_texture_required) {
   return false;
 }

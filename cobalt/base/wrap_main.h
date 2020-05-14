@@ -51,12 +51,12 @@ typedef void (*EventFunction)(const SbEvent* event);
 
 // No-operation function that can be passed into start_function if no start work
 // is needed.
-void NoopStartFunction(int /*argc*/, char** /*argv*/, const char* /*link*/,
-                       const base::Closure& /*quit_closure*/) {}
+void NoopStartFunction(int argc, char** argv, const char* link,
+                       const base::Closure& quit_closure) {}
 
 // No-operation function that can be passed into event_function if no other
 // event handling work is needed.
-void NoopEventFunction(const SbEvent* /*event*/) {}
+void NoopEventFunction(const SbEvent* event) {}
 
 // No-operation function that can be passed into stop_function if no stop work
 // is needed.

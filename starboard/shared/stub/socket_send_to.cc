@@ -14,9 +14,9 @@
 
 #include "starboard/common/socket.h"
 
-int SbSocketSendTo(SbSocket /*socket*/,
-                   const char* /*data*/,
-                   int /*data_size*/,
-                   const SbSocketAddress* /*destination*/) {
+int SbSocketSendTo(SbSocket socket,
+                   const char* data,
+                   int data_size,
+                   const SbSocketAddress* destination) {
   return -1;
 }

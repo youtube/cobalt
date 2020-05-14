@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace dom {
 
-Event::Event(UninitializedFlag /* uninitialized_flag */)
+Event::Event(UninitializedFlag uninitialized_flag)
     : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(base::Token(), false, false);
 }

@@ -14,5 +14,4 @@
 
 #include "starboard/window.h"
 
-void SbWindowSetDefaultOptions(SbWindowOptions* /*options*/) {
-}
+void SbWindowSetDefaultOptions(SbWindowOptions* options) {}

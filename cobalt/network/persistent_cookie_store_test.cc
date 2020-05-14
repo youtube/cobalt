@@ -48,8 +48,8 @@ std::unique_ptr<net::CanonicalCookie> CreateTestCookie() {
   return cookie;
 }
 
-void DummyOnLoaded(
-    std::vector<std::unique_ptr<net::CanonicalCookie>> /*cookies*/) {}
+void DummyOnLoaded(std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+}
 
 class CallbackWaiter {
  public:
@@ -96,8 +96,8 @@ class CookieLoader : public CallbackWaiter {
 };
 
 class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
-  void OnUpgrade(storage::StorageManager* /*storage*/, const char* /*data*/,
-                 int /*size*/) override {}
+  void OnUpgrade(storage::StorageManager* storage, const char* data,
+                 int size) override {}
 };
 
 std::string GetSavePath() {

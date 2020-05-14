@@ -56,7 +56,7 @@ CSSFontFaceRule::CSSFontFaceRule(
 }
 
 std::string CSSFontFaceRule::css_text(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   std::string css_text;
   AppendPropertyDeclaration(GetPropertyName(kFontFamilyProperty),
                             data_->family(), &css_text);
@@ -72,8 +72,8 @@ std::string CSSFontFaceRule::css_text(
   return css_text;
 }
 
-void CSSFontFaceRule::set_css_text(
-    const std::string& css_text, script::ExceptionState* /*exception_state*/) {
+void CSSFontFaceRule::set_css_text(const std::string& css_text,
+                                   script::ExceptionState* exception_state) {
   DCHECK(parent_style_sheet());
   scoped_refptr<CSSFontFaceDeclarationData> declaration =
       parent_style_sheet()->css_parser()->ParseFontFaceDeclarationList(

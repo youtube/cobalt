@@ -14,4 +14,4 @@
 
 #include "starboard/audio_sink.h"
 
-void SbAudioSinkDestroy(SbAudioSink /*audio_sink*/) {}
+void SbAudioSinkDestroy(SbAudioSink audio_sink) {}

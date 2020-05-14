@@ -20,7 +20,7 @@
 #include "starboard/shared/win32/types_internal.h"
 
 bool SbConditionVariableCreate(SbConditionVariable* out_condition,
-                               SbMutex* /*opt_mutex*/) {
+                               SbMutex* opt_mutex) {
   SB_COMPILE_ASSERT(sizeof(SbConditionVariable) >= sizeof(CONDITION_VARIABLE),
                     condition_variable_larger_than_sb_condition_variable);
   if (!out_condition) {

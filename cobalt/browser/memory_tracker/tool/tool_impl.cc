@@ -118,7 +118,7 @@ bool AllocationSizeBinner::PassesFilter(
   return alloc_record.allocation_group == group_filter_;
 }
 
-bool AllocationSizeBinner::Visit(const void* /*memory*/,
+bool AllocationSizeBinner::Visit(const void* memory,
                                  const AllocationRecord& alloc_record) {
   if (PassesFilter(alloc_record)) {
     const size_t idx = GetBucketIndexForAllocationSize(alloc_record.size);
@@ -179,7 +179,7 @@ FindTopSizes::FindTopSizes(size_t minimum_size, size_t maximum_size,
       maximum_size_(maximum_size),
       group_filter_(group) {}
 
-bool FindTopSizes::Visit(const void* /*memory*/,
+bool FindTopSizes::Visit(const void* memory,
                          const AllocationRecord& alloc_record) {
   if (PassesFilter(alloc_record)) {
     size_counter_[alloc_record.size]++;

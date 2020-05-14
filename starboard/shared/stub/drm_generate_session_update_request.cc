@@ -14,9 +14,8 @@
 
 #include "starboard/drm.h"
 
-void SbDrmGenerateSessionUpdateRequest(SbDrmSystem /*drm_system*/,
-                                       int /*ticket*/,
-                                       const char* /*type*/,
-                                       const void* /*initialization_data*/,
-                                       int /*initialization_data_size*/) {
-}
+void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
+                                       int ticket,
+                                       const char* type,
+                                       const void* initialization_data,
+                                       int initialization_data_size) {}

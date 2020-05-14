@@ -827,9 +827,9 @@ class Box : public base::RefCounted<Box> {
   // ellipsis-related state of the box, such as whether or not it should be
   // fully or partially hidden.
   virtual void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection /*base_direction*/, LayoutUnit /*desired_offset*/,
-      bool* /*is_placement_requirement_met*/, bool* /*is_placed*/,
-      LayoutUnit* /*placed_offset*/) {}
+      BaseDirection base_direction, LayoutUnit desired_offset,
+      bool* is_placement_requirement_met, bool* is_placed,
+      LayoutUnit* placed_offset) {}
 
   // Get the rectangle for which gives the region that background-color
   // and background-image would populate.

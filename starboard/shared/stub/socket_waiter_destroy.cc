@@ -14,6 +14,6 @@
 
 #include "starboard/socket_waiter.h"
 
-bool SbSocketWaiterDestroy(SbSocketWaiter /*waiter*/) {
+bool SbSocketWaiterDestroy(SbSocketWaiter waiter) {
   return false;
 }

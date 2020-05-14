@@ -14,8 +14,8 @@
 
 #include "starboard/common/string.h"
 
-int SbStringCompareWide(const wchar_t* /*string1*/,
-                        const wchar_t* /*string2*/,
-                        size_t /*count*/) {
+int SbStringCompareWide(const wchar_t* string1,
+                        const wchar_t* string2,
+                        size_t count) {
   return 0;
 }

@@ -14,4 +14,4 @@
 
 #include "starboard/player.h"
 
-void SbPlayerSetVolume(SbPlayer /*player*/, double /*volume*/) {}
+void SbPlayerSetVolume(SbPlayer player, double volume) {}

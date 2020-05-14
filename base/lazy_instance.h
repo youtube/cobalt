@@ -116,7 +116,7 @@ struct LeakyLazyInstanceTraits {
     ANNOTATE_SCOPED_MEMORY_LEAK;
     return LazyInstanceTraitsBase<Type>::New(instance);
   }
-  static void Delete(Type* /*instance*/) {}
+  static void Delete(Type* instance) {}
 };
 
 template <typename Type>

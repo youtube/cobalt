@@ -75,7 +75,7 @@ class AudioNode : public dom::EventTarget {
   // any inputs to the node. The default value is 2 except for specific nodes
   // where its value is specially determined. This attributes has no effect for
   // nodes with no inputs.
-  uint32 channel_count(script::ExceptionState* /* unused */) const {
+  uint32 channel_count(script::ExceptionState* unused) const {
     return channel_count_;
   }
   void set_channel_count(uint32 channel_count,

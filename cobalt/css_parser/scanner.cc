@@ -935,7 +935,7 @@ Token Scanner::ScanFromQuote(TokenValue* token_value) {
   return quote;
 }
 
-Token Scanner::ScanFromExclamationMark(TokenValue* /*token_value*/) {
+Token Scanner::ScanFromExclamationMark(TokenValue* token_value) {
   ++input_iterator_;
 
   const char* important_start(SkipWhiteSpace(input_iterator_));

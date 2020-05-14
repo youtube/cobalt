@@ -14,8 +14,8 @@
 
 #include "starboard/common/string.h"
 
-int SbStringConcat(char* /*out_destination*/,
-                   const char* /*source*/,
-                   int /*destination_size*/) {
+int SbStringConcat(char* out_destination,
+                   const char* source,
+                   int destination_size) {
   return 0;
 }

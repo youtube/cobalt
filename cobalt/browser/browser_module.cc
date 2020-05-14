@@ -1015,7 +1015,7 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
 
 #if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
 void BrowserModule::OnCaptionSettingsChanged(
-    const base::AccessibilityCaptionSettingsChangedEvent* /*event*/) {
+    const base::AccessibilityCaptionSettingsChangedEvent* event) {
   if (web_module_) {
     web_module_->InjectCaptionSettingsChangedEvent();
   }

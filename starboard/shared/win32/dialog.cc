@@ -65,7 +65,7 @@ class DialogTemplateBuilder {
 INT_PTR CALLBACK DialogProcedureCallback(HWND dialog_handle,
                                          UINT message,
                                          WPARAM w_param,
-                                         LPARAM /*l_param*/) {
+                                         LPARAM l_param) {
   SB_CHECK(!g_current_dialog_handle || dialog_handle == g_current_dialog_handle)
       << "Received callback on non-active dialog! Only one dialog at a time is "
          "supported.";

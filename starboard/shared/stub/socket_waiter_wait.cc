@@ -14,5 +14,4 @@
 
 #include "starboard/socket_waiter.h"
 
-void SbSocketWaiterWait(SbSocketWaiter /*waiter*/) {
-}
+void SbSocketWaiterWait(SbSocketWaiter waiter) {}

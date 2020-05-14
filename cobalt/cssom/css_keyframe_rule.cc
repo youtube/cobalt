@@ -25,14 +25,13 @@ CSSKeyframeRule::CSSKeyframeRule(
     : offsets_(offsets), style_(style) {}
 
 std::string CSSKeyframeRule::css_text(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   NOTIMPLEMENTED();
   return "";
 }
 
-void CSSKeyframeRule::set_css_text(
-    const std::string& /*css_text*/,
-    script::ExceptionState* /*exception_state*/) {
+void CSSKeyframeRule::set_css_text(const std::string& css_text,
+                                   script::ExceptionState* exception_state) {
   NOTIMPLEMENTED();
 }
 

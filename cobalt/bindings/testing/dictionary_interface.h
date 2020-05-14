@@ -39,7 +39,7 @@ class DictionaryInterface : public script::Wrappable {
   MOCK_METHOD1(set_dictionary_sequence,
                void(script::Sequence<TestDictionary> test_dictionary));
 
-  void TestOperation(DictionaryWithDictionaryMember /* dict */) {}
+  void TestOperation(DictionaryWithDictionaryMember dict) {}
 
   DEFINE_WRAPPABLE_TYPE(DictionaryInterface);
 };

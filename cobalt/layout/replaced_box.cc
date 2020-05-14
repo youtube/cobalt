@@ -126,11 +126,11 @@ ReplacedBox::ReplacedBox(
       content_size_(content_size),
       lottie_properties_(lottie_properties) {}
 
-WrapResult ReplacedBox::TryWrapAt(
-    WrapAtPolicy /*wrap_at_policy*/,
-    WrapOpportunityPolicy wrap_opportunity_policy,
-    bool is_line_existence_justified, LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/) {
+WrapResult ReplacedBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
+                                  WrapOpportunityPolicy wrap_opportunity_policy,
+                                  bool is_line_existence_justified,
+                                  LayoutUnit available_width,
+                                  bool should_collapse_trailing_white_space) {
   // NOTE: This logic must stay in sync with
   // InlineLevelBlockContainerBox::TryWrapAt().
   DCHECK(!IsAbsolutelyPositioned());
@@ -188,12 +188,12 @@ base::Optional<int> ReplacedBox::GetBidiLevel() const {
 }
 
 void ReplacedBox::SetShouldCollapseLeadingWhiteSpace(
-    bool /*should_collapse_leading_white_space*/) {
+    bool should_collapse_leading_white_space) {
   // Do nothing.
 }
 
 void ReplacedBox::SetShouldCollapseTrailingWhiteSpace(
-    bool /*should_collapse_trailing_white_space*/) {
+    bool should_collapse_trailing_white_space) {
   // Do nothing.
 }
 
@@ -307,7 +307,7 @@ void AnimateLottie(
 
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder,
-    ContainerBox* /*stacking_context*/) const {
+    ContainerBox* stacking_context) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }

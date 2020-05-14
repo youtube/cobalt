@@ -44,7 +44,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
 
  protected:
   // net::HttpServer::Delegate implementation.
-  void OnConnect(int /*connection_id*/) override {}
+  void OnConnect(int connection_id) override {}
   void OnHttpRequest(int connection_id,
                      const net::HttpServerRequestInfo& info) override;
 

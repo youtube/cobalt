@@ -447,7 +447,7 @@ class AddInClearObserve : public Foo {
   explicit AddInClearObserve(ObserverListType* list)
       : list_(list), added_(false), adder_(1) {}
 
-  void Observe(int /* x */) override {
+  void Observe(int x) override {
     list_->Clear();
     list_->AddObserver(&adder_);
     added_ = true;

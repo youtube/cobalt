@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-size_t SbStringGetLength(const char* /*str*/) {
+size_t SbStringGetLength(const char* str) {
   return static_cast<size_t>(0);
 }

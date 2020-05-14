@@ -127,7 +127,7 @@ MP4StreamParser::~MP4StreamParser() {}
 
 void MP4StreamParser::Init(
     const InitCB& init_cb, const NewConfigCB& config_cb,
-    const NewBuffersCB& new_buffers_cb, bool /* ignore_text_tracks */,
+    const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
     const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
     const NewMediaSegmentCB& new_segment_cb,
     const EndMediaSegmentCB& end_of_segment_cb,

@@ -14,4 +14,4 @@
 
 #include "starboard/memory.h"
 
-void SbMemoryFlush(void* /*virtual_address*/, int64_t /*size_bytes*/) {}
+void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {}

@@ -1362,14 +1362,13 @@ TEST_F(ParserTest, ParsesLonghandPropertyKeywords) {
    public:
     KeywordProvider() : is_keyword_(false) {}
     bool is_keyword() { return is_keyword_; }
-    void VisitKeyword(cssom::KeywordValue* /* keyword */) override {
+    void VisitKeyword(cssom::KeywordValue* keyword) override {
       is_keyword_ = true;
     }
-    void VisitFontStyle(cssom::FontStyleValue* /* font_style */) override {
+    void VisitFontStyle(cssom::FontStyleValue* font_style) override {
       is_keyword_ = true;
     }
-    void VisitFontWeight(
-        cssom::FontWeightValue* /* font_weight_value */) override {
+    void VisitFontWeight(cssom::FontWeightValue* font_weight_value) override {
       is_keyword_ = true;
     }
 
@@ -1413,7 +1412,7 @@ TEST_F(ParserTest, ParsesShorthandPropertyInitialAndInherit) {
    public:
     KeywordProvider() : is_keyword_(false) {}
     bool is_keyword() { return is_keyword_; }
-    void VisitKeyword(cssom::KeywordValue* /* keyword */) override {
+    void VisitKeyword(cssom::KeywordValue* keyword) override {
       is_keyword_ = true;
     }
 

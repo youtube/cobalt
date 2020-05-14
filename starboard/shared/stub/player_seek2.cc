@@ -14,6 +14,4 @@
 
 #include "starboard/player.h"
 
-void SbPlayerSeek2(SbPlayer /*player*/,
-                   SbTime /*seek_to_timestamp*/,
-                   int /*ticket*/) {}
+void SbPlayerSeek2(SbPlayer player, SbTime seek_to_timestamp, int ticket) {}

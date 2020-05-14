@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileDelete(const char* /*path*/) {
+bool SbFileDelete(const char* path) {
   return false;
 }

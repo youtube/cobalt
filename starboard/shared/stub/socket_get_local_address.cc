@@ -14,7 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketGetLocalAddress(SbSocket /*socket*/,
-                             SbSocketAddress* /*out_address*/) {
+bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress* out_address) {
   return false;
 }

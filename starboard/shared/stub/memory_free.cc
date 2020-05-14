@@ -14,5 +14,4 @@
 
 #include "starboard/memory.h"
 
-void SbMemoryFree(void* /*memory*/) {
-}
+void SbMemoryFree(void* memory) {}

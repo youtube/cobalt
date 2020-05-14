@@ -18,7 +18,7 @@
     SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 SbSpeechRecognizer SbSpeechRecognizerCreate(
-    const SbSpeechRecognizerHandler* /*handler*/) {
+    const SbSpeechRecognizerHandler* handler) {
   return kSbSpeechRecognizerInvalid;
 }
 

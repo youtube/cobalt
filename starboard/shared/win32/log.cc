@@ -14,6 +14,6 @@
 
 #include "starboard/common/log.h"
 
-void SbLog(SbLogPriority /*priority*/, const char* message) {
+void SbLog(SbLogPriority priority, const char* message) {
   SbLogRaw(message);
 }

@@ -14,6 +14,6 @@
 
 #include "starboard/common/log.h"
 
-void SbLogRawDumpStack(int /*frames_to_skip*/) {
+void SbLogRawDumpStack(int frames_to_skip) {
   SbLogRaw("TODO stack dump not implemented\n");
 }

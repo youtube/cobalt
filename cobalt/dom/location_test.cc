@@ -30,9 +30,9 @@ namespace dom {
 // security callbacks.
 class LocationCallbackInterface {
  public:
-  virtual bool CanLoad(const GURL& /*url*/, bool /*did_redirect*/) = 0;
+  virtual bool CanLoad(const GURL& url, bool did_redirect) = 0;
   virtual void FireHashChangeEvent() = 0;
-  virtual void Navigate(const GURL& /* url*/) = 0;
+  virtual void Navigate(const GURL& url) = 0;
 };
 
 class MockSecurityCallback : public LocationCallbackInterface {

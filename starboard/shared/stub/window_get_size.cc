@@ -14,6 +14,6 @@
 
 #include "starboard/window.h"
 
-bool SbWindowGetSize(SbWindow /*window*/, SbWindowSize* /*size*/) {
+bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   return false;
 }

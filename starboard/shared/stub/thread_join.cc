@@ -14,6 +14,6 @@
 
 #include "starboard/thread.h"
 
-bool SbThreadJoin(SbThread /*thread*/, void** /*out_return*/) {
+bool SbThreadJoin(SbThread thread, void** out_return) {
   return false;
 }

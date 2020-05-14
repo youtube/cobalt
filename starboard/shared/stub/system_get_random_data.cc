@@ -14,5 +14,4 @@
 
 #include "starboard/system.h"
 
-void SbSystemGetRandomData(void* /*out_buffer*/, int /*buffer_size*/) {
-}
+void SbSystemGetRandomData(void* out_buffer, int buffer_size) {}

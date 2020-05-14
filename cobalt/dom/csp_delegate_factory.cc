@@ -46,10 +46,9 @@ bool InsecureAllowed(int token) {
 }
 
 CspDelegate* CreateInsecureDelegate(
-    std::unique_ptr<CspViolationReporter> /*violation_reporter*/,
-    const GURL& /*url*/, csp::CSPHeaderPolicy /*requre_csp*/,
-    const base::Closure& /*policy_changed_callback*/,
-    int insecure_allowed_token) {
+    std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+    csp::CSPHeaderPolicy requre_csp,
+    const base::Closure& policy_changed_callback, int insecure_allowed_token) {
   if (InsecureAllowed(insecure_allowed_token)) {
     return new CspDelegateInsecure();
   } else {
@@ -61,8 +60,7 @@ CspDelegate* CreateInsecureDelegate(
 CspDelegate* CreateSecureDelegate(
     std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
     csp::CSPHeaderPolicy require_csp,
-    const base::Closure& policy_changed_callback,
-    int /*insecure_allowed_token*/) {
+    const base::Closure& policy_changed_callback, int insecure_allowed_token) {
   return new CspDelegateSecure(std::move(violation_reporter), url, require_csp,
                                policy_changed_callback);
 }

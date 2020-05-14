@@ -14,8 +14,8 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
-                                 SbSocketAddress* /*out_source_address*/,
-                                 SbSocketAddress* /*out_netmask*/) {
+bool SbSocketGetInterfaceAddress(const SbSocketAddress* const destination,
+                                 SbSocketAddress* out_source_address,
+                                 SbSocketAddress* out_netmask) {
   return false;
 }

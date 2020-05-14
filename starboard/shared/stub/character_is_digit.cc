@@ -14,6 +14,6 @@
 
 #include "starboard/character.h"
 
-bool SbCharacterIsDigit(int /*c*/) {
+bool SbCharacterIsDigit(int c) {
   return false;
 }

@@ -14,6 +14,6 @@
 
 #include "starboard/common/condition_variable.h"
 
-bool SbConditionVariableDestroy(SbConditionVariable* /*condition*/) {
+bool SbConditionVariableDestroy(SbConditionVariable* condition) {
   return false;
 }

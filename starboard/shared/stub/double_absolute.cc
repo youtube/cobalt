@@ -14,6 +14,6 @@
 
 #include "starboard/double.h"
 
-double SbDoubleAbsolute(double /*d*/) {
+double SbDoubleAbsolute(double d) {
   return 0.0;
 }

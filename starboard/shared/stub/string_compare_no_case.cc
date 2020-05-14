@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-int SbStringCompareNoCase(const char* /*string1*/, const char* /*string2*/) {
+int SbStringCompareNoCase(const char* string1, const char* string2) {
   return 0;
 }

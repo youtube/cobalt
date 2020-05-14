@@ -260,10 +260,9 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
 }
 
 WrapResult BlockContainerBox::TryWrapAt(
-    WrapAtPolicy /*wrap_at_policy*/,
-    WrapOpportunityPolicy /*wrap_opportunity_policy*/,
-    bool /*is_line_existence_justified*/, LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/) {
+    WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
   DCHECK(!IsAbsolutelyPositioned());
   DCHECK_EQ(kInlineLevel, GetLevel());
   return kWrapResultNoWrap;
@@ -276,13 +275,13 @@ base::Optional<int> BlockContainerBox::GetBidiLevel() const {
 }
 
 void BlockContainerBox::SetShouldCollapseLeadingWhiteSpace(
-    bool /*should_collapse_leading_white_space*/) {
+    bool should_collapse_leading_white_space) {
   DCHECK_EQ(kInlineLevel, GetLevel());
   // Do nothing.
 }
 
 void BlockContainerBox::SetShouldCollapseTrailingWhiteSpace(
-    bool /*should_collapse_trailing_white_space*/) {
+    bool should_collapse_trailing_white_space) {
   DCHECK_EQ(kInlineLevel, GetLevel());
   // Do nothing.
 }

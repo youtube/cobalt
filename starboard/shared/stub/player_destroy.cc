@@ -14,4 +14,4 @@
 
 #include "starboard/player.h"
 
-void SbPlayerDestroy(SbPlayer /*player*/) {}
+void SbPlayerDestroy(SbPlayer player) {}

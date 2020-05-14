@@ -14,5 +14,4 @@
 
 #include "starboard/thread.h"
 
-void SbThreadSetName(const char* /*name*/) {
-}
+void SbThreadSetName(const char* name) {}

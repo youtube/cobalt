@@ -62,7 +62,7 @@ std::unique_ptr<net::URLFetcher> CreateFakeURLFetcher(
 }
 
 std::unique_ptr<Microphone> CreateFakeMicrophone(
-    const Microphone::Options& options, int /*buffer_size_bytes*/) {
+    const Microphone::Options& options, int buffer_size_bytes) {
   return std::unique_ptr<Microphone>(new MicrophoneFake(options));
 }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)

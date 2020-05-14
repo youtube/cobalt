@@ -204,9 +204,8 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
 }
 
 void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
-                                            int64_t /*current*/,
-                                            int64_t /*total*/,
-                                            int64_t /*current_network_bytes*/) {
+                                            int64_t current, int64_t total,
+                                            int64_t current_network_bytes) {
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(

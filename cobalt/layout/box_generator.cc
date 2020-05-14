@@ -1082,13 +1082,13 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   AppendPseudoElementToLine(html_element, dom::kAfterPseudoElementType);
 }
 
-void BoxGenerator::Visit(dom::CDATASection* /* cdata_section */) {}
+void BoxGenerator::Visit(dom::CDATASection* cdata_section) {}
 
-void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
+void BoxGenerator::Visit(dom::Comment* comment) {}
 
-void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
+void BoxGenerator::Visit(dom::Document* document) { NOTREACHED(); }
 
-void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
+void BoxGenerator::Visit(dom::DocumentType* document_type) { NOTREACHED(); }
 
 namespace {
 scoped_refptr<web_animations::AnimationSet> GetAnimationsForAnonymousBox(

@@ -17,7 +17,7 @@
 #if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
     SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
-void SbSpeechRecognizerDestroy(SbSpeechRecognizer /*recognizer*/) {}
+void SbSpeechRecognizerDestroy(SbSpeechRecognizer recognizer) {}
 
 #endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
         // SB_HAS(SPEECH_RECOGNIZER)

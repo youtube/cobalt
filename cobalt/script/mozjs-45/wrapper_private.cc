@@ -95,7 +95,7 @@ WrapperPrivate* WrapperPrivate::GetFromObject(JSContext* context,
 }
 
 // static
-void WrapperPrivate::Finalizer(JSFreeOp* /* free_op */, JSObject* object) {
+void WrapperPrivate::Finalizer(JSFreeOp* free_op, JSObject* object) {
   WrapperPrivate* wrapper_private =
       reinterpret_cast<WrapperPrivate*>(JS_GetPrivate(object));
   DCHECK(wrapper_private);

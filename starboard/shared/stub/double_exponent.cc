@@ -14,6 +14,6 @@
 
 #include "starboard/double.h"
 
-double SbDoubleExponent(const double /*base*/, const double /*exponent*/) {
+double SbDoubleExponent(const double base, const double exponent) {
   return 0.0;
 }

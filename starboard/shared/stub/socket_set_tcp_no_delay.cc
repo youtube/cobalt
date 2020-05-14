@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketSetTcpNoDelay(SbSocket /*socket*/, bool /*value*/) {
+bool SbSocketSetTcpNoDelay(SbSocket socket, bool value) {
   return false;
 }

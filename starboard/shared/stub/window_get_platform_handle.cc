@@ -14,6 +14,6 @@
 
 #include "starboard/window.h"
 
-void* SbWindowGetPlatformHandle(SbWindow /*window*/) {
+void* SbWindowGetPlatformHandle(SbWindow window) {
   return NULL;
 }

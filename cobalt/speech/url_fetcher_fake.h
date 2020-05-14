@@ -39,53 +39,51 @@ class URLFetcherFake : public net::URLFetcher {
   virtual ~URLFetcherFake();
 
   // net::URLFetcher implementation:
-  void SetUploadData(const std::string& /*upload_content_type*/,
-                     const std::string& /*upload_content*/) override {
+  void SetUploadData(const std::string& upload_content_type,
+                     const std::string& upload_content) override {
     NOTREACHED();
   }
   void SetUploadFilePath(
-      const std::string& /*upload_content_type*/,
-      const base::FilePath& /*file_path*/, uint64_t /*range_offset*/,
-      uint64_t /*range_length*/,
-      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override{};
+      const std::string& upload_content_type, const base::FilePath& file_path,
+      uint64_t range_offset, uint64_t range_length,
+      scoped_refptr<base::TaskRunner> file_task_runner) override{};
   void SetUploadStreamFactory(
-      const std::string& /*upload_content_type*/,
-      const CreateUploadStreamCallback& /*callback*/) override{};
-  void SetChunkedUpload(const std::string& /*upload_content_type*/) override;
+      const std::string& upload_content_type,
+      const CreateUploadStreamCallback& callback) override{};
+  void SetChunkedUpload(const std::string& upload_content_type) override;
   void AppendChunkToUpload(const std::string& data,
                            bool is_last_chunk) override;
-  void SetLoadFlags(int /*load_flags*/) override { NOTREACHED(); }
-  void SetAllowCredentials(bool /*allow_credentials*/) override {}
+  void SetLoadFlags(int load_flags) override { NOTREACHED(); }
+  void SetAllowCredentials(bool allow_credentials) override {}
   int GetLoadFlags() const override {
     NOTREACHED();
     return 0;
   }
-  void SetReferrer(const std::string& /*referrer*/) override { NOTREACHED(); }
+  void SetReferrer(const std::string& referrer) override { NOTREACHED(); }
   void SetReferrerPolicy(
-      net::URLRequest::ReferrerPolicy /*referrer_policy*/) override {}
+      net::URLRequest::ReferrerPolicy referrer_policy) override {}
   void SetExtraRequestHeaders(
-      const std::string& /*extra_request_headers*/) override {
+      const std::string& extra_request_headers) override {
     NOTREACHED();
   }
-  void AddExtraRequestHeader(const std::string& /*header_line*/) override {
+  void AddExtraRequestHeader(const std::string& header_line) override {
     NOTREACHED();
   }
   void SetRequestContext(
       net::URLRequestContextGetter* request_context_getter) override;
-  void SetInitiator(const base::Optional<url::Origin>& /*initiator*/) override {
-  }
+  void SetInitiator(const base::Optional<url::Origin>& initiator) override {}
   void SetURLRequestUserData(
-      const void* /*key*/,
-      const CreateDataCallback& /*create_data_callback*/) override {
+      const void* key,
+      const CreateDataCallback& create_data_callback) override {
     NOTREACHED();
   }
-  void SetStopOnRedirect(bool /*stop_on_redirect*/) override { NOTREACHED(); }
-  void SetAutomaticallyRetryOn5xx(bool /*retry*/) override { NOTREACHED(); }
+  void SetStopOnRedirect(bool stop_on_redirect) override { NOTREACHED(); }
+  void SetAutomaticallyRetryOn5xx(bool retry) override { NOTREACHED(); }
   void SaveResponseToFileAtPath(
-      const base::FilePath& /*file_path*/,
-      scoped_refptr<base::SequencedTaskRunner> /*file_task_runner*/) override {}
+      const base::FilePath& file_path,
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner) override {}
   void SaveResponseToTemporaryFile(
-      scoped_refptr<base::SequencedTaskRunner> /*file_task_runner*/) override {}
+      scoped_refptr<base::SequencedTaskRunner> file_task_runner) override {}
   void SaveResponseWithWriter(
       std::unique_ptr<net::URLFetcherResponseWriter> response_writer) override {
     response_data_writer_ = std::move(response_writer);
@@ -93,7 +91,7 @@ class URLFetcherFake : public net::URLFetcher {
   net::URLFetcherResponseWriter* GetResponseWriter() const override {
     return response_data_writer_.get();
   }
-  void SetMaxRetriesOn5xx(int /*max_retries*/) override { NOTREACHED(); }
+  void SetMaxRetriesOn5xx(int max_retries) override { NOTREACHED(); }
   int GetMaxRetriesOn5xx() const override {
     NOTREACHED();
     return 0;
@@ -102,7 +100,7 @@ class URLFetcherFake : public net::URLFetcher {
     NOTREACHED();
     return base::TimeDelta();
   }
-  void SetAutomaticallyRetryOnNetworkChanges(int /*max_retries*/) override {
+  void SetAutomaticallyRetryOnNetworkChanges(int max_retries) override {
     NOTREACHED();
   }
   net::HttpResponseHeaders* GetResponseHeaders() const override {
@@ -139,14 +137,12 @@ class URLFetcherFake : public net::URLFetcher {
   const net::URLRequestStatus& GetStatus() const override;
   int GetResponseCode() const override;
   void ReceivedContentWasMalformed() override { NOTREACHED(); }
-  bool GetResponseAsString(
-      std::string* /*out_response_string*/) const override {
+  bool GetResponseAsString(std::string* out_response_string) const override {
     NOTREACHED();
     return false;
   }
-  bool GetResponseAsFilePath(
-      bool /*take_ownership*/,
-      base::FilePath* /*out_response_path*/) const override {
+  bool GetResponseAsFilePath(bool take_ownership,
+                             base::FilePath* out_response_path) const override {
     NOTREACHED();
     return false;
   }

@@ -14,13 +14,13 @@
 
 #include "starboard/user.h"
 
-int SbUserGetPropertySize(SbUser /*user*/, SbUserPropertyId /*property_id*/) {
+int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
   return 0;
 }
 
-bool SbUserGetProperty(SbUser /*user*/,
-                       SbUserPropertyId /*property_id*/,
-                       char* /*out_value*/,
-                       int /*value_size*/) {
+bool SbUserGetProperty(SbUser user,
+                       SbUserPropertyId property_id,
+                       char* out_value,
+                       int value_size) {
   return false;
 }

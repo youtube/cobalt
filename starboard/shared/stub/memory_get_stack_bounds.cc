@@ -14,5 +14,4 @@
 
 #include "starboard/memory.h"
 
-void SbMemoryGetStackBounds(void** /*out_high*/, void** /*out_low*/) {
-}
+void SbMemoryGetStackBounds(void** out_high, void** out_low) {}

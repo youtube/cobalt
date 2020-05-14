@@ -14,6 +14,6 @@
 
 #include "starboard/character.h"
 
-bool SbCharacterIsAlphanumeric(int /*c*/) {
+bool SbCharacterIsAlphanumeric(int c) {
   return false;
 }

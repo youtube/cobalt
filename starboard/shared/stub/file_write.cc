@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-int SbFileWrite(SbFile /*file*/, const char* /*data*/, int /*size*/) {
+int SbFileWrite(SbFile file, const char* data, int size) {
   return 0;
 }

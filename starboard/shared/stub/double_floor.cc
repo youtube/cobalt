@@ -14,6 +14,6 @@
 
 #include "starboard/double.h"
 
-double SbDoubleFloor(double /*d*/) {
+double SbDoubleFloor(double d) {
   return 0.0;
 }

@@ -163,7 +163,7 @@ int SbThreadPriorityToWin32Priority(SbThreadPriority priority) {
 // please fork this implementation for UWP.
 SbThread SbThreadCreate(int64_t stack_size,
                         SbThreadPriority priority,
-                        SbThreadAffinity /*affinity*/,
+                        SbThreadAffinity affinity,
                         bool joinable,
                         const char* name,
                         SbThreadEntryPoint entry_point,

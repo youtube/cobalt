@@ -173,7 +173,7 @@ class TestMemReporter {
     return cb;
   }
 
-  void ReportAlloc(const void* memory, size_t /*size*/) {
+  void ReportAlloc(const void* memory, size_t size) {
     if (!GetMemoryTrackingEnabled_ThreadLocal()) {
       return;
     }

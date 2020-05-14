@@ -53,11 +53,11 @@ void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(UpgradeReader::IsUpgradeData(data, size));
 }
 
-void ValidateCookie(const net::CanonicalCookie* cookie,
-                    const std::string& /*url*/, const std::string& name,
-                    const std::string& value, const std::string domain,
-                    const std::string& path, const base::Time& creation,
-                    const base::Time expiration, bool http_only) {
+void ValidateCookie(const net::CanonicalCookie* cookie, const std::string& url,
+                    const std::string& name, const std::string& value,
+                    const std::string domain, const std::string& path,
+                    const base::Time& creation, const base::Time expiration,
+                    bool http_only) {
   EXPECT_TRUE(cookie);
   EXPECT_EQ(cookie->Name(), name);
   EXPECT_EQ(cookie->Value(), value);

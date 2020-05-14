@@ -14,7 +14,7 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketJoinMulticastGroup(SbSocket /*socket*/,
-                                const SbSocketAddress* /*address*/) {
+bool SbSocketJoinMulticastGroup(SbSocket socket,
+                                const SbSocketAddress* address) {
   return false;
 }

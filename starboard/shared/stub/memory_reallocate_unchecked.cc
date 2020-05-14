@@ -14,6 +14,6 @@
 
 #include "starboard/memory.h"
 
-void* SbMemoryReallocateUnchecked(void* /*memory*/, size_t /*size*/) {
+void* SbMemoryReallocateUnchecked(void* memory, size_t size) {
   return NULL;
 }
