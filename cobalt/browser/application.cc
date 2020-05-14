@@ -487,15 +487,6 @@ int64 Application::lifetime_in_ms_ = 0;
 
 Application::AppStatus Application::app_status_ =
     Application::kUninitializedAppStatus;
-int Application::app_pause_count_ = 0;
-int Application::app_unpause_count_ = 0;
-int Application::app_suspend_count_ = 0;
-int Application::app_resume_count_ = 0;
-
-Application::NetworkStatus Application::network_status_ =
-    Application::kDisconnectedNetworkStatus;
-int Application::network_connect_count_ = 0;
-int Application::network_disconnect_count_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(base::MessageLoop::current()),
@@ -1125,21 +1116,18 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
       app_status_ = kPausedAppStatus;
-      ++app_pause_count_;
       browser_module_->Pause();
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
       app_status_ = kRunningAppStatus;
-      ++app_unpause_count_;
       browser_module_->Unpause();
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
       app_status_ = kSuspendedAppStatus;
-      ++app_suspend_count_;
       browser_module_->Suspend();
 #if SB_IS(EVERGREEN)
       updater_module_->Suspend();
@@ -1150,7 +1138,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
       app_status_ = kPausedAppStatus;
-      ++app_resume_count_;
       browser_module_->Resume();
 #if SB_IS(EVERGREEN)
       updater_module_->Resume();
