@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-FormatterWorker.HTMLFormatter = class {
+export class HTMLFormatter {
   /**
    * @param {!FormatterWorker.FormattedContentBuilder} builder
    */
@@ -26,7 +26,7 @@ FormatterWorker.HTMLFormatter = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    * @param {number} offset
    */
   _formatTokensTill(element, offset) {
@@ -37,16 +37,18 @@ FormatterWorker.HTMLFormatter = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    */
   _walk(element) {
-    if (element.parent)
+    if (element.parent) {
       this._formatTokensTill(element.parent, element.openTag.startOffset);
+    }
     this._beforeOpenTag(element);
     this._formatTokensTill(element, element.openTag.endOffset);
     this._afterOpenTag(element);
-    for (let i = 0; i < element.children.length; ++i)
+    for (let i = 0; i < element.children.length; ++i) {
       this._walk(element.children[i]);
+    }
 
     this._formatTokensTill(element, element.closeTag.startOffset);
     this._beforeCloseTag(element);
@@ -55,48 +57,52 @@ FormatterWorker.HTMLFormatter = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    */
   _beforeOpenTag(element) {
-    if (!element.children.length || element === this._model.document())
+    if (!element.children.length || element === this._model.document()) {
       return;
+    }
     this._builder.addNewLine();
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    */
   _afterOpenTag(element) {
-    if (!element.children.length || element === this._model.document())
+    if (!element.children.length || element === this._model.document()) {
       return;
+    }
     this._builder.increaseNestingLevel();
     this._builder.addNewLine();
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    */
   _beforeCloseTag(element) {
-    if (!element.children.length || element === this._model.document())
+    if (!element.children.length || element === this._model.document()) {
       return;
+    }
     this._builder.decreaseNestingLevel();
     this._builder.addNewLine();
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    */
   _afterCloseTag(element) {
     this._builder.addNewLine();
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
-   * @param {!FormatterWorker.HTMLModel.Token} token
+   * @param {!Element} element
+   * @param {!Token} token
    */
   _formatToken(element, token) {
-    if (token.value.isWhitespace())
+    if (token.value.isWhitespace()) {
       return;
+    }
     if (token.type.has('comment') || token.type.has('meta')) {
       this._builder.addNewLine();
       this._builder.addToken(token.value.trim(), token.startOffset);
@@ -126,30 +132,34 @@ FormatterWorker.HTMLFormatter = class {
       return;
     }
 
-    if (!isBodyToken && token.type.has('attribute'))
+    if (!isBodyToken && token.type.has('attribute')) {
       this._builder.addSoftSpace();
+    }
 
     this._builder.addToken(token.value, token.startOffset);
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Element} element
+   * @param {!Element} element
    * @return {boolean}
    */
   _scriptTagIsJavaScript(element) {
-    if (!element.openTag.attributes.has('type'))
+    if (!element.openTag.attributes.has('type')) {
       return true;
+    }
     let type = element.openTag.attributes.get('type').toLowerCase();
-    if (!type)
+    if (!type) {
       return true;
+    }
     const isWrappedInQuotes = /^(["\'])(.*)\1$/.exec(type.trim());
-    if (isWrappedInQuotes)
+    if (isWrappedInQuotes) {
       type = isWrappedInQuotes[2];
+    }
     return FormatterWorker.HTMLFormatter.SupportedJavaScriptMimeTypes.has(type.trim());
   }
-};
+}
 
-FormatterWorker.HTMLFormatter.SupportedJavaScriptMimeTypes = new Set([
+HTMLFormatter.SupportedJavaScriptMimeTypes = new Set([
   'application/ecmascript', 'application/javascript', 'application/x-ecmascript', 'application/x-javascript',
   'text/ecmascript', 'text/javascript', 'text/javascript1.0', 'text/javascript1.1', 'text/javascript1.2',
   'text/javascript1.3', 'text/javascript1.4', 'text/javascript1.5', 'text/jscript', 'text/livescript',
@@ -159,16 +169,15 @@ FormatterWorker.HTMLFormatter.SupportedJavaScriptMimeTypes = new Set([
 /**
  * @unrestricted
  */
-FormatterWorker.HTMLModel = class {
+export class HTMLModel {
   /**
    * @param {string} text
    */
   constructor(text) {
-    this._state = FormatterWorker.HTMLModel.ParseState.Initial;
-    this._document = new FormatterWorker.HTMLModel.Element('document');
-    this._document.openTag = new FormatterWorker.HTMLModel.Tag('document', 0, 0, new Map(), true, false);
-    this._document.closeTag =
-        new FormatterWorker.HTMLModel.Tag('document', text.length, text.length, new Map(), false, false);
+    this._state = ParseState.Initial;
+    this._document = new Element('document');
+    this._document.openTag = new Tag('document', 0, 0, new Map(), true, false);
+    this._document.closeTag = new Tag('document', text.length, text.length, new Map(), false, false);
 
     this._stack = [this._document];
 
@@ -187,22 +196,23 @@ FormatterWorker.HTMLModel = class {
 
     while (true) {
       tokenizer(text.substring(lastOffset), processToken.bind(this, lastOffset));
-      if (lastOffset >= text.length)
+      if (lastOffset >= text.length) {
         break;
+      }
       const element = this._stack.peekLast();
       lastOffset = lowerCaseText.indexOf('</' + element.name, lastOffset);
-      if (lastOffset === -1)
+      if (lastOffset === -1) {
         lastOffset = text.length;
+      }
       const tokenStart = element.openTag.endOffset;
       const tokenEnd = lastOffset;
       const tokenValue = text.substring(tokenStart, tokenEnd);
-      this._tokens.push(new FormatterWorker.HTMLModel.Token(tokenValue, new Set(), tokenStart, tokenEnd));
+      this._tokens.push(new Token(tokenValue, new Set(), tokenStart, tokenEnd));
     }
 
     while (this._stack.length > 1) {
       const element = this._stack.peekLast();
-      this._popElement(
-          new FormatterWorker.HTMLModel.Tag(element.name, text.length, text.length, new Map(), false, false));
+      this._popElement(new Tag(element.name, text.length, text.length, new Map(), false, false));
     }
 
     /**
@@ -220,22 +230,23 @@ FormatterWorker.HTMLModel = class {
       lastOffset = tokenEnd;
 
       const tokenType = type ? new Set(type.split(' ')) : new Set();
-      const token = new FormatterWorker.HTMLModel.Token(tokenValue, tokenType, tokenStart, tokenEnd);
+      const token = new Token(tokenValue, tokenType, tokenStart, tokenEnd);
       this._tokens.push(token);
       this._updateDOM(token);
 
       const element = this._stack.peekLast();
       if (element && (element.name === 'script' || element.name === 'style') &&
-          element.openTag.endOffset === lastOffset)
+          element.openTag.endOffset === lastOffset) {
         return FormatterWorker.AbortTokenization;
+      }
     }
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Token} token
+   * @param {!Token} token
    */
   _updateDOM(token) {
-    const S = FormatterWorker.HTMLModel.ParseState;
+    const S = ParseState;
     const value = token.value;
     const type = token.type;
     switch (this._state) {
@@ -278,7 +289,7 @@ FormatterWorker.HTMLModel = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Token} token
+   * @param {!Token} token
    */
   _onStartTag(token) {
     this._tagName = '';
@@ -290,50 +301,51 @@ FormatterWorker.HTMLModel = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Token} token
+   * @param {!Token} token
    */
   _onEndTag(token) {
     this._tagEndOffset = token.endOffset;
-    const selfClosingTag = token.value === '/>' || FormatterWorker.HTMLModel.SelfClosingTags.has(this._tagName);
-    const tag = new FormatterWorker.HTMLModel.Tag(
+    const selfClosingTag = token.value === '/>' || SelfClosingTags.has(this._tagName);
+    const tag = new Tag(
         this._tagName, this._tagStartOffset, this._tagEndOffset, this._attributes, this._isOpenTag, selfClosingTag);
     this._onTagComplete(tag);
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Tag} tag
+   * @param {!Tag} tag
    */
   _onTagComplete(tag) {
     if (tag.isOpenTag) {
       const topElement = this._stack.peekLast();
-      if (topElement !== this._document && topElement.openTag.selfClosingTag)
+      if (topElement !== this._document && topElement.openTag.selfClosingTag) {
         this._popElement(autocloseTag(topElement, topElement.openTag.endOffset));
-      else if (
-          (topElement.name in FormatterWorker.HTMLModel.AutoClosingTags) &&
-          FormatterWorker.HTMLModel.AutoClosingTags[topElement.name].has(tag.name))
+      } else if ((topElement.name in AutoClosingTags) && AutoClosingTags[topElement.name].has(tag.name)) {
         this._popElement(autocloseTag(topElement, tag.startOffset));
+      }
       this._pushElement(tag);
       return;
     }
 
-    while (this._stack.length > 1 && this._stack.peekLast().name !== tag.name)
+    while (this._stack.length > 1 && this._stack.peekLast().name !== tag.name) {
       this._popElement(autocloseTag(this._stack.peekLast(), tag.startOffset));
-    if (this._stack.length === 1)
+    }
+    if (this._stack.length === 1) {
       return;
+    }
     this._popElement(tag);
 
     /**
-     * @param {!FormatterWorker.HTMLModel.Element} element
+     * @param {!Element} element
      * @param {number} offset
-     * @return {!FormatterWorker.HTMLModel.Tag}
+     * @return {!Tag}
      */
     function autocloseTag(element, offset) {
-      return new FormatterWorker.HTMLModel.Tag(element.name, offset, offset, new Map(), false, false);
+      return new Tag(element.name, offset, offset, new Map(), false, false);
     }
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Tag} closeTag
+   * @param {!Tag} closeTag
    */
   _popElement(closeTag) {
     const element = this._stack.pop();
@@ -341,11 +353,11 @@ FormatterWorker.HTMLModel = class {
   }
 
   /**
-   * @param {!FormatterWorker.HTMLModel.Tag} openTag
+   * @param {!Tag} openTag
    */
   _pushElement(openTag) {
     const topElement = this._stack.peekLast();
-    const newElement = new FormatterWorker.HTMLModel.Element(openTag.name);
+    const newElement = new Element(openTag.name);
     newElement.parent = topElement;
     topElement.children.push(newElement);
     newElement.openTag = openTag;
@@ -353,34 +365,34 @@ FormatterWorker.HTMLModel = class {
   }
 
   /**
-   * @return {?FormatterWorker.HTMLModel.Token}
+   * @return {?Token}
    */
   peekToken() {
     return this._tokenIndex < this._tokens.length ? this._tokens[this._tokenIndex] : null;
   }
 
   /**
-   * @return {?FormatterWorker.HTMLModel.Token}
+   * @return {?Token}
    */
   nextToken() {
     return this._tokens[this._tokenIndex++];
   }
 
   /**
-   * @return {!FormatterWorker.HTMLModel.Element}
+   * @return {!Element}
    */
   document() {
     return this._document;
   }
-};
+}
 
-FormatterWorker.HTMLModel.SelfClosingTags = new Set([
+const SelfClosingTags = new Set([
   'area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source',
   'track', 'wbr'
 ]);
 
 // @see https://www.w3.org/TR/html/syntax.html 8.1.2.4 Optional tags
-FormatterWorker.HTMLModel.AutoClosingTags = {
+const AutoClosingTags = {
   'head': new Set(['body']),
   'li': new Set(['li']),
   'dt': new Set(['dt', 'dd']),
@@ -406,7 +418,7 @@ FormatterWorker.HTMLModel.AutoClosingTags = {
 };
 
 /** @enum {string} */
-FormatterWorker.HTMLModel.ParseState = {
+const ParseState = {
   Initial: 'Initial',
   Tag: 'Tag',
   AttributeName: 'AttributeName',
@@ -416,7 +428,7 @@ FormatterWorker.HTMLModel.ParseState = {
 /**
  * @unrestricted
  */
-FormatterWorker.HTMLModel.Token = class {
+const Token = class {
   /**
    * @param {string} value
    * @param {!Set<string>} type
@@ -434,7 +446,7 @@ FormatterWorker.HTMLModel.Token = class {
 /**
  * @unrestricted
  */
-FormatterWorker.HTMLModel.Tag = class {
+const Tag = class {
   /**
    * @param {string} name
    * @param {number} startOffset
@@ -456,7 +468,7 @@ FormatterWorker.HTMLModel.Tag = class {
 /**
  * @unrestricted
  */
-FormatterWorker.HTMLModel.Element = class {
+const Element = class {
   /**
    * @param {string} name
    */
@@ -468,3 +480,15 @@ FormatterWorker.HTMLModel.Element = class {
     this.closeTag = null;
   }
 };
+
+/* Legacy exported object */
+self.FormatterWorker = self.FormatterWorker || {};
+
+/* Legacy exported object */
+FormatterWorker = FormatterWorker || {};
+
+/** @constructor */
+FormatterWorker.HTMLFormatter = HTMLFormatter;
+
+/** @constructor */
+FormatterWorker.HTMLModel = HTMLModel;

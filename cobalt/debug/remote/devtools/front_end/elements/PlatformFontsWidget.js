@@ -27,20 +27,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import {ComputedStyleModel, Events} from './ComputedStyleModel.js';  // eslint-disable-line no-unused-vars
 
 /**
  * @unrestricted
  */
-Elements.PlatformFontsWidget = class extends UI.ThrottledWidget {
+export class PlatformFontsWidget extends UI.ThrottledWidget {
   /**
-   * @param {!Elements.ComputedStyleModel} sharedModel
+   * @param {!ComputedStyleModel} sharedModel
    */
   constructor(sharedModel) {
     super(true);
     this.registerRequiredCSS('elements/platformFontsWidget.css');
 
     this._sharedModel = sharedModel;
-    this._sharedModel.addEventListener(Elements.ComputedStyleModel.Events.ComputedStyleChanged, this.update, this);
+    this._sharedModel.addEventListener(Events.ComputedStyleChanged, this.update, this);
 
     this._sectionTitle = createElementWithClass('div', 'title');
     this.contentElement.classList.add('platform-fonts');
@@ -57,8 +58,9 @@ Elements.PlatformFontsWidget = class extends UI.ThrottledWidget {
   doUpdate() {
     const cssModel = this._sharedModel.cssModel();
     const node = this._sharedModel.node();
-    if (!node || !cssModel)
+    if (!node || !cssModel) {
       return Promise.resolve();
+    }
 
     return cssModel.platformFontsPromise(node.id).then(this._refreshUI.bind(this, node));
   }
@@ -68,15 +70,17 @@ Elements.PlatformFontsWidget = class extends UI.ThrottledWidget {
    * @param {?Array.<!Protocol.CSS.PlatformFontUsage>} platformFonts
    */
   _refreshUI(node, platformFonts) {
-    if (this._sharedModel.node() !== node)
+    if (this._sharedModel.node() !== node) {
       return;
+    }
 
     this._fontStatsSection.removeChildren();
 
     const isEmptySection = !platformFonts || !platformFonts.length;
     this._sectionTitle.classList.toggle('hidden', isEmptySection);
-    if (isEmptySection)
+    if (isEmptySection) {
       return;
+    }
 
     platformFonts.sort(function(a, b) {
       return b.glyphCount - a.glyphCount;
@@ -100,4 +104,4 @@ Elements.PlatformFontsWidget = class extends UI.ThrottledWidget {
           usage === 1 ? Common.UIString('(%d glyph)', usage) : Common.UIString('(%d glyphs)', usage);
     }
   }
-};
+}

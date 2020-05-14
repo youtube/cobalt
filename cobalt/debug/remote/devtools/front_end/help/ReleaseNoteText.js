@@ -7,11 +7,405 @@
 // https://github.com/ChromeDevTools/devtools-frontend/wiki/Release-Notes
 
 const continueToHereShortcut = Host.isMac() ? 'Command' : 'Control';
-const networkSearchShortcut = Host.isMac() ? 'Command + F' : 'Control + F';
-const commandMenuShortcut = Host.isMac() ? 'Command + Shift + P' : 'Control + Shift + P';
+const networkSearchShortcut = Host.isMac() ? 'Command+F' : 'Control+F';
+const commandMenuShortcut = Host.isMac() ? 'Command+Shift+P' : 'Control+Shift+P';
 
 /** @type {!Array<!Help.ReleaseNote>} */
-Help.releaseNoteText = [
+export const releaseNoteText = [
+  {
+    version: 22,
+    header: 'Highlights from the Chrome 80 update',
+    highlights: [
+      {
+        title: 'Support for let and class redeclarations',
+        subtitle:
+            'When experimenting with new code in the Console, repeating let or class declarations no longer causes errors.',
+        link: 'https://developers.google.com/web/updates/2019/12/devtools#redeclarations',
+      },
+      {
+        title: 'Improved WebAssembly debugging',
+        subtitle:
+            'The Sources panel has increased support for stepping over code, setting breakpoints, and resolving stack traces in source languages.',
+        link: 'https://developers.google.com/web/updates/2019/12/devtools#webassembly',
+      },
+      {
+        title: 'Network panel updates',
+        subtitle: 'View request initiator chains, highlight requests in the Overview, and more.',
+        link: 'https://developers.google.com/web/updates/2019/12/devtools#network',
+      },
+      {
+        title: 'Audits panel updates',
+        subtitle: 'The redesigned configuration UI has simplified throttling options.',
+        link: 'https://developers.google.com/web/updates/2019/12/devtools#audits',
+      },
+      {
+        title: 'Coverage tab updates',
+        subtitle: 'Choose per-function or per-block coverage, and more.',
+        link: 'https://developers.google.com/web/updates/2019/12/devtools#coverage',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/12/devtools',
+  },
+  {
+    version: 21,
+    header: 'Highlights from the Chrome 79 update',
+    highlights: [
+      {
+        title: 'Debug why a cookie was blocked',
+        subtitle: 'Click a resource in the Network panel and go to the updated Cookies tab.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#blockedcookies',
+      },
+      {
+        title: 'View cookie values',
+        subtitle: 'Click a row in the Cookies pane in the Application panel to see the cookie\'s value.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#cookiepreviews',
+      },
+      {
+        title: 'Simulate prefers-color-scheme and prefers-reduced-motion preferences',
+        subtitle: 'Open the Rendering tab to force your site into dark or light mode or set motion preferences.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#userpreferences',
+      },
+      {
+        title: 'Code coverage updates',
+        subtitle: 'More accessible colors, a filter text box, and a new integration with the Sources panel.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#coverage',
+      },
+      {
+        title: 'Debug why a network resource was requested',
+        subtitle: 'Click a resource in the Network panel and go to the new Initiator tab.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#initiator',
+      },
+      {
+        title: 'Console and Sources panels respect indentation preferences again',
+        subtitle: 'Set your preference in Settings > Preferences > Sources > Default Indentation.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#indentation',
+      },
+      {
+        title: 'New shortcuts for cursor navigation',
+        subtitle: 'Press Control+P or Control+N to move your cursor to the line above or below.',
+        link: 'https://developers.google.com/web/updates/2019/10/devtools#console',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/10/devtools',
+  },
+
+  {
+    version: 20,
+    header: 'Highlights from the Chrome 78 update',
+    highlights: [
+      {
+        title: 'Multi-client support in the Audits panel',
+        subtitle: 'Use the Audits panel in combination with other features, like Local Overrides or Request Blocking.',
+        link: 'https://developers.google.com/web/updates/2019/09/devtools#multiclient',
+      },
+      {
+        title: 'Payment Handler debugging',
+        subtitle: 'Record Payment Handler events for 3 days, even when DevTools is closed.',
+        link: 'https://developers.google.com/web/updates/2019/09/devtools#payments',
+      },
+      {
+        title: 'Lighthouse 5.2 in the Audits panel',
+        subtitle:
+            'Measure the impact of third-party code on your load performance with the new Third-Party Usage audit.',
+        link: 'https://developers.google.com/web/updates/2019/09/devtools#audits',
+      },
+      {
+        title: 'Largest Contentful Paint (LCP) in the Performance panel',
+        subtitle: 'Click the new LCP marker in the Timing section to see the DOM node associated with your LCP.',
+        link: 'https://developers.google.com/web/updates/2019/09/devtools#LCP',
+      },
+      {
+        title: 'File issues and feature requests from the Main Menu',
+        subtitle:
+            'Found a bug? Got an idea on how to improve DevTools? Go to Main Menu > Help > Report a DevTools issue.',
+        link: 'https://developers.google.com/web/updates/2019/09/devtools#issues',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/09/devtools',
+  },
+  {
+    version: 19,
+    header: 'Highlights from the Chrome 77 update',
+    highlights: [
+      {
+        title: 'Copy element styles',
+        subtitle: 'Right-click an element in the DOM Tree and select Copy > Copy Styles.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#copystyles',
+      },
+      {
+        title: 'Visualize layout shifts',
+        subtitle: `Press ${
+            commandMenuShortcut}, run Show Rendering, and enable Layout Shift Regions to visualize content shifts.`,
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#layoutshifts',
+      },
+      {
+        title: 'Lighthouse 5.1 in the Audits panel',
+        subtitle: 'New audits for checking for PWA installability on iOS, keeping resource counts low, and more.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#audits',
+      },
+      {
+        title: 'OS theme syncing',
+        subtitle: 'DevTools now automatically switches to its own dark theme when it detects an OS in dark mode.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#theming',
+      },
+      {
+        title: 'Keyboard shortcut for opening the Breakpoint Editor',
+        subtitle: `Press ${
+            Host.isMac() ?
+                'Command+Option+B' :
+                'Control+Alt+B'} when focused in the Editor to create Logpoints and Conditional Breakpoints more quickly.`,
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#breakpointeditor',
+      },
+      {
+        title: 'Prefetch cache in Network panel',
+        subtitle: 'The Size column now indicates whether a resource came from the prefetch cache.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#prefetch',
+      },
+      {
+        title: 'Private properties when viewing objects',
+        subtitle: 'The Console now shows private class fields in its object previews.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#privateclassfields',
+      },
+      {
+        title: 'Notification and push message logs',
+        subtitle:
+            'Go to Application > Background Services > Notifications or Messages and click Record to log events for 3 days.',
+        link: 'https://developers.google.com/web/updates/2019/07/devtools#backgroundservices',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/07/devtools',
+  },
+  {
+    version: 18,
+    header: 'Highlights from the Chrome 76 update',
+    highlights: [
+      {
+        title: 'Autocomplete with CSS keyword values',
+        subtitle: 'Typing a keyword value like "bold" in the Styles pane now autocompletes to "font-weight: bold".',
+        link: 'https://developers.google.com/web/updates/2019/05/devtools#values',
+      },
+      {
+        title: 'A new UI for network settings',
+        subtitle:
+            'The "Use large request rows", "Group by frame", "Show overview", and "Capture screenshots" options have moved to the new Network Settings pane.',
+        link: 'https://developers.google.com/web/updates/2019/05/devtools#settings',
+      },
+      {
+        title: 'WebSocket messages in HAR exports',
+        subtitle: 'Network logs downloaded from the Network panel now include WebSocket messages.',
+        link: 'https://developers.google.com/web/updates/2019/05/devtools#websocket',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/05/devtools',
+  },
+  {
+    version: 17,
+    header: 'Highlights from the Chrome 75 update',
+    highlights: [
+      {
+        title: 'Meaningful preset values when autocompleting CSS functions',
+        subtitle:
+            'Properties like "filter" that take functions for values now autocomplete to previewable values in the Styles pane.',
+        link: 'https://developers.google.com/web/updates/2019/04/devtools#presets',
+      },
+      {
+        title: 'Clear site data from the Command Menu',
+        subtitle:
+            `Press ${commandMenuShortcut} and run the "Clear Site Data" command to clear cookies, storage, and more.`,
+        link: 'https://developers.google.com/web/updates/2019/04/devtools#clear',
+      },
+      {
+        title: 'View all IndexedDB databases',
+        subtitle: 'The IndexedDB pane now shows databases for all origins rather than just the main origin.',
+        link: 'https://developers.google.com/web/updates/2019/04/devtools#indexeddb',
+      },
+      {
+        title: 'View a resource\'s uncompressed size on hover',
+        subtitle: 'Hover over the Size column in the Network panel to view a resource\'s full size.',
+        link: 'https://developers.google.com/web/updates/2019/04/devtools#uncompressed',
+      },
+      {
+        title: 'Inline breakpoints in the Breakpoints pane',
+        subtitle:
+            'When you\'ve got multiple breakpoints on a single line of code, the Breakpoints pane now lets you manage each one independently.',
+        link: 'https://developers.google.com/web/updates/2019/04/devtools#inline',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/04/devtools',
+  },
+  {
+    version: 16,
+    header: 'Highlights from the Chrome 74 update',
+    highlights: [
+      {
+        title: 'Highlight all nodes affected by CSS property',
+        subtitle:
+            'Hover over a CSS property like padding or margin in the Styles pane to highlight all nodes affected by that declaration.',
+        link: 'https://developers.google.com/web/updates/2019/03/devtools#highlight',
+      },
+
+      {
+        title: 'Lighthouse v4 in the Audits panel',
+        subtitle:
+            'Featuring a new "tap targets" audit for checking that mobile links and buttons are properly sized, and a new UI for PWA reports.',
+        link: 'https://developers.google.com/web/updates/2019/03/devtools#lighthouse',
+      },
+      {
+        title: 'WebSocket binary message viewer',
+        subtitle:
+            'Click a WebSocket connection in the Network Log, go to the Messages tab, then click a binary message to view its contents.',
+        link: 'https://developers.google.com/web/updates/2019/03/devtools#binary',
+      },
+      {
+        title: 'Capture area screenshot in the Command Menu',
+        subtitle: 'Press ' + commandMenuShortcut +
+            ', run the "Capture area screenshot" command, and then drag your mouse to take a screenshot of part of the viewport.',
+        link: 'https://developers.google.com/web/updates/2019/03/devtools#screenshot',
+      },
+      {
+        title: 'Service worker filters in the Network panel',
+        subtitle:
+            'Type "is:service-worker-initiated" or "is:service-worker-intercepted" to only show service worker activity.',
+        link: 'https://developers.google.com/web/updates/2019/03/devtools#swfilters',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/03/devtools',
+  },
+  {
+    version: 15,
+    header: 'Highlights from the Chrome 73 update',
+    highlights: [
+      {
+        title: 'Logpoints',
+        subtitle: 'Log messages to the Console without cluttering up your code with console.log() calls.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#logpoints',
+      },
+      {
+        title: 'Detailed tooltips in Inspect Mode',
+        subtitle: 'When inspecting a node, DevTools now shows an expanded tooltip containing text, ' +
+            'color contrast, and box model information.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#inspect',
+      },
+      {
+        title: 'Export code coverage data',
+        subtitle: 'The Coverage tab now supports exporting coverage data as JSON.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#coverage',
+      },
+      {
+        title: 'Navigate the Console with the keyboard',
+        subtitle: 'Press Shift+Tab to focus the last message and then use the arrow keys to navigate.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#keyboard',
+      },
+      {
+        title: 'Save custom geolocation overrides',
+        subtitle: 'Click Manage in the Sensors tab or open Settings > Geolocations.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#geolocation',
+      },
+      {
+        title: 'Code folding',
+        subtitle: 'Go to Settings > Preferences > Sources and enable Code Folding to fold ' +
+            'code in the Sources panel.',
+        link: 'https://developers.google.com/web/updates/2019/01/devtools#folding',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2019/01/devtools',
+  },
+  {
+    version: 14,
+    header: 'Highlights from the Chrome 72 update',
+    highlights: [
+      {
+        title: 'Visualize performance metrics',
+        subtitle:
+            'Performance metrics like DOMContentLoaded and First Meaningful Paint are now marked in the Timings section of the Performance panel.',
+        link: 'https://developers.google.com/web/updates/2018/11/devtools#metrics',
+      },
+      {
+        title: 'Highlight text nodes',
+        subtitle: 'Hover over a text node in the DOM Tree to highlight it in the viewport.',
+        link: 'https://developers.google.com/web/updates/2018/11/devtools#highlight',
+      },
+      {
+        title: 'Copy JS path',
+        subtitle:
+            'Right-click a DOM node and select "Copy" > "Copy JS path" to quickly get a JavaScript expression that points to that node.',
+        link: 'https://developers.google.com/web/updates/2018/11/devtools#copy',
+      },
+      {
+        title: 'Audits panel updates',
+        subtitle:
+            'A new audit that lists detected JS libraries and new keywords for accessing the Audits panel from the Command Menu.',
+        link: 'https://developers.google.com/web/updates/2018/11/devtools#audits',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2018/11/devtools',
+  },
+  {
+    version: 13,
+    header: 'Highlights from the Chrome 71 update',
+    highlights: [
+      {
+        title: 'Hover over a Live Expression to highlight a DOM node',
+        subtitle: 'Hover over a result that evaluates to a node to highlight that node in the viewport.',
+        link: 'https://developers.google.com/web/updates/2018/10/devtools#hover',
+      },
+      {
+        title: 'Store DOM nodes as global variables',
+        subtitle: 'Right-click a node in the Elements panel or Console and select "Store as global variable".',
+        link: 'https://developers.google.com/web/updates/2018/10/devtools#store',
+      },
+      {
+        title: 'Initiator and priority information now in HAR imports and exports',
+        subtitle:
+            'Get more context around what caused a resource to be requested and what priority the browser assigned to each resource when sharing network logs.',
+        link: 'https://developers.google.com/web/updates/2018/10/devtools#HAR',
+      },
+      {
+        title: 'Access the Command Menu from the Main Menu',
+        subtitle: 'Open the Main Menu and select "Run command".',
+        link: 'https://developers.google.com/web/updates/2018/10/devtools#command-menu',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2018/10/devtools',
+  },
+  {
+    version: 12,
+    header: 'Highlights from the Chrome 70 update',
+    highlights: [
+      {
+        title: 'Live Expressions in the Console',
+        subtitle: 'Pin expressions to the top of the Console to monitor their values in real-time.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#watch',
+      },
+      {
+        title: 'Highlight DOM nodes during Eager Evaluation',
+        subtitle: 'Type an expression that evaluates to a node to highlight that node in the viewport.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#nodes',
+      },
+      {
+        title: 'Autocomplete Conditional Breakpoints',
+        subtitle: 'Type expressions quickly and accurately.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#autocomplete',
+      },
+      {
+        title: 'Performance panel optimizations',
+        subtitle: 'Faster loading and processing of Performance recordings.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#performance',
+      },
+      {
+        title: 'More reliable debugging',
+        subtitle: 'Bug fixes for sourcemaps and blackboxing.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#debugging',
+      },
+      {
+        title: 'Debug Node.js apps with ndb',
+        subtitle:
+            'Detect and attach to child processes, place breakpoints before modules are required, edit files within DevTools, and more.',
+        link: 'https://developers.google.com/web/updates/2018/08/devtools#ndb',
+      },
+    ],
+    link: 'https://developers.google.com/web/updates/2018/08/devtools',
+  },
   {
     version: 11,
     header: 'Highlights from the Chrome 68 update',
@@ -365,3 +759,11 @@ Help.releaseNoteText = [
     link: 'https://developers.google.com/web/updates/2017/03/devtools-release-notes',
   }
 ];
+
+/* Legacy exported object */
+self.Help = self.Help || {};
+
+/* Legacy exported object */
+Help = Help || {};
+
+Help.releaseNoteText = releaseNoteText;

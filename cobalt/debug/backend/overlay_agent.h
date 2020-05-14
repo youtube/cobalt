@@ -33,6 +33,7 @@ class OverlayAgent : public AgentBase {
   void HighlightNode(Command command);
   void HighlightRect(Command command);
   void HideHighlight(Command command);
+  void SetShowViewportSizeOnResize(Command command);
 
   // Render layer owned by this object.
   std::unique_ptr<RenderLayer> render_layer_;

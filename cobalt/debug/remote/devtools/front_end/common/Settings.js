@@ -28,29 +28,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import {ObjectWrapper} from './Object.js';
+
 /**
  * @unrestricted
  */
-Common.Settings = class {
+export class Settings {
   /**
-   * @param {!Common.SettingsStorage} globalStorage
-   * @param {!Common.SettingsStorage} localStorage
+   * @param {!SettingsStorage} globalStorage
+   * @param {!SettingsStorage} localStorage
    */
   constructor(globalStorage, localStorage) {
     this._globalStorage = globalStorage;
     this._localStorage = localStorage;
-    this._sessionStorage = new Common.SettingsStorage({});
+    this._sessionStorage = new SettingsStorage({});
 
-    this._eventSupport = new Common.Object();
-    /** @type {!Map<string, !Common.Setting>} */
+    this._eventSupport = new ObjectWrapper();
+    /** @type {!Map<string, !Setting>} */
     this._registry = new Map();
-    /** @type {!Map<string, !Common.Setting>} */
+    /** @type {!Map<string, !Setting>} */
     this._moduleSettings = new Map();
     self.runtime.extensions('setting').forEach(this._registerModuleSetting.bind(this));
   }
 
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Root.Runtime.Extension} extension
    */
   _registerModuleSetting(extension) {
     const descriptor = extension.descriptor();
@@ -60,116 +62,121 @@ Common.Settings = class {
     let storageType;
     switch (descriptor['storageType']) {
       case ('local'):
-        storageType = Common.SettingStorageType.Local;
+        storageType = SettingStorageType.Local;
         break;
       case ('session'):
-        storageType = Common.SettingStorageType.Session;
+        storageType = SettingStorageType.Session;
         break;
       case ('global'):
-        storageType = Common.SettingStorageType.Global;
+        storageType = SettingStorageType.Global;
         break;
       default:
-        storageType = Common.SettingStorageType.Global;
+        storageType = SettingStorageType.Global;
     }
     const setting = isRegex ? this.createRegExpSetting(settingName, defaultValue, undefined, storageType) :
                               this.createSetting(settingName, defaultValue, storageType);
-    if (descriptor['title'])
-      setting.setTitle(descriptor['title']);
-    if (descriptor['userActionCondition'])
-      setting.setRequiresUserAction(!!Runtime.queryParam(descriptor['userActionCondition']));
+    if (extension.title()) {
+      setting.setTitle(extension.title());
+    }
+    if (descriptor['userActionCondition']) {
+      setting.setRequiresUserAction(!!Root.Runtime.queryParam(descriptor['userActionCondition']));
+    }
     setting._extension = extension;
     this._moduleSettings.set(settingName, setting);
   }
 
   /**
    * @param {string} settingName
-   * @return {!Common.Setting}
+   * @return {!Setting}
    */
   moduleSetting(settingName) {
     const setting = this._moduleSettings.get(settingName);
-    if (!setting)
+    if (!setting) {
       throw new Error('No setting registered: ' + settingName);
+    }
     return setting;
   }
 
   /**
    * @param {string} settingName
-   * @return {!Common.Setting}
+   * @return {!Setting}
    */
   settingForTest(settingName) {
     const setting = this._registry.get(settingName);
-    if (!setting)
+    if (!setting) {
       throw new Error('No setting registered: ' + settingName);
+    }
     return setting;
   }
 
   /**
    * @param {string} key
    * @param {*} defaultValue
-   * @param {!Common.SettingStorageType=} storageType
-   * @return {!Common.Setting}
+   * @param {!SettingStorageType=} storageType
+   * @return {!Setting}
    */
   createSetting(key, defaultValue, storageType) {
     const storage = this._storageFromType(storageType);
-    if (!this._registry.get(key))
-      this._registry.set(key, new Common.Setting(this, key, defaultValue, this._eventSupport, storage));
-    return /** @type {!Common.Setting} */ (this._registry.get(key));
+    if (!this._registry.get(key)) {
+      this._registry.set(key, new Setting(this, key, defaultValue, this._eventSupport, storage));
+    }
+    return /** @type {!Setting} */ (this._registry.get(key));
   }
 
   /**
    * @param {string} key
    * @param {*} defaultValue
-   * @return {!Common.Setting}
+   * @return {!Setting}
    */
   createLocalSetting(key, defaultValue) {
-    return this.createSetting(key, defaultValue, Common.SettingStorageType.Local);
+    return this.createSetting(key, defaultValue, SettingStorageType.Local);
   }
 
   /**
    * @param {string} key
    * @param {string} defaultValue
    * @param {string=} regexFlags
-   * @param {!Common.SettingStorageType=} storageType
-   * @return {!Common.RegExpSetting}
+   * @param {!SettingStorageType=} storageType
+   * @return {!RegExpSetting}
    */
   createRegExpSetting(key, defaultValue, regexFlags, storageType) {
     if (!this._registry.get(key)) {
       this._registry.set(
           key,
-          new Common.RegExpSetting(
+          new RegExpSetting(
               this, key, defaultValue, this._eventSupport, this._storageFromType(storageType), regexFlags));
     }
-    return /** @type {!Common.RegExpSetting} */ (this._registry.get(key));
+    return /** @type {!RegExpSetting} */ (this._registry.get(key));
   }
 
   clearAll() {
     this._globalStorage.removeAll();
     this._localStorage.removeAll();
-    const versionSetting = Common.settings.createSetting(Common.VersionController._currentVersionName, 0);
-    versionSetting.set(Common.VersionController.currentVersion);
+    const versionSetting = Common.settings.createSetting(VersionController._currentVersionName, 0);
+    versionSetting.set(VersionController.currentVersion);
   }
 
   /**
-   * @param {!Common.SettingStorageType=} storageType
-   * @return {!Common.SettingsStorage}
+   * @param {!SettingStorageType=} storageType
+   * @return {!SettingsStorage}
    */
   _storageFromType(storageType) {
     switch (storageType) {
-      case (Common.SettingStorageType.Local):
+      case (SettingStorageType.Local):
         return this._localStorage;
-      case (Common.SettingStorageType.Session):
+      case (SettingStorageType.Session):
         return this._sessionStorage;
-      case (Common.SettingStorageType.Global):
+      case (SettingStorageType.Global):
         return this._globalStorage;
     }
     return this._globalStorage;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Common.SettingsStorage = class {
+export class SettingsStorage {
   /**
    * @param {!Object} object
    * @param {function(string, string)=} setCallback
@@ -231,8 +238,9 @@ Common.SettingsStorage = class {
     Common.console.log('Ten largest settings: ');
 
     const sizes = {__proto__: null};
-    for (const key in this._object)
+    for (const key in this._object) {
       sizes[key] = this._object[key].length;
+    }
     const keys = Object.keys(sizes);
 
     function comparator(key1, key2) {
@@ -241,22 +249,23 @@ Common.SettingsStorage = class {
 
     keys.sort(comparator);
 
-    for (let i = 0; i < 10 && i < keys.length; ++i)
+    for (let i = 0; i < 10 && i < keys.length; ++i) {
       Common.console.log('Setting: \'' + keys[i] + '\', size: ' + sizes[keys[i]]);
+    }
   }
-};
+}
 
 /**
  * @template V
  * @unrestricted
  */
-Common.Setting = class {
+export class Setting {
   /**
-   * @param {!Common.Settings} settings
+   * @param {!Settings} settings
    * @param {string} name
    * @param {V} defaultValue
-   * @param {!Common.Object} eventSupport
-   * @param {!Common.SettingsStorage} storage
+   * @param {!ObjectWrapper} eventSupport
+   * @param {!SettingsStorage} storage
    */
   constructor(settings, name, defaultValue, eventSupport, storage) {
     this._settings = settings;
@@ -272,9 +281,10 @@ Common.Setting = class {
   /**
    * @param {function(!Common.Event)} listener
    * @param {!Object=} thisObject
+   * @return {!Common.EventTarget.EventDescriptor}
    */
   addChangeListener(listener, thisObject) {
-    this._eventSupport.addEventListener(this._name, listener, thisObject);
+    return this._eventSupport.addEventListener(this._name, listener, thisObject);
   }
 
   /**
@@ -314,11 +324,13 @@ Common.Setting = class {
    * @return {V}
    */
   get() {
-    if (this._requiresUserAction && !this._hadUserAction)
+    if (this._requiresUserAction && !this._hadUserAction) {
       return this._defaultValue;
+    }
 
-    if (typeof this._value !== 'undefined')
+    if (typeof this._value !== 'undefined') {
       return this._value;
+    }
 
     this._value = this._defaultValue;
     if (this._storage.has(this._name)) {
@@ -357,7 +369,7 @@ Common.Setting = class {
   }
 
   /**
-   * @return {?Runtime.Extension}
+   * @return {?Root.Runtime.Extension}
    */
   extension() {
     return this._extension;
@@ -375,18 +387,18 @@ Common.Setting = class {
     Common.console.error(errorMessage);
     this._storage._dumpSizes();
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Common.RegExpSetting = class extends Common.Setting {
+export class RegExpSetting extends Setting {
   /**
-   * @param {!Common.Settings} settings
+   * @param {!Settings} settings
    * @param {string} name
    * @param {string} defaultValue
-   * @param {!Common.Object} eventSupport
-   * @param {!Common.SettingsStorage} storage
+   * @param {!ObjectWrapper} eventSupport
+   * @param {!SettingsStorage} storage
    * @param {string=} regexFlags
    */
   constructor(settings, name, defaultValue, eventSupport, storage, regexFlags) {
@@ -403,8 +415,9 @@ Common.RegExpSetting = class extends Common.Setting {
     const items = this.getAsArray();
     for (let i = 0; i < items.length; ++i) {
       const item = items[i];
-      if (item.pattern && !item.disabled)
+      if (item.pattern && !item.disabled) {
         result.push(item.pattern);
+      }
     }
     return result.join('|');
   }
@@ -436,28 +449,37 @@ Common.RegExpSetting = class extends Common.Setting {
    * @return {?RegExp}
    */
   asRegExp() {
-    if (typeof this._regex !== 'undefined')
+    if (typeof this._regex !== 'undefined') {
       return this._regex;
+    }
     this._regex = null;
     try {
       const pattern = this.get();
-      if (pattern)
+      if (pattern) {
         this._regex = new RegExp(pattern, this._regexFlags || '');
+      }
     } catch (e) {
     }
     return this._regex;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Common.VersionController = class {
+export class VersionController {
+  static get _currentVersionName() {
+    return 'inspectorVersion';
+  }
+
+  static get currentVersion() {
+    return 28;
+  }
+
   updateVersion() {
-    const localStorageVersion =
-        window.localStorage ? window.localStorage[Common.VersionController._currentVersionName] : 0;
-    const versionSetting = Common.settings.createSetting(Common.VersionController._currentVersionName, 0);
-    const currentVersion = Common.VersionController.currentVersion;
+    const localStorageVersion = window.localStorage ? window.localStorage[VersionController._currentVersionName] : 0;
+    const versionSetting = Common.settings.createSetting(VersionController._currentVersionName, 0);
+    const currentVersion = VersionController.currentVersion;
     const oldVersion = versionSetting.get() || parseInt(localStorageVersion || '0', 10);
     if (oldVersion === 0) {
       // First run, no need to do anything.
@@ -465,8 +487,9 @@ Common.VersionController = class {
       return;
     }
     const methodsToRun = this._methodsToRunToUpdateVersion(oldVersion, currentVersion);
-    for (let i = 0; i < methodsToRun.length; ++i)
+    for (let i = 0; i < methodsToRun.length; ++i) {
       this[methodsToRun[i]].call(this);
+    }
     versionSetting.set(currentVersion);
   }
 
@@ -476,8 +499,9 @@ Common.VersionController = class {
    */
   _methodsToRunToUpdateVersion(oldVersion, currentVersion) {
     const result = [];
-    for (let i = oldVersion; i < currentVersion; ++i)
+    for (let i = oldVersion; i < currentVersion; ++i) {
       result.push('_updateVersionFrom' + i + 'To' + (i + 1));
+    }
     return result;
   }
 
@@ -496,7 +520,7 @@ Common.VersionController = class {
 
   _updateVersionFrom3To4() {
     const advancedMode = Common.settings.createSetting('showHeaSnapshotObjectsHiddenProperties', false);
-    Common.moduleSetting('showAdvancedHeapSnapshotProperties').set(advancedMode.get());
+    moduleSetting('showAdvancedHeapSnapshotProperties').set(advancedMode.get());
     advancedMode.remove();
   }
 
@@ -542,8 +566,9 @@ Common.VersionController = class {
         newValue.horizontal.size = oldSettingH.get();
         oldSettingH.remove();
       }
-      if (newValue)
+      if (newValue) {
         Common.settings.createSetting(newName, {}).set(newValue);
+      }
     }
   }
 
@@ -589,13 +614,16 @@ Common.VersionController = class {
     for (const name in settingNames) {
       const setting = Common.settings.createSetting(name, empty);
       const value = setting.get();
-      if (value === empty)
+      if (value === empty) {
         continue;
+      }
       // Zero out saved percentage sizes, and they will be restored to defaults.
-      if (value.vertical && value.vertical.size && value.vertical.size < 1)
+      if (value.vertical && value.vertical.size && value.vertical.size < 1) {
         value.vertical.size = 0;
-      if (value.horizontal && value.horizontal.size && value.horizontal.size < 1)
+      }
+      if (value.horizontal && value.horizontal.size && value.horizontal.size < 1) {
         value.horizontal.size = 0;
+      }
       setting.set(value);
     }
   }
@@ -609,13 +637,16 @@ Common.VersionController = class {
     for (let i = 0; i < settingNames.length; ++i) {
       const setting = Common.settings.createSetting(settingNames[i], '');
       let value = setting.get();
-      if (!value)
+      if (!value) {
         return;
-      if (typeof value === 'string')
+      }
+      if (typeof value === 'string') {
         value = [value];
+      }
       for (let j = 0; j < value.length; ++j) {
-        if (typeof value[j] === 'string')
+        if (typeof value[j] === 'string') {
           value[j] = {pattern: value[j]};
+        }
       }
       setting.set(value);
     }
@@ -623,11 +654,13 @@ Common.VersionController = class {
 
   _updateVersionFrom9To10() {
     // This one is localStorage specific, which is fine.
-    if (!window.localStorage)
+    if (!window.localStorage) {
       return;
+    }
     for (const key in window.localStorage) {
-      if (key.startsWith('revision-history'))
+      if (key.startsWith('revision-history')) {
         window.localStorage.removeItem(key);
+      }
     }
   }
 
@@ -636,8 +669,9 @@ Common.VersionController = class {
     const newSettingName = 'customEmulatedDeviceList';
     const oldSetting = Common.settings.createSetting(oldSettingName, undefined);
     const list = oldSetting.get();
-    if (!Array.isArray(list))
+    if (!Array.isArray(list)) {
       return;
+    }
     const newList = [];
     for (let i = 0; i < list.length; ++i) {
       const value = list[i];
@@ -646,10 +680,12 @@ Common.VersionController = class {
       device['type'] = 'unknown';
       device['user-agent'] = value['userAgent'];
       device['capabilities'] = [];
-      if (value['touch'])
+      if (value['touch']) {
         device['capabilities'].push('touch');
-      if (value['mobile'])
+      }
+      if (value['mobile']) {
         device['capabilities'].push('mobile');
+      }
       device['screen'] = {};
       device['screen']['vertical'] = {width: value['width'], height: value['height']};
       device['screen']['horizontal'] = {width: value['height'], height: value['width']};
@@ -659,8 +695,9 @@ Common.VersionController = class {
       device['show'] = 'Default';
       newList.push(device);
     }
-    if (newList.length)
+    if (newList.length) {
       Common.settings.createSetting(newSettingName, []).set(newList);
+    }
     oldSetting.remove();
   }
 
@@ -684,8 +721,9 @@ Common.VersionController = class {
     const newValue = {};
     for (const fileSystemPath in oldValue) {
       newValue[fileSystemPath] = [];
-      for (const entry of oldValue[fileSystemPath])
+      for (const entry of oldValue[fileSystemPath]) {
         newValue[fileSystemPath].push(entry.path);
+      }
     }
     setting.set(newValue);
   }
@@ -693,8 +731,9 @@ Common.VersionController = class {
   _updateVersionFrom15To16() {
     const setting = Common.settings.createSetting('InspectorView.panelOrder', {});
     const tabOrders = setting.get();
-    for (const key of Object.keys(tabOrders))
+    for (const key of Object.keys(tabOrders)) {
       tabOrders[key] = (tabOrders[key] + 1) * 10;
+    }
     setting.set(tabOrders);
   }
 
@@ -724,10 +763,11 @@ Common.VersionController = class {
     for (const oldKey in oldValue) {
       let newKey = oldKey.replace(/\\/g, '/');
       if (!newKey.startsWith('file://')) {
-        if (newKey.startsWith('/'))
+        if (newKey.startsWith('/')) {
           newKey = 'file://' + newKey;
-        else
+        } else {
           newKey = 'file:///' + newKey;
+        }
       }
       newValue[newKey] = oldValue[oldKey];
     }
@@ -743,8 +783,9 @@ Common.VersionController = class {
 
     const configs = {};
     for (const columnId in visibleColumns) {
-      if (!visibleColumns.hasOwnProperty(columnId))
+      if (!visibleColumns.hasOwnProperty(columnId)) {
         continue;
+      }
       configs[columnId.toLowerCase()] = {visible: visibleColumns[columnId]};
     }
     const newSetting = Common.settings.createSetting('networkLogColumns', {});
@@ -808,6 +849,47 @@ Common.VersionController = class {
     oldSetting.remove();
   }
 
+  _updateVersionFrom26To27() {
+    /**
+     * @param {string} settingName
+     * @param {string} from
+     * @param {string} to
+     */
+    function renameKeyInObjectSetting(settingName, from, to) {
+      const setting = Common.settings.createSetting(settingName, {});
+      const value = setting.get();
+      if (from in value) {
+        value[to] = value[from];
+        delete value[from];
+        setting.set(value);
+      }
+    }
+
+    /**
+     * @param {string} settingName
+     * @param {string} from
+     * @param {string} to
+     */
+    function renameInStringSetting(settingName, from, to) {
+      const setting = Common.settings.createSetting(settingName, '');
+      const value = setting.get();
+      if (value === from) {
+        setting.set(to);
+      }
+    }
+
+    renameKeyInObjectSetting('panel-tabOrder', 'audits2', 'audits');
+    renameKeyInObjectSetting('panel-closeableTabs', 'audits2', 'audits');
+    renameInStringSetting('panel-selectedTab', 'audits2', 'audits');
+  }
+
+  _updateVersionFrom27To28() {
+    const setting = Common.settings.createSetting('uiTheme', 'systemPreferred');
+    if (setting.get() === 'default') {
+      setting.set('systemPreferred');
+    }
+  }
+
   _migrateSettingsFromLocalStorage() {
     // This step migrates all the settings except for the ones below into the browser profile.
     const localSettings = new Set([
@@ -815,12 +897,14 @@ Common.VersionController = class {
       'fileSystemMapping', 'lastSelectedSourcesSidebarPaneTab', 'previouslyViewedFiles', 'savedURLs',
       'watchExpressions', 'workspaceExcludedFolders', 'xhrBreakpoints'
     ]);
-    if (!window.localStorage)
+    if (!window.localStorage) {
       return;
+    }
 
     for (const key in window.localStorage) {
-      if (localSettings.has(key))
+      if (localSettings.has(key)) {
         continue;
+      }
       const value = window.localStorage[key];
       window.localStorage.removeItem(key);
       Common.settings._globalStorage[key] = value;
@@ -828,29 +912,22 @@ Common.VersionController = class {
   }
 
   /**
-   * @param {!Common.Setting} breakpointsSetting
+   * @param {!Setting} breakpointsSetting
    * @param {number} maxBreakpointsCount
    */
   _clearBreakpointsWhenTooMany(breakpointsSetting, maxBreakpointsCount) {
     // If there are too many breakpoints in a storage, it is likely due to a recent bug that caused
     // periodical breakpoints duplication leading to inspector slowness.
-    if (breakpointsSetting.get().length > maxBreakpointsCount)
+    if (breakpointsSetting.get().length > maxBreakpointsCount) {
       breakpointsSetting.set([]);
+    }
   }
-};
-
-Common.VersionController._currentVersionName = 'inspectorVersion';
-Common.VersionController.currentVersion = 26;
-
-/**
- * @type {!Common.Settings}
- */
-Common.settings;
+}
 
 /**
  * @enum {symbol}
  */
-Common.SettingStorageType = {
+export const SettingStorageType = {
   Global: Symbol('Global'),
   Local: Symbol('Local'),
   Session: Symbol('Session')
@@ -858,16 +935,16 @@ Common.SettingStorageType = {
 
 /**
  * @param {string} settingName
- * @return {!Common.Setting}
+ * @return {!Setting}
  */
-Common.moduleSetting = function(settingName) {
+export function moduleSetting(settingName) {
   return Common.settings.moduleSetting(settingName);
-};
+}
 
 /**
  * @param {string} settingName
- * @return {!Common.Setting}
+ * @return {!Setting}
  */
-Common.settingForTest = function(settingName) {
+export function settingForTest(settingName) {
   return Common.settings.settingForTest(settingName);
-};
+}

@@ -28,11 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-.indexed-db-database-view {
-    -webkit-user-select: text;
-    margin-top: 5px;
-}
-
 .indexed-db-data-view .data-view-toolbar {
     position: relative;
     background-color: #eee;
@@ -68,10 +63,6 @@
     line-height: inherit;
 }
 
-.indexed-db-data-view .primitive-value {
-    padding-top: 1px;
-}
-
 .indexed-db-data-view .data-grid .data-container td .section .header .title {
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -90,4 +81,15 @@
 
 .resources-toolbar {
     padding-right: 10px;
+}
+
+.object-store-summary-bar {
+    flex: 0 0 27px;
+    line-height: 27px;
+    padding-left: 5px;
+    background-color: #eee;
+    border-top: 1px solid #ccc;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }

@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-TextUtils.TextRange = class {
+export class TextRange {
   /**
    * @param {number} startLine
    * @param {number} startColumn
@@ -48,25 +48,25 @@ TextUtils.TextRange = class {
   /**
    * @param {number} line
    * @param {number} column
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   static createFromLocation(line, column) {
-    return new TextUtils.TextRange(line, column, line, column);
+    return new TextRange(line, column, line, column);
   }
 
   /**
    * @param {!Object} serializedTextRange
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   static fromObject(serializedTextRange) {
-    return new TextUtils.TextRange(
+    return new TextRange(
         serializedTextRange.startLine, serializedTextRange.startColumn, serializedTextRange.endLine,
         serializedTextRange.endColumn);
   }
 
   /**
-   * @param {!TextUtils.TextRange} range1
-   * @param {!TextUtils.TextRange} range2
+   * @param {!TextRange} range1
+   * @param {!TextRange} range2
    * @return {number}
    */
   static comparator(range1, range2) {
@@ -74,9 +74,9 @@ TextUtils.TextRange = class {
   }
 
   /**
-   * @param {!TextUtils.TextRange} oldRange
+   * @param {!TextRange} oldRange
    * @param {string} newText
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   static fromEdit(oldRange, newText) {
     let endLine = oldRange.startLine;
@@ -87,7 +87,7 @@ TextUtils.TextRange = class {
       const len = lineEndings.length;
       endColumn = lineEndings[len - 1] - lineEndings[len - 2] - 1;
     }
-    return new TextUtils.TextRange(oldRange.startLine, oldRange.startColumn, endLine, endColumn);
+    return new TextRange(oldRange.startLine, oldRange.startColumn, endLine, endColumn);
   }
 
   /**
@@ -98,27 +98,29 @@ TextUtils.TextRange = class {
   }
 
   /**
-   * @param {!TextUtils.TextRange} range
+   * @param {!TextRange} range
    * @return {boolean}
    */
   immediatelyPrecedes(range) {
-    if (!range)
+    if (!range) {
       return false;
+    }
     return this.endLine === range.startLine && this.endColumn === range.startColumn;
   }
 
   /**
-   * @param {!TextUtils.TextRange} range
+   * @param {!TextRange} range
    * @return {boolean}
    */
   immediatelyFollows(range) {
-    if (!range)
+    if (!range) {
       return false;
+    }
     return range.immediatelyPrecedes(this);
   }
 
   /**
-   * @param {!TextUtils.TextRange} range
+   * @param {!TextRange} range
    * @return {boolean}
    */
   follows(range) {
@@ -133,34 +135,35 @@ TextUtils.TextRange = class {
   }
 
   /**
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   collapseToEnd() {
-    return new TextUtils.TextRange(this.endLine, this.endColumn, this.endLine, this.endColumn);
+    return new TextRange(this.endLine, this.endColumn, this.endLine, this.endColumn);
   }
 
   /**
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   collapseToStart() {
-    return new TextUtils.TextRange(this.startLine, this.startColumn, this.startLine, this.startColumn);
+    return new TextRange(this.startLine, this.startColumn, this.startLine, this.startColumn);
   }
 
   /**
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   normalize() {
-    if (this.startLine > this.endLine || (this.startLine === this.endLine && this.startColumn > this.endColumn))
-      return new TextUtils.TextRange(this.endLine, this.endColumn, this.startLine, this.startColumn);
-    else
+    if (this.startLine > this.endLine || (this.startLine === this.endLine && this.startColumn > this.endColumn)) {
+      return new TextRange(this.endLine, this.endColumn, this.startLine, this.startColumn);
+    } else {
       return this.clone();
+    }
   }
 
   /**
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   clone() {
-    return new TextUtils.TextRange(this.startLine, this.startColumn, this.endLine, this.endColumn);
+    return new TextRange(this.startLine, this.startColumn, this.endLine, this.endColumn);
   }
 
   /**
@@ -176,18 +179,22 @@ TextUtils.TextRange = class {
   }
 
   /**
-   * @param {!TextUtils.TextRange} other
+   * @param {!TextRange} other
    * @return {number}
    */
   compareTo(other) {
-    if (this.startLine > other.startLine)
+    if (this.startLine > other.startLine) {
       return 1;
-    if (this.startLine < other.startLine)
+    }
+    if (this.startLine < other.startLine) {
       return -1;
-    if (this.startColumn > other.startColumn)
+    }
+    if (this.startColumn > other.startColumn) {
       return 1;
-    if (this.startColumn < other.startColumn)
+    }
+    if (this.startColumn < other.startColumn) {
       return -1;
+    }
     return 0;
   }
 
@@ -197,15 +204,17 @@ TextUtils.TextRange = class {
    * @return {number}
    */
   compareToPosition(lineNumber, columnNumber) {
-    if (lineNumber < this.startLine || (lineNumber === this.startLine && columnNumber < this.startColumn))
+    if (lineNumber < this.startLine || (lineNumber === this.startLine && columnNumber < this.startColumn)) {
       return -1;
-    if (lineNumber > this.endLine || (lineNumber === this.endLine && columnNumber > this.endColumn))
+    }
+    if (lineNumber > this.endLine || (lineNumber === this.endLine && columnNumber > this.endColumn)) {
       return 1;
+    }
     return 0;
   }
 
   /**
-   * @param {!TextUtils.TextRange} other
+   * @param {!TextRange} other
    * @return {boolean}
    */
   equal(other) {
@@ -216,15 +225,17 @@ TextUtils.TextRange = class {
   /**
    * @param {number} line
    * @param {number} column
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   relativeTo(line, column) {
     const relative = this.clone();
 
-    if (this.startLine === line)
+    if (this.startLine === line) {
       relative.startColumn -= column;
-    if (this.endLine === line)
+    }
+    if (this.endLine === line) {
       relative.endColumn -= column;
+    }
 
     relative.startLine -= line;
     relative.endLine -= line;
@@ -234,15 +245,17 @@ TextUtils.TextRange = class {
   /**
    * @param {number} line
    * @param {number} column
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   relativeFrom(line, column) {
     const relative = this.clone();
 
-    if (this.startLine === 0)
+    if (this.startLine === 0) {
       relative.startColumn += column;
-    if (this.endLine === 0)
+    }
+    if (this.endLine === 0) {
       relative.endColumn += column;
+    }
 
     relative.startLine += line;
     relative.endLine += line;
@@ -250,24 +263,27 @@ TextUtils.TextRange = class {
   }
 
   /**
-   * @param {!TextUtils.TextRange} originalRange
-   * @param {!TextUtils.TextRange} editedRange
-   * @return {!TextUtils.TextRange}
+   * @param {!TextRange} originalRange
+   * @param {!TextRange} editedRange
+   * @return {!TextRange}
    */
   rebaseAfterTextEdit(originalRange, editedRange) {
     console.assert(originalRange.startLine === editedRange.startLine);
     console.assert(originalRange.startColumn === editedRange.startColumn);
     const rebase = this.clone();
-    if (!this.follows(originalRange))
+    if (!this.follows(originalRange)) {
       return rebase;
+    }
     const lineDelta = editedRange.endLine - originalRange.endLine;
     const columnDelta = editedRange.endColumn - originalRange.endColumn;
     rebase.startLine += lineDelta;
     rebase.endLine += lineDelta;
-    if (rebase.startLine === editedRange.endLine)
+    if (rebase.startLine === editedRange.endLine) {
       rebase.startColumn += columnDelta;
-    if (rebase.endLine === editedRange.endLine)
+    }
+    if (rebase.endLine === editedRange.endLine) {
       rebase.endColumn += columnDelta;
+    }
     return rebase;
   }
 
@@ -285,21 +301,23 @@ TextUtils.TextRange = class {
    * @return {boolean}
    */
   containsLocation(lineNumber, columnNumber) {
-    if (this.startLine === this.endLine)
+    if (this.startLine === this.endLine) {
       return this.startLine === lineNumber && this.startColumn <= columnNumber && columnNumber <= this.endColumn;
-    if (this.startLine === lineNumber)
+    }
+    if (this.startLine === lineNumber) {
       return this.startColumn <= columnNumber;
-    if (this.endLine === lineNumber)
+    }
+    if (this.endLine === lineNumber) {
       return columnNumber <= this.endColumn;
+    }
     return this.startLine < lineNumber && lineNumber < this.endLine;
   }
-};
-
+}
 
 /**
  * @unrestricted
  */
-TextUtils.SourceRange = class {
+export class SourceRange {
   /**
    * @param {number} offset
    * @param {number} length
@@ -308,15 +326,15 @@ TextUtils.SourceRange = class {
     this.offset = offset;
     this.length = length;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-TextUtils.SourceEdit = class {
+export class SourceEdit {
   /**
    * @param {string} sourceURL
-   * @param {!TextUtils.TextRange} oldRange
+   * @param {!TextRange} oldRange
    * @param {string} newText
    */
   constructor(sourceURL, oldRange, newText) {
@@ -326,18 +344,33 @@ TextUtils.SourceEdit = class {
   }
 
   /**
-   * @param {!TextUtils.SourceEdit} edit1
-   * @param {!TextUtils.SourceEdit} edit2
+   * @param {!SourceEdit} edit1
+   * @param {!SourceEdit} edit2
    * @return {number}
    */
   static comparator(edit1, edit2) {
-    return TextUtils.TextRange.comparator(edit1.oldRange, edit2.oldRange);
+    return TextRange.comparator(edit1.oldRange, edit2.oldRange);
   }
 
   /**
-   * @return {!TextUtils.TextRange}
+   * @return {!TextRange}
    */
   newRange() {
-    return TextUtils.TextRange.fromEdit(this.oldRange, this.newText);
+    return TextRange.fromEdit(this.oldRange, this.newText);
   }
-};
+}
+
+/* Legacy exported object */
+self.TextUtils = self.TextUtils || {};
+
+/* Legacy exported object */
+TextUtils = TextUtils || {};
+
+/** @constructor */
+TextUtils.TextRange = TextRange;
+
+/** @constructor */
+TextUtils.SourceRange = SourceRange;
+
+/** @constructor */
+TextUtils.SourceEdit = SourceEdit;

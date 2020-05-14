@@ -29,7 +29,7 @@
 /**
  * @unrestricted
  */
-SourceFrame.FontView = class extends UI.SimpleView {
+export class FontView extends UI.SimpleView {
   /**
    * @param {string} mimeType
    * @param {!Common.ContentProvider} contentProvider
@@ -39,6 +39,7 @@ SourceFrame.FontView = class extends UI.SimpleView {
     this.registerRequiredCSS('source_frame/fontView.css');
     this.element.classList.add('font-view');
     this._url = contentProvider.contentURL();
+    UI.ARIAUtils.setAccessibleName(this.element, ls`Preview of font from ${this._url}`);
     this._mimeType = mimeType;
     this._contentProvider = contentProvider;
     this._mimeTypeLabel = new UI.ToolbarText(mimeType);
@@ -54,31 +55,37 @@ SourceFrame.FontView = class extends UI.SimpleView {
 
   /**
    * @param {string} uniqueFontName
-   * @param {?string} content
+   * @param {!Common.DeferredContent} deferredContent
    */
-  _onFontContentLoaded(uniqueFontName, content) {
+  _onFontContentLoaded(uniqueFontName, deferredContent) {
+    const {content} = deferredContent;
     const url = content ? Common.ContentProvider.contentAsDataURL(content, this._mimeType, true) : this._url;
     this.fontStyleElement.textContent =
         String.sprintf('@font-face { font-family: "%s"; src: url(%s); }', uniqueFontName, url);
   }
 
   _createContentIfNeeded() {
-    if (this.fontPreviewElement)
+    if (this.fontPreviewElement) {
       return;
+    }
 
-    const uniqueFontName = 'WebInspectorFontPreview' + (++SourceFrame.FontView._fontId);
+    const uniqueFontName = 'WebInspectorFontPreview' + (++_fontId);
 
     this.fontStyleElement = createElement('style');
-    this._contentProvider.requestContent().then(this._onFontContentLoaded.bind(this, uniqueFontName));
+    this._contentProvider.requestContent().then(deferredContent => {
+      this._onFontContentLoaded(uniqueFontName, deferredContent);
+    });
     this.element.appendChild(this.fontStyleElement);
 
     const fontPreview = createElement('div');
-    for (let i = 0; i < SourceFrame.FontView._fontPreviewLines.length; ++i) {
-      if (i > 0)
+    for (let i = 0; i < _fontPreviewLines.length; ++i) {
+      if (i > 0) {
         fontPreview.createChild('br');
-      fontPreview.createTextChild(SourceFrame.FontView._fontPreviewLines[i]);
+      }
+      fontPreview.createTextChild(_fontPreviewLines[i]);
     }
     this.fontPreviewElement = fontPreview.cloneNode(true);
+    UI.ARIAUtils.markAsHidden(this.fontPreviewElement);
     this.fontPreviewElement.style.overflow = 'hidden';
     this.fontPreviewElement.style.setProperty('font-family', uniqueFontName);
     this.fontPreviewElement.style.setProperty('visibility', 'hidden');
@@ -89,7 +96,7 @@ SourceFrame.FontView = class extends UI.SimpleView {
     this._dummyElement.style.display = 'inline';
     this._dummyElement.style.position = 'absolute';
     this._dummyElement.style.setProperty('font-family', uniqueFontName);
-    this._dummyElement.style.setProperty('font-size', SourceFrame.FontView._measureFontSize + 'px');
+    this._dummyElement.style.setProperty('font-size', _measureFontSize + 'px');
 
     this.element.appendChild(this.fontPreviewElement);
   }
@@ -107,8 +114,9 @@ SourceFrame.FontView = class extends UI.SimpleView {
    * @override
    */
   onResize() {
-    if (this._inResize)
+    if (this._inResize) {
       return;
+    }
 
     this._inResize = true;
     try {
@@ -127,8 +135,9 @@ SourceFrame.FontView = class extends UI.SimpleView {
   }
 
   updateFontPreviewSize() {
-    if (!this.fontPreviewElement || !this.isShowing())
+    if (!this.fontPreviewElement || !this.isShowing()) {
       return;
+    }
 
     this.fontPreviewElement.style.removeProperty('visibility');
     const dimension = this._measureElement();
@@ -147,15 +156,22 @@ SourceFrame.FontView = class extends UI.SimpleView {
 
     const widthRatio = containerWidth / width;
     const heightRatio = containerHeight / height;
-    const finalFontSize = Math.floor(SourceFrame.FontView._measureFontSize * Math.min(widthRatio, heightRatio)) - 2;
+    const finalFontSize = Math.floor(_measureFontSize * Math.min(widthRatio, heightRatio)) - 2;
 
     this.fontPreviewElement.style.setProperty('font-size', finalFontSize + 'px', null);
   }
-};
+}
 
-SourceFrame.FontView._fontPreviewLines =
-    ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '1234567890'];
+let _fontId = 0;
 
-SourceFrame.FontView._fontId = 0;
+const _fontPreviewLines = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '1234567890'];
+const _measureFontSize = 50;
 
-SourceFrame.FontView._measureFontSize = 50;
+/* Legacy exported object */
+self.SourceFrame = self.SourceFrame || {};
+
+/* Legacy exported object */
+SourceFrame = SourceFrame || {};
+
+/** @constructor */
+SourceFrame.FontView = FontView;

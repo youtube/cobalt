@@ -77,8 +77,9 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
   }
 
   resetView() {
-    if (this.visibleView && Resources.ResourcesPanel._shouldCloseOnReset(this.visibleView))
+    if (this.visibleView && Resources.ResourcesPanel._shouldCloseOnReset(this.visibleView)) {
       this.showView(null);
+    }
   }
 
   /**
@@ -86,20 +87,24 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
    */
   showView(view) {
     this._pendingViewPromise = null;
-    if (this.visibleView === view)
+    if (this.visibleView === view) {
       return;
+    }
 
-    if (this.visibleView)
+    if (this.visibleView) {
       this.visibleView.detach();
+    }
 
-    if (view)
+    if (view) {
       view.show(this.storageViews);
+    }
     this.visibleView = view;
 
     this._storageViewToolbar.removeToolbarItems();
     const toolbarItems = (view instanceof UI.SimpleView && view.syncToolbarItems()) || [];
-    for (let i = 0; i < toolbarItems.length; ++i)
+    for (let i = 0; i < toolbarItems.length; ++i) {
       this._storageViewToolbar.appendToolbarItem(toolbarItems[i]);
+    }
     this._storageViewToolbar.element.classList.toggle('hidden', !toolbarItems.length);
   }
 
@@ -110,19 +115,23 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
   async scheduleShowView(viewPromise) {
     this._pendingViewPromise = viewPromise;
     const view = await viewPromise;
-    if (this._pendingViewPromise !== viewPromise)
+    if (this._pendingViewPromise !== viewPromise) {
       return null;
+    }
     this.showView(view);
     return view;
   }
 
   /**
    * @param {string} categoryName
+   * @param {string|null} categoryLink
    */
-  showCategoryView(categoryName) {
-    if (!this._categoryView)
+  showCategoryView(categoryName, categoryLink) {
+    if (!this._categoryView) {
       this._categoryView = new Resources.StorageCategoryView();
+    }
     this._categoryView.setText(categoryName);
+    this._categoryView.setLink(categoryLink);
     this.showView(this._categoryView);
   }
 
@@ -130,13 +139,15 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
    * @param {!Resources.DOMStorage} domStorage
    */
   showDOMStorage(domStorage) {
-    if (!domStorage)
+    if (!domStorage) {
       return;
+    }
 
-    if (!this._domStorageView)
+    if (!this._domStorageView) {
       this._domStorageView = new Resources.DOMStorageItemsView(domStorage);
-    else
+    } else {
       this._domStorageView.setStorage(domStorage);
+    }
     this.showView(this._domStorageView);
   }
 
@@ -146,24 +157,15 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
    */
   showCookies(cookieFrameTarget, cookieDomain) {
     const model = cookieFrameTarget.model(SDK.CookieModel);
-    if (!model)
+    if (!model) {
       return;
-    if (!this._cookieView)
+    }
+    if (!this._cookieView) {
       this._cookieView = new Resources.CookieItemsView(model, cookieDomain);
-    else
+    } else {
       this._cookieView.setCookiesDomain(model, cookieDomain);
+    }
     this.showView(this._cookieView);
-  }
-
-  /**
-   * @param {string} text
-   */
-  showEmptyWidget(text) {
-    if (!this._emptyWidget)
-      this._emptyWidget = new UI.EmptyWidget(text);
-    else
-      this._emptyWidget.text = text;
-    this.showView(this._emptyWidget);
   }
 
   /**
@@ -172,11 +174,13 @@ Resources.ResourcesPanel = class extends UI.PanelWithSidebar {
    */
   clearCookies(target, cookieDomain) {
     const model = target.model(SDK.CookieModel);
-    if (!model)
+    if (!model) {
       return;
+    }
     model.clear(cookieDomain, () => {
-      if (this._cookieView)
+      if (this._cookieView) {
         this._cookieView.refreshItems();
+      }
     });
   }
 };
@@ -191,8 +195,9 @@ Resources.ResourcesPanel.ResourceRevealer = class {
    * @return {!Promise}
    */
   async reveal(resource) {
-    if (!(resource instanceof SDK.Resource))
+    if (!(resource instanceof SDK.Resource)) {
       return Promise.reject(new Error('Internal error: not a resource'));
+    }
     const sidebar = Resources.ResourcesPanel._instance()._sidebar;
     await UI.viewManager.showView('resources');
     await sidebar.showResource(resource);

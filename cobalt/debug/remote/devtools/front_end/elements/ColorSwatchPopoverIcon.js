@@ -1,12 +1,14 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {StylePropertyTreeElement} from './StylePropertyTreeElement.js';  // eslint-disable-line no-unused-vars
+
 /**
  * @unrestricted
  */
-Elements.BezierPopoverIcon = class {
+export class BezierPopoverIcon {
   /**
-   * @param {!Elements.StylePropertyTreeElement} treeElement
+   * @param {!StylePropertyTreeElement} treeElement
    * @param {!InlineEditor.SwatchPopoverHelper} swatchPopoverHelper
    * @param {!InlineEditor.BezierSwatch} swatch
    */
@@ -43,14 +45,16 @@ Elements.BezierPopoverIcon = class {
     this._bezierEditor.addEventListener(InlineEditor.BezierEditor.Events.BezierChanged, this._boundBezierChanged);
     this._swatchPopoverHelper.show(this._bezierEditor, this._swatch.iconElement(), this._onPopoverHidden.bind(this));
     this._scrollerElement = this._swatch.enclosingNodeOrSelfWithClass('style-panes-wrapper');
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.addEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._originalPropertyText = this._treeElement.property.propertyText;
     this._treeElement.parentPane().setEditingStyle(true);
     const uiLocation = Bindings.cssWorkspaceBinding.propertyUILocation(this._treeElement.property, false /* forName */);
-    if (uiLocation)
+    if (uiLocation) {
       Common.Revealer.reveal(uiLocation, true /* omitFocus */);
+    }
   }
 
   /**
@@ -72,8 +76,9 @@ Elements.BezierPopoverIcon = class {
    * @param {boolean} commitEdit
    */
   _onPopoverHidden(commitEdit) {
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.removeEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._bezierEditor.removeEventListener(InlineEditor.BezierEditor.Events.BezierChanged, this._boundBezierChanged);
     delete this._bezierEditor;
@@ -83,20 +88,20 @@ Elements.BezierPopoverIcon = class {
     this._treeElement.parentPane().setEditingStyle(false);
     delete this._originalPropertyText;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Elements.ColorSwatchPopoverIcon = class {
+export class ColorSwatchPopoverIcon {
   /**
-   * @param {!Elements.StylePropertyTreeElement} treeElement
+   * @param {!StylePropertyTreeElement} treeElement
    * @param {!InlineEditor.SwatchPopoverHelper} swatchPopoverHelper
    * @param {!InlineEditor.ColorSwatch} swatch
    */
   constructor(treeElement, swatchPopoverHelper, swatch) {
     this._treeElement = treeElement;
-    this._treeElement[Elements.ColorSwatchPopoverIcon._treeElementSymbol] = this;
+    this._treeElement[ColorSwatchPopoverIcon._treeElementSymbol] = this;
     this._swatchPopoverHelper = swatchPopoverHelper;
     this._swatch = swatch;
 
@@ -120,14 +125,17 @@ Elements.ColorSwatchPopoverIcon = class {
     const colors = [];
     const colorNames = [];
     for (const cssVariable of cssVariables) {
-      if (cssVariable === this._treeElement.property.name)
+      if (cssVariable === this._treeElement.property.name) {
         continue;
+      }
       const value = matchedStyles.computeCSSVariable(style, cssVariable);
-      if (!value)
+      if (!value) {
         continue;
+      }
       const color = Common.Color.parse(value);
-      if (!color)
+      if (!color) {
         continue;
+      }
       colors.push(value);
       colorNames.push(cssVariable);
     }
@@ -135,20 +143,18 @@ Elements.ColorSwatchPopoverIcon = class {
   }
 
   /**
-   * @param {!Elements.StylePropertyTreeElement} treeElement
-   * @return {?Elements.ColorSwatchPopoverIcon}
+   * @param {!StylePropertyTreeElement} treeElement
+   * @return {?ColorSwatchPopoverIcon}
    */
   static forTreeElement(treeElement) {
-    return treeElement[Elements.ColorSwatchPopoverIcon._treeElementSymbol] || null;
+    return treeElement[ColorSwatchPopoverIcon._treeElementSymbol] || null;
   }
 
   /**
-   * @param {?SDK.CSSModel.ContrastInfo} contrastInfo
+   * @param {!ColorPicker.ContrastInfo} contrastInfo
    */
   setContrastInfo(contrastInfo) {
     this._contrastInfo = contrastInfo;
-    if (this._spectrum)
-      this._spectrum.setContrastInfo(contrastInfo);
   }
 
   /**
@@ -167,26 +173,27 @@ Elements.ColorSwatchPopoverIcon = class {
 
     const color = this._swatch.color();
     let format = this._swatch.format();
-    if (format === Common.Color.Format.Original)
+    if (format === Common.Color.Format.Original) {
       format = color.format();
-    this._spectrum = new ColorPicker.Spectrum();
+    }
+    this._spectrum = new ColorPicker.Spectrum(this._contrastInfo);
     this._spectrum.setColor(color, format);
     this._spectrum.addPalette(this._generateCSSVariablesPalette());
-    if (this._contrastInfo)
-      this._spectrum.setContrastInfo(this._contrastInfo);
 
     this._spectrum.addEventListener(ColorPicker.Spectrum.Events.SizeChanged, this._spectrumResized, this);
     this._spectrum.addEventListener(ColorPicker.Spectrum.Events.ColorChanged, this._boundSpectrumChanged);
     this._swatchPopoverHelper.show(this._spectrum, this._swatch.iconElement(), this._onPopoverHidden.bind(this));
     this._scrollerElement = this._swatch.enclosingNodeOrSelfWithClass('style-panes-wrapper');
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.addEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._originalPropertyText = this._treeElement.property.propertyText;
     this._treeElement.parentPane().setEditingStyle(true);
     const uiLocation = Bindings.cssWorkspaceBinding.propertyUILocation(this._treeElement.property, false /* forName */);
-    if (uiLocation)
+    if (uiLocation) {
       Common.Revealer.reveal(uiLocation, true /* omitFocus */);
+    }
   }
 
   /**
@@ -201,12 +208,14 @@ Elements.ColorSwatchPopoverIcon = class {
    */
   _spectrumChanged(event) {
     const color = Common.Color.parse(/** @type {string} */ (event.data));
-    if (!color)
+    if (!color) {
       return;
+    }
     this._swatch.setColor(color);
     const colorName = this._spectrum.colorName();
-    if (colorName && colorName.startsWith('--'))
+    if (colorName && colorName.startsWith('--')) {
       this._swatch.setText(`var(${colorName})`);
+    }
 
     this._treeElement.applyStyleText(this._treeElement.renderedPropertyText(), false);
   }
@@ -222,8 +231,9 @@ Elements.ColorSwatchPopoverIcon = class {
    * @param {boolean} commitEdit
    */
   _onPopoverHidden(commitEdit) {
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.removeEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._spectrum.removeEventListener(ColorPicker.Spectrum.Events.ColorChanged, this._boundSpectrumChanged);
     delete this._spectrum;
@@ -233,23 +243,22 @@ Elements.ColorSwatchPopoverIcon = class {
     this._treeElement.parentPane().setEditingStyle(false);
     delete this._originalPropertyText;
   }
-};
+}
 
-Elements.ColorSwatchPopoverIcon._treeElementSymbol = Symbol('Elements.ColorSwatchPopoverIcon._treeElementSymbol');
-
+ColorSwatchPopoverIcon._treeElementSymbol = Symbol('ColorSwatchPopoverIcon._treeElementSymbol');
 
 /**
  * @unrestricted
  */
-Elements.ShadowSwatchPopoverHelper = class {
+export class ShadowSwatchPopoverHelper {
   /**
-   * @param {!Elements.StylePropertyTreeElement} treeElement
+   * @param {!StylePropertyTreeElement} treeElement
    * @param {!InlineEditor.SwatchPopoverHelper} swatchPopoverHelper
    * @param {!InlineEditor.CSSShadowSwatch} shadowSwatch
    */
   constructor(treeElement, swatchPopoverHelper, shadowSwatch) {
     this._treeElement = treeElement;
-    this._treeElement[Elements.ShadowSwatchPopoverHelper._treeElementSymbol] = this;
+    this._treeElement[ShadowSwatchPopoverHelper._treeElementSymbol] = this;
     this._swatchPopoverHelper = swatchPopoverHelper;
     this._shadowSwatch = shadowSwatch;
     this._iconElement = shadowSwatch.iconElement();
@@ -263,11 +272,11 @@ Elements.ShadowSwatchPopoverHelper = class {
   }
 
   /**
-   * @param {!Elements.StylePropertyTreeElement} treeElement
-   * @return {?Elements.ShadowSwatchPopoverHelper}
+   * @param {!StylePropertyTreeElement} treeElement
+   * @return {?ShadowSwatchPopoverHelper}
    */
   static forTreeElement(treeElement) {
-    return treeElement[Elements.ShadowSwatchPopoverHelper._treeElementSymbol] || null;
+    return treeElement[ShadowSwatchPopoverHelper._treeElementSymbol] || null;
   }
 
   /**
@@ -289,14 +298,16 @@ Elements.ShadowSwatchPopoverHelper = class {
     this._cssShadowEditor.addEventListener(InlineEditor.CSSShadowEditor.Events.ShadowChanged, this._boundShadowChanged);
     this._swatchPopoverHelper.show(this._cssShadowEditor, this._iconElement, this._onPopoverHidden.bind(this));
     this._scrollerElement = this._iconElement.enclosingNodeOrSelfWithClass('style-panes-wrapper');
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.addEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._originalPropertyText = this._treeElement.property.propertyText;
     this._treeElement.parentPane().setEditingStyle(true);
     const uiLocation = Bindings.cssWorkspaceBinding.propertyUILocation(this._treeElement.property, false /* forName */);
-    if (uiLocation)
+    if (uiLocation) {
       Common.Revealer.reveal(uiLocation, true /* omitFocus */);
+    }
   }
 
   /**
@@ -318,8 +329,9 @@ Elements.ShadowSwatchPopoverHelper = class {
    * @param {boolean} commitEdit
    */
   _onPopoverHidden(commitEdit) {
-    if (this._scrollerElement)
+    if (this._scrollerElement) {
       this._scrollerElement.removeEventListener('scroll', this._boundOnScroll, false);
+    }
 
     this._cssShadowEditor.removeEventListener(
         InlineEditor.CSSShadowEditor.Events.ShadowChanged, this._boundShadowChanged);
@@ -330,6 +342,6 @@ Elements.ShadowSwatchPopoverHelper = class {
     this._treeElement.parentPane().setEditingStyle(false);
     delete this._originalPropertyText;
   }
-};
+}
 
-Elements.ShadowSwatchPopoverHelper._treeElementSymbol = Symbol('Elements.ShadowSwatchPopoverHelper._treeElementSymbol');
+ShadowSwatchPopoverHelper._treeElementSymbol = Symbol('ShadowSwatchPopoverHelper._treeElementSymbol');

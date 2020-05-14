@@ -57,6 +57,7 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     this._headerLevel2 = this._buildGroupStyle({padding: 2, nestingLevel: 1, collapsible: false});
     this._staticHeader = this._buildGroupStyle({collapsible: false});
     this._framesHeader = this._buildGroupStyle({useFirstLineForOverview: true});
+    this._timingsHeader = this._buildGroupStyle({shareHeaderLine: true, useFirstLineForOverview: true});
     this._screenshotsHeader =
         this._buildGroupStyle({useFirstLineForOverview: true, nestingLevel: 1, collapsible: false, itemsHeight: 150});
     this._interactionsHeaderLevel1 = this._buildGroupStyle({useFirstLineForOverview: true});
@@ -111,24 +112,25 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     const entryType = this._entryType(entryIndex);
     if (entryType === entryTypes.Event) {
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[entryIndex]);
-      if (event.phase === SDK.TracingModel.Phase.AsyncStepInto || event.phase === SDK.TracingModel.Phase.AsyncStepPast)
+      if (event.phase === SDK.TracingModel.Phase.AsyncStepInto ||
+          event.phase === SDK.TracingModel.Phase.AsyncStepPast) {
         return event.name + ':' + event.args['step'];
-      if (event._blackboxRoot)
+      }
+      if (event._blackboxRoot) {
         return Common.UIString('Blackboxed');
-      const name = Timeline.TimelineUIUtils.eventStyle(event).title;
-      // TODO(yurys): support event dividers
-      const detailsText =
-          Timeline.TimelineUIUtils.buildDetailsTextForTraceEvent(event, this._model.targetByEvent(event));
-      if (event.name === TimelineModel.TimelineModel.RecordType.JSFrame && detailsText)
-        return detailsText;
-      return detailsText ? Common.UIString('%s (%s)', name, detailsText) : name;
+      }
+      if (this._performanceModel.timelineModel().isMarkerEvent(event)) {
+        return Timeline.TimelineUIUtils.markerShortTitle(event);
+      }
+      return Timeline.TimelineUIUtils.eventTitle(event);
     }
     if (entryType === entryTypes.ExtensionEvent) {
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[entryIndex]);
       return event.name;
     }
-    if (entryType === entryTypes.Screenshot)
+    if (entryType === entryTypes.Screenshot) {
       return '';
+    }
     let title = this._entryIndexToTitle[entryIndex];
     if (!title) {
       title = Common.UIString('Unexpected entryIndex %d', entryIndex);
@@ -192,22 +194,25 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {!PerfUI.FlameChart.TimelineData}
    */
   timelineData() {
-    if (this._timelineData)
+    if (this._timelineData) {
       return this._timelineData;
+    }
 
     this._timelineData = new PerfUI.FlameChart.TimelineData([], [], [], []);
-    if (!this._model)
+    if (!this._model) {
       return this._timelineData;
+    }
 
     this._flowEventIndexById.clear();
     this._minimumBoundary = this._model.minimumRecordTime();
     this._timeSpan = this._model.isEmpty() ? 1000 : this._model.maximumRecordTime() - this._minimumBoundary;
     this._currentLevel = 0;
 
-    if (this._model.isGenericTrace())
+    if (this._model.isGenericTrace()) {
       this._processGenericTrace();
-    else
+    } else {
       this._processInspectorTrace();
+    }
 
     return this._timelineData;
   }
@@ -216,10 +221,16 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     const processGroupStyle = this._buildGroupStyle({shareHeaderLine: false});
     const threadGroupStyle = this._buildGroupStyle({padding: 2, nestingLevel: 1, shareHeaderLine: false});
     const eventEntryType = Timeline.TimelineFlameChartDataProvider.EntryType.Event;
-    /** @type {!Multimap<!SDK.TracingModel.Process, !TimelineModel.TimelineModel.Track>} */
-    const tracksByProcess = new Multimap();
-    for (const track of this._model.tracks())
-      tracksByProcess.set(track.thread.process(), track);
+    /** @type {!Platform.Multimap<!SDK.TracingModel.Process, !TimelineModel.TimelineModel.Track>} */
+    const tracksByProcess = new Platform.Multimap();
+    for (const track of this._model.tracks()) {
+      if (track.thread !== null) {
+        tracksByProcess.set(track.thread.process(), track);
+      } else {
+        // The Timings track can reach this point, so we should probably do something more useful.
+        console.error('Failed to process track');
+      }
+    }
     for (const process of tracksByProcess.keysArray()) {
       if (tracksByProcess.size > 1) {
         const name = `${process.name()} ${process.id()}`;
@@ -228,14 +239,15 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       for (const track of tracksByProcess.get(process)) {
         const group = this._appendSyncEvents(
             track, track.events, track.name, threadGroupStyle, eventEntryType, true /* selectable */);
-        if (!this._timelineData.selectedGroup || track.name === TimelineModel.TimelineModel.BrowserMainThreadName)
+        if (!this._timelineData.selectedGroup || track.name === TimelineModel.TimelineModel.BrowserMainThreadName) {
           this._timelineData.selectedGroup = group;
+        }
       }
     }
   }
 
   _processInspectorTrace() {
-    this._appendFrameBars();
+    this._appendFrames();
     this._appendInteractionRecords();
 
     const eventEntryType = Timeline.TimelineFlameChartDataProvider.EntryType.Event;
@@ -246,7 +258,7 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
           return 0;
         case TimelineModel.TimelineModel.TrackType.Animation:
           return 1;
-        case TimelineModel.TimelineModel.TrackType.UserTiming:
+        case TimelineModel.TimelineModel.TrackType.Timings:
           return 2;
         case TimelineModel.TimelineModel.TrackType.Console:
           return 3;
@@ -264,7 +276,7 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     };
 
     const tracks = this._model.tracks().slice();
-    tracks.stableSort((a, b) => weight(a) - weight(b));
+    tracks.sort((a, b) => weight(a) - weight(b));
     let rasterCount = 0;
     for (const track of tracks) {
       switch (track.type) {
@@ -278,9 +290,12 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
               track, ls`Animation`, track.asyncEvents, this._interactionsHeaderLevel2, eventEntryType,
               false /* selectable */);
           break;
-        case TimelineModel.TimelineModel.TrackType.UserTiming:
+        case TimelineModel.TimelineModel.TrackType.Timings:
+          const group = this._appendHeader(ls`Timings`, this._timingsHeader, true /* selectable */);
+          group._track = track;
+          this._appendPageMetrics();
           this._appendAsyncEventsGroup(
-              track, ls`User Timing`, track.asyncEvents, this._headerLevel1, eventEntryType, true /* selectable */);
+              track, null, track.asyncEvents, this._timingsHeader, eventEntryType, true /* selectable */);
           break;
         case TimelineModel.TimelineModel.TrackType.Console:
           this._appendAsyncEventsGroup(
@@ -291,8 +306,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
             const group = this._appendSyncEvents(
                 track, track.events, track.url ? ls`Main \u2014 ${track.url}` : ls`Main`, this._headerLevel1,
                 eventEntryType, true /* selectable */);
-            if (group)
+            if (group) {
               this._timelineData.selectedGroup = group;
+            }
           } else {
             this._appendSyncEvents(
                 track, track.events, track.url ? ls`Frame \u2014 ${track.url}` : ls`Subframe`, this._headerLevel1,
@@ -305,8 +321,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
               this._headerLevel1, eventEntryType, true /* selectable */);
           break;
         case TimelineModel.TimelineModel.TrackType.Raster:
-          if (!rasterCount)
+          if (!rasterCount) {
             this._appendHeader(ls`Raster`, this._headerLevel1, false /* selectable */);
+          }
           ++rasterCount;
           this._appendSyncEvents(
               track, track.events, ls`Rasterizer Thread ${rasterCount}`, this._headerLevel2, eventEntryType,
@@ -324,11 +341,13 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
           break;
       }
     }
-    if (this._timelineData.selectedGroup)
+    if (this._timelineData.selectedGroup) {
       this._timelineData.selectedGroup.expanded = true;
+    }
 
-    for (let extensionIndex = 0; extensionIndex < this._extensionInfo.length; extensionIndex++)
+    for (let extensionIndex = 0; extensionIndex < this._extensionInfo.length; extensionIndex++) {
       this._innerAppendExtensionEvents(extensionIndex);
+    }
 
     this._markers.sort((a, b) => a.startTime() - b.startTime());
     this._timelineData.markers = this._markers;
@@ -362,15 +381,19 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     const entryTypes = Timeline.TimelineFlameChartDataProvider.EntryType;
     this.timelineData();
     for (let i = 0; i < this._entryData.length; ++i) {
-      if (this._entryType(i) !== entryTypes.Event)
+      if (this._entryType(i) !== entryTypes.Event) {
         continue;
+      }
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[i]);
-      if (event.startTime > endTime)
+      if (event.startTime > endTime) {
         continue;
-      if ((event.endTime || event.startTime) < startTime)
+      }
+      if ((event.endTime || event.startTime) < startTime) {
         continue;
-      if (filter.accept(event))
+      }
+      if (filter.accept(event)) {
         result.push(i);
+      }
     }
     result.sort(
         (a, b) => SDK.TracingModel.Event.compareStartTime(
@@ -389,61 +412,71 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {?PerfUI.FlameChart.Group}
    */
   _appendSyncEvents(track, events, title, style, entryType, selectable) {
-    if (!events.length)
+    if (!events.length) {
       return null;
+    }
     const isExtension = entryType === Timeline.TimelineFlameChartDataProvider.EntryType.ExtensionEvent;
     const openEvents = [];
-    const flowEventsEnabled = Runtime.experiments.isEnabled('timelineFlowEvents');
-    const blackboxingEnabled = !isExtension && Runtime.experiments.isEnabled('blackboxJSFramesOnTimeline');
+    const flowEventsEnabled = Root.Runtime.experiments.isEnabled('timelineFlowEvents');
+    const blackboxingEnabled = !isExtension && Root.Runtime.experiments.isEnabled('blackboxJSFramesOnTimeline');
     let maxStackDepth = 0;
     let group = null;
     if (track && track.type === TimelineModel.TimelineModel.TrackType.MainThread) {
       group = this._appendHeader(title, style, selectable);
       group._track = track;
     }
-    const markerEventsFilter = Timeline.TimelineUIUtils.paintEventsFilter();
     for (let i = 0; i < events.length; ++i) {
       const e = events[i];
-      if (!isExtension && TimelineModel.TimelineModel.isMarkerEvent(e) && markerEventsFilter.accept(e)) {
+      if (!isExtension && this._performanceModel.timelineModel().isMarkerEvent(e)) {
         this._markers.push(new Timeline.TimelineFlameChartMarker(
             e.startTime, e.startTime - this._model.minimumRecordTime(),
             Timeline.TimelineUIUtils.markerStyleForEvent(e)));
       }
       if (!SDK.TracingModel.isFlowPhase(e.phase)) {
-        if (!e.endTime && e.phase !== SDK.TracingModel.Phase.Instant)
+        if (!e.endTime && e.phase !== SDK.TracingModel.Phase.Instant) {
           continue;
-        if (SDK.TracingModel.isAsyncPhase(e.phase))
+        }
+        if (SDK.TracingModel.isAsyncPhase(e.phase)) {
           continue;
-        if (!isExtension && !this._performanceModel.isVisible(e))
+        }
+        if (!isExtension && !this._performanceModel.isVisible(e)) {
           continue;
+        }
       }
-      while (openEvents.length && openEvents.peekLast().endTime <= e.startTime)
+      while (openEvents.length && openEvents.peekLast().endTime <= e.startTime) {
         openEvents.pop();
+      }
       e._blackboxRoot = false;
       if (blackboxingEnabled && this._isBlackboxedEvent(e)) {
         const parent = openEvents.peekLast();
-        if (parent && parent._blackboxRoot)
+        if (parent && parent._blackboxRoot) {
           continue;
+        }
         e._blackboxRoot = true;
       }
       if (!group) {
         group = this._appendHeader(title, style, selectable);
-        if (selectable)
+        if (selectable) {
           group._track = track;
+        }
       }
 
       const level = this._currentLevel + openEvents.length;
-      if (flowEventsEnabled)
+      if (flowEventsEnabled) {
         this._appendFlowEvent(e, level);
+      }
       const index = this._appendEvent(e, level);
-      if (openEvents.length)
+      if (openEvents.length) {
         this._entryParent[index] = openEvents.peekLast();
-      if (!isExtension && TimelineModel.TimelineModel.isMarkerEvent(e))
+      }
+      if (!isExtension && this._performanceModel.timelineModel().isMarkerEvent(e)) {
         this._timelineData.entryTotalTimes[this._entryData.length] = undefined;
+      }
 
       maxStackDepth = Math.max(maxStackDepth, openEvents.length + 1);
-      if (e.endTime)
+      if (e.endTime) {
         openEvents.push(e);
+      }
     }
     this._entryTypeByLevel.length = this._currentLevel + maxStackDepth;
     this._entryTypeByLevel.fill(entryType, this._currentLevel);
@@ -456,8 +489,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {boolean}
    */
   _isBlackboxedEvent(event) {
-    if (event.name !== TimelineModel.TimelineModel.RecordType.JSFrame)
+    if (event.name !== TimelineModel.TimelineModel.RecordType.JSFrame) {
       return false;
+    }
     const url = event.args['data']['url'];
     return url && this._isBlackboxedURL(url);
   }
@@ -472,7 +506,7 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
 
   /**
    * @param {?TimelineModel.TimelineModel.Track} track
-   * @param {string} header
+   * @param {?string} header
    * @param {!Array<!SDK.TracingModel.AsyncEvent>} events
    * @param {!PerfUI.FlameChart.GroupStyle} style
    * @param {!Timeline.TimelineFlameChartDataProvider.EntryType} entryType
@@ -480,18 +514,21 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {?PerfUI.FlameChart.Group}
    */
   _appendAsyncEventsGroup(track, header, events, style, entryType, selectable) {
-    if (!events.length)
+    if (!events.length) {
       return null;
+    }
     const lastUsedTimeByLevel = [];
     let group = null;
     for (let i = 0; i < events.length; ++i) {
       const asyncEvent = events[i];
-      if (!this._performanceModel.isVisible(asyncEvent))
+      if (!this._performanceModel.isVisible(asyncEvent)) {
         continue;
-      if (!group) {
+      }
+      if (!group && header) {
         group = this._appendHeader(header, style, selectable);
-        if (selectable)
+        if (selectable) {
           group._track = track;
+        }
       }
       const startTime = asyncEvent.startTime;
       let level;
@@ -508,8 +545,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
 
   _appendInteractionRecords() {
     const interactionRecords = this._performanceModel.interactionRecords();
-    if (!interactionRecords.length)
+    if (!interactionRecords.length) {
       return;
+    }
     this._appendHeader(ls`Interactions`, this._interactionsHeaderLevel1, false /* selectable */);
     for (const segment of interactionRecords) {
       const index = this._entryData.length;
@@ -522,13 +560,64 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     this._entryTypeByLevel[this._currentLevel++] = Timeline.TimelineFlameChartDataProvider.EntryType.InteractionRecord;
   }
 
-  _appendFrameBars() {
+  _appendPageMetrics() {
+    this._entryTypeByLevel[this._currentLevel] = Timeline.TimelineFlameChartDataProvider.EntryType.Event;
+
+    /** @type {!Array<!SDK.TracingModel.Event>} */
+    const metricEvents = [];
+    const lcpEvents = [];
+    const timelineModel = this._performanceModel.timelineModel();
+    for (const track of this._model.tracks()) {
+      for (const event of track.events) {
+        if (!timelineModel.isMarkerEvent(event)) {
+          continue;
+        }
+        if (timelineModel.isLCPCandidateEvent(event) || timelineModel.isLCPInvalidateEvent(event)) {
+          lcpEvents.push(event);
+        } else {
+          metricEvents.push(event);
+        }
+      }
+    }
+
+    // Only the LCP event with the largest candidate index is relevant.
+    // Do not record an LCP event if it is an invalidate event.
+    if (lcpEvents.length > 0) {
+      /** @type {!Map<string, !SDK.TracingModel.Event>} */
+      const lcpEventsByNavigationId = new Map();
+      for (const e of lcpEvents) {
+        const key = e.args['data']['navigationId'];
+        const previousLastEvent = lcpEventsByNavigationId.get(key);
+
+        if (!previousLastEvent || previousLastEvent.args['data']['candidateIndex'] < e.args['data']['candidateIndex']) {
+          lcpEventsByNavigationId.set(key, e);
+        }
+      }
+
+      const latestCandidates = Array.from(lcpEventsByNavigationId.values());
+      const latestEvents = latestCandidates.filter(e => timelineModel.isLCPCandidateEvent(e));
+
+      metricEvents.push(...latestEvents);
+    }
+
+    metricEvents.sort(SDK.TracingModel.Event.compareStartTime);
+    const totalTimes = this._timelineData.entryTotalTimes;
+    for (const event of metricEvents) {
+      this._appendEvent(event, this._currentLevel);
+      totalTimes[totalTimes.length - 1] = Number.NaN;
+    }
+
+    ++this._currentLevel;
+  }
+
+  _appendFrames() {
     const screenshots = this._performanceModel.filmStripModel().frames();
     const hasFilmStrip = !!screenshots.length;
     this._framesHeader.collapsible = hasFilmStrip;
     this._appendHeader(Common.UIString('Frames'), this._framesHeader, false /* selectable */);
     this._frameGroup = this._timelineData.groups.peekLast();
     const style = Timeline.TimelineUIUtils.markerStyleForFrame();
+
     this._entryTypeByLevel[this._currentLevel] = Timeline.TimelineFlameChartDataProvider.EntryType.Frame;
     for (const frame of this._performanceModel.frames()) {
       this._markers.push(new Timeline.TimelineFlameChartMarker(
@@ -536,8 +625,10 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       this._appendFrame(frame);
     }
     ++this._currentLevel;
-    if (!hasFilmStrip)
+
+    if (!hasFilmStrip) {
       return;
+    }
     this._appendHeader('', this._screenshotsHeader, false /* selectable */);
     this._entryTypeByLevel[this._currentLevel] = Timeline.TimelineFlameChartDataProvider.EntryType.Screenshot;
     let prevTimestamp;
@@ -545,12 +636,14 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       this._entryData.push(screenshot);
       this._timelineData.entryLevels.push(this._currentLevel);
       this._timelineData.entryStartTimes.push(screenshot.timestamp);
-      if (prevTimestamp)
+      if (prevTimestamp) {
         this._timelineData.entryTotalTimes.push(screenshot.timestamp - prevTimestamp);
+      }
       prevTimestamp = screenshot.timestamp;
     }
-    if (screenshots.length)
+    if (screenshots.length) {
       this._timelineData.entryTotalTimes.push(this._model.maximumRecordTime() - prevTimestamp);
+    }
     ++this._currentLevel;
   }
 
@@ -583,12 +676,16 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
                 '%s (self %s)', Number.millisToString(totalTime, true), Number.millisToString(selfTime, true)) :
             Number.millisToString(totalTime, true);
       }
-      title = this.entryTitle(entryIndex);
+      if (this._performanceModel.timelineModel().isMarkerEvent(event)) {
+        title = Timeline.TimelineUIUtils.eventTitle(event);
+      } else {
+        title = this.entryTitle(entryIndex);
+      }
       warning = Timeline.TimelineUIUtils.eventWarning(event);
     } else if (type === Timeline.TimelineFlameChartDataProvider.EntryType.Frame) {
       const frame = /** @type {!TimelineModel.TimelineFrame} */ (this._entryData[entryIndex]);
-      time = Common.UIString(
-          '%s ~ %.0f\xa0fps', Number.preciseMillisToString(frame.duration, 1), (1000 / frame.duration));
+      time =
+          Common.UIString('%s ~ %.0f\xa0fps', Number.preciseMillisToString(frame.duration, 1), (1000 / frame.duration));
       title = frame.idle ? Common.UIString('Idle Frame') : Common.UIString('Frame');
       if (frame.hasWarnings()) {
         warning = createElement('span');
@@ -618,8 +715,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     // This is not annotated due to closure compiler failure to properly infer cache container's template type.
     function patchColorAndCache(cache, key, lookupColor) {
       let color = cache.get(key);
-      if (color)
+      if (color) {
         return color;
+      }
       const parsedColor = Common.Color.parse(lookupColor(key));
       color = parsedColor.setAlpha(0.7).asString(Common.Color.Format.RGBA) || '';
       cache.set(key, color);
@@ -630,13 +728,19 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     const type = this._entryType(entryIndex);
     if (type === entryTypes.Event) {
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[entryIndex]);
-      if (this._model.isGenericTrace())
+      if (this._model.isGenericTrace()) {
         return this._genericTraceEventColor(event);
-      if (!SDK.TracingModel.isAsyncPhase(event.phase))
+      }
+      if (this._performanceModel.timelineModel().isMarkerEvent(event)) {
+        return Timeline.TimelineUIUtils.markerStyleForEvent(event).color;
+      }
+      if (!SDK.TracingModel.isAsyncPhase(event.phase)) {
         return this._colorForEvent(event);
+      }
       if (event.hasCategory(TimelineModel.TimelineModel.Category.Console) ||
-          event.hasCategory(TimelineModel.TimelineModel.Category.UserTiming))
+          event.hasCategory(TimelineModel.TimelineModel.Category.UserTiming)) {
         return this._consoleColorGenerator.colorForID(event.name);
+      }
       if (event.hasCategory(TimelineModel.TimelineModel.Category.LatencyInfo)) {
         const phase =
             TimelineModel.TimelineIRModel.phaseForEvent(event) || TimelineModel.TimelineIRModel.Phases.Uncategorized;
@@ -646,10 +750,12 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       const category = Timeline.TimelineUIUtils.eventStyle(event).category;
       return patchColorAndCache(this._asyncColorByCategory, category, () => category.color);
     }
-    if (type === entryTypes.Frame)
+    if (type === entryTypes.Frame) {
       return 'white';
-    if (type === entryTypes.InteractionRecord)
+    }
+    if (type === entryTypes.InteractionRecord) {
       return 'transparent';
+    }
     if (type === entryTypes.ExtensionEvent) {
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[entryIndex]);
       return this._extensionColorGenerator.colorForID(event.name);
@@ -711,8 +817,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     }
 
     const image = this._screenshotImageCache.get(screenshot);
-    if (!image)
+    if (!image) {
       return;
+    }
     const imageX = barX + 1;
     const imageY = barY + 1;
     const imageHeight = barHeight - 2;
@@ -776,8 +883,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
           context.fillRect(barX, barY + barHeight - 3, width, 2);
         }
       }
-      if (TimelineModel.TimelineData.forEvent(event).warning)
+      if (TimelineModel.TimelineData.forEvent(event).warning) {
         paintWarningDecoration(barX, barWidth - 1.5);
+      }
     }
 
     /**
@@ -810,10 +918,12 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
   forceDecoration(entryIndex) {
     const entryTypes = Timeline.TimelineFlameChartDataProvider.EntryType;
     const type = this._entryType(entryIndex);
-    if (type === entryTypes.Frame)
+    if (type === entryTypes.Frame) {
       return true;
-    if (type === entryTypes.Screenshot)
+    }
+    if (type === entryTypes.Screenshot) {
       return true;
+    }
 
     if (type === entryTypes.Event) {
       const event = /** @type {!SDK.TracingModel.Event} */ (this._entryData[entryIndex]);
@@ -827,8 +937,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    */
   appendExtensionEvents(entry) {
     this._extensionInfo.push(entry);
-    if (this._timelineData)
+    if (this._timelineData) {
       this._innerAppendExtensionEvents(this._extensionInfo.length - 1);
+    }
   }
 
   /**
@@ -838,13 +949,15 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
     const entry = this._extensionInfo[index];
     const entryType = Timeline.TimelineFlameChartDataProvider.EntryType.ExtensionEvent;
     const allThreads = [].concat(...entry.model.sortedProcesses().map(process => process.sortedThreads()));
-    if (!allThreads.length)
+    if (!allThreads.length) {
       return;
+    }
 
     const singleTrack =
         allThreads.length === 1 && (!allThreads[0].events().length || !allThreads[0].asyncEvents().length);
-    if (!singleTrack)
+    if (!singleTrack) {
       this._appendHeader(entry.title, this._headerLevel1, false /* selectable */);
+    }
     const style = singleTrack ? this._headerLevel2 : this._headerLevel1;
     let threadIndex = 0;
     for (const thread of allThreads) {
@@ -972,8 +1085,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       timelineSelection = Timeline.TimelineSelection.fromFrame(
           /** @type {!TimelineModel.TimelineFrame} */ (this._entryData[entryIndex]));
     }
-    if (timelineSelection)
+    if (timelineSelection) {
       this._lastSelection = new Timeline.TimelineFlameChartView.Selection(timelineSelection, entryIndex);
+    }
     return timelineSelection;
   }
 
@@ -1001,16 +1115,19 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {number}
    */
   entryIndexForSelection(selection) {
-    if (!selection || selection.type() === Timeline.TimelineSelection.Type.Range)
+    if (!selection || selection.type() === Timeline.TimelineSelection.Type.Range) {
       return -1;
+    }
 
-    if (this._lastSelection && this._lastSelection.timelineSelection.object() === selection.object())
+    if (this._lastSelection && this._lastSelection.timelineSelection.object() === selection.object()) {
       return this._lastSelection.entryIndex;
+    }
     const index = this._entryData.indexOf(
         /** @type {!SDK.TracingModel.Event|!TimelineModel.TimelineFrame|!TimelineModel.TimelineIRModel.Phases} */
         (selection.object()));
-    if (index !== -1)
+    if (index !== -1) {
       this._lastSelection = new Timeline.TimelineFlameChartView.Selection(selection, index);
+    }
     return index;
   }
 
@@ -1019,8 +1136,9 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
    * @return {boolean}
    */
   buildFlowForInitiator(entryIndex) {
-    if (this._lastInitiatorEntry === entryIndex)
+    if (this._lastInitiatorEntry === entryIndex) {
       return false;
+    }
     this._lastInitiatorEntry = entryIndex;
     let event = this.eventByIndex(entryIndex);
     const td = this._timelineData;
@@ -1033,11 +1151,13 @@ Timeline.TimelineFlameChartDataProvider = class extends Common.Object {
       let initiator;
       for (; event; event = this._eventParent(event)) {
         initiator = TimelineModel.TimelineData.forEvent(event).initiator();
-        if (initiator)
+        if (initiator) {
           break;
+        }
       }
-      if (!initiator)
+      if (!initiator) {
         break;
+      }
       const eventIndex = event[Timeline.TimelineFlameChartDataProvider._indexSymbol];
       const initiatorIndex = initiator[Timeline.TimelineFlameChartDataProvider._indexSymbol];
       td.flowStartTimes.push(initiator.endTime || initiator.startTime);

@@ -5,7 +5,7 @@
 /**
  * @implements {SDK.SDKModelObserver<!SDK.LogModel>}
  */
-BrowserSDK.LogManager = class {
+export default class LogManager {
   constructor() {
     SDK.targetManager.observeModels(SDK.LogModel, this);
   }
@@ -17,7 +17,7 @@ BrowserSDK.LogManager = class {
   modelAdded(logModel) {
     const eventListeners = [];
     eventListeners.push(logModel.addEventListener(SDK.LogModel.Events.EntryAdded, this._logEntryAdded, this));
-    logModel[BrowserSDK.LogManager._eventSymbol] = eventListeners;
+    logModel[_eventSymbol] = eventListeners;
   }
 
   /**
@@ -25,7 +25,7 @@ BrowserSDK.LogManager = class {
    * @param {!SDK.LogModel} logModel
    */
   modelRemoved(logModel) {
-    Common.EventTarget.removeEventListeners(logModel[BrowserSDK.LogManager._eventSymbol]);
+    Common.EventTarget.removeEventListeners(logModel[_eventSymbol]);
   }
 
   /**
@@ -40,12 +40,40 @@ BrowserSDK.LogManager = class {
         data.entry.lineNumber, undefined, [data.entry.text, ...(data.entry.args || [])], data.entry.stackTrace,
         data.entry.timestamp, undefined, undefined, data.entry.workerId);
 
-    if (data.entry.networkRequestId)
-      BrowserSDK.networkLog.associateConsoleMessageWithRequest(consoleMessage, data.entry.networkRequestId);
-    SDK.consoleModel.addMessage(consoleMessage);
+    if (data.entry.networkRequestId) {
+      SDK.networkLog.associateConsoleMessageWithRequest(consoleMessage, data.entry.networkRequestId);
+    }
+
+    if (consoleMessage.source === SDK.ConsoleMessage.MessageSource.Worker) {
+      const workerId = consoleMessage.workerId || '';
+      // We have a copy of worker messages reported through the page, so that
+      // user can see messages from the worker which has been already destroyed.
+      // When opening DevTools, give us some time to connect to the worker and
+      // not report the message twice if the worker is still alive.
+      if (SDK.targetManager.targetById(workerId)) {
+        return;
+      }
+      setTimeout(() => {
+        if (!SDK.targetManager.targetById(workerId)) {
+          SDK.consoleModel.addMessage(consoleMessage);
+        }
+      }, 1000);
+    } else {
+      SDK.consoleModel.addMessage(consoleMessage);
+    }
   }
-};
+}
 
-BrowserSDK.LogManager._eventSymbol = Symbol('_events');
+const _eventSymbol = Symbol('_events');
 
-new BrowserSDK.LogManager();
+/* Legacy exported object */
+self.BrowserSDK = self.BrowserSDK || {};
+
+/* Legacy exported object */
+BrowserSDK = BrowserSDK || {};
+
+/** @constructor */
+BrowserSDK.LogManager = LogManager;
+
+// TODO(crbug.com/1006759): Move out of this module
+new LogManager();

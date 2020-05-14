@@ -1,13 +1,14 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {StylesSidebarPane} from './StylesSidebarPane.js';  // eslint-disable-line no-unused-vars
 
 /**
  * @unrestricted
  */
-Elements.StylePropertyHighlighter = class {
+export class StylePropertyHighlighter {
   /**
-   * @param {!Elements.StylesSidebarPane} ssp
+   * @param {!StylesSidebarPane} ssp
    * @param {!SDK.CSSProperty} cssProperty
    */
   constructor(ssp, cssProperty) {
@@ -19,8 +20,9 @@ Elements.StylePropertyHighlighter = class {
     // Expand all shorthands.
     for (const section of this._styleSidebarPane.allSections()) {
       for (let treeElement = section.propertiesTreeOutline.firstChild(); treeElement;
-           treeElement = treeElement.nextSibling)
+           treeElement = treeElement.nextSibling) {
         treeElement.onpopulate();
+      }
     }
     let highlightTreeElement = null;
     for (const section of this._styleSidebarPane.allSections()) {
@@ -32,12 +34,14 @@ Elements.StylePropertyHighlighter = class {
         }
         treeElement = treeElement.traverseNextTreeElement(false, null, true);
       }
-      if (highlightTreeElement)
+      if (highlightTreeElement) {
         break;
+      }
     }
 
-    if (!highlightTreeElement)
+    if (!highlightTreeElement) {
       return;
+    }
 
     highlightTreeElement.parent.expand();
     highlightTreeElement.listItemElement.scrollIntoViewIfNeeded();
@@ -48,4 +52,4 @@ Elements.StylePropertyHighlighter = class {
         ],
         {duration: 2000, easing: 'cubic-bezier(0, 0, 0.2, 1)'});
   }
-};
+}

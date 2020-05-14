@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Persistence.NetworkPersistenceManager = class extends Common.Object {
+export default class NetworkPersistenceManager extends Common.Object {
   /**
    * @param {!Workspace.Workspace} workspace
    */
@@ -37,6 +37,8 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
         Workspace.Workspace.Events.ProjectRemoved,
         event => this._onProjectRemoved(/** @type {!Workspace.Project} */ (event.data)));
 
+    Persistence.persistence.addNetworkInterceptor(this._canHandleNetworkUISourceCode.bind(this));
+
     /** @type {!Array<!Common.EventTarget.EventDescriptor>} */
     this._eventDescriptors = [];
     this._enabledChanged();
@@ -62,15 +64,17 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @return {?Promise<?string>}
    */
   originalContentForUISourceCode(uiSourceCode) {
-    if (!uiSourceCode[this._bindingSymbol])
+    if (!uiSourceCode[this._bindingSymbol]) {
       return null;
+    }
     const fileSystemUISourceCode = uiSourceCode[this._bindingSymbol].fileSystem;
     return fileSystemUISourceCode[this._originalResponseContentPromiseSymbol] || null;
   }
 
   _enabledChanged() {
-    if (this._enabled === this._enabledSetting.get())
+    if (this._enabled === this._enabledSetting.get()) {
       return;
+    }
     this._enabled = this._enabledSetting.get();
     if (this._enabled) {
       this._eventDescriptors = [
@@ -102,19 +106,21 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
   _updateActiveProject() {
     const wasActive = this._active;
     this._active = !!(this._enabledSetting.get() && SDK.targetManager.mainTarget() && this._project);
-    if (this._active === wasActive)
+    if (this._active === wasActive) {
       return;
+    }
 
     if (this._active) {
       this._project.uiSourceCodes().forEach(this._filesystemUISourceCodeAdded.bind(this));
       const networkProjects = this._workspace.projectsForType(Workspace.projectTypes.Network);
-      for (const networkProject of networkProjects)
+      for (const networkProject of networkProjects) {
         networkProject.uiSourceCodes().forEach(this._networkUISourceCodeAdded.bind(this));
+      }
     } else if (this._project) {
       this._project.uiSourceCodes().forEach(this._filesystemUISourceCodeRemoved.bind(this));
       this._networkUISourceCodeForEncodedPath.clear();
     }
-    Persistence.persistence.setAutomappingEnabled(!this._active);
+    Persistence.persistence.refreshAutomapping();
   }
 
   /**
@@ -122,11 +128,13 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @return {string}
    */
   _encodedPathFromUrl(url) {
-    if (!this._active)
+    if (!this._active) {
       return '';
+    }
     let urlPath = Common.ParsedURL.urlWithoutHash(url.replace(/^https?:\/\//, ''));
-    if (urlPath.endsWith('/') && urlPath.indexOf('?') === -1)
+    if (urlPath.endsWith('/') && urlPath.indexOf('?') === -1) {
       urlPath = urlPath + 'index.html';
+    }
     let encodedPathParts = encodeUrlPathToLocalPathParts(urlPath);
     const projectPath = Persistence.FileSystemWorkspaceBinding.fileSystemPath(this._project.id());
     const encodedPath = encodedPathParts.join('/');
@@ -148,17 +156,20 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
     function encodeUrlPathToLocalPathParts(urlPath) {
       const encodedParts = [];
       for (const pathPart of fileNamePartsFromUrlPath(urlPath)) {
-        if (!pathPart)
+        if (!pathPart) {
           continue;
+        }
         // encodeURI() escapes all the unsafe filename characters except /:?*
         let encodedName = encodeURI(pathPart).replace(/[\/:\?\*]/g, match => '%' + match[0].charCodeAt(0).toString(16));
         // Windows does not allow a small set of filenames.
-        if (Persistence.NetworkPersistenceManager._reservedFileNames.has(encodedName.toLowerCase()))
+        if (_reservedFileNames.has(encodedName.toLowerCase())) {
           encodedName = encodedName.split('').map(char => '%' + char.charCodeAt(0).toString(16)).join('');
+        }
         // Windows does not allow the file to end in a space or dot (space should already be encoded).
         const lastChar = encodedName.charAt(encodedName.length - 1);
-        if (lastChar === '.')
+        if (lastChar === '.') {
           encodedName = encodedName.substr(0, encodedName.length - 1) + '%2e';
+        }
         encodedParts.push(encodedName);
       }
       return encodedParts;
@@ -171,10 +182,12 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
     function fileNamePartsFromUrlPath(urlPath) {
       urlPath = Common.ParsedURL.urlWithoutHash(urlPath);
       const queryIndex = urlPath.indexOf('?');
-      if (queryIndex === -1)
+      if (queryIndex === -1) {
         return urlPath.split('/');
-      if (queryIndex === 0)
+      }
+      if (queryIndex === 0) {
         return [urlPath];
+      }
       const endSection = urlPath.substr(queryIndex);
       const parts = urlPath.substr(0, urlPath.length - endSection.length).split('/');
       parts[parts.length - 1] += endSection;
@@ -200,8 +213,9 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    */
   _unbind(uiSourceCode) {
     const binding = uiSourceCode[this._bindingSymbol];
-    if (!binding)
+    if (!binding) {
       return;
+    }
     delete binding.network[this._bindingSymbol];
     delete binding.fileSystem[this._bindingSymbol];
     Persistence.persistence.removeBinding(binding);
@@ -212,16 +226,18 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @param {!Workspace.UISourceCode} fileSystemUISourceCode
    */
   async _bind(networkUISourceCode, fileSystemUISourceCode) {
-    if (networkUISourceCode[this._bindingSymbol])
+    if (networkUISourceCode[this._bindingSymbol]) {
       this._unbind(networkUISourceCode);
-    if (fileSystemUISourceCode[this._bindingSymbol])
+    }
+    if (fileSystemUISourceCode[this._bindingSymbol]) {
       this._unbind(fileSystemUISourceCode);
+    }
     const binding = new Persistence.PersistenceBinding(networkUISourceCode, fileSystemUISourceCode);
     networkUISourceCode[this._bindingSymbol] = binding;
     fileSystemUISourceCode[this._bindingSymbol] = binding;
     Persistence.persistence.addBinding(binding);
     const uiSourceCodeOfTruth = networkUISourceCode[this._savingSymbol] ? networkUISourceCode : fileSystemUISourceCode;
-    const [content, encoded] =
+    const [{content}, encoded] =
         await Promise.all([uiSourceCodeOfTruth.requestContent(), uiSourceCodeOfTruth.contentEncoded()]);
     Persistence.persistence.syncContent(uiSourceCodeOfTruth, content, encoded);
   }
@@ -245,11 +261,12 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
   async saveUISourceCodeForOverrides(uiSourceCode) {
-    if (!this.canSaveUISourceCodeForOverrides(uiSourceCode))
+    if (!this.canSaveUISourceCodeForOverrides(uiSourceCode)) {
       return;
+    }
     uiSourceCode[this._savingSymbol] = true;
     let encodedPath = this._encodedPathFromUrl(uiSourceCode.url());
-    const content = await uiSourceCode.requestContent();
+    const content = (await uiSourceCode.requestContent()).content || '';
     const encoded = await uiSourceCode.contentEncoded();
     const lastIndexOfSlash = encodedPath.lastIndexOf('/');
     const encodedFileName = encodedPath.substr(lastIndexOfSlash + 1);
@@ -272,10 +289,12 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    */
   _patternForFileSystemUISourceCode(uiSourceCode) {
     const relativePathParts = Persistence.FileSystemWorkspaceBinding.relativePath(uiSourceCode);
-    if (relativePathParts.length < 2)
+    if (relativePathParts.length < 2) {
       return '';
-    if (relativePathParts[1] === 'longurls' && relativePathParts.length !== 2)
+    }
+    if (relativePathParts[1] === 'longurls' && relativePathParts.length !== 2) {
       return 'http?://' + relativePathParts[0] + '/*';
+    }
     return 'http?://' + this._decodeLocalPathToUrlPath(relativePathParts.join('/'));
   }
 
@@ -290,16 +309,27 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
+  _canHandleNetworkUISourceCode(uiSourceCode) {
+    return this._active && !uiSourceCode.url().startsWith('snippet://');
+  }
+
+  /**
+   * @param {!Workspace.UISourceCode} uiSourceCode
+   */
   _networkUISourceCodeAdded(uiSourceCode) {
-    if (!this._active || uiSourceCode.project().type() !== Workspace.projectTypes.Network)
+    if (uiSourceCode.project().type() !== Workspace.projectTypes.Network ||
+        !this._canHandleNetworkUISourceCode(uiSourceCode)) {
       return;
+    }
     const url = Common.ParsedURL.urlWithoutHash(uiSourceCode.url());
     this._networkUISourceCodeForEncodedPath.set(this._encodedPathFromUrl(url), uiSourceCode);
 
-    const fileSystemUISourceCode =
-        this._project.uiSourceCodeForURL(this._project.fileSystemPath() + '/' + this._encodedPathFromUrl(url));
-    if (!fileSystemUISourceCode)
+    const fileSystemUISourceCode = this._project.uiSourceCodeForURL(
+        /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem} */ (this._project).fileSystemPath() + '/' +
+        this._encodedPathFromUrl(url));
+    if (!fileSystemUISourceCode) {
       return;
+    }
     this._bind(uiSourceCode, fileSystemUISourceCode);
   }
 
@@ -307,33 +337,37 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
     * @param {!Workspace.UISourceCode} uiSourceCode
     */
   _filesystemUISourceCodeAdded(uiSourceCode) {
-    if (!this._active || uiSourceCode.project() !== this._project)
+    if (!this._active || uiSourceCode.project() !== this._project) {
       return;
+    }
     this._updateInterceptionPatterns();
 
     const relativePath = Persistence.FileSystemWorkspaceBinding.relativePath(uiSourceCode);
     const networkUISourceCode = this._networkUISourceCodeForEncodedPath.get(relativePath.join('/'));
-    if (networkUISourceCode)
+    if (networkUISourceCode) {
       this._bind(networkUISourceCode, uiSourceCode);
+    }
   }
 
   _updateInterceptionPatterns() {
     this._updateInterceptionThrottler.schedule(innerUpdateInterceptionPatterns.bind(this));
 
     /**
-     * @this {Persistence.NetworkPersistenceManager}
+     * @this {NetworkPersistenceManager}
      * @return {!Promise}
      */
     function innerUpdateInterceptionPatterns() {
-      if (!this._active)
+      if (!this._active) {
         return SDK.multitargetNetworkManager.setInterceptionHandlerForPatterns([], this._interceptionHandlerBound);
+      }
       const patterns = new Set();
       const indexFileName = 'index.html';
       for (const uiSourceCode of this._project.uiSourceCodes()) {
         const pattern = this._patternForFileSystemUISourceCode(uiSourceCode);
         patterns.add(pattern);
-        if (pattern.endsWith('/' + indexFileName))
+        if (pattern.endsWith('/' + indexFileName)) {
           patterns.add(pattern.substr(0, pattern.length - indexFileName.length));
+        }
       }
 
       return SDK.multitargetNetworkManager.setInterceptionHandlerForPatterns(
@@ -356,8 +390,9 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
   _networkUISourceCodeRemoved(uiSourceCode) {
-    if (uiSourceCode.project().type() !== Workspace.projectTypes.Network)
+    if (uiSourceCode.project().type() !== Workspace.projectTypes.Network) {
       return;
+    }
     this._unbind(uiSourceCode);
     this._networkUISourceCodeForEncodedPath.delete(this._encodedPathFromUrl(uiSourceCode.url()));
   }
@@ -366,27 +401,31 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
   _filesystemUISourceCodeRemoved(uiSourceCode) {
-    if (uiSourceCode.project() !== this._project)
+    if (uiSourceCode.project() !== this._project) {
       return;
+    }
     this._updateInterceptionPatterns();
     delete uiSourceCode[this._originalResponseContentPromiseSymbol];
     this._unbind(uiSourceCode);
   }
 
   _setProject(project) {
-    if (project === this._project)
+    if (project === this._project) {
       return;
+    }
 
-    if (this._project)
+    if (this._project) {
       this._project.uiSourceCodes().forEach(this._filesystemUISourceCodeRemoved.bind(this));
+    }
 
     this._project = project;
 
-    if (this._project)
+    if (this._project) {
       this._project.uiSourceCodes().forEach(this._filesystemUISourceCodeAdded.bind(this));
+    }
 
     this._updateActiveProject();
-    this.dispatchEventToListeners(Persistence.NetworkPersistenceManager.Events.ProjectChanged, this._project);
+    this.dispatchEventToListeners(Events.ProjectChanged, this._project);
   }
 
   /**
@@ -394,13 +433,16 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    */
   _onProjectAdded(project) {
     if (project.type() !== Workspace.projectTypes.FileSystem ||
-        Persistence.FileSystemWorkspaceBinding.fileSystemType(project) !== 'overrides')
+        Persistence.FileSystemWorkspaceBinding.fileSystemType(project) !== 'overrides') {
       return;
+    }
     const fileSystemPath = Persistence.FileSystemWorkspaceBinding.fileSystemPath(project.id());
-    if (!fileSystemPath)
+    if (!fileSystemPath) {
       return;
-    if (this._project)
+    }
+    if (this._project) {
       this._project.remove();
+    }
 
     this._setProject(project);
   }
@@ -409,8 +451,9 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    * @param {!Workspace.Project} project
    */
   _onProjectRemoved(project) {
-    if (project !== this._project)
+    if (project !== this._project) {
       return;
+    }
     this._setProject(null);
   }
 
@@ -420,12 +463,15 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
    */
   async _interceptionHandler(interceptedRequest) {
     const method = interceptedRequest.request.method;
-    if (!this._active || (method !== 'GET' && method !== 'POST'))
+    if (!this._active || (method !== 'GET' && method !== 'POST')) {
       return;
-    const path = this._project.fileSystemPath() + '/' + this._encodedPathFromUrl(interceptedRequest.request.url);
+    }
+    const path = /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem} */ (this._project).fileSystemPath() +
+        '/' + this._encodedPathFromUrl(interceptedRequest.request.url);
     const fileSystemUISourceCode = this._project.uiSourceCodeForURL(path);
-    if (!fileSystemUISourceCode)
+    if (!fileSystemUISourceCode) {
       return;
+    }
 
     let mimeType = '';
     if (interceptedRequest.responseHeaders) {
@@ -436,32 +482,45 @@ Persistence.NetworkPersistenceManager = class extends Common.Object {
     if (!mimeType) {
       const expectedResourceType = Common.resourceTypes[interceptedRequest.resourceType] || Common.resourceTypes.Other;
       mimeType = fileSystemUISourceCode.mimeType();
-      if (Common.ResourceType.fromMimeType(mimeType) !== expectedResourceType)
+      if (Common.ResourceType.fromMimeType(mimeType) !== expectedResourceType) {
         mimeType = expectedResourceType.canonicalMimeType();
+      }
     }
     const project =
         /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem} */ (fileSystemUISourceCode.project());
 
     fileSystemUISourceCode[this._originalResponseContentPromiseSymbol] =
         interceptedRequest.responseBody().then(response => {
-          if (response.error || response.content === null)
+          if (response.error || response.content === null) {
             return null;
+          }
           return response.encoded ? atob(response.content) : response.content;
         });
 
     const blob = await project.requestFileBlob(fileSystemUISourceCode);
     interceptedRequest.continueRequestWithContent(new Blob([blob], {type: mimeType}));
   }
-};
+}
 
-Persistence.NetworkPersistenceManager._reservedFileNames = new Set([
+const _reservedFileNames = new Set([
   'con',  'prn',  'aux',  'nul',  'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7',
   'com8', 'com9', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'
 ]);
 
-Persistence.NetworkPersistenceManager.Events = {
+export const Events = {
   ProjectChanged: Symbol('ProjectChanged')
 };
 
-/** @type {!Persistence.NetworkPersistenceManager} */
+/* Legacy exported object */
+self.Persistence = self.Persistence || {};
+
+/* Legacy exported object */
+Persistence = Persistence || {};
+
+/** @constructor */
+Persistence.NetworkPersistenceManager = NetworkPersistenceManager;
+
+Persistence.NetworkPersistenceManager.Events = Events;
+
+/** @type {!NetworkPersistenceManager} */
 Persistence.networkPersistenceManager;

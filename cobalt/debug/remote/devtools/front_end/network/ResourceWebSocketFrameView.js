@@ -19,7 +19,7 @@
 /**
  * @unrestricted
  */
-Network.ResourceWebSocketFrameView = class extends UI.VBox {
+export class ResourceWebSocketFrameView extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -48,7 +48,7 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
     this._dataGrid.setStickToBottom(true);
     this._dataGrid.setCellClass('websocket-frame-view-td');
     this._timeComparator =
-        /** @type {function(!Network.ResourceWebSocketFrameNode, !Network.ResourceWebSocketFrameNode):number} */ (
+        /** @type {function(!ResourceWebSocketFrameNode, !ResourceWebSocketFrameNode):number} */ (
             Network.ResourceWebSocketFrameNodeTimeComparator);
     this._dataGrid.sortNodes(this._timeComparator, false);
     this._dataGrid.markColumnAsSortedBy('time', DataGrid.DataGrid.Order.Ascending);
@@ -64,16 +64,16 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
     this._clearAllButton.addEventListener(UI.ToolbarButton.Events.Click, this._clearFrames, this);
     this._mainToolbar.appendToolbarItem(this._clearAllButton);
 
-    this._filterTypeCombobox = new UI.ToolbarComboBox(this._updateFilterSetting.bind(this));
-    for (const filterItem of Network.ResourceWebSocketFrameView._filterTypes) {
-      const option = this._filterTypeCombobox.createOption(filterItem.label, filterItem.label, filterItem.name);
+    this._filterTypeCombobox = new UI.ToolbarComboBox(this._updateFilterSetting.bind(this), ls`Filter`);
+    for (const filterItem of _filterTypes) {
+      const option = this._filterTypeCombobox.createOption(filterItem.label, filterItem.name);
       this._filterTypeCombobox.addOption(option);
     }
     this._mainToolbar.appendToolbarItem(this._filterTypeCombobox);
     this._filterType = null;
 
     const placeholder = 'Enter regex, for example: (web)?socket';
-    this._filterTextInput = new UI.ToolbarInput(Common.UIString(placeholder), 0.4);
+    this._filterTextInput = new UI.ToolbarInput(Common.UIString(placeholder), '', 0.4);
     this._filterTextInput.addEventListener(UI.ToolbarInput.Event.TextChanged, this._updateFilterSetting, this);
     this._mainToolbar.appendToolbarItem(this._filterTextInput);
     this._filterRegex = null;
@@ -81,22 +81,30 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
     const mainContainer = new UI.VBox();
     mainContainer.element.appendChild(this._mainToolbar.element);
     this._dataGrid.asWidget().show(mainContainer.element);
+    mainContainer.setMinimumSize(0, 72);
     this._splitWidget.setMainWidget(mainContainer);
 
-    this._frameEmptyWidget = new UI.EmptyWidget(Common.UIString('Select frame to browse its content.'));
+    this._frameEmptyWidget = new UI.EmptyWidget(Common.UIString('Select message to browse its content.'));
     this._splitWidget.setSidebarWidget(this._frameEmptyWidget);
 
-    /** @type {?Network.ResourceWebSocketFrameNode} */
+    /** @type {?ResourceWebSocketFrameNode} */
     this._selectedNode = null;
 
     /**
      * @param {!UI.ContextMenu} contextMenu
-     * @param {!DataGrid.DataGridNode} node
-     * @this {Network.ResourceWebSocketFrameView}
+     * @param {!DataGrid.DataGridNode} genericNode
+     * @this {ResourceWebSocketFrameView}
      */
-    function onRowContextMenu(contextMenu, node) {
-      contextMenu.clipboardSection().appendItem(
-          Common.UIString('Copy message'), InspectorFrontendHost.copyText.bind(InspectorFrontendHost, node.data.data));
+    function onRowContextMenu(contextMenu, genericNode) {
+      const node = /** @type {!ResourceWebSocketFrameNode} */ (genericNode);
+      const binaryView = node.binaryView();
+      if (binaryView) {
+        binaryView.addCopyToContextMenu(contextMenu, ls`Copy message...`);
+      } else {
+        contextMenu.clipboardSection().appendItem(
+            Common.UIString('Copy message'),
+            Host.InspectorFrontendHost.copyText.bind(Host.InspectorFrontendHost, node.data.data));
+      }
       contextMenu.footerSection().appendItem(Common.UIString('Clear all'), this._clearFrames.bind(this));
     }
   }
@@ -107,9 +115,11 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
    * @return {string}
    */
   static opCodeDescription(opCode, mask) {
-    const rawDescription = Network.ResourceWebSocketFrameView.opCodeDescriptions[opCode] || '';
-    const localizedDescription = Common.UIString(rawDescription);
-    return Common.UIString('%s (Opcode %d%s)', localizedDescription, opCode, (mask ? ', mask' : ''));
+    const localizedDescription = opCodeDescriptions[opCode] || '';
+    if (mask) {
+      return ls`${localizedDescription} (Opcode ${opCode}, mask)`;
+    }
+    return ls`${localizedDescription} (Opcode ${opCode})`;
   }
 
   /**
@@ -132,9 +142,10 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
    */
   _frameAdded(event) {
     const frame = /** @type {!SDK.NetworkRequest.WebSocketFrame} */ (event.data);
-    if (!this._frameFilter(frame))
+    if (!this._frameFilter(frame)) {
       return;
-    this._dataGrid.insertChild(new Network.ResourceWebSocketFrameNode(this._request.url(), frame));
+    }
+    this._dataGrid.insertChild(new ResourceWebSocketFrameNode(this._request.url(), frame));
   }
 
   /**
@@ -142,14 +153,15 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
    * @return {boolean}
    */
   _frameFilter(frame) {
-    if (this._filterType && frame.type !== this._filterType)
+    if (this._filterType && frame.type !== this._filterType) {
       return false;
+    }
     return !this._filterRegex || this._filterRegex.test(frame.text);
   }
 
   _clearFrames() {
     // TODO(allada): actially remove frames from request.
-    this._request[Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol] = this._request.frames().length;
+    this._request[_clearFrameOffsetSymbol] = this._request.frames().length;
     this.refresh();
   }
 
@@ -165,17 +177,23 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
   * @param {!Common.Event} event
    */
   async _onFrameSelected(event) {
-    const selectedNode = /** @type {!Network.ResourceWebSocketFrameNode} */ (event.data);
-    this._currentSelectedNode = selectedNode;
-    const contentProvider = selectedNode.contentProvider();
-    const content = await contentProvider.requestContent();
-    const jsonView = await SourceFrame.JSONView.createView(content);
-    if (this._currentSelectedNode !== selectedNode)
+    this._currentSelectedNode = /** @type {!ResourceWebSocketFrameNode} */ (event.data);
+    const content = this._currentSelectedNode.dataText();
+
+    const binaryView = this._currentSelectedNode.binaryView();
+    if (binaryView) {
+      this._splitWidget.setSidebarWidget(binaryView);
       return;
-    if (jsonView)
+    }
+
+    const jsonView = await SourceFrame.JSONView.createView(content);
+    if (jsonView) {
       this._splitWidget.setSidebarWidget(jsonView);
-    else
-      this._splitWidget.setSidebarWidget(new SourceFrame.ResourceSourceFrame(contentProvider));
+      return;
+    }
+
+    this._splitWidget.setSidebarWidget(new SourceFrame.ResourceSourceFrame(
+        Common.StaticContentProvider.fromString(this._request.url(), Common.resourceTypes.WebSocket, content)));
   }
 
   /**
@@ -191,19 +209,19 @@ Network.ResourceWebSocketFrameView = class extends UI.VBox {
 
     const url = this._request.url();
     let frames = this._request.frames();
-    const offset = this._request[Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol] || 0;
+    const offset = this._request[_clearFrameOffsetSymbol] || 0;
     frames = frames.slice(offset);
     frames = frames.filter(this._frameFilter.bind(this));
-    frames.forEach(frame => this._dataGrid.insertChild(new Network.ResourceWebSocketFrameNode(url, frame)));
+    frames.forEach(frame => this._dataGrid.insertChild(new ResourceWebSocketFrameNode(url, frame)));
   }
 
   _sortItems() {
     this._dataGrid.sortNodes(this._timeComparator, !this._dataGrid.isSortOrderAscending());
   }
-};
+}
 
 /** @enum {number} */
-Network.ResourceWebSocketFrameView.OpCodes = {
+export const OpCodes = {
   ContinuationFrame: 0,
   TextFrame: 1,
   BinaryFrame: 2,
@@ -213,20 +231,20 @@ Network.ResourceWebSocketFrameView.OpCodes = {
 };
 
 /** @type {!Array.<string> } */
-Network.ResourceWebSocketFrameView.opCodeDescriptions = (function() {
-  const opCodes = Network.ResourceWebSocketFrameView.OpCodes;
+export const opCodeDescriptions = (function() {
+  const opCodes = OpCodes;
   const map = [];
-  map[opCodes.ContinuationFrame] = 'Continuation Frame';
-  map[opCodes.TextFrame] = 'Text Frame';
-  map[opCodes.BinaryFrame] = 'Binary Frame';
-  map[opCodes.ContinuationFrame] = 'Connection Close Frame';
-  map[opCodes.PingFrame] = 'Ping Frame';
-  map[opCodes.PongFrame] = 'Pong Frame';
+  map[opCodes.ContinuationFrame] = ls`Continuation Frame`;
+  map[opCodes.TextFrame] = ls`Text Message`;
+  map[opCodes.BinaryFrame] = ls`Binary Message`;
+  map[opCodes.ContinuationFrame] = ls`Connection Close Message`;
+  map[opCodes.PingFrame] = ls`Ping Message`;
+  map[opCodes.PongFrame] = ls`Pong Message`;
   return map;
 })();
 
 /** @type {!Array<!UI.NamedBitSetFilterUI.Item>} */
-Network.ResourceWebSocketFrameView._filterTypes = [
+export const _filterTypes = [
   {name: 'all', label: Common.UIString('All')},
   {name: 'send', label: Common.UIString('Send')},
   {name: 'receive', label: Common.UIString('Receive')},
@@ -235,14 +253,13 @@ Network.ResourceWebSocketFrameView._filterTypes = [
 /**
  * @unrestricted
  */
-Network.ResourceWebSocketFrameNode = class extends DataGrid.SortableDataGridNode {
+export class ResourceWebSocketFrameNode extends DataGrid.SortableDataGridNode {
   /**
    * @param {string} url
    * @param {!SDK.NetworkRequest.WebSocketFrame} frame
    */
   constructor(url, frame) {
-    let dataText = frame.text;
-    const length = frame.text.length;
+    let length = frame.text.length;
     const time = new Date(frame.time * 1000);
     const timeText = ('0' + time.getHours()).substr(-2) + ':' + ('0' + time.getMinutes()).substr(-2) + ':' +
         ('0' + time.getSeconds()).substr(-2) + '.' + ('00' + time.getMilliseconds()).substr(-3);
@@ -250,11 +267,26 @@ Network.ResourceWebSocketFrameNode = class extends DataGrid.SortableDataGridNode
     timeNode.createTextChild(timeText);
     timeNode.title = time.toLocaleString();
 
-    const isTextFrame = frame.opCode === Network.ResourceWebSocketFrameView.OpCodes.TextFrame;
-    if (!isTextFrame)
-      dataText = Network.ResourceWebSocketFrameView.opCodeDescription(frame.opCode, frame.mask);
+    let dataText = frame.text;
+    let description = ResourceWebSocketFrameView.opCodeDescription(frame.opCode, frame.mask);
+    const isTextFrame = frame.opCode === OpCodes.TextFrame;
 
-    super({data: dataText, length: length, time: timeNode});
+    if (frame.type === SDK.NetworkRequest.WebSocketFrameType.Error) {
+      description = dataText;
+      length = ls`N/A`;
+
+    } else if (isTextFrame) {
+      description = dataText;
+
+    } else if (frame.opCode === OpCodes.BinaryFrame) {
+      length = Number.bytesToString(base64ToSize(frame.text));
+      description = opCodeDescriptions[frame.opCode];
+
+    } else {
+      dataText = description;
+    }
+
+    super({data: description, length: length, time: timeNode});
 
     this._url = url;
     this._frame = frame;
@@ -273,7 +305,6 @@ Network.ResourceWebSocketFrameNode = class extends DataGrid.SortableDataGridNode
         'websocket-frame-view-row-send', this._frame.type === SDK.NetworkRequest.WebSocketFrameType.Send);
     element.classList.toggle(
         'websocket-frame-view-row-receive', this._frame.type === SDK.NetworkRequest.WebSocketFrameType.Receive);
-    element.classList.toggle('websocket-frame-view-row-opcode', !this._isTextFrame);
     super.createCells(element);
   }
 
@@ -286,20 +317,63 @@ Network.ResourceWebSocketFrameNode = class extends DataGrid.SortableDataGridNode
   }
 
   /**
-   * @return {!Common.ContentProvider}
+   * @return {string}
    */
-  contentProvider() {
-    return Common.StaticContentProvider.fromString(this._url, Common.resourceTypes.WebSocket, this._dataText);
+  dataText() {
+    return this._dataText;
   }
-};
+
+  /**
+   * @return {!OpCodes}
+   */
+  opCode() {
+    return /** @type {!OpCodes} */ (this._frame.opCode);
+  }
+
+  /**
+   * @return {?Network.BinaryResourceView}
+   */
+  binaryView() {
+    if (this._isTextFrame || this._frame.type === SDK.NetworkRequest.WebSocketFrameType.Error) {
+      return null;
+    }
+
+    if (!this._binaryView) {
+      this._binaryView = new Network.BinaryResourceView(this._dataText, /* url */ '', Common.resourceTypes.WebSocket);
+    }
+    return this._binaryView;
+  }
+}
 
 /**
- * @param {!Network.ResourceWebSocketFrameNode} a
- * @param {!Network.ResourceWebSocketFrameNode} b
+ * @param {!ResourceWebSocketFrameNode} a
+ * @param {!ResourceWebSocketFrameNode} b
  * @return {number}
  */
-Network.ResourceWebSocketFrameNodeTimeComparator = function(a, b) {
+export function ResourceWebSocketFrameNodeTimeComparator(a, b) {
   return a._frame.time - b._frame.time;
-};
+}
 
-Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol = Symbol('ClearFrameOffset');
+export const _clearFrameOffsetSymbol = Symbol('ClearFrameOffset');
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.ResourceWebSocketFrameView = ResourceWebSocketFrameView;
+
+/** @enum {number} */
+Network.ResourceWebSocketFrameView.OpCodes = OpCodes;
+
+/** @type {!Array.<string> } */
+Network.ResourceWebSocketFrameView.opCodeDescriptions = opCodeDescriptions;
+
+/** @type {!Array<!UI.NamedBitSetFilterUI.Item>} */
+Network.ResourceWebSocketFrameView._filterTypes = _filterTypes;
+Network.ResourceWebSocketFrameView._clearFrameOffsetSymbol = _clearFrameOffsetSymbol;
+Network.ResourceWebSocketFrameNode = ResourceWebSocketFrameNode;

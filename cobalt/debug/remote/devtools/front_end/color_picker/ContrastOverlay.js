@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-ColorPicker.ContrastOverlay = class {
+export class ContrastOverlay {
   /**
    * @param {!ColorPicker.ContrastInfo} contrastInfo
    * @param {!Element} colorElement
@@ -13,24 +13,29 @@ ColorPicker.ContrastOverlay = class {
 
     this._visible = false;
 
-    const contrastRatioSVG = colorElement.createSVGChild('svg', 'spectrum-contrast-container fill');
-    this._contrastRatioLine = contrastRatioSVG.createSVGChild('path', 'spectrum-contrast-line');
+    this._contrastRatioSVG = colorElement.createSVGChild('svg', 'spectrum-contrast-container fill');
+    this._contrastRatioLines = {
+      aa: this._contrastRatioSVG.createSVGChild('path', 'spectrum-contrast-line'),
+      aaa: this._contrastRatioSVG.createSVGChild('path', 'spectrum-contrast-line')
+    };
 
     this._width = 0;
     this._height = 0;
 
     this._contrastRatioLineBuilder = new ColorPicker.ContrastRatioLineBuilder(this._contrastInfo);
-    this._contrastRatioLineThrottler = new Common.Throttler(0);
-    this._drawContrastRatioLineBound = this._drawContrastRatioLine.bind(this);
+
+    this._contrastRatioLinesThrottler = new Common.Throttler(0);
+    this._drawContrastRatioLinesBound = this._drawContrastRatioLines.bind(this);
 
     this._contrastInfo.addEventListener(ColorPicker.ContrastInfo.Events.ContrastInfoUpdated, this._update.bind(this));
   }
 
   _update() {
-    if (!this._visible || this._contrastInfo.isNull() || !this._contrastInfo.contrastRatio())
+    if (!this._visible || this._contrastInfo.isNull() || !this._contrastInfo.contrastRatio()) {
       return;
+    }
 
-    this._contrastRatioLineThrottler.schedule(this._drawContrastRatioLineBound);
+    this._contrastRatioLinesThrottler.schedule(this._drawContrastRatioLinesBound);
   }
 
   /**
@@ -48,45 +53,42 @@ ColorPicker.ContrastOverlay = class {
    */
   setVisible(visible) {
     this._visible = visible;
-    this._contrastRatioLine.classList.toggle('hidden', !visible);
+    this._contrastRatioSVG.classList.toggle('hidden', !visible);
     this._update();
   }
 
-  /**
-   * @return {!Promise}
-   */
-  _drawContrastRatioLine() {
-    const path = this._contrastRatioLineBuilder.drawContrastRatioLine(this._width, this._height);
-    if (path)
-      this._contrastRatioLine.setAttribute('d', path);
-    return Promise.resolve();
+  async _drawContrastRatioLines() {
+    for (const level in this._contrastRatioLines) {
+      const path = this._contrastRatioLineBuilder.drawContrastRatioLine(this._width, this._height, level);
+      if (path) {
+        this._contrastRatioLines[level].setAttribute('d', path);
+      } else {
+        this._contrastRatioLines[level].removeAttribute('d');
+      }
+    }
   }
-};
+}
 
-ColorPicker.ContrastRatioLineBuilder = class {
+export class ContrastRatioLineBuilder {
   /**
    * @param {!ColorPicker.ContrastInfo} contrastInfo
    */
   constructor(contrastInfo) {
     /** @type {!ColorPicker.ContrastInfo} */
     this._contrastInfo = contrastInfo;
-
-    /** @type {?string} */
-    this._bgColorForPreviousLine = null;
-
-    this._hueForPreviousLine = 0;
-    this._alphaForPreviousLine = 0;
   }
 
   /**
    * @param {number} width
    * @param {number} height
+   * @param {string} level
    * @return {?string}
    */
-  drawContrastRatioLine(width, height) {
-    const requiredContrast = this._contrastInfo.contrastRatioThreshold('aa');
-    if (!width || !height || !requiredContrast)
+  drawContrastRatioLine(width, height, level) {
+    const requiredContrast = this._contrastInfo.contrastRatioThreshold(level);
+    if (!width || !height || !requiredContrast) {
       return null;
+    }
 
     const dS = 0.02;
     const epsilon = 0.0002;
@@ -95,20 +97,14 @@ ColorPicker.ContrastRatioLineBuilder = class {
     const V = 2;
     const A = 3;
 
-    const hsva = this._contrastInfo.hsva();
+    const color = this._contrastInfo.color();
     const bgColor = this._contrastInfo.bgColor();
-    if (!hsva || !bgColor)
+    if (!color || !bgColor) {
       return null;
+    }
 
-    const bgColorString = bgColor.asString(Common.Color.Format.RGBA);
-
-    // Don't compute a new line if it would be identical to the previous line.
-    if (hsva[H] === this._hueForPreviousLine && hsva[A] === this._alphaForPreviousLine &&
-        bgColorString === this._bgColorForPreviousLine)
-      return null;
-
-    const fgRGBA = [];
-    Common.Color.hsva2rgba(hsva, fgRGBA);
+    const fgRGBA = color.rgba();
+    const fgHSVA = color.hsva();
     const bgRGBA = bgColor.rgba();
     const bgLuminance = Common.Color.luminance(bgRGBA);
     const blendedRGBA = [];
@@ -117,9 +113,9 @@ ColorPicker.ContrastRatioLineBuilder = class {
     const fgIsLighter = fgLuminance > bgLuminance;
     const desiredLuminance = Common.Color.desiredLuminance(bgLuminance, requiredContrast, fgIsLighter);
 
-    let lastV = hsva[V];
+    let lastV = fgHSVA[V];
     let currentSlope = 0;
-    const candidateHSVA = [hsva[H], 0, 0, hsva[A]];
+    const candidateHSVA = [fgHSVA[H], 0, 0, fgHSVA[A]];
     let pathBuilder = [];
     const candidateRGBA = [];
     Common.Color.hsva2rgba(candidateHSVA, candidateRGBA);
@@ -150,8 +146,9 @@ ColorPicker.ContrastRatioLineBuilder = class {
       let previousSign = Math.sign(dLuminance);
 
       for (let guard = 100; guard; guard--) {
-        if (Math.abs(dLuminance) < epsilon)
+        if (Math.abs(dLuminance) < epsilon) {
           return x;
+        }
 
         const sign = Math.sign(dLuminance);
         if (sign !== previousSign) {
@@ -188,8 +185,9 @@ ColorPicker.ContrastRatioLineBuilder = class {
       candidateHSVA[V] = lastV + currentSlope * dS;
 
       const v = approach(V);
-      if (v === null)
+      if (v === null) {
         break;
+      }
 
       // Approximate the current gradient of the curve.
       currentSlope = s === 0 ? 0 : (v - lastV) / dS;
@@ -206,14 +204,25 @@ ColorPicker.ContrastRatioLineBuilder = class {
       s -= dS;
       candidateHSVA[V] = 1;
       s = approach(S);
-      if (s !== null)
+      if (s !== null) {
         pathBuilder = pathBuilder.concat(['L', (s * width).toFixed(2), '-0.1']);
+      }
     }
-
-    this._bgColorForPreviousLine = bgColorString;
-    this._hueForPreviousLine = hsva[H];
-    this._alphaForPreviousLine = hsva[A];
-
+    if (pathBuilder.length === 0) {
+      return null;
+    }
     return pathBuilder.join(' ');
   }
-};
+}
+
+/* Legacy exported object */
+self.ColorPicker = self.ColorPicker || {};
+
+/* Legacy exported object */
+ColorPicker = ColorPicker || {};
+
+/** @constructor */
+ColorPicker.ContrastOverlay = ContrastOverlay;
+
+/** @constructor */
+ColorPicker.ContrastRatioLineBuilder = ContrastRatioLineBuilder;

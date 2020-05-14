@@ -4,9 +4,10 @@
         "browser_sdk",
         "common"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "extensions.js",
         "ExtensionAPI.js",
-        "ExtensionRegistryStub.js",
         "ExtensionTraceProvider.js",
         "ExtensionServer.js",
         "ExtensionPanel.js",
