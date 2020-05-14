@@ -102,6 +102,8 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
           'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteLimitedInput/0'
+          '.WriteLimitedInput/0',
+          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+          '.WriteContinuedLimitedInput/0',
       ],
   }
