@@ -32,7 +32,7 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
                platform_name='linux-x64x11',
                asan_enabled_by_default=True,
                goma_supports_compiler=True,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(LinuxX64X11Configuration, self).__init__(
         platform_name,
         asan_enabled_by_default,
@@ -82,4 +82,4 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
 
 def CreatePlatformConfig():
   return LinuxX64X11Configuration(
-      sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
+      sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')

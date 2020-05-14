@@ -35,6 +35,7 @@ def GetWindowsVersion():
       return (int(major), int(minor), int(build))
   raise IOError('Could not retrieve windows version')
 
+
 def GetCompilerOptionsFromWinSdk(win_sdk):
   """Convert mandatory include files in win_sdk to compiler options."""
   force_include_files = win_sdk.versioned_winmd_files
@@ -50,6 +51,7 @@ def GetCompilerOptionsFromWinSdk(win_sdk):
   compiler_options = ['/FU' + _QuotePath(f) for f in force_include_files]
   return compiler_options
 
+
 def _QuotePath(path):
   return '"' + path + '"'
 
@@ -57,7 +59,10 @@ def _QuotePath(path):
 class Win32SharedConfiguration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
-  def __init__(self, platform, sdk_checker_fcn=None, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sdk_checker_fcn=None,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk_name = self.GetName()
     self.vmware = 'vmware' in self.GetVideoProcessorDescription().lower()

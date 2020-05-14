@@ -18,7 +18,9 @@ from starboard.raspi.shared import gyp_configuration as shared_configuration
 
 class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
-  def __init__(self, platform, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(Raspi2PlatformConfig, self).__init__(
         platform, sabi_json_path=sabi_json_path)
 
@@ -32,4 +34,5 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
 def CreatePlatformConfig():
   return Raspi2PlatformConfig(
-      'raspi-2', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')
+      'raspi-2',
+      sabi_json_path='starboard/sabi/arm/hardfp/sabi-v{sb_api_version}.json')

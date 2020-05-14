@@ -22,7 +22,9 @@ Raspi2PlatformConfig = importlib.import_module(
 
 class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
-  def __init__(self, platform, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(Raspi2MozjsPlatformConfig, self).__init__(
         platform, sabi_json_path=sabi_json_path)
 
@@ -36,4 +38,5 @@ class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
 def CreatePlatformConfig():
   return Raspi2MozjsPlatformConfig(
-      'raspi-2-mozjs', sabi_json_path='starboard/sabi/arm/hardfp/sabi.json')
+      'raspi-2-mozjs',
+      sabi_json_path='starboard/sabi/arm/hardfp/sabi-v{sb_api_version}.json')

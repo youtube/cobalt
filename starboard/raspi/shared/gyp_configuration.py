@@ -35,7 +35,9 @@ _UNDEFINED_RASPI_HOME = '/UNDEFINED/RASPI_HOME'
 class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard Raspberry Pi platform configuration."""
 
-  def __init__(self, platform, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(RaspiPlatformConfig, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)

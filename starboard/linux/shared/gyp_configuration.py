@@ -28,7 +28,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
                platform,
                asan_enabled_by_default=True,
                goma_supports_compiler=True,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     self.goma_supports_compiler = goma_supports_compiler
     self.sabi_json_path = sabi_json_path
     super(LinuxConfiguration, self).__init__(platform, asan_enabled_by_default)

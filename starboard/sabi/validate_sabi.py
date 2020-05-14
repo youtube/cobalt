@@ -18,12 +18,9 @@
 import _env  # pylint: disable=unused-import
 
 import argparse
-import json
-import os
 import sys
 
 from starboard.sabi import sabi_utils
-from starboard.tools import paths
 
 # Starboard ABI files are considered invalid unless 'jsonschema' is installed
 # and used to verify them.
@@ -32,25 +29,21 @@ try:
 except ImportError:
   jsonschema = None
 
-_STARBOARD_ABI_JSON_SCHEMA_PATH = os.path.join(paths.STARBOARD_ROOT, 'sabi',
-                                               'sabi.schema.json')
 
-
-def ValidateSabi(sabi_json):
+def ValidateSabi(sabi_json, schema_json):
   """Validates the provided Starboard ABI JSON with a jsonschema schema.
 
   Args:
     sabi_json: The Starboard ABI JSON to be validated.
+    schema_json: The Starboard ABI schema JSON to validate with.
 
   Returns:
     |True| if the provided Starboard ABI JSON is valid. |False| if jsonschema
     could not be imported, or if the Starboard ABI JSON is invalid.
   """
-  with open(_STARBOARD_ABI_JSON_SCHEMA_PATH) as f:
-    schema = json.load(f)
   try:
     if jsonschema:
-      jsonschema.validate(sabi_json, schema=schema)
+      jsonschema.validate(sabi_json, schema=schema_json)
       return True
     print("Please install 'jsonschema' to use this tool.")
   except (jsonschema.SchemaError, jsonschema.ValidationError) as e:
@@ -62,7 +55,9 @@ def main():
   arg_parser = argparse.ArgumentParser()
   sabi_utils.AddSabiArguments(arg_parser)
   args, _ = arg_parser.parse_known_args()
-  return ValidateSabi(sabi_utils.LoadSabi(args.filename, args.platform))
+  return ValidateSabi(
+      sabi_utils.LoadSabi(args.filename, args.platform),
+      sabi_utils.LoadSabiSchema(args.filename, args.platform))
 
 
 if __name__ == '__main__':

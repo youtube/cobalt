@@ -27,7 +27,8 @@ from starboard.tools.testing import test_filter
 def CreatePlatformConfig():
   try:
     win_lib_config = WinWin32PlatformConfig(
-        'win-win32', sabi_json_path='starboard/sabi/x64/windows/sabi.json')
+        'win-win32',
+        sabi_json_path='starboard/sabi/x64/windows/sabi-v{sb_api_version}.json')
     return win_lib_config
   except RuntimeError as e:
     logging.critical(e)
@@ -37,7 +38,9 @@ def CreatePlatformConfig():
 class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
   """Starboard win-32 platform configuration."""
 
-  def __init__(self, platform, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(WinWin32PlatformConfig, self).__init__(
         platform, sabi_json_path=sabi_json_path)
 
