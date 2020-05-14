@@ -21,7 +21,7 @@
       '<(DEPTH)/starboard/raspi/shared/configuration.h',
       '<(DEPTH)/starboard/raspi/shared/system_get_extensions.cc',
     ],
-    'sources!': [
+    'sources': [
       '<(DEPTH)/starboard/raspi/2/mozjs/configuration.cc',
       '<(DEPTH)/starboard/raspi/2/mozjs/configuration.h',
       '<(DEPTH)/starboard/raspi/2/mozjs/system_get_extensions.cc',
