@@ -23,6 +23,7 @@ import static dev.cobalt.media.Log.TAG;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
+import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCrypto;
 import android.media.MediaFormat;
@@ -78,6 +79,8 @@ class MediaCodecBridge {
   private long mLastPresentationTimeUs;
   private final String mMime;
   private boolean mAdaptivePlaybackSupported;
+
+  private OnFrameRenderedListenerImpl mTunnelingOnFrameRenderedListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -337,7 +340,8 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String mime,
       boolean adaptivePlaybackSupported,
-      BitrateAdjustmentTypes bitrateAdjustmentType) {
+      BitrateAdjustmentTypes bitrateAdjustmentType,
+      int tunnelingAudioSessionId) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -402,6 +406,32 @@ class MediaCodecBridge {
           }
         };
     mMediaCodec.setCallback(mCallback);
+    // TODO: add support for non tunneled mode
+    if (tunnelingAudioSessionId != -1) {
+      if (Build.VERSION.SDK_INT >= 23) {
+        mTunnelingOnFrameRenderedListener = new OnFrameRenderedListenerImpl(mMediaCodec);
+      }
+    }
+  }
+
+  private final class OnFrameRenderedListenerImpl implements MediaCodec.OnFrameRenderedListener {
+    private OnFrameRenderedListenerImpl(MediaCodec codec) {
+      codec.setOnFrameRenderedListener(this, null);
+    }
+
+    @Override
+    public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+      if (this != mTunnelingOnFrameRenderedListener) {
+        // Stale event.
+        return;
+      }
+      synchronized (mCallback) {
+        if (mNativeMediaCodecBridge == 0) {
+          return;
+        }
+        nativeOnMediaCodecFrameRendered(mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
+      }
+    }
   }
 
   @SuppressWarnings("unused")
@@ -432,7 +462,7 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
     setFrameHasADTSHeader(mediaFormat);
@@ -461,18 +491,18 @@ class MediaCodecBridge {
       int height,
       Surface surface,
       MediaCrypto crypto,
-      ColorInfo colorInfo) {
+      ColorInfo colorInfo,
+      int tunnelingAudioSessionId) {
     MediaCodec mediaCodec = null;
 
     boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
-        MediaCodecUtil.findVideoDecoder(
-            mime, isSecure, 0, 0, 0, 0, findHDRDecoder, requireSoftwareCodec);
+        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, findHDRDecoder, requireSoftwareCodec, false);
     if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
       // On second pass, forget HDR.
-      findVideoDecoderResult =
-          MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false, requireSoftwareCodec);
+      findVideoDecoderResult = 
+          MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false, requireSoftwareCodec, false);
     }
     try {
       String decoderName = findVideoDecoderResult.name;
@@ -491,7 +521,7 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT, tunnelingAudioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, width, height, findVideoDecoderResult.videoCapabilities);
 
@@ -508,6 +538,12 @@ class MediaCodecBridge {
         mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, colorInfo.colorRange);
       }
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
+    }
+
+    if (tunnelingAudioSessionId != -1) {
+      mediaFormat.setFeatureEnabled(
+          CodecCapabilities.FEATURE_TunneledPlayback, true);
+      mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelingAudioSessionId);
     }
 
     int maxWidth = findVideoDecoderResult.videoCapabilities.getSupportedWidths().getUpper();
@@ -979,4 +1015,6 @@ class MediaCodecBridge {
       int size);
 
   private native void nativeOnMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
+  private native void nativeOnMediaCodecFrameRendered(
+      long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
 }
