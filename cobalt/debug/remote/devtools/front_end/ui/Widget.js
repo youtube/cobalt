@@ -27,7 +27,7 @@
 /**
  * @unrestricted
  */
-UI.Widget = class extends Common.Object {
+export default class Widget extends Common.Object {
   /**
    * @param {boolean=} isWebComponent
    * @param {boolean=} delegatesFocus
@@ -56,8 +56,9 @@ UI.Widget = class extends Common.Object {
 
   static _incrementWidgetCounter(parentElement, childElement) {
     const count = (childElement.__widgetCounter || 0) + (childElement.__widget ? 1 : 0);
-    if (!count)
+    if (!count) {
       return;
+    }
 
     while (parentElement) {
       parentElement.__widgetCounter = (parentElement.__widgetCounter || 0) + count;
@@ -67,8 +68,9 @@ UI.Widget = class extends Common.Object {
 
   static _decrementWidgetCounter(parentElement, childElement) {
     const count = (childElement.__widgetCounter || 0) + (childElement.__widget ? 1 : 0);
-    if (!count)
+    if (!count) {
       return;
+    }
 
     while (parentElement) {
       parentElement.__widgetCounter -= count;
@@ -77,8 +79,9 @@ UI.Widget = class extends Common.Object {
   }
 
   static __assert(condition, message) {
-    if (!condition)
+    if (!condition) {
       throw new Error(message);
+    }
   }
 
   /**
@@ -86,12 +89,14 @@ UI.Widget = class extends Common.Object {
    */
   static focusWidgetForNode(node) {
     while (node) {
-      if (node.__widget)
+      if (node.__widget) {
         break;
+      }
       node = node.parentNodeOrShadowHost();
     }
-    if (!node)
+    if (!node) {
       return;
+    }
 
     let widget = node.__widget;
     while (widget._parentWidget) {
@@ -101,26 +106,26 @@ UI.Widget = class extends Common.Object {
   }
 
   markAsRoot() {
-    UI.Widget.__assert(!this.element.parentElement, 'Attempt to mark as root attached node');
+    Widget.__assert(!this.element.parentElement, 'Attempt to mark as root attached node');
     this._isRoot = true;
   }
 
   /**
-   * @return {?UI.Widget}
+   * @return {?Widget}
    */
   parentWidget() {
     return this._parentWidget;
   }
 
   /**
-   * @return {!Array.<!UI.Widget>}
+   * @return {!Array.<!Widget>}
    */
   children() {
     return this._children;
   }
 
   /**
-   * @param {!UI.Widget} widget
+   * @param {!Widget} widget
    * @protected
    */
   childWasDetached(widget) {
@@ -137,13 +142,16 @@ UI.Widget = class extends Common.Object {
    * @return {boolean}
    */
   shouldHideOnDetach() {
-    if (!this.element.parentElement)
+    if (!this.element.parentElement) {
       return false;
-    if (this._hideOnDetach)
+    }
+    if (this._hideOnDetach) {
       return true;
+    }
     for (const child of this._children) {
-      if (child.shouldHideOnDetach())
+      if (child.shouldHideOnDetach()) {
         return true;
+      }
     }
     return false;
   }
@@ -160,19 +168,21 @@ UI.Widget = class extends Common.Object {
   }
 
   _parentIsShowing() {
-    if (this._isRoot)
+    if (this._isRoot) {
       return true;
+    }
     return !!this._parentWidget && this._parentWidget.isShowing();
   }
 
   /**
-   * @param {function(this:UI.Widget)} method
+   * @param {function(this:Widget)} method
    */
   _callOnVisibleChildren(method) {
     const copy = this._children.slice();
     for (let i = 0; i < copy.length; ++i) {
-      if (copy[i]._parentWidget === this && copy[i]._visible)
+      if (copy[i]._parentWidget === this && copy[i]._visible) {
         method.call(copy[i]);
+      }
     }
   }
 
@@ -182,16 +192,18 @@ UI.Widget = class extends Common.Object {
   }
 
   _processWasShown() {
-    if (this._inNotification())
+    if (this._inNotification()) {
       return;
+    }
     this.restoreScrollPositions();
     this._notify(this.wasShown);
     this._callOnVisibleChildren(this._processWasShown);
   }
 
   _processWillHide() {
-    if (this._inNotification())
+    if (this._inNotification()) {
       return;
+    }
     this.storeScrollPositions();
 
     this._callOnVisibleChildren(this._processWillHide);
@@ -204,16 +216,18 @@ UI.Widget = class extends Common.Object {
   }
 
   _processOnResize() {
-    if (this._inNotification())
+    if (this._inNotification()) {
       return;
-    if (!this.isShowing())
+    }
+    if (!this.isShowing()) {
       return;
+    }
     this._notify(this.onResize);
     this._callOnVisibleChildren(this._processOnResize);
   }
 
   /**
-   * @param {function(this:UI.Widget)} notification
+   * @param {function(this:Widget)} notification
    */
   _notify(notification) {
     ++this._notificationDepth;
@@ -244,14 +258,15 @@ UI.Widget = class extends Common.Object {
    * @param {?Node=} insertBefore
    */
   show(parentElement, insertBefore) {
-    UI.Widget.__assert(parentElement, 'Attempt to attach widget with no parent element');
+    Widget.__assert(parentElement, 'Attempt to attach widget with no parent element');
 
     if (!this._isRoot) {
       // Update widget hierarchy.
       let currentParent = parentElement;
-      while (currentParent && !currentParent.__widget)
+      while (currentParent && !currentParent.__widget) {
         currentParent = currentParent.parentElementOrShadowHost();
-      UI.Widget.__assert(currentParent, 'Attempt to attach widget to orphan node');
+      }
+      Widget.__assert(currentParent, 'Attempt to attach widget to orphan node');
       this._attach(currentParent.__widget);
     }
 
@@ -259,22 +274,25 @@ UI.Widget = class extends Common.Object {
   }
 
   /**
-   * @param {!UI.Widget} parentWidget
+   * @param {!Widget} parentWidget
    */
   _attach(parentWidget) {
-    if (parentWidget === this._parentWidget)
+    if (parentWidget === this._parentWidget) {
       return;
-    if (this._parentWidget)
+    }
+    if (this._parentWidget) {
       this.detach();
+    }
     this._parentWidget = parentWidget;
     this._parentWidget._children.push(this);
     this._isRoot = false;
   }
 
   showWidget() {
-    if (this._visible)
+    if (this._visible) {
       return;
-    UI.Widget.__assert(this.element.parentElement, 'Attempt to show widget that is not hidden using hideWidget().');
+    }
+    Widget.__assert(this.element.parentElement, 'Attempt to show widget that is not hidden using hideWidget().');
     this._showWidget(/** @type {!Element} */ (this.element.parentElement), this.element.nextSibling);
   }
 
@@ -284,49 +302,58 @@ UI.Widget = class extends Common.Object {
    */
   _showWidget(parentElement, insertBefore) {
     let currentParent = parentElement;
-    while (currentParent && !currentParent.__widget)
+    while (currentParent && !currentParent.__widget) {
       currentParent = currentParent.parentElementOrShadowHost();
+    }
 
     if (this._isRoot) {
-      UI.Widget.__assert(!currentParent, 'Attempt to show root widget under another widget');
+      Widget.__assert(!currentParent, 'Attempt to show root widget under another widget');
     } else {
-      UI.Widget.__assert(
+      Widget.__assert(
           currentParent && currentParent.__widget === this._parentWidget,
           'Attempt to show under node belonging to alien widget');
     }
 
     const wasVisible = this._visible;
-    if (wasVisible && this.element.parentElement === parentElement)
+    if (wasVisible && this.element.parentElement === parentElement) {
       return;
+    }
 
     this._visible = true;
 
-    if (!wasVisible && this._parentIsShowing())
+    if (!wasVisible && this._parentIsShowing()) {
       this._processWillShow();
+    }
 
     this.element.classList.remove('hidden');
 
     // Reparent
     if (this.element.parentElement !== parentElement) {
-      UI.Widget._incrementWidgetCounter(parentElement, this.element);
-      if (insertBefore)
-        UI.Widget._originalInsertBefore.call(parentElement, this.element, insertBefore);
-      else
-        UI.Widget._originalAppendChild.call(parentElement, this.element);
+      if (!this._externallyManaged) {
+        Widget._incrementWidgetCounter(parentElement, this.element);
+      }
+      if (insertBefore) {
+        Widget._originalInsertBefore.call(parentElement, this.element, insertBefore);
+      } else {
+        Widget._originalAppendChild.call(parentElement, this.element);
+      }
     }
 
-    if (!wasVisible && this._parentIsShowing())
+    if (!wasVisible && this._parentIsShowing()) {
       this._processWasShown();
+    }
 
-    if (this._parentWidget && this._hasNonZeroConstraints())
+    if (this._parentWidget && this._hasNonZeroConstraints()) {
       this._parentWidget.invalidateConstraints();
-    else
+    } else {
       this._processOnResize();
+    }
   }
 
   hideWidget() {
-    if (!this._visible)
+    if (!this._visible) {
       return;
+    }
     this._hideWidget(false);
   }
 
@@ -337,29 +364,33 @@ UI.Widget = class extends Common.Object {
     this._visible = false;
     const parentElement = this.element.parentElement;
 
-    if (this._parentIsShowing())
+    if (this._parentIsShowing()) {
       this._processWillHide();
+    }
 
     if (removeFromDOM) {
       // Force legal removal
-      UI.Widget._decrementWidgetCounter(parentElement, this.element);
-      UI.Widget._originalRemoveChild.call(parentElement, this.element);
+      Widget._decrementWidgetCounter(parentElement, this.element);
+      Widget._originalRemoveChild.call(parentElement, this.element);
     } else {
       this.element.classList.add('hidden');
     }
 
-    if (this._parentIsShowing())
+    if (this._parentIsShowing()) {
       this._processWasHidden();
-    if (this._parentWidget && this._hasNonZeroConstraints())
+    }
+    if (this._parentWidget && this._hasNonZeroConstraints()) {
       this._parentWidget.invalidateConstraints();
+    }
   }
 
   /**
    * @param {boolean=} overrideHideOnDetach
    */
   detach(overrideHideOnDetach) {
-    if (!this._parentWidget && !this._isRoot)
+    if (!this._parentWidget && !this._isRoot) {
       return;
+    }
 
     // hideOnDetach means that we should never remove element from dom - content
     // has iframes and detaching it will hurt.
@@ -372,28 +403,30 @@ UI.Widget = class extends Common.Object {
     } else if (removeFromDOM && this.element.parentElement) {
       const parentElement = this.element.parentElement;
       // Force kick out from DOM.
-      UI.Widget._decrementWidgetCounter(parentElement, this.element);
-      UI.Widget._originalRemoveChild.call(parentElement, this.element);
+      Widget._decrementWidgetCounter(parentElement, this.element);
+      Widget._originalRemoveChild.call(parentElement, this.element);
     }
 
     // Update widget hierarchy.
     if (this._parentWidget) {
       const childIndex = this._parentWidget._children.indexOf(this);
-      UI.Widget.__assert(childIndex >= 0, 'Attempt to remove non-child widget');
+      Widget.__assert(childIndex >= 0, 'Attempt to remove non-child widget');
       this._parentWidget._children.splice(childIndex, 1);
-      if (this._parentWidget._defaultFocusedChild === this)
+      if (this._parentWidget._defaultFocusedChild === this) {
         this._parentWidget._defaultFocusedChild = null;
+      }
       this._parentWidget.childWasDetached(this);
       this._parentWidget = null;
     } else {
-      UI.Widget.__assert(this._isRoot, 'Removing non-root widget from DOM');
+      Widget.__assert(this._isRoot, 'Removing non-root widget from DOM');
     }
   }
 
   detachChildWidgets() {
     const children = this._children.slice();
-    for (let i = 0; i < children.length; ++i)
+    for (let i = 0; i < children.length; ++i) {
       children[i].detach();
+    }
   }
 
   /**
@@ -416,24 +449,29 @@ UI.Widget = class extends Common.Object {
     const elements = this.elementsToRestoreScrollPositionsFor();
     for (let i = 0; i < elements.length; ++i) {
       const container = elements[i];
-      if (container._scrollTop)
+      if (container._scrollTop) {
         container.scrollTop = container._scrollTop;
-      if (container._scrollLeft)
+      }
+      if (container._scrollLeft) {
         container.scrollLeft = container._scrollLeft;
+      }
     }
   }
 
   doResize() {
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
     // No matter what notification we are in, dispatching onResize is not needed.
-    if (!this._inNotification())
+    if (!this._inNotification()) {
       this._callOnVisibleChildren(this._processOnResize);
+    }
   }
 
   doLayout() {
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
     this._notify(this.onLayout);
     this.doResize();
   }
@@ -454,11 +492,13 @@ UI.Widget = class extends Common.Object {
   _collectWidgetHierarchy(prefix, lines) {
     lines.push(prefix + '[' + this.element.className + ']' + (this._children.length ? ' {' : ''));
 
-    for (let i = 0; i < this._children.length; ++i)
+    for (let i = 0; i < this._children.length; ++i) {
       this._children[i]._collectWidgetHierarchy(prefix + '    ', lines);
+    }
 
-    if (this._children.length)
+    if (this._children.length) {
       lines.push(prefix + '}');
+    }
   }
 
   /**
@@ -469,21 +509,23 @@ UI.Widget = class extends Common.Object {
   }
 
   /**
-   * @param {!UI.Widget} child
+   * @param {!Widget} child
    */
   setDefaultFocusedChild(child) {
-    UI.Widget.__assert(child._parentWidget === this, 'Attempt to set non-child widget as default focused.');
+    Widget.__assert(child._parentWidget === this, 'Attempt to set non-child widget as default focused.');
     this._defaultFocusedChild = child;
   }
 
   focus() {
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
 
     const element = this._defaultFocusedElement;
     if (element) {
-      if (!element.hasFocus())
+      if (!element.hasFocus()) {
         element.focus();
+      }
       return;
     }
 
@@ -525,10 +567,12 @@ UI.Widget = class extends Common.Object {
    * @return {!UI.Constraints}
    */
   constraints() {
-    if (typeof this._constraints !== 'undefined')
+    if (typeof this._constraints !== 'undefined') {
       return this._constraints;
-    if (typeof this._cachedConstraints === 'undefined')
+    }
+    if (typeof this._cachedConstraints === 'undefined') {
       this._cachedConstraints = this.calculateConstraints();
+    }
     return this._cachedConstraints;
   }
 
@@ -568,8 +612,9 @@ UI.Widget = class extends Common.Object {
 
   resumeInvalidations() {
     --this._invalidationsSuspended;
-    if (!this._invalidationsSuspended && this._invalidationsRequested)
+    if (!this._invalidationsSuspended && this._invalidationsRequested) {
       this.invalidateConstraints();
+    }
   }
 
   invalidateConstraints() {
@@ -581,23 +626,37 @@ UI.Widget = class extends Common.Object {
     const cached = this._cachedConstraints;
     delete this._cachedConstraints;
     const actual = this.constraints();
-    if (!actual.isEqual(cached) && this._parentWidget)
+    if (!actual.isEqual(cached) && this._parentWidget) {
       this._parentWidget.invalidateConstraints();
-    else
+    } else {
       this.doLayout();
+    }
   }
-};
 
-UI.Widget._originalAppendChild = Element.prototype.appendChild;
-UI.Widget._originalInsertBefore = Element.prototype.insertBefore;
-UI.Widget._originalRemoveChild = Element.prototype.removeChild;
-UI.Widget._originalRemoveChildren = Element.prototype.removeChildren;
+  // Excludes the widget from being tracked by its parents/ancestors via
+  // __widgetCounter because the widget is being handled by external code.
+  // Widgets marked as being externally managed are responsible for
+  // finishing out their own lifecycle (i.e. calling detach() before being
+  // removed from the DOM). This is e.g. used for CodeMirror.
+  //
+  // Also note that this must be called before the widget is shown so that
+  // so that its ancestor's __widgetCounter is not incremented.
+  markAsExternallyManaged() {
+    Widget.__assert(!this._parentWidget, 'Attempt to mark widget as externally managed after insertion to the DOM');
+    this._externallyManaged = true;
+  }
+}
+
+export const _originalAppendChild = Element.prototype.appendChild;
+export const _originalInsertBefore = Element.prototype.insertBefore;
+export const _originalRemoveChild = Element.prototype.removeChild;
+export const _originalRemoveChildren = Element.prototype.removeChildren;
 
 
 /**
  * @unrestricted
  */
-UI.VBox = class extends UI.Widget {
+export class VBox extends Widget {
   /**
    * @param {boolean=} isWebComponent
    * @param {boolean=} delegatesFocus
@@ -615,7 +674,7 @@ UI.VBox = class extends UI.Widget {
     let constraints = new UI.Constraints();
 
     /**
-     * @this {!UI.Widget}
+     * @this {!Widget}
      * @suppressReceiverCheck
      */
     function updateForChild() {
@@ -627,12 +686,12 @@ UI.VBox = class extends UI.Widget {
     this._callOnVisibleChildren(updateForChild);
     return constraints;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.HBox = class extends UI.Widget {
+export class HBox extends Widget {
   /**
    * @param {boolean=} isWebComponent
    */
@@ -649,7 +708,7 @@ UI.HBox = class extends UI.Widget {
     let constraints = new UI.Constraints();
 
     /**
-     * @this {!UI.Widget}
+     * @this {!Widget}
      * @suppressReceiverCheck
      */
     function updateForChild() {
@@ -661,12 +720,12 @@ UI.HBox = class extends UI.Widget {
     this._callOnVisibleChildren(updateForChild);
     return constraints;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.VBoxWithResizeCallback = class extends UI.VBox {
+export class VBoxWithResizeCallback extends VBox {
   /**
    * @param {function()} resizeCallback
    */
@@ -681,14 +740,14 @@ UI.VBoxWithResizeCallback = class extends UI.VBox {
   onResize() {
     this._resizeCallback();
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.WidgetFocusRestorer = class {
+export class WidgetFocusRestorer {
   /**
-   * @param {!UI.Widget} widget
+   * @param {!Widget} widget
    */
   constructor(widget) {
     this._widget = widget;
@@ -697,14 +756,16 @@ UI.WidgetFocusRestorer = class {
   }
 
   restore() {
-    if (!this._widget)
+    if (!this._widget) {
       return;
-    if (this._widget.hasFocus() && this._previous)
+    }
+    if (this._widget.hasFocus() && this._previous) {
       this._previous.focus();
+    }
     this._previous = null;
     this._widget = null;
   }
-};
+}
 
 /**
  * @override
@@ -713,9 +774,8 @@ UI.WidgetFocusRestorer = class {
  * @suppress {duplicate}
  */
 Element.prototype.appendChild = function(child) {
-  UI.Widget.__assert(
-      !child.__widget || child.parentElement === this, 'Attempt to add widget via regular DOM operation.');
-  return UI.Widget._originalAppendChild.call(this, child);
+  Widget.__assert(!child.__widget || child.parentElement === this, 'Attempt to add widget via regular DOM operation.');
+  return Widget._originalAppendChild.call(this, child);
 };
 
 /**
@@ -726,9 +786,8 @@ Element.prototype.appendChild = function(child) {
  * @suppress {duplicate}
  */
 Element.prototype.insertBefore = function(child, anchor) {
-  UI.Widget.__assert(
-      !child.__widget || child.parentElement === this, 'Attempt to add widget via regular DOM operation.');
-  return UI.Widget._originalInsertBefore.call(this, child, anchor);
+  Widget.__assert(!child.__widget || child.parentElement === this, 'Attempt to add widget via regular DOM operation.');
+  return Widget._originalInsertBefore.call(this, child, anchor);
 };
 
 /**
@@ -738,13 +797,39 @@ Element.prototype.insertBefore = function(child, anchor) {
  * @suppress {duplicate}
  */
 Element.prototype.removeChild = function(child) {
-  UI.Widget.__assert(
+  Widget.__assert(
       !child.__widgetCounter && !child.__widget,
       'Attempt to remove element containing widget via regular DOM operation');
-  return UI.Widget._originalRemoveChild.call(this, child);
+  return Widget._originalRemoveChild.call(this, child);
 };
 
 Element.prototype.removeChildren = function() {
-  UI.Widget.__assert(!this.__widgetCounter, 'Attempt to remove element containing widget via regular DOM operation');
-  UI.Widget._originalRemoveChildren.call(this);
+  Widget.__assert(!this.__widgetCounter, 'Attempt to remove element containing widget via regular DOM operation');
+  Widget._originalRemoveChildren.call(this);
 };
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.Widget = Widget;
+
+Widget._originalAppendChild = _originalAppendChild;
+Widget._originalInsertBefore = _originalInsertBefore;
+Widget._originalRemoveChild = _originalRemoveChild;
+Widget._originalRemoveChildren = _originalRemoveChildren;
+
+/** @constructor */
+UI.HBox = HBox;
+
+/** @constructor */
+UI.VBox = VBox;
+
+/** @constructor */
+UI.WidgetFocusRestorer = WidgetFocusRestorer;
+
+/** @constructor */
+UI.VBoxWithResizeCallback = VBoxWithResizeCallback;

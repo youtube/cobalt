@@ -28,6 +28,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* eslint-disable no-unused-vars */
+
 // Blink Web Facing API
 
 /**
@@ -128,14 +130,6 @@ Array.prototype.binaryIndexOf = function(value, comparator) {};
 Array.prototype.sortRange = function(comparator, leftBound, rightBound, sortWindowLeft, sortWindowRight) {};
 
 /**
- * @param {function(!T,!T): number=} comparator
- * @return {!Array.<T>}
- * @this {Array.<T>}
- * @template T
- */
-Array.prototype.stableSort = function(comparator) {};
-
-/**
  * @this {Array.<number>}
  * @param {function(number,number):boolean} comparator
  * @param {number} left
@@ -144,14 +138,6 @@ Array.prototype.stableSort = function(comparator) {};
  * @return {number}
  */
 Array.prototype.partition = function(comparator, left, right, pivotIndex) {};
-
-/**
- * @this {Array.<number>}
- * @param {number} k
- * @param {function(number,number):boolean=} comparator
- * @return {number}
- */
-Array.prototype.qselect = function(k, comparator) {};
 
 /**
  * @param {string} field
@@ -195,7 +181,7 @@ Array.prototype.mergeOrdered = function(array, comparator) {};
  */
 Int32Array.prototype.lowerBound = function(object, comparator, left, right) {};
 
-// TODO(luoe): remove these BigInt types once closure supports them.
+// TODO(luoe): remove these BigInt and ArrayLike types once closure supports them.
 /**
  * @param {number|string} value
  */
@@ -203,6 +189,9 @@ const BigInt = function(value) {};
 
 /** @typedef {*} */
 const bigint = null;
+
+/** @typedef {Array|NodeList|Arguments|{length: number}} */
+let ArrayLike;
 
 // File System API
 /**
@@ -542,9 +531,9 @@ CodeMirror.prototype = {
   undo: function() {},
   unlinkDoc: function(other) {}
 };
-/** @type {!{cursorDiv: Element, lineSpace: Element}} */
+/** @type {!{cursorDiv: Element, lineSpace: Element, gutters: Element}} */
 CodeMirror.prototype.display;
-/** @type {!{mode: string, lineWrapping: boolean}} */
+/** @type {!{devtoolsAccessibleName: string, mode: string, lineWrapping: boolean}} */
 CodeMirror.prototype.options;
 /** @type {!Object} */
 CodeMirror.Pass;
@@ -664,45 +653,6 @@ CodeMirror.defineMIME = function(mime, mode) {};
 /** @type {boolean} */
 window.dispatchStandaloneTestRunnerMessages;
 
-/**
- * @param {Array.<Object>} keyframes
- * @param {number|Object} timing
- * @return {Object}
- */
-Element.prototype.animate = function(keyframes, timing) {};
-
-/**
- * @param {...!Node} nodes
- * @return {undefined}
- * @see https://dom.spec.whatwg.org/#dom-parentnode-append
- */
-Element.prototype.append = function(nodes) {};
-
-/**
- * @param {...!Node} nodes
- * @return {undefined}
- * @see https://dom.spec.whatwg.org/#dom-parentnode-prepend
- */
-Element.prototype.prepend = function(nodes) {};
-
-/**
- * @override
- * @param {string} type
- * @param {(!EventListener|!function (!Event): (boolean|undefined)|null)} listener
- * @param {(boolean|!{capture: (boolean|undefined), once: (boolean|undefined), passive: (boolean|undefined)})=} options
- * @this {EventTarget}
- */
-Element.prototype.addEventListener = function(type, listener, options) {};
-
-/**
- * @override
- * @param {string} type
- * @param {(!EventListener|!function (!Event): (boolean|undefined)|null)} listener
- * @param {(boolean|!{capture: (boolean|undefined), once: (boolean|undefined), passive: (boolean|undefined)})=} options
- * @this {EventTarget}
- */
-Element.prototype.removeEventListener = function(type, listener, options) {};
-
 const acorn = {
   /**
    * @param {string} text
@@ -710,13 +660,6 @@ const acorn = {
    * @return {!ESTree.Node}
    */
   parse: function(text, options) {},
-
-  /**
-   * @param {string} text
-   * @param {Object.<string, boolean>} options
-   * @return {!ESTree.Node}
-   */
-  parse_dammit: function(text, options) {},
 
   /**
    * @param {string} text
@@ -736,6 +679,15 @@ const acorn = {
     eof: new Acorn.TokenType()
   }
 };
+
+acorn.loose = {};
+
+/**
+ * @param {string} text
+ * @param {Object.<string, boolean>} options
+ * @return {!ESTree.Node}
+ */
+acorn.loose.parse = function(text, options) {};
 
 const Acorn = {};
 /**
@@ -770,6 +722,38 @@ Acorn.Comment;
  * @typedef {(!Acorn.Token|!Acorn.Comment)}
  */
 Acorn.TokenOrComment;
+
+const dagre = {};
+dagre.graphlib = {};
+/**
+ * @constructor
+ */
+dagre.graphlib.Graph = function() {};
+
+dagre.graphlib.json = {};
+
+/**
+ * @param {string} graphData
+ * @return {!dagre.graphlib.Graph}
+ */
+dagre.graphlib.json.read = function(graphData) {};
+
+/**
+ * @param {!dagre.graphlib.Graph} graph
+ * @return {string}
+ */
+dagre.graphlib.json.write = function(graph) {};
+
+/**
+ * @param {!dagre.graphlib.Graph} graph
+ * @param {?Object=} options
+ */
+dagre.layout = function(graph, options) {};
+// Since the object types in JSDoc should use capitalized `Dagre`, dagre is renamed as Dagre below.
+// Note that `var Dagre={}` will be added in dagre_module.js, so to prevent variable redefinition,
+// the workaround is to name the module+folder as `dagre_layout`. This workaround is similar to
+// `cm` and `CodeMirror`.
+const Dagre = dagre;
 
 const ESTree = {};
 
@@ -860,6 +844,7 @@ Terminal.prototype = {
  */
 Console.prototype.context = function(context) {};
 
+// Globally defined functions
 
 /**
  * @param {!Array<string>|string} strings
@@ -867,6 +852,139 @@ Console.prototype.context = function(context) {};
  * @return {string}
  */
 const ls = function(strings, vararg) {};
+
+/**
+* @param {string} tagName
+* @param {string=} customElementType
+* @return {!Element}
+*/
+const createElement = function(tagName, customElementType) {};
+
+/**
+ * @param {number|string} data
+ * @return {!Text}
+ */
+const createTextNode = function(data) {};
+
+/**
+ * @param {string} elementName
+ * @param {string=} className
+ * @param {string=} customElementType
+ * @return {!Element}
+ */
+const createElementWithClass = function(elementName, className, customElementType) {};
+
+/**
+ * @param {string} childType
+ * @param {string=} className
+ * @return {!Element}
+ */
+const createSVGElement = function(childType, className) {};
+
+/**
+ * @return {!DocumentFragment}
+ */
+const createDocumentFragment = function() {};
+
+/**
+ * @param {!Event} event
+ * @return {boolean}
+ */
+const isEnterKey = function(event) {};
+
+/**
+ * @param {!Event} event
+ * @return {boolean}
+ */
+const isEnterOrSpaceKey = function(event) {};
+
+/**
+ * @param {!Event} event
+ * @return {boolean}
+ */
+const isEscKey = function(event) {};
+
+/**
+ * @param {!ExtensionDescriptor} extensionInfo
+ * @param {string} inspectedTabId
+ * @param {string} themeName
+ * @param {!Array<number>} keysToForward
+ * @param {function(!Object, !Object)|undefined} testHook
+ * @return {string}
+ */
+const buildExtensionAPIInjectedScript = function(extensionInfo, inspectedTabId, themeName, keysToForward, testHook) {};
+
+/**
+ * @param {number} m
+ * @param {number} n
+ * @return {number}
+ */
+const mod = function(m, n) {};
+
+/**
+ * @param {string} query
+ * @param {boolean} caseSensitive
+ * @param {boolean} isRegex
+ * @return {!RegExp}
+ */
+const createSearchRegex = function(query, caseSensitive, isRegex) {};
+
+/**
+ * @param {string} query
+ * @param {string=} flags
+ * @return {!RegExp}
+ */
+const createPlainTextSearchRegex = function(query, flags) {};
+
+/**
+ * @param {!RegExp} regex
+ * @param {string} content
+ * @return {number}
+ */
+const countRegexMatches = function(regex, content) {};
+
+/**
+ * @param {number} spacesCount
+ * @return {string}
+ */
+const spacesPadding = function(spacesCount) {};
+
+/**
+ * @param {number} value
+ * @param {number} symbolsCount
+ * @return {string}
+ */
+const numberToStringWithSpacesPadding = function(value, symbolsCount) {};
+
+/**
+ * @param {string} url
+ * @return {!Promise.<string>}
+ */
+const loadXHR = function(url) {};
+
+/**
+ * @param {*} value
+ */
+const suppressUnused = function(value) {};
+
+/**
+ * TODO: move into its own module
+ * @param {function()} callback
+ */
+const runOnWindowLoad = function(callback) {};
+
+/**
+ * @template T
+ * @param {function(new:T, ...)} constructorFunction
+ * @return {!T}
+ */
+const singleton = function(constructorFunction) {};
+
+/**
+ * @param {?string} content
+ * @return {number}
+ */
+const base64ToSize = function(content) {};
 
 /**
  * @constructor
@@ -901,6 +1019,32 @@ ReportRenderer.prototype = {
    */
   setTemplateContext: function(context) {},
 
+};
+
+/**
+ * @constructor
+ * @param {!DOM} dom
+ */
+const ReportUIFeatures = function(dom) {
+  /** @type {!ReportRenderer.ReportJSON} */
+  this.json;
+
+  /** @type {!Document} */
+  this._document;
+};
+
+ReportUIFeatures.prototype = {
+  /**
+   * @param {!Document|!Element} context
+   */
+  setTemplateContext: function(context) {},
+
+  /**
+   * @param {!ReportRenderer.ReportJSON} report
+   */
+  initFeatures: function(report) {},
+
+  _resetUIState: function() {},
 };
 
 /**
@@ -979,7 +1123,8 @@ ReportRenderer.RunnerResultArtifacts;
  * @typedef {{
  *     lhr: !ReportRenderer.ReportJSON,
  *     artifacts: ReportRenderer.RunnerResultArtifacts,
- *     report: string
+ *     report: string,
+ *     stack: string
  * }}
  */
 ReportRenderer.RunnerResult;
@@ -1028,6 +1173,15 @@ DetailsRenderer.DetailsJSON;
  */
 DetailsRenderer.NodeDetailsJSON;
 
+/**
+ * @typedef {{
+ *     sourceUrl: (string|undefined),
+ *     sourceLine: (string|undefined),
+ *     sourceColumn: (string|undefined),
+ * }}
+ */
+DetailsRenderer.SourceLocationDetailsJSON;
+
 /** @typedef {{
  *     wastedMs: (number|undefined),
  *     wastedBytes: (number|undefined),
@@ -1035,16 +1189,356 @@ DetailsRenderer.NodeDetailsJSON;
  */
 DetailsRenderer.OpportunitySummary;
 
+const Lighthouse = {};
 
-// Clipboard API
+Lighthouse.ReportGenerator = {};
 
-/** @constructor */
-const Clipboard = function() {};
 /**
- * @param {string} data
- * @return {!Promise}
+ * @param {!ReportRenderer.ReportJSON} lhr
+ * @return {string}
  */
-Clipboard.prototype.writeText = function(data) {};
+Lighthouse.ReportGenerator.generateReportHtml;
 
-/** @type {Clipboard} */
-Navigator.prototype.clipboard;
+/**
+ * @param {string} source
+ * @param {Array<{search: string, replacement: string}>} replacements
+ * @return {string}
+ */
+Lighthouse.ReportGenerator.replaceStrings;
+
+/** @interface */
+class InspectorFrontendHostAPI {
+  /**
+   * @param {string=} type
+   */
+  addFileSystem(type) {
+  }
+
+  loadCompleted() {
+  }
+
+  /**
+   * @param {number} requestId
+   * @param {string} fileSystemPath
+   * @param {string} excludedFolders
+   */
+  indexPath(requestId, fileSystemPath, excludedFolders) {
+  }
+
+  /**
+   * Requests inspected page to be placed atop of the inspector frontend with specified bounds.
+   * @param {{x: number, y: number, width: number, height: number}} bounds
+   */
+  setInspectedPageBounds(bounds) {
+  }
+
+  /**
+   * @param {!Array<string>} certChain
+   */
+  showCertificateViewer(certChain) {
+  }
+
+  /**
+   * @param {string} shortcuts
+   */
+  setWhitelistedShortcuts(shortcuts) {
+  }
+
+  /**
+   * @param {boolean} active
+   */
+  setEyeDropperActive(active) {
+  }
+
+  inspectElementCompleted() {
+  }
+
+  /**
+   * @param {string} url
+   */
+  openInNewTab(url) {
+  }
+
+  /**
+   * @param {string} fileSystemPath
+   */
+  showItemInFolder(fileSystemPath) {
+  }
+
+  /**
+   * @param {string} fileSystemPath
+   */
+  removeFileSystem(fileSystemPath) {
+  }
+
+  requestFileSystems() {
+  }
+
+  /**
+   * @param {string} url
+   * @param {string} content
+   * @param {boolean} forceSaveAs
+   */
+  save(url, content, forceSaveAs) {
+  }
+
+  /**
+   * @param {string} url
+   * @param {string} content
+   */
+  append(url, content) {
+  }
+
+  /**
+   * @param {string} url
+   */
+  close(url) {
+  }
+
+  /**
+   * @param {number} requestId
+   * @param {string} fileSystemPath
+   * @param {string} query
+   */
+  searchInPath(requestId, fileSystemPath, query) {
+  }
+
+  /**
+   * @param {number} requestId
+   */
+  stopIndexing(requestId) {
+  }
+
+  bringToFront() {
+  }
+
+  closeWindow() {
+  }
+
+  copyText(text) {
+  }
+
+  /**
+   * @param {string} url
+   */
+  inspectedURLChanged(url) {
+  }
+
+  /**
+   * @param {string} fileSystemId
+   * @param {string} registeredName
+   * @return {?DOMFileSystem}
+   */
+  isolatedFileSystem(fileSystemId, registeredName) {
+  }
+
+  /**
+   * @param {string} url
+   * @param {string} headers
+   * @param {number} streamId
+   * @param {function(!InspectorFrontendHostAPI.LoadNetworkResourceResult)} callback
+   */
+  loadNetworkResource(url, headers, streamId, callback) {
+  }
+
+  /**
+   * @param {function(!Object<string, string>)} callback
+   */
+  getPreferences(callback) {
+  }
+
+  /**
+   * @param {string} name
+   * @param {string} value
+   */
+  setPreference(name, value) {
+  }
+
+  /**
+   * @param {string} name
+   */
+  removePreference(name) {
+  }
+
+  clearPreferences() {
+  }
+
+  /**
+   * @param {!FileSystem} fileSystem
+   */
+  upgradeDraggedFileSystemPermissions(fileSystem) {
+  }
+
+  /**
+   * @return {string}
+   */
+  platform() {
+  }
+
+  /**
+   * @param {string} actionName
+   * @param {number} actionCode
+   * @param {number} bucketSize
+   */
+  recordEnumeratedHistogram(actionName, actionCode, bucketSize) {
+  }
+
+  /**
+   * @param {string} histogramName
+   * @param {number} duration
+   */
+  recordPerformanceHistogram(histogramName, duration) {
+  }
+
+  /**
+   * @param {string} umaName
+   */
+  recordUserMetricsAction(umaName) {
+  }
+
+  /**
+   * @param {string} message
+   */
+  sendMessageToBackend(message) {
+  }
+
+  /**
+   * @param {!Adb.Config} config
+   */
+  setDevicesDiscoveryConfig(config) {
+  }
+
+  /**
+   * @param {boolean} enabled
+   */
+  setDevicesUpdatesEnabled(enabled) {
+  }
+
+  /**
+   * @param {string} pageId
+   * @param {string} action
+   */
+  performActionOnRemotePage(pageId, action) {
+  }
+
+  /**
+   * @param {string} browserId
+   * @param {string} url
+   */
+  openRemotePage(browserId, url) {
+  }
+
+  openNodeFrontend() {
+  }
+
+  /**
+   * @param {string} origin
+   * @param {string} script
+   */
+  setInjectedScriptForOrigin(origin, script) {
+  }
+
+  /**
+   * @param {boolean} isDocked
+   * @param {function()} callback
+   */
+  setIsDocked(isDocked, callback) {
+  }
+
+  /**
+   * @return {number}
+   */
+  zoomFactor() {
+  }
+
+  zoomIn() {
+  }
+
+  zoomOut() {
+  }
+
+  resetZoom() {
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {!Array.<!InspectorFrontendHostAPI.ContextMenuDescriptor>} items
+   * @param {!Document} document
+   */
+  showContextMenuAtPoint(x, y, items, document) {
+  }
+
+  /**
+   * @param {function()} callback
+   */
+  reattach(callback) {
+  }
+
+  readyForTest() {
+  }
+
+  connectionReady() {
+  }
+
+  /**
+   * @param {boolean} value
+   */
+  setOpenNewWindowForPopups(value) {
+  }
+
+  /**
+   * @return {boolean}
+   */
+  isHostedMode() {
+  }
+
+  /**
+   * @param {function(!ExtensionDescriptor)} callback
+   */
+  setAddExtensionCallback(callback) {
+  }
+}
+
+/** @typedef
+{{
+    type: string,
+    id: (number|undefined),
+    label: (string|undefined),
+    enabled: (boolean|undefined),
+    checked: (boolean|undefined),
+    subItems: (!Array.<!InspectorFrontendHostAPI.ContextMenuDescriptor>|undefined)
+}} */
+InspectorFrontendHostAPI.ContextMenuDescriptor;
+
+/** @typedef
+{{
+    statusCode: number,
+    headers: (!Object.<string, string>|undefined)
+}} */
+InspectorFrontendHostAPI.LoadNetworkResourceResult;
+
+/**
+ * @interface
+ */
+class ServicePort {
+  /**
+   * @param {function(string)} messageHandler
+   * @param {function(string)} closeHandler
+   */
+  setHandlers(messageHandler, closeHandler) {
+  }
+
+  /**
+   * @param {string} message
+   * @return {!Promise<boolean>}
+   */
+  send(message) {
+  }
+
+  /**
+   * @return {!Promise<boolean>}
+   */
+  close() {
+  }
+}

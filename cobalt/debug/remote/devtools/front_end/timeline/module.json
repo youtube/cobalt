@@ -37,6 +37,7 @@
             "type": "action",
             "actionId": "timeline.toggle-recording",
             "iconClass": "largeicon-start-recording",
+            "toggleable": true,
             "toggledIconClass": "largeicon-stop-recording",
             "toggleWithRedColor": true,
             "contextTypes": [
@@ -218,13 +219,13 @@
         }
     ],
     "dependencies": [
-        "browser_components",
+        "components",
+        // "coverage",
         "layer_viewer",
         "timeline_model",
         "perf_ui",
         "extensions",
         "data_grid",
-        "product_registry",
         "profiler",
         "mobile_throttling"
     ],
@@ -246,7 +247,9 @@
         "TimelineUIUtils.js",
         "TimelineLayersView.js",
         "TimelinePaintProfilerView.js",
-        "TimelinePanel.js"
+        "TimelinePanel.js",
+        "UIDevtoolsUtils.js",
+        "UIDevtoolsController.js"
     ],
     "resources": [
         "historyToolbarButton.css",

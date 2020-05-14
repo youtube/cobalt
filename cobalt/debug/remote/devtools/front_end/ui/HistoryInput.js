@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.HistoryInput = class extends HTMLInputElement {
+export default class HistoryInput extends HTMLInputElement {
   constructor() {
     super();
     this._history = [''];
@@ -13,21 +13,23 @@ UI.HistoryInput = class extends HTMLInputElement {
     this.addEventListener('input', this._onInput.bind(this), false);
   }
   /**
-   * @return {!UI.HistoryInput}
+   * @return {!HistoryInput}
    */
   static create() {
-    if (!UI.HistoryInput._constructor)
-      UI.HistoryInput._constructor = UI.registerCustomElement('input', 'history-input', UI.HistoryInput);
+    if (!HistoryInput._constructor) {
+      HistoryInput._constructor = UI.registerCustomElement('input', 'history-input', HistoryInput);
+    }
 
-    return /** @type {!UI.HistoryInput} */ (UI.HistoryInput._constructor());
+    return /** @type {!HistoryInput} */ (HistoryInput._constructor());
   }
 
   /**
    * @param {!Event} event
    */
   _onInput(event) {
-    if (this._history.length === this._historyPosition + 1)
+    if (this._history.length === this._historyPosition + 1) {
       this._history[this._history.length - 1] = this.value;
+    }
   }
 
   /**
@@ -50,10 +52,20 @@ UI.HistoryInput = class extends HTMLInputElement {
   }
 
   _saveToHistory() {
-    if (this._history.length > 1 && this._history[this._history.length - 2] === this.value)
+    if (this._history.length > 1 && this._history[this._history.length - 2] === this.value) {
       return;
+    }
     this._history[this._history.length - 1] = this.value;
     this._historyPosition = this._history.length - 1;
     this._history.push('');
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.HistoryInput = HistoryInput;

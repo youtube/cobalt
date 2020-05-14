@@ -29,7 +29,7 @@
 /**
  * @unrestricted
  */
-Common.ParsedURL = class {
+export class ParsedURL {
   /**
    * @param {string} url
    */
@@ -46,10 +46,17 @@ Common.ParsedURL = class {
     this.folderPathComponents = '';
     this.lastPathComponent = '';
 
-    const match = url.match(Common.ParsedURL._urlRegex());
+    const isBlobUrl = this.url.startsWith('blob:');
+    const urlToMatch = isBlobUrl ? url.substring(5) : url;
+    const match = urlToMatch.match(ParsedURL._urlRegex());
     if (match) {
       this.isValid = true;
-      this.scheme = match[2].toLowerCase();
+      if (isBlobUrl) {
+        this._blobInnerScheme = match[2].toLowerCase();
+        this.scheme = 'blob';
+      } else {
+        this.scheme = match[2].toLowerCase();
+      }
       this.user = match[3];
       this.host = match[4];
       this.port = match[5];
@@ -59,6 +66,10 @@ Common.ParsedURL = class {
     } else {
       if (this.url.startsWith('data:')) {
         this.scheme = 'data';
+        return;
+      }
+      if (this.url.startsWith('blob:')) {
+        this.scheme = 'blob';
         return;
       }
       if (this.url === 'about:blank') {
@@ -78,16 +89,29 @@ Common.ParsedURL = class {
   }
 
   /**
+   * @param {string} string
+   * @return {?ParsedURL}
+   */
+  static fromString(string) {
+    const parsedURL = new ParsedURL(string.toString());
+    if (parsedURL.isValid) {
+      return parsedURL;
+    }
+    return null;
+  }
+
+  /**
    * @param {string} fileSystemPath
    * @return {string}
    */
   static platformPathToURL(fileSystemPath) {
     fileSystemPath = fileSystemPath.replace(/\\/g, '/');
     if (!fileSystemPath.startsWith('file://')) {
-      if (fileSystemPath.startsWith('/'))
+      if (fileSystemPath.startsWith('/')) {
         fileSystemPath = 'file://' + fileSystemPath;
-      else
+      } else {
         fileSystemPath = 'file:///' + fileSystemPath;
+      }
     }
     return fileSystemPath;
   }
@@ -99,8 +123,9 @@ Common.ParsedURL = class {
    */
   static urlToPlatformPath(fileURL, isWindows) {
     console.assert(fileURL.startsWith('file://'), 'This must be a file URL.');
-    if (isWindows)
+    if (isWindows) {
       return fileURL.substr('file:///'.length).replace(/\//g, '\\');
+    }
     return fileURL.substr('file://'.length);
   }
 
@@ -110,8 +135,9 @@ Common.ParsedURL = class {
    */
   static urlWithoutHash(url) {
     const hashIndex = url.indexOf('#');
-    if (hashIndex !== -1)
+    if (hashIndex !== -1) {
       return url.substr(0, hashIndex);
+    }
     return url;
   }
 
@@ -119,8 +145,9 @@ Common.ParsedURL = class {
    * @return {!RegExp}
    */
   static _urlRegex() {
-    if (Common.ParsedURL._urlRegexInstance)
-      return Common.ParsedURL._urlRegexInstance;
+    if (ParsedURL._urlRegexInstance) {
+      return ParsedURL._urlRegexInstance;
+    }
     // RegExp groups:
     // 1 - scheme, hostname, ?port
     // 2 - scheme (using the RFC3986 grammar)
@@ -138,10 +165,10 @@ Common.ParsedURL = class {
     const queryRegex = /(?:\?([^#]*))?/;
     const fragmentRegex = /(?:#(.*))?/;
 
-    Common.ParsedURL._urlRegexInstance = new RegExp(
+    ParsedURL._urlRegexInstance = new RegExp(
         '^(' + schemeRegex.source + userRegex.source + hostRegex.source + portRegex.source + ')' + pathRegex.source +
         queryRegex.source + fragmentRegex.source + '$');
-    return Common.ParsedURL._urlRegexInstance;
+    return ParsedURL._urlRegexInstance;
   }
 
   /**
@@ -149,7 +176,7 @@ Common.ParsedURL = class {
    * @return {string}
    */
   static extractPath(url) {
-    const parsedURL = url.asParsedURL();
+    const parsedURL = this.fromString(url);
     return parsedURL ? parsedURL.path : '';
   }
 
@@ -158,7 +185,7 @@ Common.ParsedURL = class {
    * @return {string}
    */
   static extractOrigin(url) {
-    const parsedURL = url.asParsedURL();
+    const parsedURL = this.fromString(url);
     return parsedURL ? parsedURL.securityOrigin() : '';
   }
 
@@ -167,19 +194,22 @@ Common.ParsedURL = class {
    * @return {string}
    */
   static extractExtension(url) {
-    url = Common.ParsedURL.urlWithoutHash(url);
+    url = ParsedURL.urlWithoutHash(url);
     const indexOfQuestionMark = url.indexOf('?');
-    if (indexOfQuestionMark !== -1)
+    if (indexOfQuestionMark !== -1) {
       url = url.substr(0, indexOfQuestionMark);
+    }
     const lastIndexOfSlash = url.lastIndexOf('/');
-    if (lastIndexOfSlash !== -1)
+    if (lastIndexOfSlash !== -1) {
       url = url.substr(lastIndexOfSlash + 1);
+    }
     const lastIndexOfDot = url.lastIndexOf('.');
     if (lastIndexOfDot !== -1) {
       url = url.substr(lastIndexOfDot + 1);
       const lastIndexOfPercent = url.indexOf('%');
-      if (lastIndexOfPercent !== -1)
+      if (lastIndexOfPercent !== -1) {
         return url.substr(0, lastIndexOfPercent);
+      }
       return url;
     }
     return '';
@@ -204,20 +234,25 @@ Common.ParsedURL = class {
   static completeURL(baseURL, href) {
     // Return special URLs as-is.
     const trimmedHref = href.trim();
-    if (trimmedHref.startsWith('data:') || trimmedHref.startsWith('blob:') || trimmedHref.startsWith('javascript:'))
+    if (trimmedHref.startsWith('data:') || trimmedHref.startsWith('blob:') || trimmedHref.startsWith('javascript:') ||
+        trimmedHref.startsWith('mailto:')) {
       return href;
+    }
 
     // Return absolute URLs as-is.
-    const parsedHref = trimmedHref.asParsedURL();
-    if (parsedHref && parsedHref.scheme)
+    const parsedHref = this.fromString(trimmedHref);
+    if (parsedHref && parsedHref.scheme) {
       return trimmedHref;
+    }
 
-    const parsedURL = baseURL.asParsedURL();
-    if (!parsedURL)
+    const parsedURL = this.fromString(baseURL);
+    if (!parsedURL) {
       return null;
+    }
 
-    if (parsedURL.isDataURL())
+    if (parsedURL.isDataURL()) {
       return href;
+    }
 
     if (href.length > 1 && href.charAt(0) === '/' && href.charAt(1) === '/') {
       // href starts with "//" which is a full URL with the protocol dropped (use the baseURL protocol).
@@ -229,20 +264,24 @@ Common.ParsedURL = class {
     const queryText = parsedURL.queryParams ? '?' + parsedURL.queryParams : '';
 
     // Empty href resolves to a URL without fragment.
-    if (!href.length)
+    if (!href.length) {
       return securityOrigin + pathText + queryText;
+    }
 
-    if (href.charAt(0) === '#')
+    if (href.charAt(0) === '#') {
       return securityOrigin + pathText + queryText + href;
+    }
 
-    if (href.charAt(0) === '?')
+    if (href.charAt(0) === '?') {
       return securityOrigin + pathText + href;
+    }
 
     let hrefPath = href.match(/^[^#?]*/)[0];
     const hrefSuffix = href.substring(hrefPath.length);
-    if (hrefPath.charAt(0) !== '/')
+    if (hrefPath.charAt(0) !== '/') {
       hrefPath = parsedURL.folderPathComponents + '/' + hrefPath;
-    return securityOrigin + Runtime.normalizePath(hrefPath) + hrefSuffix;
+    }
+    return securityOrigin + Root.Runtime.normalizePath(hrefPath) + hrefSuffix;
   }
 
   /**
@@ -251,7 +290,7 @@ Common.ParsedURL = class {
    */
   static splitLineAndColumn(string) {
     // Only look for line and column numbers in the path to avoid matching port numbers.
-    const beforePathMatch = string.match(Common.ParsedURL._urlRegex());
+    const beforePathMatch = string.match(ParsedURL._urlRegex());
     let beforePath = '';
     let pathAndAfter = string;
     if (beforePathMatch) {
@@ -291,19 +330,27 @@ Common.ParsedURL = class {
   }
 
   get displayName() {
-    if (this._displayName)
+    if (this._displayName) {
       return this._displayName;
+    }
 
-    if (this.isDataURL())
+    if (this.isDataURL()) {
       return this.dataURLDisplayName();
-    if (this.isAboutBlank())
+    }
+    if (this.isBlobURL()) {
       return this.url;
+    }
+    if (this.isAboutBlank()) {
+      return this.url;
+    }
 
     this._displayName = this.lastPathComponent;
-    if (!this._displayName)
+    if (!this._displayName) {
       this._displayName = (this.host || '') + '/';
-    if (this._displayName === '/')
+    }
+    if (this._displayName === '/') {
       this._displayName = this.url;
+    }
     return this._displayName;
   }
 
@@ -311,11 +358,13 @@ Common.ParsedURL = class {
    * @return {string}
    */
   dataURLDisplayName() {
-    if (this._dataURLDisplayName)
+    if (this._dataURLDisplayName) {
       return this._dataURLDisplayName;
-    if (!this.isDataURL())
+    }
+    if (!this.isDataURL()) {
       return '';
-    this._dataURLDisplayName = this.url.trimEnd(20);
+    }
+    this._dataURLDisplayName = this.url.trimEndWithMaxLength(20);
     return this._dataURLDisplayName;
   }
 
@@ -334,6 +383,13 @@ Common.ParsedURL = class {
   }
 
   /**
+   * @return {boolean}
+   */
+  isBlobURL() {
+    return this.url.startsWith('blob:');
+  }
+
+  /**
    * @return {string}
    */
   lastPathComponentWithFragment() {
@@ -344,8 +400,9 @@ Common.ParsedURL = class {
    * @return {string}
    */
   domain() {
-    if (this.isDataURL())
+    if (this.isDataURL()) {
       return 'data:';
+    }
     return this.host + (this.port ? ':' + this.port : '');
   }
 
@@ -353,28 +410,20 @@ Common.ParsedURL = class {
    * @return {string}
    */
   securityOrigin() {
-    if (this.isDataURL())
+    if (this.isDataURL()) {
       return 'data:';
-    return this.scheme + '://' + this.domain();
+    }
+    const scheme = this.isBlobURL() ? this._blobInnerScheme : this.scheme;
+    return scheme + '://' + this.domain();
   }
 
   /**
    * @return {string}
    */
   urlWithoutScheme() {
-    if (this.scheme && this.url.startsWith(this.scheme + '://'))
+    if (this.scheme && this.url.startsWith(this.scheme + '://')) {
       return this.url.substring(this.scheme.length + 3);
+    }
     return this.url;
   }
-};
-
-
-/**
- * @return {?Common.ParsedURL}
- */
-String.prototype.asParsedURL = function() {
-  const parsedURL = new Common.ParsedURL(this.toString());
-  if (parsedURL.isValid)
-    return parsedURL;
-  return null;
-};
+}

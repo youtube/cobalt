@@ -8,9 +8,8 @@
  */
 
 const extensionsHost = 'devtools-extensions.oopif.test';
-const extensionsOrigin = `http://${extensionsHost}:8000`;
 Extensions.extensionServer._registerHandler('evaluateForTestInFrontEnd', onEvaluate);
-
+Extensions.extensionsOrigin = `http://${extensionsHost}:8000`;
 Extensions.extensionServer._extensionAPITestHook = function(extensionServerClient, coreAPI) {
   window.webInspector = coreAPI;
   window._extensionServerForTests = extensionServerClient;
@@ -37,8 +36,9 @@ function onEvaluate(message, port) {
 }
 
 ExtensionsTestRunner.showPanel = function(panelId) {
-  if (panelId === 'extension')
+  if (panelId === 'extension') {
     panelId = UI.inspectorView._tabbedPane._tabs[UI.inspectorView._tabbedPane._tabs.length - 1].id;
+  }
   return UI.inspectorView.showPanel(panelId);
 };
 
@@ -49,18 +49,17 @@ ExtensionsTestRunner.evaluateInExtension = function(code) {
 ExtensionsTestRunner.runExtensionTests = async function(tests) {
   const result = await TestRunner.RuntimeAgent.evaluate('location.href', 'console', false);
 
-  if (!result)
+  if (!result) {
     return;
+  }
 
   ExtensionsTestRunner._pendingTests = (ExtensionsTestRunner._codeToEvaluateBeforeTests || '') + tests.join('\n');
   const pageURL = result.value;
   let extensionURL = pageURL.replace(/^(https?:\/\/[^\/]*\/).*$/, '$1') + 'devtools/resources/extension-main.html';
   extensionURL = extensionURL.replace('127.0.0.1', extensionsHost);
 
-  InspectorFrontendAPI.addExtensions(
-      [{startPage: extensionURL, name: 'test extension', exposeWebInspectorNamespace: true}]);
-
-  Extensions.extensionServer.initializeExtensions();
+  Extensions.extensionServer._addExtension(
+      {startPage: extensionURL, name: 'test extension', exposeWebInspectorNamespace: true});
 };
 
 (function disableLogging() {

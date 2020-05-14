@@ -4,14 +4,14 @@
 /**
  * @unrestricted
  */
-FormatterWorker.AcornTokenizer = class {
+export class AcornTokenizer {
   /**
    * @param {string} content
    */
   constructor(content) {
     this._content = content;
     this._comments = [];
-    this._tokenizer = acorn.tokenizer(this._content, {ecmaVersion: 8, onComment: this._comments});
+    this._tokenizer = acorn.tokenizer(this._content, {onComment: this._comments});
     this._textCursor = new TextUtils.TextCursor(this._content.computeLineEndings());
     this._tokenLineStart = 0;
     this._tokenLineEnd = 0;
@@ -68,8 +68,9 @@ FormatterWorker.AcornTokenizer = class {
    * @return {!Acorn.TokenOrComment}
    */
   _nextTokenInternal() {
-    if (this._comments.length)
+    if (this._comments.length) {
       return this._comments.shift();
+    }
     const token = this._bufferedToken;
 
     this._bufferedToken = this._tokenizer.getToken();
@@ -81,8 +82,9 @@ FormatterWorker.AcornTokenizer = class {
    */
   nextToken() {
     const token = this._nextTokenInternal();
-    if (token.type === acorn.tokTypes.eof)
+    if (token.type === acorn.tokTypes.eof) {
       return null;
+    }
 
     this._textCursor.advance(token.start);
     this._tokenLineStart = this._textCursor.lineNumber();
@@ -97,8 +99,9 @@ FormatterWorker.AcornTokenizer = class {
    * @return {?Acorn.TokenOrComment}
    */
   peekToken() {
-    if (this._comments.length)
+    if (this._comments.length) {
       return this._comments[0];
+    }
     return this._bufferedToken.type !== acorn.tokTypes.eof ? this._bufferedToken : null;
   }
 
@@ -122,4 +125,13 @@ FormatterWorker.AcornTokenizer = class {
   tokenColumnStart() {
     return this._tokenColumnStart;
   }
-};
+}
+
+/* Legacy exported object */
+self.FormatterWorker = self.FormatterWorker || {};
+
+/* Legacy exported object */
+FormatterWorker = FormatterWorker || {};
+
+/** @constructor */
+FormatterWorker.AcornTokenizer = AcornTokenizer;

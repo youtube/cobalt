@@ -14,8 +14,6 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
     this.element.classList.add('timeline-details');
 
     this._detailsLinkifier = new Components.Linkifier();
-    this._badgePool = new ProductRegistry.BadgePool();
-    this._badgePool.setShowTitles(true);
 
     this._tabbedPane = new UI.TabbedPane();
     this._tabbedPane.show(this.element);
@@ -54,17 +52,20 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    */
   setModel(model, track) {
     if (this._model !== model) {
-      if (this._model)
+      if (this._model) {
         this._model.removeEventListener(Timeline.PerformanceModel.Events.WindowChanged, this._onWindowChanged, this);
+      }
       this._model = model;
-      if (this._model)
+      if (this._model) {
         this._model.addEventListener(Timeline.PerformanceModel.Events.WindowChanged, this._onWindowChanged, this);
+      }
     }
     this._track = track;
     this._tabbedPane.closeTabs(
         [Timeline.TimelineDetailsView.Tab.PaintProfiler, Timeline.TimelineDetailsView.Tab.LayerViewer], false);
-    for (const view of this._rangeDetailViews.values())
+    for (const view of this._rangeDetailViews.values()) {
       view.setModel(model, track);
+    }
     this._lazyPaintProfilerView = null;
     this._lazyLayersView = null;
     this.setSelection(null);
@@ -76,8 +77,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
   _setContent(node) {
     const allTabs = this._tabbedPane.otherTabs(Timeline.TimelineDetailsView.Tab.Details);
     for (let i = 0; i < allTabs.length; ++i) {
-      if (!this._rangeDetailViews.has(allTabs[i]))
+      if (!this._rangeDetailViews.has(allTabs[i])) {
         this._tabbedPane.closeTab(allTabs[i]);
+      }
     }
     this._defaultDetailsContentElement.removeChildren();
     this._defaultDetailsContentElement.appendChild(node);
@@ -99,8 +101,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    */
   _appendTab(id, tabTitle, view, isCloseable) {
     this._tabbedPane.appendTab(id, tabTitle, view, undefined, undefined, isCloseable);
-    if (this._preferredTabId !== this._tabbedPane.selectedTabId)
+    if (this._preferredTabId !== this._tabbedPane.selectedTabId) {
       this._tabbedPane.selectTab(id);
+    }
   }
 
   /**
@@ -121,13 +124,16 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    * @param {!Common.Event} event
    */
   _onWindowChanged(event) {
-    if (!this._selection)
+    if (!this._selection) {
       this._updateContentsFromWindow();
+    }
   }
 
   _updateContentsFromWindow() {
-    if (!this._model)
+    if (!this._model) {
+      this._setContent(UI.html`<div/>`);
       return;
+    }
     const window = this._model.window();
     this._updateSelectedRangeStats(window.left, window.right);
     this._updateContents();
@@ -138,7 +144,6 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    */
   setSelection(selection) {
     this._detailsLinkifier.reset();
-    this._badgePool.reset();
     this._selection = selection;
     if (!this._selection) {
       this._updateContentsFromWindow();
@@ -148,7 +153,7 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
       case Timeline.TimelineSelection.Type.TraceEvent:
         const event = /** @type {!SDK.TracingModel.Event} */ (this._selection.object());
         Timeline.TimelineUIUtils
-            .buildTraceEventDetails(event, this._model.timelineModel(), this._detailsLinkifier, this._badgePool, true)
+            .buildTraceEventDetails(event, this._model.timelineModel(), this._detailsLinkifier, true)
             .then(fragment => this._appendDetailsTabsForTraceEventAndShowDetails(event, fragment));
         break;
       case Timeline.TimelineSelection.Type.Frame:
@@ -158,14 +163,15 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
         if (frame.layerTree) {
           const layersView = this._layersView();
           layersView.showLayerTree(frame.layerTree);
-          if (!this._tabbedPane.hasTab(Timeline.TimelineDetailsView.Tab.LayerViewer))
+          if (!this._tabbedPane.hasTab(Timeline.TimelineDetailsView.Tab.LayerViewer)) {
             this._appendTab(Timeline.TimelineDetailsView.Tab.LayerViewer, Common.UIString('Layers'), layersView);
+          }
         }
         break;
       case Timeline.TimelineSelection.Type.NetworkRequest:
         const request = /** @type {!TimelineModel.TimelineModel.NetworkRequest} */ (this._selection.object());
         Timeline.TimelineUIUtils
-            .buildNetworkRequestDetails(request, this._model.timelineModel(), this._detailsLinkifier, this._badgePool)
+            .buildNetworkRequestDetails(request, this._model.timelineModel(), this._detailsLinkifier)
             .then(this._setContent.bind(this));
         break;
       case Timeline.TimelineSelection.Type.Range:
@@ -180,8 +186,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    * @param {!Common.Event} event
    */
   _tabSelected(event) {
-    if (!event.data.isUserGesture)
+    if (!event.data.isUserGesture) {
       return;
+    }
     this.setPreferredTab(event.data.tabId);
     this._updateContents();
   }
@@ -190,8 +197,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    * @return {!UI.Widget}
    */
   _layersView() {
-    if (this._lazyLayersView)
+    if (this._lazyLayersView) {
       return this._lazyLayersView;
+    }
     this._lazyLayersView =
         new Timeline.TimelineLayersView(this._model.timelineModel(), this._showSnapshotInPaintProfiler.bind(this));
     return this._lazyLayersView;
@@ -201,8 +209,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    * @return {!Timeline.TimelinePaintProfilerView}
    */
   _paintProfilerView() {
-    if (this._lazyPaintProfilerView)
+    if (this._lazyPaintProfilerView) {
       return this._lazyPaintProfilerView;
+    }
     this._lazyPaintProfilerView = new Timeline.TimelinePaintProfilerView(this._model.frameModel());
     return this._lazyPaintProfilerView;
   }
@@ -227,8 +236,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
   _appendDetailsTabsForTraceEventAndShowDetails(event, content) {
     this._setContent(content);
     if (event.name === TimelineModel.TimelineModel.RecordType.Paint ||
-        event.name === TimelineModel.TimelineModel.RecordType.RasterTask)
+        event.name === TimelineModel.TimelineModel.RecordType.RasterTask) {
       this._showEventInPaintProfiler(event);
+    }
   }
 
   /**
@@ -236,14 +246,17 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    */
   _showEventInPaintProfiler(event) {
     const paintProfilerModel = SDK.targetManager.models(SDK.PaintProfilerModel)[0];
-    if (!paintProfilerModel)
+    if (!paintProfilerModel) {
       return;
+    }
     const paintProfilerView = this._paintProfilerView();
     const hasProfileData = paintProfilerView.setEvent(paintProfilerModel, event);
-    if (!hasProfileData)
+    if (!hasProfileData) {
       return;
-    if (this._tabbedPane.hasTab(Timeline.TimelineDetailsView.Tab.PaintProfiler))
+    }
+    if (this._tabbedPane.hasTab(Timeline.TimelineDetailsView.Tab.PaintProfiler)) {
       return;
+    }
     this._appendTab(
         Timeline.TimelineDetailsView.Tab.PaintProfiler, Common.UIString('Paint Profiler'), paintProfilerView);
   }
@@ -253,8 +266,9 @@ Timeline.TimelineDetailsView = class extends UI.VBox {
    * @param {number} endTime
    */
   _updateSelectedRangeStats(startTime, endTime) {
-    if (!this._model || !this._track)
+    if (!this._model || !this._track) {
       return;
+    }
     const aggregatedStats = Timeline.TimelineUIUtils.statsForTimeRange(this._track.syncEvents(), startTime, endTime);
     const startOffset = startTime - this._model.timelineModel().minimumRecordTime();
     const endOffset = endTime - this._model.timelineModel().minimumRecordTime();

@@ -24,10 +24,11 @@
             "category": "Debugger",
             "actionId": "debugger.toggle-pause",
             "iconClass": "largeicon-pause",
+            "toggleable": true,
             "toggledIconClass": "largeicon-resume",
             "className": "Sources.SourcesPanel.RevealingActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel",
+                "Sources.SourcesView",
                 "UI.ShortcutRegistry.ForwardedShortcut"
             ],
             "options": [
@@ -137,7 +138,7 @@
             "title": "Run snippet",
             "iconClass": "largeicon-play",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -155,10 +156,11 @@
             "category": "Debugger",
             "actionId": "debugger.toggle-breakpoints-active",
             "iconClass": "largeicon-deactivate-breakpoints",
+            "toggleable": true,
             "toggledIconClass": "largeicon-activate-breakpoints",
             "className": "Sources.SourcesPanel.DebuggingActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "options": [
                 {
@@ -222,7 +224,7 @@
             "type": "action",
             "actionId": "debugger.evaluate-selection",
             "className": "Sources.SourcesPanel.DebuggingActionDelegate",
-            "title": "Evaluate in console",
+            "title": "Evaluate selected text in console",
             "contextTypes": [
                 "Sources.UISourceCodeFrame"
             ],
@@ -427,6 +429,24 @@
         {
             "type": "setting",
             "category": "Sources",
+            "title": "Enable tab moves focus",
+            "settingName": "textEditorTabMovesFocus",
+            "settingType": "boolean",
+            "defaultValue": false,
+            "options": [
+                {
+                    "value": true,
+                    "title": "Enable tab moves focus"
+                },
+                {
+                    "value": false,
+                    "title": "Disable tab moves focus"
+                }
+            ]
+        },
+        {
+            "type": "setting",
+            "category": "Sources",
             "title": "Detect indentation",
             "settingName": "textEditorAutoDetectIndent",
             "settingType": "boolean",
@@ -475,6 +495,24 @@
                 {
                     "value": false,
                     "title": "Disable bracket matching"
+                }
+            ]
+        },
+        {
+            "type": "setting",
+            "category": "Sources",
+            "title": "Code folding",
+            "settingName": "textEditorCodeFolding",
+            "settingType": "boolean",
+            "defaultValue": false,
+            "options": [
+                {
+                    "value": true,
+                    "title": "Enable code folding"
+                },
+                {
+                    "value": false,
+                    "title": "Disable code folding"
                 }
             ]
         },
@@ -560,7 +598,7 @@
             "actionId": "sources.jump-to-previous-location",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -573,7 +611,7 @@
             "actionId": "sources.jump-to-next-location",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -586,7 +624,7 @@
             "actionId": "sources.close-editor-tab",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -599,7 +637,7 @@
             "actionId": "sources.go-to-line",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -612,7 +650,7 @@
             "actionId": "sources.go-to-member",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -655,10 +693,24 @@
         },
         {
             "type": "action",
+            "actionId": "debugger.breakpoint-input-window",
+            "bindings": [
+                {
+                    "platform":"windows,linux",
+                    "shortcut": "Ctrl+Alt+b"
+                },
+                {
+                    "platform":"mac",
+                    "shortcut": "Meta+Alt+b"
+                }
+            ]
+        },
+        {
+            "type": "action",
             "actionId": "sources.save",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -676,7 +728,7 @@
             "actionId": "sources.save-all",
             "className": "Sources.SourcesView.ActionDelegate",
             "contextTypes": [
-                "Sources.SourcesPanel"
+                "Sources.SourcesView"
             ],
             "bindings": [
                 {
@@ -693,24 +745,46 @@
             "type": "action",
             "category": "Sources",
             "actionId": "sources.create-snippet",
-            "className": "Sources.SnippetsNavigatorView.CreatingActionDelegate",
+            "className": "Sources.ActionDelegate",
             "title": "Create new snippet"
         },
         {
             "type": "action",
             "category": "Sources",
             "actionId": "sources.add-folder-to-workspace",
-            "className": "Sources.SnippetsNavigatorView.CreatingActionDelegate",
-            "title": "Add folder to workspace"
+            "className": "Sources.ActionDelegate",
+            "iconClass": "largeicon-add",
+            "title": "Add folder to workspace",
+            "condition": "!sources.hide_add_folder"
+        },
+        {
+            "type": "@UI.ToolbarItem.Provider",
+            "actionId": "sources.add-folder-to-workspace",
+            "location": "files-navigator-toolbar",
+            "showLabel": true,
+            "condition": "!sources.hide_add_folder"
         },
         {
             "type": "@UI.ViewLocationResolver",
             "name": "navigator-view",
+            "category": "Sources",
             "className": "Sources.SourcesPanel"
         },
         {
             "type": "@UI.ViewLocationResolver",
-            "name": "sources-sidebar",
+            "name": "sources.sidebar-top",
+            "category": "Sources",
+            "className": "Sources.SourcesPanel"
+        },
+        {
+            "type": "@UI.ViewLocationResolver",
+            "name": "sources.sidebar-bottom",
+            "category": "Sources",
+            "className": "Sources.SourcesPanel"
+        },
+        {
+            "type": "@UI.ViewLocationResolver",
+            "name": "sources.sidebar-tabs",
             "category": "Sources",
             "className": "Sources.SourcesPanel"
         },
@@ -719,7 +793,8 @@
             "id": "sources.threads",
             "title": "Threads",
             "persistence": "permanent",
-            "className": "Sources.ThreadsSidebarPane"
+            "className": "Sources.ThreadsSidebarPane",
+            "condition": "!sources.hide_thread_sidebar"
         },
         {
             "type": "view",
@@ -830,10 +905,12 @@
         "color_picker",
         "event_listeners",
         "object_ui",
-        "formatter"
+        "formatter",
+        // "coverage"
     ],
     "scripts": [
         "AddSourceMapURLDialog.js",
+        "BreakpointEditDialog.js",
         "CallStackSidebarPane.js",
         "DebuggerPausedMessage.js",
         "SimpleHistoryManager.js",
@@ -845,6 +922,7 @@
         "JavaScriptBreakpointsSidebarPane.js",
         "UISourceCodeFrame.js",
         "DebuggerPlugin.js",
+        "CoveragePlugin.js",
         "CSSPlugin.js",
         "GutterDiffPlugin.js",
         "SearchSourcesView.js",
@@ -863,17 +941,17 @@
         "SourcesSearchScope.js",
         "SourcesPanel.js",
         "JavaScriptCompilerPlugin.js",
-        "SnippetsPlugin.js"
+        "SnippetsPlugin.js",
+        "ScriptOriginPlugin.js"
     ],
     "resources": [
+        "breakpointEditDialog.css",
         "callStackSidebarPane.css",
         "debuggerPausedMessage.css",
         "javaScriptBreakpointsSidebarPane.css",
         "navigatorTree.css",
         "navigatorView.css",
-        "revisionHistory.css",
         "scopeChainSidebarPane.css",
-        "serviceWorkersSidebar.css",
         "sourcesPanel.css",
         "sourcesView.css",
         "threadsSidebarPane.css",

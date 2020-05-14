@@ -24,13 +24,9 @@ ApplicationTestRunner.postToServiceWorker = function(scope, message) {
 };
 
 ApplicationTestRunner.waitForServiceWorker = function(callback) {
-  function isRightTarget(target) {
-    return TestRunner.isDedicatedWorker(target) && TestRunner.isServiceWorker(target.parentTarget());
-  }
-
   SDK.targetManager.observeTargets({
     targetAdded: function(target) {
-      if (isRightTarget(target) && callback) {
+      if (target.type() === SDK.Target.Type.ServiceWorker && callback) {
         setTimeout(callback.bind(null, target), 0);
         callback = null;
       }
@@ -46,6 +42,9 @@ ApplicationTestRunner.dumpServiceWorkersView = function() {
   return swView._currentWorkersView._sectionList.childTextNodes()
       .concat(swView._otherWorkersView._sectionList.childTextNodes())
       .map(function(node) {
+        if (node.textContent === 'Received ' + (new Date(0)).toLocaleString()) {
+          return 'Invalid scriptResponseTime (unix epoch)';
+        }
         return node.textContent.replace(/Received.*/, 'Received').replace(/#\d+/, '#N');
       })
       .join('\n');
@@ -53,8 +52,9 @@ ApplicationTestRunner.dumpServiceWorkersView = function() {
 
 ApplicationTestRunner.deleteServiceWorkerRegistration = function(scope) {
   TestRunner.serviceWorkerManager.registrations().valuesArray().map(function(registration) {
-    if (registration.scopeURL === scope)
+    if (registration.scopeURL === scope) {
       TestRunner.serviceWorkerManager.deleteRegistration(registration.id);
+    }
   });
 };
 

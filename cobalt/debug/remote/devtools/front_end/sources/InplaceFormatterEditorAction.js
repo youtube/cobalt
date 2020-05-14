@@ -19,8 +19,9 @@ Sources.InplaceFormatterEditorAction = class {
    */
   _editorClosed(event) {
     const wasSelected = /** @type {boolean} */ (event.data.wasSelected);
-    if (wasSelected)
+    if (wasSelected) {
       this._updateButton(null);
+    }
   }
 
   /**
@@ -36,8 +37,9 @@ Sources.InplaceFormatterEditorAction = class {
    * @return {!UI.ToolbarButton}
    */
   button(sourcesView) {
-    if (this._button)
+    if (this._button) {
       return this._button;
+    }
 
     this._sourcesView = sourcesView;
     this._sourcesView.addEventListener(Sources.SourcesView.Events.EditorSelected, this._editorSelected.bind(this));
@@ -55,12 +57,15 @@ Sources.InplaceFormatterEditorAction = class {
    * @return {boolean}
    */
   _isFormattable(uiSourceCode) {
-    if (!uiSourceCode)
+    if (!uiSourceCode) {
       return false;
-    if (uiSourceCode.project().canSetFileContent())
+    }
+    if (uiSourceCode.project().canSetFileContent()) {
       return true;
-    if (Persistence.persistence.binding(uiSourceCode))
+    }
+    if (Persistence.persistence.binding(uiSourceCode)) {
       return true;
+    }
     return uiSourceCode.contentType().isStyleSheet();
   }
 
@@ -69,40 +74,49 @@ Sources.InplaceFormatterEditorAction = class {
    */
   _formatSourceInPlace(event) {
     const uiSourceCode = this._sourcesView.currentUISourceCode();
-    if (!this._isFormattable(uiSourceCode))
+    if (!this._isFormattable(uiSourceCode)) {
       return;
-
-    if (uiSourceCode.isDirty())
-      contentLoaded.call(this, uiSourceCode.workingCopy());
-    else
-      uiSourceCode.requestContent().then(contentLoaded.bind(this));
-
-    /**
-     * @this {Sources.InplaceFormatterEditorAction}
-     * @param {?string} content
-     */
-    function contentLoaded(content) {
-      const highlighterType = uiSourceCode.mimeType();
-      Formatter.Formatter.format(uiSourceCode.contentType(), highlighterType, content || '', innerCallback.bind(this));
     }
 
-    /**
-     * @this {Sources.InplaceFormatterEditorAction}
+    if (uiSourceCode.isDirty()) {
+      this._contentLoaded(uiSourceCode, uiSourceCode.workingCopy());
+    } else {
+      uiSourceCode.requestContent().then(deferredContent => {
+        this._contentLoaded(uiSourceCode, deferredContent.content);
+      });
+    }
+  }
+
+  /**
+   * @param {?Workspace.UISourceCode} uiSourceCode
+   * @param {string} content
+   */
+  _contentLoaded(uiSourceCode, content) {
+    const highlighterType = uiSourceCode.mimeType();
+    Formatter.Formatter.format(
+        uiSourceCode.contentType(), highlighterType, content, (formattedContent, formatterMapping) => {
+          this._formattingComplete(uiSourceCode, formattedContent, formatterMapping);
+        });
+  }
+
+  /**
+     * Post-format callback
+     * @param {?Workspace.UISourceCode} uiSourceCode
      * @param {string} formattedContent
      * @param {!Formatter.FormatterSourceMapping} formatterMapping
      */
-    function innerCallback(formattedContent, formatterMapping) {
-      if (uiSourceCode.workingCopy() === formattedContent)
-        return;
-      const sourceFrame = this._sourcesView.viewForFile(uiSourceCode);
-      let start = [0, 0];
-      if (sourceFrame) {
-        const selection = sourceFrame.selection();
-        start = formatterMapping.originalToFormatted(selection.startLine, selection.startColumn);
-      }
-      uiSourceCode.setWorkingCopy(formattedContent);
-
-      this._sourcesView.showSourceLocation(uiSourceCode, start[0], start[1]);
+  _formattingComplete(uiSourceCode, formattedContent, formatterMapping) {
+    if (uiSourceCode.workingCopy() === formattedContent) {
+      return;
     }
+    const sourceFrame = this._sourcesView.viewForFile(uiSourceCode);
+    let start = [0, 0];
+    if (sourceFrame) {
+      const selection = sourceFrame.selection();
+      start = formatterMapping.originalToFormatted(selection.startLine, selection.startColumn);
+    }
+    uiSourceCode.setWorkingCopy(formattedContent);
+
+    this._sourcesView.showSourceLocation(uiSourceCode, start[0], start[1]);
   }
 };

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Layers.LayerPaintProfilerView = class extends UI.SplitWidget {
+export default class LayerPaintProfilerView extends UI.SplitWidget {
   /**
    * @param {function(string=)} showImageCallback
    */
@@ -36,8 +36,9 @@ Layers.LayerPaintProfilerView = class extends UI.SplitWidget {
     function setSnapshotAndLog(snapshot, log) {
       this._logTreeView.setCommandLog(log || []);
       this._paintProfilerView.setSnapshotAndLog(snapshot, log || [], null);
-      if (snapshot)
+      if (snapshot) {
         snapshot.release();
+      }
     }
   }
 
@@ -51,4 +52,15 @@ Layers.LayerPaintProfilerView = class extends UI.SplitWidget {
   _onWindowChanged() {
     this._logTreeView.updateWindow(this._paintProfilerView.selectionWindow());
   }
-};
+}
+
+/* Legacy exported object */
+self.Layers = self.Layers || {};
+
+/* Legacy exported object */
+Layers = Layers || {};
+
+/**
+ * @constructor
+ */
+Layers.LayerPaintProfilerView = LayerPaintProfilerView;

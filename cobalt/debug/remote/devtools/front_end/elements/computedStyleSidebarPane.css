@@ -5,7 +5,7 @@
  */
 
 .computed-properties {
-    -webkit-user-select: text;
+    user-select: text;
     flex-shrink: 0;
 }
 
@@ -31,4 +31,8 @@
 .styles-sidebar-pane-filter-box > input:focus,
 .styles-sidebar-pane-filter-box > input:not(:placeholder-shown) {
     box-shadow: var(--focus-ring-active-shadow);
+}
+
+.styles-sidebar-pane-filter-box > input::placeholder {
+    color: rgba(0, 0, 0, 0.54);
 }

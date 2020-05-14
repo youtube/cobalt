@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Network.NetworkConfigView = class extends UI.VBox {
+export default class NetworkConfigView extends UI.VBox {
   constructor() {
     super(true);
     this.registerRequiredCSS('network/networkConfigView.css');
@@ -16,16 +16,18 @@ Network.NetworkConfigView = class extends UI.VBox {
   }
 
   /**
-   * @return {{select: !Element, input: !Element}}
+   * @param {string} title
+   * @return {{select: !Element, input: !Element, error: !Element}}
    */
-  static createUserAgentSelectAndInput() {
+  static createUserAgentSelectAndInput(title) {
     const userAgentSetting = Common.settings.createSetting('customUserAgent', '');
     const userAgentSelectElement = createElement('select');
+    UI.ARIAUtils.setAccessibleName(userAgentSelectElement, title);
 
     const customOverride = {title: Common.UIString('Custom...'), value: 'custom'};
     userAgentSelectElement.appendChild(new Option(customOverride.title, customOverride.value));
 
-    const groups = Network.NetworkConfigView._userAgentGroups;
+    const groups = _userAgentGroups;
     for (const userAgentDescriptor of groups) {
       const groupElement = userAgentSelectElement.createChild('optgroup');
       groupElement.label = userAgentDescriptor.title;
@@ -42,6 +44,13 @@ Network.NetworkConfigView = class extends UI.VBox {
     otherUserAgentElement.title = userAgentSetting.get();
     otherUserAgentElement.placeholder = Common.UIString('Enter a custom user agent');
     otherUserAgentElement.required = true;
+    UI.ARIAUtils.setAccessibleName(otherUserAgentElement, otherUserAgentElement.placeholder);
+
+    const errorElement = createElementWithClass('div', 'network-config-input-validation-error');
+    UI.ARIAUtils.markAsAlert(errorElement);
+    if (!otherUserAgentElement.value) {
+      errorElement.textContent = ls`Custom user agent field is required`;
+    }
 
     settingChanged();
     userAgentSelectElement.addEventListener('change', userAgentSelected, false);
@@ -56,6 +65,7 @@ Network.NetworkConfigView = class extends UI.VBox {
       } else {
         otherUserAgentElement.select();
       }
+      errorElement.textContent = '';
     }
 
     function settingChanged() {
@@ -70,19 +80,25 @@ Network.NetworkConfigView = class extends UI.VBox {
         }
       }
 
-      if (!selectionRestored)
+      if (!selectionRestored) {
         userAgentSelectElement.selectedIndex = 0;
+      }
     }
 
     function applyOtherUserAgent() {
       if (userAgentSetting.get() !== otherUserAgentElement.value) {
+        if (!otherUserAgentElement.value) {
+          errorElement.textContent = ls`Custom user agent field is required`;
+        } else {
+          errorElement.textContent = '';
+        }
         userAgentSetting.set(otherUserAgentElement.value);
         otherUserAgentElement.title = otherUserAgentElement.value;
         settingChanged();
       }
     }
 
-    return {select: userAgentSelectElement, input: otherUserAgentElement};
+    return {select: userAgentSelectElement, input: otherUserAgentElement, error: errorElement};
   }
 
   /**
@@ -92,8 +108,9 @@ Network.NetworkConfigView = class extends UI.VBox {
    */
   _createSection(title, className) {
     const section = this.contentElement.createChild('section', 'network-config-group');
-    if (className)
+    if (className) {
       section.classList.add(className);
+    }
     section.createChild('div', 'network-config-title').textContent = title;
     return section.createChild('div', 'network-config-fields');
   }
@@ -105,30 +122,35 @@ Network.NetworkConfigView = class extends UI.VBox {
   }
 
   _createNetworkThrottlingSection() {
-    const section = this._createSection(Common.UIString('Network throttling'), 'network-config-throttling');
+    const title = ls`Network throttling`;
+    const section = this._createSection(title, 'network-config-throttling');
     const networkThrottlingSelect =
         /** @type {!HTMLSelectElement} */ (section.createChild('select', 'chrome-select'));
     MobileThrottling.throttlingManager().decorateSelectWithNetworkThrottling(networkThrottlingSelect);
+    UI.ARIAUtils.setAccessibleName(networkThrottlingSelect, title);
   }
 
   _createUserAgentSection() {
-    const section = this._createSection(Common.UIString('User agent'), 'network-config-ua');
+    const title = ls`User agent`;
+    const section = this._createSection(title, 'network-config-ua');
     const checkboxLabel = UI.CheckboxLabel.create(Common.UIString('Select automatically'), true);
     section.appendChild(checkboxLabel);
     const autoCheckbox = checkboxLabel.checkboxElement;
 
     const customUserAgentSetting = Common.settings.createSetting('customUserAgent', '');
     customUserAgentSetting.addChangeListener(() => {
-      if (autoCheckbox.checked)
+      if (autoCheckbox.checked) {
         return;
+      }
       SDK.multitargetNetworkManager.setCustomUserAgentOverride(customUserAgentSetting.get());
     });
     const customUserAgentSelectBox = section.createChild('div', 'network-config-ua-custom');
     autoCheckbox.addEventListener('change', userAgentSelectBoxChanged);
-    const customSelectAndInput = Network.NetworkConfigView.createUserAgentSelectAndInput();
+    const customSelectAndInput = Network.NetworkConfigView.createUserAgentSelectAndInput(title);
     customSelectAndInput.select.classList.add('chrome-select');
     customUserAgentSelectBox.appendChild(customSelectAndInput.select);
     customUserAgentSelectBox.appendChild(customSelectAndInput.input);
+    customUserAgentSelectBox.appendChild(customSelectAndInput.error);
     userAgentSelectBoxChanged();
 
     function userAgentSelectBoxChanged() {
@@ -136,222 +158,276 @@ Network.NetworkConfigView = class extends UI.VBox {
       customUserAgentSelectBox.classList.toggle('checked', useCustomUA);
       customSelectAndInput.select.disabled = !useCustomUA;
       customSelectAndInput.input.disabled = !useCustomUA;
+      customSelectAndInput.error.hidden = !useCustomUA;
       const customUA = useCustomUA ? customUserAgentSetting.get() : '';
       SDK.multitargetNetworkManager.setCustomUserAgentOverride(customUA);
     }
   }
-};
+}
 
 /** @type {!Array.<{title: string, values: !Array.<{title: string, value: string}>}>} */
-Network.NetworkConfigView._userAgentGroups = [
+export const _userAgentGroups = [
   {
-    title: 'Android',
+    title: ls`Android`,
     values: [
       {
-        title: 'Android (4.0.2) Browser \u2014 Galaxy Nexus',
+        title: ls`Android (4.0.2) Browser \u2014 Galaxy Nexus`,
         value:
             'Mozilla/5.0 (Linux; U; Android 4.0.2; en-us; Galaxy Nexus Build/ICL53F) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
       },
       {
-        title: 'Android (2.3) Browser \u2014 Nexus S',
+        title: ls`Android (2.3) Browser \u2014 Nexus S`,
         value:
             'Mozilla/5.0 (Linux; U; Android 2.3.6; en-us; Nexus S Build/GRK39F) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1'
       }
     ]
   },
   {
-    title: 'BlackBerry',
+    title: ls`BlackBerry`,
     values: [
       {
-        title: 'BlackBerry \u2014 BB10',
+        title: ls`BlackBerry \u2014 BB10`,
         value:
             'Mozilla/5.0 (BB10; Touch) AppleWebKit/537.1+ (KHTML, like Gecko) Version/10.0.0.1337 Mobile Safari/537.1+'
       },
       {
-        title: 'BlackBerry \u2014 PlayBook 2.1',
+        title: ls`BlackBerry \u2014 PlayBook 2.1`,
         value:
             'Mozilla/5.0 (PlayBook; U; RIM Tablet OS 2.1.0; en-US) AppleWebKit/536.2+ (KHTML, like Gecko) Version/7.2.1.0 Safari/536.2+'
       },
       {
-        title: 'BlackBerry \u2014 9900',
+        title: ls`BlackBerry \u2014 9900`,
         value:
             'Mozilla/5.0 (BlackBerry; U; BlackBerry 9900; en-US) AppleWebKit/534.11+ (KHTML, like Gecko) Version/7.0.0.187 Mobile Safari/534.11+'
       }
     ]
   },
   {
-    title: 'Chrome',
+    title: ls`Chrome`,
     values: [
       {
-        title: 'Chrome \u2014 Android Mobile',
+        title: ls`Chrome \u2014 Android Mobile`,
         value:
             'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36'
       },
       {
-        title: 'Chrome \u2014 Android Tablet',
+        title: ls`Chrome \u2014 Android Mobile (high-end)`,
+        value:
+            'Mozilla/5.0 (Linux; Android 10; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36'
+      },
+      {
+        title: ls`Chrome \u2014 Android Tablet`,
         value:
             'Mozilla/5.0 (Linux; Android 4.3; Nexus 7 Build/JSS15Q) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
       },
       {
-        title: 'Chrome \u2014 iPhone',
+        title: ls`Chrome \u2014 iPhone`,
         value:
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/%s Mobile/13B143 Safari/601.1.46'
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/%s Mobile/15E148 Safari/604.1'
       },
       {
-        title: 'Chrome \u2014 iPad',
+        title: ls`Chrome \u2014 iPad`,
         value:
-            'Mozilla/5.0 (iPad; CPU OS 9_1 like Mac OS X) AppleWebKit/601.1 (KHTML, like Gecko) CriOS/%s Mobile/13B143 Safari/601.1.46'
+            'Mozilla/5.0 (iPad; CPU OS 13_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/%s Mobile/15E148 Safari/604.1'
       },
       {
-        title: 'Chrome \u2014 Chrome OS',
+        title: ls`Chrome \u2014 Chrome OS`,
         value: 'Mozilla/5.0 (X11; CrOS x86_64 10066.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
       },
       {
-        title: 'Chrome \u2014 Mac',
+        title: ls`Chrome \u2014 Mac`,
         value:
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
       },
       {
-        title: 'Chrome \u2014 Windows',
+        title: ls`Chrome \u2014 Windows`,
         value: 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
       }
     ]
   },
   {
-    title: 'Edge',
+    title: ls`Firefox`,
     values: [
       {
-        title: 'Edge \u2014 Windows',
-        value:
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.10240'
+        title: ls`Firefox \u2014 Android Mobile`,
+        value: 'Mozilla/5.0 (Android 4.4; Mobile; rv:70.0) Gecko/70.0 Firefox/70.0'
       },
       {
-        title: 'Edge \u2014 Mobile',
-        value:
-            'Mozilla/5.0 (Windows Phone 10.0; Android 4.2.1; Microsoft; Lumia 640 XL LTE) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Mobile Safari/537.36 Edge/12.10166'
+        title: ls`Firefox \u2014 Android Tablet`,
+        value: 'Mozilla/5.0 (Android 4.4; Tablet; rv:70.0) Gecko/70.0 Firefox/70.0'
       },
       {
-        title: 'Edge \u2014 XBox',
-        value:
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; Xbox; Xbox One) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/13.10586'
-      }
-    ]
-  },
-  {
-    title: 'Firefox',
-    values: [
-      {
-        title: 'Firefox \u2014 Android Mobile',
-        value: 'Mozilla/5.0 (Android 4.4; Mobile; rv:46.0) Gecko/46.0 Firefox/46.0'
-      },
-      {
-        title: 'Firefox \u2014 Android Tablet',
-        value: 'Mozilla/5.0 (Android 4.4; Tablet; rv:46.0) Gecko/46.0 Firefox/46.0'
-      },
-      {
-        title: 'Firefox \u2014 iPhone',
+        title: ls`Firefox \u2014 iPhone`,
         value:
             'Mozilla/5.0 (iPhone; CPU iPhone OS 8_3 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) FxiOS/1.0 Mobile/12F69 Safari/600.1.4'
       },
       {
-        title: 'Firefox \u2014 iPad',
+        title: ls`Firefox \u2014 iPad`,
         value:
             'Mozilla/5.0 (iPad; CPU iPhone OS 8_3 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) FxiOS/1.0 Mobile/12F69 Safari/600.1.4'
       },
       {
-        title: 'Firefox \u2014 Mac',
-        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:46.0) Gecko/20100101 Firefox/46.0'
+        title: ls`Firefox \u2014 Mac`,
+        value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:70.0) Gecko/20100101 Firefox/70.0'
       },
       {
-        title: 'Firefox \u2014 Windows',
-        value: 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:46.0) Gecko/20100101 Firefox/46.0'
+        title: ls`Firefox \u2014 Windows`,
+        value: 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:70.0) Gecko/20100101 Firefox/70.0'
       }
     ]
   },
   {
-    title: 'Googlebot',
+    title: ls`Googlebot`,
     values: [
-      {title: 'Googlebot', value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}, {
-        title: 'Googlebot Smartphone',
+      {title: ls`Googlebot`, value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'}, {
+        title: ls`Googlebot Desktop`,
         value:
-            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.96 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+            'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/%s Safari/537.36'
+      },
+      {
+        title: ls`Googlebot Smartphone`,
+        value:
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
       }
     ]
   },
   {
-    title: 'Internet Explorer',
+    title: ls`Internet Explorer`,
     values: [
-      {title: 'Internet Explorer 11', value: 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'},
-      {title: 'Internet Explorer 10', value: 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'},
-      {title: 'Internet Explorer 9', value: 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)'},
-      {title: 'Internet Explorer 8', value: 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)'},
-      {title: 'Internet Explorer 7', value: 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)'}
+      {title: ls`Internet Explorer 11`, value: 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'},
+      {
+        title: ls`Internet Explorer 10`,
+        value: 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
+      },
+      {title: ls`Internet Explorer 9`, value: 'Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)'},
+      {title: ls`Internet Explorer 8`, value: 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)'},
+      {title: ls`Internet Explorer 7`, value: 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)'}
     ]
   },
   {
-    title: 'Opera',
+    title: ls`Microsoft Edge`,
     values: [
       {
-        title: 'Opera \u2014 Mac',
+        title: ls`Microsoft Edge (Chromium) \u2014 Windows`,
         value:
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36 OPR/37.0.2178.31'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 Edg/%s'
       },
       {
-        title: 'Opera \u2014 Windows',
+        title: ls`Microsoft Edge (Chromium) \u2014 Mac`,
         value:
-            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36 OPR/37.0.2178.31'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Chrome/%s Safari/604.1 Edg/%s'
       },
       {
-        title: 'Opera (Presto) \u2014 Mac',
+        title: ls`Microsoft Edge \u2014 iPhone`,
+        value:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1.1 EdgiOS/44.5.0.10 Mobile/15E148 Safari/604.1'
+      },
+      {
+        title: ls`Microsoft Edge \u2014 iPad`,
+        value:
+            'Mozilla/5.0 (iPad; CPU OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 EdgiOS/44.5.2 Mobile/15E148 Safari/605.1.15'
+      },
+      {
+        title: ls`Microsoft Edge \u2014 Android Mobile`,
+        value:
+            'Mozilla/5.0 (Linux; Android 8.1.0; Pixel Build/OPM4.171019.021.D1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.109 Mobile Safari/537.36 EdgA/42.0.0.2057'
+      },
+      {
+        title: ls`Microsoft Edge \u2014 Android Tablet`,
+        value:
+            'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 7 Build/MOB30X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.109 Safari/537.36 EdgA/42.0.0.2057'
+      },
+      {
+        title: ls`Microsoft Edge (EdgeHTML) \u2014 Windows`,
+        value:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.18362'
+      },
+      {
+        title: ls`Microsoft Edge (EdgeHTML) \u2014 XBox`,
+        value:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; Xbox; Xbox One) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.18362'
+      }
+    ]
+  },
+  {
+    title: ls`Opera`,
+    values: [
+      {
+        title: ls`Opera \u2014 Mac`,
+        value:
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36 OPR/65.0.3467.48'
+      },
+      {
+        title: ls`Opera \u2014 Windows`,
+        value:
+            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36 OPR/65.0.3467.48'
+      },
+      {
+        title: ls`Opera (Presto) \u2014 Mac`,
         value: 'Opera/9.80 (Macintosh; Intel Mac OS X 10.9.1) Presto/2.12.388 Version/12.16'
       },
-      {title: 'Opera (Presto) \u2014 Windows', value: 'Opera/9.80 (Windows NT 6.1) Presto/2.12.388 Version/12.16'}, {
-        title: 'Opera Mobile \u2014 Android Mobile',
+      {title: ls`Opera (Presto) \u2014 Windows`, value: 'Opera/9.80 (Windows NT 6.1) Presto/2.12.388 Version/12.16'}, {
+        title: ls`Opera Mobile \u2014 Android Mobile`,
         value: 'Opera/12.02 (Android 4.1; Linux; Opera Mobi/ADR-1111101157; U; en-US) Presto/2.9.201 Version/12.02'
       },
       {
-        title: 'Opera Mini \u2014 iOS',
+        title: ls`Opera Mini \u2014 iOS`,
         value: 'Opera/9.80 (iPhone; Opera Mini/8.0.0/34.2336; U; en) Presto/2.8.119 Version/11.10'
       }
     ]
   },
   {
-    title: 'Safari',
+    title: ls`Safari`,
     values: [
       {
-        title: 'Safari \u2014 iPad iOS 9',
+        title: ls`Safari \u2014 iPad iOS 13.2`,
         value:
-            'Mozilla/5.0 (iPad; CPU OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B137 Safari/601.1'
+            'Mozilla/5.0 (iPad; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
       },
       {
-        title: 'Safari \u2014 iPhone iOS 9',
+        title: ls`Safari \u2014 iPhone iOS 13.2`,
         value:
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B137 Safari/601.1'
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
       },
       {
-        title: 'Safari \u2014 Mac',
+        title: ls`Safari \u2014 Mac`,
         value:
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15'
       }
     ]
   },
   {
-    title: 'UC Browser',
+    title: ls`UC Browser`,
     values: [
       {
-        title: 'UC Browser \u2014 Android Mobile',
+        title: ls`UC Browser \u2014 Android Mobile`,
         value:
-            'Mozilla/5.0 (Linux; U; Android 4.4.4; en-US; XT1022 Build/KXC21.5-40) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 UCBrowser/10.7.0.636 U3/0.8.0 Mobile Safari/534.30'
+            'Mozilla/5.0 (Linux; U; Android 8.1.0; en-US; Nexus 6P Build/OPM7.181205.001) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.108 UCBrowser/12.11.1.1197 Mobile Safari/537.36'
       },
       {
-        title: 'UC Browser \u2014 iOS',
-        value: 'UCWEB/2.0 (iPad; U; CPU OS 7_1 like Mac OS X; en; iPad3,6) U2/1.0.0 UCBrowser/9.3.1.344'
+        title: ls`UC Browser \u2014 iOS`,
+        value:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 12_1 like Mac OS X; zh-CN) AppleWebKit/537.51.1 (KHTML, like Gecko) Mobile/16B92 UCBrowser/12.1.7.1109 Mobile AliApp(TUnionSDK/0.1.20.3)'
       },
       {
-        title: 'UC Browser \u2014 Windows Phone',
+        title: ls`UC Browser \u2014 Windows Phone`,
         value:
-            'NokiaX2-02/2.0 (11.79) Profile/MIDP-2.1 Configuration/CLDC-1.1 Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; SLCC2;.NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; InfoPath.2) UCBrowser8.4.0.159/70/352'
+            'Mozilla/5.0 (compatible; MSIE 10.0; Windows Phone 8.0; Trident/6.0; IEMobile/10.0; ARM; Touch; NOKIA; Lumia 920) UCBrowser/10.1.0.563 Mobile'
       }
     ]
   }
 ];
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.NetworkConfigView = NetworkConfigView;
+
+/** @type {!Array.<{title: string, values: !Array.<{title: string, value: string}>}>} */
+Network.NetworkConfigView._userAgentGroups = _userAgentGroups;

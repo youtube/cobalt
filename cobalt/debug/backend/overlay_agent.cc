@@ -81,6 +81,8 @@ OverlayAgent::OverlayAgent(DebugDispatcher* dispatcher,
       base::Bind(&OverlayAgent::HighlightRect, base::Unretained(this));
   commands_["hideHighlight"] =
       base::Bind(&OverlayAgent::HideHighlight, base::Unretained(this));
+  commands_["setShowViewportSizeOnResize"] = base::Bind(
+      &OverlayAgent::SetShowViewportSizeOnResize, base::Unretained(this));
 }
 
 void OverlayAgent::HighlightNode(Command command) {
@@ -121,6 +123,12 @@ void OverlayAgent::HideHighlight(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
+  command.SendResponse();
+}
+
+void OverlayAgent::SetShowViewportSizeOnResize(Command command) {
+  // NO-OP implementation needed to prevent a frontend runtime exception when
+  // Overlay settings are restored after the Performance panel stops tracing.
   command.SendResponse();
 }
 

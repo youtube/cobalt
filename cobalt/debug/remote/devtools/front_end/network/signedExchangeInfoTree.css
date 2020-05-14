@@ -14,7 +14,7 @@
 }
 
 .tree-outline > .parent {
-    -webkit-user-select: none;
+    user-select: none;
     font-weight: bold;
     color: #616161;
     margin-top: -1px;
@@ -25,12 +25,12 @@
 }
 
 .tree-outline li {
-    display: block;
     padding-left: 5px;
     line-height: 20px;
 }
 
 .tree-outline li:not(.parent) {
+    display: block;
     margin-left: 10px;
 }
 

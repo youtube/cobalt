@@ -5,7 +5,7 @@
 /**
  * @unrestricted
  */
-Emulation.InspectedPagePlaceholder = class extends UI.Widget {
+export default class InspectedPagePlaceholder extends UI.Widget {
   constructor() {
     super(true);
     this.registerRequiredCSS('emulation/inspectedPagePlaceholder.css');
@@ -17,8 +17,9 @@ Emulation.InspectedPagePlaceholder = class extends UI.Widget {
    * @override
    */
   onResize() {
-    if (this._updateId)
+    if (this._updateId) {
       this.element.window().cancelAnimationFrame(this._updateId);
+    }
     this._updateId = this.element.window().requestAnimationFrame(this.update.bind(this, false));
   }
 
@@ -58,21 +59,40 @@ Emulation.InspectedPagePlaceholder = class extends UI.Widget {
     if (force) {
       // Short term fix for Lighthouse interop.
       --bounds.height;
-      this.dispatchEventToListeners(Emulation.InspectedPagePlaceholder.Events.Update, bounds);
+      this.dispatchEventToListeners(Events.Update, bounds);
       ++bounds.height;
     }
-    this.dispatchEventToListeners(Emulation.InspectedPagePlaceholder.Events.Update, bounds);
+    this.dispatchEventToListeners(Events.Update, bounds);
   }
-};
+}
 
 /**
- * @return {!Emulation.InspectedPagePlaceholder}
+ * @return {!InspectedPagePlaceholder}
  */
-Emulation.InspectedPagePlaceholder.instance = function() {
-  return self.singleton(Emulation.InspectedPagePlaceholder);
+export const instance = function() {
+  return self.singleton(InspectedPagePlaceholder);
 };
 
 /** @enum {symbol} */
-Emulation.InspectedPagePlaceholder.Events = {
+export const Events = {
   Update: Symbol('Update')
 };
+
+/* Legacy exported object */
+self.Emulation = self.Emulation || {};
+
+/* Legacy exported object */
+Emulation = Emulation || {};
+
+/**
+ * @constructor
+ */
+Emulation.InspectedPagePlaceholder = InspectedPagePlaceholder;
+
+/**
+ * @return {!InspectedPagePlaceholder}
+ */
+Emulation.InspectedPagePlaceholder.instance = instance;
+
+/** @enum {symbol} */
+Emulation.InspectedPagePlaceholder.Events = Events;

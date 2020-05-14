@@ -37,27 +37,31 @@ Profiler.ProfileLauncherView = class extends UI.VBox {
    */
   constructor(profilesPanel) {
     super();
+    this.registerRequiredCSS('profiler/profileLauncherView.css');
+
     this._panel = profilesPanel;
     this.element.classList.add('profile-launcher-view');
+    this._contentElement = this.element.createChild('div', 'profile-launcher-view-content vbox');
 
-    this._contentElement = this.element.createChild('div', 'profile-launcher-view-content');
-    this._innerContentElement = this._contentElement.createChild('div');
-    const controlDiv = this._contentElement.createChild('div', 'vbox profile-launcher-control');
-    controlDiv.createChild('h1').textContent = ls`Select JavaScript VM instance`;
-    const targetDiv = controlDiv.createChild('div', 'vbox profile-launcher-target-list');
-    new Profiler.IsolateSelector().show(targetDiv);
-    this._controlButton =
-        UI.createTextButton('', this._controlButtonClicked.bind(this), 'profile-launcher-button', true /* primary */);
-    this._contentElement.appendChild(this._controlButton);
-    this._recordButtonEnabled = true;
-    this._loadButton =
-        UI.createTextButton(Common.UIString('Load'), this._loadButtonClicked.bind(this), 'profile-launcher-button');
-    this._contentElement.appendChild(this._loadButton);
-
+    const profileTypeSelectorElement = this._contentElement.createChild('div', 'vbox');
     this._selectedProfileTypeSetting = Common.settings.createSetting('selectedProfileType', 'CPU');
-    this._header = this._innerContentElement.createChild('h1');
-    this._profileTypeSelectorForm = this._innerContentElement.createChild('form');
-    this._innerContentElement.createChild('div', 'flexible-space');
+    this._profileTypeHeaderElement = profileTypeSelectorElement.createChild('h1');
+    this._profileTypeSelectorForm = profileTypeSelectorElement.createChild('form');
+    UI.ARIAUtils.markAsRadioGroup(this._profileTypeSelectorForm);
+
+    const isolateSelectorElement = this._contentElement.createChild('div', 'vbox profile-isolate-selector-block');
+    isolateSelectorElement.createChild('h1').textContent = ls`Select JavaScript VM instance`;
+    const isolateSelector = new Profiler.IsolateSelector();
+    isolateSelector.show(isolateSelectorElement.createChild('div', 'vbox profile-launcher-target-list'));
+    isolateSelectorElement.appendChild(isolateSelector.totalMemoryElement());
+
+    const buttonsDiv = this._contentElement.createChild('div', 'hbox profile-launcher-buttons');
+    this._controlButton = UI.createTextButton('', this._controlButtonClicked.bind(this), '', /* primary */ true);
+    this._loadButton = UI.createTextButton(ls`Load`, this._loadButtonClicked.bind(this), '');
+    buttonsDiv.appendChild(this._controlButton);
+    buttonsDiv.appendChild(this._loadButton);
+    this._recordButtonEnabled = true;
+
     /** @type {!Map<string, !HTMLOptionElement>} */
     this._typeIdToOptionElement = new Map();
   }
@@ -67,10 +71,11 @@ Profiler.ProfileLauncherView = class extends UI.VBox {
   }
 
   _updateControls() {
-    if (this._isEnabled && this._recordButtonEnabled)
+    if (this._isEnabled && this._recordButtonEnabled) {
       this._controlButton.removeAttribute('disabled');
-    else
+    } else {
       this._controlButton.setAttribute('disabled', '');
+    }
     this._controlButton.title = this._recordButtonEnabled ? '' : UI.anotherProfilerActiveLabel();
     if (this._isInstantProfile) {
       this._controlButton.classList.remove('running');
@@ -85,8 +90,9 @@ Profiler.ProfileLauncherView = class extends UI.VBox {
       this._controlButton.classList.add('primary-button');
       this._controlButton.textContent = Common.UIString('Start');
     }
-    for (const item of this._typeIdToOptionElement.values())
+    for (const item of this._typeIdToOptionElement.values()) {
       item.disabled = !!this._isProfiling;
+    }
   }
 
   profileStarted() {
@@ -123,21 +129,29 @@ Profiler.ProfileLauncherView = class extends UI.VBox {
     optionElement.addEventListener('change', this._profileTypeChanged.bind(this, profileType), false);
     const descriptionElement = this._profileTypeSelectorForm.createChild('p');
     descriptionElement.textContent = profileType.description;
+    UI.ARIAUtils.setDescription(optionElement, profileType.description);
     const customContent = profileType.customContent();
-    if (customContent)
+    if (customContent) {
       this._profileTypeSelectorForm.createChild('p').appendChild(customContent);
-    if (this._typeIdToOptionElement.size > 1)
-      this._header.textContent = ls`Select profiling type`;
-    else
-      this._header.textContent = profileType.name;
+      profileType.setCustomContentEnabled(false);
+    }
+    const headerText = this._typeIdToOptionElement.size > 1 ? ls`Select profiling type` : profileType.name;
+    this._profileTypeHeaderElement.textContent = headerText;
+    UI.ARIAUtils.setAccessibleName(this._profileTypeSelectorForm, headerText);
   }
 
   restoreSelectedProfileType() {
     let typeId = this._selectedProfileTypeSetting.get();
-    if (!this._typeIdToOptionElement.has(typeId))
+    if (!this._typeIdToOptionElement.has(typeId)) {
       typeId = this._typeIdToOptionElement.keys().next().value;
+      this._selectedProfileTypeSetting.set(typeId);
+    }
     this._typeIdToOptionElement.get(typeId).checked = true;
     const type = this._typeIdToOptionElement.get(typeId)._profileType;
+    for (const [id, element] of this._typeIdToOptionElement) {
+      const enabled = (id === typeId);
+      element._profileType.setCustomContentEnabled(enabled);
+    }
     this.dispatchEventToListeners(Profiler.ProfileLauncherView.Events.ProfileTypeSelected, type);
   }
 
@@ -149,6 +163,10 @@ Profiler.ProfileLauncherView = class extends UI.VBox {
    * @param {!Profiler.ProfileType} profileType
    */
   _profileTypeChanged(profileType) {
+    const typeId = this._selectedProfileTypeSetting.get();
+    const type = this._typeIdToOptionElement.get(typeId)._profileType;
+    type.setCustomContentEnabled(false);
+    profileType.setCustomContentEnabled(true);
     this.dispatchEventToListeners(Profiler.ProfileLauncherView.Events.ProfileTypeSelected, profileType);
     this._isInstantProfile = profileType.isInstantProfile();
     this._isEnabled = profileType.isEnabled();

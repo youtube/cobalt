@@ -29,35 +29,56 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-self['Common'] = self['Common'] || {};
-
 /**
  * @param {string} string
  * @param {...*} vararg
  * @return {string}
  */
-Common.UIString = function(string, vararg) {
-  return String.vsprintf(Common.localize(string), Array.prototype.slice.call(arguments, 1));
-};
+export function UIString(string, vararg) {
+  return String.vsprintf(localize(string), Array.prototype.slice.call(arguments, 1));
+}
+
+/**
+ * @param {string} string
+ * @param {?ArrayLike} values
+ * @return {string}
+ */
+export function serializeUIString(string, values = []) {
+  const messageParts = [string];
+  const serializedMessage = {messageParts, values};
+  return JSON.stringify(serializedMessage);
+}
+
+/**
+ * @param {string} serializedMessage
+ * @return {*}
+ */
+export function deserializeUIString(serializedMessage) {
+  if (!serializedMessage) {
+    return {};
+  }
+
+  return JSON.parse(serializedMessage);
+}
 
 /**
  * @param {string} string
  * @return {string}
  */
-Common.localize = function(string) {
+export function localize(string) {
   return string;
-};
+}
 
 /**
  * @unrestricted
  */
-Common.UIStringFormat = class {
+export class UIStringFormat {
   /**
    * @param {string} format
    */
   constructor(format) {
     /** @type {string} */
-    this._localizedFormat = Common.localize(format);
+    this._localizedFormat = localize(format);
     /** @type {!Array.<!Object>} */
     this._tokenizedFormat = String.tokenizeFormatString(this._localizedFormat, String.standardFormatters);
   }
@@ -78,28 +99,27 @@ Common.UIStringFormat = class {
   format(vararg) {
     return String
         .format(
-            this._localizedFormat, arguments, String.standardFormatters, '', Common.UIStringFormat._append,
+            this._localizedFormat, arguments, String.standardFormatters, '', UIStringFormat._append,
             this._tokenizedFormat)
         .formattedResult;
   }
-};
+}
 
+const _substitutionStrings = new WeakMap();
 
 /**
  * @param {!Array<string>|string} strings
  * @param {...*} vararg
  * @return {string}
  */
-self.ls = function(strings, vararg) {
-  if (typeof strings === 'string')
+export function ls(strings, vararg) {
+  if (typeof strings === 'string') {
     return strings;
-  const values = Array.prototype.slice.call(arguments, 1);
-  if (!values.length)
-    return strings[0];
-  let result = '';
-  for (let i = 0; i < values.length; i++) {
-    result += strings[i];
-    result += '' + values[i];
   }
-  return result + strings[values.length];
-};
+  let substitutionString = _substitutionStrings.get(strings);
+  if (!substitutionString) {
+    substitutionString = strings.join('%s');
+    _substitutionStrings.set(strings, substitutionString);
+  }
+  return UIString(substitutionString, ...Array.prototype.slice.call(arguments, 1));
+}
