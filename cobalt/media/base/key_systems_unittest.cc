@@ -221,8 +221,8 @@ void TestMediaClient::AddSupportedKeySystems(
   is_update_needed_ = false;
 }
 
-void TestMediaClient::RecordRapporURL(const std::string& /* metric */,
-                                      const GURL& /* url */) {
+void TestMediaClient::RecordRapporURL(const std::string& metric,
+                                      const GURL& url) {
   NOTIMPLEMENTED();
 }
 

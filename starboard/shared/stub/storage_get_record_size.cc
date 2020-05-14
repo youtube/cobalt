@@ -14,6 +14,6 @@
 
 #include "starboard/common/storage.h"
 
-int64_t SbStorageGetRecordSize(SbStorageRecord /*record*/) {
+int64_t SbStorageGetRecordSize(SbStorageRecord record) {
   return -1;
 }

@@ -14,5 +14,4 @@
 
 #include "starboard/thread.h"
 
-void SbThreadDestroyLocalKey(SbThreadLocalKey /*key*/) {
-}
+void SbThreadDestroyLocalKey(SbThreadLocalKey key) {}

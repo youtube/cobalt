@@ -14,10 +14,9 @@
 
 #include "starboard/player.h"
 
-void SbPlayerSetBounds(SbPlayer /*player*/,
-                       int /*z_index*/,
-                       int /*x*/,
-                       int /*y*/,
-                       int /*width*/,
-                       int /*height*/) {
-}
+void SbPlayerSetBounds(SbPlayer player,
+                       int z_index,
+                       int x,
+                       int y,
+                       int width,
+                       int height) {}

@@ -14,6 +14,6 @@
 
 #include "starboard/thread.h"
 
-void* SbThreadGetLocalValue(SbThreadLocalKey /*key*/) {
+void* SbThreadGetLocalValue(SbThreadLocalKey key) {
   return NULL;
 }

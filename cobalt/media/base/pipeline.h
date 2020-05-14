@@ -215,7 +215,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
 
   // Updates the player's preference for decode-to-texture versus punch through.
-  virtual void SetDecodeToTextureOutputMode(bool /*enabled*/) {}
+  virtual void SetDecodeToTextureOutputMode(bool enabled) {}
 };
 
 }  // namespace media

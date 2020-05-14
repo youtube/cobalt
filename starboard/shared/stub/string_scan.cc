@@ -14,8 +14,6 @@
 
 #include "starboard/common/string.h"
 
-int SbStringScan(const char* /*buffer*/,
-                 const char* /*pattern*/,
-                 va_list /*arguments*/) {
+int SbStringScan(const char* buffer, const char* pattern, va_list arguments) {
   return 0;
 }

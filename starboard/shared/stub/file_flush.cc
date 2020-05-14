@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileFlush(SbFile /*file*/) {
+bool SbFileFlush(SbFile file) {
   return false;
 }

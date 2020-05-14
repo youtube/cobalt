@@ -49,8 +49,8 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
    public:
     // These methods are called from MessageLoop::Run when a socket can be
     // interacted with without blocking.
-    virtual void OnSocketReadyToRead(SbSocket /*socket*/) {}
-    virtual void OnSocketReadyToWrite(SbSocket /*socket*/) {}
+    virtual void OnSocketReadyToRead(SbSocket socket) {}
+    virtual void OnSocketReadyToWrite(SbSocket socket) {}
 
    protected:
     virtual ~Watcher() {}

@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketSetSendBufferSize(SbSocket /*socket*/, int32_t /*size*/) {
+bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size) {
   return false;
 }

@@ -14,6 +14,6 @@
 
 #include "starboard/audio_sink.h"
 
-bool SbAudioSinkIsValid(SbAudioSink /*audio_sink*/) {
+bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
   return true;
 }

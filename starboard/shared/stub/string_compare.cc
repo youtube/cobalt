@@ -14,8 +14,6 @@
 
 #include "starboard/common/string.h"
 
-int SbStringCompare(const char* /*string1*/,
-                    const char* /*string2*/,
-                    size_t /*count*/) {
+int SbStringCompare(const char* string1, const char* string2, size_t count) {
   return 0;
 }

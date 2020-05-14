@@ -15,8 +15,6 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
-bool SbMemoryProtect(void* /*virtual_address*/,
-                     int64_t /*size_bytes*/,
-                     int /*flags*/) {
+bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   return false;
 }

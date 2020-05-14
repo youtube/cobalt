@@ -14,7 +14,6 @@
 
 #include "starboard/memory.h"
 
-const void* SbMemoryFindByte(const void* /*buffer*/, int /*value*/,
-                             size_t /*count*/) {
+const void* SbMemoryFindByte(const void* buffer, int value, size_t count) {
   return 0;
 }

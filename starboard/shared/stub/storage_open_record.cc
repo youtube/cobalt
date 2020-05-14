@@ -14,6 +14,6 @@
 
 #include "starboard/common/storage.h"
 
-SbStorageRecord SbStorageOpenRecord(SbUser /*user*/, const char* /*name*/) {
+SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
   return kSbStorageInvalidRecord;
 }

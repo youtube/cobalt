@@ -1122,8 +1122,7 @@ void Box::DumpProperties(std::ostream* stream) const {
   }
 }
 
-void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
-                                 int /*indent*/) const {}
+void Box::DumpChildrenWithIndent(std::ostream* stream, int indent) const {}
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 

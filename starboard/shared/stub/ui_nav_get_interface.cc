@@ -16,7 +16,7 @@
 
 #if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
 
-bool SbUiNavGetInterface(SbUiNavInterface* /* out_interface */) {
+bool SbUiNavGetInterface(SbUiNavInterface* out_interface) {
   return false;
 }
 

@@ -293,7 +293,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
 {
 }
 
-bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
+bool WebModuleStatTracker::IsStopWatchEnabled(int id) const { return true; }
 
 void WebModuleStatTracker::OnStopWatchStopped(int id,
                                               base::TimeDelta time_elapsed) {

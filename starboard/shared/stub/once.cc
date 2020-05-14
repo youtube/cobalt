@@ -14,7 +14,6 @@
 
 #include "starboard/once.h"
 
-bool SbOnce(SbOnceControl* /*once_control*/,
-            SbOnceInitRoutine /*init_routine*/) {
+bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
   return false;
 }

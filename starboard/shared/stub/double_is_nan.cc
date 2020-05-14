@@ -14,6 +14,6 @@
 
 #include "starboard/double.h"
 
-bool SbDoubleIsNan(const double /*d*/) {
+bool SbDoubleIsNan(const double d) {
   return false;
 }

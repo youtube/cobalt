@@ -56,12 +56,12 @@ CSSDeclaredStyleDeclaration::CSSDeclaredStyleDeclaration(
 // The current implementation does not handle shorthands.
 //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSDeclaredStyleDeclaration::css_text(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();
 }
 
 void CSSDeclaredStyleDeclaration::set_css_text(
-    const std::string& css_text, script::ExceptionState* /*exception_state*/) {
+    const std::string& css_text, script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::cssom", "CSSDeclaredStyleDeclaration::set_css_text");
   DCHECK(css_parser_);
   scoped_refptr<CSSDeclaredStyleData> declaration =
@@ -123,7 +123,7 @@ std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(
 
 void CSSDeclaredStyleDeclaration::SetPropertyValue(
     const std::string& property_name, const std::string& property_value,
-    script::ExceptionState* /*exception_state*/) {
+    script::ExceptionState* exception_state) {
   DCHECK(css_parser_);
   if (!data_) {
     data_ = new CSSDeclaredStyleData();
@@ -137,7 +137,7 @@ void CSSDeclaredStyleDeclaration::SetPropertyValue(
 
 void CSSDeclaredStyleDeclaration::SetProperty(
     const std::string& property_name, const std::string& property_value,
-    const std::string& priority, script::ExceptionState* /*exception_state*/) {
+    const std::string& priority, script::ExceptionState* exception_state) {
   DLOG(INFO) << "CSSDeclaredStyleDeclaration::SetProperty(" << property_name
              << "," << property_value << "," << priority << ")";
   DCHECK(css_parser_);

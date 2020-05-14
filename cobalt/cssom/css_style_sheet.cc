@@ -40,9 +40,9 @@ class MediaRuleUpdater : public CSSRuleVisitor {
   explicit MediaRuleUpdater(const ViewportSize& viewport_size)
       : any_condition_value_changed_(false), viewport_size_(viewport_size) {}
 
-  void VisitCSSStyleRule(CSSStyleRule* /*css_style_rule*/) override {}
+  void VisitCSSStyleRule(CSSStyleRule* css_style_rule) override {}
 
-  void VisitCSSFontFaceRule(CSSFontFaceRule* /*css_font_face_rule*/) override {}
+  void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) override {}
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) override {
     bool condition_value_changed =
@@ -51,9 +51,8 @@ class MediaRuleUpdater : public CSSRuleVisitor {
     any_condition_value_changed_ |= condition_value_changed;
   }
 
-  void VisitCSSKeyframeRule(CSSKeyframeRule* /*css_keyframe_rule*/) override {}
-  void VisitCSSKeyframesRule(
-      CSSKeyframesRule* /*css_keyframes_rule*/) override {}
+  void VisitCSSKeyframeRule(CSSKeyframeRule* css_keyframe_rule) override {}
+  void VisitCSSKeyframesRule(CSSKeyframesRule* css_keyframes_rule) override {}
 
   bool AnyConditionValueChanged() { return any_condition_value_changed_; }
 

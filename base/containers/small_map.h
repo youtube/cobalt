@@ -225,7 +225,7 @@ class small_map {
       return *this;
     }
 
-    inline iterator operator++(int /*unused*/) {
+    inline iterator operator++(int unused) {
       iterator result(*this);
       ++(*this);
       return result;
@@ -240,7 +240,7 @@ class small_map {
       return *this;
     }
 
-    inline iterator operator--(int /*unused*/) {
+    inline iterator operator--(int unused) {
       iterator result(*this);
       --(*this);
       return result;
@@ -305,7 +305,7 @@ class small_map {
       return *this;
     }
 
-    inline const_iterator operator++(int /*unused*/) {
+    inline const_iterator operator++(int unused) {
       const_iterator result(*this);
       ++(*this);
       return result;
@@ -320,7 +320,7 @@ class small_map {
       return *this;
     }
 
-    inline const_iterator operator--(int /*unused*/) {
+    inline const_iterator operator--(int unused) {
       const_iterator result(*this);
       --(*this);
       return result;

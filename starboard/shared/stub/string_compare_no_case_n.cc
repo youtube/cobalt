@@ -14,8 +14,8 @@
 
 #include "starboard/common/string.h"
 
-int SbStringCompareNoCaseN(const char* /*string1*/,
-                           const char* /*string2*/,
-                           size_t /*count*/) {
+int SbStringCompareNoCaseN(const char* string1,
+                           const char* string2,
+                           size_t count) {
   return 0;
 }

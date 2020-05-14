@@ -424,8 +424,8 @@ void* LinkReceiver::Impl::RunThread(void* context) {
 }
 
 // static
-void LinkReceiver::Impl::HandleAccept(SbSocketWaiter /*waiter*/,
-                                      SbSocket /*socket*/,
+void LinkReceiver::Impl::HandleAccept(SbSocketWaiter waiter,
+                                      SbSocket socket,
                                       void* context,
                                       int ready_interests) {
   SB_DCHECK(context);
@@ -433,10 +433,10 @@ void LinkReceiver::Impl::HandleAccept(SbSocketWaiter /*waiter*/,
 }
 
 // static
-void LinkReceiver::Impl::HandleRead(SbSocketWaiter /*waiter*/,
+void LinkReceiver::Impl::HandleRead(SbSocketWaiter waiter,
                                     SbSocket socket,
                                     void* context,
-                                    int /*ready_interests*/) {
+                                    int ready_interests) {
   SB_DCHECK(context);
   reinterpret_cast<LinkReceiver::Impl*>(context)->OnReadReady(socket);
 }

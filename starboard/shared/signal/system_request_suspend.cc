@@ -17,7 +17,7 @@
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
-void SuspendDone(void* /*context*/) {
+void SuspendDone(void* context) {
   // Stop all thread execution after fully transitioning into Suspended.
   raise(SIGSTOP);
 }

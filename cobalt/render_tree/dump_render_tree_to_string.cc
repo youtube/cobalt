@@ -44,7 +44,7 @@ class DebugTreePrinter : public NodeVisitor {
  public:
   DebugTreePrinter() : indent_(0) {}
 
-  void Visit(animations::AnimateNode* /* animate */) override { NOTREACHED(); }
+  void Visit(animations::AnimateNode* animate) override { NOTREACHED(); }
   void Visit(ClearRectNode* clear_rect) override;
   void Visit(CompositionNode* composition) override;
   void Visit(FilterNode* text) override;

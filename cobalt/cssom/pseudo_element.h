@@ -48,9 +48,9 @@ class PseudoElement : public SimpleSelector {
 
   // From SimpleSelector.
   PseudoElement* AsPseudoElement() override { return this; }
-  void IndexSelectorTreeNode(SelectorTree::Node* /* parent_node */,
-                             SelectorTree::Node* /* child_node */,
-                             CombinatorType /* combinator */) override {}
+  void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                             SelectorTree::Node* child_node,
+                             CombinatorType combinator) override {}
 
   // Rest of public methods.
   virtual AfterPseudoElement* AsAfterPseudoElement() { return NULL; }

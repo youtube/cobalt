@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketIsConnected(SbSocket /*socket*/) {
+bool SbSocketIsConnected(SbSocket socket) {
   return false;
 }

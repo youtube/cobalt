@@ -110,7 +110,7 @@ class DebugConsole : public LifecycleObserver {
   void ReduceMemory() { web_module_->ReduceMemory(); }
 
  private:
-  void OnError(const GURL& /* url */, const std::string& error) {
+  void OnError(const GURL& url, const std::string& error) {
     LOG(ERROR) << error;
   }
 

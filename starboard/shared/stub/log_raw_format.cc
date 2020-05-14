@@ -14,5 +14,4 @@
 
 #include "starboard/common/log.h"
 
-void SbLogRawFormat(const char* /*format*/, va_list /*arguments*/) {
-}
+void SbLogRawFormat(const char* format, va_list arguments) {}

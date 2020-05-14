@@ -14,7 +14,6 @@
 
 #include "starboard/system.h"
 
-bool SbSystemGetPath(SbSystemPathId /*path_id*/, char* /*out_path*/,
-                     int /*path_size*/) {
+bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   return false;
 }

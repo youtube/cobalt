@@ -14,5 +14,4 @@
 
 #include "starboard/thread.h"
 
-void SbThreadGetName(char* /*buffer*/, int /*buffer_size*/) {
-}
+void SbThreadGetName(char* buffer, int buffer_size) {}

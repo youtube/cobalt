@@ -14,6 +14,6 @@
 
 #include "starboard/directory.h"
 
-bool SbDirectoryCanOpen(const char* /*path*/) {
+bool SbDirectoryCanOpen(const char* path) {
   return false;
 }

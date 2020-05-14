@@ -94,7 +94,7 @@ class TextDecoder : public Decoder {
     return true;
   }
 
-  void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
+  void Resume(render_tree::ResourceProvider* resource_provider) override {
     suspended_ = false;
   }
 

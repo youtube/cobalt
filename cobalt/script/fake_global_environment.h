@@ -26,35 +26,34 @@ namespace script {
 class FakeGlobalEnvironment : public GlobalEnvironment {
  public:
   void CreateGlobalObject() override {}
-  bool EvaluateScript(const scoped_refptr<SourceCode>& /*script_utf8*/,
-                      std::string* /*out_result*/) override {
+  bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
+                      std::string* out_result) override {
     return false;
   }
   bool EvaluateScript(
-      const scoped_refptr<SourceCode>& /*script_utf8*/,
-      const scoped_refptr<Wrappable>& /*owning_object*/,
-      base::Optional<ValueHandleHolder::Reference>* /*out_value_handle*/)
-      override {
+      const scoped_refptr<SourceCode>& script_utf8,
+      const scoped_refptr<Wrappable>& owning_object,
+      base::Optional<ValueHandleHolder::Reference>* out_value_handle) override {
     return false;
   }
   // False positive lint error.
   std::vector<StackFrame> GetStackTrace(
-      int /*max_frames*/) override {  // NOLINT(readability/casting)
+      int max_frames) override {  // NOLINT(readability/casting)
     return std::vector<StackFrame>();
   }
   void PreventGarbageCollection(
-      const scoped_refptr<Wrappable>& /*wrappable*/) override {}
-  void AllowGarbageCollection(Wrappable* /*wrappable*/) override {}
-  void AddRoot(Traceable* /*traceable*/) override {}
-  void RemoveRoot(Traceable* /*traceable*/) override {}
-  void DisableEval(const std::string& /*message*/) override {}
+      const scoped_refptr<Wrappable>& wrappable) override {}
+  void AllowGarbageCollection(Wrappable* wrappable) override {}
+  void AddRoot(Traceable* traceable) override {}
+  void RemoveRoot(Traceable* traceable) override {}
+  void DisableEval(const std::string& message) override {}
   void EnableEval() override {}
   void DisableJit() override {}
-  void SetReportEvalCallback(const base::Closure& /*report_eval*/) override {}
-  void SetReportErrorCallback(
-      const ReportErrorCallback& /*report_eval*/) override {}
-  void Bind(const std::string& /*identifier*/,
-            const scoped_refptr<Wrappable>& /*impl*/) override {}
+  void SetReportEvalCallback(const base::Closure& report_eval) override {}
+  void SetReportErrorCallback(const ReportErrorCallback& report_eval) override {
+  }
+  void Bind(const std::string& identifier,
+            const scoped_refptr<Wrappable>& impl) override {}
   ScriptValueFactory* script_value_factory() { return NULL; }
 };
 

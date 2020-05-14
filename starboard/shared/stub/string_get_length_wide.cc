@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-size_t SbStringGetLengthWide(const wchar_t* /*str*/) {
+size_t SbStringGetLengthWide(const wchar_t* str) {
   return static_cast<size_t>(0);
 }

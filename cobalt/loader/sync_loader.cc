@@ -104,7 +104,7 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     decoder_->Finish();
     loader_on_thread_->SignalLoadComplete(base::nullopt);
   }
-  void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     loader_on_thread_->SignalLoadComplete(error);
   }
 

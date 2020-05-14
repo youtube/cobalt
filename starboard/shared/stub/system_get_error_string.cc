@@ -14,8 +14,8 @@
 
 #include "starboard/system.h"
 
-int SbSystemGetErrorString(SbSystemError /*error*/,
-                           char* /*out_string*/,
-                           int /*string_length*/) {
+int SbSystemGetErrorString(SbSystemError error,
+                           char* out_string,
+                           int string_length) {
   return 0;
 }

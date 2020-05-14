@@ -83,8 +83,8 @@ class TextureStub : public Texture {
       : pixel_data_(pixel_data) {}
 
   TextureStub(const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
-              intptr_t /*offset*/, const SurfaceInfo& surface_info,
-              int /*pitch_in_bytes*/)
+              intptr_t offset, const SurfaceInfo& surface_info,
+              int pitch_in_bytes)
       : pixel_data_(new PixelDataStub(surface_info)) {
     const RawTextureMemoryStub* raw_texture_memory_stub =
         base::polymorphic_downcast<const RawTextureMemoryStub*>(

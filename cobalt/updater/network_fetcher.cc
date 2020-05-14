@@ -158,9 +158,9 @@ void NetworkFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   url_fetcher_.reset();
 }
 
-void NetworkFetcher::OnURLFetchDownloadProgress(
-    const net::URLFetcher* source, int64_t current, int64_t /*total*/,
-    int64_t /*current_network_bytes*/) {
+void NetworkFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                                int64_t current, int64_t total,
+                                                int64_t current_network_bytes) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   progress_callback_.Run(current);

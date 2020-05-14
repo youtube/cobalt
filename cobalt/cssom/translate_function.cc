@@ -119,9 +119,9 @@ std::string TranslateFunction::ToString() const {
   return result;
 }
 
-math::Matrix3F TranslateFunction::ToMatrix(const math::SizeF& used_size,
-    const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
-    const {
+math::Matrix3F TranslateFunction::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   switch (axis_) {
     case kXAxis:
       return math::TranslateMatrix(length_component_in_pixels() +

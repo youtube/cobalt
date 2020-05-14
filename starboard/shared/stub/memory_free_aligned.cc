@@ -14,5 +14,4 @@
 
 #include "starboard/memory.h"
 
-void SbMemoryFreeAligned(void* /*memory*/) {
-}
+void SbMemoryFreeAligned(void* memory) {}

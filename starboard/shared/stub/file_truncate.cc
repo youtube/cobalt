@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileTruncate(SbFile /*file*/, int64_t /*length*/) {
+bool SbFileTruncate(SbFile file, int64_t length) {
   return false;
 }

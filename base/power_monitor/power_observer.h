@@ -14,7 +14,7 @@ class BASE_EXPORT PowerObserver {
  public:
   // Notification of a change in power status of the computer, such
   // as from switching between battery and A/C power.
-  virtual void OnPowerStateChange(bool /*on_battery_power*/){};
+  virtual void OnPowerStateChange(bool on_battery_power){};
 
   // Notification that the system is suspending.
   virtual void OnSuspend() {}

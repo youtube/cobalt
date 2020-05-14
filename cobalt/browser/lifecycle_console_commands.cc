@@ -50,17 +50,17 @@ const char kQuitCommandLongHelp[] =
     "ending the process (peacefully).";
 
 namespace {
-void OnPause(const std::string& /*message*/) { SbSystemRequestPause(); }
+void OnPause(const std::string& message) { SbSystemRequestPause(); }
 
-void OnUnpause(const std::string& /*message*/) { SbSystemRequestUnpause(); }
+void OnUnpause(const std::string& message) { SbSystemRequestUnpause(); }
 
-void OnSuspend(const std::string& /*message*/) {
+void OnSuspend(const std::string& message) {
   LOG(INFO) << "Suspending Cobalt through the console, but you will need to "
             << "resume Cobalt using a platform-specific method.";
   SbSystemRequestSuspend();
 }
 
-void OnQuit(const std::string& /*message*/) { SbSystemRequestStop(0); }
+void OnQuit(const std::string& message) { SbSystemRequestStop(0); }
 }  // namespace
 
 LifecycleConsoleCommands::LifecycleConsoleCommands()

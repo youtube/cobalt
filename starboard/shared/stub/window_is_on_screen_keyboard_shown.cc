@@ -16,7 +16,7 @@
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
 
-bool SbWindowIsOnScreenKeyboardShown(SbWindow /* window */) {
+bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
   return false;
 }
 

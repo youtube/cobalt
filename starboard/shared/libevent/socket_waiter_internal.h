@@ -87,19 +87,15 @@ struct SbSocketWaiterPrivate {
 
   // The libevent callback function, which in turn calls the registered callback
   // function for the Waitee.
-  static void LibeventSocketCallback(int /*fd*/, int16_t events, void* context);
+  static void LibeventSocketCallback(int fd, int16_t events, void* context);
 
   // A libevent callback function that wakes up the SbSocketWaiter given in
   // |context| due to a timeout.
-  static void LibeventTimeoutCallback(int /*fd*/,
-                                      int16_t /*event*/,
-                                      void* context);
+  static void LibeventTimeoutCallback(int fd, int16_t event, void* context);
 
   // A libevent callback function that wakes up the SbSocketWaiter given in
   // |context| due to an external call to WakeUp.
-  static void LibeventWakeUpCallback(int /*fd*/,
-                                     int16_t /*event*/,
-                                     void* context);
+  static void LibeventWakeUpCallback(int fd, int16_t event, void* context);
 
   // Handles a libevent callback.
   void HandleSignal(Waitee* waitee, short events);  // NOLINT[runtime/int]

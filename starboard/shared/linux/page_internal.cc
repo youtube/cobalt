@@ -62,7 +62,7 @@ int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
 
 }  // namespace
 
-void* SbPageMap(size_t size_bytes, int flags, const char* /*unused_name*/) {
+void* SbPageMap(size_t size_bytes, int flags, const char* unused_name) {
   void* ret = SbPageMapUntracked(size_bytes, flags, NULL);
   if (ret != SB_MEMORY_MAP_FAILED) {
     SbAtomicNoBarrier_Increment(&s_tracked_page_count,
@@ -73,7 +73,7 @@ void* SbPageMap(size_t size_bytes, int flags, const char* /*unused_name*/) {
 
 void* SbPageMapUntracked(size_t size_bytes,
                          int flags,
-                         const char* /*unused_name*/) {
+                         const char* unused_name) {
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   if (flags & kSbMemoryMapProtectExec) {
     // Cobalt does not allow mapping executable memory directly.

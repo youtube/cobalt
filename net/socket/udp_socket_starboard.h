@@ -313,8 +313,8 @@ class NET_EXPORT UDPSocketStarboard {
 
     // MessageLoopCurrentForIO::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket /*socket*/) override{};
-    void OnSocketReadyToWrite(SbSocket /*socket*/) override;
+    void OnSocketReadyToRead(SbSocket socket) override{};
+    void OnSocketReadyToWrite(SbSocket socket) override;
 
     void set_watching(bool watching) { watching_ = watching; }
 
@@ -355,8 +355,8 @@ class NET_EXPORT UDPSocketStarboard {
 
     // MessageLoopCurrentForIO::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket /*socket*/) override;
-    void OnSocketReadyToWrite(SbSocket /*socket*/) override{};
+    void OnSocketReadyToRead(SbSocket socket) override;
+    void OnSocketReadyToWrite(SbSocket socket) override{};
 
    private:
     UDPSocketStarboard* const socket_;
@@ -370,8 +370,8 @@ class NET_EXPORT UDPSocketStarboard {
 
     // MessageLoopCurrentForIO::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket /*socket*/) override{};
-    void OnSocketReadyToWrite(SbSocket /*socket*/) override;
+    void OnSocketReadyToRead(SbSocket socket) override{};
+    void OnSocketReadyToWrite(SbSocket socket) override;
 
    private:
     UDPSocketStarboard* const socket_;

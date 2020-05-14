@@ -233,8 +233,8 @@ void GoogleSpeechService::RecognizeAudio(
 //       called by OnURLFetchDownloadProgress() and OnURLFetchComplete(), to
 //       explicitly remove the unreferenced parameters.
 void GoogleSpeechService::OnURLFetchDownloadProgress(
-    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
-    int64_t /*current_network_bytes*/) {
+    const net::URLFetcher* source, int64_t current, int64_t total,
+    int64_t current_network_bytes) {
   DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
   std::string data;
   download_data_writer_->GetAndResetData(&data);

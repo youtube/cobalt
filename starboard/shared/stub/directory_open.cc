@@ -14,6 +14,6 @@
 
 #include "starboard/directory.h"
 
-SbDirectory SbDirectoryOpen(const char* /*path*/, SbFileError* /*out_error*/) {
+SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   return kSbDirectoryInvalid;
 }

@@ -14,8 +14,8 @@
 
 #include "starboard/common/storage.h"
 
-int64_t SbStorageReadRecord(SbStorageRecord /*record*/,
-                            char* /*out_data*/,
-                            int64_t /*data_size*/) {
+int64_t SbStorageReadRecord(SbStorageRecord record,
+                            char* out_data,
+                            int64_t data_size) {
   return -1;
 }

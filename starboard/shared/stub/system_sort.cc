@@ -14,8 +14,7 @@
 
 #include "starboard/system.h"
 
-void SbSystemSort(void* /*base*/,
-                  size_t /*element_count*/,
-                  size_t /*element_width*/,
-                  SbSystemComparator /*comparator*/) {
-}
+void SbSystemSort(void* base,
+                  size_t element_count,
+                  size_t element_width,
+                  SbSystemComparator comparator) {}

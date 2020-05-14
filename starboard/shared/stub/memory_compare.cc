@@ -14,7 +14,6 @@
 
 #include "starboard/memory.h"
 
-int SbMemoryCompare(const void* /*buffer1*/, const void* /*buffer2*/,
-                    size_t /*count*/) {
+int SbMemoryCompare(const void* buffer1, const void* buffer2, size_t count) {
   return 0;
 }

@@ -520,8 +520,7 @@ void Element::set_inner_html(const std::string& inner_html) {
 
 // Algorithm for outer_html:
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
-std::string Element::outer_html(
-    script::ExceptionState* /*exception_state*/) const {
+std::string Element::outer_html(script::ExceptionState* exception_state) const {
   TRACK_MEMORY_SCOPE("DOM");
   std::ostringstream oss;
   Serializer serializer(&oss);

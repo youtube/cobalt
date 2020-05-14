@@ -14,8 +14,6 @@
 
 #include "starboard/file.h"
 
-int64_t SbFileSeek(SbFile /*file*/,
-                   SbFileWhence /*whence*/,
-                   int64_t /*offset*/) {
+int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
   return 0;
 }

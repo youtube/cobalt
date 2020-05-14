@@ -14,6 +14,6 @@
 
 #include "starboard/common/condition_variable.h"
 
-bool SbConditionVariableSignal(SbConditionVariable* /*condition*/) {
+bool SbConditionVariableSignal(SbConditionVariable* condition) {
   return false;
 }

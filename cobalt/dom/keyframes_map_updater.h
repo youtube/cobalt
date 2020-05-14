@@ -50,14 +50,14 @@ class KeyframesMapUpdater : public cssom::CSSRuleVisitor {
       const scoped_refptr<cssom::StyleSheetList>& style_sheet_list);
 
  private:
-  void VisitCSSStyleRule(cssom::CSSStyleRule* /*css_style_rule*/) override {}
+  void VisitCSSStyleRule(cssom::CSSStyleRule* css_style_rule) override {}
   void VisitCSSFontFaceRule(
-      cssom::CSSFontFaceRule* /*css_font_face_rule*/) override {}
-  void VisitCSSMediaRule(cssom::CSSMediaRule* /*css_media_rule*/) override {}
+      cssom::CSSFontFaceRule* css_font_face_rule) override {}
+  void VisitCSSMediaRule(cssom::CSSMediaRule* css_media_rule) override {}
   void VisitCSSKeyframeRule(
-      cssom::CSSKeyframeRule* /*css_keyframe_rule*/) override {}
+      cssom::CSSKeyframeRule* css_keyframe_rule) override {}
   void VisitCSSKeyframesRule(
-      cssom::CSSKeyframesRule* /*css_keyframes_rule*/) override;
+      cssom::CSSKeyframesRule* css_keyframes_rule) override;
 
   cssom::CSSKeyframesRule::NameMap* keyframes_map_;
 

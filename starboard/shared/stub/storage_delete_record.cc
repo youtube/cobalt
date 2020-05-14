@@ -14,6 +14,6 @@
 
 #include "starboard/common/storage.h"
 
-bool SbStorageDeleteRecord(SbUser /*user*/, const char* /*name*/) {
+bool SbStorageDeleteRecord(SbUser user, const char* name) {
   return false;
 }

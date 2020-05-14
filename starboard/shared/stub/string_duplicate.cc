@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-char* SbStringDuplicate(const char* /*source*/) {
+char* SbStringDuplicate(const char* source) {
   return NULL;
 }

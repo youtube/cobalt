@@ -14,6 +14,6 @@
 
 #include "starboard/thread.h"
 
-bool SbThreadIsEqual(SbThread /*thread1*/, SbThread /*thread2*/) {
+bool SbThreadIsEqual(SbThread thread1, SbThread thread2) {
   return false;
 }

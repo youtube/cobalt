@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileClose(SbFile /*file*/) {
+bool SbFileClose(SbFile file) {
   return false;
 }

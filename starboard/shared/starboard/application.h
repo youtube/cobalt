@@ -284,13 +284,13 @@ class Application {
 
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
-  virtual void AcceptFrame(SbPlayer /* player */,
-                           const scoped_refptr<VideoFrame>& /* frame */,
-                           int /* z_index */,
-                           int /* x */,
-                           int /* y */,
-                           int /* width */,
-                           int /* height */) {}
+  virtual void AcceptFrame(SbPlayer player,
+                           const scoped_refptr<VideoFrame>& frame,
+                           int z_index,
+                           int x,
+                           int y,
+                           int width,
+                           int height) {}
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

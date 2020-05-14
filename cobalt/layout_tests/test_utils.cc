@@ -21,7 +21,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "url/gurl.h"
 
-namespace cobalt {
+    namespace cobalt {
 namespace layout_tests {
 
 namespace {
@@ -60,9 +60,8 @@ LogFilter::~LogFilter() {
 
 void LogFilter::Add(const std::string& s) { filtered_strings_.insert(s); }
 
-bool LogFilter::OnLogMessage(int /*severity*/, const char* /*file*/,
-                             int /*line*/, size_t message_start,
-                             const std::string& str) {
+bool LogFilter::OnLogMessage(int severity, const char* file, int line,
+                             size_t message_start, const std::string& str) {
   std::string trimmed_message = str.substr(message_start);
   TrimWhitespaceASCII(trimmed_message, base::TRIM_ALL, &trimmed_message);
   if (filtered_strings_.find(trimmed_message) != filtered_strings_.end()) {

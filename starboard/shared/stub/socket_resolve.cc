@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-SbSocketResolution* SbSocketResolve(const char* /*hostname*/, int /*filters*/) {
+SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   return NULL;
 }

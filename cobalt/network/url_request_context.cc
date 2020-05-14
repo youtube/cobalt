@@ -195,7 +195,7 @@ void URLRequestContext::DisableQuic() {
 }
 
 #if defined(ENABLE_DEBUGGER)
-void URLRequestContext::OnQuicToggle(const std::string& /*message*/) {
+void URLRequestContext::OnQuicToggle(const std::string& message) {
   DCHECK(storage_.http_network_session());
   storage_.http_network_session()->ToggleQuic();
 }

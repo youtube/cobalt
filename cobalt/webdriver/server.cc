@@ -209,7 +209,7 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
   }
 }
 
-void WebDriverServer::OnConnect(int /*connection_id*/) {}
+void WebDriverServer::OnConnect(int connection_id) {}
 
 void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {

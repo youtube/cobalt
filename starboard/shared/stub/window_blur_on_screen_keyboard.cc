@@ -16,6 +16,6 @@
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
 
-void SbWindowBlurOnScreenKeyboard(SbWindow /* window */, int /* ticket */) {}
+void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket) {}
 
 #endif

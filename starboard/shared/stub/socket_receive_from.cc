@@ -14,9 +14,9 @@
 
 #include "starboard/common/socket.h"
 
-int SbSocketReceiveFrom(SbSocket /*socket*/,
-                        char* /*out_data*/,
-                        int /*data_size*/,
-                        SbSocketAddress* /*out_source*/) {
+int SbSocketReceiveFrom(SbSocket socket,
+                        char* out_data,
+                        int data_size,
+                        SbSocketAddress* out_source) {
   return -1;
 }

@@ -14,9 +14,9 @@
 
 #include "starboard/file.h"
 
-SbFile SbFileOpen(const char* /*path*/,
-                  int /*flags*/,
-                  bool* /*out_created*/,
-                  SbFileError* /*out_error*/) {
+SbFile SbFileOpen(const char* path,
+                  int flags,
+                  bool* out_created,
+                  SbFileError* out_error) {
   return kSbFileInvalid;
 }

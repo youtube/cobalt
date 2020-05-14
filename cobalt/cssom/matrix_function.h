@@ -43,9 +43,9 @@ class MatrixFunction : public TransformFunction {
 
   std::string ToString() const override;
 
-  math::Matrix3F ToMatrix(const math::SizeF& /* used_size */,
-      const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
-      const override {
+  math::Matrix3F ToMatrix(const math::SizeF& used_size,
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override {
     return value_;
   }
 
