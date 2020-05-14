@@ -32,15 +32,15 @@
 /**
  * @unrestricted
  */
-UI.SearchableView = class extends UI.VBox {
+export default class SearchableView extends UI.VBox {
   /**
-   * @param {!UI.Searchable} searchable
+   * @param {!Searchable} searchable
    * @param {string=} settingName
    */
   constructor(searchable, settingName) {
     super(true);
     this.registerRequiredCSS('ui/searchableView.css');
-    this.element[UI.SearchableView._symbol] = this;
+    this.element[_symbol] = this;
 
     this._searchProvider = searchable;
     this._setting = settingName ? Common.settings.createSetting(settingName, {}) : null;
@@ -129,12 +129,12 @@ UI.SearchableView = class extends UI.VBox {
 
   /**
    * @param {?Element} element
-   * @return {?UI.SearchableView}
+   * @return {?SearchableView}
    */
   static fromElement(element) {
     let view = null;
     while (element && !view) {
-      view = element[UI.SearchableView._symbol];
+      view = element[_symbol];
       element = element.parentElementOrShadowHost();
     }
     return view;
@@ -158,8 +158,9 @@ UI.SearchableView = class extends UI.VBox {
   }
 
   _saveSetting() {
-    if (!this._setting)
+    if (!this._setting) {
       return;
+    }
     const settingValue = this._setting.get() || {};
     settingValue.caseSensitive = this._caseSensitiveButton.toggled();
     settingValue.isRegex = this._regexButton.toggled();
@@ -168,10 +169,12 @@ UI.SearchableView = class extends UI.VBox {
 
   _loadSetting() {
     const settingValue = this._setting ? (this._setting.get() || {}) : {};
-    if (this._searchProvider.supportsCaseSensitiveSearch())
+    if (this._searchProvider.supportsCaseSensitiveSearch()) {
       this._caseSensitiveButton.setToggled(!!settingValue.caseSensitive);
-    if (this._searchProvider.supportsRegexSearch())
+    }
+    if (this._searchProvider.supportsRegexSearch()) {
       this._regexButton.setToggled(!!settingValue.isRegex);
+    }
   }
 
   /**
@@ -197,16 +200,19 @@ UI.SearchableView = class extends UI.VBox {
 
   /**
    * @param {number} matches
+   * @suppress {checkTypes}
    */
   updateSearchMatchesCount(matches) {
-    if (this._searchProvider.currentSearchMatches === matches)
+    if (this._searchProvider.currentSearchMatches === matches) {
       return;
+    }
     this._searchProvider.currentSearchMatches = matches;
     this._updateSearchMatchesCountAndCurrentMatchIndex(this._searchProvider.currentQuery ? matches : 0, -1);
   }
 
   /**
    * @param {number} currentMatchIndex
+   * @suppress {checkTypes}
    */
   updateCurrentMatchIndex(currentMatchIndex) {
     this._updateSearchMatchesCountAndCurrentMatchIndex(this._searchProvider.currentSearchMatches, currentMatchIndex);
@@ -221,8 +227,9 @@ UI.SearchableView = class extends UI.VBox {
 
   closeSearch() {
     this.cancelSearch();
-    if (this._footerElementContainer.hasFocus())
+    if (this._footerElementContainer.hasFocus()) {
       this.focus();
+    }
   }
 
   _toggleSearchBar(toggled) {
@@ -231,8 +238,9 @@ UI.SearchableView = class extends UI.VBox {
   }
 
   cancelSearch() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return;
+    }
     this.resetSearch();
     delete this._searchIsVisible;
     this._toggleSearchBar(false);
@@ -245,8 +253,9 @@ UI.SearchableView = class extends UI.VBox {
   }
 
   refreshSearch() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return;
+    }
     this.resetSearch();
     this._performSearch(false, false);
   }
@@ -255,8 +264,9 @@ UI.SearchableView = class extends UI.VBox {
    * @return {boolean}
    */
   handleFindNextShortcut() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return false;
+    }
     this._searchProvider.jumpToNextSearchResult();
     return true;
   }
@@ -265,8 +275,9 @@ UI.SearchableView = class extends UI.VBox {
    * @return {boolean}
    */
   handleFindPreviousShortcut() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return false;
+    }
     this._searchProvider.jumpToPreviousSearchResult();
     return true;
   }
@@ -283,8 +294,9 @@ UI.SearchableView = class extends UI.VBox {
    * @return {boolean}
    */
   handleCancelSearchShortcut() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return false;
+    }
     this.closeSearch();
     return true;
   }
@@ -304,32 +316,36 @@ UI.SearchableView = class extends UI.VBox {
    * @param {number} currentMatchIndex
    */
   _updateSearchMatchesCountAndCurrentMatchIndex(matches, currentMatchIndex) {
-    if (!this._currentQuery)
+    if (!this._currentQuery) {
       this._matchesElement.textContent = '';
-    else if (matches === 0 || currentMatchIndex >= 0)
+    } else if (matches === 0 || currentMatchIndex >= 0) {
       this._matchesElement.textContent = Common.UIString('%d of %d', currentMatchIndex + 1, matches);
-    else if (matches === 1)
+    } else if (matches === 1) {
       this._matchesElement.textContent = Common.UIString('1 match');
-    else
+    } else {
       this._matchesElement.textContent = Common.UIString('%d matches', matches);
+    }
     this._updateSearchNavigationButtonState(matches > 0);
   }
 
   showSearchField() {
-    if (this._searchIsVisible)
+    if (this._searchIsVisible) {
       this.cancelSearch();
+    }
 
     let queryCandidate;
     if (!this._searchInputElement.hasFocus()) {
       const selection = UI.inspectorView.element.window().getSelection();
-      if (selection.rangeCount)
+      if (selection.rangeCount) {
         queryCandidate = selection.toString().replace(/\r?\n.*/, '');
+      }
     }
 
     this._toggleSearchBar(true);
     this._updateReplaceVisibility();
-    if (queryCandidate)
+    if (queryCandidate) {
       this._searchInputElement.value = queryCandidate;
+    }
     this._performSearch(false, false);
     this._searchInputElement.focus();
     this._searchInputElement.select();
@@ -353,66 +369,76 @@ UI.SearchableView = class extends UI.VBox {
       event.consume(true);
       return;
     }
-    if (!isEnterKey(event))
+    if (!isEnterKey(event)) {
       return;
+    }
 
-    if (!this._currentQuery)
+    if (!this._currentQuery) {
       this._performSearch(true, true, event.shiftKey);
-    else
+    } else {
       this._jumpToNextSearchResult(event.shiftKey);
+    }
   }
 
   /**
    * @param {!Event} event
    */
   _onReplaceKeyDown(event) {
-    if (isEnterKey(event))
+    if (isEnterKey(event)) {
       this._replace();
+    }
   }
 
   /**
    * @param {boolean=} isBackwardSearch
    */
   _jumpToNextSearchResult(isBackwardSearch) {
-    if (!this._currentQuery || !this._searchNavigationPrevElement.classList.contains('enabled'))
+    if (!this._currentQuery) {
       return;
+    }
 
-    if (isBackwardSearch)
+    if (isBackwardSearch) {
       this._searchProvider.jumpToPreviousSearchResult();
-    else
+    } else {
       this._searchProvider.jumpToNextSearchResult();
+    }
   }
 
   _onNextButtonSearch(event) {
-    if (!this._searchNavigationNextElement.classList.contains('enabled'))
+    if (!this._searchNavigationNextElement.classList.contains('enabled')) {
       return;
+    }
     this._jumpToNextSearchResult();
     this._searchInputElement.focus();
   }
 
   _onPrevButtonSearch(event) {
-    if (!this._searchNavigationPrevElement.classList.contains('enabled'))
+    if (!this._searchNavigationPrevElement.classList.contains('enabled')) {
       return;
+    }
     this._jumpToNextSearchResult(true);
     this._searchInputElement.focus();
   }
 
   _onFindClick(event) {
-    if (!this._currentQuery)
+    if (!this._currentQuery) {
       this._performSearch(true, true);
-    else
+    } else {
       this._jumpToNextSearchResult();
+    }
     this._searchInputElement.focus();
   }
 
   _onPreviousClick(event) {
-    if (!this._currentQuery)
+    if (!this._currentQuery) {
       this._performSearch(true, true, true);
-    else
+    } else {
       this._jumpToNextSearchResult(true);
+    }
     this._searchInputElement.focus();
   }
 
+  /** @suppress {checkTypes} */
   _clearSearch() {
     delete this._currentQuery;
     if (!!this._searchProvider.currentQuery) {
@@ -426,6 +452,7 @@ UI.SearchableView = class extends UI.VBox {
    * @param {boolean} forceSearch
    * @param {boolean} shouldJump
    * @param {boolean=} jumpBackwards
+   * @suppress {checkTypes}
    */
   _performSearch(forceSearch, shouldJump, jumpBackwards) {
     const query = this._searchInputElement.value;
@@ -442,13 +469,13 @@ UI.SearchableView = class extends UI.VBox {
   }
 
   /**
-   * @return {!UI.SearchableView.SearchConfig}
+   * @return {!SearchConfig}
    */
   _currentSearchConfig() {
     const query = this._searchInputElement.value;
     const caseSensitive = this._caseSensitiveButton ? this._caseSensitiveButton.toggled() : false;
     const isRegex = this._regexButton ? this._regexButton.toggled() : false;
-    return new UI.SearchableView.SearchConfig(query, caseSensitive, isRegex);
+    return new SearchConfig(query, caseSensitive, isRegex);
   }
 
   _updateSecondRowVisibility() {
@@ -457,10 +484,11 @@ UI.SearchableView = class extends UI.VBox {
     this._secondRowButtons.classList.toggle('hidden', !secondRowVisible);
     this._replaceInputElement.classList.toggle('hidden', !secondRowVisible);
 
-    if (secondRowVisible)
+    if (secondRowVisible) {
       this._replaceInputElement.focus();
-    else
+    } else {
       this._searchInputElement.focus();
+    }
     this.doResize();
   }
 
@@ -481,77 +509,80 @@ UI.SearchableView = class extends UI.VBox {
    * @param {!Event} event
    */
   _onInput(event) {
-    if (this._valueChangedTimeoutId)
+    if (this._valueChangedTimeoutId) {
       clearTimeout(this._valueChangedTimeoutId);
+    }
     const timeout = this._searchInputElement.value.length < 3 ? 200 : 0;
     this._valueChangedTimeoutId = setTimeout(this._onValueChanged.bind(this), timeout);
   }
 
   _onValueChanged() {
-    if (!this._searchIsVisible)
+    if (!this._searchIsVisible) {
       return;
+    }
     delete this._valueChangedTimeoutId;
     this._performSearch(false, true);
   }
-};
+}
 
-
-UI.SearchableView._symbol = Symbol('searchableView');
+export const _symbol = Symbol('searchableView');
 
 
 /**
  * @interface
  */
-UI.Searchable = function() {};
-
-UI.Searchable.prototype = {
-  searchCanceled() {},
+export class Searchable {
+  searchCanceled() {
+  }
 
   /**
-   * @param {!UI.SearchableView.SearchConfig} searchConfig
+   * @param {!SearchConfig} searchConfig
    * @param {boolean} shouldJump
    * @param {boolean=} jumpBackwards
    */
-  performSearch(searchConfig, shouldJump, jumpBackwards) {},
+  performSearch(searchConfig, shouldJump, jumpBackwards) {
+  }
 
-  jumpToNextSearchResult() {},
+  jumpToNextSearchResult() {
+  }
 
-  jumpToPreviousSearchResult() {},
+  jumpToPreviousSearchResult() {
+  }
 
   /**
    * @return {boolean}
    */
-  supportsCaseSensitiveSearch() {},
+  supportsCaseSensitiveSearch() {
+  }
 
   /**
    * @return {boolean}
    */
   supportsRegexSearch() {}
-};
+}
 
 /**
  * @interface
  */
-UI.Replaceable = function() {};
-
-UI.Replaceable.prototype = {
+export class Replaceable {
   /**
-   * @param {!UI.SearchableView.SearchConfig} searchConfig
+   * @param {!SearchConfig} searchConfig
    * @param {string} replacement
    */
-  replaceSelectionWith(searchConfig, replacement) {},
+  replaceSelectionWith(searchConfig, replacement) {
+  }
 
   /**
-   * @param {!UI.SearchableView.SearchConfig} searchConfig
+   * @param {!SearchConfig} searchConfig
    * @param {string} replacement
    */
   replaceAllWith(searchConfig, replacement) {}
-};
+}
 
 /**
  * @unrestricted
  */
-UI.SearchableView.SearchConfig = class {
+export class SearchConfig {
   /**
    * @param {string} query
    * @param {boolean} caseSensitive
@@ -569,8 +600,9 @@ UI.SearchableView.SearchConfig = class {
    */
   toSearchRegex(global) {
     let modifiers = this.caseSensitive ? '' : 'i';
-    if (global)
+    if (global) {
       modifiers += 'g';
+    }
     const query = this.isRegex ? '/' + this.query + '/' : this.query;
 
     let regex;
@@ -586,9 +618,30 @@ UI.SearchableView.SearchConfig = class {
     }
 
     // Otherwise just do a plain text search.
-    if (!regex)
+    if (!regex) {
       regex = createPlainTextSearchRegex(query, modifiers);
+    }
 
     return regex;
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.SearchableView = SearchableView;
+
+/**
+ * @constructor
+ */
+UI.SearchableView.SearchConfig = SearchConfig;
+
+/** @interface */
+UI.Searchable = Searchable;
+
+/** @interface */
+UI.Replaceable = Replaceable;

@@ -27,17 +27,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-UI.Geometry = {};
+
+const Geometry = {};
+
+export default Geometry;
 
 /**
  * @type {number}
  */
-UI.Geometry._Eps = 1e-5;
+export const _Eps = 1e-5;
 
 /**
  * @unrestricted
  */
-UI.Geometry.Vector = class {
+export class Vector {
   /**
    * @param {number} x
    * @param {number} y
@@ -58,19 +61,20 @@ UI.Geometry.Vector = class {
 
   normalize() {
     const length = this.length();
-    if (length <= UI.Geometry._Eps)
+    if (length <= UI.Geometry._Eps) {
       return;
+    }
 
     this.x /= length;
     this.y /= length;
     this.z /= length;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.Geometry.Point = class {
+export class Point {
   /**
    * @param {number} x
    * @param {number} y
@@ -81,7 +85,7 @@ UI.Geometry.Point = class {
   }
 
   /**
-   * @param {!UI.Geometry.Point} p
+   * @param {!Point} p
    * @return {number}
    */
   distanceTo(p) {
@@ -89,21 +93,22 @@ UI.Geometry.Point = class {
   }
 
   /**
-   * @param {!UI.Geometry.Point} line
-   * @return {!UI.Geometry.Point}
+   * @param {!Point} line
+   * @return {!Point}
    */
   projectOn(line) {
-    if (line.x === 0 && line.y === 0)
-      return new UI.Geometry.Point(0, 0);
+    if (line.x === 0 && line.y === 0) {
+      return new Point(0, 0);
+    }
     return line.scale((this.x * line.x + this.y * line.y) / (Math.pow(line.x, 2) + Math.pow(line.y, 2)));
   }
 
   /**
    * @param {number} scalar
-   * @return {!UI.Geometry.Point}
+   * @return {!Point}
    */
   scale(scalar) {
-    return new UI.Geometry.Point(this.x * scalar, this.y * scalar);
+    return new Point(this.x * scalar, this.y * scalar);
   }
 
   /**
@@ -113,15 +118,15 @@ UI.Geometry.Point = class {
   toString() {
     return Math.round(this.x * 100) / 100 + ', ' + Math.round(this.y * 100) / 100;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.Geometry.CubicBezier = class {
+export class CubicBezier {
   /**
-   * @param {!UI.Geometry.Point} point1
-   * @param {!UI.Geometry.Point} point2
+   * @param {!Point} point1
+   * @param {!Point} point2
    */
   constructor(point1, point2) {
     this.controlPoints = [point1, point2];
@@ -129,26 +134,27 @@ UI.Geometry.CubicBezier = class {
 
   /**
    * @param {string} text
-   * @return {?UI.Geometry.CubicBezier}
+   * @return {?CubicBezier}
    */
   static parse(text) {
-    const keywordValues = UI.Geometry.CubicBezier.KeywordValues;
+    const keywordValues = CubicBezier.KeywordValues;
     const value = text.toLowerCase().replace(/\s+/g, '');
-    if (Object.keys(keywordValues).indexOf(value) !== -1)
-      return UI.Geometry.CubicBezier.parse(keywordValues[value]);
+    if (Object.keys(keywordValues).indexOf(value) !== -1) {
+      return CubicBezier.parse(keywordValues[value]);
+    }
     const bezierRegex = /^cubic-bezier\(([^,]+),([^,]+),([^,]+),([^,]+)\)$/;
     const match = value.match(bezierRegex);
     if (match) {
-      const control1 = new UI.Geometry.Point(parseFloat(match[1]), parseFloat(match[2]));
-      const control2 = new UI.Geometry.Point(parseFloat(match[3]), parseFloat(match[4]));
-      return new UI.Geometry.CubicBezier(control1, control2);
+      const control1 = new Point(parseFloat(match[1]), parseFloat(match[2]));
+      const control2 = new Point(parseFloat(match[3]), parseFloat(match[4]));
+      return new CubicBezier(control1, control2);
     }
     return null;
   }
 
   /**
    * @param {number} t
-   * @return {!UI.Geometry.Point}
+   * @return {!Point}
    */
   evaluateAt(t) {
     /**
@@ -162,7 +168,7 @@ UI.Geometry.CubicBezier = class {
 
     const x = evaluate(this.controlPoints[0].x, this.controlPoints[1].x, t);
     const y = evaluate(this.controlPoints[0].y, this.controlPoints[1].y, t);
-    return new UI.Geometry.Point(x, y);
+    return new Point(x, y);
   }
 
   /**
@@ -170,19 +176,20 @@ UI.Geometry.CubicBezier = class {
    */
   asCSSText() {
     const raw = 'cubic-bezier(' + this.controlPoints.join(', ') + ')';
-    const keywordValues = UI.Geometry.CubicBezier.KeywordValues;
+    const keywordValues = CubicBezier.KeywordValues;
     for (const keyword in keywordValues) {
-      if (raw === keywordValues[keyword])
+      if (raw === keywordValues[keyword]) {
         return keyword;
+      }
     }
     return raw;
   }
-};
+}
 
 /** @type {!RegExp} */
-UI.Geometry.CubicBezier.Regex = /((cubic-bezier\([^)]+\))|\b(linear|ease-in-out|ease-in|ease-out|ease)\b)/g;
+CubicBezier.Regex = /((cubic-bezier\([^)]+\))|\b(linear|ease-in-out|ease-in|ease-out|ease)\b)/g;
 
-UI.Geometry.CubicBezier.KeywordValues = {
+CubicBezier.KeywordValues = {
   'linear': 'cubic-bezier(0, 0, 1, 1)',
   'ease': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
   'ease-in': 'cubic-bezier(0.42, 0, 1, 1)',
@@ -190,11 +197,10 @@ UI.Geometry.CubicBezier.KeywordValues = {
   'ease-out': 'cubic-bezier(0, 0, 0.58, 1)'
 };
 
-
 /**
  * @unrestricted
  */
-UI.Geometry.EulerAngles = class {
+export class EulerAngles {
   /**
    * @param {number} alpha
    * @param {number} beta
@@ -208,7 +214,7 @@ UI.Geometry.EulerAngles = class {
 
   /**
    * @param {!CSSMatrix} rotationMatrix
-   * @return {!UI.Geometry.EulerAngles}
+   * @return {!EulerAngles}
    */
   static fromRotationMatrix(rotationMatrix) {
     const beta = Math.atan2(rotationMatrix.m23, rotationMatrix.m33);
@@ -216,91 +222,91 @@ UI.Geometry.EulerAngles = class {
         -rotationMatrix.m13,
         Math.sqrt(rotationMatrix.m11 * rotationMatrix.m11 + rotationMatrix.m12 * rotationMatrix.m12));
     const alpha = Math.atan2(rotationMatrix.m12, rotationMatrix.m11);
-    return new UI.Geometry.EulerAngles(
-        UI.Geometry.radiansToDegrees(alpha), UI.Geometry.radiansToDegrees(beta), UI.Geometry.radiansToDegrees(gamma));
+    return new EulerAngles(radiansToDegrees(alpha), radiansToDegrees(beta), radiansToDegrees(gamma));
   }
 
   /**
    * @return {string}
    */
   toRotate3DString() {
-    const gammaAxisY = -Math.sin(UI.Geometry.degreesToRadians(this.beta));
-    const gammaAxisZ = Math.cos(UI.Geometry.degreesToRadians(this.beta));
+    const gammaAxisY = -Math.sin(degreesToRadians(this.beta));
+    const gammaAxisZ = Math.cos(degreesToRadians(this.beta));
     const axis = {alpha: [0, 1, 0], beta: [-1, 0, 0], gamma: [0, gammaAxisY, gammaAxisZ]};
     return 'rotate3d(' + axis.alpha.join(',') + ',' + this.alpha + 'deg) ' +
         'rotate3d(' + axis.beta.join(',') + ',' + this.beta + 'deg) ' +
         'rotate3d(' + axis.gamma.join(',') + ',' + this.gamma + 'deg)';
   }
-};
-
+}
 
 /**
- * @param {!UI.Geometry.Vector} u
- * @param {!UI.Geometry.Vector} v
+ * @param {!Vector} u
+ * @param {!Vector} v
  * @return {number}
  */
-UI.Geometry.scalarProduct = function(u, v) {
+export const scalarProduct = function(u, v) {
   return u.x * v.x + u.y * v.y + u.z * v.z;
 };
 
 /**
- * @param {!UI.Geometry.Vector} u
- * @param {!UI.Geometry.Vector} v
- * @return {!UI.Geometry.Vector}
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {!Vector}
  */
-UI.Geometry.crossProduct = function(u, v) {
+export const crossProduct = function(u, v) {
   const x = u.y * v.z - u.z * v.y;
   const y = u.z * v.x - u.x * v.z;
   const z = u.x * v.y - u.y * v.x;
-  return new UI.Geometry.Vector(x, y, z);
+  return new Vector(x, y, z);
 };
 
 /**
- * @param {!UI.Geometry.Vector} u
- * @param {!UI.Geometry.Vector} v
- * @return {!UI.Geometry.Vector}
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {!Vector}
  */
-UI.Geometry.subtract = function(u, v) {
+export const subtract = function(u, v) {
   const x = u.x - v.x;
   const y = u.y - v.y;
   const z = u.z - v.z;
-  return new UI.Geometry.Vector(x, y, z);
+  return new Vector(x, y, z);
 };
 
 /**
- * @param {!UI.Geometry.Vector} v
+ * @param {!Vector} v
  * @param {!CSSMatrix} m
- * @return {!UI.Geometry.Vector}
+ * @return {!Vector}
  */
-UI.Geometry.multiplyVectorByMatrixAndNormalize = function(v, m) {
+export const multiplyVectorByMatrixAndNormalize = function(v, m) {
   const t = v.x * m.m14 + v.y * m.m24 + v.z * m.m34 + m.m44;
   const x = (v.x * m.m11 + v.y * m.m21 + v.z * m.m31 + m.m41) / t;
   const y = (v.x * m.m12 + v.y * m.m22 + v.z * m.m32 + m.m42) / t;
   const z = (v.x * m.m13 + v.y * m.m23 + v.z * m.m33 + m.m43) / t;
-  return new UI.Geometry.Vector(x, y, z);
+  return new Vector(x, y, z);
 };
 
 /**
- * @param {!UI.Geometry.Vector} u
- * @param {!UI.Geometry.Vector} v
+ * @param {!Vector} u
+ * @param {!Vector} v
  * @return {number}
  */
-UI.Geometry.calculateAngle = function(u, v) {
+export const calculateAngle = function(u, v) {
   const uLength = u.length();
   const vLength = v.length();
-  if (uLength <= UI.Geometry._Eps || vLength <= UI.Geometry._Eps)
+  if (uLength <= _Eps || vLength <= _Eps) {
     return 0;
-  const cos = UI.Geometry.scalarProduct(u, v) / uLength / vLength;
-  if (Math.abs(cos) > 1)
+  }
+  const cos = scalarProduct(u, v) / uLength / vLength;
+  if (Math.abs(cos) > 1) {
     return 0;
-  return UI.Geometry.radiansToDegrees(Math.acos(cos));
+  }
+  return radiansToDegrees(Math.acos(cos));
 };
 
 /**
  * @param {number} deg
  * @return {number}
  */
-UI.Geometry.degreesToRadians = function(deg) {
+export const degreesToRadians = function(deg) {
   return deg * Math.PI / 180;
 };
 
@@ -308,7 +314,7 @@ UI.Geometry.degreesToRadians = function(deg) {
  * @param {number} rad
  * @return {number}
  */
-UI.Geometry.radiansToDegrees = function(rad) {
+export const radiansToDegrees = function(rad) {
   return rad * 180 / Math.PI;
 };
 
@@ -318,13 +324,15 @@ UI.Geometry.radiansToDegrees = function(rad) {
  * @param {{minX: number, maxX: number, minY: number, maxY: number}=} aggregateBounds
  * @return {!{minX: number, maxX: number, minY: number, maxY: number}}
  */
-UI.Geometry.boundsForTransformedPoints = function(matrix, points, aggregateBounds) {
-  if (!aggregateBounds)
+export const boundsForTransformedPoints = function(matrix, points, aggregateBounds) {
+  if (!aggregateBounds) {
     aggregateBounds = {minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity};
-  if (points.length % 3)
+  }
+  if (points.length % 3) {
     console.assert('Invalid size of points array');
+  }
   for (let p = 0; p < points.length; p += 3) {
-    let vector = new UI.Geometry.Vector(points[p], points[p + 1], points[p + 2]);
+    let vector = new Vector(points[p], points[p + 1], points[p + 2]);
     vector = UI.Geometry.multiplyVectorByMatrixAndNormalize(vector, matrix);
     aggregateBounds.minX = Math.min(aggregateBounds.minX, vector.x);
     aggregateBounds.maxX = Math.max(aggregateBounds.maxX, vector.x);
@@ -337,7 +345,7 @@ UI.Geometry.boundsForTransformedPoints = function(matrix, points, aggregateBound
 /**
  * @unrestricted
  */
-UI.Size = class {
+export class Size {
   /**
    * @param {number} width
    * @param {number} height
@@ -348,68 +356,69 @@ UI.Size = class {
   }
 
   /**
-   * @param {?UI.Size} size
-   * @return {!UI.Size}
+   * @param {?Size} size
+   * @return {!Size}
    */
   clipTo(size) {
-    if (!size)
+    if (!size) {
       return this;
-    return new UI.Size(Math.min(this.width, size.width), Math.min(this.height, size.height));
+    }
+    return new Size(Math.min(this.width, size.width), Math.min(this.height, size.height));
   }
 
   /**
    * @param {number} scale
-   * @return {!UI.Size}
+   * @return {!Size}
    */
   scale(scale) {
-    return new UI.Size(this.width * scale, this.height * scale);
+    return new Size(this.width * scale, this.height * scale);
   }
-};
 
-/**
- * @param {?UI.Size} size
- * @return {boolean}
- */
-UI.Size.prototype.isEqual = function(size) {
-  return !!size && this.width === size.width && this.height === size.height;
-};
+  /**
+   * @param {?Size} size
+   * @return {boolean}
+   */
+  isEqual(size) {
+    return !!size && this.width === size.width && this.height === size.height;
+  }
 
-/**
- * @param {!UI.Size|number} size
- * @return {!UI.Size}
+  /**
+ * @param {!Size|number} size
+ * @return {!Size}
  */
-UI.Size.prototype.widthToMax = function(size) {
-  return new UI.Size(Math.max(this.width, (typeof size === 'number' ? size : size.width)), this.height);
-};
+  widthToMax(size) {
+    return new Size(Math.max(this.width, (typeof size === 'number' ? size : size.width)), this.height);
+  }
 
-/**
- * @param {!UI.Size|number} size
- * @return {!UI.Size}
+  /**
+ * @param {!Size|number} size
+ * @return {!Size}
  */
-UI.Size.prototype.addWidth = function(size) {
-  return new UI.Size(this.width + (typeof size === 'number' ? size : size.width), this.height);
-};
+  addWidth(size) {
+    return new Size(this.width + (typeof size === 'number' ? size : size.width), this.height);
+  }
 
-/**
- * @param {!UI.Size|number} size
- * @return {!UI.Size}
- */
-UI.Size.prototype.heightToMax = function(size) {
-  return new UI.Size(this.width, Math.max(this.height, (typeof size === 'number' ? size : size.height)));
-};
+  /**
+   * @param {!Size|number} size
+   * @return {!Size}
+   */
+  heightToMax(size) {
+    return new Size(this.width, Math.max(this.height, (typeof size === 'number' ? size : size.height)));
+  }
 
-/**
- * @param {!UI.Size|number} size
- * @return {!UI.Size}
- */
-UI.Size.prototype.addHeight = function(size) {
-  return new UI.Size(this.width, this.height + (typeof size === 'number' ? size : size.height));
-};
+  /**
+   * @param {!Size|number} size
+   * @return {!Size}
+   */
+  addHeight(size) {
+    return new Size(this.width, this.height + (typeof size === 'number' ? size : size.height));
+  }
+}
 
 /**
  * @unrestricted
  */
-UI.Insets = class {
+export class Insets {
   /**
    * @param {number} left
    * @param {number} top
@@ -424,19 +433,19 @@ UI.Insets = class {
   }
 
   /**
-   * @param {?UI.Insets} insets
+   * @param {?Insets} insets
    * @return {boolean}
    */
   isEqual(insets) {
     return !!insets && this.left === insets.left && this.top === insets.top && this.right === insets.right &&
         this.bottom === insets.bottom;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.Rect = class {
+export class Rect {
   /**
    * @param {number} left
    * @param {number} top
@@ -451,7 +460,7 @@ UI.Rect = class {
   }
 
   /**
-   * @param {?UI.Rect} rect
+   * @param {?Rect} rect
    * @return {boolean}
    */
   isEqual(rect) {
@@ -461,104 +470,209 @@ UI.Rect = class {
 
   /**
    * @param {number} scale
-   * @return {!UI.Rect}
+   * @return {!Rect}
    */
   scale(scale) {
-    return new UI.Rect(this.left * scale, this.top * scale, this.width * scale, this.height * scale);
+    return new Rect(this.left * scale, this.top * scale, this.width * scale, this.height * scale);
   }
 
   /**
-   * @return {!UI.Size}
+   * @return {!Size}
    */
   size() {
-    return new UI.Size(this.width, this.height);
+    return new Size(this.width, this.height);
   }
 
   /**
-   * @param {!UI.Rect} origin
-   * @return {!UI.Rect}
+   * @param {!Rect} origin
+   * @return {!Rect}
    */
   relativeTo(origin) {
-    return new UI.Rect(this.left - origin.left, this.top - origin.top, this.width, this.height);
+    return new Rect(this.left - origin.left, this.top - origin.top, this.width, this.height);
   }
 
   /**
-   * @param {!UI.Rect} origin
-   * @return {!UI.Rect}
+   * @param {!Rect} origin
+   * @return {!Rect}
    */
   rebaseTo(origin) {
-    return new UI.Rect(this.left + origin.left, this.top + origin.top, this.width, this.height);
+    return new Rect(this.left + origin.left, this.top + origin.top, this.width, this.height);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-UI.Constraints = class {
+export class Constraints {
   /**
-   * @param {!UI.Size=} minimum
-   * @param {?UI.Size=} preferred
+   * @param {!Size=} minimum
+   * @param {?Size=} preferred
    */
   constructor(minimum, preferred) {
     /**
-     * @type {!UI.Size}
+     * @type {!Size}
      */
-    this.minimum = minimum || new UI.Size(0, 0);
+    this.minimum = minimum || new Size(0, 0);
 
     /**
-     * @type {!UI.Size}
+     * @type {!Size}
      */
     this.preferred = preferred || this.minimum;
 
-    if (this.minimum.width > this.preferred.width || this.minimum.height > this.preferred.height)
+    if (this.minimum.width > this.preferred.width || this.minimum.height > this.preferred.height) {
       throw new Error('Minimum size is greater than preferred.');
+    }
   }
-};
+
+  /**
+   * @param {?Constraints} constraints
+   * @return {boolean}
+   */
+  isEqual(constraints) {
+    return !!constraints && this.minimum.isEqual(constraints.minimum) && this.preferred.isEqual(constraints.preferred);
+  }
+
+  /**
+   * @param {!Constraints|number} value
+   * @return {!Constraints}
+   */
+  widthToMax(value) {
+    if (typeof value === 'number') {
+      return new Constraints(this.minimum.widthToMax(value), this.preferred.widthToMax(value));
+    }
+    return new Constraints(this.minimum.widthToMax(value.minimum), this.preferred.widthToMax(value.preferred));
+  }
+
+  /**
+   * @param {!Constraints|number} value
+   * @return {!Constraints}
+   */
+  addWidth(value) {
+    if (typeof value === 'number') {
+      return new Constraints(this.minimum.addWidth(value), this.preferred.addWidth(value));
+    }
+    return new Constraints(this.minimum.addWidth(value.minimum), this.preferred.addWidth(value.preferred));
+  }
+
+  /**
+   * @param {!Constraints|number} value
+   * @return {!Constraints}
+   */
+  heightToMax(value) {
+    if (typeof value === 'number') {
+      return new Constraints(this.minimum.heightToMax(value), this.preferred.heightToMax(value));
+    }
+    return new Constraints(this.minimum.heightToMax(value.minimum), this.preferred.heightToMax(value.preferred));
+  }
+
+  /**
+   * @param {!Constraints|number} value
+   * @return {!Constraints}
+   */
+  addHeight(value) {
+    if (typeof value === 'number') {
+      return new Constraints(this.minimum.addHeight(value), this.preferred.addHeight(value));
+    }
+    return new Constraints(this.minimum.addHeight(value.minimum), this.preferred.addHeight(value.preferred));
+  }
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+UI.Geometry = Geometry;
 
 /**
- * @param {?UI.Constraints} constraints
- * @return {boolean}
+ * @type {number}
  */
-UI.Constraints.prototype.isEqual = function(constraints) {
-  return !!constraints && this.minimum.isEqual(constraints.minimum) && this.preferred.isEqual(constraints.preferred);
-};
+UI.Geometry._Eps = _Eps;
 
 /**
- * @param {!UI.Constraints|number} value
- * @return {!UI.Constraints}
+ * @constructor
  */
-UI.Constraints.prototype.widthToMax = function(value) {
-  if (typeof value === 'number')
-    return new UI.Constraints(this.minimum.widthToMax(value), this.preferred.widthToMax(value));
-  return new UI.Constraints(this.minimum.widthToMax(value.minimum), this.preferred.widthToMax(value.preferred));
-};
+UI.Geometry.Vector = Vector;
 
 /**
- * @param {!UI.Constraints|number} value
- * @return {!UI.Constraints}
+ * @constructor
  */
-UI.Constraints.prototype.addWidth = function(value) {
-  if (typeof value === 'number')
-    return new UI.Constraints(this.minimum.addWidth(value), this.preferred.addWidth(value));
-  return new UI.Constraints(this.minimum.addWidth(value.minimum), this.preferred.addWidth(value.preferred));
-};
+UI.Geometry.Point = Point;
 
 /**
- * @param {!UI.Constraints|number} value
- * @return {!UI.Constraints}
+ * @constructor
  */
-UI.Constraints.prototype.heightToMax = function(value) {
-  if (typeof value === 'number')
-    return new UI.Constraints(this.minimum.heightToMax(value), this.preferred.heightToMax(value));
-  return new UI.Constraints(this.minimum.heightToMax(value.minimum), this.preferred.heightToMax(value.preferred));
-};
+UI.Geometry.CubicBezier = CubicBezier;
 
 /**
- * @param {!UI.Constraints|number} value
- * @return {!UI.Constraints}
+ * @constructor
  */
-UI.Constraints.prototype.addHeight = function(value) {
-  if (typeof value === 'number')
-    return new UI.Constraints(this.minimum.addHeight(value), this.preferred.addHeight(value));
-  return new UI.Constraints(this.minimum.addHeight(value.minimum), this.preferred.addHeight(value.preferred));
-};
+UI.Geometry.EulerAngles = EulerAngles;
+
+/**
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {number}
+ */
+UI.Geometry.scalarProduct = scalarProduct;
+
+/**
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {!Vector}
+ */
+UI.Geometry.crossProduct = crossProduct;
+
+/**
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {!Vector}
+ */
+UI.Geometry.subtract = subtract;
+
+/**
+ * @param {!Vector} v
+ * @param {!CSSMatrix} m
+ * @return {!Vector}
+ */
+UI.Geometry.multiplyVectorByMatrixAndNormalize = multiplyVectorByMatrixAndNormalize;
+
+/**
+ * @param {!Vector} u
+ * @param {!Vector} v
+ * @return {number}
+ */
+UI.Geometry.calculateAngle = calculateAngle;
+
+/**
+ * @param {number} deg
+ * @return {number}
+ */
+UI.Geometry.degreesToRadians = degreesToRadians;
+
+/**
+ * @param {number} rad
+ * @return {number}
+ */
+UI.Geometry.radiansToDegrees = radiansToDegrees;
+
+/** @constructor */
+UI.Size = Size;
+
+/** @constructor */
+UI.Insets = Insets;
+
+/** @constructor */
+UI.Rect = Rect;
+
+/** @constructor */
+UI.Constraints = Constraints;
+
+/**
+ * @param {!CSSMatrix} matrix
+ * @param {!Array.<number>} points
+ * @param {{minX: number, maxX: number, minY: number, maxY: number}=} aggregateBounds
+ * @return {!{minX: number, maxX: number, minY: number, maxY: number}}
+ */
+UI.Geometry.boundsForTransformedPoints = boundsForTransformedPoints;

@@ -20,6 +20,16 @@
        * @type {!Object.<number, function(?Object)>}
        */
       this._callbacks = {};
+
+      /**
+       * @type {!Array.<!ExtensionDescriptor>}
+       */
+      this._pendingExtensionDescriptors = [];
+
+      /**
+       * @type {?function(!ExtensionDescriptor)}
+       */
+      this._addExtensionCallback = null;
     }
 
     /**
@@ -29,8 +39,9 @@
     embedderMessageAck(id, arg) {
       const callback = this._callbacks[id];
       delete this._callbacks[id];
-      if (callback)
+      if (callback) {
         callback(arg);
+      }
     }
 
     /**
@@ -40,11 +51,13 @@
      */
     sendMessageToEmbedder(method, args, callback) {
       const callId = ++this._lastCallId;
-      if (callback)
+      if (callback) {
         this._callbacks[callId] = callback;
+      }
       const message = {'id': callId, 'method': method};
-      if (args.length)
+      if (args.length) {
         message.params = args;
+      }
       DevToolsHost.sendMessageToEmbedder(JSON.stringify(message));
     }
 
@@ -66,11 +79,15 @@
       // Support for legacy front-ends (<M41).
       if (window['WebInspector'] && window['WebInspector']['addExtensions']) {
         window['WebInspector']['addExtensions'](extensions);
-      } else if (window['InspectorFrontendAPI']) {
+      } else {
         // The addExtensions command is sent as the onload event happens for
-        // DevTools front-end. In case of hosted mode, this
-        // happens before the InspectorFrontendAPI is initialized.
-        this._dispatchOnInspectorFrontendAPI('addExtensions', [extensions]);
+        // DevTools front-end. We should buffer this command until the frontend
+        // is ready for it.
+        if (this._addExtensionCallback) {
+          extensions.forEach(this._addExtensionCallback);
+        } else {
+          this._pendingExtensionDescriptors.pushAll(extensions);
+        }
       }
     }
 
@@ -226,6 +243,21 @@
     }
 
     /**
+     * @param {function(!ExtensionDescriptor)} callback
+     */
+    setAddExtensionCallback(callback) {
+      this._addExtensionCallback = callback;
+      if (this._pendingExtensionDescriptors.length) {
+        this._pendingExtensionDescriptors.forEach(this._addExtensionCallback);
+        this._pendingExtensionDescriptors = [];
+      }
+    }
+
+    reattachMainTarget() {
+      this._dispatchOnInspectorFrontendAPI('reattachMainTarget', []);
+    }
+
+    /**
      * @param {boolean} hard
      */
     reloadInspectedPage(hard) {
@@ -262,11 +294,21 @@
      * @param {string} tabId
      */
     setInspectedTabId(tabId) {
+      this._inspectedTabIdValue = tabId;
+
       // Support for legacy front-ends (<M41).
-      if (window['WebInspector'] && window['WebInspector']['setInspectedTabId'])
+      if (window['WebInspector'] && window['WebInspector']['setInspectedTabId']) {
         window['WebInspector']['setInspectedTabId'](tabId);
-      else
+      } else {
         this._dispatchOnInspectorFrontendAPI('setInspectedTabId', [tabId]);
+      }
+    }
+
+    /**
+     * @return {string|undefined}
+     */
+    getInspectedTabId() {
+      return this._inspectedTabIdValue;
     }
 
     /**
@@ -320,35 +362,31 @@
    */
   const InspectorFrontendHostImpl = class {
     /**
-     * @override
      * @return {string}
      */
     getSelectionBackgroundColor() {
-      return DevToolsHost.getSelectionBackgroundColor();
+      return '#6e86ff';
     }
 
     /**
-     * @override
      * @return {string}
      */
     getSelectionForegroundColor() {
-      return DevToolsHost.getSelectionForegroundColor();
+      return '#ffffff';
     }
 
     /**
-     * @override
      * @return {string}
      */
     getInactiveSelectionBackgroundColor() {
-      return DevToolsHost.getInactiveSelectionBackgroundColor();
+      return '#c9c8c8';
     }
 
     /**
-     * @override
      * @return {string}
      */
     getInactiveSelectionForegroundColor() {
-      return DevToolsHost.getInactiveSelectionForegroundColor();
+      return '#323232';
     }
 
     /**
@@ -367,8 +405,9 @@
       // Support for legacy (<57) frontends.
       if (window.Runtime && window.Runtime.queryParam) {
         const panelToOpen = window.Runtime.queryParam('panel');
-        if (panelToOpen)
+        if (panelToOpen) {
           window.DevToolsAPI.showPanel(panelToOpen);
+        }
       }
     }
 
@@ -517,6 +556,13 @@
 
     /**
      * @override
+     * @param {string} url
+     */
+    close(url) {
+    }
+
+    /**
+     * @override
      * @param {string} message
      */
     sendMessageToBackend(message) {
@@ -531,9 +577,27 @@
      */
     recordEnumeratedHistogram(actionName, actionCode, bucketSize) {
       // Support for M49 frontend.
-      if (actionName === 'DevTools.DrawerShown')
+      if (actionName === 'DevTools.DrawerShown') {
         return;
+      }
       DevToolsAPI.sendMessageToEmbedder('recordEnumeratedHistogram', [actionName, actionCode, bucketSize], null);
+    }
+
+    /**
+     * @override
+     * @param {string} histogramName
+     * @param {number} duration
+     */
+    recordPerformanceHistogram(histogramName, duration) {
+      DevToolsAPI.sendMessageToEmbedder('recordPerformanceHistogram', [histogramName, duration], null);
+    }
+
+    /**
+     * @override
+     * @param {string} umaName
+     */
+    recordUserMetricsAction(umaName) {
+      DevToolsAPI.sendMessageToEmbedder('recordUserMetricsAction', [umaName], null);
     }
 
     /**
@@ -662,6 +726,7 @@
     }
 
     /**
+     * Only needed to run Lighthouse on old devtools.
      * @override
      * @param {function()} callback
      */
@@ -757,6 +822,14 @@
       return DevToolsHost.isHostedMode();
     }
 
+    /**
+     * @override
+     * @param {function(!ExtensionDescriptor)} callback
+     */
+    setAddExtensionCallback(callback) {
+      DevToolsAPI.setAddExtensionCallback(callback);
+    }
+
     // Backward-compatible methods below this line --------------------------------------------
 
     /**
@@ -809,59 +882,6 @@
      */
     supportsFileSystems() {
       return true;
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @return {boolean}
-     */
-    canInspectWorkers() {
-      return true;
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @return {boolean}
-     */
-    canSaveAs() {
-      return true;
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @return {boolean}
-     */
-    canSave() {
-      return true;
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     */
-    loaded() {
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @return {string}
-     */
-    hiddenPanels() {
-      return '';
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @return {string}
-     */
-    localizedStringsURL() {
-      return '';
-    }
-
-    /**
-     * Support for legacy front-ends (<M28).
-     * @param {string} url
-     */
-    close(url) {
     }
 
     /**
@@ -1033,6 +1053,7 @@
       'textEditorAutoDetectIndent',
       'textEditorBracketMatching',
       'textEditorIndent',
+      'textEditorTabMovesFocus',
       'timelineCaptureFilmStrip',
       'timelineCaptureLayersAndPictures',
       'timelineCaptureMemory',
@@ -1073,16 +1094,18 @@
     function objectObserve(object, observer) {
       if (window['WebInspector']) {
         const settingPrototype = /** @type {!Object} */ (window['WebInspector']['Setting']['prototype']);
-        if (typeof settingPrototype['remove'] === 'function')
+        if (typeof settingPrototype['remove'] === 'function') {
           settingPrototype['remove'] = settingRemove;
+        }
       }
       /** @type {!Set<string>} */
       const changedProperties = new Set();
       let scheduled = false;
 
       function scheduleObserver() {
-        if (scheduled)
+        if (scheduled) {
           return;
+        }
         scheduled = true;
         setImmediate(callObserver);
       }
@@ -1128,8 +1151,9 @@
         });
       }
 
-      for (let i = 0; i < properties.length; ++i)
+      for (let i = 0; i < properties.length; ++i) {
         defineProperty(properties[i]);
+      }
     }
 
     window.Object.observe = objectObserve;
@@ -1201,41 +1225,159 @@
    */
   function keyCodeToKeyIdentifier(keyCode) {
     let result = staticKeyIdentifiers.get(keyCode);
-    if (result !== undefined)
+    if (result !== undefined) {
       return result;
+    }
     result = 'U+';
     const hexString = keyCode.toString(16).toUpperCase();
-    for (let i = hexString.length; i < 4; ++i)
+    for (let i = hexString.length; i < 4; ++i) {
       result += '0';
+    }
     result += hexString;
     return result;
   }
 
   function installBackwardsCompatibility() {
-    if (window.location.href.indexOf('/remote/') === -1)
+    const majorVersion = getRemoteMajorVersion();
+    if (!majorVersion) {
       return;
+    }
 
-    // Support for legacy (<M65) frontends.
-    /** @type {(!function(number, number):Element|undefined)} */
-    ShadowRoot.prototype.__originalShadowRootElementFromPoint;
+    /** @type {!Array<string>} */
+    const styleRules = [];
+    // Shadow DOM V0 polyfill
+    if (majorVersion <= 73 && !Element.prototype.createShadowRoot) {
+      Element.prototype.createShadowRoot = function() {
+        try {
+          return this.attachShadow({mode: 'open'});
+        } catch (e) {
+          // some elements we use to add shadow roots can no
+          // longer have shadow roots.
+          const fakeShadowHost = document.createElement('span');
+          this.appendChild(fakeShadowHost);
+          fakeShadowHost.className = 'fake-shadow-host';
+          return fakeShadowHost.createShadowRoot();
+        }
+      };
 
-    if (!ShadowRoot.prototype.__originalShadowRootElementFromPoint) {
-      ShadowRoot.prototype.__originalShadowRootElementFromPoint = ShadowRoot.prototype.elementFromPoint;
-      /**
-       *  @param {number} x
-       *  @param {number} y
-       *  @return {Element}
-       */
-      ShadowRoot.prototype.elementFromPoint = function(x, y) {
-        const originalResult = ShadowRoot.prototype.__originalShadowRootElementFromPoint.apply(this, arguments);
-        if (this.host && originalResult === this.host)
-          return null;
-        return originalResult;
+      const origAdd = DOMTokenList.prototype.add;
+      DOMTokenList.prototype.add = function(...tokens) {
+        if (tokens[0].startsWith('insertion-point') || tokens[0].startsWith('tabbed-pane-header')) {
+          this._myElement.slot = '.' + tokens[0];
+        }
+        return origAdd.apply(this, tokens);
+      };
+
+      const origCreateElement = Document.prototype.createElement;
+      Document.prototype.createElement = function(tagName, ...rest) {
+        if (tagName === 'content') {
+          tagName = 'slot';
+        }
+        const element = origCreateElement.call(this, tagName, ...rest);
+        element.classList._myElement = element;
+        return element;
+      };
+
+      Object.defineProperty(HTMLSlotElement.prototype, 'select', {
+        async set(selector) {
+          this.name = selector;
+        }
+      });
+
+      function overrideCreateElementWithClass() {
+        window.removeEventListener('DOMContentLoaded', overrideCreateElementWithClass);
+
+        const origCreateElementWithClass = Document.prototype.createElementWithClass;
+        Document.prototype.createElementWithClass = function(tagName, className, ...rest) {
+          if (tagName !== 'button' || (className !== 'soft-dropdown' && className !== 'dropdown-button')) {
+            return origCreateElementWithClass.call(this, tagName, className, ...rest);
+          }
+          const element = origCreateElementWithClass.call(this, 'div', className, ...rest);
+          element.tabIndex = 0;
+          element.role = 'button';
+          return element;
+        };
+      }
+
+      // Document.prototype.createElementWithClass is a DevTools method, so we
+      // need to wait for DOMContentLoaded in order to override it.
+      if (window.document.head &&
+          (window.document.readyState === 'complete' || window.document.readyState === 'interactive')) {
+        overrideCreateElementWithClass();
+      } else {
+        window.addEventListener('DOMContentLoaded', overrideCreateElementWithClass);
+      }
+    }
+
+    // Custom Elements V0 polyfill
+    if (majorVersion <= 73 && !Document.prototype.hasOwnProperty('registerElement')) {
+      const fakeRegistry = new Map();
+      Document.prototype.registerElement = function(typeExtension, options) {
+        const {prototype, extends: localName} = options;
+        const document = this;
+        const callback = function() {
+          const element = document.createElement(localName || typeExtension);
+          const skip = new Set(['constructor', '__proto__']);
+          for (const key of Object.keys(Object.getOwnPropertyDescriptors(prototype.__proto__ || {}))) {
+            if (skip.has(key)) {
+              continue;
+            }
+            element[key] = prototype[key];
+          }
+          element.setAttribute('is', typeExtension);
+          if (element['createdCallback']) {
+            element['createdCallback']();
+          }
+          return element;
+        };
+        fakeRegistry.set(typeExtension, callback);
+        return callback;
+      };
+
+      const origCreateElement = Document.prototype.createElement;
+      Document.prototype.createElement = function(tagName, fakeCustomElementType) {
+        const fakeConstructor = fakeRegistry.get(fakeCustomElementType);
+        if (fakeConstructor) {
+          return fakeConstructor();
+        }
+        return origCreateElement.call(this, tagName, fakeCustomElementType);
+      };
+
+      // DevTools front-ends mistakenly assume that
+      //   classList.toggle('a', undefined) works as
+      //   classList.toggle('a', false) rather than as
+      //   classList.toggle('a');
+      const originalDOMTokenListToggle = DOMTokenList.prototype.toggle;
+      DOMTokenList.prototype.toggle = function(token, force) {
+        if (arguments.length === 1) {
+          force = !this.contains(token);
+        }
+        return originalDOMTokenListToggle.call(this, token, !!force);
       };
     }
 
-    // Support for legacy (<M53) frontends.
-    if (!window.KeyboardEvent.prototype.hasOwnProperty('keyIdentifier')) {
+    if (majorVersion <= 66) {
+      /** @type {(!function(number, number):Element|undefined)} */
+      ShadowRoot.prototype.__originalShadowRootElementFromPoint;
+
+      if (!ShadowRoot.prototype.__originalShadowRootElementFromPoint) {
+        ShadowRoot.prototype.__originalShadowRootElementFromPoint = ShadowRoot.prototype.elementFromPoint;
+        /**
+         *  @param {number} x
+         *  @param {number} y
+         *  @return {Element}
+         */
+        ShadowRoot.prototype.elementFromPoint = function(x, y) {
+          const originalResult = ShadowRoot.prototype.__originalShadowRootElementFromPoint.apply(this, arguments);
+          if (this.host && originalResult === this.host) {
+            return null;
+          }
+          return originalResult;
+        };
+      }
+    }
+
+    if (majorVersion <= 53) {
       Object.defineProperty(window.KeyboardEvent.prototype, 'keyIdentifier', {
         /**
          * @return {string}
@@ -1247,91 +1389,118 @@
       });
     }
 
-    // Support for legacy (<M50) frontends.
-    installObjectObserve();
+    if (majorVersion <= 50) {
+      installObjectObserve();
+    }
 
-    /**
-     * @param {string} property
-     * @return {!CSSValue|null}
-     * @this {CSSStyleDeclaration}
-     */
-    function getValue(property) {
-      // Note that |property| comes from another context, so we can't use === here.
-      // eslint-disable-next-line eqeqeq
-      if (property == 'padding-left') {
-        return /** @type {!CSSValue} */ ({
-          /**
-           * @return {number}
-           * @this {!{__paddingLeft: number}}
-           */
-          getFloatValue: function() {
-            return this.__paddingLeft;
-          },
-          __paddingLeft: parseFloat(this.paddingLeft)
-        });
+    if (majorVersion <= 45) {
+      /**
+       * @param {string} property
+       * @return {!CSSValue|null}
+       * @this {CSSStyleDeclaration}
+       */
+      function getValue(property) {
+        // Note that |property| comes from another context, so we can't use === here.
+        // eslint-disable-next-line eqeqeq
+        if (property == 'padding-left') {
+          return /** @type {!CSSValue} */ ({
+            /**
+             * @return {number}
+             * @this {!{__paddingLeft: number}}
+             */
+            getFloatValue: function() {
+              return this.__paddingLeft;
+            },
+            __paddingLeft: parseFloat(this.paddingLeft)
+          });
+        }
+        throw new Error('getPropertyCSSValue is undefined');
       }
-      throw new Error('getPropertyCSSValue is undefined');
+
+      window.CSSStyleDeclaration.prototype.getPropertyCSSValue = getValue;
+
+      function CSSPrimitiveValue() {
+      }
+      CSSPrimitiveValue.CSS_PX = 5;
+      window.CSSPrimitiveValue = CSSPrimitiveValue;
     }
 
-    // Support for legacy (<M41) frontends.
-    window.CSSStyleDeclaration.prototype.getPropertyCSSValue = getValue;
-
-    function CSSPrimitiveValue() {
+    if (majorVersion <= 45) {
+      styleRules.push('* { min-width: 0; min-height: 0; }');
     }
-    CSSPrimitiveValue.CSS_PX = 5;
-    window.CSSPrimitiveValue = CSSPrimitiveValue;
 
-    // Support for legacy (<M44) frontends.
-    const styleElement = window.document.createElement('style');
-    styleElement.type = 'text/css';
-    styleElement.textContent = 'html /deep/ * { min-width: 0; min-height: 0; }';
+    if (majorVersion <= 51) {
+      // Support for quirky border-image behavior (<M51), see:
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=559258
+      styleRules.push('.cm-breakpoint .CodeMirror-linenumber { border-style: solid !important; }');
+      styleRules.push(
+          '.cm-breakpoint.cm-breakpoint-conditional .CodeMirror-linenumber { border-style: solid !important; }');
+    }
+    if (majorVersion <= 71) {
+      styleRules.push(
+          '.coverage-toolbar-container, .animation-timeline-toolbar-container, .computed-properties { flex-basis: auto; }');
+    }
 
-    // Support for quirky border-image behavior (<M51), see:
-    // https://bugs.chromium.org/p/chromium/issues/detail?id=559258
-    styleElement.textContent +=
-        '\nhtml /deep/ .cm-breakpoint .CodeMirror-linenumber { border-style: solid !important; }';
-    styleElement.textContent +=
-        '\nhtml /deep/ .cm-breakpoint.cm-breakpoint-conditional .CodeMirror-linenumber { border-style: solid !important; }';
-    window.document.head.appendChild(styleElement);
+    if (majorVersion <= 50) {
+      Event.prototype.deepPath = undefined;
+    }
 
-    // Support for legacy (<M49) frontends.
-    Event.prototype.deepPath = undefined;
+    if (majorVersion <= 54) {
+      window.FileError = /** @type {!function (new: FileError) : ?} */ ({
+        NOT_FOUND_ERR: DOMException.NOT_FOUND_ERR,
+        ABORT_ERR: DOMException.ABORT_ERR,
+        INVALID_MODIFICATION_ERR: DOMException.INVALID_MODIFICATION_ERR,
+        NOT_READABLE_ERR: 0  // No matching DOMException, so code will be 0.
+      });
+    }
 
-    // Support for legacy (<53) frontends.
-    window.FileError = /** @type {!function (new: FileError) : ?} */ ({
-      NOT_FOUND_ERR: DOMException.NOT_FOUND_ERR,
-      ABORT_ERR: DOMException.ABORT_ERR,
-      INVALID_MODIFICATION_ERR: DOMException.INVALID_MODIFICATION_ERR,
-      NOT_READABLE_ERR: 0  // No matching DOMException, so code will be 0.
-    });
+    installExtraStyleRules(styleRules);
   }
 
-  function windowLoaded() {
-    window.removeEventListener('DOMContentLoaded', windowLoaded, false);
-    installBackwardsCompatibility();
+  /**
+   * @return {?number}
+   */
+  function getRemoteMajorVersion() {
+    try {
+      const remoteVersion = new URLSearchParams(window.location.search).get('remoteVersion');
+      if (!remoteVersion) {
+        return null;
+      }
+      const majorVersion = parseInt(remoteVersion.split('.')[0], 10);
+      return majorVersion;
+    } catch (e) {
+      return null;
+    }
   }
 
-  if (window.document.head &&
-      (window.document.readyState === 'complete' || window.document.readyState === 'interactive'))
-    installBackwardsCompatibility();
-  else
-    window.addEventListener('DOMContentLoaded', windowLoaded, false);
+  /**
+   * @param {!Array<string>} styleRules
+   */
+  function installExtraStyleRules(styleRules) {
+    if (!styleRules.length) {
+      return;
+    }
+    const styleText = styleRules.join('\n');
+    document.head.appendChild(createStyleElement(styleText));
 
-  /** @type {(!function(string, boolean=):boolean)|undefined} */
-  DOMTokenList.prototype.__originalDOMTokenListToggle;
-
-  if (!DOMTokenList.prototype.__originalDOMTokenListToggle) {
-    DOMTokenList.prototype.__originalDOMTokenListToggle = DOMTokenList.prototype.toggle;
-    /**
-     * @param {string} token
-     * @param {boolean=} force
-     * @return {boolean}
-     */
-    DOMTokenList.prototype.toggle = function(token, force) {
-      if (arguments.length === 1)
-        force = !this.contains(token);
-      return this.__originalDOMTokenListToggle(token, !!force);
+    const origCreateShadowRoot = HTMLElement.prototype.createShadowRoot;
+    HTMLElement.prototype.createShadowRoot = function(...args) {
+      const shadowRoot = origCreateShadowRoot.call(this, ...args);
+      shadowRoot.appendChild(createStyleElement(styleText));
+      return shadowRoot;
     };
   }
+
+  /**
+   * @param {string} styleText
+   * @return {!Element}
+   */
+  function createStyleElement(styleText) {
+    const style = document.createElement('style');
+    style.textContent = styleText;
+    return style;
+  }
+
+  installBackwardsCompatibility();
 
 })(window);

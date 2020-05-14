@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-Accessibility.ARIAAttributesPane = class extends Accessibility.AccessibilitySubPane {
+export default class ARIAAttributesPane extends Accessibility.AccessibilitySubPane {
   constructor() {
     super(ls`ARIA Attributes`);
 
@@ -19,14 +19,16 @@ Accessibility.ARIAAttributesPane = class extends Accessibility.AccessibilitySubP
   setNode(node) {
     super.setNode(node);
     this._treeOutline.removeChildren();
-    if (!this.node())
+    if (!this.node()) {
       return;
+    }
     const target = this.node().domModel().target();
     const attributes = node.attributes();
     for (let i = 0; i < attributes.length; ++i) {
       const attribute = attributes[i];
-      if (Accessibility.ARIAAttributesPane._attributes.indexOf(attribute.name) < 0)
+      if (Accessibility.ARIAAttributesPane._attributes.indexOf(attribute.name) < 0) {
         continue;
+      }
       this._treeOutline.appendChild(new Accessibility.ARIAAttributesTreeElement(this, attribute, target));
     }
 
@@ -34,12 +36,12 @@ Accessibility.ARIAAttributesPane = class extends Accessibility.AccessibilitySubP
     this._noPropertiesInfo.classList.toggle('hidden', foundAttributes);
     this._treeOutline.element.classList.toggle('hidden', !foundAttributes);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
+export class ARIAAttributesTreeElement extends UI.TreeElement {
   /**
    * @param {!Accessibility.ARIAAttributesPane} parentPane
    * @param {!SDK.DOMNode.Attribute} attribute
@@ -76,7 +78,7 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
   _populateListItem() {
     this.listItemElement.removeChildren();
     this.appendNameElement(this._attribute.name);
-    this.listItemElement.createChild('span', 'separator').textContent = ':\u00A0';
+    this.listItemElement.createChild('span', 'separator').textContent = ':\xA0';
     this.appendAttributeValueElement(this._attribute.value);
   }
 
@@ -103,8 +105,9 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
    * @param {!Event} event
    */
   _mouseClick(event) {
-    if (event.target === this.listItemElement)
+    if (event.target === this.listItemElement) {
       return;
+    }
 
     event.consume(true);
 
@@ -114,8 +117,9 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
   _startEditing() {
     const valueElement = this._valueElement;
 
-    if (UI.isBeingEdited(valueElement))
+    if (UI.isBeingEdited(valueElement)) {
       return;
+    }
 
     const previousContent = valueElement.textContent;
 
@@ -140,8 +144,9 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
   }
 
   _removePrompt() {
-    if (!this._prompt)
+    if (!this._prompt) {
       return;
+    }
     this._prompt.detach();
     delete this._prompt;
   }
@@ -154,8 +159,9 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
     this._removePrompt();
 
     // Make the changes to the attribute
-    if (userInput !== previousContent)
+    if (userInput !== previousContent) {
       this._parentPane.node().setAttributeValue(this._attribute.name, userInput);
+    }
   }
 
   _editingCancelled() {
@@ -168,8 +174,9 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
    * @param {!Event} event
    */
   _editingValueKeyDown(previousContent, event) {
-    if (event.handled)
+    if (event.handled) {
       return;
+    }
 
     if (isEnterKey(event)) {
       this._editingCommitted(event.target.textContent, previousContent);
@@ -177,19 +184,19 @@ Accessibility.ARIAAttributesTreeElement = class extends UI.TreeElement {
       return;
     }
 
-    if (event.keyCode === UI.KeyboardShortcut.Keys.Esc.code || event.keyIdentifier === 'U+001B') {
+    if (isEscKey(event)) {
       this._editingCancelled();
       event.consume();
       return;
     }
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-Accessibility.ARIAAttributesPane.ARIAAttributePrompt = class extends UI.TextPrompt {
+export class ARIAAttributePrompt extends UI.TextPrompt {
   /**
    * @param {!Array<string>} ariaCompletions
    * @param {!Accessibility.ARIAAttributesTreeElement} treeElement
@@ -210,13 +217,14 @@ Accessibility.ARIAAttributesPane.ARIAAttributePrompt = class extends UI.TextProm
    */
   _buildPropertyCompletions(expression, prefix, force) {
     prefix = prefix.toLowerCase();
-    if (!prefix && !force && (this._isEditingName || expression))
+    if (!prefix && !force && (this._isEditingName || expression)) {
       return Promise.resolve([]);
+    }
     return Promise.resolve(this._ariaCompletions.filter(value => value.startsWith(prefix)).map(c => ({text: c})));
   }
-};
+}
 
-Accessibility.ARIAAttributesPane._attributes = [
+const _attributes = [
   'role',
   'aria-busy',
   'aria-checked',
@@ -254,3 +262,27 @@ Accessibility.ARIAAttributesPane._attributes = [
   'aria-valuenow',
   'aria-valuetext',
 ];
+
+/* Legacy exported object */
+self.Accessibility = self.Accessibility || {};
+
+/* Legacy exported object */
+Accessibility = Accessibility || {};
+
+/**
+ * @constructor
+ */
+Accessibility.ARIAAttributesPane = ARIAAttributesPane;
+
+/**
+ * @constructor
+ */
+Accessibility.ARIAAttributesTreeElement = ARIAAttributesTreeElement;
+
+/**
+ * @constructor
+ */
+Accessibility.ARIAAttributesPane.ARIAAttributePrompt = ARIAAttributePrompt;
+
+/** @type {!Array<string>} */
+Accessibility.ARIAAttributesPane._attributes = _attributes;

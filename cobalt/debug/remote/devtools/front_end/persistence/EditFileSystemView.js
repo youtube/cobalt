@@ -31,7 +31,7 @@
  * @implements {UI.ListWidget.Delegate}
  * @unrestricted
  */
-Persistence.EditFileSystemView = class extends UI.VBox {
+export default class EditFileSystemView extends UI.VBox {
   /**
    * @param {string} fileSystemPath
    */
@@ -60,7 +60,6 @@ Persistence.EditFileSystemView = class extends UI.VBox {
     this._excludedFoldersList.setEmptyPlaceholder(excludedFoldersPlaceholder);
     this._excludedFoldersList.show(this.contentElement);
 
-    this.contentElement.tabIndex = 0;
     this._update();
   }
 
@@ -69,8 +68,9 @@ Persistence.EditFileSystemView = class extends UI.VBox {
   }
 
   _update() {
-    if (this._muteUpdate)
+    if (this._muteUpdate) {
       return;
+    }
 
     this._excludedFoldersList.clear();
     this._excludedFolders = [];
@@ -144,8 +144,9 @@ Persistence.EditFileSystemView = class extends UI.VBox {
    * @return {!UI.ListWidget.Editor}
    */
   _createExcludedFolderEditor() {
-    if (this._excludedFolderEditor)
+    if (this._excludedFolderEditor) {
       return this._excludedFolderEditor;
+    }
 
     const editor = new UI.ListWidget.Editor();
     this._excludedFolderEditor = editor;
@@ -164,18 +165,24 @@ Persistence.EditFileSystemView = class extends UI.VBox {
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
-     * @this {Persistence.EditFileSystemView}
+     * @return {!UI.ListWidget.ValidatorResult}
+     * @this {EditFileSystemView}
      */
     function pathPrefixValidator(item, index, input) {
-      const prefix = this._normalizePrefix(input.value);
+      const prefix = this._normalizePrefix(input.value.trim());
+
+      if (!prefix) {
+        return {valid: false, errorMessage: ls`Enter a path`};
+      }
+
       const configurableCount =
           Persistence.isolatedFileSystemManager.fileSystem(this._fileSystemPath).excludedFolders().size;
       for (let i = 0; i < configurableCount; ++i) {
-        if (i !== index && this._excludedFolders[i] === prefix)
-          return false;
+        if (i !== index && this._excludedFolders[i] === prefix) {
+          return {valid: false, errorMessage: ls`Enter a unique path`};
+        }
       }
-      return !!prefix;
+      return {valid: true};
     }
   }
 
@@ -184,8 +191,18 @@ Persistence.EditFileSystemView = class extends UI.VBox {
    * @return {string}
    */
   _normalizePrefix(prefix) {
-    if (!prefix)
+    if (!prefix) {
       return '';
+    }
     return prefix + (prefix[prefix.length - 1] === '/' ? '' : '/');
   }
-};
+}
+
+/* Legacy exported object */
+self.Persistence = self.Persistence || {};
+
+/* Legacy exported object */
+Persistence = Persistence || {};
+
+/** @constructor */
+Persistence.EditFileSystemView = EditFileSystemView;

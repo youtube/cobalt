@@ -5,7 +5,7 @@
 /**
  * @implements {SDK.SDKModelObserver<!SDK.CSSModel>}
  */
-Bindings.CSSWorkspaceBinding = class {
+export default class CSSWorkspaceBinding {
   /**
    * @param {!SDK.TargetManager} targetManager
    * @param {!Workspace.Workspace} workspace
@@ -13,9 +13,9 @@ Bindings.CSSWorkspaceBinding = class {
   constructor(targetManager, workspace) {
     this._workspace = workspace;
 
-    /** @type {!Map.<!SDK.CSSModel, !Bindings.CSSWorkspaceBinding.ModelInfo>} */
+    /** @type {!Map.<!SDK.CSSModel, !ModelInfo>} */
     this._modelToInfo = new Map();
-    /** @type {!Array<!Bindings.CSSWorkspaceBinding.SourceMapping>} */
+    /** @type {!Array<!SourceMapping>} */
     this._sourceMappings = [];
     targetManager.observeModels(SDK.CSSModel, this);
   }
@@ -25,7 +25,7 @@ Bindings.CSSWorkspaceBinding = class {
    * @param {!SDK.CSSModel} cssModel
    */
   modelAdded(cssModel) {
-    this._modelToInfo.set(cssModel, new Bindings.CSSWorkspaceBinding.ModelInfo(cssModel, this._workspace));
+    this._modelToInfo.set(cssModel, new ModelInfo(cssModel, this._workspace));
   }
 
   /**
@@ -48,7 +48,7 @@ Bindings.CSSWorkspaceBinding = class {
    * @param {!SDK.CSSLocation} rawLocation
    * @param {function(!Bindings.LiveLocation)} updateDelegate
    * @param {!Bindings.LiveLocationPool} locationPool
-   * @return {!Bindings.CSSWorkspaceBinding.LiveLocation}
+   * @return {!LiveLocation}
    */
   createLiveLocation(rawLocation, updateDelegate, locationPool) {
     return this._modelToInfo.get(rawLocation.cssModel())._createLiveLocation(rawLocation, updateDelegate, locationPool);
@@ -61,15 +61,18 @@ Bindings.CSSWorkspaceBinding = class {
    */
   propertyUILocation(cssProperty, forName) {
     const style = cssProperty.ownerStyle;
-    if (!style || style.type !== SDK.CSSStyleDeclaration.Type.Regular || !style.styleSheetId)
+    if (!style || style.type !== SDK.CSSStyleDeclaration.Type.Regular || !style.styleSheetId) {
       return null;
+    }
     const header = style.cssModel().styleSheetHeaderForId(style.styleSheetId);
-    if (!header)
+    if (!header) {
       return null;
+    }
 
     const range = forName ? cssProperty.nameRange() : cssProperty.valueRange();
-    if (!range)
+    if (!range) {
       return null;
+    }
 
     const lineNumber = range.startLine;
     const columnNumber = range.startColumn;
@@ -85,8 +88,9 @@ Bindings.CSSWorkspaceBinding = class {
   rawLocationToUILocation(rawLocation) {
     for (let i = this._sourceMappings.length - 1; i >= 0; --i) {
       const uiLocation = this._sourceMappings[i].rawLocationToUILocation(rawLocation);
-      if (uiLocation)
+      if (uiLocation) {
         return uiLocation;
+      }
     }
     return this._modelToInfo.get(rawLocation.cssModel())._rawLocationToUILocation(rawLocation);
   }
@@ -98,43 +102,45 @@ Bindings.CSSWorkspaceBinding = class {
   uiLocationToRawLocations(uiLocation) {
     for (let i = this._sourceMappings.length - 1; i >= 0; --i) {
       const rawLocations = this._sourceMappings[i].uiLocationToRawLocations(uiLocation);
-      if (rawLocations.length)
+      if (rawLocations.length) {
         return rawLocations;
+      }
     }
     const rawLocations = [];
-    for (const modelInfo of this._modelToInfo.values())
+    for (const modelInfo of this._modelToInfo.values()) {
       rawLocations.pushAll(modelInfo._uiLocationToRawLocations(uiLocation));
+    }
     return rawLocations;
   }
 
   /**
-   * @param {!Bindings.CSSWorkspaceBinding.SourceMapping} sourceMapping
+   * @param {!SourceMapping} sourceMapping
    */
   addSourceMapping(sourceMapping) {
     this._sourceMappings.push(sourceMapping);
   }
-};
+}
 
 /**
  * @interface
  */
-Bindings.CSSWorkspaceBinding.SourceMapping = function() {};
-
-Bindings.CSSWorkspaceBinding.SourceMapping.prototype = {
+class SourceMapping {
   /**
    * @param {!SDK.CSSLocation} rawLocation
    * @return {?Workspace.UILocation}
    */
-  rawLocationToUILocation(rawLocation) {},
+  rawLocationToUILocation(rawLocation) {
+  }
 
   /**
    * @param {!Workspace.UILocation} uiLocation
    * @return {!Array<!SDK.CSSLocation>}
    */
-  uiLocationToRawLocations(uiLocation) {},
-};
+  uiLocationToRawLocations(uiLocation) {
+  }
+}
 
-Bindings.CSSWorkspaceBinding.ModelInfo = class {
+class ModelInfo {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {!Workspace.Workspace} workspace
@@ -149,20 +155,20 @@ Bindings.CSSWorkspaceBinding.ModelInfo = class {
     const sourceMapManager = cssModel.sourceMapManager();
     this._sassSourceMapping = new Bindings.SASSSourceMapping(cssModel.target(), sourceMapManager, workspace);
 
-    /** @type {!Multimap<!SDK.CSSStyleSheetHeader, !Bindings.CSSWorkspaceBinding.LiveLocation>} */
-    this._locations = new Multimap();
-    /** @type {!Multimap<string, !Bindings.CSSWorkspaceBinding.LiveLocation>} */
-    this._unboundLocations = new Multimap();
+    /** @type {!Platform.Multimap<!SDK.CSSStyleSheetHeader, !LiveLocation>} */
+    this._locations = new Platform.Multimap();
+    /** @type {!Platform.Multimap<string, !LiveLocation>} */
+    this._unboundLocations = new Platform.Multimap();
   }
 
   /**
    * @param {!SDK.CSSLocation} rawLocation
    * @param {function(!Bindings.LiveLocation)} updateDelegate
    * @param {!Bindings.LiveLocationPool} locationPool
-   * @return {!Bindings.CSSWorkspaceBinding.LiveLocation}
+   * @return {!LiveLocation}
    */
   _createLiveLocation(rawLocation, updateDelegate, locationPool) {
-    const location = new Bindings.CSSWorkspaceBinding.LiveLocation(rawLocation, this, updateDelegate, locationPool);
+    const location = new LiveLocation(rawLocation, this, updateDelegate, locationPool);
     const header = rawLocation.header();
     if (header) {
       location._header = header;
@@ -175,21 +181,23 @@ Bindings.CSSWorkspaceBinding.ModelInfo = class {
   }
 
   /**
-   * @param {!Bindings.CSSWorkspaceBinding.LiveLocation} location
+   * @param {!LiveLocation} location
    */
   _disposeLocation(location) {
-    if (location._header)
+    if (location._header) {
       this._locations.delete(location._header, location);
-    else
+    } else {
       this._unboundLocations.delete(location._url, location);
+    }
   }
 
   /**
    * @param {!SDK.CSSStyleSheetHeader} header
    */
   _updateLocations(header) {
-    for (const location of this._locations.get(header))
+    for (const location of this._locations.get(header)) {
       location.update();
+    }
   }
 
   /**
@@ -197,8 +205,9 @@ Bindings.CSSWorkspaceBinding.ModelInfo = class {
    */
   _styleSheetAdded(event) {
     const header = /** @type {!SDK.CSSStyleSheetHeader} */ (event.data);
-    if (!header.sourceURL)
+    if (!header.sourceURL) {
       return;
+    }
 
     for (const location of this._unboundLocations.get(header.sourceURL)) {
       location._header = header;
@@ -238,10 +247,15 @@ Bindings.CSSWorkspaceBinding.ModelInfo = class {
    * @return {!Array<!SDK.CSSLocation>}
    */
   _uiLocationToRawLocations(uiLocation) {
-    const rawLocations = this._sassSourceMapping.uiLocationToRawLocations(uiLocation);
-    if (rawLocations.length)
+    let rawLocations = this._sassSourceMapping.uiLocationToRawLocations(uiLocation);
+    if (rawLocations.length) {
       return rawLocations;
-    return this._stylesSourceMapping.uiLocationToRawLocations(uiLocation);
+    }
+    rawLocations = this._stylesSourceMapping.uiLocationToRawLocations(uiLocation);
+    if (rawLocations.length) {
+      return rawLocations;
+    }
+    return Bindings.resourceMapping.uiLocationToCSSLocations(uiLocation);
   }
 
   _dispose() {
@@ -249,15 +263,15 @@ Bindings.CSSWorkspaceBinding.ModelInfo = class {
     this._stylesSourceMapping.dispose();
     this._sassSourceMapping.dispose();
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Bindings.CSSWorkspaceBinding.LiveLocation = class extends Bindings.LiveLocationWithPool {
+class LiveLocation extends Bindings.LiveLocationWithPool {
   /**
    * @param {!SDK.CSSLocation} rawLocation
-   * @param {!Bindings.CSSWorkspaceBinding.ModelInfo} info
+   * @param {!ModelInfo} info
    * @param {function(!Bindings.LiveLocation)} updateDelegate
    * @param {!Bindings.LiveLocationPool} locationPool
    */
@@ -275,8 +289,9 @@ Bindings.CSSWorkspaceBinding.LiveLocation = class extends Bindings.LiveLocationW
    * @return {?Workspace.UILocation}
    */
   uiLocation() {
-    if (!this._header)
+    if (!this._header) {
       return null;
+    }
     const rawLocation = new SDK.CSSLocation(this._header, this._lineNumber, this._columnNumber);
     return Bindings.cssWorkspaceBinding.rawLocationToUILocation(rawLocation);
   }
@@ -296,9 +311,24 @@ Bindings.CSSWorkspaceBinding.LiveLocation = class extends Bindings.LiveLocationW
   isBlackboxed() {
     return false;
   }
-};
+}
+
+/* Legacy exported object */
+self.Bindings = self.Bindings || {};
+
+/* Legacy exported object */
+Bindings = Bindings || {};
+
+/** @constructor */
+Bindings.CSSWorkspaceBinding = CSSWorkspaceBinding;
+
+/** @interface */
+Bindings.CSSWorkspaceBinding.SourceMapping = SourceMapping;
+
+/** @constructor */
+Bindings.CSSWorkspaceBinding.ModelInfo = ModelInfo;
 
 /**
- * @type {!Bindings.CSSWorkspaceBinding}
+ * @type {!CSSWorkspaceBinding}
  */
 Bindings.cssWorkspaceBinding;

@@ -19,8 +19,9 @@ PerfUI.FilmStripView = class extends UI.HBox {
    * @param {?string} data
    */
   static _setImageData(imageElement, data) {
-    if (data)
+    if (data) {
       imageElement.src = 'data:image/jpg;base64,' + data;
+    }
   }
 
   /**
@@ -59,6 +60,7 @@ PerfUI.FilmStripView = class extends UI.HBox {
     element.title = Common.UIString('Doubleclick to zoom image. Click to view preceding requests.');
     element.createChild('div', 'time').textContent = Number.millisToString(time - this._zeroTime);
     const imageElement = element.createChild('div', 'thumbnail').createChild('img');
+    imageElement.alt = ls`Screenshot`;
     element.addEventListener(
         'mousedown', this._onMouseEvent.bind(this, PerfUI.FilmStripView.Events.FrameSelected, time), false);
     element.addEventListener(
@@ -99,11 +101,13 @@ PerfUI.FilmStripView = class extends UI.HBox {
   }
 
   update() {
-    if (!this._model)
+    if (!this._model) {
       return;
+    }
     const frames = this._model.frames();
-    if (!frames.length)
+    if (!frames.length) {
       return;
+    }
 
     if (this._mode === PerfUI.FilmStripView.Modes.FrameBased) {
       Promise.all(frames.map(this.createFrameElement.bind(this))).then(appendElements.bind(this));
@@ -121,8 +125,9 @@ PerfUI.FilmStripView = class extends UI.HBox {
      */
     function continueWhenFrameImageLoaded(element0) {
       const frameWidth = Math.ceil(UI.measurePreferredSize(element0, this.contentElement).width);
-      if (!frameWidth)
+      if (!frameWidth) {
         return;
+      }
 
       const promises = [];
       for (let pos = frameWidth; pos < width; pos += frameWidth) {
@@ -146,8 +151,9 @@ PerfUI.FilmStripView = class extends UI.HBox {
      */
     function appendElements(elements) {
       this.contentElement.removeChildren();
-      for (let i = 0; i < elements.length; ++i)
+      for (let i = 0; i < elements.length; ++i) {
         this.contentElement.appendChild(elements[i]);
+      }
     }
   }
 
@@ -155,13 +161,14 @@ PerfUI.FilmStripView = class extends UI.HBox {
    * @override
    */
   onResize() {
-    if (this._mode === PerfUI.FilmStripView.Modes.FrameBased)
+    if (this._mode === PerfUI.FilmStripView.Modes.FrameBased) {
       return;
+    }
     this.update();
   }
 
   /**
-   * @param {string} eventName
+   * @param {string|symbol} eventName
    * @param {number} timestamp
    */
   _onMouseEvent(eventName, timestamp) {
@@ -253,17 +260,19 @@ PerfUI.FilmStripView.Dialog = class {
   _keyDown(event) {
     switch (event.key) {
       case 'ArrowLeft':
-        if (Host.isMac() && event.metaKey)
+        if (Host.isMac() && event.metaKey) {
           this._onFirstFrame();
-        else
+        } else {
           this._onPrevFrame();
+        }
         break;
 
       case 'ArrowRight':
-        if (Host.isMac() && event.metaKey)
+        if (Host.isMac() && event.metaKey) {
           this._onLastFrame();
-        else
+        } else {
           this._onNextFrame();
+        }
         break;
 
       case 'Home':
@@ -277,14 +286,16 @@ PerfUI.FilmStripView.Dialog = class {
   }
 
   _onPrevFrame() {
-    if (this._index > 0)
+    if (this._index > 0) {
       --this._index;
+    }
     this._render();
   }
 
   _onNextFrame() {
-    if (this._index < this._frames.length - 1)
+    if (this._index < this._frames.length - 1) {
       ++this._index;
+    }
     this._render();
   }
 

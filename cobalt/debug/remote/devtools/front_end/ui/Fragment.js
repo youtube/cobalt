@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-UI.Fragment = class {
+export default class Fragment {
   /**
    * @param {!Element} element
    */
@@ -31,29 +31,29 @@ UI.Fragment = class {
   /**
    * @param {!Array<string>} strings
    * @param {...*} values
-   * @return {!UI.Fragment}
+   * @return {!Fragment}
    */
   static build(strings, ...values) {
-    return UI.Fragment._render(UI.Fragment._template(strings), values);
+    return Fragment._render(Fragment._template(strings), values);
   }
 
   /**
    * @param {!Array<string>} strings
    * @param {...*} values
-   * @return {!UI.Fragment}
+   * @return {!Fragment}
    */
   static cached(strings, ...values) {
-    let template = UI.Fragment._templateCache.get(strings);
+    let template = _templateCache.get(strings);
     if (!template) {
-      template = UI.Fragment._template(strings);
-      UI.Fragment._templateCache.set(strings, template);
+      template = Fragment._template(strings);
+      _templateCache.set(strings, template);
     }
-    return UI.Fragment._render(template, values);
+    return Fragment._render(template, values);
   }
 
   /**
    * @param {!Array<string>} strings
-   * @return {!UI.Fragment._Template}
+   * @return {!Fragment._Template}
    * @suppressGlobalPropertiesCheck
    */
   static _template(strings) {
@@ -63,11 +63,12 @@ UI.Fragment = class {
       html += strings[i];
       const close = strings[i].lastIndexOf('>');
       const open = strings[i].indexOf('<', close + 1);
-      if (close !== -1 && open === -1)
+      if (close !== -1 && open === -1) {
         insideText = true;
-      else if (open !== -1)
+      } else if (open !== -1) {
         insideText = false;
-      html += insideText ? UI.Fragment._textMarker : UI.Fragment._attributeMarker(i);
+      }
+      html += insideText ? Fragment._textMarker : Fragment._attributeMarker(i);
     }
     html += strings[strings.length - 1];
 
@@ -92,29 +93,31 @@ UI.Fragment = class {
         for (let i = 0; i < node.attributes.length; i++) {
           const name = node.attributes[i].name;
 
-          if (!UI.Fragment._attributeMarkerRegex.test(name) &&
-              !UI.Fragment._attributeMarkerRegex.test(node.attributes[i].value))
+          if (!_attributeMarkerRegex.test(name) && !_attributeMarkerRegex.test(node.attributes[i].value)) {
             continue;
+          }
 
           attributesToRemove.push(name);
           nodesToMark.push(node);
           const bind = {attr: {index: valueIndex}};
-          bind.attr.names = name.split(UI.Fragment._attributeMarkerRegex);
+          bind.attr.names = name.split(_attributeMarkerRegex);
           valueIndex += bind.attr.names.length - 1;
-          bind.attr.values = node.attributes[i].value.split(UI.Fragment._attributeMarkerRegex);
+          bind.attr.values = node.attributes[i].value.split(_attributeMarkerRegex);
           valueIndex += bind.attr.values.length - 1;
           binds.push(bind);
         }
-        for (let i = 0; i < attributesToRemove.length; i++)
+        for (let i = 0; i < attributesToRemove.length; i++) {
           node.removeAttribute(attributesToRemove[i]);
+        }
       }
 
-      if (node.nodeType === Node.TEXT_NODE && node.data.indexOf(UI.Fragment._textMarker) !== -1) {
-        const texts = node.data.split(UI.Fragment._textMarkerRegex);
+      if (node.nodeType === Node.TEXT_NODE && node.data.indexOf(Fragment._textMarker) !== -1) {
+        const texts = node.data.split(_textMarkerRegex);
         node.data = texts[texts.length - 1];
         for (let i = 0; i < texts.length - 1; i++) {
-          if (texts[i])
+          if (texts[i]) {
             node.parentNode.insertBefore(createTextNode(texts[i]), node);
+          }
           const nodeToReplace = createElement('span');
           nodesToMark.push(nodeToReplace);
           binds.push({replaceNodeIndex: valueIndex++});
@@ -124,32 +127,35 @@ UI.Fragment = class {
 
       if (node.nodeType === Node.TEXT_NODE &&
           (!node.previousSibling || node.previousSibling.nodeType === Node.ELEMENT_NODE) &&
-          (!node.nextSibling || node.nextSibling.nodeType === Node.ELEMENT_NODE) && /^\s*$/.test(node.data))
+          (!node.nextSibling || node.nextSibling.nodeType === Node.ELEMENT_NODE) && /^\s*$/.test(node.data)) {
         emptyTextNodes.push(node);
+      }
     }
 
-    for (let i = 0; i < nodesToMark.length; i++)
-      nodesToMark[i].classList.add(UI.Fragment._class(i));
+    for (let i = 0; i < nodesToMark.length; i++) {
+      nodesToMark[i].classList.add(_class(i));
+    }
 
-    for (const emptyTextNode of emptyTextNodes)
+    for (const emptyTextNode of emptyTextNodes) {
       emptyTextNode.remove();
+    }
     return {template: template, binds: binds};
   }
 
   /**
-   * @param {!UI.Fragment._Template} template
+   * @param {!Fragment._Template} template
    * @param {!Array<*>} values
-   * @return {!UI.Fragment}
+   * @return {!Fragment}
    */
   static _render(template, values) {
     const content = template.template.ownerDocument.importNode(template.template.content, true);
     const resultElement =
         /** @type {!Element} */ (content.firstChild === content.lastChild ? content.firstChild : content);
-    const result = new UI.Fragment(resultElement);
+    const result = new Fragment(resultElement);
 
     const boundElements = [];
     for (let i = 0; i < template.binds.length; i++) {
-      const className = UI.Fragment._class(i);
+      const className = _class(i);
       const element = /** @type {!Element} */ (content.querySelector('.' + className));
       element.classList.remove(className);
       boundElements.push(element);
@@ -194,58 +200,72 @@ UI.Fragment = class {
    * @return {!Node}
    */
   static _nodeForValue(value) {
-    if (value instanceof Node)
+    if (value instanceof Node) {
       return value;
-    if (value instanceof UI.Fragment)
+    }
+    if (value instanceof Fragment) {
       return value._element;
+    }
     if (Array.isArray(value)) {
       const node = createDocumentFragment();
-      for (const v of value)
+      for (const v of value) {
         node.appendChild(this._nodeForValue(v));
+      }
       return node;
     }
     return createTextNode('' + value);
   }
-};
+}
 
-/**
- * @typedef {!{
- *   template: !Element,
- *   binds: !Array<!UI.Fragment._Bind>
- * }}
- */
-UI.Fragment._Template;
-
-/**
- * @typedef {!{
- *   elementId: (string|undefined),
- *
- *   attr: (!{
- *     index: number,
- *     names: !Array<string>,
- *     values: !Array<string>
- *   }|undefined),
- *
- *   replaceNodeIndex: (number|undefined)
- * }}
- */
-UI.Fragment._Bind;
-
-UI.Fragment._textMarker = '{{template-text}}';
-UI.Fragment._textMarkerRegex = /{{template-text}}/;
-
-UI.Fragment._attributeMarker = index => 'template-attribute' + index;
-UI.Fragment._attributeMarkerRegex = /template-attribute\d+/;
-
-UI.Fragment._class = index => 'template-class-' + index;
-
-UI.Fragment._templateCache = new Map();
+export const _textMarker = '{{template-text}}';
+const _textMarkerRegex = /{{template-text}}/;
+export const _attributeMarker = index => 'template-attribute' + index;
+const _attributeMarkerRegex = /template-attribute\d+/;
+const _class = index => 'template-class-' + index;
+const _templateCache = new Map();
 
 /**
  * @param {!Array<string>} strings
  * @param {...*} vararg
  * @return {!Element}
  */
-UI.html = (strings, ...vararg) => {
-  return UI.Fragment.cached(strings, ...vararg).element();
+export const html = (strings, ...vararg) => {
+  return Fragment.cached(strings, ...vararg).element();
 };
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.Fragment = Fragment;
+
+UI.Fragment._textMarker = _textMarker;
+UI.Fragment._attributeMarker = _attributeMarker;
+
+UI.html = html;
+
+/**
+ * @typedef {!{
+  *   template: !Element,
+  *   binds: !Array<!Fragment._Bind>
+  * }}
+  */
+UI.Fragment._Template;
+
+/**
+  * @typedef {!{
+  *   elementId: (string|undefined),
+  *
+  *   attr: (!{
+  *     index: number,
+  *     names: !Array<string>,
+  *     values: !Array<string>
+  *   }|undefined),
+  *
+  *   replaceNodeIndex: (number|undefined)
+  * }}
+  */
+UI.Fragment._Bind;
