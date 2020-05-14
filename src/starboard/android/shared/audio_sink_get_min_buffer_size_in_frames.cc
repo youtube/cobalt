@@ -34,6 +34,11 @@ int SbAudioSinkGetMinBufferSizeInFrames(int channels,
     return -1;
   }
 
+  // Per AOSP design, the min buffer is the audio HAL latency. Audio track
+  // also has this latency as well so that the total latency in low level would be
+  // double the latency.
   return starboard::android::shared::AudioTrackAudioSinkType::
-      GetMinBufferSizeInFrames(channels, sample_type, sampling_frequency_hz);
+             GetMinBufferSizeInFrames(channels, sample_type,
+                                      sampling_frequency_hz) *
+         2;
 }
