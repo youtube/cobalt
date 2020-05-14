@@ -33,7 +33,7 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
   def __init__(self,
                platform,
                asan_enabled_by_default=False,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(LinuxX64X11Clang36Configuration, self).__init__(
         platform,
         asan_enabled_by_default,
@@ -113,7 +113,7 @@ def CreatePlatformConfig():
   try:
     return LinuxX64X11Clang36Configuration(
         'linux-x64x11-clang-3-6',
-        sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
+        sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')
   except RuntimeError as e:
     logging.critical(e)
     return None

@@ -31,4 +31,5 @@ class LinuxX64X11MozjsConfiguration(linux_configuration.LinuxX64X11Configuration
 
 def CreatePlatformConfig():
   return LinuxX64X11MozjsConfiguration(
-      'linux-x64x11-mozjs', sabi_json_path='starboard/sabi/x64/sysv/sabi.json')
+      'linux-x64x11-mozjs',
+      sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')

@@ -26,38 +26,47 @@ from starboard.sabi import sabi_utils
 from starboard.sabi import validate_sabi
 from starboard.tools import paths
 
-_TEST_SABI_PATH = os.path.join(paths.STARBOARD_ROOT, 'sabi', 'test',
-                               'sabi.json')
-_TEST_SABI_JSON = sabi_utils.LoadSabi(_TEST_SABI_PATH, None)
+_TEST_SABI_JSON = sabi_utils.LoadSabi(
+    os.path.join(paths.STARBOARD_ROOT, 'sabi', 'test', 'sabi.json'), None)
+_TEST_SABI_SCHEMA = sabi_utils.LoadSabiSchema(
+    os.path.join(paths.STARBOARD_ROOT, 'sabi', 'test', 'sabi.schema.json'),
+    None)
 
 
 class ValidateSabiTest(unittest.TestCase):
 
   def testSunnyDayValidateSabi(self):
-    self.assertTrue(validate_sabi.ValidateSabi(_TEST_SABI_JSON))
+    self.assertTrue(
+        validate_sabi.ValidateSabi(_TEST_SABI_JSON, _TEST_SABI_SCHEMA))
 
   def testSunnyDayValidateSabiAllSabiFiles(self):
     for root, _, files in os.walk(os.path.join(paths.STARBOARD_ROOT, 'sabi')):
       if os.path.basename(root) == 'default':
         continue
-      if 'sabi.json' in files:
-        sabi_json = sabi_utils.LoadSabi(os.path.join(root, 'sabi.json'), None)
-        self.assertTrue(validate_sabi.ValidateSabi(sabi_json))
+      for f in files:
+        match = sabi_utils.SB_API_VERSION_FROM_SABI_RE.search(f)
+        if match:
+          sabi_schema_path = os.path.join(
+              sabi_utils.SABI_SCHEMA_PATH,
+              'sabi-v{}.schema.json'.format(match.group(1)))
+          sabi_json = sabi_utils.LoadSabi(os.path.join(root, f), None)
+          sabi_schema = sabi_utils.LoadSabiSchema(sabi_schema_path, None)
+          self.assertTrue(validate_sabi.ValidateSabi(sabi_json, sabi_schema))
 
   def testRainyDayValidateSabiSabiJsonWithMissingEntry(self):
     sabi_json = copy.deepcopy(_TEST_SABI_JSON)
     _, _ = sabi_json.popitem()
-    self.assertFalse(validate_sabi.ValidateSabi(sabi_json))
+    self.assertFalse(validate_sabi.ValidateSabi(sabi_json, _TEST_SABI_SCHEMA))
 
   def testRainyDayValidateSabiSabiJsonWithExtraEntry(self):
     sabi_json = copy.deepcopy(_TEST_SABI_JSON)
     sabi_json['invalid_key'] = 'invalid_value'
-    self.assertFalse(validate_sabi.ValidateSabi(sabi_json))
+    self.assertFalse(validate_sabi.ValidateSabi(sabi_json, _TEST_SABI_SCHEMA))
 
   def testRainyDayValidateSabiSabiJsonWithInvalidEntry(self):
     sabi_json = copy.deepcopy(_TEST_SABI_JSON)
     sabi_json[sabi_json.keys()[0]] = 'invalid_value'
-    self.assertFalse(validate_sabi.ValidateSabi(sabi_json))
+    self.assertFalse(validate_sabi.ValidateSabi(sabi_json, _TEST_SABI_SCHEMA))
 
 
 if __name__ == '__main__':

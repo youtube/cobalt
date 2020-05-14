@@ -35,7 +35,7 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
                platform_name='evergreen-arm',
                asan_enabled_by_default=False,
                goma_supports_compiler=True,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     # pylint: disable=useless-super-delegation
     super(EvergreenArmConfiguration,
           self).__init__(platform_name, asan_enabled_by_default,
@@ -84,7 +84,8 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
     return filters
 
   def GetVariables(self, configuration):
-    variables = super(EvergreenArmConfiguration, self).GetVariables(configuration)
+    variables = super(EvergreenArmConfiguration,
+                      self).GetVariables(configuration)
     variables.update({
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/arm/shared/platform_deploy.gypi',
