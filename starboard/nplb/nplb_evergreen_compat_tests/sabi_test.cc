@@ -105,11 +105,15 @@ TEST_F(SabiTest, VerifySABI) {
       << "The platform should use one of the predefined SABI json files!"
       << std::endl
       << "Currently supported are: " << std::endl
-      << "  starboard/sabi/arm/hardfp/sabi.json" << std::endl
-      << "  starboard/sabi/arm/softfp/sabi.json" << std::endl
-      << "  starboard/sabi/arm64/sabi.json" << std::endl
-      << "  starboard/sabi/x86/sabi.json" << std::endl
-      << "  starboard/sabi/x64/sysv/sabi.json" << std::endl;
+      << "  starboard/sabi/arm/hardfp/sabi-v" << SB_API_VERSION << ".json"
+      << std::endl
+      << "  starboard/sabi/arm/softfp/sabi-v" << SB_API_VERSION << ".json"
+      << std::endl
+      << "  starboard/sabi/arm64/sabi-v" << SB_API_VERSION << ".json"
+      << std::endl
+      << "  starboard/sabi/x86/sabi-v" << SB_API_VERSION << ".json" << std::endl
+      << "  starboard/sabi/x64/sysv/sabi-v" << SB_API_VERSION << ".json"
+      << std::endl;
 }
 
 }  // namespace

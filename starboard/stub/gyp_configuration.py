@@ -25,7 +25,7 @@ from starboard.tools.toolchain import clangxx
 from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
 
-_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi.json'
+_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json'
 
 
 def CreatePlatformConfig():

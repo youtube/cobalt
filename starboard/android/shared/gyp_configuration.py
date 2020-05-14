@@ -70,7 +70,7 @@ class AndroidConfiguration(PlatformConfiguration):
                platform,
                android_abi,
                asan_enabled_by_default=False,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(AndroidConfiguration, self).__init__(platform,
                                                asan_enabled_by_default)
     self._target_toolchain = None

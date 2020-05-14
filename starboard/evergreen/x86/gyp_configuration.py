@@ -35,7 +35,7 @@ class EvergreenX86Configuration(shared_configuration.EvergreenConfiguration):
                platform_name='evergreen-x86',
                asan_enabled_by_default=False,
                goma_supports_compiler=True,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     # pylint: disable=useless-super-delegation
     super(EvergreenX86Configuration,
           self).__init__(platform_name, asan_enabled_by_default,
@@ -98,4 +98,4 @@ class EvergreenX86Configuration(shared_configuration.EvergreenConfiguration):
 
 def CreatePlatformConfig():
   return EvergreenX86Configuration(
-      sabi_json_path='starboard/sabi/x86/sabi.json')
+      sabi_json_path='starboard/sabi/x86/sabi-v{sb_api_version}.json')

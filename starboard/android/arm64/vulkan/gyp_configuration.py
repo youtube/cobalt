@@ -20,4 +20,4 @@ def CreatePlatformConfig():
   return shared_configuration.AndroidConfiguration(
       'android-arm64-vulkan',
       'arm64-v8a',
-      sabi_json_path='starboard/sabi/arm64/sabi.json')
+      sabi_json_path='starboard/sabi/arm64/sabi-v{sb_api_version}.json')
