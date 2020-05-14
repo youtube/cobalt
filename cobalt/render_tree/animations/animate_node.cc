@@ -240,7 +240,7 @@ class AnimateNode::BoundsVisitor : public NodeVisitor {
   BoundsVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
                 base::TimeDelta since);
 
-  void Visit(animations::AnimateNode* /* animate */) override {
+  void Visit(animations::AnimateNode* animate) override {
     // An invariant of AnimateNodes is that they should never contain descendant
     // AnimateNodes.
     NOTREACHED();
@@ -395,7 +395,7 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
                const base::Optional<base::TimeDelta>& snapshot_time);
 
-  void Visit(animations::AnimateNode* /* animate */) override {
+  void Visit(animations::AnimateNode* animate) override {
     // An invariant of AnimateNodes is that they should never contain descendant
     // AnimateNodes.
     NOTREACHED();

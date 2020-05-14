@@ -14,6 +14,6 @@
 
 #include "starboard/character.h"
 
-bool SbCharacterIsUpper(int /*c*/) {
+bool SbCharacterIsUpper(int c) {
   return false;
 }

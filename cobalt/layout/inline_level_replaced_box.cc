@@ -88,7 +88,7 @@ void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, LayoutUnit /*desired_offset*/,
+    BaseDirection base_direction, LayoutUnit desired_offset,
     bool* is_placement_requirement_met, bool* is_placed,
     LayoutUnit* placed_offset) {
   // If the ellipsis is already placed, then simply mark the box as hidden by

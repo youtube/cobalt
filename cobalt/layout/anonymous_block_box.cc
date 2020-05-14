@@ -117,7 +117,7 @@ void AnonymousBlockBox::RenderAndAnimateContent(
   }
 }
 
-bool AnonymousBlockBox::TryAddChild(const scoped_refptr<Box>& /*child_box*/) {
+bool AnonymousBlockBox::TryAddChild(const scoped_refptr<Box>& child_box) {
   NOTREACHED();
   return false;
 }

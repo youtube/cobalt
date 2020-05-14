@@ -32,14 +32,13 @@ CSSKeyframesRule::CSSKeyframesRule(const std::string& name,
 }
 
 std::string CSSKeyframesRule::css_text(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   NOTIMPLEMENTED();
   return "";
 }
 
-void CSSKeyframesRule::set_css_text(
-    const std::string& /*css_text*/,
-    script::ExceptionState* /*exception_state*/) {
+void CSSKeyframesRule::set_css_text(const std::string& css_text,
+                                    script::ExceptionState* exception_state) {
   NOTIMPLEMENTED();
 }
 

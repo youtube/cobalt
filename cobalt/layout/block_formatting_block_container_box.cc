@@ -167,10 +167,9 @@ Box::Level InlineLevelBlockContainerBox::GetLevel() const {
 }
 
 WrapResult InlineLevelBlockContainerBox::TryWrapAt(
-    WrapAtPolicy /*wrap_at_policy*/,
-    WrapOpportunityPolicy wrap_opportunity_policy,
-    bool is_line_existence_justified, LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/) {
+    WrapAtPolicy wrap_at_policy, WrapOpportunityPolicy wrap_opportunity_policy,
+    bool is_line_existence_justified, LayoutUnit available_width,
+    bool should_collapse_trailing_white_space) {
   // NOTE: This logic must stay in sync with ReplacedBox::TryWrapAt().
   DCHECK(!IsAbsolutelyPositioned());
 
@@ -261,7 +260,7 @@ void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, LayoutUnit /*desired_offset*/,
+    BaseDirection base_direction, LayoutUnit desired_offset,
     bool* is_placement_requirement_met, bool* is_placed,
     LayoutUnit* placed_offset) {
   // If the ellipsis is already placed, then simply mark the box as hidden by

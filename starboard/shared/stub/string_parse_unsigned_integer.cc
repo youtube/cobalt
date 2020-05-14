@@ -15,8 +15,8 @@
 #include "starboard/common/string.h"
 
 // NOLINTNEXTLINE(runtime/int)
-unsigned long SbStringParseUnsignedInteger(const char* /*start*/,
-                                           char** /*out_end*/,
-                                           int /*base*/) {
+unsigned long SbStringParseUnsignedInteger(const char* start,
+                                           char** out_end,
+                                           int base) {
   return 0UL;
 }

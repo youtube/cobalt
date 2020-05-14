@@ -24,9 +24,9 @@ void RotateFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitRotate(this);
 }
 
-math::Matrix3F RotateFunction::ToMatrix(const math::SizeF& /* used_size */,
-    const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
-    const {
+math::Matrix3F RotateFunction::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   // Since RotateMatrix()'s parameter is interpreted as counter-clockwise, we
   // must negate our clockwise angle before passing it in.
   return math::RotateMatrix(-clockwise_angle_in_radians_);

@@ -14,7 +14,7 @@
 
 #include "starboard/common/socket.h"
 
-SbSocketError SbSocketBind(SbSocket /*socket*/,
-                           const SbSocketAddress* /*local_address*/) {
+SbSocketError SbSocketBind(SbSocket socket,
+                           const SbSocketAddress* local_address) {
   return kSbSocketErrorFailed;
 }

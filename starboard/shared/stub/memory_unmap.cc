@@ -14,6 +14,6 @@
 
 #include "starboard/memory.h"
 
-bool SbMemoryUnmap(void* /*virtual_address*/, int64_t /*size_bytes*/) {
+bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes) {
   return false;
 }

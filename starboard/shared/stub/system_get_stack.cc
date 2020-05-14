@@ -14,6 +14,6 @@
 
 #include "starboard/system.h"
 
-int SbSystemGetStack(void** /*out_stack*/, int /*stack_size*/) {
+int SbSystemGetStack(void** out_stack, int stack_size) {
   return 0;
 }

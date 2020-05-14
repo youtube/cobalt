@@ -14,6 +14,6 @@
 
 #include "starboard/common/storage.h"
 
-bool SbStorageCloseRecord(SbStorageRecord /*record*/) {
+bool SbStorageCloseRecord(SbStorageRecord record) {
   return false;
 }

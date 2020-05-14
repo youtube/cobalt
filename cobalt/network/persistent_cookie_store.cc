@@ -80,7 +80,7 @@ void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
 void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
     scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
-    const storage::MemoryStore& /*memory_store*/) {
+    const storage::MemoryStore& memory_store) {
   loaded_callback_task_runner->PostTask(
       FROM_HERE,
       base::Bind(
@@ -143,7 +143,7 @@ void PersistentCookieStore::SetForceKeepSessionState() {
 }
 
 void PersistentCookieStore::SetBeforeFlushCallback(
-    base::RepeatingClosure /*callback*/) {
+    base::RepeatingClosure callback) {
   NOTIMPLEMENTED();
 }
 

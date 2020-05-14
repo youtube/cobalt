@@ -135,14 +135,13 @@ class Node : public EventTarget {
   virtual base::Optional<std::string> node_value() const {
     return base::nullopt;
   }
-  virtual void set_node_value(
-      const base::Optional<std::string>& /* node_value */) {}
+  virtual void set_node_value(const base::Optional<std::string>& node_value) {}
 
   virtual base::Optional<std::string> text_content() const {
     return base::nullopt;
   }
   virtual void set_text_content(
-      const base::Optional<std::string>& /* text_content */) {}
+      const base::Optional<std::string>& text_content) {}
 
   scoped_refptr<Node> CloneNode(bool deep) const;
 

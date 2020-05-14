@@ -279,8 +279,7 @@ URLFetcherResponseWriter::URLFetcherResponseWriter(
 
 URLFetcherResponseWriter::~URLFetcherResponseWriter() = default;
 
-int URLFetcherResponseWriter::Initialize(
-    net::CompletionOnceCallback /*callback*/) {
+int URLFetcherResponseWriter::Initialize(net::CompletionOnceCallback callback) {
   return net::OK;
 }
 
@@ -289,13 +288,13 @@ void URLFetcherResponseWriter::OnResponseStarted(int64_t content_length) {
 }
 
 int URLFetcherResponseWriter::Write(net::IOBuffer* buffer, int num_bytes,
-                                    net::CompletionOnceCallback /*callback*/) {
+                                    net::CompletionOnceCallback callback) {
   buffer_->Write(buffer->data(), num_bytes);
   return num_bytes;
 }
 
-int URLFetcherResponseWriter::Finish(int /*net_error*/,
-                                     net::CompletionOnceCallback /*callback*/) {
+int URLFetcherResponseWriter::Finish(int net_error,
+                                     net::CompletionOnceCallback callback) {
   return net::OK;
 }
 

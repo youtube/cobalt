@@ -19,34 +19,34 @@
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 SbPlayer SbPlayerCreate(
-    SbWindow /*window*/,
-    const SbPlayerCreationParam* /*creation_param*/,
-    SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-    SbPlayerDecoderStatusFunc /*decoder_status_func*/,
-    SbPlayerStatusFunc /*player_status_func*/,
-    SbPlayerErrorFunc /*player_error_func*/,
-    void* /*context*/,
-    SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
+    SbWindow window,
+    const SbPlayerCreationParam* creation_param,
+    SbPlayerDeallocateSampleFunc sample_deallocate_func,
+    SbPlayerDecoderStatusFunc decoder_status_func,
+    SbPlayerStatusFunc player_status_func,
+    SbPlayerErrorFunc player_error_func,
+    void* context,
+    SbDecodeTargetGraphicsContextProvider* context_provider) {
   return kSbPlayerInvalid;
 }
 
 #else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
-                        SbMediaVideoCodec /*video_codec*/,
-                        SbMediaAudioCodec /*audio_codec*/,
-                        SbDrmSystem /*drm_system*/,
-                        const SbMediaAudioSampleInfo* /*audio_sample_info*/,
+SbPlayer SbPlayerCreate(SbWindow window,
+                        SbMediaVideoCodec video_codec,
+                        SbMediaAudioCodec audio_codec,
+                        SbDrmSystem drm_system,
+                        const SbMediaAudioSampleInfo* audio_sample_info,
 #if SB_API_VERSION >= 11
-                        const char* /*max_video_capabilities*/,
+                        const char* max_video_capabilities,
 #endif  // SB_API_VERSION >= 11
-                        SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-                        SbPlayerDecoderStatusFunc /*decoder_status_func*/,
-                        SbPlayerStatusFunc /*player_status_func*/,
-                        SbPlayerErrorFunc /*player_error_func*/,
-                        void* /*context*/,
-                        SbPlayerOutputMode /*output_mode*/,
-                        SbDecodeTargetGraphicsContextProvider* /*provider*/) {
+                        SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                        SbPlayerDecoderStatusFunc decoder_status_func,
+                        SbPlayerStatusFunc player_status_func,
+                        SbPlayerErrorFunc player_error_func,
+                        void* context,
+                        SbPlayerOutputMode output_mode,
+                        SbDecodeTargetGraphicsContextProvider* provider) {
   return kSbPlayerInvalid;
 }
 

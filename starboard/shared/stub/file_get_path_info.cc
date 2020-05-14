@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileGetPathInfo(const char* /*path*/, SbFileInfo* /*out_info*/) {
+bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   return false;
 }

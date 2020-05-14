@@ -14,6 +14,6 @@
 
 #include "starboard/common/mutex.h"
 
-bool SbMutexRelease(SbMutex* /*mutex*/) {
+bool SbMutexRelease(SbMutex* mutex) {
   return false;
 }

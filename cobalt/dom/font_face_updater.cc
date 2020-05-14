@@ -213,7 +213,7 @@ void FontFaceProvider::VisitString(cssom::StringValue* string) {
 }
 
 void FontFaceProvider::VisitUnicodeRange(
-    cssom::UnicodeRangeValue* /*unicode_range*/) {
+    cssom::UnicodeRangeValue* unicode_range) {
   NOTIMPLEMENTED()
       << "FontFaceProvider::UnicodeRange support not implemented yet.";
 }

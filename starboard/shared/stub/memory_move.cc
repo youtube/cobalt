@@ -14,7 +14,6 @@
 
 #include "starboard/memory.h"
 
-void* SbMemoryMove(void* /*destination*/, const void* /*source*/,
-                   size_t /*count*/) {
+void* SbMemoryMove(void* destination, const void* source, size_t count) {
   return NULL;
 }

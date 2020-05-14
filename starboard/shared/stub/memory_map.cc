@@ -14,6 +14,6 @@
 
 #include "starboard/memory.h"
 
-void* SbMemoryMap(int64_t /*size_bytes*/, int /*flags*/, const char* /*name*/) {
+void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   return NULL;
 }

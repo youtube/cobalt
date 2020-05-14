@@ -14,7 +14,6 @@
 
 #include "starboard/system.h"
 
-bool SbSystemSymbolize(const void* /*address*/, char* /*out_buffer*/,
-                       int /*buffer_size*/) {
+bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
   return false;
 }

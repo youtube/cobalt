@@ -16,7 +16,6 @@
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
 
-void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow /* window */,
-                                          bool /* keep_focus */) {}
+void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus) {}
 
 #endif

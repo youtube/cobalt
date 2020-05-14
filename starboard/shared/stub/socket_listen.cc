@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-SbSocketError SbSocketListen(SbSocket /*socket*/) {
+SbSocketError SbSocketListen(SbSocket socket) {
   return kSbSocketErrorFailed;
 }

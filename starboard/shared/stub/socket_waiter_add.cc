@@ -14,11 +14,11 @@
 
 #include "starboard/socket_waiter.h"
 
-bool SbSocketWaiterAdd(SbSocketWaiter /*waiter*/,
-                       SbSocket /*socket*/,
-                       void* /*context*/,
-                       SbSocketWaiterCallback /*callback*/,
-                       int /*interests*/,
-                       bool /*persistent*/) {
+bool SbSocketWaiterAdd(SbSocketWaiter waiter,
+                       SbSocket socket,
+                       void* context,
+                       SbSocketWaiterCallback callback,
+                       int interests,
+                       bool persistent) {
   return false;
 }

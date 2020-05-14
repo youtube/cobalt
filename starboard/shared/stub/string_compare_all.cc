@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-int SbStringCompareAll(const char* /*string1*/, const char* /*string2*/) {
+int SbStringCompareAll(const char* string1, const char* string2) {
   return 0;
 }

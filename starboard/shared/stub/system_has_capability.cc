@@ -14,6 +14,6 @@
 
 #include "starboard/system.h"
 
-bool SbSystemHasCapability(SbSystemCapabilityId /*capability_id*/) {
+bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
   return false;
 }

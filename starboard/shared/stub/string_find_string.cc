@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-const char* SbStringFindString(const char* /*str1*/, const char* /*str2*/) {
+const char* SbStringFindString(const char* str1, const char* str2) {
   return NULL;
 }

@@ -85,8 +85,8 @@ std::string GetSavePath() {
 }
 
 class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
-  void OnUpgrade(storage::StorageManager* /*storage*/, const char* /*data*/,
-                 int /*size*/) override {}
+  void OnUpgrade(storage::StorageManager* storage, const char* data,
+                 int size) override {}
 };
 
 class LocalStorageDatabaseTest : public ::testing::Test {

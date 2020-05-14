@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileExists(const char* /*path*/) {
+bool SbFileExists(const char* path) {
   return false;
 }

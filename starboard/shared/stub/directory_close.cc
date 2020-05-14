@@ -14,6 +14,6 @@
 
 #include "starboard/directory.h"
 
-bool SbDirectoryClose(SbDirectory /*directory*/) {
+bool SbDirectoryClose(SbDirectory directory) {
   return false;
 }

@@ -14,6 +14,6 @@
 
 #include "starboard/character.h"
 
-bool SbCharacterIsHexDigit(int /*c*/) {
+bool SbCharacterIsHexDigit(int c) {
   return false;
 }

@@ -14,6 +14,6 @@
 
 #include "starboard/common/mutex.h"
 
-bool SbMutexDestroy(SbMutex* /*mutex*/) {
+bool SbMutexDestroy(SbMutex* mutex) {
   return false;
 }

@@ -15,8 +15,8 @@
 #include "starboard/common/condition_variable.h"
 
 SbConditionVariableResult SbConditionVariableWaitTimed(
-    SbConditionVariable* /*condition*/,
-    SbMutex* /*mutex*/,
-    SbTime /*timeout*/) {
+    SbConditionVariable* condition,
+    SbMutex* mutex,
+    SbTime timeout) {
   return kSbConditionVariableFailed;
 }

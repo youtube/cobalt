@@ -200,12 +200,12 @@ constexpr bool TraitIsDefined() {
 }
 
 template <class TraitFilterType, class ArgType1>
-constexpr bool TraitIsDefined(ArgType1 /*arg1*/) {
+constexpr bool TraitIsDefined(ArgType1 arg1) {
   return std::is_constructible<TraitFilterType, ArgType1>::value;
 }
 
 template <class TraitFilterType, class ArgType1, class ArgType2>
-constexpr bool TraitIsDefined(ArgType1 /*arg1*/, ArgType2 /*arg2*/) {
+constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 /*arg2*/) {
   return std::is_constructible<TraitFilterType, ArgType1>::value ||
          std::is_constructible<TraitFilterType, ArgType2>::value;
 }

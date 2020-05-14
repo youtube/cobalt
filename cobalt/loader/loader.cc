@@ -59,7 +59,7 @@ class Loader::FetcherHandlerToDecoderAdapter : public Fetcher::Handler {
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
-  void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     load_complete_callback_.Run(error);
   }
 

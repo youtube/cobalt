@@ -14,6 +14,6 @@
 
 #include "starboard/player.h"
 
-SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer /*player*/) {
+SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {
   return kSbDecodeTargetInvalid;
 }

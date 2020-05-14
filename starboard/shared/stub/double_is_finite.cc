@@ -14,6 +14,6 @@
 
 #include "starboard/double.h"
 
-bool SbDoubleIsFinite(const double /*d*/) {
+bool SbDoubleIsFinite(const double d) {
   return false;
 }

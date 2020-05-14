@@ -14,6 +14,6 @@
 
 #include "starboard/common/mutex.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex* /*mutex*/) {
+SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
   return kSbMutexDestroyed;
 }

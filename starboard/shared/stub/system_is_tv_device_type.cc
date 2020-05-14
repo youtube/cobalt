@@ -14,6 +14,6 @@
 
 #include "starboard/system.h"
 
-SbSystemDeviceType SbSystemGetDeviceType(SbSystemDeviceType /*device_type*/) {
+SbSystemDeviceType SbSystemGetDeviceType(SbSystemDeviceType device_type) {
   return false;
 }

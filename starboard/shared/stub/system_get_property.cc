@@ -14,8 +14,8 @@
 
 #include "starboard/system.h"
 
-bool SbSystemGetProperty(SbSystemPropertyId /*property_id*/,
-                         char* /*out_value*/,
-                         int /*value_length*/) {
+bool SbSystemGetProperty(SbSystemPropertyId property_id,
+                         char* out_value,
+                         int value_length) {
   return false;
 }

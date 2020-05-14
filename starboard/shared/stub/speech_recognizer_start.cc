@@ -17,8 +17,8 @@
 #if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
     SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
-bool SbSpeechRecognizerStart(SbSpeechRecognizer /*recognizer*/,
-                             const SbSpeechConfiguration* /*configuration*/) {
+bool SbSpeechRecognizerStart(SbSpeechRecognizer recognizer,
+                             const SbSpeechConfiguration* configuration) {
   return false;
 }
 

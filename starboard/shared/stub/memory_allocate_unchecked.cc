@@ -14,6 +14,6 @@
 
 #include "starboard/memory.h"
 
-void* SbMemoryAllocateUnchecked(size_t /*size*/) {
+void* SbMemoryAllocateUnchecked(size_t size) {
   return NULL;
 }

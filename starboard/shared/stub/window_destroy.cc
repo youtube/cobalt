@@ -14,6 +14,6 @@
 
 #include "starboard/window.h"
 
-bool SbWindowDestroy(SbWindow /*window*/) {
+bool SbWindowDestroy(SbWindow window) {
   return false;
 }

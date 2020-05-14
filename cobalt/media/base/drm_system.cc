@@ -414,8 +414,8 @@ void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                      void* context, int ticket,
                                      SbDrmStatus status,
                                      const char* error_message,
-                                     const void* /*session_id*/,
-                                     int /*session_id_size*/) {
+                                     const void* session_id,
+                                     int session_id_size) {
   DCHECK(context);
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);

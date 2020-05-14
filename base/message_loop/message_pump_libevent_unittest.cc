@@ -100,9 +100,9 @@ class BaseWatcher : public MessagePumpLibevent::FdWatcher {
   ~BaseWatcher() override = default;
 
   // base:MessagePumpLibevent::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnFileCanReadWithoutBlocking(int fd) override { NOTREACHED(); }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnFileCanWriteWithoutBlocking(int fd) override { NOTREACHED(); }
 
  protected:
   MessagePumpLibevent::FdWatchController* controller_;
@@ -115,7 +115,7 @@ class DeleteWatcher : public BaseWatcher {
 
   ~DeleteWatcher() override { DCHECK(!controller_); }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnFileCanWriteWithoutBlocking(int fd) override {
     DCHECK(controller_);
     delete controller_;
     controller_ = nullptr;
@@ -141,7 +141,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override = default;
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnFileCanWriteWithoutBlocking(int fd) override {
     controller_->StopWatchingFileDescriptor();
   }
 };
@@ -170,14 +170,14 @@ class NestedPumpWatcher : public MessagePumpLibevent::FdWatcher {
   NestedPumpWatcher() = default;
   ~NestedPumpWatcher() override = default;
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnFileCanReadWithoutBlocking(int fd) override {
     RunLoop runloop;
     ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE, BindOnce(&QuitMessageLoopAndStart, runloop.QuitClosure()));
     runloop.Run();
   }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {}
+  void OnFileCanWriteWithoutBlocking(int fd) override {}
 };
 
 TEST_F(MessagePumpLibeventTest, NestedPumpWatcher) {
@@ -201,7 +201,7 @@ class QuitWatcher : public BaseWatcher {
               base::Closure quit_closure)
       : BaseWatcher(controller), quit_closure_(std::move(quit_closure)) {}
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnFileCanReadWithoutBlocking(int fd) override {
     // Post a fatal closure to the MessageLoop before we quit it.
     ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE, BindOnce(&FatalClosure));
 

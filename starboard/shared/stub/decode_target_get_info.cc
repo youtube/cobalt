@@ -14,7 +14,7 @@
 
 #include "starboard/decode_target.h"
 
-bool SbDecodeTargetGetInfo(SbDecodeTarget /*decode_target*/,
-                           SbDecodeTargetInfo* /*out_info*/) {
+bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
+                           SbDecodeTargetInfo* out_info) {
   return false;
 }

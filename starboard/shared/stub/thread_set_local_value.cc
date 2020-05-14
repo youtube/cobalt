@@ -14,6 +14,6 @@
 
 #include "starboard/thread.h"
 
-bool SbThreadSetLocalValue(SbThreadLocalKey /*key*/, void* /*value*/) {
+bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value) {
   return false;
 }

@@ -103,7 +103,7 @@ class StubWindow {
 
  private:
   static void StubLoadCompleteCallback(
-      const base::Optional<std::string>& /*error*/) {}
+      const base::Optional<std::string>& error) {}
 
   base::MessageLoop message_loop_;
   std::unique_ptr<css_parser::Parser> css_parser_;

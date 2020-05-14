@@ -16,9 +16,8 @@
 
 #if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
 
-bool SbWindowGetOnScreenKeyboardBoundingRect(
-    SbWindow /* window */,
-    SbWindowRect* /* bounding_rect */) {
+bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window,
+                                             SbWindowRect* bounding_rect) {
   return false;
 }
 

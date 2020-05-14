@@ -14,9 +14,9 @@
 
 #include "starboard/common/string.h"
 
-int SbStringFormat(char* /*out_buffer*/,
-                   size_t /*buffer_size*/,
-                   const char* /*format*/,
-                   va_list /*arguments*/) {
+int SbStringFormat(char* out_buffer,
+                   size_t buffer_size,
+                   const char* format,
+                   va_list arguments) {
   return 0;
 }

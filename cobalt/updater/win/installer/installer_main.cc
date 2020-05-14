@@ -9,10 +9,8 @@
 // http://blogs.msdn.com/oldnewthing/archive/2004/10/25/247180.aspx
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
-int WINAPI wWinMain(HINSTANCE /* instance */,
-                    HINSTANCE /* previous_instance */,
-                    LPWSTR /* command_line */,
-                    int /* command_show */) {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous_instance,
+                    LPWSTR command_line, int command_show) {
   updater::ProcessExitResult result =
       updater::WMain(reinterpret_cast<HMODULE>(&__ImageBase));
 

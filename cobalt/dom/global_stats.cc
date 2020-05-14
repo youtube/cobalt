@@ -62,37 +62,35 @@ bool GlobalStats::CheckNoLeaks() {
          xhr_memory_ == 0;
 }
 
-void GlobalStats::Add(Attr* /*object*/) { ++num_attrs_; }
+void GlobalStats::Add(Attr* object) { ++num_attrs_; }
 
-void GlobalStats::Add(DOMStringMap* /*object*/) { ++num_dom_string_maps_; }
+void GlobalStats::Add(DOMStringMap* object) { ++num_dom_string_maps_; }
 
-void GlobalStats::Add(DOMTokenList* /*object*/) { ++num_dom_token_lists_; }
+void GlobalStats::Add(DOMTokenList* object) { ++num_dom_token_lists_; }
 
-void GlobalStats::Add(HTMLCollection* /*object*/) { ++num_html_collections_; }
+void GlobalStats::Add(HTMLCollection* object) { ++num_html_collections_; }
 
-void GlobalStats::Add(NamedNodeMap* /*object*/) { ++num_named_node_maps_; }
+void GlobalStats::Add(NamedNodeMap* object) { ++num_named_node_maps_; }
 
-void GlobalStats::Add(Node* /*object*/) { ++num_nodes_; }
+void GlobalStats::Add(Node* object) { ++num_nodes_; }
 
-void GlobalStats::Add(NodeList* /*object*/) { ++num_node_lists_; }
+void GlobalStats::Add(NodeList* object) { ++num_node_lists_; }
 
 void GlobalStats::AddEventListener() { ++num_event_listeners_; }
 
-void GlobalStats::Remove(Attr* /*object*/) { --num_attrs_; }
+void GlobalStats::Remove(Attr* object) { --num_attrs_; }
 
-void GlobalStats::Remove(DOMStringMap* /*object*/) { --num_dom_string_maps_; }
+void GlobalStats::Remove(DOMStringMap* object) { --num_dom_string_maps_; }
 
-void GlobalStats::Remove(DOMTokenList* /*object*/) { --num_dom_token_lists_; }
+void GlobalStats::Remove(DOMTokenList* object) { --num_dom_token_lists_; }
 
-void GlobalStats::Remove(HTMLCollection* /*object*/) {
-  --num_html_collections_;
-}
+void GlobalStats::Remove(HTMLCollection* object) { --num_html_collections_; }
 
-void GlobalStats::Remove(NamedNodeMap* /*object*/) { --num_named_node_maps_; }
+void GlobalStats::Remove(NamedNodeMap* object) { --num_named_node_maps_; }
 
-void GlobalStats::Remove(Node* /*object*/) { --num_nodes_; }
+void GlobalStats::Remove(Node* object) { --num_nodes_; }
 
-void GlobalStats::Remove(NodeList* /*object*/) { --num_node_lists_; }
+void GlobalStats::Remove(NodeList* object) { --num_node_lists_; }
 
 void GlobalStats::RemoveEventListener() { --num_event_listeners_; }
 
@@ -100,9 +98,9 @@ void GlobalStats::StartJavaScriptEvent() { ++num_active_java_script_events_; }
 
 void GlobalStats::StopJavaScriptEvent() { --num_active_java_script_events_; }
 
-void GlobalStats::Add(xhr::XMLHttpRequest* /* object */) { ++num_xhrs_; }
+void GlobalStats::Add(xhr::XMLHttpRequest* object) { ++num_xhrs_; }
 
-void GlobalStats::Remove(xhr::XMLHttpRequest* /*object*/) { --num_xhrs_; }
+void GlobalStats::Remove(xhr::XMLHttpRequest* object) { --num_xhrs_; }
 
 void GlobalStats::IncreaseXHRMemoryUsage(size_t delta) { xhr_memory_ += delta; }
 

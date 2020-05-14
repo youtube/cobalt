@@ -24,9 +24,9 @@ void ScaleFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitScale(this);
 }
 
-math::Matrix3F ScaleFunction::ToMatrix(const math::SizeF& /* used_size */,
-    const scoped_refptr<ui_navigation::NavItem>& /* used_ui_nav_focus */)
-    const {
+math::Matrix3F ScaleFunction::ToMatrix(
+    const math::SizeF& used_size,
+    const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   return math::ScaleMatrix(x_factor_, y_factor_);
 }
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/websocket/cobalt_web_socket_event_handler.h"
+#include "cobalt/websocket/web_socket_event_interface.h"
 
 #include "base/logging.h"
 #include "cobalt/websocket/web_socket_impl.h"
@@ -98,25 +98,24 @@ void CobaltWebSocketEventHandler::OnFailChannel(const std::string& message) {
   creator_->OnClose(true, net::kWebSocketErrorAbnormalClosure, message);
 }
 
-
 void OnDropChannel(bool was_clean, uint16_t code, const std::string& reason) {
   creator_->OnClose(was_clean, code, reason);
 }
 
 void CobaltWebSocketEventHandler::OnSSLCertificateError(
     std::unique_ptr<net::SSLErrorCallbacks> ssl_error_callbacks,
-    const GURL& /*url*/, const SSLInfo& ssl_info, bool /*fatal*/) {
+    const GURL& url, const SSLInfo& ssl_info, bool fatal) {
   // TODO: determine if there are circumstances we want to continue
   // the request.
   DLOG(WARNING) << "SSL cert failure occured, cancelling connection";
   ssl_error_callbacks->CancelSSLRequest(-1, ssl_info);
 }
 int CobaltWebSocketEventHandler::OnAuthRequired(
-    scoped_refptr<net::AuthChallengeInfo> /*auth_info*/,
-    scoped_refptr<net::HttpResponseHeaders> /*response_headers*/,
-    const net::HostPortPair& /*host_port_pair*/,
-    base::OnceCallback<void(const net::AuthCredentials*)> /*callback*/,
-    base::Optional<net::AuthCredentials>* /*credentials*/) {
+    scoped_refptr<net::AuthChallengeInfo> auth_info,
+    scoped_refptr<net::HttpResponseHeaders> response_headers,
+    const net::HostPortPair& host_port_pair,
+    base::OnceCallback<void(const net::AuthCredentials*)> callback,
+    base::Optional<net::AuthCredentials>* credentials) {
   NOTIMPLEMENTED()
   return net::OK;
 }

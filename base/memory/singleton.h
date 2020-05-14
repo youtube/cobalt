@@ -240,12 +240,12 @@ class Singleton {
 
   // Internal method used as an adaptor for GetOrCreateLazyPointer(). Do not use
   // outside of that use case.
-  static Type* CreatorFunc(void* /* creator_arg*/) { return Traits::New(); }
+  static Type* CreatorFunc(void* creator_arg) { return Traits::New(); }
 
   // Adapter function for use with AtExit().  This should be called single
   // threaded, so don't use atomic operations.
   // Calling OnExit while singleton is in use by other threads is a mistake.
-  static void OnExit(void* /*unused*/) {
+  static void OnExit(void* unused) {
     // AtExit should only ever be register after the singleton instance was
     // created.  We should only ever get here with a valid instance_ pointer.
     Traits::Delete(reinterpret_cast<Type*>(subtle::NoBarrier_Load(&instance_)));

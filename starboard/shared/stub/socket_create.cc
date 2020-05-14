@@ -14,7 +14,7 @@
 
 #include "starboard/common/socket.h"
 
-SbSocket SbSocketCreate(SbSocketAddressType /*address_type*/,
-                        SbSocketProtocol /*protocol*/) {
+SbSocket SbSocketCreate(SbSocketAddressType address_type,
+                        SbSocketProtocol protocol) {
   return kSbSocketInvalid;
 }

@@ -14,7 +14,6 @@
 
 #include "starboard/memory.h"
 
-void* SbMemoryCopy(void* /*destination*/, const void* /*source*/,
-                   size_t /*count*/) {
+void* SbMemoryCopy(void* destination, const void* source, size_t count) {
   return NULL;
 }

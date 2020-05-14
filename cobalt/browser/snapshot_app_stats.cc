@@ -128,7 +128,7 @@ namespace {
 cobalt::browser::Application* g_application = NULL;
 base::Thread* g_snapshot_thread = NULL;
 
-void StartApplication(int /*argc*/, char* /*argv*/ [], const char* /*link*/,
+void StartApplication(int argc, char* argv[], const char* link,
                       const base::Closure& quit_closure) {
   logging::SetMinLogLevel(100);
 

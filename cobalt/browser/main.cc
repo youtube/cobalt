@@ -54,7 +54,7 @@ bool CheckForAndExecuteStartupSwitches() {
   return g_is_startup_switch_set;
 }
 
-void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
+void PreloadApplication(int argc, char** argv, const char* link,
                         const base::Closure& quit_closure) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);
@@ -67,7 +67,7 @@ void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
   DCHECK(g_application);
 }
 
-void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
+void StartApplication(int argc, char** argv, const char* link,
                       const base::Closure& quit_closure) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);

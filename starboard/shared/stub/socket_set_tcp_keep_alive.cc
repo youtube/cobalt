@@ -14,8 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketSetTcpKeepAlive(SbSocket /*socket*/,
-                             bool /*value*/,
-                             SbTime /*period*/) {
+bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period) {
   return false;
 }

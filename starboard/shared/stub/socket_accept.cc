@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-SbSocket SbSocketAccept(SbSocket /*socket*/) {
+SbSocket SbSocketAccept(SbSocket socket) {
   return kSbSocketInvalid;
 }

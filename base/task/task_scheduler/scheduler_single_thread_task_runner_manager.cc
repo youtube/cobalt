@@ -98,7 +98,7 @@ class SchedulerWorkerDelegate : public SchedulerWorker::Delegate {
     return thread_label_;
   }
 
-  void OnMainEntry(const SchedulerWorker* /* worker */) override {
+  void OnMainEntry(const SchedulerWorker* worker) override {
     thread_ref_checker_.Set();
     PlatformThread::SetName(thread_name_);
   }
@@ -127,7 +127,7 @@ class SchedulerWorkerDelegate : public SchedulerWorker::Delegate {
     return thread_ref_checker_.IsCurrentThreadSameAsSetThread();
   }
 
-  void OnMainExit(SchedulerWorker* /* worker */) override {}
+  void OnMainExit(SchedulerWorker* worker) override {}
 
  private:
   const std::string thread_name_;
@@ -196,7 +196,7 @@ class SchedulerWorkerCOMDelegate : public SchedulerWorkerDelegate {
     return sequence;
   }
 
-  void OnMainExit(SchedulerWorker* /* worker */) override {
+  void OnMainExit(SchedulerWorker* worker) override {
     scoped_com_initializer_.reset();
   }
 

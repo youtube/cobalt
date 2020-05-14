@@ -39,7 +39,7 @@ struct SaturateFastAsmOp {
 template <typename Dst, typename Src, typename Enable = void>
 struct IsValueInRangeFastOp {
   static const bool is_supported = false;
-  static constexpr bool Do(Src /*value*/) {
+  static constexpr bool Do(Src value) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<bool>();
   }
@@ -152,7 +152,7 @@ constexpr Dst saturated_cast_impl(Src value, RangeCheck constraint) {
 template <typename Dst, typename Src, typename Enable = void>
 struct SaturateFastOp {
   static const bool is_supported = false;
-  static constexpr Dst Do(Src /*value*/) {
+  static constexpr Dst Do(Src value) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<Dst>();
   }
