@@ -4100,17 +4100,6 @@ std::vector<uint8> GetFileData(const base::FilePath& file_path) {
   return image_data;
 }
 
-LottieAnimation::LottieProperties CreateLottieProperties(
-    LottieAnimation::LottieState state, int direction, bool loop,
-    double speed) {
-  LottieAnimation::LottieProperties lottie_properties;
-  lottie_properties.UpdateState(state);
-  lottie_properties.UpdateDirection(direction);
-  lottie_properties.UpdateLoop(loop);
-  lottie_properties.UpdateSpeed(speed);
-  return lottie_properties;
-}
-
 }  // namespace
 
 TEST_F(PixelTest, BeginningOfPlayingLottieAnimationTest) {
@@ -4119,8 +4108,9 @@ TEST_F(PixelTest, BeginningOfPlayingLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, 1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4135,8 +4125,9 @@ TEST_F(PixelTest, MiddleOfPlayingLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, 1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4151,12 +4142,32 @@ TEST_F(PixelTest, EndOfPlayingLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, 1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(1.33);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, PausedLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  // An animation must start playing before it can be paused.
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPaused);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0.67);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
 }
@@ -4167,12 +4178,47 @@ TEST_F(PixelTest, StoppedLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kStopped, 1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kStopped);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(0.67);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, SeekFrameLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.SeekFrame(10);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta();
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, SeekPercentStringLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.SeekPercent(50);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta();
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
 }
@@ -4183,8 +4229,10 @@ TEST_F(PixelTest, ReverseDirectionLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, -1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateDirection(-1);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4199,8 +4247,10 @@ TEST_F(PixelTest, LoopingLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, 1, true, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateLoop(true);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4217,8 +4267,10 @@ TEST_F(PixelTest, NotLoopingLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      LottieAnimation::LottieState::kPlaying, 1, false, 1));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateLoop(false);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4235,8 +4287,10 @@ TEST_F(PixelTest, 2xSpeedLottieAnimationTest) {
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
-  animation->SetProperties(CreateLottieProperties(
-      render_tree::LottieAnimation::LottieState::kPlaying, 1, false, 2));
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateSpeed(2);
+  animation->SetProperties(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));

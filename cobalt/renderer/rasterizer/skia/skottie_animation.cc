@@ -35,9 +35,17 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
   // Seeking to a particular frame takes precedence over normal playback.
   // Check whether "seek()" has been called but has yet to occur.
   if (seek_counter_ != properties_.seek_counter) {
-    skottie_animation_->seekFrame(properties_.seek_frame);
-    current_animation_time_ = base::TimeDelta::FromSecondsD(
-        properties_.seek_frame / skottie_animation_->fps());
+    if (properties_.seek_value_is_frame) {
+      skottie_animation_->seekFrame(properties_.seek_value);
+      current_animation_time_ = base::TimeDelta::FromSecondsD(
+          properties_.seek_value * skottie_animation_->fps() *
+          skottie_animation_->duration());
+    } else {
+      skottie_animation_->seekFrameTime(properties_.seek_value *
+                                        skottie_animation_->duration());
+      current_animation_time_ = base::TimeDelta::FromSecondsD(
+          properties_.seek_value * skottie_animation_->duration());
+    }
     last_updated_animate_function_time_ = animate_function_time;
     seek_counter_ = properties_.seek_counter;
     return;
