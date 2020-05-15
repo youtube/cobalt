@@ -933,8 +933,13 @@ void BrowserModule::OnWindowMinimize() {
     return;
   }
 #endif
-
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  SbSystemRequestConceal();
+#else
   SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 }
 
 #if SB_API_VERSION >= 8
@@ -1331,8 +1336,14 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
   } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
     if (type == base::Tokens::keydown()) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+      SbSystemRequestConceal();
+#else
       // Ctrl+S suspends Cobalt.
       SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     }
     return false;
   }
