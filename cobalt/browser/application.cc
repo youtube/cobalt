@@ -741,8 +741,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   UpdateUserAgent();
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
+#else
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
-
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   // Register event callbacks.
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
@@ -887,10 +892,14 @@ void Application::Start() {
     return;
   }
 
+#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
+    !SB_HAS(CONCEALED_STATE)
   if (app_status_ != kPreloadingAppStatus) {
     NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
+#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
+        // !SB_HAS(CONCEALED_STATE)
 
   OnApplicationEvent(kSbEventTypeStart);
 }
@@ -918,6 +927,18 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur:
+    case kSbEventTypeFocus:
+    case kSbEventTypeConceal:
+    case kSbEventTypeReveal:
+    case kSbEventTypeFreeze:
+    case kSbEventTypeUnfreeze:
+    case kSbEventTypeLowMemory:
+      OnApplicationEvent(starboard_event->type);
+      break;
+#else
     case kSbEventTypePause:
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
@@ -925,6 +946,8 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLowMemory:
       OnApplicationEvent(starboard_event->type);
       break;
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
@@ -1015,6 +1038,62 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Start();
       DLOG(INFO) << "Finished starting.";
       break;
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur:
+      DLOG(INFO) << "Got blur event.";
+      app_status_ = kBlurredAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Pause();
+      DLOG(INFO) << "Finished blurring.";
+      break;
+    case kSbEventTypeFocus:
+      DLOG(INFO) << "Got focus event.";
+      app_status_ = kRunningAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Unpause();
+      DLOG(INFO) << "Finished focusing.";
+      break;
+    case kSbEventTypeConceal:
+      DLOG(INFO) << "Got conceal event.";
+      app_status_ = kConcealedAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Suspend();
+#if SB_IS(EVERGREEN)
+      updater_module_->Suspend();
+#endif
+      DLOG(INFO) << "Finished concealing.";
+      break;
+    case kSbEventTypeReveal:
+      DCHECK(SbSystemSupportsResume());
+      DLOG(INFO) << "Got reveal event.";
+      app_status_ = kBlurredAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Resume();
+#if SB_IS(EVERGREEN)
+      updater_module_->Resume();
+#endif
+      DLOG(INFO) << "Finished revealing.";
+      break;
+    case kSbEventTypeFreeze:
+      DLOG(INFO) << "Got freeze event, but no action was taken.";
+      break;
+    case kSbEventTypeUnfreeze:
+      DLOG(INFO) << "Got unfreeze event, but no action was taken.";
+      break;
+#else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
       app_status_ = kPausedAppStatus;
@@ -1050,6 +1129,8 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
