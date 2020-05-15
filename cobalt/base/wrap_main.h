@@ -40,7 +40,7 @@ namespace wrap_main {
 typedef int (*MainFunction)(int argc, char** argv);
 
 // A start-style function.
-typedef void (*StartFunction)(int argc, char** argv, const char* link,
+typedef void (*StartFunction)(int argc, char** argv, const char* start_url,
                               const base::Closure& quit_closure);
 
 // A function type that can be called at shutdown.
@@ -51,7 +51,7 @@ typedef void (*EventFunction)(const SbEvent* event);
 
 // No-operation function that can be passed into start_function if no start work
 // is needed.
-void NoopStartFunction(int argc, char** argv, const char* link,
+void NoopStartFunction(int argc, char** argv, const char* /*start_url*/,
                        const base::Closure& quit_closure) {}
 
 // No-operation function that can be passed into event_function if no other
