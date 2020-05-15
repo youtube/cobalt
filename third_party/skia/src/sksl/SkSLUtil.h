@@ -287,6 +287,11 @@ NORETURN void sksl_abort();
 #define SKSL_PRINTF_LIKE(A, B)
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#define ABORT(...) (SbLogFormatF(__VA_ARGS__), sksl_abort())
+#else
 #define ABORT(...) (printf(__VA_ARGS__), sksl_abort())
+#endif
 
 #endif
