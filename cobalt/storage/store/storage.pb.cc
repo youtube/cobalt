@@ -9,6 +9,7 @@
 #include <google/protobuf/stubs/common.h>
 #include <google/protobuf/stubs/port.h>
 #include <google/protobuf/stubs/once.h>
+#include <google/protobuf/stubs/starboard_poem.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite_inl.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
