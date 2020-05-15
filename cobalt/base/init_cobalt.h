@@ -30,10 +30,10 @@ namespace cobalt {
 //
 //   ..RunSomeCode..
 // }
-void InitCobalt(int argc, char* argv[], const char* initial_deep_link);
+void InitCobalt(int argc, char* argv[], const char* start_url);
 
-// Get the |initial_deep_link| string specified in |InitCobalt|.
-const char* GetInitialDeepLink();
+// Get the |start_url| string specified in |InitCobalt|.
+const char* GetStarboardStartURL();
 
 }  // namespace cobalt
 
