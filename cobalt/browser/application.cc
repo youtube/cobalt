@@ -197,9 +197,21 @@ std::string GetWebDriverListenIp() {
 
 GURL GetInitialURL() {
   GURL initial_url = GURL(kDefaultURL);
+
+  // respect initial URL set through SbEventStartData
+  bool has_starboard_start_url =
+      GetStarboardStartURL() && SbStringGetLength(GetStarboardStartURL()) != 0;
+  if (has_starboard_start_url) {
+    initial_url = GURL(GetStarboardStartURL());
+  }
+
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
+    if (GetStarboardStartURL()) {
+      DLOG(INFO) << "Starboard initial url: " << GetStarboardStartURL()
+                 << " will be overriden by command line url switch";
+    }
     std::string url_switch =
         command_line->GetSwitchValueASCII(switches::kInitialURL);
 #if defined(ENABLE_ABOUT_SCHEME)
@@ -546,7 +558,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
-  options.initial_deep_link = GetInitialDeepLink();
   network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
