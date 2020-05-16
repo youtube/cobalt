@@ -54,7 +54,9 @@ class CrashLogDictionary {
 
  private:
   CrashLogDictionary() : accessing_log_data_(0) {
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
     SbCoreDumpRegisterHandler(&CoreDumpHandler, this);
+#endif
   }
 
   static void CoreDumpHandler(void* context) {
@@ -64,6 +66,7 @@ class CrashLogDictionary {
   }
 
   void OnCrash() {
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
     // Check that we're not already updating log data.  If we are, we just
     // give up and skip recording any crash data, but hopefully this is rare.
     if (base::subtle::Acquire_CompareAndSwap(&accessing_log_data_, 0, 1) == 0) {
@@ -73,6 +76,7 @@ class CrashLogDictionary {
       }
       base::subtle::Release_Store(&accessing_log_data_, 0);
     }
+#endif
   }
 
   friend struct base::DefaultSingletonTraits<CrashLogDictionary>;
@@ -98,6 +102,25 @@ bool H5vccCrashLog::SetString(const std::string& key,
   CrashLogDictionary::GetInstance()->SetString(key, value);
 
   return true;
+}
+
+void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
+  if (intent == kH5vccCrashTypeNullDereference) {
+    *(reinterpret_cast<volatile char*>(0)) = 0;
+  }
+  if (intent == kH5vccCrashTypeIllegalInstruction) {
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
+    __asm(".word 0xf7f0a000\n");
+#elif !SB_IS(ARCH_X64)  // inline asm not allowed on 64bit MSVC
+    __asm("ud2");
+#endif
+  }
+  if (intent == kH5vccCrashTypeDebugger) {
+    SbSystemBreakIntoDebugger();
+  }
+  if (intent == kH5vccCrashTypeOutOfMemory) {
+    SbMemoryAllocateAligned(128, SIZE_MAX);
+  }
 }
 
 }  // namespace h5vcc
