@@ -26,4 +26,9 @@ interface H5vccCrashLog {
   // if for some reason the string could not be set in the crash log.
   // Sets a (key, value) string pair that should be logged if a crash occurs.
   boolean setString(DOMString key, DOMString value);
+
+  // Induce a crash. This attempts, but does not guarantee, to cause a specified
+  // type of crash. The result may vary by platform. This API is intended for
+  // reliability testing only.
+  void triggerCrash(H5vccCrashType intent);
 };

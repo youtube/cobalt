@@ -277,6 +277,7 @@
         '../dom/track_default_type.idl',
         '../dom/ui_event_init.idl',
         '../dom/wheel_event_init.idl',
+        '../h5vcc/h5vcc_crash_type.idl',
         '../media_capture/blob_event_init.idl',
         '../media_capture/media_device_kind.idl',
         '../media_capture/media_recorder_options.idl',
