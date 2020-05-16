@@ -64,13 +64,7 @@ void H5vccRuntime::TraceMembers(script::Tracer* tracer) {
 }
 
 void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
-  const base::ApplicationEvent* app_event =
-      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
-  if (app_event->type() == kSbEventTypePause) {
-    on_pause()->DispatchEvent();
-  } else if (app_event->type() == kSbEventTypeUnpause) {
-    on_resume()->DispatchEvent();
-  }
+  NOTREACHED();
 }
 
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
