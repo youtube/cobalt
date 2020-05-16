@@ -496,7 +496,7 @@ class MediaCodecBridge {
     boolean shouldConfigureHdr =
         android.os.Build.VERSION.SDK_INT >= 24
             && colorInfo != null
-            && MediaCodecUtil.isHdrCapableVideoDecoder(mime, findVideoDecoderResult);
+            && MediaCodecUtil.isHdrCapableVp9Decoder(findVideoDecoderResult);
     if (shouldConfigureHdr) {
       Log.d(TAG, "Setting HDR info.");
       mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, colorInfo.colorTransfer);

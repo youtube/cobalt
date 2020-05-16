@@ -33,24 +33,15 @@ const jint HDR_TYPE_DOLBY_VISION = 1;
 const jint HDR_TYPE_HDR10 = 2;
 const jint HDR_TYPE_HLG = 3;
 
-bool IsHDRTransferCharacteristicsSupported(SbMediaVideoCodec video_codec,
-                                           SbMediaTransferId transfer_id) {
+bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
   SB_DCHECK(transfer_id != kSbMediaTransferIdBt709 &&
             transfer_id != kSbMediaTransferIdUnspecified);
-
-  const char* mime = SupportedVideoCodecToMimeType(video_codec);
-  if (!mime) {
-    return false;
-  }
-  JniEnvExt* env = JniEnvExt::Get();
-
-  // An HDR capable VP9 or AV1 decoder is needed to handle HDR at all.
-  bool has_hdr_capable_decoder =
+  // An HDR capable VP9 decoder is needed to handle HDR at all.
+  bool has_hdr_capable_vp9_decoder =
       JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-          "dev/cobalt/media/MediaCodecUtil", "hasHdrCapableVideoDecoder",
-          "(Ljava/lang/String;)Z",
-          env->NewStringStandardUTFOrAbort(mime)) == JNI_TRUE;
-  if (!has_hdr_capable_decoder) {
+          "dev/cobalt/media/MediaCodecUtil", "hasHdrCapableVp9Decoder",
+          "()Z") == JNI_TRUE;
+  if (!has_hdr_capable_vp9_decoder) {
     return false;
   }
 
@@ -84,7 +75,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int fps,
                                        bool decode_to_texture_required) {
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    if (!IsHDRTransferCharacteristicsSupported(video_codec, transfer_id)) {
+    if (!IsHDRTransferCharacteristicsSupported(transfer_id)) {
       return false;
     }
   }
