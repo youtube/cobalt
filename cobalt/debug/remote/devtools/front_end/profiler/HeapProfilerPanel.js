@@ -11,8 +11,11 @@ Profiler.HeapProfilerPanel = class extends Profiler.ProfilesPanel {
     const registry = Profiler.ProfileTypeRegistry.instance;
     const profileTypes =
         [registry.heapSnapshotProfileType, registry.trackingHeapSnapshotProfileType, registry.samplingHeapProfileType];
-    if (Runtime.experiments.isEnabled('nativeHeapProfiler'))
-      profileTypes.push(registry.samplingNativeHeapProfileType, registry.samplingNativeHeapSnapshotType);
+    if (Root.Runtime.experiments.isEnabled('nativeHeapProfiler')) {
+      profileTypes.push(registry.samplingNativeHeapProfileType);
+      profileTypes.push(registry.samplingNativeHeapSnapshotRendererType);
+      profileTypes.push(registry.samplingNativeHeapSnapshotBrowserType);
+    }
     super('heap_profiler', profileTypes, 'profiler.heap-toggle-recording');
   }
 
@@ -23,24 +26,29 @@ Profiler.HeapProfilerPanel = class extends Profiler.ProfilesPanel {
    * @param {!Object} target
    */
   appendApplicableItems(event, contextMenu, target) {
-    if (!(target instanceof SDK.RemoteObject))
+    if (!(target instanceof SDK.RemoteObject)) {
       return;
+    }
 
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
 
     const object = /** @type {!SDK.RemoteObject} */ (target);
-    if (!object.objectId)
+    if (!object.objectId) {
       return;
+    }
     const objectId = /** @type {string} */ (object.objectId);
 
     const heapProfiles = Profiler.ProfileTypeRegistry.instance.heapSnapshotProfileType.getProfiles();
-    if (!heapProfiles.length)
+    if (!heapProfiles.length) {
       return;
+    }
 
     const heapProfilerModel = object.runtimeModel().heapProfilerModel();
-    if (!heapProfilerModel)
+    if (!heapProfilerModel) {
       return;
+    }
 
     /**
      * @param {string} viewName
@@ -48,8 +56,9 @@ Profiler.HeapProfilerPanel = class extends Profiler.ProfilesPanel {
      */
     function revealInView(viewName) {
       heapProfilerModel.snapshotObjectIdForObjectId(objectId).then(result => {
-        if (this.isShowing() && result)
+        if (this.isShowing() && result) {
           this.showObject(result, viewName);
+        }
       });
     }
 

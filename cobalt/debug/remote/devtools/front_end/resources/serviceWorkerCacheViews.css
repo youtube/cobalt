@@ -11,11 +11,6 @@
     padding-right: 10px;
 }
 
-.service-worker-cache-data-view .data-view-toolbar .key-input {
-    margin: auto 0;
-    width: 200px;
-}
-
 .service-worker-cache-data-view .data-grid {
     flex: auto;
 }
@@ -46,10 +41,6 @@
     line-height: inherit;
 }
 
-.service-worker-cache-data-view .primitive-value {
-    padding-top: 1px;
-}
-
 .service-worker-cache-data-view .data-grid .data-container td .section .header .title {
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -60,4 +51,15 @@
     background-color: #eee;
     height: 4px;
     border-bottom: 1px solid rgb(64%, 64%, 64%);
+}
+
+.cache-storage-summary-bar {
+    flex: 0 0 27px;
+    line-height: 27px;
+    padding-left: 5px;
+    background-color: #eee;
+    border-top: 1px solid #ccc;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }

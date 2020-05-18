@@ -27,11 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /**
  * @implements {UI.TextEditor}
  * @unrestricted
  */
-TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
+export class CodeMirrorTextEditor extends UI.VBox {
   /**
    * @param {!UI.TextEditor.Options} options
    */
@@ -42,16 +43,19 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this.registerRequiredCSS('cm/codemirror.css');
     this.registerRequiredCSS('text_editor/cmdevtools.css');
 
-    TextEditor.CodeMirrorUtils.appendThemeStyle(this.element);
+    const {indentWithTabs, indentUnit} =
+        CodeMirrorTextEditor._getIndentation(Common.moduleSetting('textEditorIndent').get());
 
     this._codeMirror = new CodeMirror(this.element, {
+      devtoolsAccessibleName: options.devtoolsAccessibleName,
       lineNumbers: options.lineNumbers,
       matchBrackets: true,
       smartIndent: true,
       styleSelectedText: true,
       electricChars: true,
       styleActiveLine: true,
-      indentUnit: 4,
+      indentUnit,
+      indentWithTabs,
       lineWrapping: options.lineWrapping,
       lineWiseCopyCut: false,
       tabIndex: 0,
@@ -61,6 +65,8 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this._codeMirrorElement = this.element.lastElementChild;
 
     this._codeMirror._codeMirrorTextEditor = this;
+
+    Common.moduleSetting('textEditorIndent').addChangeListener(this._updateIndentSize.bind(this));
 
     CodeMirror.keyMap['devtools-common'] = {
       'Left': 'goCharLeft',
@@ -73,8 +79,8 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       'PageDown': 'goSmartPageDown',
       'Delete': 'delCharAfter',
       'Backspace': 'delCharBefore',
-      'Tab': 'defaultTab',
-      'Shift-Tab': 'indentLess',
+      'Tab': 'UserIndent',
+      'Shift-Tab': 'indentLessOrPass',
       'Enter': 'newlineAndIndent',
       'Ctrl-Space': 'autocomplete',
       'Esc': 'dismiss',
@@ -124,6 +130,8 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       'Ctrl-D': 'delCharAfter',
       'Ctrl-K': 'killLine',
       'Ctrl-T': 'transposeChars',
+      'Ctrl-P': 'goLineUp',
+      'Ctrl-N': 'goLineDown',
       'Shift-Ctrl-Left': 'selectCamelLeft',
       'Shift-Ctrl-Right': 'selectCamelRight',
       'Cmd-Left': 'goLineStartSmart',
@@ -137,8 +145,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       fallthrough: 'devtools-common'
     };
 
-    if (options.bracketMatchingSetting)
+    if (options.bracketMatchingSetting) {
       options.bracketMatchingSetting.addChangeListener(this._enableBracketMatchingIfNeeded, this);
+    }
     this._enableBracketMatchingIfNeeded();
 
     this._codeMirror.setOption('keyMap', Host.isMac() ? 'devtools-mac' : 'devtools-pc');
@@ -146,8 +155,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this._codeMirror.setOption('flattenSpans', false);
 
     let maxHighlightLength = options.maxHighlightLength;
-    if (typeof maxHighlightLength !== 'number')
-      maxHighlightLength = TextEditor.CodeMirrorTextEditor.maxHighlightLength;
+    if (typeof maxHighlightLength !== 'number') {
+      maxHighlightLength = CodeMirrorTextEditor.maxHighlightLength;
+    }
     this._codeMirror.setOption('maxHighlightLength', maxHighlightLength);
     this._codeMirror.setOption('mode', null);
     this._codeMirror.setOption('crudeMeasuringFrom', 1000);
@@ -155,21 +165,22 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this._shouldClearHistory = true;
     this._lineSeparator = '\n';
 
-    TextEditor.CodeMirrorTextEditor._fixWordMovement(this._codeMirror);
+    CodeMirrorTextEditor._fixWordMovement(this._codeMirror);
 
-    this._selectNextOccurrenceController =
-        new TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController(this, this._codeMirror);
+    this._selectNextOccurrenceController = new SelectNextOccurrenceController(this, this._codeMirror);
 
     this._codeMirror.on('changes', this._changes.bind(this));
     this._codeMirror.on('beforeSelectionChange', this._beforeSelectionChange.bind(this));
-    this._codeMirror.on('keyHandled', this._onKeyHandled.bind(this));
+    this._codeMirror.on('cursorActivity', () => {
+      this.dispatchEventToListeners(UI.TextEditor.Events.CursorChanged);
+    });
 
     this.element.style.overflow = 'hidden';
     this._codeMirrorElement.classList.add('source-code');
     this._codeMirrorElement.classList.add('fill');
 
-    /** @type {!Multimap<number, !TextEditor.CodeMirrorTextEditor.Decoration>} */
-    this._decorations = new Multimap();
+    /** @type {!Platform.Multimap<number, !TextEditor.CodeMirrorTextEditor.Decoration>} */
+    this._decorations = new Platform.Multimap();
 
     this.element.addEventListener('keydown', this._handleKeyDown.bind(this), true);
     this.element.addEventListener('keydown', this._handlePostKeyDown.bind(this), false);
@@ -179,10 +190,12 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this._readOnly = false;
 
     this._mimeType = '';
-    if (options.mimeType)
+    if (options.mimeType) {
       this.setMimeType(options.mimeType);
-    if (options.autoHeight)
+    }
+    if (options.autoHeight) {
       this._codeMirror.setSize(null, 'auto');
+    }
 
     this._placeholderElement = null;
     if (options.placeholder) {
@@ -198,8 +211,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    */
   static autocompleteCommand(codeMirror) {
     const autocompleteController = codeMirror._codeMirrorTextEditor._autocompleteController;
-    if (autocompleteController)
+    if (autocompleteController) {
       autocompleteController.autocomplete(true);
+    }
   }
 
   /**
@@ -233,21 +247,32 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
   }
 
   /**
+   * @param {string} indentationValue
+   */
+  static _getIndentation(indentationValue) {
+    const indentWithTabs = /\t/.test(indentationValue);
+    const indentUnit = indentWithTabs ? 4 : indentationValue.length;
+    return {indentWithTabs, indentUnit};
+  }
+
+  /**
    * @param {string} modeName
    * @param {string} tokenPrefix
    */
   static _overrideModeWithPrefixedTokens(modeName, tokenPrefix) {
     const oldModeName = modeName + '-old';
-    if (CodeMirror.modes[oldModeName])
+    if (CodeMirror.modes[oldModeName]) {
       return;
+    }
 
     CodeMirror.defineMode(oldModeName, CodeMirror.modes[modeName]);
     CodeMirror.defineMode(modeName, modeConstructor);
 
     function modeConstructor(config, parserConfig) {
       const innerConfig = {};
-      for (const i in parserConfig)
+      for (const i in parserConfig) {
         innerConfig[i] = parserConfig[i];
+      }
       innerConfig.name = oldModeName;
       const codeMirrorMode = CodeMirror.getMode(config, innerConfig);
       codeMirrorMode.name = modeName;
@@ -263,35 +288,38 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
 
   /**
    * @param {string} mimeType
-   * @return {!Array<!Runtime.Extension>}}
+   * @return {!Array<!Root.Runtime.Extension>}}
    */
   static _collectUninstalledModes(mimeType) {
-    const installed = TextEditor.CodeMirrorTextEditor._loadedMimeModeExtensions;
+    const installed = _loadedMimeModeExtensions;
 
     const nameToExtension = new Map();
-    const extensions = self.runtime.extensions(TextEditor.CodeMirrorMimeMode);
-    for (const extension of extensions)
+    const extensions = self.runtime.extensions(CodeMirrorMimeMode);
+    for (const extension of extensions) {
       nameToExtension.set(extension.descriptor()['fileName'], extension);
+    }
 
     const modesToLoad = new Set();
     for (const extension of extensions) {
       const descriptor = extension.descriptor();
-      if (installed.has(extension) || descriptor['mimeTypes'].indexOf(mimeType) === -1)
+      if (installed.has(extension) || descriptor['mimeTypes'].indexOf(mimeType) === -1) {
         continue;
+      }
 
       modesToLoad.add(extension);
       const deps = descriptor['dependencies'] || [];
       for (let i = 0; i < deps.length; ++i) {
         const extension = nameToExtension.get(deps[i]);
-        if (extension && !installed.has(extension))
+        if (extension && !installed.has(extension)) {
           modesToLoad.add(extension);
+        }
       }
     }
     return Array.from(modesToLoad);
   }
 
   /**
-   * @param {!Array<!Runtime.Extension>} extensions
+   * @param {!Array<!Root.Runtime.Extension>} extensions
    * @return {!Promise}
    */
   static _installMimeTypeModes(extensions) {
@@ -299,15 +327,16 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     return Promise.all(promises);
 
     /**
-     * @param {!Runtime.Extension} extension
+     * @param {!Root.Runtime.Extension} extension
      * @param {!Object} instance
      */
     function installMode(extension, instance) {
-      if (TextEditor.CodeMirrorTextEditor._loadedMimeModeExtensions.has(extension))
+      if (_loadedMimeModeExtensions.has(extension)) {
         return;
-      const mode = /** @type {!TextEditor.CodeMirrorMimeMode} */ (instance);
+      }
+      const mode = /** @type {!CodeMirrorMimeMode} */ (instance);
       mode.install(extension);
-      TextEditor.CodeMirrorTextEditor._loadedMimeModeExtensions.add(extension);
+      _loadedMimeModeExtensions.add(extension);
     }
   }
 
@@ -326,8 +355,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       }
 
       const skippedText = codeMirror.getRange(newCursor, cursor, '#');
-      if (/^\s+$/.test(skippedText))
+      if (/^\s+$/.test(skippedText)) {
         codeMirror.execCommand('goGroupLeft');
+      }
       codeMirror.setExtending(false);
     }
 
@@ -342,8 +372,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       }
 
       const skippedText = codeMirror.getRange(cursor, newCursor, '#');
-      if (/^\s+$/.test(skippedText))
+      if (/^\s+$/.test(skippedText)) {
         codeMirror.execCommand('goGroupRight');
+      }
       codeMirror.setExtending(false);
     }
 
@@ -374,8 +405,17 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     return this;
   }
 
-  _onKeyHandled() {
-    UI.shortcutRegistry.dismissPendingShortcutAction();
+  /**
+   * @override
+   * @param {string} placeholder
+   */
+  setPlaceholder(placeholder) {
+    if (!this._placeholderElement) {
+      this._placeholderElement = createElement('pre');
+      this._placeholderElement.classList.add('placeholder-text');
+    }
+    this._placeholderElement.textContent = placeholder || '';
+    this._updatePlaceholder();
   }
 
   /**
@@ -454,34 +494,42 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     const text = this.line(lineNumber);
     const length = text.length;
 
-    if ((columnNumber === length && direction === 1) || (columnNumber === 0 && direction === -1))
+    if ((columnNumber === length && direction === 1) || (columnNumber === 0 && direction === -1)) {
       return this._normalizePositionForOverlappingColumn(lineNumber, length, columnNumber + direction);
+    }
 
     let charNumber = direction === 1 ? columnNumber : columnNumber - 1;
 
     // Move through initial spaces if any.
-    while (valid(charNumber, length) && TextUtils.TextUtils.isSpaceChar(text[charNumber]))
+    while (valid(charNumber, length) && TextUtils.TextUtils.isSpaceChar(text[charNumber])) {
       charNumber += direction;
-    if (!valid(charNumber, length))
+    }
+    if (!valid(charNumber, length)) {
       return constrainPosition(lineNumber, length, charNumber);
+    }
 
     if (TextUtils.TextUtils.isStopChar(text[charNumber])) {
-      while (valid(charNumber, length) && TextUtils.TextUtils.isStopChar(text[charNumber]))
+      while (valid(charNumber, length) && TextUtils.TextUtils.isStopChar(text[charNumber])) {
         charNumber += direction;
-      if (!valid(charNumber, length))
+      }
+      if (!valid(charNumber, length)) {
         return constrainPosition(lineNumber, length, charNumber);
+      }
       return {lineNumber: lineNumber, columnNumber: direction === -1 ? charNumber + 1 : charNumber};
     }
 
     charNumber += direction;
     while (valid(charNumber, length) && !isWordStart(text, charNumber) && !isWordEnd(text, charNumber) &&
-           TextUtils.TextUtils.isWordChar(text[charNumber]))
+           TextUtils.TextUtils.isWordChar(text[charNumber])) {
       charNumber += direction;
+    }
 
-    if (!valid(charNumber, length))
+    if (!valid(charNumber, length)) {
       return constrainPosition(lineNumber, length, charNumber);
-    if (isWordStart(text, charNumber) || isWordEnd(text, charNumber))
+    }
+    if (isWordStart(text, charNumber) || isWordEnd(text, charNumber)) {
       return {lineNumber: lineNumber, columnNumber: charNumber};
+    }
 
 
     return {lineNumber: lineNumber, columnNumber: direction === -1 ? charNumber + 1 : charNumber};
@@ -498,15 +546,17 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       const move = this._camelCaseMoveFromPosition(selection.endLine, selection.endColumn, direction);
       selection.endLine = move.lineNumber;
       selection.endColumn = move.columnNumber;
-      if (!shift)
+      if (!shift) {
         selections[i] = selection.collapseToEnd();
+      }
     }
     this.setSelections(selections);
   }
 
   dispose() {
-    if (this._options.bracketMatchingSetting)
+    if (this._options.bracketMatchingSetting) {
       this._options.bracketMatchingSetting.removeChangeListener(this._enableBracketMatchingIfNeeded, this);
+    }
   }
 
   _enableBracketMatchingIfNeeded() {
@@ -520,8 +570,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @override
    */
   wasShown() {
-    if (this._needsRefresh)
+    if (this._needsRefresh) {
       this.refresh();
+    }
   }
 
   /**
@@ -555,16 +606,22 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {!Event} e
    */
   _handleKeyDown(e) {
-    if (this._autocompleteController && this._autocompleteController.keyDown(e))
+    if (e.key === 'Tab' && Common.moduleSetting('textEditorTabMovesFocus').get()) {
+      e.consume(false);
+      return;
+    }
+    if (this._autocompleteController && this._autocompleteController.keyDown(e)) {
       e.consume(true);
+    }
   }
 
   /**
    * @param {!Event} e
    */
   _handlePostKeyDown(e) {
-    if (e.defaultPrevented)
+    if (e.defaultPrevented) {
       e.consume(true);
+    }
   }
 
   /**
@@ -577,8 +634,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
       delete this._autocompleteController;
     }
 
-    if (config)
+    if (config) {
       this._autocompleteController = new TextEditor.TextEditorAutocompleteController(this, this._codeMirror, config);
+    }
   }
 
   /**
@@ -588,8 +646,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    */
   cursorPositionToCoordinates(lineNumber, column) {
     if (lineNumber >= this._codeMirror.lineCount() || lineNumber < 0 || column < 0 ||
-        column > this._codeMirror.getLine(lineNumber).length)
+        column > this._codeMirror.getLine(lineNumber).length) {
       return null;
+    }
     const metrics = this._codeMirror.cursorCoords(new CodeMirror.Pos(lineNumber, column));
     return {x: metrics.left, y: metrics.top, height: metrics.bottom - metrics.top};
   }
@@ -601,12 +660,14 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    */
   coordinatesToCursorPosition(x, y) {
     const element = this.element.ownerDocument.elementFromPoint(x, y);
-    if (!element || !element.isSelfOrDescendant(this._codeMirror.getWrapperElement()))
+    if (!element || !element.isSelfOrDescendant(this._codeMirror.getWrapperElement())) {
       return null;
+    }
     const gutterBox = this._codeMirror.getGutterElement().boxInWindow();
     if (x >= gutterBox.x && x <= gutterBox.x + gutterBox.width && y >= gutterBox.y &&
-        y <= gutterBox.y + gutterBox.height)
+        y <= gutterBox.y + gutterBox.height) {
       return null;
+    }
     const coords = this._codeMirror.coordsChar({left: x, top: y});
     return TextEditor.CodeMirrorUtils.toRange(coords, coords);
   }
@@ -629,11 +690,13 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @return {?{startColumn: number, endColumn: number, type: string}}
    */
   tokenAtTextPosition(lineNumber, columnNumber) {
-    if (lineNumber < 0 || lineNumber >= this._codeMirror.lineCount())
+    if (lineNumber < 0 || lineNumber >= this._codeMirror.lineCount()) {
       return null;
+    }
     const token = this._codeMirror.getTokenAt(new CodeMirror.Pos(lineNumber, (columnNumber || 0) + 1));
-    if (!token)
+    if (!token) {
       return null;
+    }
     return {startColumn: token.start, endColumn: token.end, type: token.type};
   }
 
@@ -657,8 +720,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    */
   _hasLongLines() {
     function lineIterator(lineHandle) {
-      if (lineHandle.text.length > TextEditor.CodeMirrorTextEditor.LongLineModeLineLengthThreshold)
+      if (lineHandle.text.length > CodeMirrorTextEditor.LongLineModeLineLengthThreshold) {
         hasLongLines = true;
+      }
       return hasLongLines;
     }
     let hasLongLines = false;
@@ -675,24 +739,37 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
   }
 
   /**
+   * @param {!{data: *}} updatedValue
+   */
+  _updateIndentSize(updatedValue) {
+    const {indentWithTabs, indentUnit} =
+        CodeMirrorTextEditor._getIndentation(/** @type {string} */ (updatedValue.data));
+
+    this._codeMirror.setOption('indentUnit', indentUnit);
+    this._codeMirror.setOption('indentWithTabs', indentWithTabs);
+  }
+
+  /**
    * @param {string} mimeType
    */
   setMimeType(mimeType) {
     this._mimeType = mimeType;
-    const modesToLoad = TextEditor.CodeMirrorTextEditor._collectUninstalledModes(mimeType);
+    const modesToLoad = CodeMirrorTextEditor._collectUninstalledModes(mimeType);
 
-    if (!modesToLoad.length)
+    if (!modesToLoad.length) {
       setMode.call(this);
-    else
-      TextEditor.CodeMirrorTextEditor._installMimeTypeModes(modesToLoad).then(setMode.bind(this));
+    } else {
+      CodeMirrorTextEditor._installMimeTypeModes(modesToLoad).then(setMode.bind(this));
+    }
 
     /**
-     * @this {TextEditor.CodeMirrorTextEditor}
+     * @this {CodeMirrorTextEditor}
      */
     function setMode() {
       const rewrittenMimeType = this.rewriteMimeType(mimeType);
-      if (this._codeMirror.options.mode !== rewrittenMimeType)
+      if (this._codeMirror.options.mode !== rewrittenMimeType) {
         this._codeMirror.setOption('mode', rewrittenMimeType);
+      }
     }
   }
 
@@ -725,8 +802,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {boolean} readOnly
    */
   setReadOnly(readOnly) {
-    if (this._readOnly === readOnly)
+    if (this._readOnly === readOnly) {
       return;
+    }
     this.clearPositionHighlight();
     this._readOnly = readOnly;
     this.element.classList.toggle('CodeMirror-readonly', readOnly);
@@ -761,10 +839,10 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {!Element} element
    * @param {symbol} type
    * @param {boolean=} insertBefore
-   * @return {!TextEditor.TextEditorBookMark}
+   * @return {!TextEditorBookMark}
    */
   addBookmark(lineNumber, columnNumber, element, type, insertBefore) {
-    const bookmark = new TextEditor.TextEditorBookMark(
+    const bookmark = new TextEditorBookMark(
         this._codeMirror.setBookmark(
             new CodeMirror.Pos(lineNumber, columnNumber), {widget: element, insertLeft: insertBefore}),
         type, this);
@@ -775,7 +853,7 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
   /**
    * @param {!TextUtils.TextRange} range
    * @param {symbol=} type
-   * @return {!Array.<!TextEditor.TextEditorBookMark>}
+   * @return {!Array.<!TextEditorBookMark>}
    */
   bookmarks(range, type) {
     const pos = TextEditor.CodeMirrorUtils.toPos(range);
@@ -787,9 +865,10 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     }
     const bookmarks = [];
     for (let i = 0; i < markers.length; i++) {
-      const bookmark = markers[i][TextEditor.TextEditorBookMark._symbol];
-      if (bookmark && (!type || bookmark.type() === type))
+      const bookmark = markers[i][TextEditorBookMark._symbol];
+      if (bookmark && (!type || bookmark.type() === type)) {
         bookmarks.push(bookmark);
+      }
     }
     return bookmarks;
   }
@@ -850,8 +929,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     const widget = this._codeMirror.addLineWidget(lineNumber, element);
     let update = null;
     if (typeof startColumn !== 'undefined') {
-      if (typeof endColumn === 'undefined')
+      if (typeof endColumn === 'undefined') {
         endColumn = Infinity;
+      }
       update = this._updateFloatingDecoration.bind(this, element, lineNumber, startColumn, endColumn);
       update();
     }
@@ -883,8 +963,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
      * @param {!TextEditor.CodeMirrorTextEditor.Decoration} decoration
      */
     function innerUpdateDecorations(decoration) {
-      if (decoration.update)
+      if (decoration.update) {
         decoration.update();
+      }
     }
   }
 
@@ -896,12 +977,13 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     this._decorations.get(lineNumber).forEach(innerRemoveDecoration.bind(this));
 
     /**
-     * @this {TextEditor.CodeMirrorTextEditor}
+     * @this {CodeMirrorTextEditor}
      * @param {!TextEditor.CodeMirrorTextEditor.Decoration} decoration
      */
     function innerRemoveDecoration(decoration) {
-      if (decoration.element !== element)
+      if (decoration.element !== element) {
         return;
+      }
       this._codeMirror.removeLineWidget(decoration.widget);
       this._decorations.delete(lineNumber, decoration);
     }
@@ -914,27 +996,31 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    */
   revealPosition(lineNumber, columnNumber, shouldHighlight) {
     lineNumber = Number.constrain(lineNumber, 0, this._codeMirror.lineCount() - 1);
-    if (typeof columnNumber !== 'number')
+    if (typeof columnNumber !== 'number') {
       columnNumber = 0;
+    }
     columnNumber = Number.constrain(columnNumber, 0, this._codeMirror.getLine(lineNumber).length);
 
     this.clearPositionHighlight();
     this._highlightedLine = this._codeMirror.getLineHandle(lineNumber);
-    if (!this._highlightedLine)
+    if (!this._highlightedLine) {
       return;
+    }
     this.scrollLineIntoView(lineNumber);
     if (shouldHighlight) {
       this._codeMirror.addLineClass(
           this._highlightedLine, null, this._readOnly ? 'cm-readonly-highlight' : 'cm-highlight');
-      if (!this._readOnly)
+      if (!this._readOnly) {
         this._clearHighlightTimeout = setTimeout(this.clearPositionHighlight.bind(this), 2000);
+      }
     }
     this.setSelection(TextUtils.TextRange.createFromLocation(lineNumber, columnNumber));
   }
 
   clearPositionHighlight() {
-    if (this._clearHighlightTimeout)
+    if (this._clearHighlightTimeout) {
       clearTimeout(this._clearHighlightTimeout);
+    }
     delete this._clearHighlightTimeout;
 
     if (this._highlightedLine) {
@@ -957,8 +1043,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {number} height
    */
   _updatePaddingBottom(width, height) {
-    if (!this._options.padBottom)
+    if (!this._options.padBottom) {
       return;
+    }
     const scrollInfo = this._codeMirror.getScrollInfo();
     let newPaddingBottom;
     const linesElement = this._codeMirrorElement.querySelector('.CodeMirror-lines');
@@ -976,8 +1063,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
 
   _resizeEditor() {
     const parentElement = this.element.parentElement;
-    if (!parentElement || !this.isShowing())
+    if (!parentElement || !this.isShowing()) {
       return;
+    }
     this._codeMirror.operation(() => {
       const scrollLeft = this._codeMirror.doc.scrollLeft;
       const scrollTop = this._codeMirror.doc.scrollTop;
@@ -997,8 +1085,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @override
    */
   onResize() {
-    if (this._autocompleteController)
+    if (this._autocompleteController) {
       this._autocompleteController.clearAutocomplete();
+    }
     this._resizeEditor();
     this._editorSizeInSync = true;
     if (this._selectionSetScheduled) {
@@ -1026,8 +1115,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @override
    */
   clearAutocomplete() {
-    if (this._autocompleteController)
+    if (this._autocompleteController) {
       this._autocompleteController.clearAutocomplete();
+    }
   }
 
   /**
@@ -1041,12 +1131,14 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     let wordStart = column;
     if (column !== 0 && isWordChar(line.charAt(column - 1))) {
       wordStart = column - 1;
-      while (wordStart > 0 && isWordChar(line.charAt(wordStart - 1)))
+      while (wordStart > 0 && isWordChar(line.charAt(wordStart - 1))) {
         --wordStart;
+      }
     }
     let wordEnd = column;
-    while (wordEnd < line.length && isWordChar(line.charAt(wordEnd)))
+    while (wordEnd < line.length && isWordChar(line.charAt(wordEnd))) {
       ++wordEnd;
+    }
     return new TextUtils.TextRange(lineNumber, wordStart, lineNumber, wordEnd);
   }
 
@@ -1055,15 +1147,17 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {!Array.<!CodeMirror.ChangeObject>} changes
    */
   _changes(codeMirror, changes) {
-    if (!changes.length)
+    if (!changes.length) {
       return;
+    }
 
     this._updatePlaceholder();
 
     // We do not show "scroll beyond end of file" span for one line documents, so we need to check if "document has one line" changed.
     const hasOneLine = this._codeMirror.lineCount() === 1;
-    if (hasOneLine !== this._hasOneLine)
+    if (hasOneLine !== this._hasOneLine) {
       this._resizeEditor();
+    }
     this._hasOneLine = hasOneLine;
 
     this._decorations.valuesArray().forEach(decoration => this._codeMirror.removeLineWidget(decoration.widget));
@@ -1207,7 +1301,7 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @param {string} text
    */
   setText(text) {
-    if (text.length > TextEditor.CodeMirrorTextEditor.MaxEditableTextSize) {
+    if (text.length > CodeMirrorTextEditor.MaxEditableTextSize) {
       this.configureAutocomplete(null);
       this.setReadOnly(true);
     }
@@ -1218,13 +1312,15 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     }
     this._detectLineSeparator(text);
 
-    if (this._hasLongLines())
+    if (this._hasLongLines()) {
       this._enableLongLinesMode();
-    else
+    } else {
       this._disableLongLinesMode();
+    }
 
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       this.refresh();
+    }
   }
 
   /**
@@ -1233,8 +1329,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @return {string}
    */
   text(textRange) {
-    if (!textRange)
+    if (!textRange) {
       return this._codeMirror.getValue(this._lineSeparator);
+    }
     const pos = TextEditor.CodeMirrorUtils.toPos(textRange.normalize());
     return this._codeMirror.getRange(pos.start, pos.end, this._lineSeparator);
   }
@@ -1244,8 +1341,9 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
    * @return {string}
    */
   textWithCurrentSuggestion() {
-    if (!this._autocompleteController)
+    if (!this._autocompleteController) {
       return this.text();
+    }
     return this._autocompleteController.textWithCurrentSuggestion();
   }
 
@@ -1258,6 +1356,13 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
     const lastLine = this._codeMirror.getLine(lineCount - 1);
     return TextEditor.CodeMirrorUtils.toRange(
         new CodeMirror.Pos(0, 0), new CodeMirror.Pos(lineCount - 1, lastLine.length));
+  }
+
+  /**
+   * @return {number}
+   */
+  currentLineNumber() {
+    return this._codeMirror.getCursor().line;
   }
 
   /**
@@ -1286,15 +1391,16 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
   /**
    * @param {number} lineNumber
    * @param {number} columnNumber
-   * @return {!TextEditor.TextEditorPositionHandle}
+   * @return {!TextEditorPositionHandle}
    */
   textEditorPositionHandle(lineNumber, columnNumber) {
-    return new TextEditor.CodeMirrorPositionHandle(this._codeMirror, new CodeMirror.Pos(lineNumber, columnNumber));
+    return new CodeMirrorPositionHandle(this._codeMirror, new CodeMirror.Pos(lineNumber, columnNumber));
   }
 
   _updatePlaceholder() {
-    if (!this._placeholderElement)
+    if (!this._placeholderElement) {
       return;
+    }
 
     this._placeholderElement.remove();
 
@@ -1303,26 +1409,56 @@ TextEditor.CodeMirrorTextEditor = class extends UI.VBox {
           this._placeholderElement, this._codeMirror.display.lineSpace.firstChild);
     }
   }
+}
+
+CodeMirrorTextEditor.maxHighlightLength = 1000;
+CodeMirrorTextEditor.LongLineModeLineLengthThreshold = 2000;
+CodeMirrorTextEditor.MaxEditableTextSize = 1024 * 1024 * 10;
+
+CodeMirrorTextEditor._overrideModeWithPrefixedTokens('css', 'css-');
+CodeMirrorTextEditor._overrideModeWithPrefixedTokens('javascript', 'js-');
+CodeMirrorTextEditor._overrideModeWithPrefixedTokens('xml', 'xml-');
+
+CodeMirror.commands.autocomplete = CodeMirrorTextEditor.autocompleteCommand;
+CodeMirror.commands.undoLastSelection = CodeMirrorTextEditor.undoLastSelectionCommand;
+CodeMirror.commands.selectNextOccurrence = CodeMirrorTextEditor.selectNextOccurrenceCommand;
+CodeMirror.commands.moveCamelLeft = CodeMirrorTextEditor.moveCamelLeftCommand.bind(null, false);
+CodeMirror.commands.selectCamelLeft = CodeMirrorTextEditor.moveCamelLeftCommand.bind(null, true);
+CodeMirror.commands.moveCamelRight = CodeMirrorTextEditor.moveCamelRightCommand.bind(null, false);
+CodeMirror.commands.selectCamelRight = CodeMirrorTextEditor.moveCamelRightCommand.bind(null, true);
+
+/**
+ * @param {!CodeMirror} codeMirror
+ */
+CodeMirror.commands.UserIndent = function(codeMirror) {
+  const ranges = codeMirror.listSelections();
+  if (ranges.length === 0) {
+    return;
+  }
+
+  if (codeMirror.somethingSelected()) {
+    codeMirror.indentSelection('add');
+    return;
+  }
+
+  const indentation = Common.moduleSetting('textEditorIndent').get();
+  codeMirror.replaceSelection(indentation);
 };
 
-TextEditor.CodeMirrorTextEditor.maxHighlightLength = 1000;
-
-
-CodeMirror.commands.autocomplete = TextEditor.CodeMirrorTextEditor.autocompleteCommand;
-
-
-CodeMirror.commands.undoLastSelection = TextEditor.CodeMirrorTextEditor.undoLastSelectionCommand;
-
-
-CodeMirror.commands.selectNextOccurrence = TextEditor.CodeMirrorTextEditor.selectNextOccurrenceCommand;
-
-
-CodeMirror.commands.moveCamelLeft = TextEditor.CodeMirrorTextEditor.moveCamelLeftCommand.bind(null, false);
-CodeMirror.commands.selectCamelLeft = TextEditor.CodeMirrorTextEditor.moveCamelLeftCommand.bind(null, true);
-
-
-CodeMirror.commands.moveCamelRight = TextEditor.CodeMirrorTextEditor.moveCamelRightCommand.bind(null, false);
-CodeMirror.commands.selectCamelRight = TextEditor.CodeMirrorTextEditor.moveCamelRightCommand.bind(null, true);
+/**
+ * @param {!CodeMirror} codeMirror
+ * @return {!Object|undefined}
+ */
+CodeMirror.commands.indentLessOrPass = function(codeMirror) {
+  const selections = codeMirror.listSelections();
+  if (selections.length === 1) {
+    const range = TextEditor.CodeMirrorUtils.toRange(selections[0].anchor, selections[0].head);
+    if (range.isEmpty() && !/^\s/.test(codeMirror.getLine(range.startLine))) {
+      return CodeMirror.Pass;
+    }
+  }
+  codeMirror.execCommand('indentLess');
+};
 
 /**
  * @param {!CodeMirror} codeMirror
@@ -1353,8 +1489,9 @@ CodeMirror.commands.undoAndReveal = function(codemirror) {
   const cursor = codemirror.getCursor('start');
   codemirror._codeMirrorTextEditor._innerRevealLine(cursor.line, scrollInfo);
   const autocompleteController = codemirror._codeMirrorTextEditor._autocompleteController;
-  if (autocompleteController)
+  if (autocompleteController) {
     autocompleteController.clearAutocomplete();
+  }
 };
 
 /**
@@ -1366,19 +1503,22 @@ CodeMirror.commands.redoAndReveal = function(codemirror) {
   const cursor = codemirror.getCursor('start');
   codemirror._codeMirrorTextEditor._innerRevealLine(cursor.line, scrollInfo);
   const autocompleteController = codemirror._codeMirrorTextEditor._autocompleteController;
-  if (autocompleteController)
+  if (autocompleteController) {
     autocompleteController.clearAutocomplete();
+  }
 };
 
 /**
+ * @param {!CodeMirror} codemirror
  * @return {!Object|undefined}
  */
 CodeMirror.commands.dismiss = function(codemirror) {
   const selections = codemirror.listSelections();
   const selection = selections[0];
   if (selections.length === 1) {
-    if (TextEditor.CodeMirrorUtils.toRange(selection.anchor, selection.head).isEmpty())
+    if (TextEditor.CodeMirrorUtils.toRange(selection.anchor, selection.head).isEmpty()) {
       return CodeMirror.Pass;
+    }
     codemirror.setSelection(selection.anchor, selection.anchor, {scroll: false});
     codemirror._codeMirrorTextEditor.scrollLineIntoView(selection.anchor.line);
     return;
@@ -1389,31 +1529,33 @@ CodeMirror.commands.dismiss = function(codemirror) {
 };
 
 /**
+ * @param {!CodeMirror} codemirror
  * @return {!Object|undefined}
  */
 CodeMirror.commands.goSmartPageUp = function(codemirror) {
-  if (codemirror._codeMirrorTextEditor.selection().equal(TextUtils.TextRange.createFromLocation(0, 0)))
+  if (codemirror._codeMirrorTextEditor.selection().equal(TextUtils.TextRange.createFromLocation(0, 0))) {
     return CodeMirror.Pass;
+  }
   codemirror.execCommand('goPageUp');
 };
 
 /**
+ * @param {!CodeMirror} codemirror
  * @return {!Object|undefined}
  */
 CodeMirror.commands.goSmartPageDown = function(codemirror) {
-  if (codemirror._codeMirrorTextEditor.selection().equal(codemirror._codeMirrorTextEditor.fullRange().collapseToEnd()))
+  if (codemirror._codeMirrorTextEditor.selection().equal(
+          codemirror._codeMirrorTextEditor.fullRange().collapseToEnd())) {
     return CodeMirror.Pass;
+  }
   codemirror.execCommand('goPageDown');
 };
 
-TextEditor.CodeMirrorTextEditor.LongLineModeLineLengthThreshold = 2000;
-TextEditor.CodeMirrorTextEditor.MaxEditableTextSize = 1024 * 1024 * 10;
-
 /**
- * @implements {TextEditor.TextEditorPositionHandle}
+ * @implements {TextEditorPositionHandle}
  * @unrestricted
  */
-TextEditor.CodeMirrorPositionHandle = class {
+export class CodeMirrorPositionHandle {
   /**
    * @param {!CodeMirror} codeMirror
    * @param {!CodeMirror.Pos} pos
@@ -1430,28 +1572,30 @@ TextEditor.CodeMirrorPositionHandle = class {
    */
   resolve() {
     const lineNumber = this._lineHandle ? this._codeMirror.getLineNumber(this._lineHandle) : null;
-    if (typeof lineNumber !== 'number')
+    if (typeof lineNumber !== 'number') {
       return null;
+    }
     return {lineNumber: lineNumber, columnNumber: this._columnNumber};
   }
 
   /**
    * @override
-   * @param {!TextEditor.TextEditorPositionHandle} positionHandle
+   * @param {!TextEditorPositionHandle} argPositionHandle
    * @return {boolean}
    */
-  equal(positionHandle) {
+  equal(argPositionHandle) {
+    const positionHandle = /** @type {!CodeMirrorPositionHandle} */ (argPositionHandle);
     return positionHandle._lineHandle === this._lineHandle && positionHandle._columnNumber === this._columnNumber &&
         positionHandle._codeMirror === this._codeMirror;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
+export class SelectNextOccurrenceController {
   /**
-   * @param {!TextEditor.CodeMirrorTextEditor} textEditor
+   * @param {!CodeMirrorTextEditor} textEditor
    * @param {!CodeMirror} codeMirror
    */
   constructor(textEditor, codeMirror) {
@@ -1460,8 +1604,9 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
   }
 
   selectionWillChange() {
-    if (!this._muteSelectionListener)
+    if (!this._muteSelectionListener) {
       delete this._fullWordSelection;
+    }
   }
 
   /**
@@ -1471,8 +1616,9 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
    */
   _findRange(selections, range) {
     for (let i = 0; i < selections.length; ++i) {
-      if (range.equal(selections[i]))
+      if (range.equal(selections[i])) {
         return true;
+      }
     }
     return false;
   }
@@ -1489,8 +1635,9 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
     for (let i = 0; i < selections.length; ++i) {
       const selection = selections[i];
       anyEmptySelection = anyEmptySelection || selection.isEmpty();
-      if (selection.startLine !== selection.endLine)
+      if (selection.startLine !== selection.endLine) {
         return;
+      }
     }
     if (anyEmptySelection) {
       this._expandSelectionsToWords(selections);
@@ -1499,12 +1646,13 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
 
     const last = selections[selections.length - 1];
     let next = last;
-    do
+    do {
       next = this._findNextOccurrence(next, !!this._fullWordSelection);
-    while (next && this._findRange(selections, next) && !next.equal(last));
+    } while (next && this._findRange(selections, next) && !next.equal(last));
 
-    if (!next)
+    if (!next) {
       return;
+    }
     selections.push(next);
 
     this._muteSelectionListener = true;
@@ -1546,12 +1694,14 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
     let matchedColumnNumber;
     const textToFind = this._textEditor.text(range);
     function findWordInLine(wordRegex, lineNumber, lineText, from, to) {
-      if (typeof matchedLineNumber === 'number')
+      if (typeof matchedLineNumber === 'number') {
         return true;
+      }
       wordRegex.lastIndex = from;
       const result = wordRegex.exec(lineText);
-      if (!result || result.index + textToFind.length > to)
+      if (!result || result.index + textToFind.length > to) {
         return false;
+      }
       matchedLineNumber = lineNumber;
       matchedColumnNumber = result.index;
       return true;
@@ -1559,13 +1709,15 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
 
     let iteratedLineNumber;
     function lineIterator(regex, lineHandle) {
-      if (findWordInLine(regex, iteratedLineNumber++, lineHandle.text, 0, lineHandle.text.length))
+      if (findWordInLine(regex, iteratedLineNumber++, lineHandle.text, 0, lineHandle.text.length)) {
         return true;
+      }
     }
 
     let regexSource = textToFind.escapeForRegExp();
-    if (fullWord)
+    if (fullWord) {
       regexSource = '\\b' + regexSource + '\\b';
+    }
     const wordRegex = new RegExp(regexSource, 'g');
     const currentLineText = this._codeMirror.getLine(range.startLine);
 
@@ -1576,63 +1728,58 @@ TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = class {
     this._codeMirror.eachLine(0, range.startLine, lineIterator.bind(null, wordRegex));
     findWordInLine(wordRegex, range.startLine, currentLineText, 0, range.startColumn);
 
-    if (typeof matchedLineNumber !== 'number')
+    if (typeof matchedLineNumber !== 'number') {
       return null;
+    }
     return new TextUtils.TextRange(
         matchedLineNumber, matchedColumnNumber, matchedLineNumber, matchedColumnNumber + textToFind.length);
   }
-};
+}
 
 
 /**
  * @interface
  */
-TextEditor.TextEditorPositionHandle = function() {};
-
-TextEditor.TextEditorPositionHandle.prototype = {
+export class TextEditorPositionHandle {
   /**
    * @return {?{lineNumber: number, columnNumber: number}}
    */
-  resolve() {},
+  resolve() {
+  }
 
   /**
-   * @param {!TextEditor.TextEditorPositionHandle} positionHandle
+   * @param {!TextEditorPositionHandle} positionHandle
    * @return {boolean}
    */
   equal(positionHandle) {}
-};
+}
 
-TextEditor.CodeMirrorTextEditor._overrideModeWithPrefixedTokens('css', 'css-');
-TextEditor.CodeMirrorTextEditor._overrideModeWithPrefixedTokens('javascript', 'js-');
-TextEditor.CodeMirrorTextEditor._overrideModeWithPrefixedTokens('xml', 'xml-');
-
-/** @type {!Set<!Runtime.Extension>} */
-TextEditor.CodeMirrorTextEditor._loadedMimeModeExtensions = new Set();
+/** @type {!Set<!Root.Runtime.Extension>} */
+export const _loadedMimeModeExtensions = new Set();
 
 
 /**
  * @interface
  */
-TextEditor.CodeMirrorMimeMode = function() {};
-
-TextEditor.CodeMirrorMimeMode.prototype = {
+export class CodeMirrorMimeMode {
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Root.Runtime.Extension} extension
    */
-  install(extension) {}
-};
+  async install(extension) {
+  }
+}
 
 /**
  * @unrestricted
  */
-TextEditor.TextEditorBookMark = class {
+export class TextEditorBookMark {
   /**
    * @param {!CodeMirror.TextMarker} marker
    * @param {symbol} type
-   * @param {!TextEditor.CodeMirrorTextEditor} editor
+   * @param {!CodeMirrorTextEditor} editor
    */
   constructor(marker, type, editor) {
-    marker[TextEditor.TextEditorBookMark._symbol] = this;
+    marker[TextEditorBookMark._symbol] = this;
 
     this._marker = marker;
     this._type = type;
@@ -1642,15 +1789,17 @@ TextEditor.TextEditorBookMark = class {
   clear() {
     const position = this._marker.find();
     this._marker.clear();
-    if (position)
+    if (position) {
       this._editor._updateDecorations(position.line);
+    }
   }
 
   refresh() {
     this._marker.changed();
     const position = this._marker.find();
-    if (position)
+    if (position) {
       this._editor._updateDecorations(position.line);
+    }
   }
 
   /**
@@ -1667,39 +1816,30 @@ TextEditor.TextEditorBookMark = class {
     const pos = this._marker.find();
     return pos ? TextUtils.TextRange.createFromLocation(pos.line, pos.ch) : null;
   }
-};
+}
 
-TextEditor.TextEditorBookMark._symbol = Symbol('TextEditor.TextEditorBookMark');
-
-/**
- * @typedef {{
- *  element: !Element,
- *  widget: !CodeMirror.LineWidget,
- *  update: ?function()
- * }}
- */
-TextEditor.CodeMirrorTextEditor.Decoration;
+TextEditorBookMark._symbol = Symbol('TextEditorBookMark');
 
 /**
  * @implements {UI.TextEditorFactory}
  * @unrestricted
  */
-TextEditor.CodeMirrorTextEditorFactory = class {
+export class CodeMirrorTextEditorFactory {
   /**
    * @override
    * @param {!UI.TextEditor.Options} options
-   * @return {!TextEditor.CodeMirrorTextEditor}
+   * @return {!CodeMirrorTextEditor}
    */
   createEditor(options) {
-    return new TextEditor.CodeMirrorTextEditor(options);
+    return new CodeMirrorTextEditor(options);
   }
-};
+}
 
 // CodeMirror uses an offscreen <textarea> to detect input. Due to inconsistencies in the many browsers it supports,
 // it simplifies things by regularly checking if something is in the textarea, adding those characters to the document,
 // and then clearing the textarea. This breaks assistive technology that wants to read from CodeMirror, because the
 // <textarea> that they interact with is constantly empty.
-// Because we target up-to-date Chrome, we can gaurantee consistent input events. This lets us leave the current
+// Because we target up-to-date Chrome, we can guarantee consistent input events. This lets us leave the current
 // line from the editor in our <textarea>. CodeMirror still expects a mostly empty <textarea>, so we pass CodeMirror a
 // fake <textarea> that only contains the users input.
 CodeMirror.inputStyles.devToolsAccessibleTextArea = class extends CodeMirror.inputStyles.textarea {
@@ -1709,13 +1849,14 @@ CodeMirror.inputStyles.devToolsAccessibleTextArea = class extends CodeMirror.inp
    */
   init(display) {
     super.init(display);
-    UI.ARIAUtils.setAccessibleName(this.textarea, ls`Code editor`);
+    UI.ARIAUtils.setAccessibleName(this.textarea, this.cm.options.devtoolsAccessibleName || ls`Code editor`);
     this.textarea.addEventListener('compositionstart', this._onCompositionStart.bind(this));
   }
 
   _onCompositionStart() {
-    if (this.textarea.selectionEnd === this.textarea.value.length)
+    if (this.textarea.selectionEnd === this.textarea.value.length) {
       return;
+    }
     // CodeMirror always expects the caret to be at the end of the textarea
     // When in IME composition mode, clip the textarea to how CodeMirror expects it,
     // and then let CodeMirror do it's thing.
@@ -1759,16 +1900,19 @@ CodeMirror.inputStyles.devToolsAccessibleTextArea = class extends CodeMirror.inp
    * @return {boolean}
    */
   poll() {
-    if (this.contextMenuPending || this.composing)
+    if (this.contextMenuPending || this.composing) {
       return super.poll();
+    }
     const text = this.textarea.value;
     let start = 0;
     const length = Math.min(this.prevInput.length, text.length);
-    while (start < length && this.prevInput[start] === text[start])
+    while (start < length && this.prevInput[start] === text[start]) {
       ++start;
+    }
     let end = 0;
-    while (end < length - start && this.prevInput[this.prevInput.length - end - 1] === text[text.length - end - 1])
+    while (end < length - start && this.prevInput[this.prevInput.length - end - 1] === text[text.length - end - 1]) {
       ++end;
+    }
 
     // CodeMirror expects the user to be typing into a blank <textarea>.
     // Pass a fake textarea into super.poll that only contains the users input.
@@ -1784,3 +1928,41 @@ CodeMirror.inputStyles.devToolsAccessibleTextArea = class extends CodeMirror.inp
     return result;
   }
 };
+
+/* Legacy exported object */
+self.TextEditor = self.TextEditor || {};
+
+/* Legacy exported object */
+TextEditor = TextEditor || {};
+
+/** @constructor */
+TextEditor.CodeMirrorTextEditor = CodeMirrorTextEditor;
+
+/** @constructor */
+TextEditor.CodeMirrorTextEditor.SelectNextOccurrenceController = SelectNextOccurrenceController;
+
+/** @interface */
+TextEditor.TextEditorPositionHandle = TextEditorPositionHandle;
+
+TextEditor.CodeMirrorTextEditor._loadedMimeModeExtensions = _loadedMimeModeExtensions;
+
+/** @constructor */
+TextEditor.CodeMirrorPositionHandle = CodeMirrorPositionHandle;
+
+/** @interface */
+TextEditor.CodeMirrorMimeMode = CodeMirrorMimeMode;
+
+/** @constructor */
+TextEditor.TextEditorBookMark = TextEditorBookMark;
+
+/** @constructor */
+TextEditor.CodeMirrorTextEditorFactory = CodeMirrorTextEditorFactory;
+
+/**
+ * @typedef {{
+  *  element: !Element,
+  *  widget: !CodeMirror.LineWidget,
+  *  update: ?function()
+  * }}
+  */
+TextEditor.CodeMirrorTextEditor.Decoration;

@@ -31,41 +31,43 @@
 /**
  * @interface
  */
-Bindings.ChunkedReader = function() {};
-
-Bindings.ChunkedReader.prototype = {
+export class ChunkedReader {
   /**
    * @return {number}
    */
-  fileSize() {},
+  fileSize() {
+  }
 
   /**
    * @return {number}
    */
-  loadedSize() {},
+  loadedSize() {
+  }
 
   /**
    * @return {string}
    */
-  fileName() {},
+  fileName() {
+  }
 
-  cancel() {},
+  cancel() {
+  }
 
   /**
    * @return {?FileError}
    */
   error() {}
-};
+}
 
 /**
- * @implements {Bindings.ChunkedReader}
+ * @implements {ChunkedReader}
  * @unrestricted
  */
-Bindings.ChunkedFileReader = class {
+export class ChunkedFileReader {
   /**
    * @param {!Blob} blob
    * @param {number} chunkSize
-   * @param {function(!Bindings.ChunkedReader)=} chunkTransferredCallback
+   * @param {function(!ChunkedReader)=} chunkTransferredCallback
    */
   constructor(blob, chunkSize, chunkTransferredCallback) {
     this._file = blob;
@@ -84,8 +86,9 @@ Bindings.ChunkedFileReader = class {
    * @return {!Promise<boolean>}
    */
   read(output) {
-    if (this._chunkTransferredCallback)
+    if (this._chunkTransferredCallback) {
       this._chunkTransferredCallback(this);
+    }
     this._output = output;
     this._reader = new FileReader();
     this._reader.onload = this._onChunkLoaded.bind(this);
@@ -137,21 +140,25 @@ Bindings.ChunkedFileReader = class {
    * @param {!Event} event
    */
   _onChunkLoaded(event) {
-    if (this._isCanceled)
+    if (this._isCanceled) {
       return;
+    }
 
-    if (event.target.readyState !== FileReader.DONE)
+    if (event.target.readyState !== FileReader.DONE) {
       return;
+    }
 
     const buffer = this._reader.result;
     this._loadedSize += buffer.byteLength;
     const endOfFile = this._loadedSize === this._fileSize;
     const decodedString = this._decoder.decode(buffer, {stream: !endOfFile});
     this._output.write(decodedString);
-    if (this._isCanceled)
+    if (this._isCanceled) {
       return;
-    if (this._chunkTransferredCallback)
+    }
+    if (this._chunkTransferredCallback) {
       this._chunkTransferredCallback(this);
+    }
 
     if (endOfFile) {
       this._file = null;
@@ -178,13 +185,13 @@ Bindings.ChunkedFileReader = class {
     this._error = event.target.error;
     this._transferFinished(false);
   }
-};
+}
 
 /**
  * @implements {Common.OutputStream}
  * @unrestricted
  */
-Bindings.FileOutputStream = class {
+export class FileOutputStream {
   /**
    * @param {string} fileName
    * @return {!Promise<boolean>}
@@ -195,8 +202,9 @@ Bindings.FileOutputStream = class {
     this._writeCallbacks = [];
     this._fileName = fileName;
     const saveResponse = await Workspace.fileManager.save(this._fileName, '', true);
-    if (saveResponse)
+    if (saveResponse) {
       Workspace.fileManager.addEventListener(Workspace.FileManager.Events.AppendedToURL, this._onAppendDone, this);
+    }
     return !!saveResponse;
   }
 
@@ -215,10 +223,11 @@ Bindings.FileOutputStream = class {
   /**
    * @override
    */
-  close() {
+  async close() {
     this._closed = true;
-    if (this._writeCallbacks.length)
+    if (this._writeCallbacks.length) {
       return;
+    }
     Workspace.fileManager.removeEventListener(Workspace.FileManager.Events.AppendedToURL, this._onAppendDone, this);
     Workspace.fileManager.close(this._fileName);
   }
@@ -227,14 +236,32 @@ Bindings.FileOutputStream = class {
    * @param {!Common.Event} event
    */
   _onAppendDone(event) {
-    if (event.data !== this._fileName)
+    if (event.data !== this._fileName) {
       return;
+    }
     this._writeCallbacks.shift()();
-    if (this._writeCallbacks.length)
+    if (this._writeCallbacks.length) {
       return;
-    if (!this._closed)
+    }
+    if (!this._closed) {
       return;
+    }
     Workspace.fileManager.removeEventListener(Workspace.FileManager.Events.AppendedToURL, this._onAppendDone, this);
     Workspace.fileManager.close(this._fileName);
   }
-};
+}
+
+/* Legacy exported object */
+self.Bindings = self.Bindings || {};
+
+/* Legacy exported object */
+Bindings = Bindings || {};
+
+/** @interface */
+Bindings.ChunkedReader = ChunkedReader;
+
+/** @constructor */
+Bindings.ChunkedFileReader = ChunkedFileReader;
+
+/** @constructor */
+Bindings.FileOutputStream = FileOutputStream;

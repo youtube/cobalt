@@ -16,7 +16,6 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
         Timeline.EventsTimelineTreeView.Filters.Events.FilterChanged, this._onFilterChanged, this);
     this.init();
     this._delegate = delegate;
-    this._badgePool = new ProductRegistry.BadgePool(true);
     this._dataGrid.markColumnAsSortedBy('startTime', DataGrid.DataGrid.Order.Ascending);
     this._splitWidget.showBoth();
   }
@@ -35,12 +34,19 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
    * @param {!Timeline.TimelineSelection} selection
    */
   updateContents(selection) {
-    this._badgePool.reset();
     super.updateContents(selection);
     if (selection.type() === Timeline.TimelineSelection.Type.TraceEvent) {
       const event = /** @type {!SDK.TracingModel.Event} */ (selection.object());
       this._selectEvent(event, true);
     }
+  }
+
+  /**
+   * @override
+   * @return {string}
+   */
+  getToolbarInputAccessiblePlaceHolder() {
+    return ls`Filter event log`;
   }
 
   /**
@@ -55,8 +61,9 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
   _onFilterChanged() {
     const selectedEvent = this.lastSelectedNode() && this.lastSelectedNode().event;
     this.refreshTree();
-    if (selectedEvent)
+    if (selectedEvent) {
       this._selectEvent(selectedEvent, false);
+    }
   }
 
   /**
@@ -73,8 +80,9 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
         continue;
       }
       const child = /** @type {!TimelineModel.TimelineProfileTree.Node} */ (iterator.value);
-      if (child.event === event)
+      if (child.event === event) {
         return child;
+      }
       iterators.push(child.children().values());
     }
     return null;
@@ -86,11 +94,13 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
    */
   _selectEvent(event, expand) {
     const node = this._findNodeWithEvent(event);
-    if (!node)
+    if (!node) {
       return;
+    }
     this.selectProfileNode(node, false);
-    if (expand)
+    if (expand) {
       this.dataGridNodeForTreeNode(node).expand();
+    }
   }
 
   /**
@@ -120,10 +130,10 @@ Timeline.EventsTimelineTreeView = class extends Timeline.TimelineTreeView {
    */
   _showDetailsForNode(node) {
     const traceEvent = node.event;
-    if (!traceEvent)
+    if (!traceEvent) {
       return false;
-    Timeline.TimelineUIUtils
-        .buildTraceEventDetails(traceEvent, this.model().timelineModel(), this._linkifier, this._badgePool, false)
+    }
+    Timeline.TimelineUIUtils.buildTraceEventDetails(traceEvent, this.model().timelineModel(), this._linkifier, false)
         .then(fragment => this._detailsView.element.appendChild(fragment));
     return true;
   }
@@ -159,12 +169,10 @@ Timeline.EventsTimelineTreeView.Filters = class extends Common.Object {
    * @param {!UI.Toolbar} toolbar
    */
   populateToolbar(toolbar) {
-    const durationFilterUI = new UI.ToolbarComboBox(durationFilterChanged.bind(this));
+    const durationFilterUI = new UI.ToolbarComboBox(durationFilterChanged.bind(this), ls`Duration filter`);
     for (const durationMs of Timeline.EventsTimelineTreeView.Filters._durationFilterPresetsMs) {
       durationFilterUI.addOption(durationFilterUI.createOption(
           durationMs ? Common.UIString('\u2265 %d\xa0ms', durationMs) : Common.UIString('All'),
-          durationMs ? Common.UIString('Hide records shorter than %d\xa0ms', durationMs) :
-                       Common.UIString('Show all records'),
           String(durationMs)));
     }
     toolbar.appendToolbarItem(durationFilterUI);
@@ -173,8 +181,9 @@ Timeline.EventsTimelineTreeView.Filters = class extends Common.Object {
     const categories = Timeline.TimelineUIUtils.categories();
     for (const categoryName in categories) {
       const category = categories[categoryName];
-      if (!category.visible)
+      if (!category.visible) {
         continue;
+      }
       const checkbox =
           new UI.ToolbarCheckbox(category.title, undefined, categoriesFilterChanged.bind(this, categoryName));
       checkbox.setChecked(true);

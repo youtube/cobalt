@@ -31,13 +31,13 @@
 /**
  * @unrestricted
  */
-Common.Worker = class {
+export class WorkerWrapper {
   /**
    * @param {string} appName
    */
   constructor(appName) {
     let url = appName + '.js';
-    url += Runtime.queryParamsString();
+    url += Root.Runtime.queryParamsString();
 
     /** @type {!Promise<!Worker>} */
     this._workerPromise = new Promise(fulfill => {
@@ -46,7 +46,7 @@ Common.Worker = class {
 
       /**
        * @param {!Event} event
-       * @this {Common.Worker}
+       * @this {WorkerWrapper}
        */
       function onMessage(event) {
         console.assert(event.data === 'workerReady');
@@ -64,8 +64,9 @@ Common.Worker = class {
    */
   postMessage(message) {
     this._workerPromise.then(worker => {
-      if (!this._disposed)
+      if (!this._disposed) {
         worker.postMessage(message);
+      }
     });
   }
 
@@ -91,4 +92,4 @@ Common.Worker = class {
   set onerror(listener) {
     this._workerPromise.then(worker => worker.onerror = listener);
   }
-};
+}

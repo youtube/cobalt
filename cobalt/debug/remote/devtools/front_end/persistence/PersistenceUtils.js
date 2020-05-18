@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Persistence.PersistenceUtils = class {
+export default class PersistenceUtils {
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @return {string}
    */
   static tooltipForUISourceCode(uiSourceCode) {
     const binding = Persistence.persistence.binding(uiSourceCode);
-    if (!binding)
+    if (!binding) {
       return '';
-    if (uiSourceCode === binding.network) {
-      const path = Common.ParsedURL.urlToPlatformPath(binding.fileSystem.url(), Host.isWin()).trimMiddle(150);
-      return ls`Linked to ${path}`;
     }
-    if (binding.network.contentType().isFromSourceMap())
+    if (uiSourceCode === binding.network) {
+      return Persistence.FileSystemWorkspaceBinding.tooltipForUISourceCode(binding.fileSystem);
+    }
+    if (binding.network.contentType().isFromSourceMap()) {
       return Common.UIString('Linked to source map: %s', binding.network.url().trimMiddle(150));
+    }
     return Common.UIString('Linked to %s', binding.network.url().trimMiddle(150));
   }
 
@@ -27,26 +28,33 @@ Persistence.PersistenceUtils = class {
   static iconForUISourceCode(uiSourceCode) {
     const binding = Persistence.persistence.binding(uiSourceCode);
     if (binding) {
+      if (!binding.fileSystem.url().startsWith('file://')) {
+        return null;
+      }
       const icon = UI.Icon.create('mediumicon-file-sync');
-      icon.title = Persistence.PersistenceUtils.tooltipForUISourceCode(binding.network);
+      icon.title = PersistenceUtils.tooltipForUISourceCode(binding.network);
       // TODO(allada) This will not work properly with dark theme.
-      if (Persistence.networkPersistenceManager.project() === binding.fileSystem.project())
+      if (Persistence.networkPersistenceManager.project() === binding.fileSystem.project()) {
         icon.style.filter = 'hue-rotate(160deg)';
+      }
       return icon;
     }
-    if (uiSourceCode.project().type() !== Workspace.projectTypes.FileSystem)
+    if (uiSourceCode.project().type() !== Workspace.projectTypes.FileSystem ||
+        !uiSourceCode.url().startsWith('file://')) {
       return null;
+    }
+
     const icon = UI.Icon.create('mediumicon-file');
-    icon.title = Persistence.PersistenceUtils.tooltipForUISourceCode(uiSourceCode);
+    icon.title = PersistenceUtils.tooltipForUISourceCode(uiSourceCode);
     return icon;
   }
-};
+}
 
 /**
  * @extends {Common.Object}
  * @implements {Components.LinkDecorator}
  */
-Persistence.PersistenceUtils.LinkDecorator = class extends Common.Object {
+export class LinkDecorator extends Common.Object {
   /**
    * @param {!Persistence.Persistence} persistence
    */
@@ -70,6 +78,18 @@ Persistence.PersistenceUtils.LinkDecorator = class extends Common.Object {
    * @return {?UI.Icon}
    */
   linkIcon(uiSourceCode) {
-    return Persistence.PersistenceUtils.iconForUISourceCode(uiSourceCode);
+    return PersistenceUtils.iconForUISourceCode(uiSourceCode);
   }
-};
+}
+
+/* Legacy exported object */
+self.Persistence = self.Persistence || {};
+
+/* Legacy exported object */
+Persistence = Persistence || {};
+
+/** @constructor */
+Persistence.PersistenceUtils = PersistenceUtils;
+
+/** @constructor */
+Persistence.PersistenceUtils.LinkDecorator = LinkDecorator;

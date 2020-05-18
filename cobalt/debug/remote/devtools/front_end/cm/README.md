@@ -5,16 +5,20 @@ CodeMirror is a third-party library, which supports editing experience in Chrome
 Every once in a while, the CodeMirror dependency (which is located in Source/devtools/front_end/cm/ folder) should be updated to a newer version.
 
 ## Updating CodeMirror
+
+Run `python devtools/scripts/roll_codemirror.js <codemirror_dir> <devtools_dir>`
+
+## Manual steps
 This requires the following steps to be done:
 1. File `headlesscodemirror.js` is a `runmode-standalone.js` file from CodeMirror distribution, but wrapped in `(function(window) { ... }(this))`
 construction. This is needed to support in web workers.
-2. File `markselection.js` is a `mark-selection.js` from CodeMirror distribution. The "dash" is removed due to the restriction on the chromium grd generator.
-4. File codemirror.css contains both the default theme of CodeMirror and structural css required for it to work. Discard everything in the file up to the word `/* STOP */`.
-3. All other files in front_end/cm/ folder should be substituted with their newer versions from the upstream.
+2. File `codemirror.css` contains both the default theme of CodeMirror and structural css required for it to work. Discard everything in the file up to the word `/* STOP */`.
+3. All other files in `front_end/cm/` folder should be substituted with their newer versions from the upstream.
+4. All files in `front_end/cm_web_modes/` and `front_end/cm_modes/` should be updated with newer versions from upstream.
 
 ## Testing
 DevTools wrap CodeMirror via `CodeMirrorTextEditor.js` and `cmdevtools.css` files.
-Although there are a couple of automated tests (LayoutTests/inspector/editor/) to verify overall sanity of the setup, a manual testing is mandatory before
+Although there are a couple of automated tests (web_tests/inspector/editor/) to verify overall sanity of the setup, a manual testing is mandatory before
 landing a roll. Here is a rough testing scenario outline:
 1. Create a new snippet and type in a small function with a few nested for-loops. (The author suggests a bubble-sort). Make sure that:
    * Words `function`, `for`, `var` are highlighted
@@ -29,7 +33,7 @@ Make sure minified jquery opens nicely in the editor (minified jquery could be f
 3. Go to the Elements panel, select a node and verify the "Edit it as HTML" command works.
 
 ## Committing
-The only changes allowed to front_end/cm/ folder are CodeMirror rolls. There's a presubmit check that enforces this, so make sure you include the phrase "roll CodeMirror" into
+The only changes allowed to `front_end/cm/` folder are CodeMirror rolls. There's a presubmit check that enforces this, so make sure you include the phrase "roll CodeMirror" into
 your patch description.
 
 ## Example

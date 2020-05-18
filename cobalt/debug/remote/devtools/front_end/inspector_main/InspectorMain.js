@@ -5,84 +5,54 @@
 /**
  * @implements {Common.Runnable}
  */
-InspectorMain.InspectorMain = class extends Common.Object {
-  constructor() {
-    super();
-    /** @type {!Protocol.InspectorBackend.Connection} */
-    this._mainConnection;
-  }
-
+export class InspectorMainImpl extends Common.Object {
   /**
    * @override
    */
-  run() {
-    this._connectAndCreateMainTarget();
-    InspectorFrontendHost.connectionReady();
+  async run() {
+    let firstCall = true;
+    await SDK.initMainConnection(async () => {
+      const type = Root.Runtime.queryParam('v8only') ? SDK.Target.Type.Node : SDK.Target.Type.Frame;
+      const waitForDebuggerInPage = type === SDK.Target.Type.Frame && Root.Runtime.queryParam('panel') === 'sources';
+      const target =
+          SDK.targetManager.createTarget('main', Common.UIString('Main'), type, null, undefined, waitForDebuggerInPage);
 
-    new InspectorMain.InspectedNodeRevealer();
-    new InspectorMain.SourcesPanelIndicator();
+      // Only resume target during the first connection,
+      // subsequent connections are due to connection hand-over,
+      // there is no need to pause in debugger.
+      if (!firstCall) {
+        return;
+      }
+      firstCall = false;
+
+      if (waitForDebuggerInPage) {
+        const debuggerModel = target.model(SDK.DebuggerModel);
+        if (!debuggerModel.isReadyToPause()) {
+          await debuggerModel.once(SDK.DebuggerModel.Events.DebuggerIsReadyToPause);
+        }
+        debuggerModel.pause();
+      }
+
+      target.runtimeAgent().runIfWaitingForDebugger();
+    }, Components.TargetDetachedDialog.webSocketConnectionLost);
+
+    new SourcesPanelIndicator();
     new InspectorMain.BackendSettingsSync();
     new MobileThrottling.NetworkPanelIndicator();
 
-    InspectorFrontendHost.events.addEventListener(InspectorFrontendHostAPI.Events.ReloadInspectedPage, event => {
-      const hard = /** @type {boolean} */ (event.data);
-      SDK.ResourceTreeModel.reloadAllPages(hard);
-    });
+    Host.InspectorFrontendHost.events.addEventListener(
+        Host.InspectorFrontendHostAPI.Events.ReloadInspectedPage, event => {
+          const hard = /** @type {boolean} */ (event.data);
+          SDK.ResourceTreeModel.reloadAllPages(hard);
+        });
   }
-
-  _connectAndCreateMainTarget() {
-    const target = SDK.targetManager.createTarget(
-        'main', Common.UIString('Main'), this._capabilitiesForMainTarget(), this._createMainConnection.bind(this),
-        null);
-    target.runtimeAgent().runIfWaitingForDebugger();
-  }
-
-  /**
-   * @return {number}
-   */
-  _capabilitiesForMainTarget() {
-    if (Runtime.queryParam('v8only'))
-      return SDK.Target.Capability.JS;
-    return SDK.Target.Capability.Browser | SDK.Target.Capability.DOM | SDK.Target.Capability.DeviceEmulation |
-        SDK.Target.Capability.Emulation | SDK.Target.Capability.Input | SDK.Target.Capability.JS |
-        SDK.Target.Capability.Log | SDK.Target.Capability.Network | SDK.Target.Capability.ScreenCapture |
-        SDK.Target.Capability.Security | SDK.Target.Capability.Target | SDK.Target.Capability.Tracing |
-        SDK.Target.Capability.Inspector;
-  }
-
-  /**
-   * @param {!Protocol.InspectorBackend.Connection.Params} params
-   * @return {!Protocol.InspectorBackend.Connection}
-   */
-  _createMainConnection(params) {
-    this._mainConnection =
-        SDK.createMainConnection(params, () => Components.TargetDetachedDialog.webSocketConnectionLost());
-    return this._mainConnection;
-  }
-
-  /**
-   * @param {function(string)} onMessage
-   * @return {!Promise<!Protocol.InspectorBackend.Connection>}
-   */
-  _interceptMainConnection(onMessage) {
-    const params = {onMessage: onMessage, onDisconnect: this._connectAndCreateMainTarget.bind(this)};
-    return this._mainConnection.disconnect().then(this._createMainConnection.bind(this, params));
-  }
-};
-
-/**
- * @param {function(string)} onMessage
- * @return {!Promise<!Protocol.InspectorBackend.Connection>}
- */
-InspectorMain.interceptMainConnection = function(onMessage) {
-  return self.runtime.sharedInstance(InspectorMain.InspectorMain)._interceptMainConnection(onMessage);
-};
+}
 
 /**
  * @implements {UI.ActionDelegate}
  * @unrestricted
  */
-InspectorMain.ReloadActionDelegate = class {
+export class ReloadActionDelegate {
   /**
    * @override
    * @param {!UI.Context} context
@@ -100,13 +70,13 @@ InspectorMain.ReloadActionDelegate = class {
     }
     return false;
   }
-};
+}
 
 /**
  * @implements {UI.ActionDelegate}
  * @unrestricted
  */
-InspectorMain.FocusDebuggeeActionDelegate = class {
+export class FocusDebuggeeActionDelegate {
   /**
    * @override
    * @param {!UI.Context} context
@@ -117,17 +87,17 @@ InspectorMain.FocusDebuggeeActionDelegate = class {
     SDK.targetManager.mainTarget().pageAgent().bringToFront();
     return true;
   }
-};
+}
 
 /**
  * @implements {UI.ToolbarItem.Provider}
  */
-InspectorMain.NodeIndicator = class {
+export class NodeIndicator {
   constructor() {
     const element = createElement('div');
     const shadowRoot = UI.createShadowRootWithCoreStyles(element, 'inspector_main/nodeIcon.css');
     this._element = shadowRoot.createChild('div', 'node-icon');
-    element.addEventListener('click', () => InspectorFrontendHost.openNodeFrontend(), false);
+    element.addEventListener('click', () => Host.InspectorFrontendHost.openNodeFrontend(), false);
     this._button = new UI.ToolbarItem(element);
     this._button.setTitle(Common.UIString('Open dedicated DevTools for Node.js'));
     SDK.targetManager.addEventListener(
@@ -143,8 +113,9 @@ InspectorMain.NodeIndicator = class {
   _update(targetInfos) {
     const hasNode = !!targetInfos.find(target => target.type === 'node' && !target.attached);
     this._element.classList.toggle('inactive', !hasNode);
-    if (hasNode)
+    if (hasNode) {
       this._button.setVisible(true);
+    }
   }
 
   /**
@@ -154,12 +125,12 @@ InspectorMain.NodeIndicator = class {
   item() {
     return this._button;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-InspectorMain.SourcesPanelIndicator = class {
+export class SourcesPanelIndicator {
   constructor() {
     Common.moduleSetting('javaScriptDisabled').addChangeListener(javaScriptDisabledChanged);
     javaScriptDisabledChanged();
@@ -174,31 +145,13 @@ InspectorMain.SourcesPanelIndicator = class {
       UI.inspectorView.setPanelIcon('sources', icon);
     }
   }
-};
-
-/**
- * @unrestricted
- */
-InspectorMain.InspectedNodeRevealer = class {
-  constructor() {
-    SDK.targetManager.addModelListener(
-        SDK.OverlayModel, SDK.OverlayModel.Events.InspectNodeRequested, this._inspectNode, this);
-  }
-
-  /**
-   * @param {!Common.Event} event
-   */
-  _inspectNode(event) {
-    const deferredNode = /** @type {!SDK.DeferredDOMNode} */ (event.data);
-    Common.Revealer.reveal(deferredNode);
-  }
-};
+}
 
 /**
  * @implements {SDK.TargetManager.Observer}
  * @unrestricted
  */
-InspectorMain.BackendSettingsSync = class {
+export class BackendSettingsSync {
   constructor() {
     this._autoAttachSetting = Common.settings.moduleSetting('autoAttachToCreatedPages');
     this._autoAttachSetting.addChangeListener(this._updateAutoAttach, this);
@@ -207,23 +160,31 @@ InspectorMain.BackendSettingsSync = class {
     this._adBlockEnabledSetting = Common.settings.moduleSetting('network.adBlockingEnabled');
     this._adBlockEnabledSetting.addChangeListener(this._update, this);
 
-    SDK.targetManager.observeTargets(this, SDK.Target.Capability.Browser);
+    this._emulatePageFocusSetting = Common.settings.moduleSetting('emulatePageFocus');
+    this._emulatePageFocusSetting.addChangeListener(this._update, this);
+
+    SDK.targetManager.observeTargets(this);
   }
 
   /**
    * @param {!SDK.Target} target
    */
   _updateTarget(target) {
-    if (!target.parentTarget())
-      target.pageAgent().setAdBlockingEnabled(this._adBlockEnabledSetting.get());
+    if (target.type() !== SDK.Target.Type.Frame || target.parentTarget()) {
+      return;
+    }
+    target.pageAgent().setAdBlockingEnabled(this._adBlockEnabledSetting.get());
+    target.emulationAgent().setFocusEmulationEnabled(this._emulatePageFocusSetting.get());
   }
 
   _updateAutoAttach() {
-    InspectorFrontendHost.setOpenNewWindowForPopups(this._autoAttachSetting.get());
+    Host.InspectorFrontendHost.setOpenNewWindowForPopups(this._autoAttachSetting.get());
   }
 
   _update() {
-    SDK.targetManager.targets(SDK.Target.Capability.Browser).forEach(this._updateTarget, this);
+    for (const target of SDK.targetManager.targets()) {
+      this._updateTarget(target);
+    }
   }
 
   /**
@@ -240,6 +201,42 @@ InspectorMain.BackendSettingsSync = class {
    */
   targetRemoved(target) {
   }
-};
+}
 
 SDK.ChildTargetManager.install();
+
+/* Legacy exported object */
+self.InspectorMain = self.InspectorMain || {};
+
+/* Legacy exported object */
+InspectorMain = InspectorMain || {};
+
+/**
+ * @constructor
+ */
+InspectorMain.InspectorMain = InspectorMainImpl;
+
+/**
+ * @constructor
+ */
+InspectorMain.ReloadActionDelegate = ReloadActionDelegate;
+
+/**
+ * @constructor
+ */
+InspectorMain.FocusDebuggeeActionDelegate = FocusDebuggeeActionDelegate;
+
+/**
+ * @constructor
+ */
+InspectorMain.NodeIndicator = NodeIndicator;
+
+/**
+ * @constructor
+ */
+InspectorMain.SourcesPanelIndicator = SourcesPanelIndicator;
+
+/**
+ * @constructor
+ */
+InspectorMain.BackendSettingsSync = BackendSettingsSync;

@@ -89,8 +89,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
    * @return {!Profiler.HeapSnapshotGridNode.ChildrenProvider}
    */
   _provider() {
-    if (!this._providerObject)
+    if (!this._providerObject) {
       this._providerObject = this.createProvider();
+    }
     return this._providerObject;
   }
 
@@ -101,8 +102,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
    */
   createCell(columnId) {
     const cell = super.createCell(columnId);
-    if (this._searchMatched)
+    if (this._searchMatched) {
       cell.classList.add('highlight');
+    }
     return cell;
   }
 
@@ -123,11 +125,13 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
   }
 
   dispose() {
-    if (this._providerObject)
+    if (this._providerObject) {
       this._providerObject.dispose();
+    }
     for (let node = this.children[0]; node; node = node.traverseNextNode(true, this, true)) {
-      if (node.dispose)
+      if (node.dispose) {
         node.dispose();
+      }
     }
   }
 
@@ -137,6 +141,22 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
    * @return {!Promise<!SDK.RemoteObject>}
    */
   queryObjectContent(heapProfilerModel, objectGroupName) {
+  }
+
+  /**
+   * @param {!SDK.HeapProfilerModel} heapProfilerModel
+   * @param {string} objectGroupName
+   * @return {!Promise<?SDK.RemoteObject>}
+   */
+  tryQueryObjectContent(heapProfilerModel, objectGroupName) {
+  }
+
+  /**
+   * @param {!UI.ContextMenu} contextMenu
+   * @param {!Profiler.ProfileType.DataDisplayDelegate} dataDisplayDelegate
+   * @param {?SDK.HeapProfilerModel} heapProfilerModel
+   */
+  populateContextMenu(contextMenu, dataDisplayDelegate, heapProfilerModel) {
   }
 
   /**
@@ -194,11 +214,17 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
   _createValueCell(columnId) {
     const cell = UI.html`<td class="numeric-column" />`;
     if (this.dataGrid.snapshot.totalSize !== 0) {
-      const div = UI.html`<div><span>${this.data[columnId]}</span></div>`;
+      const div = createElement('div');
+      const valueSpan = UI.html`<span>${this.data[columnId]}</span>`;
+      div.appendChild(valueSpan);
       const percentColumn = columnId + '-percent';
       if (percentColumn in this.data) {
-        div.appendChild(UI.html`<span class="percent-column">${this.data[percentColumn]}</span>`);
+        const percentSpan = UI.html`<span class="percent-column">${this.data[percentColumn]}</span>`;
+        div.appendChild(percentSpan);
         div.classList.add('profile-multiple-values');
+        UI.ARIAUtils.markAsHidden(valueSpan);
+        UI.ARIAUtils.markAsHidden(percentSpan);
+        UI.ARIAUtils.setAccessibleName(div, ls`${this.data[columnId]}, ${this.data[percentColumn]}`);
       }
       cell.appendChild(div);
     }
@@ -209,8 +235,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
    * @override
    */
   populate() {
-    if (this._populated)
+    if (this._populated) {
       return;
+    }
     this._populated = true;
     this._provider().sortAndRewind(this.comparator()).then(() => this._populateChildren());
   }
@@ -243,8 +270,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
      * @this {Profiler.HeapSnapshotGridNode}
      */
     function serializeNextChunk() {
-      if (firstNotSerializedPosition >= toPosition)
+      if (firstNotSerializedPosition >= toPosition) {
         return;
+      }
       const end = Math.min(firstNotSerializedPosition + this._dataGrid.defaultPopulateCount(), toPosition);
       this._provider().serializeItemsRange(firstNotSerializedPosition, end).then(childrenRetrieved.bind(this));
       firstNotSerializedPosition = end;
@@ -289,10 +317,12 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
           insertShowMoreButton.call(this, 0, itemsRange.startPosition, insertionIndex++);
         }
         this._retrievedChildrenRanges.push({from: itemsRange.startPosition, to: itemsRange.endPosition});
-        for (let i = 0, l = items.length; i < l; ++i)
+        for (let i = 0, l = items.length; i < l; ++i) {
           insertRetrievedChild.call(this, items[i], insertionIndex++);
-        if (itemsRange.endPosition < itemsRange.totalLength)
+        }
+        if (itemsRange.endPosition < itemsRange.totalLength) {
           insertShowMoreButton.call(this, itemsRange.endPosition, itemsRange.totalLength, insertionIndex++);
+        }
       } else {
         let rangeIndex = 0;
         let found = false;
@@ -305,8 +335,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
           }
           insertionIndex += range.to - range.from;
           // Skip the button if there is one.
-          if (range.to < itemsRange.totalLength)
+          if (range.to < itemsRange.totalLength) {
             insertionIndex += 1;
+          }
           ++rangeIndex;
         }
 
@@ -316,8 +347,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
           insertShowMoreButton.call(
               this, itemsRange.startPosition, found ? range.from : itemsRange.totalLength, insertionIndex);
           range = {from: itemsRange.startPosition, to: itemsRange.startPosition};
-          if (!found)
+          if (!found) {
             rangeIndex = this._retrievedChildrenRanges.length;
+          }
           this._retrievedChildrenRanges.splice(rangeIndex, 0, range);
         } else {
           insertionIndex += itemPosition - range.from;
@@ -336,8 +368,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
           // We're at the position before button: ...<?node>x<button>
           const nextRange = this._retrievedChildrenRanges[rangeIndex + 1];
           let newEndOfRange = nextRange ? nextRange.from : itemsRange.totalLength;
-          if (newEndOfRange > itemsRange.endPosition)
+          if (newEndOfRange > itemsRange.endPosition) {
             newEndOfRange = itemsRange.endPosition;
+          }
           while (itemPosition < newEndOfRange) {
             insertRetrievedChild.call(this, items[itemIndex++], insertionIndex++);
             ++itemPosition;
@@ -352,10 +385,11 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
           } else {
             range.to = newEndOfRange;
             // Remove or update next button.
-            if (newEndOfRange === itemsRange.totalLength)
+            if (newEndOfRange === itemsRange.totalLength) {
               this.removeChildByIndex(insertionIndex);
-            else
+            } else {
               this.allChildren()[insertionIndex].setStartPosition(itemsRange.endPosition);
+            }
           }
         }
       }
@@ -367,8 +401,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
         return;
       }
 
-      if (this.expanded)
+      if (this.expanded) {
         this._dataGrid.updateVisibleNodes(true);
+      }
       afterPopulate();
       this.dispatchEventToListeners(Profiler.HeapSnapshotGridNode.Events.PopulateComplete);
     }
@@ -379,10 +414,12 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
     const children = this.allChildren();
     for (let i = 0, l = children.length; i < l; ++i) {
       const child = children[i];
-      if (!child.expanded)
+      if (!child.expanded) {
         continue;
-      if (!this._savedChildren)
+      }
+      if (!this._savedChildren) {
         this._savedChildren = {};
+      }
       this._savedChildren[this._childHashForNode(child)] = child;
     }
   }
@@ -401,8 +438,9 @@ Profiler.HeapSnapshotGridNode = class extends DataGrid.DataGridNode {
     await this._populateChildren(0, instanceCount);
 
     for (const child of this.allChildren()) {
-      if (child.expanded)
+      if (child.expanded) {
         child.sort();
+      }
     }
     this._dataGrid.recursiveSortingLeave();
   }
@@ -457,8 +495,9 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
   constructor(dataGrid, node) {
     super(dataGrid, false);
     // node is null for DataGrid root nodes.
-    if (!node)
+    if (!node) {
       return;
+    }
     this._name = node.name;
     this._type = node.type;
     this._distance = node.distance;
@@ -474,8 +513,9 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
     } else if (node.canBeQueried) {
       this._reachableFromWindow = true;
     }
-    if (node.detachedDOMTreeNode)
+    if (node.detachedDOMTreeNode) {
       this.detachedDOMTreeNode = true;
+    }
 
     const snapshot = dataGrid.snapshot;
     const shallowSizePercent = this._shallowSize / snapshot.totalSize * 100.0;
@@ -504,8 +544,9 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
    */
   createCell(columnId) {
     const cell = columnId !== 'object' ? this._createValueCell(columnId) : this._createObjectCell();
-    if (this._searchMatched)
+    if (this._searchMatched) {
       cell.classList.add('highlight');
+    }
     return cell;
   }
 
@@ -539,7 +580,7 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
         valueStyle = 'null';
         break;
       case 'array':
-        value = (value || ls`(internal array)`) + '[]';
+        value = value ? `${value}[]` : ls`(internal array)[]`;
         break;
     }
     return this._createObjectCellWithValue(valueStyle, value);
@@ -564,12 +605,14 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
       div.appendChild(UI.html
                       `<span class="heap-object-tag" title="${ls`User object reachable from window`}">🗖</span>`);
     }
-    if (this.detachedDOMTreeNode)
+    if (this.detachedDOMTreeNode) {
       div.appendChild(UI.html`<span class="heap-object-tag" title="${ls`Detached from DOM tree`}">✀</span>`);
+    }
     this._appendSourceLocation(div);
     const cell = fragment.element();
-    if (this.depth)
+    if (this.depth) {
       cell.style.setProperty('padding-left', (this.depth * this.dataGrid.indentWidth) + 'px');
+    }
     cell.heapSnapshotNode = this;
     return cell;
   }
@@ -584,15 +627,15 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
    * @param {!Element} div
    */
   async _appendSourceLocation(div) {
-    if (this._type !== 'closure')
-      return;
     const linkContainer = UI.html`<span class="heap-object-source-link" />`;
     div.appendChild(linkContainer);
-    const link = await this._dataGrid.dataDisplayDelegate().linkifyObject(String(this.snapshotNodeId));
-    if (link)
+    const link = await this._dataGrid.dataDisplayDelegate().linkifyObject(this.snapshotNodeIndex);
+    if (link) {
       linkContainer.appendChild(link);
-    else
+      this.linkElement = link;
+    } else {
       linkContainer.remove();
+    }
   }
 
   /**
@@ -602,13 +645,22 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
    * @return {!Promise<!SDK.RemoteObject>}
    */
   async queryObjectContent(heapProfilerModel, objectGroupName) {
-    const runtimeModel = heapProfilerModel.runtimeModel();
-    let result;
-    if (this._type === 'string')
-      result = runtimeModel.createRemoteObjectFromPrimitiveValue(this._name);
-    else
-      result = await heapProfilerModel.objectForSnapshotObjectId(String(this.snapshotNodeId), objectGroupName);
-    return result || runtimeModel.createRemoteObjectFromPrimitiveValue(ls`Preview is not available`);
+    const remoteObject = await this.tryQueryObjectContent(heapProfilerModel, objectGroupName);
+    return remoteObject ||
+        heapProfilerModel.runtimeModel().createRemoteObjectFromPrimitiveValue(ls`Preview is not available`);
+  }
+
+  /**
+   * @override
+   * @param {!SDK.HeapProfilerModel} heapProfilerModel
+   * @param {string} objectGroupName
+   * @return {!Promise<?SDK.RemoteObject>}
+   */
+  async tryQueryObjectContent(heapProfilerModel, objectGroupName) {
+    if (this._type === 'string') {
+      return heapProfilerModel.runtimeModel().createRemoteObjectFromPrimitiveValue(this._name);
+    }
+    return await heapProfilerModel.objectForSnapshotObjectId(String(this.snapshotNodeId), objectGroupName);
   }
 
   async updateHasChildren() {
@@ -624,13 +676,49 @@ Profiler.HeapSnapshotGenericObjectNode = class extends Profiler.HeapSnapshotGrid
   shortenWindowURL(fullName, hasObjectId) {
     const startPos = fullName.indexOf('/');
     const endPos = hasObjectId ? fullName.indexOf('@') : fullName.length;
-    if (startPos === -1 || endPos === -1)
+    if (startPos === -1 || endPos === -1) {
       return fullName;
+    }
     const fullURL = fullName.substring(startPos + 1, endPos).trimLeft();
     let url = fullURL.trimURL();
-    if (url.length > 40)
+    if (url.length > 40) {
       url = url.trimMiddle(40);
+    }
     return fullName.substr(0, startPos + 2) + url + fullName.substr(endPos);
+  }
+
+  /**
+   * @override
+   * @param {!UI.ContextMenu} contextMenu
+   * @param {!Profiler.ProfileType.DataDisplayDelegate} dataDisplayDelegate
+   * @param {?SDK.HeapProfilerModel} heapProfilerModel
+   */
+  populateContextMenu(contextMenu, dataDisplayDelegate, heapProfilerModel) {
+    contextMenu.revealSection().appendItem(ls`Reveal in Summary view`, () => {
+      dataDisplayDelegate.showObject(String(this.snapshotNodeId), ls`Summary`);
+    });
+
+    if (this._referenceName) {
+      for (const match of this._referenceName.matchAll(/\((?<objectName>[^@)]*) @(?<snapshotNodeId>\d+)\)/g)) {
+        const {objectName, snapshotNodeId} = /** @type {!{objectName:string, snapshotNodeId:string}} */ (match.groups);
+        contextMenu.revealSection().appendItem(
+            ls`Reveal object '${objectName}' with id @${snapshotNodeId} in Summary view`, () => {
+              dataDisplayDelegate.showObject(snapshotNodeId, ls`Summary`);
+            });
+      }
+    }
+
+    if (heapProfilerModel) {
+      contextMenu.revealSection().appendItem(ls`Store as global variable`, async () => {
+        const remoteObject =
+            await this.tryQueryObjectContent(/** @type {!SDK.HeapProfilerModel} */ (heapProfilerModel), '');
+        if (!remoteObject) {
+          Common.console.error(ls`Preview is not available`);
+        } else {
+          await SDK.consoleModel.saveToTempVariable(UI.context.flavor(SDK.ExecutionContext), remoteObject);
+        }
+      });
+    }
   }
 };
 
@@ -653,8 +741,9 @@ Profiler.HeapSnapshotObjectNode = class extends Profiler.HeapSnapshotGenericObje
 
     this._parentObjectNode = parentObjectNode;
     this._cycledWithAncestorGridNode = this._findAncestorWithSameSnapshotNodeId();
-    if (!this._cycledWithAncestorGridNode)
+    if (!this._cycledWithAncestorGridNode) {
       this.updateHasChildren();
+    }
 
     const data = this.data;
     data['count'] = '';
@@ -685,8 +774,9 @@ Profiler.HeapSnapshotObjectNode = class extends Profiler.HeapSnapshotGenericObje
   _findAncestorWithSameSnapshotNodeId() {
     let ancestor = this._parentObjectNode;
     while (ancestor) {
-      if (ancestor.snapshotNodeId === this.snapshotNodeId)
+      if (ancestor.snapshotNodeId === this.snapshotNodeId) {
         return ancestor;
+      }
       ancestor = ancestor._parentObjectNode;
     }
     return null;
@@ -753,8 +843,9 @@ Profiler.HeapSnapshotObjectNode = class extends Profiler.HeapSnapshotGenericObje
         name = `[${name}]`;
         break;
     }
-    if (this._cycledWithAncestorGridNode)
+    if (this._cycledWithAncestorGridNode) {
       div.classList.add('cycled-ancessor-node');
+    }
     div.prepend(UI.html`<span class="${nameClass}">${name}</span>
                         <span class="grayed">${this._edgeNodeSeparator()}</span>`);
   }
@@ -1004,10 +1095,12 @@ Profiler.HeapSnapshotConstructorNode = class extends Profiler.HeapSnapshotGridNo
    */
   createCell(columnId) {
     const cell = columnId === 'object' ? super.createCell(columnId) : this._createValueCell(columnId);
-    if (columnId === 'object' && this._count > 1)
+    if (columnId === 'object' && this._count > 1) {
       cell.appendChild(UI.html`<span class="objects-count">×${this._count}</span>`);
-    if (this._searchMatched)
+    }
+    if (this._searchMatched) {
       cell.classList.add('highlight');
+    }
     return cell;
   }
 
@@ -1106,8 +1199,9 @@ Profiler.HeapSnapshotDiffNodesProvider = class {
     if (beginPosition < this._addedCount) {
       itemsRange = await this._addedNodesProvider.serializeItemsRange(beginPosition, endPosition);
 
-      for (const item of itemsRange.items)
+      for (const item of itemsRange.items) {
         item.isAddedNotRemoved = true;
+      }
 
       if (itemsRange.endPosition >= endPosition) {
         itemsRange.totalLength = this._addedCount + this._removedCount;
@@ -1122,10 +1216,12 @@ Profiler.HeapSnapshotDiffNodesProvider = class {
           beginPosition - this._addedCount, endPosition - this._addedCount);
     }
 
-    if (!addedItems.items.length)
+    if (!addedItems.items.length) {
       addedItems.startPosition = this._addedCount + itemsRange.startPosition;
-    for (const item of itemsRange.items)
+    }
+    for (const item of itemsRange.items) {
       item.isAddedNotRemoved = false;
+    }
     addedItems.items.pushAll(itemsRange.items);
     addedItems.endPosition = this._addedCount + itemsRange.endPosition;
     addedItems.totalLength = this._addedCount + this._removedCount;
@@ -1191,8 +1287,9 @@ Profiler.HeapSnapshotDiffNode = class extends Profiler.HeapSnapshotGridNode {
    */
   createCell(columnId) {
     const cell = super.createCell(columnId);
-    if (columnId !== 'object')
+    if (columnId !== 'object') {
       cell.classList.add('numeric-column');
+    }
     return cell;
   }
 
@@ -1201,10 +1298,11 @@ Profiler.HeapSnapshotDiffNode = class extends Profiler.HeapSnapshotGridNode {
    * @return {!Profiler.HeapSnapshotInstanceNode}
    */
   _createChildNode(item) {
-    if (item.isAddedNotRemoved)
+    if (item.isAddedNotRemoved) {
       return new Profiler.HeapSnapshotInstanceNode(this._dataGrid, this._dataGrid.snapshot, item, false);
-    else
+    } else {
       return new Profiler.HeapSnapshotInstanceNode(this._dataGrid, this._dataGrid.baseSnapshot, item, true);
+    }
   }
 
   /**
@@ -1250,12 +1348,14 @@ Profiler.HeapSnapshotDiffNode = class extends Profiler.HeapSnapshotGridNode {
   }
 
   _signForDelta(delta) {
-    if (delta === 0)
+    if (delta === 0) {
       return '';
-    if (delta > 0)
+    }
+    if (delta > 0) {
       return '+';
-    else
-      return '\u2212';  // Math minus sign, same width as plus.
+    } else {
+      return '\u2212';
+    }  // Math minus sign, same width as plus.
   }
 };
 
@@ -1284,8 +1384,9 @@ Profiler.AllocationGridNode = class extends Profiler.HeapSnapshotGridNode {
    * @override
    */
   populate() {
-    if (this._populated)
+    if (this._populated) {
       return;
+    }
     this._doPopulate();
   }
 
@@ -1302,14 +1403,16 @@ Profiler.AllocationGridNode = class extends Profiler.HeapSnapshotGridNode {
       dataGrid.appendNode(parentNode, child);
       parentNode = child;
       parentNode._populated = true;
-      if (this.expanded)
+      if (this.expanded) {
         parentNode.expand();
+      }
     }
 
     const callersBranch = callers.branchingCallers;
     callersBranch.sort(this._dataGrid._createComparator());
-    for (const caller of callersBranch)
+    for (const caller of callersBranch) {
       dataGrid.appendNode(parentNode, new Profiler.AllocationGridNode(dataGrid, caller));
+    }
     dataGrid.updateVisibleNodes(true);
   }
 
@@ -1318,8 +1421,9 @@ Profiler.AllocationGridNode = class extends Profiler.HeapSnapshotGridNode {
    */
   expand() {
     super.expand();
-    if (this.children.length === 1)
+    if (this.children.length === 1) {
       this.children[0].expand();
+    }
   }
 
   /**
@@ -1328,8 +1432,9 @@ Profiler.AllocationGridNode = class extends Profiler.HeapSnapshotGridNode {
    * @return {!Element}
    */
   createCell(columnId) {
-    if (columnId !== 'name')
+    if (columnId !== 'name') {
       return this._createValueCell(columnId);
+    }
 
     const cell = super.createCell(columnId);
     const allocationNode = this._allocationNode;

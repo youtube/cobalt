@@ -10,7 +10,13 @@
 }
 
 .CodeMirror-gutter-performance {
-    width: 74px;
+    width: 60px;
+    background-color: white;
+    margin-left: 3px;
+}
+
+.CodeMirror-gutter-memory {
+    width: 48px;
     background-color: white;
     margin-left: 3px;
 }
@@ -53,10 +59,12 @@
     background-color: rgb(171, 191, 254);
 }
 
+:host-context(.-theme-with-dark-background) .CodeMirror .source-frame-continue-to-location,
 .-theme-with-dark-background .CodeMirror .source-frame-continue-to-location {
     background-color: #14522b;
 }
 
+:host-context(.-theme-with-dark-background) .CodeMirror .source-frame-continue-to-location:hover,
 .-theme-with-dark-background .CodeMirror .source-frame-continue-to-location:hover {
     border: 1px solid #33cc6b;
     background-color: #14522b;
@@ -107,7 +115,7 @@
 }
 
 .CodeMirror-linenumber {
-    color: rgb(128, 128, 128);
+    color: hsl(0, 0%, 46%);
     padding: 0 3px 0 5px;
     min-width: 22px;
     text-align: right;
@@ -115,12 +123,13 @@
 }
 
 .pretty-printed .CodeMirror-linenumber {
-    color: var( --accent-color-b);
+    color: var(--accent-color);
 }
 
 .cm-highlight {
     -webkit-animation: fadeout 2s 0s;
 }
+:host-context(.-theme-with-dark-background) .cm-highlight,
 .-theme-with-dark-background .cm-highlight {
     -webkit-animation: fadeout-dark 2s 0s;
 }
@@ -136,6 +145,7 @@
 .cm-readonly-highlight {
     background-color: rgb(255, 255, 120);
 }
+:host-context(.-theme-with-dark-background) .cm-readonly-highlight,
 .-theme-with-dark-background .cm-readonly-highlight {
     background-color: hsla(133, 100%, 30%, 0.5);
 }
@@ -143,6 +153,7 @@
 .cm-highlight.cm-execution-line {
     -webkit-animation: fadeout-execution-line 1s 0s;
 }
+:host-context(.-theme-with-dark-background) .cm-highlight.cm-execution-line,
 .-theme-with-dark-background .cm-highlight.cm-execution-line {
     -webkit-animation: fadeout-execution-line-dark 1s 0s;
 }
@@ -159,7 +170,7 @@
 .cm-breakpoint .CodeMirror-gutter-wrapper .CodeMirror-linenumber, -theme-preserve {
     color: white;
     border-width: 1px 4px 1px 1px !important;
-    -webkit-border-image: url(Images/breakpoint.png) 1 4 1 1;
+    -webkit-border-image: url(Images/breakpoint.svg) 1 4 1 1;
     margin: 0 0 0 3px !important;
     padding-right: 3px;
     padding-left: 1px;
@@ -173,18 +184,10 @@
 }
 
 .cm-breakpoint.cm-breakpoint-conditional .CodeMirror-linenumber {
-    -webkit-border-image: url(Images/breakpointConditional.png) 1 4 1 1;
+    -webkit-border-image: url(Images/breakpointConditional.svg) 1 4 1 1;
 }
 
-@media (-webkit-min-device-pixel-ratio: 1.1) {
-.cm-breakpoint .CodeMirror-gutter-wrapper .CodeMirror-linenumber {
-    -webkit-border-image: url(Images/breakpoint_2x.png) 2 8 2 2;
-}
-.cm-breakpoint.cm-breakpoint-conditional .CodeMirror-linenumber {
-    -webkit-border-image: url(Images/breakpointConditional_2x.png) 2 8 2 2;
-}
-} /* media */
-
+:host-context(.-theme-with-dark-background) .cm-breakpoint:not(.cm-breakpoint-conditional) .CodeMirror-gutter-wrapper .CodeMirror-linenumber,
 .-theme-with-dark-background .cm-breakpoint:not(.cm-breakpoint-conditional) .CodeMirror-gutter-wrapper .CodeMirror-linenumber {
     filter: hue-rotate(-139deg);
 }
@@ -245,22 +248,24 @@
     opacity: 1;
 }
 
-div.CodeMirror span.CodeMirror-matchingbracket {
+div.CodeMirror:focus-within span.CodeMirror-matchingbracket {
     background-color: rgba(0, 0, 0, 0.07);
     border-bottom: 1px solid rgba(0, 0, 0, 0.5);
 }
 
-div.CodeMirror span.CodeMirror-nonmatchingbracket {
+div.CodeMirror:focus-within span.CodeMirror-nonmatchingbracket {
     background-color: rgba(255, 0, 0, 0.07);
     border-bottom: 1px solid rgba(255, 0, 0, 0.5);
 }
 
-.-theme-with-dark-background div.CodeMirror span.CodeMirror-matchingbracket {
+:host-context(.-theme-with-dark-background) div.CodeMirror:focus-within span.CodeMirror-matchingbracket,
+.-theme-with-dark-background div.CodeMirror:focus-within span.CodeMirror-matchingbracket {
     border-bottom: 1px solid rgb(217,217,217);
     background-color:initial;
 }
 
-.-theme-with-dark-background div.CodeMirror span.CodeMirror-nonmatchingbracket {
+:host-context(.-theme-with-dark-background) div.CodeMirror:focus-within span.CodeMirror-nonmatchingbracket,
+.-theme-with-dark-background div.CodeMirror:focus-within span.CodeMirror-nonmatchingbracket {
     border-bottom: 1px solid rgb(255, 26, 26);
     background-color:initial;
 }
@@ -304,18 +309,17 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
     background-color: rgb(171, 191, 254);
 }
 
-.cm-execution-line .CodeMirror-linenumber {
-    border-right: 1px solid rgb(64, 115, 244);
-}
-
+:host-context(.-theme-with-dark-background) .cm-execution-line,
 .-theme-with-dark-background .cm-execution-line {
     background-color: #14522b;
 }
 
+:host-context(.-theme-with-dark-background) .cm-execution-line-outline,
 .-theme-with-dark-background .cm-execution-line-outline {
     outline: 1px solid #33cc6b;
 }
 
+:host-context(.-theme-with-dark-background) .cm-execution-line-tail,
 .-theme-with-dark-background .cm-execution-line-tail {
     background-color: #347132;
 }
@@ -399,37 +403,46 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
     z-index: -1;
 }
 
+:host-context(.-theme-with-dark-background) .cm-line-with-selection .cm-column-with-selection.cm-search-highlight:before,
 .-theme-with-dark-background .cm-line-with-selection .cm-column-with-selection.cm-search-highlight:before {
     background-color: hsl(133, 100%, 30%);
 }
 
+:host-context(.-theme-with-dark-background) .cm-line-with-selection .cm-search-highlight,
 .-theme-with-dark-background .cm-line-with-selection .cm-search-highlight {
     color: #eee;
 }
 
-.CodeMirror .text-editor-line-marker-performance {
+.CodeMirror .text-editor-line-marker-text {
     text-align: right;
     padding-right: 3px;
+    height: 12px;
+}
+
+.CodeMirror .text-editor-line-marker-text span.line-marker-units {
+    color: #555;
+    font-size: 75%;
+    margin-left: 3px;
 }
 
 .CodeMirror .text-editor-coverage-unused-marker {
     text-align: right;
     padding-right: 2px;
-    background-color: #E57373;
+    background-color: #EE442F;
 }
 
 .CodeMirror .text-editor-coverage-unused-marker::after {
-    content: " ";
+    content: "\200B";
 }
 
 .CodeMirror .text-editor-coverage-used-marker {
     text-align: right;
     padding-right: 2px;
-    background-color: #81C784;
+    background-color: #63ACBE;
 }
 
 .CodeMirror .text-editor-coverage-used-marker::after {
-    content: " ";
+    content: "\200B";
 }
 
 .CodeMirror .text-editor-line-decoration {
@@ -457,7 +470,7 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
     margin-left: 10px;
     padding-left: 5px;
     color: #222;
-    -webkit-user-select: text;
+    user-select: text;
 }
 
 .CodeMirror .cm-execution-line .text-editor-value-decoration {
@@ -481,16 +494,10 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
 }
 
 .CodeMirror .text-editor-line-decoration-wave {
-    background-image: url(Images/errorWave.png);
+    background-image: url(Images/errorWave.svg);
     background-repeat: repeat-x;
     background-size: contain;
 }
-
-@media (-webkit-min-device-pixel-ratio: 1.1) {
-.CodeMirror .text-editor-line-decoration-wave {
-    background-image: url(Images/errorWave_2x.png);
-}
-} /* media */
 
 /** @see crbug.com/358161 */
 .CodeMirror .CodeMirror-vscrollbar, .CodeMirror .CodeMirror-hscrollbar {
@@ -505,6 +512,7 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
     background-color: transparent;
 }
 
+:host-context(.-theme-with-dark-background) .CodeMirror .CodeMirror-selected,
 .-theme-with-dark-background .CodeMirror .CodeMirror-selected {
     background-color: #454545;
 }
@@ -552,5 +560,79 @@ div.CodeMirror span.CodeMirror-nonmatchingbracket {
 }
 
 .pretty-printed .CodeMirror-linenumber {
-    color: var(--accent-color-b);
+    color: var(--accent-color);
+}
+
+.CodeMirror-foldmarker {
+    cursor: pointer;
+    font-size: 0;
+    line-height: 0;
+    height:0px;
+}
+
+.CodeMirror-foldmarker::before {
+    content: '\2026';
+    font-size: 13px;
+    color: #666;
+}
+
+.CodeMirror-foldgutter {
+    width: 1.5em;
+}
+
+.CodeMirror-gutters:hover .CodeMirror-foldgutter {
+    background-color: transparent;
+}
+
+.CodeMirror-foldgutter-open,
+.CodeMirror-foldgutter-folded {
+    cursor: pointer;
+    position: relative;
+}
+
+.CodeMirror-foldgutter-open {
+    transition: opacity .2s;
+    opacity: 0;
+}
+
+.CodeMirror-gutter-hovered .CodeMirror-foldgutter-open {
+    opacity: 1;
+}
+
+.CodeMirror-foldgutter-open::before,
+.CodeMirror-foldgutter-folded::before {
+    background-color: #727272;
+    user-select: none;
+    -webkit-mask-image: url(Images/treeoutlineTriangles.svg);
+    -webkit-mask-size: 32px 24px;
+    content: "";
+    display:block;
+    width: 8px;
+    color: transparent;
+    text-shadow: none;
+    height: 12px;
+    position: absolute;
+    right: 4px;
+}
+
+.CodeMirror-foldgutter-open::before {
+    -webkit-mask-position: -16px 0;
+}
+
+.CodeMirror-foldgutter-folded::before {
+    -webkit-mask-position: 0 0;
+}
+
+.CodeMirror .CodeMirror-selected {
+    background-color: var(--item-selection-inactive-bg-color);
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background-color: var(--item-selection-bg-color);
+}
+
+.CodeMirror .CodeMirror-line::selection,
+.CodeMirror .CodeMirror-line > span::selection,
+.CodeMirror .CodeMirror-line > span > span::selection {
+    background: var(--item-selection-bg-color);
 }

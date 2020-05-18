@@ -13,12 +13,12 @@
 .elements-disclosure li {
     /** Keep margin-left & padding-left in sync with ElementsTreeElements.updateDecorators **/
     padding: 0 0 0 14px;
-    margin-top: 1px;
+    border-top: 1px solid transparent;
     margin-left: -2px;
     word-wrap: break-word;
     position: relative;
     min-height: 15px;
-    line-height: 15px;
+    line-height: 1.36;
 }
 
 .elements-disclosure li.parent {
@@ -34,13 +34,8 @@
     white-space: pre;
 }
 
-.elements-disclosure li.selected .selected-hint:before {
+.elements-disclosure .elements-tree-outline:not(.hide-selection-when-blurred) li.selected .selected-hint:before {
     opacity: 0.6;
-    color: var(--selection-inactive-fg-color);
-}
-
-.elements-disclosure li.selected:focus .selected-hint:before {
-    color: var(--selection-fg-color);
 }
 
 .elements-disclosure li.parent::before {
@@ -48,8 +43,8 @@
 }
 
 .elements-disclosure li.parent::before {
-    -webkit-user-select: none;
-    -webkit-mask-image: url(Images/treeoutlineTriangles.png);
+    user-select: none;
+    -webkit-mask-image: url(Images/treeoutlineTriangles.svg);
     -webkit-mask-size: 32px 24px;
     content: '\00a0\00a0';
     color: transparent;
@@ -60,12 +55,6 @@
 .elements-disclosure li.always-parent::before {
     visibility: hidden;
 }
-
-@media (-webkit-min-device-pixel-ratio: 1.1) {
-.elements-disclosure li.parent::before {
-    -webkit-mask-image: url(Images/treeoutlineTriangles_2x.png);
-}
-} /* media */
 
 .elements-disclosure li.parent::before {
     -webkit-mask-position: 0 0;
@@ -81,7 +70,7 @@
     display: block;
     left: 3px;
     right: 3px;
-    background-color: rgba(56, 121, 217, 0.1);
+    background-color: var(--item-hover-color);
     border-radius: 5px;
 }
 
@@ -91,13 +80,22 @@
 
 .elements-disclosure li.selected .selection {
     display: block;
-    background-color: var(--selection-inactive-bg-color);
+}
+
+.elements-disclosure .elements-tree-outline:not(.hide-selection-when-blurred) .selection {
+    background-color: var(--item-selection-inactive-bg-color);
+}
+
+.elements-disclosure .elements-tree-outline.hide-selection-when-blurred .selected:focus[data-keyboard-focus="true"] .highlight > * {
+    background: var(--focus-bg-color);
+    border-radius: 2px;
+    box-shadow: 0px 0px 0px 2px var(--focus-bg-color);
 }
 
 .elements-disclosure ol {
     list-style-type: none;
     /** Keep it in sync with ElementsTreeElements.updateDecorators **/
-    -webkit-padding-start: 12px;
+    padding-inline-start: 12px;
     margin: 0;
 }
 
@@ -122,20 +120,8 @@
     padding-left: 2px;
 }
 
-.elements-disclosure ol li.selected:focus {
-    color: var(--selection-fg-color);
-}
-
-.elements-disclosure ol li.parent.selected:focus::before {
-    background-color: var(--selection-fg-color);
-}
-
-.elements-disclosure ol li.selected:focus * {
-    color: inherit;
-}
-
-.elements-disclosure ol li.selected:focus .selection {
-    background-color: var(--selection-bg-color);
+.elements-disclosure .elements-tree-outline:not(.hide-selection-when-blurred) li.selected:focus .selection {
+    background-color: var(--item-selection-bg-color);
 }
 
 .elements-tree-outline ol.shadow-root-depth-4 {
@@ -216,8 +202,8 @@ button, input, select {
 
 .elements-gutter-decoration {
     position: absolute;
+    top: 3px;
     left: 2px;
-    margin-top: 2px;
     height: 9px;
     width: 9px;
     border-radius: 5px;
@@ -286,24 +272,8 @@ button, input, select {
     padding-left: 2px;
 }
 
-.elements-tree-shortcut-title {
+.elements-tree-shortcut-title, .elements-tree-shortcut-link {
     color: rgb(87, 87, 87);
-}
-
-ol:hover > li > .elements-tree-shortcut-link {
-    display: initial;
-}
-
-.elements-tree-shortcut-link {
-    color: rgb(87, 87, 87);
-    display: none;
-}
-
-ol li.selected:focus .webkit-html-tag-name,
-ol li.selected:focus .webkit-html-close-tag-name,
-ol li.selected:focus .webkit-html-attribute-value,
-ol li.selected:focus .devtools-link {
-    color: var(--selection-fg-color);
 }
 
 .elements-disclosure .gutter-container {
@@ -315,8 +285,13 @@ ol li.selected:focus .devtools-link {
     height: 15px;
 }
 
-.gutter-menu-icon {
+.elements-hide-gutter .gutter-container {
     display: none;
+}
+
+.gutter-menu-icon {
+    display: block;
+    visibility: hidden;
     transform: rotate(-90deg) scale(0.8);
     background-color: white;
     position: relative;
@@ -325,7 +300,7 @@ ol li.selected:focus .devtools-link {
 }
 
 .elements-disclosure li.selected .gutter-container:not(.has-decorations) .gutter-menu-icon {
-    display: block;
+    visibility: visible;
 }
 
 /** Guide line */
@@ -335,7 +310,7 @@ li.selected {
 
 li.hovered:not(.always-parent) + ol.children, .elements-tree-outline ol.shadow-root, li.selected:not(.always-parent) + ol.children {
     margin-left: 5px;
-    -webkit-padding-start: 6px;
+    padding-inline-start: 6px;
     border-width: 1px;
     border-left-style: solid;
 }

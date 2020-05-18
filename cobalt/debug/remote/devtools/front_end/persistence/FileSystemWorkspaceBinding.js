@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-Persistence.FileSystemWorkspaceBinding = class {
+export default class FileSystemWorkspaceBinding {
   /**
    * @param {!Persistence.IsolatedFileSystemManager} isolatedFileSystemManager
    * @param {!Workspace.Workspace} workspace
@@ -47,7 +47,7 @@ Persistence.FileSystemWorkspaceBinding = class {
       this._isolatedFileSystemManager.addEventListener(
           Persistence.IsolatedFileSystemManager.Events.FileSystemFilesChanged, this._fileSystemFilesChanged, this)
     ];
-    /** @type {!Map.<string, !Persistence.FileSystemWorkspaceBinding.FileSystem>} */
+    /** @type {!Map.<string, !FileSystem>} */
     this._boundFileSystems = new Map();
     this._isolatedFileSystemManager.waitForFileSystems().then(this._onFileSystemsLoaded.bind(this));
   }
@@ -66,8 +66,18 @@ Persistence.FileSystemWorkspaceBinding = class {
    */
   static relativePath(uiSourceCode) {
     const baseURL =
-        /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem}*/ (uiSourceCode.project())._fileSystemBaseURL;
+        /** @type {!FileSystem}*/ (uiSourceCode.project())._fileSystemBaseURL;
     return uiSourceCode.url().substring(baseURL.length).split('/');
+  }
+
+  /**
+   * @param {!Workspace.UISourceCode} uiSourceCode
+   * @return {string}
+   */
+  static tooltipForUISourceCode(uiSourceCode) {
+    const fileSystem =
+        /** @type {!FileSystem}*/ (uiSourceCode.project())._fileSystem;
+    return fileSystem.tooltipForURL(uiSourceCode.url());
   }
 
   /**
@@ -76,8 +86,18 @@ Persistence.FileSystemWorkspaceBinding = class {
    */
   static fileSystemType(project) {
     const fileSystem =
-        /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem}*/ (project)._fileSystem;
+        /** @type {!FileSystem}*/ (project)._fileSystem;
     return fileSystem.type();
+  }
+
+  /**
+   * @param {!Workspace.Project} project
+   * @return {boolean}
+   */
+  static fileSystemSupportsAutomapping(project) {
+    const fileSystem =
+        /** @type {!FileSystem}*/ (project)._fileSystem;
+    return fileSystem.supportsAutomapping();
   }
 
   /**
@@ -86,25 +106,8 @@ Persistence.FileSystemWorkspaceBinding = class {
    * @return {string}
    */
   static completeURL(project, relativePath) {
-    const fsProject = /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem}*/ (project);
+    const fsProject = /** @type {!FileSystem}*/ (project);
     return fsProject._fileSystemBaseURL + relativePath;
-  }
-
-  /**
-   * @param {string} extension
-   * @return {!Common.ResourceType}
-   */
-  static _contentTypeForExtension(extension) {
-    if (Persistence.FileSystemWorkspaceBinding._styleSheetExtensions.has(extension))
-      return Common.resourceTypes.Stylesheet;
-    if (Persistence.FileSystemWorkspaceBinding._documentExtensions.has(extension))
-      return Common.resourceTypes.Document;
-    if (Persistence.FileSystemWorkspaceBinding._imageExtensions.has(extension))
-      return Common.resourceTypes.Image;
-    if (Persistence.FileSystemWorkspaceBinding._scriptExtensions.has(extension))
-      return Common.resourceTypes.Script;
-    return Persistence.FileSystemWorkspaceBinding._binaryExtensions.has(extension) ? Common.resourceTypes.Other :
-                                                                                     Common.resourceTypes.Document;
   }
 
   /**
@@ -126,23 +129,24 @@ Persistence.FileSystemWorkspaceBinding = class {
    * @param {!Array<!Persistence.IsolatedFileSystem>} fileSystems
    */
   _onFileSystemsLoaded(fileSystems) {
-    for (const fileSystem of fileSystems)
+    for (const fileSystem of fileSystems) {
       this._addFileSystem(fileSystem);
+    }
   }
 
   /**
    * @param {!Common.Event} event
    */
   _onFileSystemAdded(event) {
-    const fileSystem = /** @type {!Persistence.IsolatedFileSystem} */ (event.data);
+    const fileSystem = /** @type {!Persistence.PlatformFileSystem} */ (event.data);
     this._addFileSystem(fileSystem);
   }
 
   /**
-   * @param {!Persistence.IsolatedFileSystem} fileSystem
+   * @param {!Persistence.PlatformFileSystem} fileSystem
    */
   _addFileSystem(fileSystem) {
-    const boundFileSystem = new Persistence.FileSystemWorkspaceBinding.FileSystem(this, fileSystem, this._workspace);
+    const boundFileSystem = new FileSystem(this, fileSystem, this._workspace);
     this._boundFileSystems.set(fileSystem.path(), boundFileSystem);
   }
 
@@ -150,7 +154,7 @@ Persistence.FileSystemWorkspaceBinding = class {
    * @param {!Common.Event} event
    */
   _onFileSystemRemoved(event) {
-    const fileSystem = /** @type {!Persistence.IsolatedFileSystem} */ (event.data);
+    const fileSystem = /** @type {!Persistence.PlatformFileSystem} */ (event.data);
     const boundFileSystem = this._boundFileSystems.get(fileSystem.path());
     boundFileSystem.dispose();
     this._boundFileSystems.remove(fileSystem.path());
@@ -163,22 +167,25 @@ Persistence.FileSystemWorkspaceBinding = class {
     const paths = /** @type {!Persistence.IsolatedFileSystemManager.FilesChangedData} */ (event.data);
     for (const fileSystemPath of paths.changed.keysArray()) {
       const fileSystem = this._boundFileSystems.get(fileSystemPath);
-      if (!fileSystem)
+      if (!fileSystem) {
         continue;
+      }
       paths.changed.get(fileSystemPath).forEach(path => fileSystem._fileChanged(path));
     }
 
     for (const fileSystemPath of paths.added.keysArray()) {
       const fileSystem = this._boundFileSystems.get(fileSystemPath);
-      if (!fileSystem)
+      if (!fileSystem) {
         continue;
+      }
       paths.added.get(fileSystemPath).forEach(path => fileSystem._fileChanged(path));
     }
 
     for (const fileSystemPath of paths.removed.keysArray()) {
       const fileSystem = this._boundFileSystems.get(fileSystemPath);
-      if (!fileSystem)
+      if (!fileSystem) {
         continue;
+      }
       paths.removed.get(fileSystemPath).forEach(path => fileSystem.removeUISourceCode(path));
     }
   }
@@ -190,32 +197,21 @@ Persistence.FileSystemWorkspaceBinding = class {
       this._boundFileSystems.remove(fileSystem._fileSystem.path());
     }
   }
-};
-
-Persistence.FileSystemWorkspaceBinding._styleSheetExtensions = new Set(['css', 'scss', 'sass', 'less']);
-Persistence.FileSystemWorkspaceBinding._documentExtensions = new Set(['htm', 'html', 'asp', 'aspx', 'phtml', 'jsp']);
-Persistence.FileSystemWorkspaceBinding._scriptExtensions = new Set([
-  'asp', 'aspx', 'c', 'cc', 'cljs', 'coffee', 'cpp', 'cs', 'dart', 'java', 'js',
-  'jsp', 'jsx',  'h', 'm',  'mjs',  'mm',     'py',  'sh', 'ts',   'tsx',  'ls'
-]);
-
-Persistence.FileSystemWorkspaceBinding._imageExtensions = Persistence.IsolatedFileSystem.ImageExtensions;
-
-Persistence.FileSystemWorkspaceBinding._binaryExtensions = Persistence.IsolatedFileSystem.BinaryExtensions;
+}
 
 /**
  * @implements {Workspace.Project}
  * @unrestricted
  */
-Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.ProjectStore {
+export class FileSystem extends Workspace.ProjectStore {
   /**
-   * @param {!Persistence.FileSystemWorkspaceBinding} fileSystemWorkspaceBinding
-   * @param {!Persistence.IsolatedFileSystem} isolatedFileSystem
+   * @param {!FileSystemWorkspaceBinding} fileSystemWorkspaceBinding
+   * @param {!Persistence.PlatformFileSystem} isolatedFileSystem
    * @param {!Workspace.Workspace} workspace
    */
   constructor(fileSystemWorkspaceBinding, isolatedFileSystem, workspace) {
     const fileSystemPath = isolatedFileSystem.path();
-    const id = Persistence.FileSystemWorkspaceBinding.projectId(fileSystemPath);
+    const id = FileSystemWorkspaceBinding.projectId(fileSystemPath);
     console.assert(!workspace.project(id));
     const displayName = fileSystemPath.substr(fileSystemPath.lastIndexOf('/') + 1);
 
@@ -246,7 +242,7 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    * @return {string}
    */
   mimeType(uiSourceCode) {
-    return Common.ResourceType.mimeFromURL(uiSourceCode.url()) || 'text/plain';
+    return this._fileSystem.mimeFromPath(uiSourceCode.url());
   }
 
   /**
@@ -278,11 +274,12 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    * @return {!Promise<?Workspace.UISourceCodeMetadata>}
    */
   requestMetadata(uiSourceCode) {
-    if (uiSourceCode[Persistence.FileSystemWorkspaceBinding._metadata])
-      return uiSourceCode[Persistence.FileSystemWorkspaceBinding._metadata];
+    if (uiSourceCode[_metadata]) {
+      return uiSourceCode[_metadata];
+    }
     const relativePath = this._filePathForUISourceCode(uiSourceCode);
     const promise = this._fileSystem.getMetadata(relativePath).then(onMetadata);
-    uiSourceCode[Persistence.FileSystemWorkspaceBinding._metadata] = promise;
+    uiSourceCode[_metadata] = promise;
     return promise;
 
     /**
@@ -290,8 +287,9 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
      * @return {?Workspace.UISourceCodeMetadata}
      */
     function onMetadata(metadata) {
-      if (!metadata)
+      if (!metadata) {
         return null;
+      }
       return new Workspace.UISourceCodeMetadata(metadata.modificationTime, metadata.size);
     }
   }
@@ -307,11 +305,11 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
   /**
    * @override
    * @param {!Workspace.UISourceCode} uiSourceCode
-   * @param {function(?string, boolean)} callback
+   * @returns {!Promise<!Common.DeferredContent>}
    */
-  requestFileContent(uiSourceCode, callback) {
+  requestFileContent(uiSourceCode) {
     const filePath = this._filePathForUISourceCode(uiSourceCode);
-    this._fileSystem.requestFileContent(filePath, callback);
+    return this._fileSystem.requestFileContent(filePath);
   }
 
   /**
@@ -341,7 +339,7 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    */
   fullDisplayName(uiSourceCode) {
     const baseURL =
-        /** @type {!Persistence.FileSystemWorkspaceBinding.FileSystem}*/ (uiSourceCode.project())._fileSystemParentURL;
+        /** @type {!FileSystem}*/ (uiSourceCode.project())._fileSystemParentURL;
     return uiSourceCode.url().substring(baseURL.length);
   }
 
@@ -371,7 +369,7 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
     /**
      * @param {boolean} success
      * @param {string=} newName
-     * @this {Persistence.FileSystemWorkspaceBinding.FileSystem}
+     * @this {FileSystem}
      */
     function innerCallback(success, newName) {
       if (!success || !newName) {
@@ -383,9 +381,8 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
       const parentPath = filePath.substring(0, slash);
       filePath = parentPath + '/' + newName;
       filePath = filePath.substr(1);
-      const extension = this._extensionForPath(newName);
       const newURL = this._fileSystemBaseURL + filePath;
-      const newContentType = Persistence.FileSystemWorkspaceBinding._contentTypeForExtension(extension);
+      const newContentType = this._fileSystem.contentType(newName);
       this.renameUISourceCode(uiSourceCode, newName);
       callback(true, newName, newURL, newContentType);
     }
@@ -399,18 +396,13 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    * @param {boolean} isRegex
    * @return {!Promise<!Array<!Common.ContentProvider.SearchMatch>>}
    */
-  searchInFileContent(uiSourceCode, query, caseSensitive, isRegex) {
-    return new Promise(resolve => {
-      const filePath = this._filePathForUISourceCode(uiSourceCode);
-      this._fileSystem.requestFileContent(filePath, contentCallback);
-
-      /**
-       * @param {?string} content
-       */
-      function contentCallback(content) {
-        resolve(content ? Common.ContentProvider.performSearchInContent(content, query, caseSensitive, isRegex) : []);
-      }
-    });
+  async searchInFileContent(uiSourceCode, query, caseSensitive, isRegex) {
+    const filePath = this._filePathForUISourceCode(uiSourceCode);
+    const {content} = await this._fileSystem.requestFileContent(filePath);
+    if (content) {
+      return Common.ContentProvider.performSearchInContent(content, query, caseSensitive, isRegex);
+    }
+    return [];
   }
 
   /**
@@ -423,8 +415,9 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
   async findFilesMatchingSearchRequest(searchConfig, filesMathingFileQuery, progress) {
     let result = filesMathingFileQuery;
     const queriesToRun = searchConfig.queries().slice();
-    if (!queriesToRun.length)
+    if (!queriesToRun.length) {
       queriesToRun.push('');
+    }
     progress.setTotalWork(queriesToRun.length);
 
     for (const query of queriesToRun) {
@@ -445,14 +438,6 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
     this._fileSystem.indexContent(progress);
   }
 
-  /**
-   * @param {string} path
-   * @return {string}
-   */
-  _extensionForPath(path) {
-    return Common.ParsedURL.extractExtension(path);
-  }
-
   populate() {
     const chunkSize = 1000;
     const filePaths = this._fileSystem.initialFilePaths();
@@ -460,14 +445,16 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
 
     /**
      * @param {number} from
-     * @this {Persistence.FileSystemWorkspaceBinding.FileSystem}
+     * @this {FileSystem}
      */
     function reportFileChunk(from) {
       const to = Math.min(from + chunkSize, filePaths.length);
-      for (let i = from; i < to; ++i)
+      for (let i = from; i < to; ++i) {
         this._addFile(filePaths[i]);
-      if (to < filePaths.length)
+      }
+      if (to < filePaths.length) {
         setTimeout(reportFileChunk.bind(this, to), 100);
+      }
     }
   }
 
@@ -477,17 +464,20 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    */
   excludeFolder(url) {
     let relativeFolder = url.substring(this._fileSystemBaseURL.length);
-    if (!relativeFolder.startsWith('/'))
+    if (!relativeFolder.startsWith('/')) {
       relativeFolder = '/' + relativeFolder;
-    if (!relativeFolder.endsWith('/'))
+    }
+    if (!relativeFolder.endsWith('/')) {
       relativeFolder += '/';
+    }
     this._fileSystem.addExcludedFolder(relativeFolder);
 
     const uiSourceCodes = this.uiSourceCodes().slice();
     for (let i = 0; i < uiSourceCodes.length; ++i) {
       const uiSourceCode = uiSourceCodes[i];
-      if (uiSourceCode.url().startsWith(url))
+      if (uiSourceCode.url().startsWith(url)) {
         this.removeUISourceCode(uiSourceCode.url());
+      }
     }
   }
 
@@ -497,7 +487,7 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    * @return {boolean}
    */
   canExcludeFolder(path) {
-    return !!path && Persistence.FileSystemWorkspaceBinding.fileSystemType(this) !== 'overrides';
+    return this._fileSystem.canExcludeFolder(path);
   }
 
   /**
@@ -520,8 +510,9 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
     const guardFileName = this._fileSystemPath + path + (!path.endsWith('/') ? '/' : '') + name;
     this._creatingFilesGuard.add(guardFileName);
     const filePath = await this._fileSystem.createFile(path, name);
-    if (!filePath)
+    if (!filePath) {
       return null;
+    }
     const uiSourceCode = this._addFile(filePath);
     uiSourceCode.setContent(content, !!isBase64);
     this._creatingFilesGuard.delete(guardFileName);
@@ -535,8 +526,9 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
   deleteFile(uiSourceCode) {
     const relativePath = this._filePathForUISourceCode(uiSourceCode);
     this._fileSystem.deleteFile(relativePath).then(success => {
-      if (success)
+      if (success) {
         this.removeUISourceCode(uiSourceCode.url());
+      }
     });
   }
 
@@ -552,9 +544,7 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    * @return {!Workspace.UISourceCode}
    */
   _addFile(filePath) {
-    const extension = this._extensionForPath(filePath);
-    const contentType = Persistence.FileSystemWorkspaceBinding._contentTypeForExtension(extension);
-
+    const contentType = this._fileSystem.contentType(filePath);
     const uiSourceCode = this.createUISourceCode(this._fileSystemBaseURL + filePath, contentType);
     this.addUISourceCode(uiSourceCode);
     return uiSourceCode;
@@ -565,21 +555,42 @@ Persistence.FileSystemWorkspaceBinding.FileSystem = class extends Workspace.Proj
    */
   _fileChanged(path) {
     // Ignore files that are being created but do not have content yet.
-    if (this._creatingFilesGuard.has(path))
+    if (this._creatingFilesGuard.has(path)) {
       return;
+    }
     const uiSourceCode = this.uiSourceCodeForURL(path);
     if (!uiSourceCode) {
-      const contentType = Persistence.FileSystemWorkspaceBinding._contentTypeForExtension(this._extensionForPath(path));
+      const contentType = this._fileSystem.contentType(path);
       this.addUISourceCode(this.createUISourceCode(path, contentType));
       return;
     }
-    uiSourceCode[Persistence.FileSystemWorkspaceBinding._metadata] = null;
+    uiSourceCode[_metadata] = null;
     uiSourceCode.checkContentUpdated();
+  }
+
+  /**
+   * @param {string} url
+   * @return {string}
+   */
+  tooltipForURL(url) {
+    return this._fileSystem.tooltipForURL(url);
   }
 
   dispose() {
     this.removeProject();
   }
-};
+}
 
-Persistence.FileSystemWorkspaceBinding._metadata = Symbol('FileSystemWorkspaceBinding.Metadata');
+const _metadata = Symbol('FileSystemWorkspaceBinding.Metadata');
+
+/* Legacy exported object */
+self.Persistence = self.Persistence || {};
+
+/* Legacy exported object */
+Persistence = Persistence || {};
+
+/** @constructor */
+Persistence.FileSystemWorkspaceBinding = FileSystemWorkspaceBinding;
+
+/** @constructor */
+Persistence.FileSystemWorkspaceBinding.FileSystem = FileSystem;

@@ -29,7 +29,7 @@
 /**
  * @unrestricted
  */
-SourceFrame.ImageView = class extends UI.SimpleView {
+export class ImageView extends UI.SimpleView {
   /**
    * @param {string} mimeType
    * @param {!Common.ContentProvider} contentProvider
@@ -37,6 +37,7 @@ SourceFrame.ImageView = class extends UI.SimpleView {
   constructor(mimeType, contentProvider) {
     super(Common.UIString('Image'));
     this.registerRequiredCSS('source_frame/imageView.css');
+    this.element.tabIndex = 0;
     this.element.classList.add('image-view');
     this._url = contentProvider.contentURL();
     this._parsedURL = new Common.ParsedURL(this._url);
@@ -58,6 +59,7 @@ SourceFrame.ImageView = class extends UI.SimpleView {
     this._container = this.element.createChild('div', 'image');
     this._imagePreviewElement = this._container.createChild('img', 'resource-image-view');
     this._imagePreviewElement.addEventListener('contextmenu', this._contextMenu.bind(this), true);
+    this._imagePreviewElement.alt = ls`Image from ${this._url}`;
   }
 
   /**
@@ -92,42 +94,31 @@ SourceFrame.ImageView = class extends UI.SimpleView {
   }
 
   async _updateContentIfNeeded() {
-    const content = await this._contentProvider.requestContent();
-    if (this._cachedContent === content)
+    const {content} = await this._contentProvider.requestContent();
+    if (this._cachedContent === content) {
       return;
+    }
 
     const contentEncoded = await this._contentProvider.contentEncoded();
     this._cachedContent = content;
-    let imageSrc = 'data:' + this._mimeType + (contentEncoded ? ';base64,' : ',') + content;
-    if (content === null)
+    let imageSrc = Common.ContentProvider.contentAsDataURL(content, this._mimeType, contentEncoded);
+    if (content === null) {
       imageSrc = this._url;
+    }
     const loadPromise = new Promise(x => this._imagePreviewElement.onload = x);
     this._imagePreviewElement.src = imageSrc;
-    this._sizeLabel.setText(Number.bytesToString(this._base64ToSize(content)));
+    const size = content && !contentEncoded ? content.length : base64ToSize(content);
+    this._sizeLabel.setText(Number.bytesToString(size));
     await loadPromise;
     this._dimensionsLabel.setText(
         Common.UIString('%d × %d', this._imagePreviewElement.naturalWidth, this._imagePreviewElement.naturalHeight));
   }
 
-  /**
-   * @param {?string} content
-   * @return {number}
-   */
-  _base64ToSize(content) {
-    if (!content || !content.length)
-      return 0;
-    let size = (content.length || 0) * 3 / 4;
-    if (content.length > 0 && content[content.length - 1] === '=')
-      size--;
-    if (content.length > 1 && content[content.length - 2] === '=')
-      size--;
-    return size;
-  }
-
   _contextMenu(event) {
     const contextMenu = new UI.ContextMenu(event);
-    if (!this._parsedURL.isDataURL())
+    if (!this._parsedURL.isDataURL()) {
       contextMenu.clipboardSection().appendItem(Common.UIString('Copy image URL'), this._copyImageURL.bind(this));
+    }
     if (this._imagePreviewElement.src) {
       contextMenu.clipboardSection().appendItem(
           Common.UIString('Copy image as data URI'), this._copyImageAsDataURL.bind(this));
@@ -139,11 +130,11 @@ SourceFrame.ImageView = class extends UI.SimpleView {
   }
 
   _copyImageAsDataURL() {
-    InspectorFrontendHost.copyText(this._imagePreviewElement.src);
+    Host.InspectorFrontendHost.copyText(this._imagePreviewElement.src);
   }
 
   _copyImageURL() {
-    InspectorFrontendHost.copyText(this._url);
+    Host.InspectorFrontendHost.copyText(this._url);
   }
 
   _saveImage() {
@@ -154,7 +145,7 @@ SourceFrame.ImageView = class extends UI.SimpleView {
   }
 
   _openInNewTab() {
-    InspectorFrontendHost.openInNewTab(this._url);
+    Host.InspectorFrontendHost.openInNewTab(this._url);
   }
 
   /**
@@ -162,8 +153,9 @@ SourceFrame.ImageView = class extends UI.SimpleView {
    */
   async _handleDrop(dataTransfer) {
     const items = dataTransfer.items;
-    if (!items.length || items[0].kind !== 'file')
+    if (!items.length || items[0].kind !== 'file') {
       return;
+    }
 
     const entry = items[0].webkitGetAsEntry();
     const encoded = !entry.name.endsWith('.svg');
@@ -177,14 +169,25 @@ SourceFrame.ImageView = class extends UI.SimpleView {
           result = null;
           console.error('Can\'t read file: ' + e);
         }
-        if (typeof result !== 'string')
+        if (typeof result !== 'string') {
           return;
+        }
         this._uiSourceCode.setContent(encoded ? btoa(result) : result, encoded);
       };
-      if (encoded)
+      if (encoded) {
         reader.readAsBinaryString(file);
-      else
+      } else {
         reader.readAsText(file);
+      }
     });
   }
-};
+}
+
+/* Legacy exported object */
+self.SourceFrame = self.SourceFrame || {};
+
+/* Legacy exported object */
+SourceFrame = SourceFrame || {};
+
+/** @constructor */
+SourceFrame.ImageView = ImageView;

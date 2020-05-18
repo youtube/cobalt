@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-SDK.CookieModel = class extends SDK.SDKModel {
+export default class CookieModel extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
@@ -11,35 +11,15 @@ SDK.CookieModel = class extends SDK.SDKModel {
   }
 
   /**
-   * @param {!Protocol.Network.Cookie} protocolCookie
-   * @return {!SDK.Cookie}
-   */
-  static _parseProtocolCookie(protocolCookie) {
-    const cookie = new SDK.Cookie(protocolCookie.name, protocolCookie.value, null);
-    cookie.addAttribute('domain', protocolCookie['domain']);
-    cookie.addAttribute('path', protocolCookie['path']);
-    cookie.addAttribute('port', protocolCookie['port']);
-    if (protocolCookie['expires'])
-      cookie.addAttribute('expires', protocolCookie['expires'] * 1000);
-    if (protocolCookie['httpOnly'])
-      cookie.addAttribute('httpOnly');
-    if (protocolCookie['secure'])
-      cookie.addAttribute('secure');
-    if (protocolCookie['sameSite'])
-      cookie.addAttribute('sameSite', protocolCookie['sameSite']);
-    cookie.setSize(protocolCookie['size']);
-    return cookie;
-  }
-
-  /**
    * @param {!SDK.Cookie} cookie
    * @param {string} resourceURL
    * @return {boolean}
    */
   static cookieMatchesResourceURL(cookie, resourceURL) {
-    const url = resourceURL.asParsedURL();
-    if (!url || !SDK.CookieModel.cookieDomainMatchesResourceDomain(cookie.domain(), url.host))
+    const url = Common.ParsedURL.fromString(resourceURL);
+    if (!url || !CookieModel.cookieDomainMatchesResourceDomain(cookie.domain(), url.host)) {
       return false;
+    }
     return (
         url.path.startsWith(cookie.path()) && (!cookie.port() || url.port === cookie.port()) &&
         (!cookie.secure() || url.scheme === 'https'));
@@ -51,8 +31,9 @@ SDK.CookieModel = class extends SDK.SDKModel {
    * @return {boolean}
    */
   static cookieDomainMatchesResourceDomain(cookieDomain, resourceDomain) {
-    if (cookieDomain.charAt(0) !== '.')
+    if (cookieDomain.charAt(0) !== '.') {
       return resourceDomain === cookieDomain;
+    }
     return !!resourceDomain.match(
         new RegExp('^([^\\.]+\\.)*' + cookieDomain.substring(1).escapeForRegExp() + '$', 'i'));
   }
@@ -63,7 +44,7 @@ SDK.CookieModel = class extends SDK.SDKModel {
    */
   getCookies(urls) {
     return this.target().networkAgent().getCookies(urls).then(
-        cookies => (cookies || []).map(cookie => SDK.CookieModel._parseProtocolCookie(cookie)));
+        cookies => (cookies || []).map(cookie => SDK.Cookie.fromProtocolCookie(cookie)));
   }
 
   /**
@@ -88,11 +69,13 @@ SDK.CookieModel = class extends SDK.SDKModel {
    */
   saveCookie(cookie) {
     let domain = cookie.domain();
-    if (!domain.startsWith('.'))
+    if (!domain.startsWith('.')) {
       domain = '';
+    }
     let expires = undefined;
-    if (cookie.expires())
+    if (cookie.expires()) {
       expires = Math.floor(Date.parse(cookie.expires()) / 1000);
+    }
     return this.target()
         .networkAgent()
         .setCookie(
@@ -102,6 +85,7 @@ SDK.CookieModel = class extends SDK.SDKModel {
   }
 
   /**
+   * Returns cookies needed by current page's frames whose security origins are |domain|.
    * @param {?string} domain
    * @return {!Promise<!Array<!SDK.Cookie>>}
    */
@@ -111,13 +95,15 @@ SDK.CookieModel = class extends SDK.SDKModel {
      * @param {!SDK.Resource} resource
      */
     function populateResourceURLs(resource) {
-      const url = resource.documentURL.asParsedURL();
-      if (url && (!domain || url.securityOrigin() === domain))
+      const documentURL = Common.ParsedURL.fromString(resource.documentURL);
+      if (documentURL && (!domain || documentURL.securityOrigin() === domain)) {
         resourceURLs.push(resource.url);
+      }
     }
     const resourceTreeModel = this.target().model(SDK.ResourceTreeModel);
-    if (resourceTreeModel)
+    if (resourceTreeModel) {
       resourceTreeModel.forAllResources(populateResourceURLs);
+    }
     return this.getCookies(resourceURLs);
   }
 
@@ -132,6 +118,15 @@ SDK.CookieModel = class extends SDK.SDKModel {
             cookies.map(cookie => networkAgent.deleteCookies(cookie.name(), undefined, cookie.domain(), cookie.path())))
         .then(callback || function() {});
   }
-};
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CookieModel = CookieModel;
 
 SDK.SDKModel.register(SDK.CookieModel, SDK.Target.Capability.Network, false);

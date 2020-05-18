@@ -10,7 +10,6 @@
     { "name": "main", "type": "autostart" },
     { "name": "persistence", "type": "autostart" },
     { "name": "platform", "type": "autostart" },
-    { "name": "product_registry", "type": "autostart" },
     { "name": "protocol", "type": "autostart" },
     { "name": "sdk", "type": "autostart" },
     { "name": "browser_sdk", "type": "autostart" },
@@ -21,7 +20,8 @@
 
     // { "name": "changes" },
     { "name": "cm" },
-    { "name": "cm_modes", "type": "remote" },
+    { "name": "cm_modes" },
+    { "name": "cm_web_modes" },
     { "name": "color_picker" },
     { "name": "console" },
     // { "name": "coverage" },
@@ -41,7 +41,6 @@
     { "name": "snippets" },
     { "name": "source_frame" },
     { "name": "sources" },
-    { "name": "terminal", "type": "remote" },
     { "name": "text_editor" },
     { "name": "workspace_diff" },
     { "name": "protocol_monitor"}

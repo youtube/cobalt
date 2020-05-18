@@ -5,7 +5,7 @@
  * @implements {SDK.SDKModelObserver<!SDK.RuntimeModel>}
  * @implements {UI.SoftDropDown.Delegate<!SDK.ExecutionContext>}
  */
-Console.ConsoleContextSelector = class {
+export default class ConsoleContextSelector {
   constructor() {
     /** @type {!UI.ListModel<!SDK.ExecutionContext>} */
     this._items = new UI.ListModel();
@@ -14,12 +14,9 @@ Console.ConsoleContextSelector = class {
     this._dropDown.setRowHeight(36);
     this._toolbarItem = new UI.ToolbarItem(this._dropDown.element);
     this._toolbarItem.setEnabled(false);
-    this._toolbarItem.setTitle(ls`JavaScript contexts`);
+    this._toolbarItem.setTitle(ls`JavaScript context: Not selected`);
     this._items.addEventListener(
         UI.ListModel.Events.ItemsReplaced, () => this._toolbarItem.setEnabled(!!this._items.length));
-
-    /** @type {!Map<!SDK.ExecutionContext, !ProductRegistry.BadgePool>} */
-    this._badgePoolForExecutionContext = new Map();
 
     this._toolbarItem.element.classList.add('toolbar-has-dropdown');
 
@@ -57,13 +54,16 @@ Console.ConsoleContextSelector = class {
     SDK.OverlayModel.hideDOMNodeHighlight();
     if (to && to.frameId) {
       const overlayModel = to.target().model(SDK.OverlayModel);
-      if (overlayModel)
+      if (overlayModel) {
         overlayModel.highlightFrame(to.frameId);
+      }
     }
-    if (fromElement)
+    if (fromElement) {
       fromElement.classList.remove('highlighted');
-    if (toElement)
+    }
+    if (toElement) {
       toElement.classList.add('highlighted');
+    }
   }
 
   /**
@@ -77,8 +77,9 @@ Console.ConsoleContextSelector = class {
     if (executionContext.frameId) {
       const resourceTreeModel = target.model(SDK.ResourceTreeModel);
       const frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
-      if (frame)
+      if (frame) {
         label = label || frame.displayName();
+      }
     }
     label = label || executionContext.origin;
 
@@ -92,8 +93,9 @@ Console.ConsoleContextSelector = class {
   _depthFor(executionContext) {
     let target = executionContext.target();
     let depth = 0;
-    if (!executionContext.isDefault)
+    if (!executionContext.isDefault) {
       depth++;
+    }
     if (executionContext.frameId) {
       const resourceTreeModel = target.model(SDK.ResourceTreeModel);
       let frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
@@ -106,14 +108,9 @@ Console.ConsoleContextSelector = class {
       }
     }
     let targetDepth = 0;
-    while (target.parentTarget()) {
-      if (target.parentTarget().hasJSCapability()) {
-        targetDepth++;
-      } else {
-        // Special casing service workers to be top-level.
-        targetDepth = 0;
-        break;
-      }
+    // Special casing service workers to be top-level.
+    while (target.parentTarget() && target.type() !== SDK.Target.Type.ServiceWorker) {
+      targetDepth++;
       target = target.parentTarget();
     }
     depth += targetDepth;
@@ -122,44 +119,13 @@ Console.ConsoleContextSelector = class {
 
   /**
    * @param {!SDK.ExecutionContext} executionContext
-   * @return {?Element}
-   */
-  _badgeFor(executionContext) {
-    if (!executionContext.frameId || !executionContext.isDefault)
-      return null;
-    const resourceTreeModel = executionContext.target().model(SDK.ResourceTreeModel);
-    const frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
-    if (!frame)
-      return null;
-    const badgePool = new ProductRegistry.BadgePool();
-    this._badgePoolForExecutionContext.set(executionContext, badgePool);
-    return badgePool.badgeForFrame(frame);
-  }
-
-  /**
-   * @param {!SDK.ExecutionContext} executionContext
-   */
-  _disposeExecutionContextBadge(executionContext) {
-    const badgePool = this._badgePoolForExecutionContext.get(executionContext);
-    if (!badgePool)
-      return;
-    badgePool.reset();
-    this._badgePoolForExecutionContext.delete(executionContext);
-  }
-
-  /**
-   * @param {!SDK.ExecutionContext} executionContext
    */
   _executionContextCreated(executionContext) {
-    // FIXME(413886): We never want to show execution context for the main thread of shadow page in service/shared worker frontend.
-    // This check could be removed once we do not send this context to frontend.
-    if (!executionContext.target().hasJSCapability())
-      return;
-
     this._items.insertWithComparator(executionContext, executionContext.runtimeModel.executionContextComparator());
 
-    if (executionContext === UI.context.flavor(SDK.ExecutionContext))
+    if (executionContext === UI.context.flavor(SDK.ExecutionContext)) {
       this._dropDown.selectItem(executionContext);
+    }
   }
 
   /**
@@ -175,8 +141,9 @@ Console.ConsoleContextSelector = class {
    */
   _onExecutionContextChanged(event) {
     const executionContext = /** @type {!SDK.ExecutionContext} */ (event.data);
-    if (this._items.indexOf(executionContext) === -1)
+    if (this._items.indexOf(executionContext) === -1) {
       return;
+    }
     this._executionContextDestroyed(executionContext);
     this._executionContextCreated(executionContext);
   }
@@ -186,9 +153,9 @@ Console.ConsoleContextSelector = class {
    */
   _executionContextDestroyed(executionContext) {
     const index = this._items.indexOf(executionContext);
-    if (index === -1)
+    if (index === -1) {
       return;
-    this._disposeExecutionContextBadge(executionContext);
+    }
     this._items.remove(index);
   }
 
@@ -213,13 +180,15 @@ Console.ConsoleContextSelector = class {
    * @return {boolean}
    */
   _isTopContext(executionContext) {
-    if (!executionContext || !executionContext.isDefault)
+    if (!executionContext || !executionContext.isDefault) {
       return false;
+    }
     const resourceTreeModel = executionContext.target().model(SDK.ResourceTreeModel);
     const frame =
         executionContext.frameId && resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
-    if (!frame)
+    if (!frame) {
       return false;
+    }
     return frame.isTopFrame();
   }
 
@@ -244,8 +213,9 @@ Console.ConsoleContextSelector = class {
    */
   modelRemoved(runtimeModel) {
     for (let i = this._items.length - 1; i >= 0; i--) {
-      if (this._items.at(i).runtimeModel === runtimeModel)
+      if (this._items.at(i).runtimeModel === runtimeModel) {
         this._executionContextDestroyed(this._items.at(i));
+      }
     }
   }
 
@@ -258,13 +228,8 @@ Console.ConsoleContextSelector = class {
     const element = createElementWithClass('div');
     const shadowRoot = UI.createShadowRootWithCoreStyles(element, 'console/consoleContextSelector.css');
     const title = shadowRoot.createChild('div', 'title');
-    title.createTextChild(this.titleFor(item).trimEnd(100));
+    title.createTextChild(this.titleFor(item).trimEndWithMaxLength(100));
     const subTitle = shadowRoot.createChild('div', 'subtitle');
-    const badgeElement = this._badgeFor(item);
-    if (badgeElement) {
-      badgeElement.classList.add('badge');
-      subTitle.appendChild(badgeElement);
-    }
     subTitle.createTextChild(this._subtitleFor(item));
     element.style.paddingLeft = (8 + this._depthFor(item) * 15) + 'px';
     return element;
@@ -281,18 +246,21 @@ Console.ConsoleContextSelector = class {
       const resourceTreeModel = target.model(SDK.ResourceTreeModel);
       frame = resourceTreeModel && resourceTreeModel.frameForId(executionContext.frameId);
     }
-    if (executionContext.origin.startsWith('chrome-extension://'))
+    if (executionContext.origin.startsWith('chrome-extension://')) {
       return Common.UIString('Extension');
+    }
     if (!frame || !frame.parentFrame || frame.parentFrame.securityOrigin !== executionContext.origin) {
-      const url = executionContext.origin.asParsedURL();
-      if (url)
+      const url = Common.ParsedURL.fromString(executionContext.origin);
+      if (url) {
         return url.domain();
+      }
     }
 
     if (frame) {
       const callFrame = frame.findCreationCallFrame(callFrame => !!callFrame.url);
-      if (callFrame)
+      if (callFrame) {
         return new Common.ParsedURL(callFrame.url).domain();
+      }
       return Common.UIString('IFrame');
     }
     return '';
@@ -315,14 +283,17 @@ Console.ConsoleContextSelector = class {
    */
   itemSelected(item) {
     this._toolbarItem.element.classList.toggle('warning', !this._isTopContext(item) && this._hasTopContext());
+    const title = item ? ls`JavaScript context: ${this.titleFor(item)}` : ls`JavaScript context: Not selected`;
+    this._toolbarItem.setTitle(title);
     UI.context.setFlavor(SDK.ExecutionContext, item);
   }
 
   _callFrameSelectedInUI() {
     const callFrame = UI.context.flavor(SDK.DebuggerModel.CallFrame);
     const callFrameContext = callFrame && callFrame.script.executionContext();
-    if (callFrameContext)
+    if (callFrameContext) {
       UI.context.setFlavor(SDK.ExecutionContext, callFrameContext);
+    }
   }
 
   /**
@@ -332,7 +303,6 @@ Console.ConsoleContextSelector = class {
     const debuggerModel = /** @type {!SDK.DebuggerModel} */ (event.data);
     for (const executionContext of this._items) {
       if (executionContext.debuggerModel === debuggerModel) {
-        this._disposeExecutionContextBadge(executionContext);
         this._dropDown.refreshItem(executionContext);
       }
     }
@@ -344,13 +314,24 @@ Console.ConsoleContextSelector = class {
   _frameNavigated(event) {
     const frame = /** @type {!SDK.ResourceTreeFrame} */ (event.data);
     const runtimeModel = frame.resourceTreeModel().target().model(SDK.RuntimeModel);
-    if (!runtimeModel)
+    if (!runtimeModel) {
       return;
+    }
     for (const executionContext of runtimeModel.executionContexts()) {
       if (frame.id === executionContext.frameId) {
-        this._disposeExecutionContextBadge(executionContext);
         this._dropDown.refreshItem(executionContext);
       }
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Console = self.Console || {};
+
+/* Legacy exported object */
+Console = Console || {};
+
+/**
+ * @constructor
+ */
+Console.ConsoleContextSelector = ConsoleContextSelector;

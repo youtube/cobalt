@@ -60,8 +60,9 @@ Profiler.ProfileHeader = class extends Common.Object {
   }
 
   removeTempFile() {
-    if (this._tempFile)
+    if (this._tempFile) {
       this._tempFile.remove();
+    }
   }
 
   dispose() {
@@ -80,7 +81,7 @@ Profiler.ProfileHeader = class extends Common.Object {
 
   /**
    * @param {!File} file
-   * @return {!Promise<?Error>}
+   * @return {!Promise<?Error|?FileError>}
    */
   loadFromFile(file) {
     throw new Error('Not implemented');

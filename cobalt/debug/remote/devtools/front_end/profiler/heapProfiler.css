@@ -70,7 +70,7 @@
     flex: auto;
 }
 
-.heap-snapshot-view .heap-tracking-overview {
+.profile-view .heap-tracking-overview {
     flex: 0 0 80px;
     height: 80px;
 }
@@ -145,7 +145,7 @@
     opacity: 0.6;
 }
 
-#heap-recording-view .heap-snapshot-view {
+#heap-recording-view .profile-view {
     top: 80px;
 }
 
@@ -182,38 +182,6 @@
     flex-shrink: 0;
 }
 
-.heap-snapshot-stats-legend {
-    margin-left: 24px;
-    flex-shrink: 0;
-}
-
-.heap-snapshot-stats-legend > div {
-    margin-top: 1px;
-    width: 170px;
-}
-
-.heap-snapshot-stats-swatch {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border: 1px solid rgba(100, 100, 100, 0.3);
-}
-
-.heap-snapshot-stats-swatch.heap-snapshot-stats-empty-swatch {
-    border: none;
-}
-
-.heap-snapshot-stats-name,
-.heap-snapshot-stats-size {
-    display: inline-block;
-    margin-left: 6px;
-}
-
-.heap-snapshot-stats-size {
-    float: right;
-    text-align: right;
-}
-
 .heap-allocation-stack .stack-frame {
     display: flex;
     justify-content: space-between;
@@ -221,8 +189,25 @@
     padding: 2px;
 }
 
+.heap-allocation-stack .stack-frame:hover:not(:focus) {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.heap-allocation-stack .stack-frame:focus {
+    background-color: var(--selection-bg-color);
+    color: var(--selection-fg-color);
+}
+
+.heap-allocation-stack .stack-frame:focus:hover {
+    background-color: var(--accent-color-hover);
+}
+
 .heap-allocation-stack .stack-frame .devtools-link {
     color: rgb(33%, 33%, 33%);
+}
+
+.heap-allocation-stack .stack-frame:focus .devtools-link {
+    color: var(--selection-fg-color);
 }
 
 .no-heap-allocation-stack {

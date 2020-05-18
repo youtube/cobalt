@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let _lastAnonymousTargetId = 0;
+
 /**
  * @implements {Protocol.TargetDispatcher}
  */
-SDK.ChildTargetManager = class extends SDK.SDKModel {
+export default class ChildTargetManager extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} parentTarget
    */
@@ -17,20 +19,26 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
     /** @type {!Map<string, !Protocol.Target.TargetInfo>} */
     this._targetInfos = new Map();
 
-    /** @type {!Map<string, !SDK.ChildConnection>} */
-    this._childConnections = new Map();
+    /** @type {!Map<string, !SDK.Target>} */
+    this._childTargets = new Map();
+
+    /** @type {!Map<string, !Protocol.Connection>} */
+    this._parallelConnections = new Map();
+
+    /** @type {string | null} */
+    this._parentTargetId = null;
 
     parentTarget.registerTargetDispatcher(this);
-    this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: true});
+    this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: true, flatten: true});
 
-    if (!parentTarget.parentTarget()) {
+    if (!parentTarget.parentTarget() && !Host.isUnderTest()) {
       this._targetAgent.setDiscoverTargets(true);
       this._targetAgent.setRemoteLocations([{host: 'localhost', port: 9229}]);
     }
   }
 
   /**
-   * @param {function({target: !SDK.Target, waitingForDebugger: boolean})=} attachCallback
+   * @param {function({target: !SDK.Target, waitingForDebugger: boolean}):!Promise=} attachCallback
    */
   static install(attachCallback) {
     SDK.ChildTargetManager._attachCallback = attachCallback;
@@ -42,7 +50,7 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
    * @return {!Promise}
    */
   suspendModel() {
-    return this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: false});
+    return this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: false, flatten: true});
   }
 
   /**
@@ -50,34 +58,16 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
    * @return {!Promise}
    */
   resumeModel() {
-    return this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: true});
+    return this._targetAgent.invoke_setAutoAttach({autoAttach: true, waitForDebuggerOnStart: true, flatten: true});
   }
 
   /**
    * @override
    */
   dispose() {
-    for (const sessionId of this._childConnections.keys())
+    for (const sessionId of this._childTargets.keys()) {
       this.detachedFromTarget(sessionId, undefined);
-  }
-
-  /**
-   * @param {string} type
-   * @return {number}
-   */
-  _capabilitiesForType(type) {
-    if (type === 'worker') {
-      return SDK.Target.Capability.JS | SDK.Target.Capability.Log | SDK.Target.Capability.Network |
-          SDK.Target.Capability.Target;
     }
-    if (type === 'service_worker')
-      return SDK.Target.Capability.Log | SDK.Target.Capability.Network | SDK.Target.Capability.Target;
-    if (type === 'iframe') {
-      return SDK.Target.Capability.Browser | SDK.Target.Capability.DOM | SDK.Target.Capability.JS |
-          SDK.Target.Capability.Log | SDK.Target.Capability.Network | SDK.Target.Capability.Target |
-          SDK.Target.Capability.Tracing | SDK.Target.Capability.Emulation | SDK.Target.Capability.Input;
-    }
-    return 0;
   }
 
   /**
@@ -122,25 +112,58 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
   }
 
   /**
+   * @return {!Promise<string>}
+   */
+  async _getParentTargetId() {
+    if (!this._parentTargetId) {
+      this._parentTargetId = (await this._parentTarget.targetAgent().getTargetInfo()).targetId;
+    }
+    return this._parentTargetId;
+  }
+
+  /**
    * @override
    * @param {string} sessionId
    * @param {!Protocol.Target.TargetInfo} targetInfo
    * @param {boolean} waitingForDebugger
    */
   attachedToTarget(sessionId, targetInfo, waitingForDebugger) {
-    let targetName = '';
-    if (targetInfo.type !== 'iframe') {
-      const parsedURL = targetInfo.url.asParsedURL();
-      targetName = parsedURL ? parsedURL.lastPathComponentWithFragment() :
-                               '#' + (++SDK.ChildTargetManager._lastAnonymousTargetId);
+    if (this._parentTargetId === targetInfo.targetId) {
+      return;
     }
-    const target = this._targetManager.createTarget(
-        targetInfo.targetId, targetName, this._capabilitiesForType(targetInfo.type),
-        this._createChildConnection.bind(this, this._targetAgent, sessionId), this._parentTarget);
 
-    if (SDK.ChildTargetManager._attachCallback)
-      SDK.ChildTargetManager._attachCallback({target, waitingForDebugger});
-    target.runtimeAgent().runIfWaitingForDebugger();
+    let targetName = '';
+    if (targetInfo.type === 'worker' && targetInfo.title && targetInfo.title !== targetInfo.url) {
+      targetName = targetInfo.title;
+    } else if (targetInfo.type !== 'iframe') {
+      const parsedURL = Common.ParsedURL.fromString(targetInfo.url);
+      targetName = parsedURL ? parsedURL.lastPathComponentWithFragment() : '#' + (++_lastAnonymousTargetId);
+    }
+
+    let type = SDK.Target.Type.Browser;
+    if (targetInfo.type === 'iframe') {
+      type = SDK.Target.Type.Frame;
+    }
+    // TODO(lfg): ensure proper capabilities for child pages (e.g. portals).
+    else if (targetInfo.type === 'page') {
+      type = SDK.Target.Type.Frame;
+    } else if (targetInfo.type === 'worker') {
+      type = SDK.Target.Type.Worker;
+    } else if (targetInfo.type === 'service_worker') {
+      type = SDK.Target.Type.ServiceWorker;
+    }
+
+    const target =
+        this._targetManager.createTarget(targetInfo.targetId, targetName, type, this._parentTarget, sessionId);
+    this._childTargets.set(sessionId, target);
+
+    if (SDK.ChildTargetManager._attachCallback) {
+      SDK.ChildTargetManager._attachCallback({target, waitingForDebugger}).then(() => {
+        target.runtimeAgent().runIfWaitingForDebugger();
+      });
+    } else {
+      target.runtimeAgent().runIfWaitingForDebugger();
+    }
   }
 
   /**
@@ -149,8 +172,12 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
    * @param {string=} childTargetId
    */
   detachedFromTarget(sessionId, childTargetId) {
-    this._childConnections.get(sessionId).onDisconnect.call(null, 'target terminated');
-    this._childConnections.delete(sessionId);
+    if (this._parallelConnections.has(sessionId)) {
+      this._parallelConnections.delete(sessionId);
+    } else {
+      this._childTargets.get(sessionId).dispose('target terminated');
+      this._childTargets.delete(sessionId);
+    }
   }
 
   /**
@@ -160,25 +187,51 @@ SDK.ChildTargetManager = class extends SDK.SDKModel {
    * @param {string=} childTargetId
    */
   receivedMessageFromTarget(sessionId, message, childTargetId) {
-    const connection = this._childConnections.get(sessionId);
-    if (connection)
-      connection.onMessage.call(null, message);
+    // We use flatten protocol.
   }
 
   /**
-   * @param {!Protocol.TargetAgent} agent
-   * @param {string} sessionId
-   * @param {!Protocol.InspectorBackend.Connection.Params} params
-   * @return {!Protocol.InspectorBackend.Connection}
+   * @param {function((!Object|string))} onMessage
+   * @return {!Promise<!Protocol.Connection>}
    */
-  _createChildConnection(agent, sessionId, params) {
-    const connection = new SDK.ChildConnection(agent, sessionId, params);
-    this._childConnections.set(sessionId, connection);
+  async createParallelConnection(onMessage) {
+    // The main SDK.Target id is actually just `main`, instead of the real targetId.
+    // Get the real id (requires an async operation) so that it can be used synchronously later.
+    const targetId = await this._getParentTargetId();
+    const {connection, sessionId} =
+        await this._createParallelConnectionAndSessionForTarget(this._parentTarget, targetId);
+    connection.setOnMessage(onMessage);
+    this._parallelConnections.set(sessionId, connection);
     return connection;
   }
-};
 
-SDK.ChildTargetManager._lastAnonymousTargetId = 0;
+  /**
+   * @param {!SDK.Target} target
+   * @param {string} targetId
+   * @return {!Promise<!{connection: !Protocol.Connection, sessionId: string}>}
+   */
+  async _createParallelConnectionAndSessionForTarget(target, targetId) {
+    const targetAgent = target.targetAgent();
+    const targetRouter = target.router();
+    const sessionId = /** @type {string} */ (await targetAgent.attachToTarget(targetId, true /* flatten */));
+    const connection = new SDK.ParallelConnection(targetRouter.connection(), sessionId);
+    targetRouter.registerSession(target, sessionId, connection);
+    connection.setOnDisconnect(() => {
+      targetAgent.detachFromTarget(sessionId);
+      targetRouter.unregisterSession(sessionId);
+    });
+    return {connection, sessionId};
+  }
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.ChildTargetManager = ChildTargetManager;
 
 /** @type {function({target: !SDK.Target, waitingForDebugger: boolean})|undefined} */
 SDK.ChildTargetManager._attachCallback;

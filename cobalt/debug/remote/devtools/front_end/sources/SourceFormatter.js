@@ -50,8 +50,9 @@ Sources.SourceFormatter = class {
   _onUISourceCodeRemoved(event) {
     const uiSourceCode = /** @type {!Workspace.UISourceCode} */ (event.data);
     const cacheEntry = this._formattedSourceCodes.get(uiSourceCode);
-    if (cacheEntry && cacheEntry.formatData)
+    if (cacheEntry && cacheEntry.formatData) {
       this._discardFormatData(cacheEntry.formatData);
+    }
     this._formattedSourceCodes.remove(uiSourceCode);
   }
 
@@ -61,8 +62,9 @@ Sources.SourceFormatter = class {
    */
   discardFormattedUISourceCode(formattedUISourceCode) {
     const formatData = Sources.SourceFormatData._for(formattedUISourceCode);
-    if (!formatData)
+    if (!formatData) {
       return null;
+    }
     this._discardFormatData(formatData);
     this._formattedSourceCodes.remove(formatData.originalSourceCode);
     return formatData.originalSourceCode;
@@ -88,19 +90,33 @@ Sources.SourceFormatter = class {
 
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
+   * @return {!Workspace.UISourceCode}
+   */
+  getOriginalUISourceCode(uiSourceCode) {
+    const formatData =
+        /** @type {?Sources.SourceFormatData} */ (uiSourceCode[Sources.SourceFormatData._formatDataSymbol]);
+    if (!formatData) {
+      return uiSourceCode;
+    }
+    return formatData.originalSourceCode;
+  }
+
+  /**
+   * @param {!Workspace.UISourceCode} uiSourceCode
    * @return {!Promise<!Sources.SourceFormatData>}
    */
   async format(uiSourceCode) {
     const cacheEntry = this._formattedSourceCodes.get(uiSourceCode);
-    if (cacheEntry)
+    if (cacheEntry) {
       return cacheEntry.promise;
+    }
 
     let fulfillFormatPromise;
     const resultPromise = new Promise(fulfill => {
       fulfillFormatPromise = fulfill;
     });
     this._formattedSourceCodes.set(uiSourceCode, {promise: resultPromise, formatData: null});
-    const content = await uiSourceCode.requestContent();
+    const {content} = await uiSourceCode.requestContent();
     // ------------ ASYNC ------------
     Formatter.Formatter.format(
         uiSourceCode.contentType(), uiSourceCode.mimeType(), content || '', formatDone.bind(this));
@@ -113,8 +129,9 @@ Sources.SourceFormatter = class {
      */
     function formatDone(formattedContent, formatterMapping) {
       const cacheEntry = this._formattedSourceCodes.get(uiSourceCode);
-      if (!cacheEntry || cacheEntry.promise !== resultPromise)
+      if (!cacheEntry || cacheEntry.promise !== resultPromise) {
         return;
+      }
       let formattedURL;
       let count = 0;
       let suffix = '';
@@ -163,12 +180,27 @@ Sources.SourceFormatter.ScriptMapping = class {
   rawLocationToUILocation(rawLocation) {
     const script = rawLocation.script();
     const formatData = script && Sources.SourceFormatData._for(script);
-    if (!formatData)
+    if (!formatData) {
       return null;
-    const lineNumber = rawLocation.lineNumber;
-    const columnNumber = rawLocation.columnNumber || 0;
-    const formattedLocation = formatData.mapping.originalToFormatted(lineNumber, columnNumber);
-    return formatData.formattedSourceCode.uiLocation(formattedLocation[0], formattedLocation[1]);
+    }
+    if (script.isInlineScriptWithSourceURL()) {
+      // Inline scripts with #sourceURL= have lineEndings wrt. the inline script (and not wrt. the containing document),
+      // but `rawLocation` will always use locations wrt. the containing document, because that is what the back-end is
+      // sending. This is a hack, because what we are really doing here is deciding the location based on /how/ the
+      // script is displayed, which is really something this layer cannot and should not have to decide: The
+      // SourceFormatter should not have to know wether a script is displayed inline (in its containing document) or
+      // stand-alone.
+      const [relativeLineNumber, relativeColumnNumber] = script.toRelativeLocation(rawLocation);
+      const [formattedLineNumber, formattedColumnNumber] =
+          formatData.mapping.originalToFormatted(relativeLineNumber, relativeColumnNumber);
+      return formatData.formattedSourceCode.uiLocation(formattedLineNumber, formattedColumnNumber);
+    }
+    // Here we either have an inline script without a #sourceURL= or a stand-alone script. For stand-alone scripts, no
+    // translation must be applied. For inline scripts, also no translation must be applied, because the line-endings
+    // tables in the mapping are the same as in the containing document.
+    const [lineNumber, columnNumber] =
+        formatData.mapping.originalToFormatted(rawLocation.lineNumber, rawLocation.columnNumber || 0);
+    return formatData.formattedSourceCode.uiLocation(lineNumber, columnNumber);
   }
 
   /**
@@ -176,17 +208,37 @@ Sources.SourceFormatter.ScriptMapping = class {
    * @param {!Workspace.UISourceCode} uiSourceCode
    * @param {number} lineNumber
    * @param {number} columnNumber
-   * @return {?SDK.DebuggerModel.Location}
+   * @return {!Array<!SDK.DebuggerModel.Location>}
    */
-  uiLocationToRawLocation(uiSourceCode, lineNumber, columnNumber) {
+  uiLocationToRawLocations(uiSourceCode, lineNumber, columnNumber) {
     const formatData = Sources.SourceFormatData._for(uiSourceCode);
-    if (!formatData)
-      return null;
-    const originalLocation = formatData.mapping.formattedToOriginal(lineNumber, columnNumber);
-    const scripts = this._scriptsForUISourceCode(formatData.originalSourceCode);
-    if (!scripts.length)
-      return null;
-    return scripts[0].debuggerModel.createRawLocation(scripts[0], originalLocation[0], originalLocation[1]);
+    if (!formatData) {
+      return [];
+    }
+    const [originalLine, originalColumn] = formatData.mapping.formattedToOriginal(lineNumber, columnNumber);
+    if (formatData.originalSourceCode.contentType().isScript()) {
+      // Here we have a script that is displayed on its own (i.e. it has a dedicated uiSourceCode). This means it is
+      // either a stand-alone script or an inline script with a #sourceURL= and in both cases we can just forward the
+      // question to the original (unformatted) source code.
+      const rawLocations = Bindings.debuggerWorkspaceBinding.uiLocationToRawLocations(
+          formatData.originalSourceCode, originalLine, originalColumn);
+      console.assert(rawLocations.every(l => l && !!l.script()));
+      return rawLocations;
+    }
+    if (formatData.originalSourceCode.contentType() === Common.resourceTypes.Document) {
+      const target = Bindings.NetworkProject.targetForUISourceCode(formatData.originalSourceCode);
+      const debuggerModel = target && target.model(SDK.DebuggerModel);
+      if (debuggerModel) {
+        const scripts = debuggerModel.scriptsForSourceURL(formatData.originalSourceCode.url())
+                            .filter(script => script.isInlineScript() && !script.hasSourceURL);
+        // Here we have an inline script, which was formatted together with the containing document, so we must not
+        // translate locations as they are relative to the start of the document.
+        const locations = scripts.map(script => script.rawLocation(originalLine, originalColumn)).filter(l => !!l);
+        console.assert(locations.every(l => l && !!l.script()));
+        return locations;
+      }
+    }
+    return [];
   }
 
   /**
@@ -195,17 +247,21 @@ Sources.SourceFormatter.ScriptMapping = class {
    */
   _setSourceMappingEnabled(formatData, enabled) {
     const scripts = this._scriptsForUISourceCode(formatData.originalSourceCode);
-    if (!scripts.length)
+    if (!scripts.length) {
       return;
-    if (enabled) {
-      for (const script of scripts)
-        script[Sources.SourceFormatData._formatDataSymbol] = formatData;
-    } else {
-      for (const script of scripts)
-        delete script[Sources.SourceFormatData._formatDataSymbol];
     }
-    for (const script of scripts)
+    if (enabled) {
+      for (const script of scripts) {
+        script[Sources.SourceFormatData._formatDataSymbol] = formatData;
+      }
+    } else {
+      for (const script of scripts) {
+        delete script[Sources.SourceFormatData._formatDataSymbol];
+      }
+    }
+    for (const script of scripts) {
       Bindings.debuggerWorkspaceBinding.updateLocations(script);
+    }
   }
 
   /**
@@ -223,9 +279,8 @@ Sources.SourceFormatter.ScriptMapping = class {
       }
     }
     if (uiSourceCode.contentType().isScript()) {
-      const rawLocation = Bindings.debuggerWorkspaceBinding.uiLocationToRawLocation(uiSourceCode, 0, 0);
-      if (rawLocation)
-        return [rawLocation.script()];
+      const rawLocations = Bindings.debuggerWorkspaceBinding.uiLocationToRawLocations(uiSourceCode, 0, 0);
+      return rawLocations.map(location => location.script()).filter(script => !!script);
     }
     return [];
   }
@@ -248,8 +303,9 @@ Sources.SourceFormatter.StyleMapping = class {
   rawLocationToUILocation(rawLocation) {
     const styleHeader = rawLocation.header();
     const formatData = styleHeader && Sources.SourceFormatData._for(styleHeader);
-    if (!formatData)
+    if (!formatData) {
       return null;
+    }
     const formattedLocation =
         formatData.mapping.originalToFormatted(rawLocation.lineNumber, rawLocation.columnNumber || 0);
     return formatData.formattedSourceCode.uiLocation(formattedLocation[0], formattedLocation[1]);
@@ -262,11 +318,14 @@ Sources.SourceFormatter.StyleMapping = class {
    */
   uiLocationToRawLocations(uiLocation) {
     const formatData = Sources.SourceFormatData._for(uiLocation.uiSourceCode);
-    if (!formatData)
+    if (!formatData) {
       return [];
-    const originalLocation = formatData.mapping.formattedToOriginal(uiLocation.lineNumber, uiLocation.columnNumber);
-    const headers = formatData.originalSourceCode[this._headersSymbol];
-    return headers.map(header => new SDK.CSSLocation(header, originalLocation[0], originalLocation[1]));
+    }
+    const [originalLine, originalColumn] =
+        formatData.mapping.formattedToOriginal(uiLocation.lineNumber, uiLocation.columnNumber);
+    const headers = formatData.originalSourceCode[this._headersSymbol].filter(
+        header => header.containsLocation(originalLine, originalColumn));
+    return headers.map(header => new SDK.CSSLocation(header, originalLine, originalColumn));
   }
 
   /**
@@ -275,10 +334,7 @@ Sources.SourceFormatter.StyleMapping = class {
    */
   _setSourceMappingEnabled(formatData, enable) {
     const original = formatData.originalSourceCode;
-    const rawLocations = Bindings.cssWorkspaceBinding.uiLocationToRawLocations(original.uiLocation(0, 0));
-    const headers = rawLocations.map(rawLocation => rawLocation.header()).filter(header => !!header);
-    if (!headers.length)
-      return;
+    const headers = this._headersForUISourceCode(original);
     if (enable) {
       original[this._headersSymbol] = headers;
       headers.forEach(header => header[Sources.SourceFormatData._formatDataSymbol] = formatData);
@@ -287,6 +343,25 @@ Sources.SourceFormatter.StyleMapping = class {
       headers.forEach(header => delete header[Sources.SourceFormatData._formatDataSymbol]);
     }
     headers.forEach(header => Bindings.cssWorkspaceBinding.updateLocations(header));
+  }
+
+  /**
+   * @param {!Workspace.UISourceCode} uiSourceCode
+   * @return {!Array<!SDK.CSSStyleSheetHeader>}
+   */
+  _headersForUISourceCode(uiSourceCode) {
+    if (uiSourceCode.contentType() === Common.resourceTypes.Document) {
+      const target = Bindings.NetworkProject.targetForUISourceCode(uiSourceCode);
+      const cssModel = target && target.model(SDK.CSSModel);
+      if (cssModel) {
+        return cssModel.headersForSourceURL(uiSourceCode.url())
+            .filter(header => header.isInline && !header.hasSourceURL);
+      }
+    } else if (uiSourceCode.contentType().isStyleSheet()) {
+      const rawLocations = Bindings.cssWorkspaceBinding.uiLocationToRawLocations(uiSourceCode.uiLocation(0, 0));
+      return rawLocations.map(rawLocation => rawLocation.header()).filter(header => !!header);
+    }
+    return [];
   }
 };
 

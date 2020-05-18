@@ -1,13 +1,9 @@
 /* https://github.com/bgrins/spectrum */
 :host {
     width: 232px;
-    height: 240px;
-    -webkit-user-select: none;
-    overflow: hidden;
-}
-
-:host-context(.palettes-enabled) {
     height: 319px;
+    user-select: none;
+    overflow: hidden;
 }
 
 :selection {
@@ -29,12 +25,6 @@
     height: 111px;
     width: 100%;
     flex: none;
-}
-
-.spectrum-display-value {
-    -webkit-user-select: text;
-    display: inline-block;
-    padding-left: 2px;
 }
 
 .spectrum-hue {
@@ -60,9 +50,17 @@
     border-radius: 2px;
 }
 
+.spectrum-hue[data-keyboard-focus="true"] .spectrum-slider,
+.spectrum-alpha[data-keyboard-focus="true"] .spectrum-slider {
+  border: 1px solid var(--accent-color-hover);
+  width: 14px;
+  height: 14px;
+  border-radius: 14px;
+}
+
 .spectrum-dragger,
 .spectrum-slider {
-    -webkit-user-select: none;
+    user-select: none;
 }
 
 .spectrum-sat,
@@ -190,14 +188,6 @@
     left: auto;
 }
 
-.contrast-threshold-value {
-    font-weight: bold;
-}
-
-.contrast-link {
-    margin-left: 0.5em;
-}
-
 .contrast-details-value {
     color: #333;
     margin: 1px 5px;
@@ -277,7 +267,8 @@
     padding: 4px;
 }
 
-.swatch-overlay:hover {
+.swatch-overlay:hover,
+.swatch-overlay[data-keyboard-focus="true"]:focus {
     background-color: rgba(0, 0, 0, .3);
     opacity: 1;
 }
@@ -286,7 +277,7 @@
     background-color: rgba(0, 0, 0, .5);
 }
 
-.copy-color-icon {
+[is=ui-icon].icon-mask.copy-color-icon {
     background-color: white;
 }
 
@@ -328,16 +319,6 @@
     text-align: center;
 }
 
-.spectrum-palette-value {
-    background-color: rgb(65, 75, 217);
-    border-radius: 2px;
-    margin-top: 12px;
-    margin-left: 12px;
-    width: 12px;
-    height: 12px;
-    display: inline-block;
-}
-
 .spectrum-switcher {
     border-radius: 2px;
     height: 20px;
@@ -357,6 +338,10 @@
 
 .spectrum-switcher:hover {
     background-color: #EEEEEE;
+}
+
+.spectrum-switcher[data-keyboard-focus="true"]:focus {
+  background-color: var(--focus-bg-color);
 }
 
 .spectrum-eye-dropper {
@@ -396,11 +381,13 @@
     z-index: 14;
 }
 
-.spectrum-palette-color:hover:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow {
+.spectrum-palette-color:hover:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow,
+.spectrum-palette-color:focus:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow {
     opacity: 0.2;
 }
 
-.spectrum-palette-color:hover:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow:first-child {
+.spectrum-palette-color:hover:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow:first-child,
+.spectrum-palette-color:focus:not(.spectrum-shades-shown) > .spectrum-palette-color-shadow:first-child {
     opacity: 0.6;
     top: -3px;
     left: 1px;
@@ -450,6 +437,11 @@
 .spectrum-palette > .spectrum-palette-color:not(.empty-color):not(.has-material-shades):hover,
 .palette-color-shades > .spectrum-palette-color:not(.empty-color):hover {
     transform: scale(1.15);
+}
+
+.spectrum-palette-color:not(.has-material-shades):focus {
+  border: 1px solid var(--accent-color-hover);
+  transform: scale(1.4);
 }
 
 .add-color-toolbar {
@@ -518,6 +510,7 @@ div.palette-preview {
     margin-top: 1px;
 }
 
+.palette-preview[data-keyboard-focus="true"]:focus,
 .palette-preview:hover {
     background-color: #eee;
 }
@@ -611,18 +604,3 @@ div.palette-preview {
 .swatch.contrast [is=ui-icon] {
     margin: -2px;
 }
-
-button.background-color-picker {
-    border: 0;
-    padding:  0;
-    background: none;
-    position: relative;
-    margin: 0;
-}
-
-button.background-color-picker.active [is=ui-icon].largeicon-eyedropper.icon-mask {
-    background-color: hsl(218, 81%, 59%);
-}
-
-button.background-color-picker:hover [is=ui-icon].largeicon-eyedropper.icon-mask {
-    background-color: #333;

@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.ThrottledWidget = class extends UI.VBox {
+export default class ThrottledWidget extends UI.VBox {
   /**
    * @param {boolean=} isWebComponent
    * @param {number=} timeout
@@ -25,17 +25,19 @@ UI.ThrottledWidget = class extends UI.VBox {
 
   update() {
     this._updateWhenVisible = !this.isShowing();
-    if (this._updateWhenVisible)
+    if (this._updateWhenVisible) {
       return;
+    }
     this._updateThrottler.schedule(innerUpdate.bind(this));
 
     /**
-     * @this {UI.ThrottledWidget}
+     * @this {ThrottledWidget}
      * @return {!Promise<?>}
      */
     function innerUpdate() {
-      if (this.isShowing())
+      if (this.isShowing()) {
         return this.doUpdate();
+      }
       this._updateWhenVisible = true;
       return Promise.resolve();
     }
@@ -46,7 +48,17 @@ UI.ThrottledWidget = class extends UI.VBox {
    */
   wasShown() {
     super.wasShown();
-    if (this._updateWhenVisible)
+    if (this._updateWhenVisible) {
       this.update();
+    }
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.ThrottledWidget = ThrottledWidget;

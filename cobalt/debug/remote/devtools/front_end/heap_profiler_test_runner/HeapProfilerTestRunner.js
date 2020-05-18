@@ -42,9 +42,11 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
           node_fields: ['type', 'name', 'id', 'self_size', 'retained_size', 'dominator', 'edge_count'],
           node_types: [['hidden', 'object'], '', '', '', '', '', ''],
           edge_fields: ['type', 'name_or_index', 'to_node'],
-          edge_types: [['element', 'property', 'shortcut'], '', '']
+          edge_types: [['element', 'property', 'shortcut'], '', ''],
+          location_fields: ['object_index', 'script_id', 'line', 'column'],
+          trace_function_info_fields: ['function_id', 'name', 'script_name', 'script_id', 'line', 'column'],
+          trace_node_fields: ['id', 'function_info_index', 'count', 'size', 'children']
         },
-
         node_count: 6,
         edge_count: 7
       },
@@ -55,6 +57,13 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
       ],
 
       edges: [1, 6, 7, 1, 7, 14, 0, 1, 14, 1, 8, 21, 1, 9, 21, 1, 10, 28, 1, 11, 35],
+
+      trace_function_infos: [0, 2, 1, 0, 0, 0],
+
+      trace_tree: [1, 0, 0, 0, []],
+
+      locations: [0, 1, 2, 3, 18, 2, 3, 4],
+
       strings: ['', 'A', 'B', 'C', 'D', 'E', 'a', 'b', 'ac', 'bc', 'bd', 'ce']
     };
   };
@@ -76,7 +85,8 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
           node_fields: ['type', 'name', 'id', 'edge_count'],
           node_types: [['hidden', 'object', 'synthetic'], '', '', ''],
           edge_fields: ['type', 'name_or_index', 'to_node'],
-          edge_types: [['element', 'hidden', 'internal'], '', '']
+          edge_types: [['element', 'hidden', 'internal'], '', ''],
+          location_fields: ['object_index', 'script_id', 'line', 'column']
         },
 
         node_count: 13,
@@ -92,6 +102,8 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
         0,  1, 4, 0,  2, 8, 0,  3, 12, 0,  4, 16, 0,  1, 20, 0,  2, 24, 0, 1,
         24, 0, 2, 28, 1, 3, 32, 0, 1,  36, 0, 1,  40, 2, 12, 44, 2, 1,  48
       ],
+
+      locations: [0, 2, 1, 1, 6, 2, 2, 2],
 
       strings: ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'M', 'N', 'Window', 'native']
     });
@@ -123,14 +135,17 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
 
   HeapProfilerTestRunner.HeapNode.prototype = {
     linkNode: function(node, type, nameOrIndex) {
-      if (!this._builder)
+      if (!this._builder) {
         throw new Error('parent node is not connected to a snapshot');
+      }
 
-      if (!node._builder)
+      if (!node._builder) {
         node._setBuilder(this._builder);
+      }
 
-      if (nameOrIndex === undefined)
+      if (nameOrIndex === undefined) {
         nameOrIndex = this._edgesCount;
+      }
 
       ++this._edgesCount;
 
@@ -144,8 +159,9 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
     },
 
     _setBuilder: function(builder) {
-      if (this._builder)
+      if (this._builder) {
         throw new Error('node reusing is prohibited');
+      }
 
       this._builder = builder;
       this._ordinal = this._builder._registerNode(this);
@@ -160,8 +176,9 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
       rawSnapshot.nodes.push(0);
       rawSnapshot.nodes.push(Object.keys(this._edges).length);
 
-      for (const i in this._edges)
+      for (const i in this._edges) {
         this._edges[i]._serialize(rawSnapshot);
+      }
     }
   };
 
@@ -173,8 +190,9 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
 
   HeapProfilerTestRunner.HeapEdge.prototype = {
     _serialize: function(rawSnapshot) {
-      if (!this._targetNode._builder)
+      if (!this._targetNode._builder) {
         throw new Error('Inconsistent state of node: ' + this._name + ' no builder assigned');
+      }
 
       const builder = this._targetNode._builder;
       rawSnapshot.edges.push(builder.lookupEdgeType(this._type));
@@ -233,11 +251,13 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
 
         'nodes': [],
         'edges': [],
+        'locations': [],
         'strings': []
       };
 
-      for (let i = 0; i < this._nodes.length; ++i)
+      for (let i = 0; i < this._nodes.length; ++i) {
         this._nodes[i]._serialize(rawSnapshot);
+      }
 
       rawSnapshot.strings = this._strings.slice();
       const meta = rawSnapshot.snapshot.meta;
@@ -257,25 +277,29 @@ HeapProfilerTestRunner.createHeapSnapshotMockFactories = function() {
     },
 
     lookupNodeType: function(typeName) {
-      if (typeName === undefined)
+      if (typeName === undefined) {
         throw new Error('wrong node type: ' + typeName);
+      }
 
-      if (!(typeName in this._nodeTypesMap))
+      if (!(typeName in this._nodeTypesMap)) {
         throw new Error('wrong node type name: ' + typeName);
+      }
 
       return this._nodeTypesMap[typeName];
     },
 
     lookupEdgeType: function(typeName) {
-      if (!(typeName in this._edgeTypesMap))
+      if (!(typeName in this._edgeTypesMap)) {
         throw new Error('wrong edge type name: ' + typeName);
+      }
 
       return this._edgeTypesMap[typeName];
     },
 
     lookupOrAddString: function(string) {
-      if (string in this._string2id)
+      if (string in this._string2id) {
         return this._string2id[string];
+      }
 
       this._string2id[string] = this._strings.length;
       this._strings.push(string);
@@ -351,8 +375,9 @@ HeapProfilerTestRunner.runHeapSnapshotTestSuite = function(testSuite) {
 
   function runner() {
     if (!testSuiteTests.length) {
-      if (completeTestStack)
+      if (completeTestStack) {
         TestRunner.addResult('FAIL: test already completed at ' + completeTestStack);
+      }
 
       HeapProfilerTestRunner.completeProfilerTest();
       completeTestStack = new Error().stack;
@@ -374,13 +399,15 @@ HeapProfilerTestRunner.runHeapSnapshotTestSuite = function(testSuite) {
 HeapProfilerTestRunner.assertColumnContentsEqual = function(reference, actual) {
   const length = Math.min(reference.length, actual.length);
 
-  for (let i = 0; i < length; ++i)
+  for (let i = 0; i < length; ++i) {
     TestRunner.assertEquals(reference[i], actual[i], 'row ' + i);
+  }
 
-  if (reference.length > length)
+  if (reference.length > length) {
     TestRunner.addResult('extra rows in reference array:\n' + reference.slice(length).join('\n'));
-  else if (actual.length > length)
+  } else if (actual.length > length) {
     TestRunner.addResult('extra rows in actual array:\n' + actual.slice(length).join('\n'));
+  }
 };
 
 HeapProfilerTestRunner.checkArrayIsSorted = function(contents, sortType, sortOrder) {
@@ -502,13 +529,15 @@ HeapProfilerTestRunner.columnContents = function(column, row) {
   const parent = row || this._currentGrid().rootNode();
 
   for (let node = parent.children[0]; node; node = node.traverseNextNode(true, parent, true)) {
-    if (!node.selectable)
+    if (!node.selectable) {
       continue;
+    }
 
     let content = node.element().children[columnOrdinal];
 
-    if (content.firstElementChild)
+    if (content.firstElementChild) {
       content = content.firstElementChild;
+    }
 
     result.push(content.textContent);
   }
@@ -524,8 +553,9 @@ HeapProfilerTestRunner.countDataRows = function(row, filter) {
   };
 
   for (let node = row.children[0]; node; node = node.traverseNextNode(true, row, true)) {
-    if (filter(node))
+    if (filter(node)) {
       ++result;
+    }
   }
 
   return result;
@@ -536,10 +566,11 @@ HeapProfilerTestRunner.expandRow = function(row, callback) {
   row.once(Profiler.HeapSnapshotGridNode.Events.PopulateComplete).then(() => setTimeout(() => callback(row), 0));
 
   (function expand() {
-    if (row.hasChildren())
+    if (row.hasChildren()) {
       row.expand();
-    else
+    } else {
       setTimeout(expand, 0);
+    }
   })();
 };
 
@@ -565,8 +596,9 @@ HeapProfilerTestRunner.findAndExpandRow = async function(name, callback) {
 
 HeapProfilerTestRunner.findButtonsNode = function(row, startNode) {
   for (let node = startNode || row.children[0]; node; node = node.traverseNextNode(true, row, true)) {
-    if (!node.selectable && node.showNext)
+    if (!node.selectable && node.showNext) {
       return node;
+    }
   }
   return null;
 };
@@ -579,8 +611,9 @@ HeapProfilerTestRunner.findMatchingRow = function(matcher, parent) {
   parent = parent || this._currentGrid().rootNode();
 
   for (let node = parent.children[0]; node; node = node.traverseNextNode(true, parent, true)) {
-    if (matcher(node))
+    if (matcher(node)) {
       return node;
+    }
   }
 
   return null;
@@ -612,8 +645,9 @@ HeapProfilerTestRunner.takeAndOpenSnapshot = async function(generator, callback)
 
   HeapProfilerTestRunner._takeAndOpenSnapshotCallback = callback;
   TestRunner.override(TestRunner.HeapProfilerAgent, 'takeHeapSnapshot', pushGeneratedSnapshot);
-  if (!UI.context.flavor(SDK.HeapProfilerModel))
+  if (!UI.context.flavor(SDK.HeapProfilerModel)) {
     await new Promise(resolve => UI.context.addFlavorChangeListener(SDK.HeapProfilerModel, resolve));
+  }
   profileType._takeHeapSnapshot();
 };
 
@@ -628,10 +662,12 @@ HeapProfilerTestRunner.takeSnapshotPromise = function() {
 
     function finishHeapSnapshot() {
       const profiles = heapProfileType.getProfiles();
-      if (!profiles.length)
+      if (!profiles.length) {
         throw 'FAILED: no profiles found.';
-      if (profiles.length > 1)
+      }
+      if (profiles.length > 1) {
         throw `FAILED: wrong number of recorded profiles was found. profiles.length = ${profiles.length}`;
+      }
       const profile = profiles[0];
       UI.panels.heap_profiler.showProfile(profile);
 
@@ -680,8 +716,9 @@ HeapProfilerTestRunner.showProfileWhenAdded = function(title) {
 };
 
 HeapProfilerTestRunner._profileHeaderAdded = function(profile) {
-  if (HeapProfilerTestRunner._showProfileWhenAdded === profile.title)
+  if (HeapProfilerTestRunner._showProfileWhenAdded === profile.title) {
     UI.panels.heap_profiler.showProfile(profile);
+  }
 };
 
 HeapProfilerTestRunner._waitUntilProfileViewIsShown = function(title, callback) {
@@ -689,10 +726,11 @@ HeapProfilerTestRunner._waitUntilProfileViewIsShown = function(title, callback) 
   const profilesPanel = UI.panels.heap_profiler;
 
   if (profilesPanel.visibleView && profilesPanel.visibleView.profile &&
-      profilesPanel.visibleView._profileHeader.title === title)
+      profilesPanel.visibleView._profileHeader.title === title) {
     callback(profilesPanel.visibleView);
-  else
+  } else {
     HeapProfilerTestRunner._waitUntilProfileViewIsShownCallback = {title: title, callback: callback};
+  }
 
 };
 
@@ -706,11 +744,12 @@ HeapProfilerTestRunner._profileViewRefresh = function() {
 };
 
 HeapProfilerTestRunner.startSamplingHeapProfiler = async function() {
-  if (!UI.context.flavor(SDK.HeapProfilerModel))
+  if (!UI.context.flavor(SDK.HeapProfilerModel)) {
     await new Promise(resolve => UI.context.addFlavorChangeListener(SDK.HeapProfilerModel, resolve));
-  Profiler.SamplingHeapProfileType.instance.startRecordingProfile();
+  }
+  Profiler.SamplingHeapProfileType.instance._startRecordingProfile();
 };
 
 HeapProfilerTestRunner.stopSamplingHeapProfiler = function() {
-  Profiler.SamplingHeapProfileType.instance.stopRecordingProfile();
+  Profiler.SamplingHeapProfileType.instance._stopRecordingProfile();
 };

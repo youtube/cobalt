@@ -5,7 +5,7 @@
 /**
  * @unrestricted
  */
-TextUtils.Text = class {
+export class Text {
   /**
    * @param {string} value
    */
@@ -17,8 +17,9 @@ TextUtils.Text = class {
    * @return {!Array<number>}
    */
   lineEndings() {
-    if (!this._lineEndings)
+    if (!this._lineEndings) {
       this._lineEndings = this._value.computeLineEndings();
+    }
     return this._lineEndings;
   }
 
@@ -64,8 +65,9 @@ TextUtils.Text = class {
     const lineStart = lineNumber > 0 ? lineEndings[lineNumber - 1] + 1 : 0;
     const lineEnd = lineEndings[lineNumber];
     let lineContent = this._value.substring(lineStart, lineEnd);
-    if (lineContent.length > 0 && lineContent.charAt(lineContent.length - 1) === '\r')
+    if (lineContent.length > 0 && lineContent.charAt(lineContent.length - 1) === '\r') {
       lineContent = lineContent.substring(0, lineContent.length - 1);
+    }
     return lineContent;
   }
 
@@ -84,7 +86,7 @@ TextUtils.Text = class {
    * @return {!TextUtils.TextRange}
    */
   toTextRange(sourceRange) {
-    const cursor = new TextUtils.TextCursor(this.lineEndings());
+    const cursor = new TextCursor(this.lineEndings());
     const result = TextUtils.TextRange.createFromLocation(0, 0);
 
     cursor.resetTo(sourceRange.offset);
@@ -116,15 +118,12 @@ TextUtils.Text = class {
     const sourceRange = this.toSourceRange(range);
     return this._value.substr(sourceRange.offset, sourceRange.length);
   }
-};
-
-/** @typedef {{lineNumber: number, columnNumber: number}} */
-TextUtils.Text.Position;
+}
 
 /**
  * @unrestricted
  */
-TextUtils.TextCursor = class {
+export class TextCursor {
   /**
    * @param {!Array<number>} lineEndings
    */
@@ -140,8 +139,9 @@ TextUtils.TextCursor = class {
    */
   advance(offset) {
     this._offset = offset;
-    while (this._lineNumber < this._lineEndings.length && this._lineEndings[this._lineNumber] < this._offset)
+    while (this._lineNumber < this._lineEndings.length && this._lineEndings[this._lineNumber] < this._offset) {
       ++this._lineNumber;
+    }
     this._columnNumber = this._lineNumber ? this._offset - this._lineEndings[this._lineNumber - 1] - 1 : this._offset;
   }
 
@@ -174,4 +174,19 @@ TextUtils.TextCursor = class {
   columnNumber() {
     return this._columnNumber;
   }
-};
+}
+
+/* Legacy exported object */
+self.TextUtils = self.TextUtils || {};
+
+/* Legacy exported object */
+TextUtils = TextUtils || {};
+
+/** @constructor */
+TextUtils.Text = Text;
+
+/** @constructor */
+TextUtils.TextCursor = TextCursor;
+
+/** @typedef {{lineNumber: number, columnNumber: number}} */
+TextUtils.Text.Position;

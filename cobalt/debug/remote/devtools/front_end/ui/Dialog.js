@@ -28,24 +28,29 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-UI.Dialog = class extends UI.GlassPane {
+export default class Dialog extends UI.GlassPane {
   constructor() {
     super();
     this.registerRequiredCSS('ui/dialog.css');
     this.contentElement.tabIndex = 0;
     this.contentElement.addEventListener('focus', () => this.widget().focus(), false);
-    this.contentElement.addEventListener('keydown', this._onKeyDown.bind(this), false);
     this.widget().setDefaultFocusedElement(this.contentElement);
     this.setPointerEventsBehavior(UI.GlassPane.PointerEventsBehavior.BlockedByGlassPane);
     this.setOutsideClickCallback(event => {
       this.hide();
       event.consume(true);
     });
+    UI.ARIAUtils.markAsModalDialog(this.contentElement);
+    /** @type {!UI.Dialog.OutsideTabIndexBehavior} */
+    this._tabIndexBehavior = OutsideTabIndexBehavior.DisableAllOutsideTabIndex;
     /** @type {!Map<!HTMLElement, number>} */
     this._tabIndexMap = new Map();
     /** @type {?UI.WidgetFocusRestorer} */
     this._focusRestorer = null;
     this._closeOnEscape = true;
+    /** @type {?Document} */
+    this._targetDocument;
+    this._targetDocumentKeyDownHandler = this._onKeyDown.bind(this);
   }
 
   /**
@@ -62,8 +67,12 @@ UI.Dialog = class extends UI.GlassPane {
   show(where) {
     const document = /** @type {!Document} */ (
         where instanceof Document ? where : (where || UI.inspectorView.element).ownerDocument);
-    if (UI.Dialog._instance)
+    this._targetDocument = document;
+    this._targetDocument.addEventListener('keydown', this._targetDocumentKeyDownHandler, true);
+
+    if (UI.Dialog._instance) {
       UI.Dialog._instance.hide();
+    }
     UI.Dialog._instance = this;
     this._disableTabIndexOnElements(document);
     super.show(document);
@@ -76,6 +85,10 @@ UI.Dialog = class extends UI.GlassPane {
   hide() {
     this._focusRestorer.restore();
     super.hide();
+
+    if (this._targetDocument) {
+      this._targetDocument.removeEventListener('keydown', this._targetDocumentKeyDownHandler, true);
+    }
     this._restoreTabIndexOnElements();
     delete UI.Dialog._instance;
   }
@@ -94,15 +107,31 @@ UI.Dialog = class extends UI.GlassPane {
   }
 
   /**
+   * @param {!UI.Dialog.OutsideTabIndexBehavior} tabIndexBehavior
+   */
+  setOutsideTabIndexBehavior(tabIndexBehavior) {
+    this._tabIndexBehavior = tabIndexBehavior;
+  }
+
+  /**
    * @param {!Document} document
    */
   _disableTabIndexOnElements(document) {
+    if (this._tabIndexBehavior === OutsideTabIndexBehavior.PreserveTabIndex) {
+      return;
+    }
+
+    let exclusionSet = /** @type {?Set.<!HTMLElement>} */ (null);
+    if (this._tabIndexBehavior === OutsideTabIndexBehavior.PreserveMainViewTabIndex) {
+      exclusionSet = this._getMainWidgetTabIndexElements(UI.inspectorView.ownerSplit());
+    }
+
     this._tabIndexMap.clear();
     for (let node = document; node; node = node.traverseNextNode(document)) {
       if (node instanceof HTMLElement) {
         const element = /** @type {!HTMLElement} */ (node);
         const tabIndex = element.tabIndex;
-        if (tabIndex >= 0) {
+        if (tabIndex >= 0 && (!exclusionSet || !exclusionSet.has(element))) {
           this._tabIndexMap.set(element, tabIndex);
           element.tabIndex = -1;
         }
@@ -110,9 +139,42 @@ UI.Dialog = class extends UI.GlassPane {
     }
   }
 
+  /**
+   * @param {?UI.SplitWidget} splitWidget
+   * @return {!Set.<!HTMLElement>}
+   */
+  _getMainWidgetTabIndexElements(splitWidget) {
+    const elementSet = /** @type {!Set.<!HTMLElement>} */ (new Set());
+    if (!splitWidget) {
+      return elementSet;
+    }
+
+    const mainWidget = splitWidget.mainWidget();
+    if (!mainWidget || !mainWidget.element) {
+      return elementSet;
+    }
+
+    for (let node = mainWidget.element; node; node = node.traverseNextNode(mainWidget.element)) {
+      if (!(node instanceof HTMLElement)) {
+        continue;
+      }
+
+      const element = /** @type {!HTMLElement} */ (node);
+      const tabIndex = element.tabIndex;
+      if (tabIndex < 0) {
+        continue;
+      }
+
+      elementSet.add(element);
+    }
+
+    return elementSet;
+  }
+
   _restoreTabIndexOnElements() {
-    for (const element of this._tabIndexMap.keys())
+    for (const element of this._tabIndexMap.keys()) {
       element.tabIndex = /** @type {number} */ (this._tabIndexMap.get(element));
+    }
     this._tabIndexMap.clear();
   }
 
@@ -120,9 +182,29 @@ UI.Dialog = class extends UI.GlassPane {
    * @param {!Event} event
    */
   _onKeyDown(event) {
-    if (this._closeOnEscape && event.keyCode === UI.KeyboardShortcut.Keys.Esc.code) {
+    if (this._closeOnEscape && event.keyCode === UI.KeyboardShortcut.Keys.Esc.code &&
+        UI.KeyboardShortcut.hasNoModifiers(event)) {
       event.consume(true);
       this.hide();
     }
   }
+}
+
+/** @enum {symbol} */
+export const OutsideTabIndexBehavior = {
+  DisableAllOutsideTabIndex: Symbol('DisableAllTabIndex'),
+  PreserveMainViewTabIndex: Symbol('PreserveMainViewTabIndex'),
+  PreserveTabIndex: Symbol('PreserveTabIndex')
 };
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.Dialog = Dialog;
+
+/** @enum {symbol} */
+UI.Dialog.OutsideTabIndexBehavior = OutsideTabIndexBehavior;
