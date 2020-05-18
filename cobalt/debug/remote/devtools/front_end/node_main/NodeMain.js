@@ -11,10 +11,10 @@ NodeMain.NodeMain = class extends Common.Object {
    */
   run() {
     Host.userMetrics.actionTaken(Host.UserMetrics.Action.ConnectToNodeJSFromFrontend);
-    const target = SDK.targetManager.createTarget(
-        'main', Common.UIString('Main'), SDK.Target.Capability.Target, params => new SDK.MainConnection(params), null);
-    target.setInspectedURL('Node.js');
-    InspectorFrontendHost.connectionReady();
+    SDK.initMainConnection(() => {
+      const target = SDK.targetManager.createTarget('main', Common.UIString('Main'), SDK.Target.Type.Browser, null);
+      target.setInspectedURL('Node.js');
+    }, Components.TargetDetachedDialog.webSocketConnectionLost);
   }
 };
 
@@ -30,15 +30,18 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
     this._targetManager = parentTarget.targetManager();
     this._parentTarget = parentTarget;
     this._targetAgent = parentTarget.targetAgent();
-    /** @type {!Map<string, !SDK.ChildConnection>} */
+    /** @type {!Map<string, !SDK.Target>} */
+    this._childTargets = new Map();
+    /** @type {!Map<string, !NodeMain.NodeConnection>} */
     this._childConnections = new Map();
 
     parentTarget.registerTargetDispatcher(this);
     this._targetAgent.setDiscoverTargets(true);
 
-    InspectorFrontendHost.setDevicesUpdatesEnabled(true);
-    InspectorFrontendHost.events.addEventListener(
-        InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
+    Host.InspectorFrontendHost.events.addEventListener(
+        Host.InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
+    Host.InspectorFrontendHost.setDevicesUpdatesEnabled(false);
+    Host.InspectorFrontendHost.setDevicesUpdatesEnabled(true);
   }
 
   /**
@@ -50,8 +53,9 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
     for (const address of config.networkDiscoveryConfig) {
       const parts = address.split(':');
       const port = parseInt(parts[1], 10);
-      if (parts[0] && port)
+      if (parts[0] && port) {
         locations.push({host: parts[0], port: port});
+      }
     }
     this._targetAgent.setRemoteLocations(locations);
   }
@@ -60,11 +64,12 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
    * @override
    */
   dispose() {
-    InspectorFrontendHost.events.removeEventListener(
-        InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
+    Host.InspectorFrontendHost.events.removeEventListener(
+        Host.InspectorFrontendHostAPI.Events.DevicesDiscoveryConfigChanged, this._devicesDiscoveryConfigChanged, this);
 
-    for (const sessionId of this._childConnections.keys())
+    for (const sessionId of this._childTargets.keys()) {
       this.detachedFromTarget(sessionId, undefined);
+    }
   }
 
   /**
@@ -72,8 +77,9 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
    * @param {!Protocol.Target.TargetInfo} targetInfo
    */
   targetCreated(targetInfo) {
-    if (targetInfo.type === 'node' && !targetInfo.attached)
-      this._targetAgent.attachToTarget(targetInfo.targetId);
+    if (targetInfo.type === 'node' && !targetInfo.attached) {
+      this._targetAgent.attachToTarget(targetInfo.targetId, false /* flatten */);
+    }
   }
 
   /**
@@ -97,9 +103,12 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
    * @param {boolean} waitingForDebugger
    */
   attachedToTarget(sessionId, targetInfo, waitingForDebugger) {
+    const name = ls`Node.js: ${targetInfo.url}`;
+    const connection = new NodeMain.NodeConnection(this._targetAgent, sessionId);
+    this._childConnections.set(sessionId, connection);
     const target = this._targetManager.createTarget(
-        targetInfo.targetId, Common.UIString('Node.js: %s', targetInfo.url), SDK.Target.Capability.JS,
-        this._createChildConnection.bind(this, this._targetAgent, sessionId), this._parentTarget);
+        targetInfo.targetId, name, SDK.Target.Type.Node, this._parentTarget, undefined, undefined, connection);
+    this._childTargets.set(sessionId, target);
     target.runtimeAgent().runIfWaitingForDebugger();
   }
 
@@ -109,7 +118,8 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
    * @param {string=} childTargetId
    */
   detachedFromTarget(sessionId, childTargetId) {
-    this._childConnections.get(sessionId).onDisconnect.call(null, 'target terminated');
+    this._childTargets.get(sessionId).dispose('target terminated');
+    this._childTargets.delete(sessionId);
     this._childConnections.delete(sessionId);
   }
 
@@ -121,20 +131,63 @@ NodeMain.NodeChildTargetManager = class extends SDK.SDKModel {
    */
   receivedMessageFromTarget(sessionId, message, childTargetId) {
     const connection = this._childConnections.get(sessionId);
-    if (connection)
-      connection.onMessage.call(null, message);
+    const onMessage = connection ? connection._onMessage : null;
+    if (onMessage) {
+      onMessage.call(null, message);
+    }
+  }
+};
+
+/**
+ * @implements {Protocol.Connection}
+ */
+NodeMain.NodeConnection = class {
+  /**
+   * @param {!Protocol.TargetAgent} targetAgent
+   * @param {string} sessionId
+   */
+  constructor(targetAgent, sessionId) {
+    this._targetAgent = targetAgent;
+    this._sessionId = sessionId;
+    this._onMessage = null;
+    this._onDisconnect = null;
   }
 
   /**
-   * @param {!Protocol.TargetAgent} agent
-   * @param {string} sessionId
-   * @param {!Protocol.InspectorBackend.Connection.Params} params
-   * @return {!Protocol.InspectorBackend.Connection}
+   * @override
+   * @param {function((!Object|string))} onMessage
    */
-  _createChildConnection(agent, sessionId, params) {
-    const connection = new SDK.ChildConnection(agent, sessionId, params);
-    this._childConnections.set(sessionId, connection);
-    return connection;
+  setOnMessage(onMessage) {
+    this._onMessage = onMessage;
+  }
+
+  /**
+   * @override
+   * @param {function(string)} onDisconnect
+   */
+  setOnDisconnect(onDisconnect) {
+    this._onDisconnect = onDisconnect;
+  }
+
+  /**
+   * @override
+   * @param {string} message
+   */
+  sendRawMessage(message) {
+    this._targetAgent.sendMessageToTarget(message, this._sessionId);
+  }
+
+  /**
+   * @override
+   * @return {!Promise}
+   */
+  disconnect() {
+    if (this._onDisconnect) {
+      this._onDisconnect.call(null, 'force disconnect');
+    }
+    this._onDisconnect = null;
+    this._onMessage = null;
+    return this._targetAgent.detachFromTarget(this._sessionId);
   }
 };
 

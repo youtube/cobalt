@@ -18,6 +18,7 @@
             "type": "action",
             "actionId": "coverage.toggle-recording",
             "iconClass": "largeicon-start-recording",
+            "toggleable": true,
             "toggledIconClass": "largeicon-stop-recording",
             "toggleWithRedColor": true,
             "className": "Coverage.CoverageView.ActionDelegate",
@@ -46,10 +47,10 @@
         "sdk",
         "ui",
         "source_frame",
-        "sources",
         "data_grid"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
         "CoverageModel.js",
         "CoverageListView.js",
         "CoverageView.js",

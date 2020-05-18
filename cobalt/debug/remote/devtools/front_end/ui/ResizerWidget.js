@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.ResizerWidget = class extends Common.Object {
+export default class ResizerWidget extends Common.Object {
   constructor() {
     super();
 
@@ -40,8 +40,9 @@ UI.ResizerWidget = class extends Common.Object {
    * @param {!Element} element
    */
   addElement(element) {
-    if (this._elements.indexOf(element) !== -1)
+    if (this._elements.indexOf(element) !== -1) {
       return;
+    }
 
     this._elements.push(element);
     element.addEventListener('mousedown', this._installDragOnMouseDownBound, false);
@@ -52,8 +53,9 @@ UI.ResizerWidget = class extends Common.Object {
    * @param {!Element} element
    */
   removeElement(element) {
-    if (this._elements.indexOf(element) === -1)
+    if (this._elements.indexOf(element) === -1) {
       return;
+    }
 
     this._elements.remove(element);
     element.removeEventListener('mousedown', this._installDragOnMouseDownBound, false);
@@ -68,10 +70,11 @@ UI.ResizerWidget = class extends Common.Object {
    * @param {!Element} element
    */
   _updateElementCursor(element) {
-    if (this._isEnabled)
+    if (this._isEnabled) {
       element.style.setProperty('cursor', this.cursor());
-    else
+    } else {
       element.style.removeProperty('cursor');
+    }
   }
 
   /**
@@ -94,8 +97,9 @@ UI.ResizerWidget = class extends Common.Object {
    */
   _installDragOnMouseDown(event) {
     // Only handle drags of the nodes specified.
-    if (this._elements.indexOf(event.target) === -1)
+    if (this._elements.indexOf(event.target) === -1) {
       return false;
+    }
     UI.elementDragStart(
         /** @type {!Element} */ (event.target), this._dragStart.bind(this), this._drag.bind(this),
         this._dragEnd.bind(this), this.cursor(), event);
@@ -106,8 +110,9 @@ UI.ResizerWidget = class extends Common.Object {
    * @return {boolean}
    */
   _dragStart(event) {
-    if (!this._isEnabled)
+    if (!this._isEnabled) {
       return false;
+    }
     this._startX = event.pageX;
     this._startY = event.pageY;
     this.sendDragStart(this._startX, this._startY);
@@ -119,8 +124,7 @@ UI.ResizerWidget = class extends Common.Object {
    * @param {number} y
    */
   sendDragStart(x, y) {
-    this.dispatchEventToListeners(
-        UI.ResizerWidget.Events.ResizeStart, {startX: x, currentX: x, startY: y, currentY: y});
+    this.dispatchEventToListeners(Events.ResizeStart, {startX: x, currentX: x, startY: y, currentY: y});
   }
 
   /**
@@ -147,7 +151,7 @@ UI.ResizerWidget = class extends Common.Object {
    */
   sendDragMove(startX, currentX, startY, currentY, shiftKey) {
     this.dispatchEventToListeners(
-        UI.ResizerWidget.Events.ResizeUpdate,
+        Events.ResizeUpdate,
         {startX: startX, currentX: currentX, startY: startY, currentY: currentY, shiftKey: shiftKey});
   }
 
@@ -155,14 +159,14 @@ UI.ResizerWidget = class extends Common.Object {
    * @param {!MouseEvent} event
    */
   _dragEnd(event) {
-    this.dispatchEventToListeners(UI.ResizerWidget.Events.ResizeEnd);
+    this.dispatchEventToListeners(Events.ResizeEnd);
     delete this._startX;
     delete this._startY;
   }
-};
+}
 
 /** @enum {symbol} */
-UI.ResizerWidget.Events = {
+export const Events = {
   ResizeStart: Symbol('ResizeStart'),
   ResizeUpdate: Symbol('ResizeUpdate'),
   ResizeEnd: Symbol('ResizeEnd')
@@ -171,7 +175,7 @@ UI.ResizerWidget.Events = {
 /**
  * @unrestricted
  */
-UI.SimpleResizerWidget = class extends UI.ResizerWidget {
+export class SimpleResizerWidget extends ResizerWidget {
   constructor() {
     super();
     this._isVertical = true;
@@ -208,8 +212,7 @@ UI.SimpleResizerWidget = class extends UI.ResizerWidget {
    */
   sendDragStart(x, y) {
     const position = this._isVertical ? y : x;
-    this.dispatchEventToListeners(
-        UI.ResizerWidget.Events.ResizeStart, {startPosition: position, currentPosition: position});
+    this.dispatchEventToListeners(Events.ResizeStart, {startPosition: position, currentPosition: position});
   }
 
   /**
@@ -223,10 +226,25 @@ UI.SimpleResizerWidget = class extends UI.ResizerWidget {
   sendDragMove(startX, currentX, startY, currentY, shiftKey) {
     if (this._isVertical) {
       this.dispatchEventToListeners(
-          UI.ResizerWidget.Events.ResizeUpdate, {startPosition: startY, currentPosition: currentY, shiftKey: shiftKey});
+          Events.ResizeUpdate, {startPosition: startY, currentPosition: currentY, shiftKey: shiftKey});
     } else {
       this.dispatchEventToListeners(
-          UI.ResizerWidget.Events.ResizeUpdate, {startPosition: startX, currentPosition: currentX, shiftKey: shiftKey});
+          Events.ResizeUpdate, {startPosition: startX, currentPosition: currentX, shiftKey: shiftKey});
     }
   }
-};
+}
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.ResizerWidget = ResizerWidget;
+
+/** @enum {symbol} */
+UI.ResizerWidget.Events = Events;
+
+/** @constructor */
+UI.SimpleResizerWidget = SimpleResizerWidget;

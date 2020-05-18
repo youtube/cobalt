@@ -4,20 +4,19 @@
 /**
  * @unrestricted
  */
-Services.ServiceManager = class {
+export default class ServiceManager {
   /**
    * @param {string} serviceName
-   * @return {!Promise<?Services.ServiceManager.Service>}
+   * @return {!Promise<?Service>}
    */
   createRemoteService(serviceName) {
     if (!this._remoteConnection) {
-      const url = Runtime.queryParam('service-backend');
+      const url = Root.Runtime.queryParam('service-backend');
       if (!url) {
         console.error('No endpoint address specified');
-        return /** @type {!Promise<?Services.ServiceManager.Service>} */ (Promise.resolve(null));
+        return /** @type {!Promise<?Service>} */ (Promise.resolve(null));
       }
-      this._remoteConnection =
-          new Services.ServiceManager.Connection(new Services.ServiceManager.RemoteServicePort(url));
+      this._remoteConnection = new Connection(new RemoteServicePort(url));
     }
     return this._remoteConnection._createService(serviceName);
   }
@@ -25,35 +24,39 @@ Services.ServiceManager = class {
   /**
    * @param {string} appName
    * @param {string} serviceName
-   * @return {!Promise<?Services.ServiceManager.Service>}
+   * @return {!Promise<?Service>}
    */
   createAppService(appName, serviceName) {
     let url = appName + '.js';
-    const remoteBase = Runtime.queryParam('remoteBase');
-    const debugFrontend = Runtime.queryParam('debugFrontend');
+    const remoteBase = Root.Runtime.queryParam('remoteBase');
+    const debugFrontend = Root.Runtime.queryParam('debugFrontend');
     const isUnderTest = Host.isUnderTest();
 
     const queryParams = [];
-    if (remoteBase)
+    if (remoteBase) {
       queryParams.push('remoteBase=' + remoteBase);
-    if (debugFrontend)
+    }
+    if (debugFrontend) {
       queryParams.push('debugFrontend=' + debugFrontend);
-    if (isUnderTest)
+    }
+    if (isUnderTest) {
       queryParams.push('isUnderTest=true');
+    }
 
-    if (queryParams.length)
+    if (queryParams.length) {
       url += `?${queryParams.join('&')}`;
+    }
 
     const worker = new Worker(url);
-    const connection = new Services.ServiceManager.Connection(new Services.ServiceManager.WorkerServicePort(worker));
+    const connection = new Connection(new WorkerServicePort(worker));
     return connection._createService(serviceName);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Services.ServiceManager.Connection = class {
+class Connection {
   /**
    * @param {!ServicePort} port
    */
@@ -64,13 +67,13 @@ Services.ServiceManager.Connection = class {
     this._lastId = 1;
     /** @type {!Map<number, function(?Object)>}*/
     this._callbacks = new Map();
-    /** @type {!Map<string, !Services.ServiceManager.Service>}*/
+    /** @type {!Map<string, !Service>}*/
     this._services = new Map();
   }
 
   /**
    * @param {string} serviceName
-   * @return {!Promise<?Services.ServiceManager.Service>}
+   * @return {!Promise<?Service>}
    */
   _createService(serviceName) {
     return this._sendCommand(serviceName + '.create').then(result => {
@@ -78,14 +81,14 @@ Services.ServiceManager.Connection = class {
         console.error('Could not initialize service: ' + serviceName);
         return null;
       }
-      const service = new Services.ServiceManager.Service(this, serviceName, result.id);
+      const service = new Service(this, serviceName, result.id);
       this._services.set(serviceName + ':' + result.id, service);
       return service;
     });
   }
 
   /**
-   * @param {!Services.ServiceManager.Service} service
+   * @param {!Service} service
    */
   _serviceDisposed(service) {
     this._services.delete(service._serviceName + ':' + service._objectId);
@@ -104,8 +107,9 @@ Services.ServiceManager.Connection = class {
     const id = this._lastId++;
     const message = JSON.stringify({id: id, method: method, params: params || {}});
     return this._port.send(message).then(success => {
-      if (!success)
+      if (!success) {
         return Promise.resolve(null);
+      }
       return new Promise(fulfill => this._callbacks.set(id, fulfill));
     });
   }
@@ -122,8 +126,9 @@ Services.ServiceManager.Connection = class {
       return;
     }
     if (object.id) {
-      if (object.error)
+      if (object.error) {
         console.error('Service error: ' + object.error);
+      }
       this._callbacks.get(object.id)(object.error ? null : object.result);
       this._callbacks.delete(object.id);
       return;
@@ -141,21 +146,23 @@ Services.ServiceManager.Connection = class {
   }
 
   _connectionClosed() {
-    for (const callback of this._callbacks.values())
+    for (const callback of this._callbacks.values()) {
       callback(null);
+    }
     this._callbacks.clear();
-    for (const service of this._services.values())
+    for (const service of this._services.values()) {
       service._dispatchNotification('disposed');
+    }
     this._services.clear();
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Services.ServiceManager.Service = class {
+export class Service {
   /**
-   * @param {!Services.ServiceManager.Connection} connection
+   * @param {!Connection} connection
    * @param {string} serviceName
    * @param {string} objectId
    */
@@ -208,13 +215,13 @@ Services.ServiceManager.Service = class {
     }
     handler(params);
   }
-};
+}
 
 /**
  * @implements {ServicePort}
  * @unrestricted
  */
-Services.ServiceManager.RemoteServicePort = class {
+class RemoteServicePort {
   /**
    * @param {string} url
    */
@@ -236,13 +243,14 @@ Services.ServiceManager.RemoteServicePort = class {
    * @return {!Promise<boolean>}
    */
   _open() {
-    if (!this._connectionPromise)
+    if (!this._connectionPromise) {
       this._connectionPromise = new Promise(promiseBody.bind(this));
+    }
     return this._connectionPromise;
 
     /**
      * @param {function(boolean)} fulfill
-     * @this {Services.ServiceManager.RemoteServicePort}
+     * @this {RemoteServicePort}
      */
     function promiseBody(fulfill) {
       let socket;
@@ -256,7 +264,7 @@ Services.ServiceManager.RemoteServicePort = class {
       }
 
       /**
-       * @this {Services.ServiceManager.RemoteServicePort}
+       * @this {RemoteServicePort}
        */
       function onConnect() {
         this._socket = socket;
@@ -265,18 +273,19 @@ Services.ServiceManager.RemoteServicePort = class {
 
       /**
        * @param {!Event} event
-       * @this {Services.ServiceManager.RemoteServicePort}
+       * @this {RemoteServicePort}
        */
       function onMessage(event) {
         this._messageHandler(event.data);
       }
 
       /**
-       * @this {Services.ServiceManager.RemoteServicePort}
+       * @this {RemoteServicePort}
        */
       function onClose() {
-        if (!this._socket)
+        if (!this._socket) {
           fulfill(false);
+        }
         this._socketClosed(!!this._socket);
       }
     }
@@ -317,16 +326,17 @@ Services.ServiceManager.RemoteServicePort = class {
   _socketClosed(notifyClient) {
     this._socket = null;
     delete this._connectionPromise;
-    if (notifyClient)
+    if (notifyClient) {
       this._closeHandler();
+    }
   }
-};
+}
 
 /**
  * @implements {ServicePort}
  * @unrestricted
  */
-Services.ServiceManager.WorkerServicePort = class {
+class WorkerServicePort {
   /**
    * @param {!Worker} worker
    */
@@ -341,7 +351,7 @@ Services.ServiceManager.WorkerServicePort = class {
 
     /**
      * @param {!Event} event
-     * @this {Services.ServiceManager.WorkerServicePort}
+     * @this {WorkerServicePort}
      */
     function onMessage(event) {
       if (event.data === 'workerReady') {
@@ -384,11 +394,24 @@ Services.ServiceManager.WorkerServicePort = class {
    */
   close() {
     return this._workerPromise.then(() => {
-      if (this._worker)
+      if (this._worker) {
         this._worker.terminate();
+      }
       return false;
     });
   }
-};
+}
 
-Services.serviceManager = new Services.ServiceManager();
+/* Legacy exported object */
+self.Services = self.Services || {};
+
+/* Legacy exported object */
+Services = Services || {};
+
+/** @constructor */
+Services.ServiceManager = ServiceManager;
+
+/** @constructor */
+Services.ServiceManager.Service = Service;
+
+Services.serviceManager = new ServiceManager();

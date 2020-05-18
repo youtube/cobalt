@@ -27,14 +27,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import {ParsedURL} from './ParsedURL.js';
+import {ls} from './UIString.js';
+
 /**
  * @unrestricted
  */
-Common.ResourceType = class {
+export class ResourceType {
   /**
    * @param {string} name
    * @param {string} title
-   * @param {!Common.ResourceCategory} category
+   * @param {!ResourceCategory} category
    * @param {boolean} isTextType
    */
   constructor(name, title, category, isTextType) {
@@ -46,36 +49,61 @@ Common.ResourceType = class {
 
   /**
    * @param {?string} mimeType
-   * @return {!Common.ResourceType}
+   * @return {!ResourceType}
    */
   static fromMimeType(mimeType) {
-    if (mimeType.startsWith('text/html'))
-      return Common.resourceTypes.Document;
-    if (mimeType.startsWith('text/css'))
-      return Common.resourceTypes.Stylesheet;
-    if (mimeType.startsWith('image/'))
-      return Common.resourceTypes.Image;
-    if (mimeType.startsWith('text/'))
-      return Common.resourceTypes.Script;
+    if (!mimeType) {
+      return resourceTypes.Other;
+    }
+    if (mimeType.startsWith('text/html')) {
+      return resourceTypes.Document;
+    }
+    if (mimeType.startsWith('text/css')) {
+      return resourceTypes.Stylesheet;
+    }
+    if (mimeType.startsWith('image/')) {
+      return resourceTypes.Image;
+    }
+    if (mimeType.startsWith('text/')) {
+      return resourceTypes.Script;
+    }
 
-    if (mimeType.includes('font'))
-      return Common.resourceTypes.Font;
-    if (mimeType.includes('script'))
-      return Common.resourceTypes.Script;
-    if (mimeType.includes('octet'))
-      return Common.resourceTypes.Other;
-    if (mimeType.includes('application'))
-      return Common.resourceTypes.Script;
+    if (mimeType.includes('font')) {
+      return resourceTypes.Font;
+    }
+    if (mimeType.includes('script')) {
+      return resourceTypes.Script;
+    }
+    if (mimeType.includes('octet')) {
+      return resourceTypes.Other;
+    }
+    if (mimeType.includes('application')) {
+      return resourceTypes.Script;
+    }
 
-    return Common.resourceTypes.Other;
+    return resourceTypes.Other;
   }
 
   /**
    * @param {string} url
-   * @return {?Common.ResourceType}
+   * @return {?ResourceType}
    */
   static fromURL(url) {
-    return Common.ResourceType._resourceTypeByExtension.get(Common.ParsedURL.extractExtension(url)) || null;
+    return _resourceTypeByExtension.get(ParsedURL.extractExtension(url)) || null;
+  }
+
+  /**
+   * @param {string} name
+   * @return {?ResourceType}
+   */
+  static fromName(name) {
+    for (const resourceTypeId in resourceTypes) {
+      const resourceType = resourceTypes[resourceTypeId];
+      if (resourceType.name() === name) {
+        return resourceType;
+      }
+    }
+    return null;
   }
 
   /**
@@ -83,12 +111,21 @@ Common.ResourceType = class {
    * @return {string|undefined}
    */
   static mimeFromURL(url) {
-    const name = Common.ParsedURL.extractName(url);
-    if (Common.ResourceType._mimeTypeByName.has(name))
-      return Common.ResourceType._mimeTypeByName.get(name);
+    const name = ParsedURL.extractName(url);
+    if (_mimeTypeByName.has(name)) {
+      return _mimeTypeByName.get(name);
+    }
 
-    const ext = Common.ParsedURL.extractExtension(url).toLowerCase();
-    return Common.ResourceType._mimeTypeByExtension.get(ext);
+    const ext = ParsedURL.extractExtension(url).toLowerCase();
+    return _mimeTypeByExtension.get(ext);
+  }
+
+  /**
+   * @param {string} ext
+   * @return {string|undefined}
+   */
+  static mimeFromExtension(ext) {
+    return _mimeTypeByExtension.get(ext);
   }
 
   /**
@@ -106,7 +143,7 @@ Common.ResourceType = class {
   }
 
   /**
-   * @return {!Common.ResourceCategory}
+   * @return {!ResourceCategory}
    */
   category() {
     return this._category;
@@ -123,7 +160,7 @@ Common.ResourceType = class {
    * @return {boolean}
    */
   isScript() {
-    return this._name === 'script' || this._name === 'sm-script' || this._name === 'snippet';
+    return this._name === 'script' || this._name === 'sm-script';
   }
 
   /**
@@ -173,20 +210,23 @@ Common.ResourceType = class {
    * @return {string}
    */
   canonicalMimeType() {
-    if (this.isDocument())
+    if (this.isDocument()) {
       return 'text/html';
-    if (this.isScript())
+    }
+    if (this.isScript()) {
       return 'text/javascript';
-    if (this.isStyleSheet())
+    }
+    if (this.isStyleSheet()) {
       return 'text/css';
+    }
     return '';
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Common.ResourceCategory = class {
+export class ResourceCategory {
   /**
    * @param {string} title
    * @param {string} shortTitle
@@ -195,68 +235,68 @@ Common.ResourceCategory = class {
     this.title = title;
     this.shortTitle = shortTitle;
   }
-};
+}
 
-Common.resourceCategories = {
-  XHR: new Common.ResourceCategory('XHR and Fetch', 'XHR'),
-  Script: new Common.ResourceCategory('Scripts', 'JS'),
-  Stylesheet: new Common.ResourceCategory('Stylesheets', 'CSS'),
-  Image: new Common.ResourceCategory('Images', 'Img'),
-  Media: new Common.ResourceCategory('Media', 'Media'),
-  Font: new Common.ResourceCategory('Fonts', 'Font'),
-  Document: new Common.ResourceCategory('Documents', 'Doc'),
-  WebSocket: new Common.ResourceCategory('WebSockets', 'WS'),
-  Manifest: new Common.ResourceCategory('Manifest', 'Manifest'),
-  Other: new Common.ResourceCategory('Other', 'Other')
+/**
+ * @enum {!ResourceCategory}
+ */
+export const resourceCategories = {
+  XHR: new ResourceCategory(ls`XHR and Fetch`, ls`XHR`),
+  Script: new ResourceCategory(ls`Scripts`, ls`JS`),
+  Stylesheet: new ResourceCategory(ls`Stylesheets`, ls`CSS`),
+  Image: new ResourceCategory(ls`Images`, ls`Img`),
+  Media: new ResourceCategory(ls`Media`, ls`Media`),
+  Font: new ResourceCategory(ls`Fonts`, ls`Font`),
+  Document: new ResourceCategory(ls`Documents`, ls`Doc`),
+  WebSocket: new ResourceCategory(ls`WebSockets`, ls`WS`),
+  Manifest: new ResourceCategory(ls`Manifest`, ls`Manifest`),
+  Other: new ResourceCategory(ls`Other`, ls`Other`)
 };
 
 /**
  * Keep these in sync with WebCore::InspectorPageAgent::resourceTypeJson
- * @enum {!Common.ResourceType}
+ * @enum {!ResourceType}
  */
-Common.resourceTypes = {
-  XHR: new Common.ResourceType('xhr', 'XHR', Common.resourceCategories.XHR, true),
-  Fetch: new Common.ResourceType('fetch', 'Fetch', Common.resourceCategories.XHR, true),
-  EventSource: new Common.ResourceType('eventsource', 'EventSource', Common.resourceCategories.XHR, true),
-  Script: new Common.ResourceType('script', 'Script', Common.resourceCategories.Script, true),
-  Snippet: new Common.ResourceType('snippet', 'Snippet', Common.resourceCategories.Script, true),
-  Stylesheet: new Common.ResourceType('stylesheet', 'Stylesheet', Common.resourceCategories.Stylesheet, true),
-  Image: new Common.ResourceType('image', 'Image', Common.resourceCategories.Image, false),
-  Media: new Common.ResourceType('media', 'Media', Common.resourceCategories.Media, false),
-  Font: new Common.ResourceType('font', 'Font', Common.resourceCategories.Font, false),
-  Document: new Common.ResourceType('document', 'Document', Common.resourceCategories.Document, true),
-  TextTrack: new Common.ResourceType('texttrack', 'TextTrack', Common.resourceCategories.Other, true),
-  WebSocket: new Common.ResourceType('websocket', 'WebSocket', Common.resourceCategories.WebSocket, false),
-  Other: new Common.ResourceType('other', 'Other', Common.resourceCategories.Other, false),
-  SourceMapScript: new Common.ResourceType('sm-script', 'Script', Common.resourceCategories.Script, true),
-  SourceMapStyleSheet:
-      new Common.ResourceType('sm-stylesheet', 'Stylesheet', Common.resourceCategories.Stylesheet, true),
-  Manifest: new Common.ResourceType('manifest', 'Manifest', Common.resourceCategories.Manifest, true),
-  SignedExchange: new Common.ResourceType('signed-exchange', 'SignedExchange', Common.resourceCategories.Other, false),
+export const resourceTypes = {
+  XHR: new ResourceType('xhr', ls`XHR`, resourceCategories.XHR, true),
+  Fetch: new ResourceType('fetch', ls`Fetch`, resourceCategories.XHR, true),
+  EventSource: new ResourceType('eventsource', ls`EventSource`, resourceCategories.XHR, true),
+  Script: new ResourceType('script', ls`Script`, resourceCategories.Script, true),
+  Stylesheet: new ResourceType('stylesheet', ls`Stylesheet`, resourceCategories.Stylesheet, true),
+  Image: new ResourceType('image', ls`Image`, resourceCategories.Image, false),
+  Media: new ResourceType('media', ls`Media`, resourceCategories.Media, false),
+  Font: new ResourceType('font', ls`Font`, resourceCategories.Font, false),
+  Document: new ResourceType('document', ls`Document`, resourceCategories.Document, true),
+  TextTrack: new ResourceType('texttrack', ls`TextTrack`, resourceCategories.Other, true),
+  WebSocket: new ResourceType('websocket', ls`WebSocket`, resourceCategories.WebSocket, false),
+  Other: new ResourceType('other', ls`Other`, resourceCategories.Other, false),
+  SourceMapScript: new ResourceType('sm-script', ls`Script`, resourceCategories.Script, true),
+  SourceMapStyleSheet: new ResourceType('sm-stylesheet', ls`Stylesheet`, resourceCategories.Stylesheet, true),
+  Manifest: new ResourceType('manifest', ls`Manifest`, resourceCategories.Manifest, true),
+  SignedExchange: new ResourceType('signed-exchange', ls`SignedExchange`, resourceCategories.Other, false)
 };
 
 
-Common.ResourceType._mimeTypeByName = new Map([
+export const _mimeTypeByName = new Map([
   // CoffeeScript
   ['Cakefile', 'text/x-coffeescript']
 ]);
 
-Common.ResourceType._resourceTypeByExtension = new Map([
-  ['js', Common.resourceTypes.Script], ['mjs', Common.resourceTypes.Script],
+export const _resourceTypeByExtension = new Map([
+  ['js', resourceTypes.Script], ['mjs', resourceTypes.Script],
 
-  ['css', Common.resourceTypes.Stylesheet], ['xsl', Common.resourceTypes.Stylesheet],
+  ['css', resourceTypes.Stylesheet], ['xsl', resourceTypes.Stylesheet],
 
-  ['jpeg', Common.resourceTypes.Image], ['jpg', Common.resourceTypes.Image], ['svg', Common.resourceTypes.Image],
-  ['gif', Common.resourceTypes.Image], ['png', Common.resourceTypes.Image], ['ico', Common.resourceTypes.Image],
-  ['tiff', Common.resourceTypes.Image], ['tif', Common.resourceTypes.Image], ['bmp', Common.resourceTypes.Image],
+  ['jpeg', resourceTypes.Image], ['jpg', resourceTypes.Image], ['svg', resourceTypes.Image],
+  ['gif', resourceTypes.Image], ['png', resourceTypes.Image], ['ico', resourceTypes.Image],
+  ['tiff', resourceTypes.Image], ['tif', resourceTypes.Image], ['bmp', resourceTypes.Image],
 
-  ['webp', Common.resourceTypes.Media],
+  ['webp', resourceTypes.Media],
 
-  ['ttf', Common.resourceTypes.Font], ['otf', Common.resourceTypes.Font], ['ttc', Common.resourceTypes.Font],
-  ['woff', Common.resourceTypes.Font]
+  ['ttf', resourceTypes.Font], ['otf', resourceTypes.Font], ['ttc', resourceTypes.Font], ['woff', resourceTypes.Font]
 ]);
 
-Common.ResourceType._mimeTypeByExtension = new Map([
+export const _mimeTypeByExtension = new Map([
   // Web extensions
   ['js', 'text/javascript'], ['mjs', 'text/javascript'], ['css', 'text/css'], ['html', 'text/html'],
   ['htm', 'text/html'], ['xml', 'application/xml'], ['xsl', 'application/xml'],

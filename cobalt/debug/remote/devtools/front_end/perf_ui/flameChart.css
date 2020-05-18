@@ -18,6 +18,11 @@
     display: block;
 }
 
+.flame-chart-canvas[data-keyboard-focus="true"]:focus {
+    border-top: 1px solid var(--accent-color);
+    border-bottom: 1px solid var(--accent-color);
+}
+
 .flame-chart-highlight-element {
     position: absolute;
     pointer-events: none;
@@ -29,6 +34,10 @@
     pointer-events: none;
     outline: 2px solid var(--selection-bg-color);
     background-color: rgba(56, 121, 217, 0.1);
+}
+
+.flame-chart-unfocused-selected-element {
+    outline: 2px solid rgba(123, 123, 123, 1);
 }
 
 .chart-cursor-element {

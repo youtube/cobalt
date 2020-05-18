@@ -97,7 +97,7 @@ circle.animation-keyframe-point {
     display: flex;
     background-color: var(--toolbar-bg-color);
     border-bottom: var(--divider-border);
-    flex: 0 0;
+    flex: 0 0 auto;
 }
 
 .animation-timeline-toolbar {
@@ -287,19 +287,6 @@ text.animation-timeline-grid-label {
 
 .animation-node-selected > .animation-node-description {
     background-color: #EFF4FD;
-}
-
-.animation-timeline-empty-message {
-    padding-left: 230px;
-    padding-right: 30px;
-    text-align: center;
-    position: absolute;
-    font-size: 20px;
-    line-height: 32px;
-    align-items: center;   justify-content: center;
-    width: 100%;
-    height: calc(100% - 44px);
-    display: flex;
 }
 
 .animation-buffer-preview {

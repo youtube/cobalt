@@ -1,7 +1,7 @@
 // Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-Search.SearchResultsPane = class extends UI.VBox {
+export default class SearchResultsPane extends UI.VBox {
   /**
    * @param {!Search.SearchConfig} searchConfig
    */
@@ -33,17 +33,21 @@ Search.SearchResultsPane = class extends UI.VBox {
   _addTreeElement(searchResult) {
     const treeElement = new Search.SearchResultsPane.SearchResultsTreeElement(this._searchConfig, searchResult);
     this._treeOutline.appendChild(treeElement);
+    if (!this._treeOutline.selectedTreeElement) {
+      treeElement.select(/* omitFocus */ true, /* selectedByUser */ true);
+    }
     // Expand until at least a certain number of matches is expanded.
-    if (this._matchesExpandedCount < Search.SearchResultsPane._matchesExpandedByDefault)
+    if (this._matchesExpandedCount < Search.SearchResultsPane._matchesExpandedByDefault) {
       treeElement.expand();
+    }
     this._matchesExpandedCount += searchResult.matchesCount();
   }
-};
+}
 
-Search.SearchResultsPane._matchesExpandedByDefault = 20;
-Search.SearchResultsPane._matchesShownAtOnce = 20;
+export const _matchesExpandedByDefault = 20;
+export const _matchesShownAtOnce = 20;
 
-Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement {
+export class SearchResultsTreeElement extends UI.TreeElement {
   /**
    * @param {!Search.SearchConfig} searchConfig
    * @param {!Search.SearchResult} searchResult
@@ -53,17 +57,16 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
     this._searchConfig = searchConfig;
     this._searchResult = searchResult;
     this._initialized = false;
-
     this.toggleOnClick = true;
-    this.selectable = false;
   }
 
   /**
    * @override
    */
   onexpand() {
-    if (this._initialized)
+    if (this._initialized) {
       return;
+    }
 
     this._updateMatchesUI();
     this._initialized = true;
@@ -100,10 +103,12 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
     matchesCountSpan.className = 'search-result-matches-count';
 
     matchesCountSpan.textContent = `${this._searchResult.matchesCount()}`;
+    UI.ARIAUtils.setAccessibleName(matchesCountSpan, ls`Matches Count ${this._searchResult.matchesCount()}`);
 
     this.listItemElement.appendChild(matchesCountSpan);
-    if (this.expanded)
+    if (this.expanded) {
       this._updateMatchesUI();
+    }
 
     /**
      * @param {string} text
@@ -127,30 +132,43 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
 
     const queries = this._searchConfig.queries();
     const regexes = [];
-    for (let i = 0; i < queries.length; ++i)
+    for (let i = 0; i < queries.length; ++i) {
       regexes.push(createSearchRegex(queries[i], !this._searchConfig.ignoreCase(), this._searchConfig.isRegex()));
+    }
 
     for (let i = fromIndex; i < toIndex; ++i) {
       const lineContent = searchResult.matchLineContent(i).trim();
       let matchRanges = [];
-      for (let j = 0; j < regexes.length; ++j)
+      for (let j = 0; j < regexes.length; ++j) {
         matchRanges = matchRanges.concat(this._regexMatchRanges(lineContent, regexes[j]));
+      }
 
       const anchor = Components.Linkifier.linkifyRevealable(searchResult.matchRevealable(i), '');
       anchor.classList.add('search-match-link');
-      const lineNumberSpan = createElement('span');
-      lineNumberSpan.classList.add('search-match-line-number');
-      lineNumberSpan.textContent = searchResult.matchLabel(i);
-      anchor.appendChild(lineNumberSpan);
+      const labelSpan = createElement('span');
+      labelSpan.classList.add('search-match-line-number');
+      const resultLabel = searchResult.matchLabel(i);
+      labelSpan.textContent = resultLabel;
+      if (typeof resultLabel === 'number' && !isNaN(resultLabel)) {
+        UI.ARIAUtils.setAccessibleName(labelSpan, ls`Line ${resultLabel}`);
+      } else {
+        UI.ARIAUtils.setAccessibleName(labelSpan, ls`${resultLabel}`);
+      }
+      anchor.appendChild(labelSpan);
 
       const contentSpan = this._createContentSpan(lineContent, matchRanges);
       anchor.appendChild(contentSpan);
 
       const searchMatchElement = new UI.TreeElement();
-      searchMatchElement.selectable = false;
       this.appendChild(searchMatchElement);
       searchMatchElement.listItemElement.className = 'search-match';
       searchMatchElement.listItemElement.appendChild(anchor);
+      searchMatchElement.listItemElement.addEventListener('keydown', event => {
+        if (isEnterKey(event)) {
+          event.consume(true);
+          Common.Revealer.reveal(searchResult.matchRevealable(i));
+        }
+      });
       searchMatchElement.tooltip = lineContent;
     }
   }
@@ -175,8 +193,9 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
    */
   _createContentSpan(lineContent, matchRanges) {
     let trimBy = 0;
-    if (matchRanges.length > 0 && matchRanges[0].offset > 20)
+    if (matchRanges.length > 0 && matchRanges[0].offset > 20) {
       trimBy = 15;
+    }
     lineContent = lineContent.substring(trimBy, 1000 + trimBy);
     if (trimBy) {
       matchRanges = matchRanges.map(range => new TextUtils.SourceRange(range.offset - trimBy + 1, range.length));
@@ -185,6 +204,7 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
     const contentSpan = createElement('span');
     contentSpan.className = 'search-match-content';
     contentSpan.textContent = lineContent;
+    UI.ARIAUtils.setAccessibleName(contentSpan, `${lineContent} line`);
     UI.highlightRangesWithStyleClass(contentSpan, matchRanges, 'highlighted-match');
     return contentSpan;
   }
@@ -198,8 +218,9 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
     regex.lastIndex = 0;
     let match;
     const matchRanges = [];
-    while ((regex.lastIndex < lineContent.length) && (match = regex.exec(lineContent)))
+    while ((regex.lastIndex < lineContent.length) && (match = regex.exec(lineContent))) {
       matchRanges.push(new TextUtils.SourceRange(match.index, match[0].length));
+    }
 
     return matchRanges;
   }
@@ -214,4 +235,22 @@ Search.SearchResultsPane.SearchResultsTreeElement = class extends UI.TreeElement
     this._appendSearchMatches(startMatchIndex, this._searchResult.matchesCount());
     return false;
   }
-};
+}
+
+/* Legacy exported object */
+self.Search = self.Search || {};
+
+/* Legacy exported object */
+Search = Search || {};
+
+/**
+ * @constructor
+ */
+Search.SearchResultsPane = SearchResultsPane;
+Search.SearchResultsPane._matchesExpandedByDefault = _matchesExpandedByDefault;
+Search.SearchResultsPane._matchesShownAtOnce = _matchesShownAtOnce;
+
+/**
+ * @constructor
+ */
+Search.SearchResultsPane.SearchResultsTreeElement = SearchResultsTreeElement;

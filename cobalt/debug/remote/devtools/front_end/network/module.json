@@ -74,6 +74,7 @@
             "type": "action",
             "actionId": "network.toggle-recording",
             "iconClass": "largeicon-start-recording",
+            "toggleable": true,
             "toggledIconClass": "largeicon-stop-recording",
             "toggleWithRedColor": true,
             "contextTypes": [
@@ -131,7 +132,7 @@
             "persistence": "closeable",
             "order": 40,
             "className": "Network.NetworkConfigView",
-            "tags": "disk cache, network throttling, useragent, user agent"
+            "tags": "disk cache, network throttling, useragent, user agent, user-agent"
         },
         {
             "type": "@UI.ViewLocationResolver",
@@ -176,12 +177,14 @@
         "cookie_table",
         "data_grid",
         "browser_sdk",
-        "product_registry",
         "mobile_throttling",
         "har_importer",
         "persistence"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "network.js",
+        "BinaryResourceView.js",
         "BlockedURLsPane.js",
         "EventSourceMessagesView.js",
         "HARWriter.js",
@@ -193,20 +196,22 @@
         "NetworkLogViewColumns.js",
         "NetworkFrameGrouper.js",
         "NetworkManageCustomHeadersView.js",
-        "NetworkOverview.js",
         "NetworkSearchScope.js",
         "NetworkWaterfallColumn.js",
         "RequestCookiesView.js",
         "RequestHeadersView.js",
         "RequestHTMLView.js",
+        "RequestInitiatorView.js",
         "RequestResponseView.js",
         "RequestPreviewView.js",
         "RequestTimingView.js",
         "ResourceWebSocketFrameView.js",
         "SignedExchangeInfoView.js",
+        "NetworkOverview.js",
         "NetworkPanel.js"
     ],
     "resources": [
+        "binaryResourceView.css",
         "blockedURLsPane.css",
         "eventSourceMessagesView.css",
         "networkConfigView.css",
@@ -219,6 +224,7 @@
         "requestHeadersTree.css",
         "requestHeadersView.css",
         "requestHTMLView.css",
+        "requestInitiatorView.css",
         "signedExchangeInfoTree.css",
         "signedExchangeInfoView.css",
         "webSocketFrameView.css"

@@ -48,7 +48,8 @@
 .tabbed-pane-placeholder {
     font-size: 14px;
     text-align: center;
-    margin-top: 20px;
+    width: fit-content;
+    margin: 20px auto 0px;
     text-shadow: rgba(255, 255, 255, 0.75) 0 1px 0;
     line-height: 28px;
     overflow: hidden;
@@ -57,6 +58,11 @@
 .tabbed-pane-placeholder-row {
     display: flex;
     white-space: nowrap;
+    padding: 0 5px;
+}
+
+.tabbed-pane-placeholder-row[data-keyboard-focus="true"]:focus {
+  outline-width: unset;
 }
 
 .tabbed-pane-placeholder-key {
@@ -65,6 +71,11 @@
     padding-right: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.tabbed-pane-no-shortcut {
+  flex: 1;
+  text-align: center;
 }
 
 .tabbed-pane-placeholder-value {
@@ -170,16 +181,13 @@
     display: block;
 }
 
-.tabbed-pane-header-tabs-drop-down-container:hover {
-    background-color: rgb(229, 229, 229);
+.tabbed-pane-header-tabs-drop-down-container:hover,
+.tabbed-pane-header-tabs-drop-down-container[data-keyboard-focus="true"]:focus {
+    background-color: rgba(0, 0, 0, 0.08);
 }
 
 .tabbed-pane-header-tabs-drop-down-container.measuring {
     visibility: hidden;
-}
-
-.tabbed-pane-header-tabs-drop-down-container:hover {
-    opacity: 1.0;
 }
 
 .tabbed-pane-header-tabs-drop-down-container:active {
@@ -246,7 +254,7 @@
     height: 2px;
     position: absolute;
     bottom: -1px;
-    background-color: #03a9f4;
+    background-color: var(--accent-color);
     left: 0;
     z-index: 50;
     transform-origin: 0 100%;

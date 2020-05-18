@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-Animation.AnimationGroupPreviewUI = class {
+export default class AnimationGroupPreviewUI {
   /**
    * @param {!Animation.AnimationModel.AnimationGroup} model
    */
@@ -32,8 +32,9 @@ Animation.AnimationGroupPreviewUI = class {
     let duration = 0;
     for (const anim of this._model.animations()) {
       const animDuration = anim.source().delay() + anim.source().duration();
-      if (animDuration > duration)
+      if (animDuration > duration) {
         duration = animDuration;
+      }
     }
     return duration;
   }
@@ -70,4 +71,16 @@ Animation.AnimationGroupPreviewUI = class {
       line.style.stroke = Animation.AnimationUI.Color(this._model.animations()[i]);
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Animation = self.Animation || {};
+
+/* Legacy exported object */
+Animation = Animation || {};
+
+/**
+ * @constructor
+ * @unrestricted
+ */
+Animation.AnimationGroupPreviewUI = AnimationGroupPreviewUI;

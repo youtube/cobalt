@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Network.SignedExchangeInfoView = class extends UI.VBox {
+export default class SignedExchangeInfoView extends UI.VBox {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -59,8 +59,8 @@ Network.SignedExchangeInfoView = class extends UI.VBox {
         requestURLElement.appendChild(viewRequestLink);
       }
       headerCategory.createLeaf(requestURLElement);
-      headerCategory.createLeaf(this._formatHeader(Common.UIString('Request method'), header.requestMethod));
       headerCategory.createLeaf(this._formatHeader(Common.UIString('Response code'), header.responseCode + ''));
+      headerCategory.createLeaf(this._formatHeader(Common.UIString('Header integrity hash'), header.headerIntegrity));
 
       this._responseHeadersItem =
           headerCategory.createLeaf(this._formatHeader(Common.UIString('Response headers'), ''));
@@ -89,7 +89,7 @@ Network.SignedExchangeInfoView = class extends UI.VBox {
             const viewCertLink = certURLElement.createChild('span', 'devtools-link header-toggle');
             viewCertLink.textContent = Common.UIString('View certificate');
             viewCertLink.addEventListener(
-                'click', InspectorFrontendHost.showCertificateViewer.bind(null, signature.certificates), false);
+                'click', Host.InspectorFrontendHost.showCertificateViewer.bind(null, signature.certificates), false);
           }
           signatureCategory.createLeaf(certURLElement);
         }
@@ -163,13 +163,12 @@ Network.SignedExchangeInfoView = class extends UI.VBox {
     }
     return fragment;
   }
-};
-
+}
 
 /**
  * @unrestricted
  */
-Network.SignedExchangeInfoView.Category = class extends UI.TreeElement {
+export class Category extends UI.TreeElement {
   /**
    * @param {!UI.TreeOutline} root
    * @param {(string|!Node)=} title
@@ -191,4 +190,20 @@ Network.SignedExchangeInfoView.Category = class extends UI.TreeElement {
     this.appendChild(leaf);
     return leaf;
   }
-};
+}
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.SignedExchangeInfoView = SignedExchangeInfoView;
+
+/**
+ * @constructor
+ */
+Network.SignedExchangeInfoView.Category = Category;

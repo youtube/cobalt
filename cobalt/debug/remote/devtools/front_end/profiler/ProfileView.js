@@ -1,6 +1,7 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 /**
  * @implements {UI.Searchable}
  * @unrestricted
@@ -8,6 +9,8 @@
 Profiler.ProfileView = class extends UI.SimpleView {
   constructor() {
     super(Common.UIString('Profile'));
+
+    this._profile = null;
 
     this._searchableView = new UI.SearchableView(this);
     this._searchableView.setPlaceholder(Common.UIString('Find by cost (>50ms), name or file'));
@@ -29,8 +32,9 @@ Profiler.ProfileView = class extends UI.SimpleView {
     this.dataGrid.addEventListener(DataGrid.DataGrid.Events.SortingChanged, this._sortProfile, this);
     this.dataGrid.addEventListener(DataGrid.DataGrid.Events.SelectedNode, this._nodeSelected.bind(this, true));
     this.dataGrid.addEventListener(DataGrid.DataGrid.Events.DeselectedNode, this._nodeSelected.bind(this, false));
+    this.dataGrid.setRowContextMenuCallback(this._populateContextMenu.bind(this));
 
-    this.viewSelectComboBox = new UI.ToolbarComboBox(this._changeView.bind(this));
+    this.viewSelectComboBox = new UI.ToolbarComboBox(this._changeView.bind(this), ls`Profile view mode`);
 
     this.focusButton = new UI.ToolbarButton(Common.UIString('Focus selected function'), 'largeicon-visibility');
     this.focusButton.setEnabled(false);
@@ -62,6 +66,24 @@ Profiler.ProfileView = class extends UI.SimpleView {
   }
 
   /**
+   * @param {!SDK.ProfileTreeModel} profile
+   */
+  setProfile(profile) {
+    this._profile = profile;
+    this._bottomUpProfileDataGridTree = null;
+    this._topDownProfileDataGridTree = null;
+    this._changeView();
+    this.refresh();
+  }
+
+  /**
+   * @return {?SDK.ProfileTreeModel}
+   */
+  profile() {
+    return this._profile;
+  }
+
+  /**
    * @param {!Profiler.ProfileDataGridNode.Formatter} nodeFormatter
    * @param {!Array<string>=} viewTypes
    * @protected
@@ -75,30 +97,33 @@ Profiler.ProfileView = class extends UI.SimpleView {
     ];
 
     const optionNames = new Map([
-      [Profiler.ProfileView.ViewTypes.Flame, Common.UIString('Chart')],
-      [Profiler.ProfileView.ViewTypes.Heavy, Common.UIString('Heavy (Bottom Up)')],
-      [Profiler.ProfileView.ViewTypes.Tree, Common.UIString('Tree (Top Down)')],
+      [Profiler.ProfileView.ViewTypes.Flame, ls`Chart`],
+      [Profiler.ProfileView.ViewTypes.Heavy, ls`Heavy (Bottom Up)`],
+      [Profiler.ProfileView.ViewTypes.Tree, ls`Tree (Top Down)`],
+      [Profiler.ProfileView.ViewTypes.Text, ls`Text (Top Down)`],
     ]);
 
     const options =
-        new Map(viewTypes.map(type => [type, this.viewSelectComboBox.createOption(optionNames.get(type), '', type)]));
+        new Map(viewTypes.map(type => [type, this.viewSelectComboBox.createOption(optionNames.get(type), type)]));
     const optionName = this._viewType.get() || viewTypes[0];
     const option = options.get(optionName) || options.get(viewTypes[0]);
     this.viewSelectComboBox.select(option);
 
     this._changeView();
-    if (this._flameChart)
+    if (this._flameChart) {
       this._flameChart.update();
+    }
   }
 
   /**
    * @override
    */
   focus() {
-    if (this._flameChart)
+    if (this._flameChart) {
       this._flameChart.focus();
-    else
+    } else {
       super.focus();
+    }
   }
 
   /**
@@ -114,14 +139,15 @@ Profiler.ProfileView = class extends UI.SimpleView {
    * @param {number} timeRight
    */
   selectRange(timeLeft, timeRight) {
-    if (!this._flameChart)
+    if (!this._flameChart) {
       return;
+    }
     this._flameChart.selectRange(timeLeft, timeRight);
   }
 
   /**
    * @override
-   * @return {!Array.<!UI.ToolbarItem>}
+   * @return {!Array<!UI.ToolbarItem>}
    */
   syncToolbarItems() {
     return [this.viewSelectComboBox, this.focusButton, this.excludeButton, this.resetButton];
@@ -133,7 +159,7 @@ Profiler.ProfileView = class extends UI.SimpleView {
   _getBottomUpProfileDataGridTree() {
     if (!this._bottomUpProfileDataGridTree) {
       this._bottomUpProfileDataGridTree = new Profiler.BottomUpProfileDataGridTree(
-          this._nodeFormatter, this._searchableView, this.profile.root, this.adjustedTotal);
+          this._nodeFormatter, this._searchableView, this._profile.root, this.adjustedTotal);
     }
     return this._bottomUpProfileDataGridTree;
   }
@@ -144,9 +170,20 @@ Profiler.ProfileView = class extends UI.SimpleView {
   _getTopDownProfileDataGridTree() {
     if (!this._topDownProfileDataGridTree) {
       this._topDownProfileDataGridTree = new Profiler.TopDownProfileDataGridTree(
-          this._nodeFormatter, this._searchableView, this.profile.root, this.adjustedTotal);
+          this._nodeFormatter, this._searchableView, this._profile.root, this.adjustedTotal);
     }
     return this._topDownProfileDataGridTree;
+  }
+
+  /**
+   * @param {!UI.ContextMenu} contextMenu
+   * @param {!DataGrid.DataGridNode} gridNode
+   */
+  _populateContextMenu(contextMenu, gridNode) {
+    const node = /** @type {!Profiler.ProfileDataGridNode} */ (gridNode);
+    if (node.linkElement && !contextMenu.containsTarget(node.linkElement)) {
+      contextMenu.appendApplicableItems(node.linkElement);
+    }
   }
 
   /**
@@ -157,6 +194,9 @@ Profiler.ProfileView = class extends UI.SimpleView {
   }
 
   refresh() {
+    if (!this.profileDataGridTree) {
+      return;
+    }
     const selectedProfileNode = this.dataGrid.selectedNode ? this.dataGrid.selectedNode.profileNode : null;
 
     this.dataGrid.rootNode().removeChildren();
@@ -164,11 +204,13 @@ Profiler.ProfileView = class extends UI.SimpleView {
     const children = this.profileDataGridTree.children;
     const count = children.length;
 
-    for (let index = 0; index < count; ++index)
+    for (let index = 0; index < count; ++index) {
       this.dataGrid.rootNode().appendChild(children[index]);
+    }
 
-    if (selectedProfileNode)
+    if (selectedProfileNode) {
       selectedProfileNode.selected = true;
+    }
   }
 
   refreshVisibleData() {
@@ -240,6 +282,21 @@ Profiler.ProfileView = class extends UI.SimpleView {
     return this._linkifier;
   }
 
+  _ensureTextViewCreated() {
+    if (this._textView) {
+      return;
+    }
+    this._textView = new UI.SimpleView(ls`Call tree`);
+    this._textView.registerRequiredCSS('profiler/profilesPanel.css');
+    this.populateTextView(this._textView);
+  }
+
+  /**
+   * @param {!UI.SimpleView} view
+   */
+  populateTextView(view) {
+  }
+
   /**
    * @return {!PerfUI.FlameChartDataProvider}
    */
@@ -248,38 +305,43 @@ Profiler.ProfileView = class extends UI.SimpleView {
   }
 
   _ensureFlameChartCreated() {
-    if (this._flameChart)
+    if (this._flameChart) {
       return;
+    }
     this._dataProvider = this.createFlameChartDataProvider();
     this._flameChart = new Profiler.CPUProfileFlameChart(this._searchableView, this._dataProvider);
-    this._flameChart.addEventListener(PerfUI.FlameChart.Events.EntrySelected, this._onEntrySelected.bind(this));
+    this._flameChart.addEventListener(PerfUI.FlameChart.Events.EntryInvoked, this._onEntryInvoked.bind(this));
   }
 
   /**
    * @param {!Common.Event} event
    */
-  _onEntrySelected(event) {
+  _onEntryInvoked(event) {
     const entryIndex = event.data;
     const node = this._dataProvider._entryNodes[entryIndex];
     const debuggerModel = this._profileHeader._debuggerModel;
-    if (!node || !node.scriptId || !debuggerModel)
+    if (!node || !node.scriptId || !debuggerModel) {
       return;
+    }
     const script = debuggerModel.scriptForId(node.scriptId);
-    if (!script)
+    if (!script) {
       return;
+    }
     const location = /** @type {!SDK.DebuggerModel.Location} */ (
         debuggerModel.createRawLocation(script, node.lineNumber, node.columnNumber));
     Common.Revealer.reveal(Bindings.debuggerWorkspaceBinding.rawLocationToUILocation(location));
   }
 
   _changeView() {
-    if (!this.profile)
+    if (!this._profile) {
       return;
+    }
 
     this._searchableView.closeSearch();
 
-    if (this._visibleView)
+    if (this._visibleView) {
       this._visibleView.detach();
+    }
 
     this._viewType.set(this.viewSelectComboBox.selectedOption().value);
     switch (this._viewType.get()) {
@@ -299,6 +361,11 @@ Profiler.ProfileView = class extends UI.SimpleView {
         this._sortProfile();
         this._visibleView = this.dataGrid.asWidget();
         this._searchableElement = this.profileDataGridTree;
+        break;
+      case Profiler.ProfileView.ViewTypes.Text:
+        this._ensureTextViewCreated();
+        this._visibleView = this._textView;
+        this._searchableElement = this._textView;
         break;
     }
 
@@ -322,8 +389,9 @@ Profiler.ProfileView = class extends UI.SimpleView {
    * @param {!Common.Event} event
    */
   _focusClicked(event) {
-    if (!this.dataGrid.selectedNode)
+    if (!this.dataGrid.selectedNode) {
       return;
+    }
 
     this.resetButton.setEnabled(true);
     this.profileDataGridTree.focus(this.dataGrid.selectedNode);
@@ -338,8 +406,9 @@ Profiler.ProfileView = class extends UI.SimpleView {
   _excludeClicked(event) {
     const selectedNode = this.dataGrid.selectedNode;
 
-    if (!selectedNode)
+    if (!selectedNode) {
       return;
+    }
 
     selectedNode.deselect();
 
@@ -377,7 +446,8 @@ Profiler.ProfileView._maxLinkLength = 30;
 Profiler.ProfileView.ViewTypes = {
   Flame: 'Flame',
   Tree: 'Tree',
-  Heavy: 'Heavy'
+  Heavy: 'Heavy',
+  Text: 'Text'
 };
 
 
@@ -458,11 +528,13 @@ Profiler.WritableProfileHeader = class extends Profiler.ProfileHeader {
     this._fileName = this._fileName ||
         `${this.profileType().typeName()}-${new Date().toISO8601Compact()}${this.profileType().fileExtension()}`;
     const accepted = await fileOutputStream.open(this._fileName);
-    if (!accepted || !this._tempFile)
+    if (!accepted || !this._tempFile) {
       return;
+    }
     const data = await this._tempFile.read();
-    if (data)
+    if (data) {
       await fileOutputStream.write(data);
+    }
     fileOutputStream.close();
   }
 
@@ -494,8 +566,9 @@ Profiler.WritableProfileHeader = class extends Profiler.ProfileHeader {
     }
     this._jsonifiedProfile = null;
 
-    if (this.profileType().profileBeingRecorded() === this)
+    if (this.profileType().profileBeingRecorded() === this) {
       this.profileType().setProfileBeingRecorded(null);
+    }
     return error;
   }
 
@@ -507,7 +580,8 @@ Profiler.WritableProfileHeader = class extends Profiler.ProfileHeader {
     this._protocolProfile = profile;
     this._tempFile = new Bindings.TempFile();
     this._tempFile.write([JSON.stringify(profile)]);
-    if (this.canSaveToFile())
+    if (this.canSaveToFile()) {
       this.dispatchEventToListeners(Profiler.ProfileHeader.Events.ProfileReceived);
+    }
   }
 };

@@ -5,21 +5,20 @@
  */
 
 .watch-expression-delete-button {
-    width: 10px;
-    height: 10px;
-    background-image: url(Images/deleteIcon.png);
-    background-position: 0 0;
-    background-color: transparent;
-    background-repeat: no-repeat;
-    border: 0 none transparent;
     position: absolute;
-    top: 4px;
-    right: 3px;
-    display: none;
+    top: 5px;
+    right: 6px;
+    cursor: pointer;
+    opacity: 0;
+    min-width: 20px;
 }
 
 .watch-expression-header:hover .watch-expression-delete-button {
-    display: inline;
+    opacity: 0.5;
+}
+
+.watch-expression-header:hover .watch-expression-delete-button:hover {
+    opacity: 1;
 }
 
 .watch-expressions {
@@ -36,7 +35,6 @@
     text-overflow: ellipsis;
     overflow: hidden;
     line-height: 20px;
-    margin-left: 11px;
 }
 
 .watch-expression-object-header .watch-expression-title {
@@ -45,8 +43,7 @@
 
 .watch-expression {
     position: relative;
-    padding: 0 6px;
-    flex: none;
+    flex: auto;
     min-height: 20px;
 }
 
@@ -80,23 +77,34 @@
     overflow: hidden;
     white-space: nowrap;
     padding-left: 4px;
-    -webkit-user-select: text;
+    min-height: 18px;
+    line-height: 18px;
+    user-select: text;
 }
 
 .watch-expression-text-prompt-proxy {
-    margin-left: 12px;
+    margin: 2px 12px 2px -4px;
+    padding-bottom: 3px;
 }
 
 .watch-expression-header {
     flex: auto;
+    margin-left: -16px;
+    padding-left: 15px;
 }
 
-.watch-expression-object-header {
-    margin-left: -12px;
-    padding-left: 12px;
-}
-
-.watch-expression-header:hover {
+li.watch-expression-tree-item:hover {
     background-color: #F0F0F0;
-    padding-right: 14px;
+}
+
+li.watch-expression-tree-item {
+    padding-left: 4px;
+}
+
+.watch-expression-header:focus[data-keyboard-focus="true"] {
+    background: var(--focus-bg-color);
+}
+
+li.watch-expression-editing::before {
+    background-color: transparent;
 }

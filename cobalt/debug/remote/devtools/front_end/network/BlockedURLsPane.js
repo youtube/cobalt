@@ -4,7 +4,7 @@
 /**
  * @implements {UI.ListWidget.Delegate<SDK.NetworkManager.BlockedPattern>}
  */
-Network.BlockedURLsPane = class extends UI.VBox {
+export default class BlockedURLsPane extends UI.VBox {
   constructor() {
     super(true);
     this.registerRequiredCSS('network/blockedURLsPane.css');
@@ -50,17 +50,16 @@ Network.BlockedURLsPane = class extends UI.VBox {
    */
   _createEmptyPlaceholder() {
     const element = this.contentElement.createChild('div', 'no-blocked-urls');
-    element.createChild('span').textContent = Common.UIString('Requests are not blocked. ');
-    const addLink = element.createChild('span', 'link');
-    addLink.textContent = Common.UIString('Add pattern.');
-    addLink.href = '';
-    addLink.addEventListener('click', this._addButtonClicked.bind(this), false);
+    const addButton = UI.createTextButton(ls`Add pattern`, this._addButtonClicked.bind(this), 'add-button');
+    UI.ARIAUtils.setAccessibleName(addButton, ls`Add request blocking pattern`);
+    element.appendChild(UI.formatLocalized('Requests are not blocked. %s', [addButton]));
     return element;
   }
 
   static reset() {
-    if (Network.BlockedURLsPane._instance)
+    if (Network.BlockedURLsPane._instance) {
       Network.BlockedURLsPane._instance.reset();
+    }
   }
 
   _addButtonClicked() {
@@ -135,10 +134,11 @@ Network.BlockedURLsPane = class extends UI.VBox {
   commitEdit(item, editor, isNew) {
     const url = editor.control('url').value;
     const patterns = this._manager.blockedPatterns();
-    if (isNew)
+    if (isNew) {
       patterns.push({enabled: true, url: url});
-    else
+    } else {
       patterns.splice(patterns.indexOf(item), 1, {enabled: true, url: url});
+    }
 
     this._manager.setBlockedPatterns(patterns);
   }
@@ -147,8 +147,9 @@ Network.BlockedURLsPane = class extends UI.VBox {
    * @return {!UI.ListWidget.Editor<!SDK.NetworkManager.BlockedPattern>}
    */
   _createEditor() {
-    if (this._editor)
+    if (this._editor) {
       return this._editor;
+    }
 
     const editor = new UI.ListWidget.Editor();
     const content = editor.contentElement();
@@ -156,10 +157,11 @@ Network.BlockedURLsPane = class extends UI.VBox {
     titles.createChild('div').textContent =
         Common.UIString('Text pattern to block matching requests; use * for wildcard');
     const fields = content.createChild('div', 'blocked-url-edit-row');
-    const urlInput = editor.createInput(
-        'url', 'text', '',
-        (item, index, input) =>
-            !!input.value && !this._manager.blockedPatterns().find(pattern => pattern.url === input.value));
+    const validator = (item, index, input) => {
+      const valid = !!input.value && !this._manager.blockedPatterns().find(pattern => pattern.url === input.value);
+      return {valid};
+    };
+    const urlInput = editor.createInput('url', 'text', '', validator);
     fields.createChild('div', 'blocked-url-edit-value').appendChild(urlInput);
     return editor;
   }
@@ -176,8 +178,9 @@ Network.BlockedURLsPane = class extends UI.VBox {
     this._list.element.classList.toggle('blocking-disabled', !enabled && !!this._manager.blockedPatterns().length);
     this._enabledCheckbox.setChecked(enabled);
     this._list.clear();
-    for (const pattern of this._manager.blockedPatterns())
+    for (const pattern of this._manager.blockedPatterns()) {
       this._list.appendItem(pattern, true);
+    }
     return Promise.resolve();
   }
 
@@ -186,13 +189,15 @@ Network.BlockedURLsPane = class extends UI.VBox {
    * @return {number}
    */
   _blockedRequestsCount(url) {
-    if (!url)
+    if (!url) {
       return 0;
+    }
 
     let result = 0;
     for (const blockedUrl of this._blockedCountForUrl.keys()) {
-      if (this._matches(url, blockedUrl))
+      if (this._matches(url, blockedUrl)) {
         result += this._blockedCountForUrl.get(blockedUrl);
+      }
     }
     return result;
   }
@@ -207,11 +212,13 @@ Network.BlockedURLsPane = class extends UI.VBox {
     const parts = pattern.split('*');
     for (let index = 0; index < parts.length; index++) {
       const part = parts[index];
-      if (!part.length)
+      if (!part.length) {
         continue;
+      }
       pos = url.indexOf(part, pos);
-      if (pos === -1)
+      if (pos === -1) {
         return false;
+      }
       pos += part.length;
     }
     return true;
@@ -233,7 +240,21 @@ Network.BlockedURLsPane = class extends UI.VBox {
       this._updateThrottler.schedule(this._update.bind(this));
     }
   }
-};
+}
+
+/** @type {?BlockedURLsPane} */
+export const _instance = null;
+
+/* Legacy exported object */
+self.Network = self.Network || {};
+
+/* Legacy exported object */
+Network = Network || {};
+
+/**
+ * @constructor
+ */
+Network.BlockedURLsPane = BlockedURLsPane;
 
 /** @type {?Network.BlockedURLsPane} */
-Network.BlockedURLsPane._instance = null;
+Network.BlockedURLsPane._instance = _instance;

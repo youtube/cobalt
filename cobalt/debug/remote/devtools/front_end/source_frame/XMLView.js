@@ -5,7 +5,7 @@
  * @implements {UI.Searchable}
  * @unrestricted
  */
-SourceFrame.XMLView = class extends UI.Widget {
+export class XMLView extends UI.Widget {
   /**
    * @param {!Document} parsedXML
    */
@@ -26,7 +26,8 @@ SourceFrame.XMLView = class extends UI.Widget {
     /** @type {?UI.SearchableView.SearchConfig} */
     this._searchConfig;
 
-    SourceFrame.XMLView.Node.populate(this._treeOutline, parsedXML, this);
+    XMLViewNode.populate(this._treeOutline, parsedXML, this);
+    this._treeOutline.firstChild().select(true /* omitFocus */, false /* selectedByUser */);
   }
 
   /**
@@ -34,12 +35,11 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @return {!UI.SearchableView}
    */
   static createSearchableView(parsedXML) {
-    const xmlView = new SourceFrame.XMLView(parsedXML);
+    const xmlView = new XMLView(parsedXML);
     const searchableView = new UI.SearchableView(xmlView);
     searchableView.setPlaceholder(Common.UIString('Find'));
     xmlView._searchableView = searchableView;
     xmlView.show(searchableView.element);
-    xmlView.contentElement.setAttribute('tabIndex', 0);
     return searchableView;
   }
 
@@ -55,8 +55,9 @@ SourceFrame.XMLView = class extends UI.Widget {
     } catch (e) {
       return null;
     }
-    if (parsedXML.body)
+    if (parsedXML.body) {
       return null;
+    }
     return parsedXML;
   }
 
@@ -65,18 +66,21 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @param {boolean} shouldJump
    */
   _jumpToMatch(index, shouldJump) {
-    if (!this._searchConfig)
+    if (!this._searchConfig) {
       return;
+    }
     const regex = this._searchConfig.toSearchRegex(true);
     const previousFocusElement = this._currentSearchTreeElements[this._currentSearchFocusIndex];
-    if (previousFocusElement)
+    if (previousFocusElement) {
       previousFocusElement.setSearchRegex(regex);
+    }
 
     const newFocusElement = this._currentSearchTreeElements[index];
     if (newFocusElement) {
       this._updateSearchIndex(index);
-      if (shouldJump)
+      if (shouldJump) {
         newFocusElement.reveal(true);
+      }
       newFocusElement.setSearchRegex(regex, UI.highlightedCurrentSearchResultClassName);
     } else {
       this._updateSearchIndex(0);
@@ -87,8 +91,9 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @param {number} count
    */
   _updateSearchCount(count) {
-    if (!this._searchableView)
+    if (!this._searchableView) {
       return;
+    }
     this._searchableView.updateSearchMatchesCount(count);
   }
 
@@ -97,8 +102,9 @@ SourceFrame.XMLView = class extends UI.Widget {
    */
   _updateSearchIndex(index) {
     this._currentSearchFocusIndex = index;
-    if (!this._searchableView)
+    if (!this._searchableView) {
       return;
+    }
     this._searchableView.updateCurrentMatchIndex(index);
   }
 
@@ -107,8 +113,9 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @param {boolean=} jumpBackwards
    */
   _innerPerformSearch(shouldJump, jumpBackwards) {
-    if (!this._searchConfig)
+    if (!this._searchConfig) {
       return;
+    }
     let newIndex = this._currentSearchFocusIndex;
     const previousSearchFocusElement = this._currentSearchTreeElements[newIndex];
     this._innerSearchCanceled();
@@ -116,17 +123,20 @@ SourceFrame.XMLView = class extends UI.Widget {
     const regex = this._searchConfig.toSearchRegex(true);
 
     for (let element = this._treeOutline.rootElement(); element; element = element.traverseNextTreeElement(false)) {
-      if (!(element instanceof SourceFrame.XMLView.Node))
+      if (!(element instanceof XMLViewNode)) {
         continue;
+      }
       const hasMatch = element.setSearchRegex(regex);
-      if (hasMatch)
+      if (hasMatch) {
         this._currentSearchTreeElements.push(element);
+      }
       if (previousSearchFocusElement === element) {
         const currentIndex = this._currentSearchTreeElements.length - 1;
-        if (hasMatch || jumpBackwards)
+        if (hasMatch || jumpBackwards) {
           newIndex = currentIndex;
-        else
+        } else {
           newIndex = currentIndex + 1;
+        }
       }
     }
     this._updateSearchCount(this._currentSearchTreeElements.length);
@@ -142,8 +152,9 @@ SourceFrame.XMLView = class extends UI.Widget {
 
   _innerSearchCanceled() {
     for (let element = this._treeOutline.rootElement(); element; element = element.traverseNextTreeElement(false)) {
-      if (!(element instanceof SourceFrame.XMLView.Node))
+      if (!(element instanceof XMLViewNode)) {
         continue;
+      }
       element.revertHighlightChanges();
     }
     this._updateSearchCount(0);
@@ -174,8 +185,9 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @override
    */
   jumpToNextSearchResult() {
-    if (!this._currentSearchTreeElements.length)
+    if (!this._currentSearchTreeElements.length) {
       return;
+    }
 
     const newIndex = mod(this._currentSearchFocusIndex + 1, this._currentSearchTreeElements.length);
     this._jumpToMatch(newIndex, true);
@@ -185,8 +197,9 @@ SourceFrame.XMLView = class extends UI.Widget {
    * @override
    */
   jumpToPreviousSearchResult() {
-    if (!this._currentSearchTreeElements.length)
+    if (!this._currentSearchTreeElements.length) {
       return;
+    }
 
     const newIndex = mod(this._currentSearchFocusIndex - 1, this._currentSearchTreeElements.length);
     this._jumpToMatch(newIndex, true);
@@ -207,23 +220,23 @@ SourceFrame.XMLView = class extends UI.Widget {
   supportsRegexSearch() {
     return true;
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-SourceFrame.XMLView.Node = class extends UI.TreeElement {
+export class XMLViewNode extends UI.TreeElement {
   /**
    * @param {!Node} node
    * @param {boolean} closeTag
-   * @param {!SourceFrame.XMLView} xmlView
+   * @param {!XMLView} xmlView
    */
   constructor(node, closeTag, xmlView) {
     super('', !closeTag && !!node.childElementCount);
     this._node = node;
     this._closeTag = closeTag;
-    this.selectable = false;
+    this.selectable = true;
     /** @type {!Array.<!Object>} */
     this._highlightChanges = [];
     this._xmlView = xmlView;
@@ -233,7 +246,7 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
   /**
    * @param {!UI.TreeOutline|!UI.TreeElement} root
    * @param {!Node} xmlNode
-   * @param {!SourceFrame.XMLView} xmlView
+   * @param {!XMLView} xmlView
    */
   static populate(root, xmlNode, xmlView) {
     let node = xmlNode.firstChild;
@@ -242,12 +255,14 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
       node = node.nextSibling;
       const nodeType = currentNode.nodeType;
       // ignore empty TEXT
-      if (nodeType === 3 && currentNode.nodeValue.match(/\s+/))
+      if (nodeType === 3 && currentNode.nodeValue.match(/\s+/)) {
         continue;
+      }
       // ignore ATTRIBUTE, ENTITY_REFERENCE, ENTITY, DOCUMENT, DOCUMENT_TYPE, DOCUMENT_FRAGMENT, NOTATION
-      if ((nodeType !== 1) && (nodeType !== 3) && (nodeType !== 4) && (nodeType !== 7) && (nodeType !== 8))
+      if ((nodeType !== 1) && (nodeType !== 3) && (nodeType !== 4) && (nodeType !== 7) && (nodeType !== 8)) {
         continue;
-      root.appendChild(new SourceFrame.XMLView.Node(currentNode, false, xmlView));
+      }
+      root.appendChild(new XMLViewNode(currentNode, false, xmlView));
     }
   }
 
@@ -258,14 +273,17 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
    */
   setSearchRegex(regex, additionalCssClassName) {
     this.revertHighlightChanges();
-    if (!regex)
+    if (!regex) {
       return false;
-    if (this._closeTag && this.parent && !this.parent.expanded)
+    }
+    if (this._closeTag && this.parent && !this.parent.expanded) {
       return false;
+    }
     regex.lastIndex = 0;
     let cssClasses = UI.highlightedSearchResultClassName;
-    if (additionalCssClassName)
+    if (additionalCssClassName) {
       cssClasses += ' ' + additionalCssClassName;
+    }
     const content = this.listItemElement.textContent.replace(/\xA0/g, ' ');
     let match = regex.exec(content);
     const ranges = [];
@@ -273,8 +291,9 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
       ranges.push(new TextUtils.SourceRange(match.index, match[0].length));
       match = regex.exec(content);
     }
-    if (ranges.length)
+    if (ranges.length) {
       UI.highlightRangesWithStyleClass(this.listItemElement, ranges, cssClasses, this._highlightChanges);
+    }
     return !!this._highlightChanges.length;
   }
 
@@ -297,7 +316,7 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
         for (let i = 0; i < attributes.length; ++i) {
           const attributeNode = attributes.item(i);
           titleItems.push(
-              '\u00a0', 'shadow-xml-view-tag', attributeNode.name, 'shadow-xml-view-attribute-name', '="',
+              '\xA0', 'shadow-xml-view-tag', attributeNode.name, 'shadow-xml-view-attribute-name', '="',
               'shadow-xml-view-tag', attributeNode.value, 'shadow-xml-view-attribute-value', '"',
               'shadow-xml-view-tag');
         }
@@ -338,8 +357,9 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
    */
   _setTitle(items) {
     const titleFragment = createDocumentFragment();
-    for (let i = 0; i < items.length; i += 2)
+    for (let i = 0; i < items.length; i += 2) {
       titleFragment.createChild('span', items[i + 1]).textContent = items[i];
+    }
     this.title = titleFragment;
     this._xmlView._innerPerformSearch(false, false);
   }
@@ -367,9 +387,22 @@ SourceFrame.XMLView.Node = class extends UI.TreeElement {
 
   /**
    * @override
+   * @returns {!Promise}
    */
-  onpopulate() {
-    SourceFrame.XMLView.Node.populate(this, this._node, this._xmlView);
-    this.appendChild(new SourceFrame.XMLView.Node(this._node, true, this._xmlView));
+  async onpopulate() {
+    XMLViewNode.populate(this, this._node, this._xmlView);
+    this.appendChild(new XMLViewNode(this._node, true, this._xmlView));
   }
-};
+}
+
+/* Legacy exported object */
+self.SourceFrame = self.SourceFrame || {};
+
+/* Legacy exported object */
+SourceFrame = SourceFrame || {};
+
+/** @constructor */
+SourceFrame.XMLView = XMLView;
+
+/** @constructor */
+SourceFrame.XMLView.Node = XMLViewNode;

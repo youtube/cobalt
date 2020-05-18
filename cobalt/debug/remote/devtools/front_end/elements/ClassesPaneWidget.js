@@ -1,10 +1,12 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {ElementsPanel} from './ElementsPanel.js';
+
 /**
  * @unrestricted
  */
-Elements.ClassesPaneWidget = class extends UI.Widget {
+export class ClassesPaneWidget extends UI.Widget {
   constructor() {
     super(true);
     this.registerRequiredCSS('elements/classesPaneWidget.css');
@@ -14,7 +16,7 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
     this.setDefaultFocusedElement(this._input);
     this._classesContainer = this.contentElement.createChild('div', 'source-code');
     this._classesContainer.classList.add('styles-element-classes-container');
-    this._prompt = new Elements.ClassesPaneWidget.ClassNamePrompt(this._nodeClasses.bind(this));
+    this._prompt = new ClassNamePrompt(this._nodeClasses.bind(this));
     this._prompt.setAutocompletionTimeout(0);
     this._prompt.renderAsBlock();
 
@@ -48,19 +50,22 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
    * @param {!Event} event
    */
   _onKeyDown(event) {
-    if (!isEnterKey(event) && !isEscKey(event))
+    if (!isEnterKey(event) && !isEscKey(event)) {
       return;
+    }
 
     if (isEnterKey(event)) {
       event.consume();
-      if (this._prompt.acceptAutoComplete())
+      if (this._prompt.acceptAutoComplete()) {
         return;
+      }
     }
 
     let text = event.target.textContent;
     if (isEscKey(event)) {
-      if (!text.isWhitespace())
+      if (!text.isWhitespace()) {
         event.consume(true);
+      }
       text = '';
     }
 
@@ -68,20 +73,23 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
     event.target.textContent = '';
 
     const node = UI.context.flavor(SDK.DOMNode);
-    if (!node)
+    if (!node) {
       return;
+    }
 
     const classNames = this._splitTextIntoClasses(text);
-    for (const className of classNames)
+    for (const className of classNames) {
       this._toggleClass(node, className, true);
+    }
     this._installNodeClasses(node);
     this._update();
   }
 
   _onTextChanged() {
     const node = UI.context.flavor(SDK.DOMNode);
-    if (!node)
+    if (!node) {
       return;
+    }
     this._installNodeClasses(node);
   }
 
@@ -90,9 +98,10 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
    */
   _onDOMMutated(event) {
     const node = /** @type {!SDK.DOMNode} */ (event.data);
-    if (this._mutatingNodes.has(node))
+    if (this._mutatingNodes.has(node)) {
       return;
-    delete node[Elements.ClassesPaneWidget._classesSymbol];
+    }
+    delete node[ClassesPaneWidget._classesSymbol];
     this._update();
   }
 
@@ -116,18 +125,21 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
   }
 
   _update() {
-    if (!this.isShowing())
+    if (!this.isShowing()) {
       return;
+    }
 
     let node = UI.context.flavor(SDK.DOMNode);
-    if (node)
+    if (node) {
       node = node.enclosingElementOrSelf();
+    }
 
     this._classesContainer.removeChildren();
     this._input.disabled = !node;
 
-    if (!node)
+    if (!node) {
       return;
+    }
 
     const classes = this._nodeClasses(node);
     const keys = classes.keysArray();
@@ -147,8 +159,9 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
    */
   _onClick(className, event) {
     const node = UI.context.flavor(SDK.DOMNode);
-    if (!node)
+    if (!node) {
       return;
+    }
     const enabled = event.target.checked;
     this._toggleClass(node, className, enabled);
     this._installNodeClasses(node);
@@ -159,18 +172,19 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
    * @return {!Map<string, boolean>}
    */
   _nodeClasses(node) {
-    let result = node[Elements.ClassesPaneWidget._classesSymbol];
+    let result = node[ClassesPaneWidget._classesSymbol];
     if (!result) {
       const classAttribute = node.getAttribute('class') || '';
       const classes = classAttribute.split(/\s/);
       result = new Map();
       for (let i = 0; i < classes.length; ++i) {
         const className = classes[i].trim();
-        if (!className.length)
+        if (!className.length) {
           continue;
+        }
         result.set(className, true);
       }
-      node[Elements.ClassesPaneWidget._classesSymbol] = result;
+      node[ClassesPaneWidget._classesSymbol] = result;
     }
     return result;
   }
@@ -192,13 +206,15 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
     const classes = this._nodeClasses(node);
     const activeClasses = new Set();
     for (const className of classes.keys()) {
-      if (classes.get(className))
+      if (classes.get(className)) {
         activeClasses.add(className);
+      }
     }
 
     const additionalClasses = this._splitTextIntoClasses(this._prompt.textWithCurrentSuggestion());
-    for (const className of additionalClasses)
+    for (const className of additionalClasses) {
       activeClasses.add(className);
+    }
 
     const newClasses = activeClasses.valuesArray();
     newClasses.sort();
@@ -223,31 +239,31 @@ Elements.ClassesPaneWidget = class extends UI.Widget {
 
     /**
      * @param {!SDK.DOMNode} node
-     * @this {Elements.ClassesPaneWidget}
+     * @this {ClassesPaneWidget}
      */
     function onClassValueUpdated(node) {
       this._mutatingNodes.delete(node);
     }
   }
-};
+}
 
-Elements.ClassesPaneWidget._classesSymbol = Symbol('Elements.ClassesPaneWidget._classesSymbol');
+ClassesPaneWidget._classesSymbol = Symbol('ClassesPaneWidget._classesSymbol');
 
 /**
  * @implements {UI.ToolbarItem.Provider}
  * @unrestricted
  */
-Elements.ClassesPaneWidget.ButtonProvider = class {
+export class ButtonProvider {
   constructor() {
     this._button = new UI.ToolbarToggle(Common.UIString('Element Classes'), '');
     this._button.setText('.cls');
     this._button.element.classList.add('monospace');
     this._button.addEventListener(UI.ToolbarButton.Events.Click, this._clicked, this);
-    this._view = new Elements.ClassesPaneWidget();
+    this._view = new ClassesPaneWidget();
   }
 
   _clicked() {
-    Elements.ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
+    ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
   }
 
   /**
@@ -257,12 +273,12 @@ Elements.ClassesPaneWidget.ButtonProvider = class {
   item() {
     return this._button;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Elements.ClassesPaneWidget.ClassNamePrompt = class extends UI.TextPrompt {
+export class ClassNamePrompt extends UI.TextPrompt {
   /**
    * @param {function(!SDK.DOMNode):!Map<string, boolean>} nodeClasses
    */
@@ -287,8 +303,9 @@ Elements.ClassesPaneWidget.ClassNamePrompt = class extends UI.TextPrompt {
     const cssModel = selectedNode.domModel().cssModel();
     const allStyleSheets = cssModel.allStyleSheets();
     for (const stylesheet of allStyleSheets) {
-      if (stylesheet.frameId !== this._selectedFrameId)
+      if (stylesheet.frameId !== this._selectedFrameId) {
         continue;
+      }
       const cssPromise = cssModel.classNamesPromise(stylesheet.id).then(classes => completions.addAll(classes));
       promises.push(cssPromise);
     }
@@ -307,23 +324,27 @@ Elements.ClassesPaneWidget.ClassNamePrompt = class extends UI.TextPrompt {
    * @return {!Promise<!UI.SuggestBox.Suggestions>}
    */
   _buildClassNameCompletions(expression, prefix, force) {
-    if (!prefix || force)
+    if (!prefix || force) {
       this._classNamesPromise = null;
+    }
 
     const selectedNode = UI.context.flavor(SDK.DOMNode);
-    if (!selectedNode || (!prefix && !force && !expression.trim()))
+    if (!selectedNode || (!prefix && !force && !expression.trim())) {
       return Promise.resolve([]);
+    }
 
-    if (!this._classNamesPromise || this._selectedFrameId !== selectedNode.frameId())
+    if (!this._classNamesPromise || this._selectedFrameId !== selectedNode.frameId()) {
       this._classNamesPromise = this._getClassNames(selectedNode);
+    }
 
     return this._classNamesPromise.then(completions => {
       const classesMap = this._nodeClasses(/** @type {!SDK.DOMNode} */ (selectedNode));
       completions = completions.filter(value => !classesMap.get(value));
 
-      if (prefix[0] === '.')
+      if (prefix[0] === '.') {
         completions = completions.map(value => '.' + value);
+      }
       return completions.filter(value => value.startsWith(prefix)).sort().map(completion => ({text: completion}));
     });
   }
-};
+}

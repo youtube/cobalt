@@ -66,6 +66,10 @@
     overflow: hidden;
 }
 
+.filter-bitset-filter span[data-keyboard-focus="true"] {
+    outline: -webkit-focus-ring-color auto 5px;
+}
+
 .filter-bitset-filter-divider {
     background-color: #ccc;
     height: 16px;
@@ -93,13 +97,6 @@
     background: rgba(0, 0, 0, 0.5);
 }
 
-.filter-combobox-filter {
-    margin-left: 5px;
-    margin-right: 2px;
-    flex: 0 0 auto;
-    display: inline-block;
-}
-
 .filter-checkbox-filter {
     padding-left: 4px;
     padding-right: 2px;
@@ -115,19 +112,6 @@
 .filter-checkbox-filter > [is=dt-checkbox] {
     display: flex;
     margin: auto 0;
-}
-
-.filter-checkbox-filter .checkbox-filter-checkbox {
-    width: 10px;
-    height: 10px;
-    margin: auto 3px;
-    padding: 0;
-    border-radius: 2px;
-    border: solid 1px;
-    display: inline-block;
-    overflow: visible;
-    opacity: 0.8;
-    flex-shrink: 0;
 }
 
 .filter-input-field {

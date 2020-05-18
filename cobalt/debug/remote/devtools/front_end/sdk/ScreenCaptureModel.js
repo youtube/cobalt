@@ -5,7 +5,7 @@
 /**
  * @implements {Protocol.PageDispatcher}
  */
-SDK.ScreenCaptureModel = class extends SDK.SDKModel {
+export default class ScreenCaptureModel extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
@@ -46,8 +46,11 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
    * @param {!Protocol.Page.Viewport=} clip
    * @return {!Promise<?string>}
    */
-  captureScreenshot(format, quality, clip) {
-    return this._agent.captureScreenshot(format, quality, clip, true);
+  async captureScreenshot(format, quality, clip) {
+    await SDK.OverlayModel.muteHighlight();
+    const result = await this._agent.captureScreenshot(format, quality, clip, true);
+    await SDK.OverlayModel.unmuteHighlight();
+    return result;
   }
 
   /**
@@ -55,8 +58,9 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
    */
   async fetchLayoutMetrics() {
     const response = await this._agent.invoke_getLayoutMetrics({});
-    if (response[Protocol.Error])
+    if (response[Protocol.Error]) {
       return null;
+    }
     return {
       viewportX: response.visualViewport.pageX,
       viewportY: response.visualViewport.pageY,
@@ -74,8 +78,9 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
    */
   screencastFrame(data, metadata, sessionId) {
     this._agent.screencastFrameAck(sessionId);
-    if (this._onScreencastFrame)
+    if (this._onScreencastFrame) {
       this._onScreencastFrame.call(null, data, metadata);
+    }
   }
 
   /**
@@ -83,8 +88,9 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
    * @param {boolean} visible
    */
   screencastVisibilityChanged(visible) {
-    if (this._onScreencastVisibilityChanged)
+    if (this._onScreencastVisibilityChanged) {
       this._onScreencastVisibilityChanged.call(null, visible);
+    }
   }
 
   /**
@@ -158,6 +164,14 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
   /**
    * @override
    * @param {!Protocol.Page.FrameId} frameId
+   */
+  frameRequestedNavigation(frameId) {
+  }
+
+
+  /**
+   * @override
+   * @param {!Protocol.Page.FrameId} frameId
    * @param {number} delay
    */
   frameScheduledNavigation(frameId, delay) {
@@ -216,6 +230,38 @@ SDK.ScreenCaptureModel = class extends SDK.SDKModel {
    */
   windowOpen(url, windowName, windowFeatures, userGesture) {
   }
-};
+
+  /**
+   * @override
+   * @param {string} mode
+   */
+  fileChooserOpened(mode) {
+  }
+
+  /**
+   * @override
+   * @param {string} url
+   * @param {string} data
+   */
+  compilationCacheProduced(url, data) {
+  }
+
+  /**
+   * @override
+   * @param {!Protocol.Page.FrameId} frameId
+   * @param {string} url
+   */
+  downloadWillBegin(frameId, url) {
+  }
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.ScreenCaptureModel = ScreenCaptureModel;
 
 SDK.SDKModel.register(SDK.ScreenCaptureModel, SDK.Target.Capability.ScreenCapture, false);

@@ -5,7 +5,7 @@
  * @implements {UI.ListWidget.Delegate}
  * @unrestricted
  */
-Emulation.DevicesSettingsTab = class extends UI.VBox {
+export default class DevicesSettingsTab extends UI.VBox {
   constructor() {
     super();
     this.element.classList.add('settings-tab-container');
@@ -13,7 +13,7 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
     this.registerRequiredCSS('emulation/devicesSettingsTab.css');
 
     const header = this.element.createChild('header');
-    header.createChild('h3').createTextChild(Common.UIString('Emulated Devices'));
+    header.createChild('h1').createTextChild(ls`Emulated Devices`);
     this.containerElement = this.element.createChild('div', 'settings-container-wrapper')
                                 .createChild('div', 'settings-tab settings-content settings-container');
 
@@ -46,21 +46,24 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
   }
 
   _devicesUpdated() {
-    if (this._muteUpdate)
+    if (this._muteUpdate) {
       return;
+    }
 
     this._list.clear();
 
     let devices = this._emulatedDevicesList.custom().slice();
-    for (let i = 0; i < devices.length; ++i)
+    for (let i = 0; i < devices.length; ++i) {
       this._list.appendItem(devices[i], true);
+    }
 
     this._list.appendSeparator();
 
     devices = this._emulatedDevicesList.standard().slice();
     devices.sort(Emulation.EmulatedDevice.deviceComparator);
-    for (let i = 0; i < devices.length; ++i)
+    for (let i = 0; i < devices.length; ++i) {
       this._list.appendItem(devices[i], false);
+    }
   }
 
   /**
@@ -68,10 +71,11 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
    */
   _muteAndSaveDeviceList(custom) {
     this._muteUpdate = true;
-    if (custom)
+    if (custom) {
       this._emulatedDevicesList.saveCustomDevices();
-    else
+    } else {
       this._emulatedDevicesList.saveStandardDevices();
+    }
     this._muteUpdate = false;
   }
 
@@ -154,14 +158,17 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
         {title: '', orientation: Emulation.EmulatedDevice.Horizontal, insets: new UI.Insets(0, 0, 0, 0), image: null});
     device.capabilities = [];
     const uaType = editor.control('ua-type').value;
-    if (uaType === Emulation.DeviceModeModel.UA.Mobile || uaType === Emulation.DeviceModeModel.UA.MobileNoTouch)
+    if (uaType === Emulation.DeviceModeModel.UA.Mobile || uaType === Emulation.DeviceModeModel.UA.MobileNoTouch) {
       device.capabilities.push(Emulation.EmulatedDevice.Capability.Mobile);
-    if (uaType === Emulation.DeviceModeModel.UA.Mobile || uaType === Emulation.DeviceModeModel.UA.DesktopTouch)
+    }
+    if (uaType === Emulation.DeviceModeModel.UA.Mobile || uaType === Emulation.DeviceModeModel.UA.DesktopTouch) {
       device.capabilities.push(Emulation.EmulatedDevice.Capability.Touch);
-    if (isNew)
+    }
+    if (isNew) {
       this._emulatedDevicesList.addCustomDevice(device);
-    else
+    } else {
       this._emulatedDevicesList.saveCustomDevices();
+    }
     this._addCustomButton.scrollIntoViewIfNeeded();
     this._addCustomButton.focus();
   }
@@ -180,10 +187,11 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
     editor.control('scale').value = this._toNumericInputValue(device.deviceScaleFactor);
     editor.control('user-agent').value = device.userAgent;
     let uaType;
-    if (device.mobile())
+    if (device.mobile()) {
       uaType = device.touch() ? Emulation.DeviceModeModel.UA.Mobile : Emulation.DeviceModeModel.UA.MobileNoTouch;
-    else
+    } else {
       uaType = device.touch() ? Emulation.DeviceModeModel.UA.DesktopTouch : Emulation.DeviceModeModel.UA.Desktop;
+    }
     editor.control('ua-type').value = uaType;
     return editor;
   }
@@ -192,31 +200,33 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
    * @return {!UI.ListWidget.Editor}
    */
   _createEditor() {
-    if (this._editor)
+    if (this._editor) {
       return this._editor;
+    }
 
     const editor = new UI.ListWidget.Editor();
     this._editor = editor;
     const content = editor.contentElement();
 
     const fields = content.createChild('div', 'devices-edit-fields');
-    fields.createChild('div', 'hbox')
-        .appendChild(editor.createInput('title', 'text', Common.UIString('Device name'), titleValidator));
+    fields.createChild('div', 'hbox').appendChild(editor.createInput('title', 'text', ls`Device Name`, titleValidator));
     const screen = fields.createChild('div', 'hbox');
-    screen.appendChild(editor.createInput('width', 'text', Common.UIString('Width'), sizeValidator));
-    screen.appendChild(editor.createInput('height', 'text', Common.UIString('height'), sizeValidator));
-    const dpr = editor.createInput('scale', 'text', Common.UIString('Device pixel ratio'), scaleValidator);
+    screen.appendChild(editor.createInput('width', 'text', ls`Width`, widthValidator));
+    screen.appendChild(editor.createInput('height', 'text', ls`Height`, heightValidator));
+    const dpr = editor.createInput('scale', 'text', ls`Device pixel ratio`, scaleValidator);
     dpr.classList.add('device-edit-fixed');
     screen.appendChild(dpr);
     const ua = fields.createChild('div', 'hbox');
-    ua.appendChild(editor.createInput('user-agent', 'text', Common.UIString('User agent string'), () => true));
-    const uaType = editor.createSelect(
-        'ua-type',
-        [
-          Emulation.DeviceModeModel.UA.Mobile, Emulation.DeviceModeModel.UA.MobileNoTouch,
-          Emulation.DeviceModeModel.UA.Desktop, Emulation.DeviceModeModel.UA.DesktopTouch
-        ],
-        () => true);
+    ua.appendChild(editor.createInput('user-agent', 'text', ls`User agent string`, () => {
+      return {valid: true};
+    }));
+    const uaTypeOptions = [
+      Emulation.DeviceModeModel.UA.Mobile, Emulation.DeviceModeModel.UA.MobileNoTouch,
+      Emulation.DeviceModeModel.UA.Desktop, Emulation.DeviceModeModel.UA.DesktopTouch
+    ];
+    const uaType = editor.createSelect('ua-type', uaTypeOptions, () => {
+      return {valid: true};
+    }, ls`User agent type`);
     uaType.classList.add('device-edit-fixed');
     ua.appendChild(uaType);
 
@@ -226,31 +236,63 @@ Emulation.DevicesSettingsTab = class extends UI.VBox {
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function titleValidator(item, index, input) {
+      let valid = false;
+      let errorMessage;
+
       const value = input.value.trim();
-      return value.length > 0 && value.length < 50;
+      if (value.length >= Emulation.DeviceModeModel.MaxDeviceNameLength) {
+        errorMessage = ls`Device name must be less than ${Emulation.DeviceModeModel.MaxDeviceNameLength} characters.`;
+      } else if (value.length === 0) {
+        errorMessage = ls`Device name cannot be empty.`;
+      } else {
+        valid = true;
+      }
+
+      return {valid, errorMessage};
     }
 
     /**
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
-    function sizeValidator(item, index, input) {
-      return Emulation.DeviceModeModel.deviceSizeValidator(input.value);
+    function widthValidator(item, index, input) {
+      return Emulation.DeviceModeModel.widthValidator(input.value);
     }
 
     /**
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
+     */
+    function heightValidator(item, index, input) {
+      return Emulation.DeviceModeModel.heightValidator(input.value);
+    }
+
+    /**
+     * @param {*} item
+     * @param {number} index
+     * @param {!HTMLInputElement|!HTMLSelectElement} input
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function scaleValidator(item, index, input) {
-      return Emulation.DeviceModeModel.deviceScaleFactorValidator(input.value);
+      return Emulation.DeviceModeModel.scaleValidator(input.value);
     }
   }
-};
+}
+
+/* Legacy exported object */
+self.Emulation = self.Emulation || {};
+
+/* Legacy exported object */
+Emulation = Emulation || {};
+
+/**
+ * @constructor
+ */
+Emulation.DevicesSettingsTab = DevicesSettingsTab;

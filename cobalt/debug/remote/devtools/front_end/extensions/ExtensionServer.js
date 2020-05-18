@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-Extensions.ExtensionServer = class extends Common.Object {
+export default class ExtensionServer extends Common.Object {
   /**
    * @suppressGlobalPropertiesCheck
    */
@@ -46,7 +46,7 @@ Extensions.ExtensionServer = class extends Common.Object {
     this._requests = {};
     this._lastRequestId = 0;
     this._registeredExtensions = {};
-    this._status = new Extensions.ExtensionStatus();
+    this._status = new ExtensionStatus();
     /** @type {!Array<!Extensions.ExtensionSidebarPane>} */
     this._sidebarPanes = [];
     /** @type {!Array<!Extensions.ExtensionTraceProvider>} */
@@ -82,20 +82,21 @@ Extensions.ExtensionServer = class extends Common.Object {
     this._registerHandler(commands.UpdateButton, this._onUpdateButton.bind(this));
     window.addEventListener('message', this._onWindowMessage.bind(this), false);  // Only for main window.
 
-    InspectorFrontendHost.events.addEventListener(
-        InspectorFrontendHostAPI.Events.AddExtensions, this._addExtensions, this);
-    InspectorFrontendHost.events.addEventListener(
-        InspectorFrontendHostAPI.Events.SetInspectedTabId, this._setInspectedTabId, this);
+    /** @suppress {checkTypes} */
+    const existingTabId =
+        window.DevToolsAPI && window.DevToolsAPI.getInspectedTabId && window.DevToolsAPI.getInspectedTabId();
+
+    if (existingTabId) {
+      this._setInspectedTabId({data: existingTabId});
+    }
+    Host.InspectorFrontendHost.events.addEventListener(
+        Host.InspectorFrontendHostAPI.Events.SetInspectedTabId, this._setInspectedTabId, this);
 
     this._initExtensions();
   }
 
   initializeExtensions() {
-    this._initializeCommandIssued = true;
-    if (this._pendingExtensionInfos) {
-      this._pendingExtensionInfos.forEach(this._addExtension, this);
-      delete this._pendingExtensionInfos;
-    }
+    Host.InspectorFrontendHost.setAddExtensionCallback(this._addExtension.bind(this));
   }
 
   /**
@@ -137,8 +138,9 @@ Extensions.ExtensionServer = class extends Common.Object {
   }
 
   _inspectedURLChanged(event) {
-    if (event.data !== SDK.targetManager.mainTarget())
+    if (event.data !== SDK.targetManager.mainTarget()) {
       return;
+    }
     this._requests = {};
     const url = event.data.inspectedURL();
     this._postNotification(Extensions.extensionAPI.Events.InspectedURLChanged, url);
@@ -175,11 +177,13 @@ Extensions.ExtensionServer = class extends Common.Object {
    */
   _postNotification(type, vararg) {
     const subscribers = this._subscribers[type];
-    if (!subscribers)
+    if (!subscribers) {
       return;
+    }
     const message = {command: 'notify-' + type, arguments: Array.prototype.slice.call(arguments, 1)};
-    for (let i = 0; i < subscribers.length; ++i)
+    for (let i = 0; i < subscribers.length; ++i) {
       subscribers[i].postMessage(message);
+    }
   }
 
   _onSubscribe(message, port) {
@@ -188,40 +192,46 @@ Extensions.ExtensionServer = class extends Common.Object {
       subscribers.push(port);
     } else {
       this._subscribers[message.type] = [port];
-      if (this._subscriptionStartHandlers[message.type])
+      if (this._subscriptionStartHandlers[message.type]) {
         this._subscriptionStartHandlers[message.type]();
+      }
     }
   }
 
   _onUnsubscribe(message, port) {
     const subscribers = this._subscribers[message.type];
-    if (!subscribers)
+    if (!subscribers) {
       return;
+    }
     subscribers.remove(port);
     if (!subscribers.length) {
       delete this._subscribers[message.type];
-      if (this._subscriptionStopHandlers[message.type])
+      if (this._subscriptionStopHandlers[message.type]) {
         this._subscriptionStopHandlers[message.type]();
+      }
     }
   }
 
   _onAddRequestHeaders(message) {
     const id = message.extensionId;
-    if (typeof id !== 'string')
+    if (typeof id !== 'string') {
       return this._status.E_BADARGTYPE('extensionId', typeof id, 'string');
+    }
     let extensionHeaders = this._extraHeaders[id];
     if (!extensionHeaders) {
       extensionHeaders = {};
       this._extraHeaders[id] = extensionHeaders;
     }
-    for (const name in message.headers)
+    for (const name in message.headers) {
       extensionHeaders[name] = message.headers[name];
+    }
     const allHeaders = /** @type {!Protocol.Network.Headers} */ ({});
     for (const extension in this._extraHeaders) {
       const headers = this._extraHeaders[extension];
       for (const name in headers) {
-        if (typeof headers[name] === 'string')
+        if (typeof headers[name] === 'string') {
           allHeaders[name] = headers[name];
+        }
       }
     }
 
@@ -233,8 +243,9 @@ Extensions.ExtensionServer = class extends Common.Object {
    * @suppressGlobalPropertiesCheck
    */
   _onApplyStyleSheet(message) {
-    if (!Runtime.experiments.isEnabled('applyCustomStylesheet'))
+    if (!Root.Runtime.experiments.isEnabled('applyCustomStylesheet')) {
       return;
+    }
     const styleSheet = createElement('style');
     styleSheet.textContent = message.styleSheet;
     document.head.appendChild(styleSheet);
@@ -242,8 +253,9 @@ Extensions.ExtensionServer = class extends Common.Object {
     UI.themeSupport.addCustomStylesheet(message.styleSheet);
     // Add to all the shadow roots that have already been created
     for (let node = document.body; node; node = node.traverseNextNode(document.body)) {
-      if (node instanceof ShadowRoot)
+      if (node instanceof ShadowRoot) {
         UI.themeSupport.injectCustomStyleSheets(node);
+      }
     }
   }
 
@@ -251,13 +263,14 @@ Extensions.ExtensionServer = class extends Common.Object {
     const id = message.id;
     // The ids are generated on the client API side and must be unique, so the check below
     // shouldn't be hit unless someone is bypassing the API.
-    if (id in this._clientObjects || UI.inspectorView.hasPanel(id))
+    if (id in this._clientObjects || UI.inspectorView.hasPanel(id)) {
       return this._status.E_EXISTS(id);
+    }
 
     const page = this._expandResourcePath(port._extensionOrigin, message.page);
     let persistentId = port._extensionOrigin + message.title;
     persistentId = persistentId.replace(/\s/g, '');
-    const panelView = new Extensions.ExtensionServerPanelView(
+    const panelView = new ExtensionServerPanelView(
         persistentId, message.title, new Extensions.ExtensionPanel(this, persistentId, id, page));
     this._clientObjects[id] = panelView;
     UI.inspectorView.addPanel(panelView);
@@ -267,15 +280,17 @@ Extensions.ExtensionServer = class extends Common.Object {
   _onShowPanel(message) {
     let panelViewId = message.id;
     const panelView = this._clientObjects[message.id];
-    if (panelView && panelView instanceof Extensions.ExtensionServerPanelView)
+    if (panelView && panelView instanceof ExtensionServerPanelView) {
       panelViewId = panelView.viewId();
+    }
     UI.inspectorView.showPanel(panelViewId);
   }
 
   _onCreateToolbarButton(message, port) {
     const panelView = this._clientObjects[message.panel];
-    if (!panelView || !(panelView instanceof Extensions.ExtensionServerPanelView))
+    if (!panelView || !(panelView instanceof ExtensionServerPanelView)) {
       return this._status.E_NOTFOUND(message.panel);
+    }
     const button = new Extensions.ExtensionButton(
         this, message.id, this._expandResourcePath(port._extensionOrigin, message.icon), message.tooltip,
         message.disabled);
@@ -295,8 +310,9 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   _onUpdateButton(message, port) {
     const button = this._clientObjects[message.id];
-    if (!button || !(button instanceof Extensions.ExtensionButton))
+    if (!button || !(button instanceof Extensions.ExtensionButton)) {
       return this._status.E_NOTFOUND(message.id);
+    }
     button.update(this._expandResourcePath(port._extensionOrigin, message.icon), message.tooltip, message.disabled);
     return this._status.OK();
   }
@@ -306,20 +322,22 @@ Extensions.ExtensionServer = class extends Common.Object {
    */
   _onCompleteTraceSession(message) {
     const session = this._traceSessions.get(message.id);
-    if (!session)
+    if (!session) {
       return this._status.E_NOTFOUND(message.id);
+    }
     this._traceSessions.delete(message.id);
     session.complete(message.url, message.timeOffset);
   }
 
   _onCreateSidebarPane(message) {
-    if (message.panel !== 'elements' && message.panel !== 'sources')
+    if (message.panel !== 'elements' && message.panel !== 'sources') {
       return this._status.E_NOTFOUND(message.panel);
+    }
     const id = message.id;
     const sidebar = new Extensions.ExtensionSidebarPane(this, message.panel, message.title, id);
     this._sidebarPanes.push(sidebar);
     this._clientObjects[id] = sidebar;
-    this.dispatchEventToListeners(Extensions.ExtensionServer.Events.SidebarPaneAdded, sidebar);
+    this.dispatchEventToListeners(Events.SidebarPaneAdded, sidebar);
 
     return this._status.OK();
   }
@@ -333,19 +351,21 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   _onSetSidebarHeight(message) {
     const sidebar = this._clientObjects[message.id];
-    if (!sidebar)
+    if (!sidebar) {
       return this._status.E_NOTFOUND(message.id);
+    }
     sidebar.setHeight(message.height);
     return this._status.OK();
   }
 
   _onSetSidebarContent(message, port) {
     const sidebar = this._clientObjects[message.id];
-    if (!sidebar)
+    if (!sidebar) {
       return this._status.E_NOTFOUND(message.id);
+    }
 
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function callback(error) {
       const result = error ? this._status.E_FAILED(error) : this._status.OK();
@@ -360,8 +380,9 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   _onSetSidebarPage(message, port) {
     const sidebar = this._clientObjects[message.id];
-    if (!sidebar)
+    if (!sidebar) {
       return this._status.E_NOTFOUND(message.id);
+    }
     sidebar.setPage(this._expandResourcePath(port._extensionOrigin, message.page));
   }
 
@@ -378,7 +399,7 @@ Extensions.ExtensionServer = class extends Common.Object {
       return this._status.OK();
     }
 
-    const request = BrowserSDK.networkLog.requestForURL(message.url);
+    const request = SDK.networkLog.requestForURL(message.url);
     if (request) {
       Common.Revealer.reveal(request);
       return this._status.OK();
@@ -389,10 +410,11 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   _onSetOpenResourceHandler(message, port) {
     const name = this._registeredExtensions[port._extensionOrigin].name || ('Extension ' + port._extensionOrigin);
-    if (message.handlerPresent)
+    if (message.handlerPresent) {
       Components.Linkifier.registerLinkHandler(name, this._handleOpenURL.bind(this, port));
-    else
+    } else {
       Components.Linkifier.unregisterLinkHandler(name);
+    }
   }
 
   _handleOpenURL(port, contentProvider, lineNumber) {
@@ -405,8 +427,9 @@ Extensions.ExtensionServer = class extends Common.Object {
 
     SDK.multitargetNetworkManager.setUserAgentOverride(typeof options.userAgent === 'string' ? options.userAgent : '');
     let injectedScript;
-    if (options.injectedScript)
+    if (options.injectedScript) {
       injectedScript = '(function(){' + options.injectedScript + '})()';
+    }
     SDK.ResourceTreeModel.reloadAllPages(!!options.ignoreCache, injectedScript);
     return this._status.OK();
   }
@@ -416,16 +439,17 @@ Extensions.ExtensionServer = class extends Common.Object {
      * @param {?Protocol.Error} error
      * @param {?SDK.RemoteObject} object
      * @param {boolean} wasThrown
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function callback(error, object, wasThrown) {
       let result;
-      if (error || !object)
+      if (error || !object) {
         result = this._status.E_PROTOCOLERROR(error.toString());
-      else if (wasThrown)
+      } else if (wasThrown) {
         result = {isException: true, value: object.description};
-      else
+      } else {
         result = {value: object.value};
+      }
 
       this._dispatchCallback(message.requestId, port, result);
     }
@@ -434,10 +458,11 @@ Extensions.ExtensionServer = class extends Common.Object {
   }
 
   async _onGetHAR() {
-    const requests = BrowserSDK.networkLog.requests();
-    const harLog = await BrowserSDK.HARLog.build(requests);
-    for (let i = 0; i < harLog.entries.length; ++i)
+    const requests = SDK.networkLog.requests();
+    const harLog = await SDK.HARLog.build(requests);
+    for (let i = 0; i < harLog.entries.length; ++i) {
       harLog.entries[i]._requestId = this._requestId(requests[i]);
+    }
     return harLog;
   }
 
@@ -456,18 +481,20 @@ Extensions.ExtensionServer = class extends Common.Object {
     const resources = new Map();
 
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function pushResourceData(contentProvider) {
-      if (!resources.has(contentProvider.contentURL()))
+      if (!resources.has(contentProvider.contentURL())) {
         resources.set(contentProvider.contentURL(), this._makeResource(contentProvider));
+      }
     }
     let uiSourceCodes = Workspace.workspace.uiSourceCodesForProjectType(Workspace.projectTypes.Network);
     uiSourceCodes =
         uiSourceCodes.concat(Workspace.workspace.uiSourceCodesForProjectType(Workspace.projectTypes.ContentScripts));
     uiSourceCodes.forEach(pushResourceData.bind(this));
-    for (const resourceTreeModel of SDK.targetManager.models(SDK.ResourceTreeModel))
+    for (const resourceTreeModel of SDK.targetManager.models(SDK.ResourceTreeModel)) {
       resourceTreeModel.forAllResources(pushResourceData.bind(this));
+    }
     return resources.valuesArray();
   }
 
@@ -477,30 +504,32 @@ Extensions.ExtensionServer = class extends Common.Object {
    * @param {!MessagePort} port
    */
   async _getResourceContent(contentProvider, message, port) {
-    const content = await contentProvider.requestContent();
+    const {content} = await contentProvider.requestContent();
     const encoded = await contentProvider.contentEncoded();
     this._dispatchCallback(message.requestId, port, {encoding: encoded ? 'base64' : '', content: content});
   }
 
   _onGetRequestContent(message, port) {
     const request = this._requestById(message.id);
-    if (!request)
+    if (!request) {
       return this._status.E_NOTFOUND(message.id);
+    }
     this._getResourceContent(request, message, port);
   }
 
   _onGetResourceContent(message, port) {
     const url = /** @type {string} */ (message.url);
     const contentProvider = Workspace.workspace.uiSourceCodeForURL(url) || Bindings.resourceForURL(url);
-    if (!contentProvider)
+    if (!contentProvider) {
       return this._status.E_NOTFOUND(url);
+    }
     this._getResourceContent(contentProvider, message, port);
   }
 
   _onSetResourceContent(message, port) {
     /**
      * @param {?Protocol.Error} error
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function callbackWrapper(error) {
       const response = error ? this._status.E_FAILED(error) : this._status.OK();
@@ -511,13 +540,15 @@ Extensions.ExtensionServer = class extends Common.Object {
     const uiSourceCode = Workspace.workspace.uiSourceCodeForURL(url);
     if (!uiSourceCode || !uiSourceCode.contentType().isDocumentOrScriptOrStyleSheet()) {
       const resource = SDK.ResourceTreeModel.resourceForURL(url);
-      if (!resource)
+      if (!resource) {
         return this._status.E_NOTFOUND(url);
+      }
       return this._status.E_NOTSUPPORTED('Resource is not editable');
     }
     uiSourceCode.setWorkingCopy(message.content);
-    if (message.commit)
+    if (message.commit) {
       uiSourceCode.commitWorkingCopy();
+    }
     callbackWrapper.call(this, null);
   }
 
@@ -542,7 +573,7 @@ Extensions.ExtensionServer = class extends Common.Object {
         port._extensionOrigin, message.id, message.categoryName, message.categoryTooltip);
     this._clientObjects[message.id] = provider;
     this._traceProviders.push(provider);
-    this.dispatchEventToListeners(Extensions.ExtensionServer.Events.TraceProviderAdded, provider);
+    this.dispatchEventToListeners(Events.TraceProviderAdded, provider);
   }
 
   /**
@@ -560,8 +591,6 @@ Extensions.ExtensionServer = class extends Common.Object {
      * @suppressGlobalPropertiesCheck
      */
     function handleEventEntry(entry) {
-      if (!entry.ctrlKey && !entry.altKey && !entry.metaKey && !/^F\d+$/.test(entry.key) && entry.key !== 'Escape')
-        return;
       // Fool around closure compiler -- it has its own notion of both KeyboardEvent constructor
       // and initKeyboardEvent methods and overriding these in externs.js does not have effect.
       const event = new window.KeyboardEvent(entry.eventType, {
@@ -582,16 +611,18 @@ Extensions.ExtensionServer = class extends Common.Object {
       let keyCode = entry.keyCode;
       if (!keyCode) {
         // This is required only for synthetic events (e.g. dispatched in tests).
-        if (entry.key === 'Escape')
+        if (entry.key === 'Escape') {
           keyCode = 27;
+        }
       }
       return keyCode || 0;
     }
   }
 
   _dispatchCallback(requestId, port, result) {
-    if (requestId)
+    if (requestId) {
       port.postMessage({command: 'callback', requestId: requestId, result: result});
+    }
   }
 
   _initExtensions() {
@@ -603,14 +634,14 @@ Extensions.ExtensionServer = class extends Common.Object {
         SDK.NetworkManager.Events.RequestFinished, this._notifyRequestFinished);
 
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function onElementsSubscriptionStarted() {
       UI.context.addFlavorChangeListener(SDK.DOMNode, this._notifyElementsSelectionChanged, this);
     }
 
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function onElementsSubscriptionStopped() {
       UI.context.removeFlavorChangeListener(SDK.DOMNode, this._notifyElementsSelectionChanged, this);
@@ -622,8 +653,6 @@ Extensions.ExtensionServer = class extends Common.Object {
     this._registerResourceContentCommittedHandler(this._notifyUISourceCodeContentCommitted);
 
     SDK.targetManager.addEventListener(SDK.TargetManager.Events.InspectedURLChanged, this._inspectedURLChanged, this);
-
-    self.InspectorExtensionRegistry.getExtensionsAsync();
   }
 
   _notifyResourceAdded(event) {
@@ -640,7 +669,7 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   async _notifyRequestFinished(event) {
     const request = /** @type {!SDK.NetworkRequest} */ (event.data);
-    const entry = await BrowserSDK.HAREntry.build(request);
+    const entry = await SDK.HARLog.Entry.build(request);
     this._postNotification(Extensions.extensionAPI.Events.NetworkRequestFinished, this._requestId(request), entry);
   }
 
@@ -660,20 +689,6 @@ Extensions.ExtensionServer = class extends Common.Object {
       endColumn: range.endColumn,
       url: url,
     });
-  }
-
-  /**
-   * @param {!Common.Event} event
-   */
-  _addExtensions(event) {
-    if (Extensions.extensionServer._overridePlatformExtensionAPIForTest)
-      window.buildPlatformExtensionAPI = Extensions.extensionServer._overridePlatformExtensionAPIForTest;
-
-    const extensionInfos = /** @type {!Array.<!ExtensionDescriptor>} */ (event.data);
-    if (this._initializeCommandIssued)
-      extensionInfos.forEach(this._addExtension, this);
-    else
-      this._pendingExtensionInfos = extensionInfos;
   }
 
   /**
@@ -701,10 +716,10 @@ Extensions.ExtensionServer = class extends Common.Object {
       const extensionOrigin = originMatch[1];
       if (!this._registeredExtensions[extensionOrigin]) {
         // See ExtensionAPI.js for details.
-        const injectedAPI = buildExtensionAPIInjectedScript(
-            extensionInfo, this._inspectedTabId, UI.themeSupport.themeName(),
+        const injectedAPI = self.buildExtensionAPIInjectedScript(
+            extensionInfo, this._inspectedTabId, UI.themeSupport.themeName(), UI.shortcutRegistry.globalShortcutKeys(),
             Extensions.extensionServer['_extensionAPITestHook']);
-        InspectorFrontendHost.setInjectedScriptForOrigin(extensionOrigin, injectedAPI);
+        Host.InspectorFrontendHost.setInjectedScriptForOrigin(extensionOrigin, injectedAPI);
         this._registeredExtensions[extensionOrigin] = {name: name};
       }
       const iframe = createElement('iframe');
@@ -721,7 +736,9 @@ Extensions.ExtensionServer = class extends Common.Object {
   _registerExtension(origin, port) {
     if (!this._registeredExtensions.hasOwnProperty(origin)) {
       if (origin !== window.location.origin)  // Just ignore inspector frames.
+      {
         console.error('Ignoring unauthorized client request from ' + origin);
+      }
       return;
     }
     port._extensionOrigin = origin;
@@ -730,21 +747,24 @@ Extensions.ExtensionServer = class extends Common.Object {
   }
 
   _onWindowMessage(event) {
-    if (event.data === 'registerExtension')
+    if (event.data === 'registerExtension') {
       this._registerExtension(event.origin, event.ports[0]);
+    }
   }
 
   async _onmessage(event) {
     const message = event.data;
     let result;
 
-    if (message.command in this._handlers)
+    if (message.command in this._handlers) {
       result = await this._handlers[message.command](message, event.target);
-    else
+    } else {
       result = this._status.E_NOTSUPPORTED(message.command);
+    }
 
-    if (result && message.requestId)
+    if (result && message.requestId) {
       this._dispatchCallback(message.requestId, event.target, result);
+    }
   }
 
   _registerHandler(command, callback) {
@@ -760,7 +780,7 @@ Extensions.ExtensionServer = class extends Common.Object {
   /**
    * @param {string} eventTopic
    * @param {!Object} eventTarget
-   * @param {string} frontendEventType
+   * @param {symbol} frontendEventType
    * @param {function(!Common.Event)} handler
    */
   _registerAutosubscriptionHandler(eventTopic, eventTarget, frontendEventType, handler) {
@@ -772,7 +792,7 @@ Extensions.ExtensionServer = class extends Common.Object {
   /**
    * @param {string} eventTopic
    * @param {!Function} modelClass
-   * @param {string} frontendEventType
+   * @param {symbol} frontendEventType
    * @param {function(!Common.Event)} handler
    */
   _registerAutosubscriptionTargetManagerHandler(eventTopic, modelClass, frontendEventType, handler) {
@@ -784,7 +804,7 @@ Extensions.ExtensionServer = class extends Common.Object {
 
   _registerResourceContentCommittedHandler(handler) {
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function addFirstEventListener() {
       Workspace.workspace.addEventListener(Workspace.Workspace.Events.WorkingCopyCommittedByUser, handler, this);
@@ -792,7 +812,7 @@ Extensions.ExtensionServer = class extends Common.Object {
     }
 
     /**
-     * @this {Extensions.ExtensionServer}
+     * @this {ExtensionServer}
      */
     function removeLastEventListener() {
       Workspace.workspace.setHasResourceContentTrackingExtensions(false);
@@ -805,8 +825,9 @@ Extensions.ExtensionServer = class extends Common.Object {
   }
 
   _expandResourcePath(extensionPath, resourcePath) {
-    if (!resourcePath)
+    if (!resourcePath) {
       return;
+    }
     return extensionPath + this._normalizePath(resourcePath);
   }
 
@@ -815,15 +836,18 @@ Extensions.ExtensionServer = class extends Common.Object {
     const result = [];
 
     for (let i = 0; i < source.length; ++i) {
-      if (source[i] === '.')
+      if (source[i] === '.') {
         continue;
+      }
       // Ignore empty path components resulting from //, as well as a leading and traling slashes.
-      if (source[i] === '')
+      if (source[i] === '') {
         continue;
-      if (source[i] === '..')
+      }
+      if (source[i] === '..') {
         result.pop();
-      else
+      } else {
         result.push(source[i]);
+      }
     }
     return '/' + result.join('/');
   }
@@ -864,18 +888,20 @@ Extensions.ExtensionServer = class extends Common.Object {
       frame = resourceTreeModel && resourceTreeModel.mainFrame;
     }
     if (!frame) {
-      if (options.frameURL)
+      if (options.frameURL) {
         console.warn('evaluate: there is no frame with URL ' + options.frameURL);
-      else
+      } else {
         console.warn('evaluate: the main frame is not yet available');
+      }
       return this._status.E_NOTFOUND(options.frameURL || '<top>');
     }
 
     let contextSecurityOrigin;
-    if (options.useContentScriptContext)
+    if (options.useContentScriptContext) {
       contextSecurityOrigin = securityOrigin;
-    else if (options.scriptExecutionContext)
+    } else if (options.scriptExecutionContext) {
       contextSecurityOrigin = options.scriptExecutionContext;
+    }
 
     const runtimeModel = frame.resourceTreeModel().target().model(SDK.RuntimeModel);
     const executionContexts = runtimeModel ? runtimeModel.executionContexts() : [];
@@ -883,8 +909,9 @@ Extensions.ExtensionServer = class extends Common.Object {
       for (let i = 0; i < executionContexts.length; ++i) {
         const executionContext = executionContexts[i];
         if (executionContext.frameId === frame.id && executionContext.origin === contextSecurityOrigin &&
-            !executionContext.isDefault)
+            !executionContext.isDefault) {
           context = executionContext;
+        }
       }
       if (!context) {
         console.warn('The JavaScript context ' + contextSecurityOrigin + ' was not found in the frame ' + frame.url);
@@ -893,11 +920,13 @@ Extensions.ExtensionServer = class extends Common.Object {
     } else {
       for (let i = 0; i < executionContexts.length; ++i) {
         const executionContext = executionContexts[i];
-        if (executionContext.frameId === frame.id && executionContext.isDefault)
+        if (executionContext.frameId === frame.id && executionContext.isDefault) {
           context = executionContext;
+        }
       }
-      if (!context)
+      if (!context) {
         return this._status.E_FAILED(frame.url + ' has no execution context');
+      }
     }
 
     context
@@ -924,10 +953,10 @@ Extensions.ExtensionServer = class extends Common.Object {
       callback(null, result.object || null, !!result.exceptionDetails);
     }
   }
-};
+}
 
 /** @enum {symbol} */
-Extensions.ExtensionServer.Events = {
+export const Events = {
   SidebarPaneAdded: Symbol('SidebarPaneAdded'),
   TraceProviderAdded: Symbol('TraceProviderAdded')
 };
@@ -935,7 +964,7 @@ Extensions.ExtensionServer.Events = {
 /**
  * @unrestricted
  */
-Extensions.ExtensionServerPanelView = class extends UI.SimpleView {
+class ExtensionServerPanelView extends UI.SimpleView {
   /**
    * @param {string} name
    * @param {string} title
@@ -962,12 +991,12 @@ Extensions.ExtensionServerPanelView = class extends UI.SimpleView {
   widget() {
     return /** @type {!Promise.<!UI.Widget>} */ (Promise.resolve(this._panel));
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Extensions.ExtensionStatus = class {
+export class ExtensionStatus {
   constructor() {
     /**
      * @param {string} code
@@ -993,15 +1022,27 @@ Extensions.ExtensionStatus = class {
     this.E_PROTOCOLERROR = makeStatus.bind(null, 'E_PROTOCOLERROR', 'Inspector protocol error: %s');
     this.E_FAILED = makeStatus.bind(null, 'E_FAILED', 'Operation failed: %s');
   }
-};
+}
+
+/* Legacy exported object */
+self.Extensions = self.Extensions || {};
+
+/* Legacy exported object */
+Extensions = Extensions || {};
+
+/** @constructor */
+Extensions.ExtensionServer = ExtensionServer;
+
+/** @enum {symbol} */
+Extensions.ExtensionServer.Events = Events;
+
+/** @constructor */
+Extensions.ExtensionStatus = ExtensionStatus;
 
 /**
  * @typedef {{code: string, description: string, details: !Array.<*>}}
  */
 Extensions.ExtensionStatus.Record;
 
-Extensions.extensionAPI = {};
-defineCommonExtensionSymbols(Extensions.extensionAPI);
-
-/** @type {!Extensions.ExtensionServer} */
+/** @type {!ExtensionServer} */
 Extensions.extensionServer;

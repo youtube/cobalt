@@ -37,7 +37,7 @@
 /**
  * @unrestricted
  */
-SDK.CookieParser = class {
+export default class CookieParser {
   constructor() {
   }
 
@@ -46,7 +46,7 @@ SDK.CookieParser = class {
    * @return {?Array<!SDK.Cookie>}
    */
   static parseCookie(header) {
-    return (new SDK.CookieParser()).parseCookie(header);
+    return (new CookieParser()).parseCookie(header);
   }
 
   /**
@@ -54,7 +54,7 @@ SDK.CookieParser = class {
    * @return {?Array<!SDK.Cookie>}
    */
   static parseSetCookie(header) {
-    return (new SDK.CookieParser()).parseSetCookie(header);
+    return (new CookieParser()).parseSetCookie(header);
   }
 
   /**
@@ -69,14 +69,16 @@ SDK.CookieParser = class {
    * @return {?Array<!SDK.Cookie>}
    */
   parseCookie(cookieHeader) {
-    if (!this._initialize(cookieHeader))
+    if (!this._initialize(cookieHeader)) {
       return null;
+    }
 
     for (let kv = this._extractKeyValue(); kv; kv = this._extractKeyValue()) {
-      if (kv.key.charAt(0) === '$' && this._lastCookie)
+      if (kv.key.charAt(0) === '$' && this._lastCookie) {
         this._lastCookie.addAttribute(kv.key.slice(1), kv.value);
-      else if (kv.key.toLowerCase() !== '$version' && typeof kv.value === 'string')
-        this._addCookie(kv, SDK.Cookie.Type.Request);
+      } else if (kv.key.toLowerCase() !== '$version' && typeof kv.value === 'string') {
+        this._addCookie(kv, Type.Request);
+      }
       this._advanceAndCheckCookieDelimiter();
     }
     this._flushCookie();
@@ -88,15 +90,18 @@ SDK.CookieParser = class {
    * @return {?Array<!SDK.Cookie>}
    */
   parseSetCookie(setCookieHeader) {
-    if (!this._initialize(setCookieHeader))
+    if (!this._initialize(setCookieHeader)) {
       return null;
+    }
     for (let kv = this._extractKeyValue(); kv; kv = this._extractKeyValue()) {
-      if (this._lastCookie)
+      if (this._lastCookie) {
         this._lastCookie.addAttribute(kv.key, kv.value);
-      else
-        this._addCookie(kv, SDK.Cookie.Type.Response);
-      if (this._advanceAndCheckCookieDelimiter())
+      } else {
+        this._addCookie(kv, Type.Response);
+      }
+      if (this._advanceAndCheckCookieDelimiter()) {
         this._flushCookie();
+      }
     }
     this._flushCookie();
     return this._cookies;
@@ -108,26 +113,32 @@ SDK.CookieParser = class {
    */
   _initialize(headerValue) {
     this._input = headerValue;
-    if (typeof headerValue !== 'string')
+    if (typeof headerValue !== 'string') {
       return false;
+    }
     this._cookies = [];
     this._lastCookie = null;
+    this._lastCookieLine = '';
     this._originalInputLength = this._input.length;
     return true;
   }
 
   _flushCookie() {
-    if (this._lastCookie)
+    if (this._lastCookie) {
       this._lastCookie.setSize(this._originalInputLength - this._input.length - this._lastCookiePosition);
+      this._lastCookie._setCookieLine(this._lastCookieLine.replace('\n', ''));
+    }
     this._lastCookie = null;
+    this._lastCookieLine = '';
   }
 
   /**
-   * @return {?SDK.CookieParser.KeyValue}
+   * @return {?KeyValue}
    */
   _extractKeyValue() {
-    if (!this._input || !this._input.length)
+    if (!this._input || !this._input.length) {
       return null;
+    }
     // Note: RFCs offer an option for quoted values that may contain commas and semicolons.
     // Many browsers/platforms do not support this, however (see http://webkit.org/b/16699
     // and http://crbug.com/12361). The logic below matches latest versions of IE, Firefox,
@@ -139,8 +150,9 @@ SDK.CookieParser = class {
       return null;
     }
 
-    const result = new SDK.CookieParser.KeyValue(
+    const result = new KeyValue(
         keyValueMatch[1], keyValueMatch[2] && keyValueMatch[2].trim(), this._originalInputLength - this._input.length);
+    this._lastCookieLine += keyValueMatch[0];
     this._input = this._input.slice(keyValueMatch[0].length);
     return result;
   }
@@ -150,19 +162,22 @@ SDK.CookieParser = class {
    */
   _advanceAndCheckCookieDelimiter() {
     const match = /^\s*[\n;]\s*/.exec(this._input);
-    if (!match)
+    if (!match) {
       return false;
+    }
+    this._lastCookieLine += match[0];
     this._input = this._input.slice(match[0].length);
     return match[0].match('\n') !== null;
   }
 
   /**
-   * @param {!SDK.CookieParser.KeyValue} keyValue
-   * @param {!SDK.Cookie.Type} type
+   * @param {!KeyValue} keyValue
+   * @param {!Type} type
    */
   _addCookie(keyValue, type) {
-    if (this._lastCookie)
+    if (this._lastCookie) {
       this._lastCookie.setSize(keyValue.position - this._lastCookiePosition);
+    }
 
     // Mozilla bug 169091: Mozilla, IE and Chrome treat single token (w/o "=") as
     // specifying a value for a cookie with empty name.
@@ -171,12 +186,12 @@ SDK.CookieParser = class {
     this._lastCookiePosition = keyValue.position;
     this._cookies.push(this._lastCookie);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.CookieParser.KeyValue = class {
+class KeyValue {
   /**
    * @param {string} key
    * @param {string|undefined} value
@@ -187,17 +202,17 @@ SDK.CookieParser.KeyValue = class {
     this.value = value;
     this.position = position;
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-SDK.Cookie = class {
+export class Cookie {
   /**
    * @param {string} name
    * @param {string} value
-   * @param {?SDK.Cookie.Type} type
+   * @param {?Type} type
    */
   constructor(name, value, type) {
     this._name = name;
@@ -205,6 +220,33 @@ SDK.Cookie = class {
     this._type = type;
     this._attributes = {};
     this._size = 0;
+    /** @type {string|null} */
+    this._cookieLine = null;
+  }
+
+  /**
+   * @param {!Protocol.Network.Cookie} protocolCookie
+   * @return {!SDK.Cookie}
+   */
+  static fromProtocolCookie(protocolCookie) {
+    const cookie = new SDK.Cookie(protocolCookie.name, protocolCookie.value, null);
+    cookie.addAttribute('domain', protocolCookie['domain']);
+    cookie.addAttribute('path', protocolCookie['path']);
+    cookie.addAttribute('port', protocolCookie['port']);
+    if (protocolCookie['expires']) {
+      cookie.addAttribute('expires', protocolCookie['expires'] * 1000);
+    }
+    if (protocolCookie['httpOnly']) {
+      cookie.addAttribute('httpOnly');
+    }
+    if (protocolCookie['secure']) {
+      cookie.addAttribute('secure');
+    }
+    if (protocolCookie['sameSite']) {
+      cookie.addAttribute('sameSite', protocolCookie['sameSite']);
+    }
+    cookie.setSize(protocolCookie['size']);
+    return cookie;
   }
 
   /**
@@ -222,7 +264,7 @@ SDK.Cookie = class {
   }
 
   /**
-   * @return {?SDK.Cookie.Type}
+   * @return {?Type}
    */
   type() {
     return this._type;
@@ -325,8 +367,9 @@ SDK.Cookie = class {
       return new Date(targetDate.getTime() + 1000 * this.maxAge());
     }
 
-    if (this.expires())
+    if (this.expires()) {
       return new Date(this.expires());
+    }
 
     return null;
   }
@@ -345,12 +388,63 @@ SDK.Cookie = class {
   addAttribute(key, value) {
     this._attributes[key.toLowerCase()] = value;
   }
-};
+
+  /**
+   * @param {string} cookieLine
+   */
+  _setCookieLine(cookieLine) {
+    this._cookieLine = cookieLine;
+  }
+
+  /**
+   * @return {string|null}
+   */
+  getCookieLine() {
+    return this._cookieLine;
+  }
+}
 
 /**
  * @enum {number}
  */
-SDK.Cookie.Type = {
+export const Type = {
   Request: 0,
   Response: 1
 };
+
+/**
+ * @enum {string}
+ */
+export const Attributes = {
+  Name: 'name',
+  Value: 'value',
+  Size: 'size',
+  Domain: 'domain',
+  Path: 'path',
+  Expires: 'expires',
+  HttpOnly: 'httpOnly',
+  Secure: 'secure',
+  SameSite: 'sameSite',
+};
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CookieParser = CookieParser;
+
+/** @constructor */
+SDK.Cookie = Cookie;
+
+/**
+ * @enum {number}
+ */
+SDK.Cookie.Type = Type;
+
+/**
+ * @enum {string}
+ */
+SDK.Cookie.Attributes = Attributes;

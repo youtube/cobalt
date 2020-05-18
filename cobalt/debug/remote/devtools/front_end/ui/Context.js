@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.Context = class {
+export default class Context {
   constructor() {
     this._flavors = new Map();
     this._eventDispatchers = new Map();
@@ -17,12 +17,14 @@ UI.Context = class {
    */
   setFlavor(flavorType, flavorValue) {
     const value = this._flavors.get(flavorType) || null;
-    if (value === flavorValue)
+    if (value === flavorValue) {
       return;
-    if (flavorValue)
+    }
+    if (flavorValue) {
       this._flavors.set(flavorType, flavorValue);
-    else
+    } else {
       this._flavors.remove(flavorType);
+    }
 
     this._dispatchFlavorChange(flavorType, flavorValue);
   }
@@ -40,9 +42,10 @@ UI.Context = class {
       }
     }
     const dispatcher = this._eventDispatchers.get(flavorType);
-    if (!dispatcher)
+    if (!dispatcher) {
       return;
-    dispatcher.dispatchEventToListeners(UI.Context.Events.FlavorChanged, flavorValue);
+    }
+    dispatcher.dispatchEventToListeners(Events.FlavorChanged, flavorValue);
   }
 
   /**
@@ -56,7 +59,7 @@ UI.Context = class {
       dispatcher = new Common.Object();
       this._eventDispatchers.set(flavorType, dispatcher);
     }
-    dispatcher.addEventListener(UI.Context.Events.FlavorChanged, listener, thisObject);
+    dispatcher.addEventListener(Events.FlavorChanged, listener, thisObject);
   }
 
   /**
@@ -66,11 +69,13 @@ UI.Context = class {
    */
   removeFlavorChangeListener(flavorType, listener, thisObject) {
     const dispatcher = this._eventDispatchers.get(flavorType);
-    if (!dispatcher)
+    if (!dispatcher) {
       return;
-    dispatcher.removeEventListener(UI.Context.Events.FlavorChanged, listener, thisObject);
-    if (!dispatcher.hasEventListeners(UI.Context.Events.FlavorChanged))
+    }
+    dispatcher.removeEventListener(Events.FlavorChanged, listener, thisObject);
+    if (!dispatcher.hasEventListeners(Events.FlavorChanged)) {
       this._eventDispatchers.remove(flavorType);
+    }
   }
 
   /**
@@ -90,37 +95,36 @@ UI.Context = class {
   }
 
   /**
-   * @param {!Array.<!Runtime.Extension>} extensions
-   * @return {!Set.<!Runtime.Extension>}
+   * @param {!Array.<!Root.Runtime.Extension>} extensions
+   * @return {!Set.<!Root.Runtime.Extension>}
    */
   applicableExtensions(extensions) {
     const targetExtensionSet = new Set();
 
     const availableFlavors = this.flavors();
     extensions.forEach(function(extension) {
-      if (self.runtime.isExtensionApplicableToContextTypes(extension, availableFlavors))
+      if (self.runtime.isExtensionApplicableToContextTypes(extension, availableFlavors)) {
         targetExtensionSet.add(extension);
+      }
     });
 
     return targetExtensionSet;
   }
-};
+}
 
 /** @enum {symbol} */
-UI.Context.Events = {
+const Events = {
   FlavorChanged: Symbol('FlavorChanged')
 };
 
-/**
- * @interface
- */
-UI.ContextFlavorListener = function() {};
+/* Legacy exported object*/
+self.UI = self.UI || {};
 
-UI.ContextFlavorListener.prototype = {
-  /**
-   * @param {?Object} object
-   */
-  flavorChanged(object) {}
-};
+/* Legacy exported object*/
+UI = UI || {};
 
-UI.context = new UI.Context();
+/** @constructor */
+UI.Context = Context;
+
+/** @type {!Context} */
+UI.context = new Context();

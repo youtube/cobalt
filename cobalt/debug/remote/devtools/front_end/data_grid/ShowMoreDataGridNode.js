@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-DataGrid.ShowMoreDataGridNode = class extends DataGrid.DataGridNode {
+export default class ShowMoreDataGridNode extends DataGrid.DataGridNode {
   /**
    * @param {function(number, number)} callback
    * @param {number} startPosition
@@ -105,8 +105,9 @@ DataGrid.ShowMoreDataGridNode = class extends DataGrid.DataGridNode {
     const cell = this.createTD(columnIdentifier);
     if (!this._hasCells) {
       this._hasCells = true;
-      if (this.depth)
+      if (this.depth) {
         cell.style.setProperty('padding-left', (this.depth * this.dataGrid.indentWidth) + 'px');
+      }
       cell.appendChild(this.showNext);
       cell.appendChild(this.showAll);
       cell.appendChild(this.showLast);
@@ -140,4 +141,15 @@ DataGrid.ShowMoreDataGridNode = class extends DataGrid.DataGridNode {
 
   dispose() {
   }
-};
+}
+
+/* Legacy exported object */
+self.DataGrid = self.DataGrid || {};
+
+/* Legacy exported object */
+DataGrid = DataGrid || {};
+
+/**
+ * @constructor
+ */
+DataGrid.ShowMoreDataGridNode = ShowMoreDataGridNode;
