@@ -58,6 +58,7 @@ class LottiePlayer : public HTMLElement {
   double speed() const;
   void set_speed(double speed);
   std::string renderer() const;
+  void Load(std::string src);
   void Play();
   void Pause();
   void Stop();
