@@ -634,6 +634,12 @@ void HTMLScriptElement::Execute(const std::string& content,
                script_location.line_number);
   // Since error is already handled, it is guaranteed the load is successful.
 
+  // For |currentScript| logic, see
+  // https://html.spec.whatwg.org/commit-snapshots/20a0ddc6841176adab93efefb76b23e0a1e6fa43/#execute-the-script-block
+  scoped_refptr<HTMLScriptElement> old_current_script =
+      node_document()->current_script();
+  node_document()->set_current_script(this);
+
   // 1. 2. 3. Not needed by Cobalt.
 
   // 4. Create a script, using the script block's source, the URL from which the
@@ -664,6 +670,10 @@ void HTMLScriptElement::Execute(const std::string& content,
         FROM_HERE, base::Tokens::readystatechange(),
         &prevent_gc_until_ready_event_dispatch_);
   }
+
+  // For |currentScript| logic, see
+  // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block.
+  node_document()->set_current_script(old_current_script);
 
   // The script is done running. Stop tracking it in the global stats.
   GlobalStats::GetInstance()->StopJavaScriptEvent();

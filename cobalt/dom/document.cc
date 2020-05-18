@@ -394,6 +394,15 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   return NULL;
 }
 
+scoped_refptr<HTMLScriptElement> Document::current_script() const {
+  return current_script_;
+}
+
+void Document::set_current_script(
+    const scoped_refptr<HTMLScriptElement>& current_script) {
+  current_script_ = current_script;
+}
+
 bool Document::HasFocus() const {
   return application_lifecycle_state()->HasWindowFocus();
 }

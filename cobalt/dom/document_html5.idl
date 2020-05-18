@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html50/dom.html#the-document-object
+// https://www.w3.org/TR/2021/SPSD-html51-20210128/dom.html#the-document-object
 
 [OverrideBuiltins]
 partial /*sealed*/ interface Document {
@@ -25,6 +25,11 @@ partial /*sealed*/ interface Document {
   attribute HTMLBodyElement? body;
   readonly attribute HTMLHeadElement? head;
   readonly attribute DOMString title;
+
+  // currentScript is implemented as part of the HTML 5.1 spec
+  // https://www.w3.org/TR/2021/SPSD-html51-20210128/dom.html#dom-document-currentscript
+  readonly attribute HTMLScriptElement? currentScript;
+
   boolean hasFocus();
   readonly attribute Element? activeElement;
 
