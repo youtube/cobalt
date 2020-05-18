@@ -19,6 +19,21 @@
 namespace starboard {
 namespace nplb {
 
+std::string ResolveTestFileName(const char* filename) {
+  std::vector<char> content_path(kSbFileMaxPath);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           kSbFileMaxPath));
+  std::string directory_path = std::string(content_path.data()) +
+                               kSbFileSepChar + "test" + kSbFileSepChar +
+                               "starboard" + kSbFileSepChar + "shared" +
+                               kSbFileSepChar + "starboard" + kSbFileSepChar +
+                               "player" + kSbFileSepChar + "testdata";
+
+  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
+      << "Cannot open directory " << directory_path;
+  return directory_path + kSbFileSepChar + filename;
+}
+
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
