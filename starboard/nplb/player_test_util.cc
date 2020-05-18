@@ -14,6 +14,7 @@
 
 #include "starboard/nplb/player_test_util.h"
 
+#include "starboard/directory.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 
 namespace starboard {
@@ -33,6 +34,26 @@ std::string ResolveTestFileName(const char* filename) {
       << "Cannot open directory " << directory_path;
   return directory_path + kSbFileSepChar + filename;
 }
+
+void DummyDeallocateSampleFunc(SbPlayer player,
+                               void* context,
+                               const void* sample_buffer) {}
+
+void DummyDecoderStatusFunc(SbPlayer player,
+                            void* context,
+                            SbMediaType type,
+                            SbPlayerDecoderState state,
+                            int ticket) {}
+
+void DummyStatusFunc(SbPlayer player,
+                     void* context,
+                     SbPlayerState state,
+                     int ticket) {}
+
+void DummyErrorFunc(SbPlayer player,
+                    void* context,
+                    SbPlayerError error,
+                    const char* message) {}
 
 SbPlayer CallSbPlayerCreate(
     SbWindow window,

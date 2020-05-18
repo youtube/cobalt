@@ -26,6 +26,26 @@ namespace nplb {
 
 std::string ResolveTestFileName(const char* filename);
 
+void DummyDeallocateSampleFunc(SbPlayer player,
+                               void* context,
+                               const void* sample_buffer);
+
+void DummyDecoderStatusFunc(SbPlayer player,
+                            void* context,
+                            SbMediaType type,
+                            SbPlayerDecoderState state,
+                            int ticket);
+
+void DummyPlayerStatusFunc(SbPlayer player,
+                           void* context,
+                           SbPlayerState state,
+                           int ticket);
+
+void DummyErrorFunc(SbPlayer player,
+                    void* context,
+                    SbPlayerError error,
+                    const char* message);
+
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
