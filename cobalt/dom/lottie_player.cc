@@ -86,6 +86,11 @@ std::string LottiePlayer::renderer() const {
   return "skottie-m79";
 }
 
+void LottiePlayer::Load(std::string src) {
+  // https://github.com/LottieFiles/lottie-player#loadsrc-string--object--void
+  set_src(src);
+}
+
 void LottiePlayer::Play() {
   // https://lottiefiles.github.io/lottie-player/methods.html#play--void
   UpdateState(LottieAnimation::LottieState::kPlaying);
