@@ -80,26 +80,16 @@ class LottieAnimation : public Image {
       return true;
     }
 
-    void SeekFrame(double frame_number) {
-      seek_value = frame_number;
-      seek_value_is_frame = true;
-      UpdateStateAndSeekCounter();
-    }
-
-    void SeekPercent(double percent) {
-      // Store as normalized [0..1] frame selector.
-      seek_value = percent / 100;
-      seek_value_is_frame = false;
-      UpdateStateAndSeekCounter();
-    }
-
-    void UpdateStateAndSeekCounter() {
+    // Update |seek_frame| and |seek_counter| to indicate that a seek needs to
+    // occur.
+    void Seek(double new_seek_frame) {
       // A stopped animation will become paused (i.e. will not be hidden)
       // if seek() has been called.
       if (state == LottieState::kStopped) {
         state = LottieState::kPaused;
       }
-      // Update |seek_counter| to indicate that a seek needs to occur.
+
+      seek_frame = new_seek_frame;
       ++seek_counter;
     }
 
@@ -112,14 +102,8 @@ class LottieAnimation : public Image {
     bool loop = kDefaultLoop;
     double speed = kDefaultSpeed;
 
-    // |seek_value| indicates either the frame or the normalized [0..1] frame
-    // selector that the animation should seek to. The internal implementation
-    // that we use for the Lottie animations will handle out-of-bounds values,
-    // so there is no need to check here.
-    double seek_value;
-    // |seek_value_is_frame| indicates whether |seek_value| is a frame (true)
-    // or a normalized [0..1] frame selector (false).
-    bool seek_value_is_frame;
+    // |seek_frame| indicates which frame the animation should seek to.
+    double seek_frame;
     // |seek_counter| is incremented every time "seek()" is called on a Lottie
     // animation.
     size_t seek_counter = 0;

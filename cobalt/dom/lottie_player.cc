@@ -103,24 +103,12 @@ void LottiePlayer::Stop() {
 
 void LottiePlayer::Seek(FrameType frame) {
   // https://lottiefiles.github.io/lottie-player/methods.html#seekvalue-number--string--void
+  // TODO: Support percent strings as well.
   if (frame.IsType<double>()) {
-    properties_.SeekFrame(frame.AsType<double>());
-  } else if (frame.IsType<std::string>()) {
-    // Check whether a valid percent string.
-    std::string frame_string = frame.AsType<std::string>();
-    double frame_percent;
-    base::StringToDouble(frame_string.substr(0, frame_string.length() - 1),
-                         &frame_percent);
-    if (frame_string.back() != '%' || !frame_percent) {
-      DLOG(WARNING) << "Not a valid percent string: "
-                    << frame.AsType<std::string>();
-      return;
-    }
-    properties_.SeekPercent(frame_percent);
+    autoplaying_ = false;
+    properties_.Seek(frame.AsType<double>());
+    UpdateLottieObjects();
   }
-
-  autoplaying_ = false;
-  UpdateLottieObjects();
 }
 
 void LottiePlayer::SetDirection(int direction) {
