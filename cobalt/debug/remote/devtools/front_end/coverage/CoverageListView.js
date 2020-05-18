@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Coverage.CoverageListView = class extends UI.VBox {
+export default class CoverageListView extends UI.VBox {
   /**
    * @param {function(!Coverage.URLCoverageInfo):boolean} filterCallback
    */
@@ -33,7 +33,7 @@ Coverage.CoverageListView = class extends UI.VBox {
         align: DataGrid.DataGrid.Align.Right,
         sort: DataGrid.DataGrid.Order.Descending
       },
-      {id: 'bars', title: '', width: '250px', fixedWidth: false, sortable: true}
+      {id: 'bars', title: ls`Usage Visualization`, width: '250px', fixedWidth: false, sortable: true}
     ];
     this._dataGrid = new DataGrid.SortableDataGrid(columns);
     this._dataGrid.setResizeMethod(DataGrid.DataGrid.ResizeMethod.Last);
@@ -56,19 +56,21 @@ Coverage.CoverageListView = class extends UI.VBox {
     for (const entry of coverageInfo) {
       let node = this._nodeForCoverageInfo.get(entry);
       if (node) {
-        if (this._filterCallback(node._coverageInfo))
+        if (this._filterCallback(node._coverageInfo)) {
           hadUpdates = node._refreshIfNeeded(maxSize) || hadUpdates;
+        }
         continue;
       }
-      node = new Coverage.CoverageListView.GridNode(entry, maxSize);
+      node = new GridNode(entry, maxSize);
       this._nodeForCoverageInfo.set(entry, node);
       if (this._filterCallback(node._coverageInfo)) {
         rootNode.appendChild(node);
         hadUpdates = true;
       }
     }
-    if (hadUpdates)
+    if (hadUpdates) {
       this._sortingChanged();
+    }
   }
 
   reset() {
@@ -85,18 +87,31 @@ Coverage.CoverageListView = class extends UI.VBox {
     for (const node of this._nodeForCoverageInfo.values()) {
       const shouldBeVisible = this._filterCallback(node._coverageInfo);
       const isVisible = !!node.parent;
-      if (shouldBeVisible)
+      if (shouldBeVisible) {
         node._setHighlight(this._highlightRegExp);
-      if (shouldBeVisible === isVisible)
+      }
+      if (shouldBeVisible === isVisible) {
         continue;
+      }
       hadTreeUpdates = true;
-      if (!shouldBeVisible)
+      if (!shouldBeVisible) {
         node.remove();
-      else
+      } else {
         this._dataGrid.rootNode().appendChild(node);
+      }
     }
-    if (hadTreeUpdates)
+    if (hadTreeUpdates) {
       this._sortingChanged();
+    }
+  }
+
+  selectByUrl(url) {
+    for (const [info, node] of this._nodeForCoverageInfo.entries()) {
+      if (info.url() === url) {
+        node.revealAndSelect();
+        break;
+      }
+    }
   }
 
   _onOpenedNode() {
@@ -107,35 +122,37 @@ Coverage.CoverageListView = class extends UI.VBox {
    * @param {!Event} event
    */
   _onKeyDown(event) {
-    if (!isEnterKey(event))
+    if (!isEnterKey(event)) {
       return;
+    }
     event.consume(true);
     this._revealSourceForSelectedNode();
   }
 
   async _revealSourceForSelectedNode() {
     const node = this._dataGrid.selectedNode;
-    if (!node)
+    if (!node) {
       return;
+    }
     const coverageInfo = /** @type {!Coverage.CoverageListView.GridNode} */ (node)._coverageInfo;
     let sourceCode = Workspace.workspace.uiSourceCodeForURL(coverageInfo.url());
-    if (!sourceCode)
+    if (!sourceCode) {
       return;
-    const content = await sourceCode.requestContent();
-    if (TextUtils.isMinified(content)) {
-      const formatData = await Sources.sourceFormatter.format(sourceCode);
-      // ------------ ASYNC ------------
-      sourceCode = formatData.formattedSourceCode;
     }
-    if (this._dataGrid.selectedNode !== node)
+
+    sourceCode = await sourceCode.getFormatted();
+
+    if (this._dataGrid.selectedNode !== node) {
       return;
+    }
     Common.Revealer.reveal(sourceCode);
   }
 
   _sortingChanged() {
     const columnId = this._dataGrid.sortColumnId();
-    if (!columnId)
+    if (!columnId) {
       return;
+    }
     let sortFunction;
     switch (columnId) {
       case 'url':
@@ -202,17 +219,19 @@ Coverage.CoverageListView = class extends UI.VBox {
    */
   static _typeToString(type) {
     const types = [];
-    if (type & Coverage.CoverageType.CSS)
+    if (type & Coverage.CoverageType.CSS) {
       types.push(Common.UIString('CSS'));
-    if (type & Coverage.CoverageType.JavaScriptCoarse)
-      types.push(Common.UIString('JS (coarse)'));
-    else if (type & Coverage.CoverageType.JavaScript)
-      types.push(Common.UIString('JS'));
+    }
+    if (type & Coverage.CoverageType.JavaScriptPerFunction) {
+      types.push(Common.UIString('JS (per function)'));
+    } else if (type & Coverage.CoverageType.JavaScript) {
+      types.push(Common.UIString('JS (per block)'));
+    }
     return types.join('+');
   }
-};
+}
 
-Coverage.CoverageListView.GridNode = class extends DataGrid.SortableDataGridNode {
+export class GridNode extends DataGrid.SortableDataGridNode {
   /**
    * @param {!Coverage.URLCoverageInfo} coverageInfo
    * @param {number} maxSize
@@ -233,8 +252,9 @@ Coverage.CoverageListView.GridNode = class extends DataGrid.SortableDataGridNode
    * @param {?RegExp} highlightRegExp
    */
   _setHighlight(highlightRegExp) {
-    if (this._highlightRegExp === highlightRegExp)
+    if (this._highlightRegExp === highlightRegExp) {
       return;
+    }
     this._highlightRegExp = highlightRegExp;
     this.refresh();
   }
@@ -244,8 +264,9 @@ Coverage.CoverageListView.GridNode = class extends DataGrid.SortableDataGridNode
    * @return {boolean}
    */
   _refreshIfNeeded(maxSize) {
-    if (this._lastUsedSize === this._coverageInfo.usedSize() && maxSize === this._maxSize)
+    if (this._lastUsedSize === this._coverageInfo.usedSize() && maxSize === this._maxSize) {
       return false;
+    }
     this._lastUsedSize = this._coverageInfo.usedSize();
     this._maxSize = maxSize;
     this.refresh();
@@ -268,32 +289,75 @@ Coverage.CoverageListView.GridNode = class extends DataGrid.SortableDataGridNode
         const splitURL = /^(.*)(\/[^/]*)$/.exec(this._url);
         prefix.textContent = splitURL ? splitURL[1] : this._url;
         suffix.textContent = splitURL ? splitURL[2] : '';
-        if (this._highlightRegExp)
+        if (this._highlightRegExp) {
           this._highlight(outer, this._url);
+        }
         break;
       case 'type':
         cell.textContent = Coverage.CoverageListView._typeToString(this._coverageInfo.type());
-        if (this._coverageInfo.type() & Coverage.CoverageType.JavaScriptCoarse)
-          cell.title = Common.UIString('JS coverage is function-level only. Reload the page for block-level coverage.');
+        if (this._coverageInfo.type() & Coverage.CoverageType.JavaScriptPerFunction) {
+          cell.title = ls
+          `JS coverage with per function granularity: Once a function was executed, the whole function is marked as covered.`;
+        } else if (this._coverageInfo.type() & Coverage.CoverageType.JavaScript) {
+          cell.title = ls
+          `JS coverage with per block granularity: Once a block of JavaScript was executed, that block is marked as covered.`;
+        }
         break;
       case 'size':
-        cell.textContent = Number.withThousandsSeparator(this._coverageInfo.size() || 0);
+        const sizeSpan = cell.createChild('span');
+        sizeSpan.textContent = Number.withThousandsSeparator(this._coverageInfo.size() || 0);
+        UI.ARIAUtils.markAsHidden(sizeSpan);
+        UI.ARIAUtils.setAccessibleName(cell, ls`${this._coverageInfo.size() || 0} bytes`);
         break;
       case 'unusedSize':
         const unusedSize = this._coverageInfo.unusedSize() || 0;
         const unusedSizeSpan = cell.createChild('span');
         const unusedPercentsSpan = cell.createChild('span', 'percent-value');
         unusedSizeSpan.textContent = Number.withThousandsSeparator(unusedSize);
-        unusedPercentsSpan.textContent = Common.UIString('%.1f\xa0%%', unusedSize / this._coverageInfo.size() * 100);
+        const unusedPercentFormatted = ls`${this._percentageString(this._coverageInfo.unusedPercentage())} %`;
+        unusedPercentsSpan.textContent = unusedPercentFormatted;
+        UI.ARIAUtils.markAsHidden(unusedPercentsSpan);
+        UI.ARIAUtils.markAsHidden(unusedSizeSpan);
+        UI.ARIAUtils.setAccessibleName(cell, ls`${unusedSize} bytes, ${unusedPercentFormatted}`);
         break;
       case 'bars':
         const barContainer = cell.createChild('div', 'bar-container');
-        const unusedSizeBar = barContainer.createChild('div', 'bar bar-unused-size');
-        unusedSizeBar.style.width = (100 * this._coverageInfo.unusedSize() / this._maxSize).toFixed(4) + '%';
-        const usedSizeBar = barContainer.createChild('div', 'bar bar-used-size');
-        usedSizeBar.style.width = (100 * this._coverageInfo.usedSize() / this._maxSize).toFixed(4) + '%';
+        const unusedPercent = this._percentageString(this._coverageInfo.unusedPercentage());
+        const usedPercent = this._percentageString(this._coverageInfo.usedPercentage());
+        if (this._coverageInfo.unusedSize() > 0) {
+          const unusedSizeBar = barContainer.createChild('div', 'bar bar-unused-size');
+          unusedSizeBar.style.width = ((this._coverageInfo.unusedSize() / this._maxSize) * 100 || 0) + '%';
+          if (this._coverageInfo.type() & Coverage.CoverageType.JavaScriptPerFunction) {
+            unusedSizeBar.title = ls`${this._coverageInfo.unusedSize()} bytes (${
+                unusedPercent} %) belong to functions that have not (yet) been executed.`;
+          } else if (this._coverageInfo.type() & Coverage.CoverageType.JavaScript) {
+            unusedSizeBar.title = ls`${this._coverageInfo.unusedSize()} bytes (${
+                unusedPercent} %) belong to blocks of JavaScript that have not (yet) been executed.`;
+          }
+        }
+        if (this._coverageInfo.usedSize() > 0) {
+          const usedSizeBar = barContainer.createChild('div', 'bar bar-used-size');
+          usedSizeBar.style.width = ((this._coverageInfo.usedSize() / this._maxSize) * 100 || 0) + '%';
+          if (this._coverageInfo.type() & Coverage.CoverageType.JavaScriptPerFunction) {
+            usedSizeBar.title = ls`${this._coverageInfo.usedSize()} bytes (${
+                usedPercent} %) belong to functions that have executed at least once.`;
+          } else if (this._coverageInfo.type() & Coverage.CoverageType.JavaScript) {
+            usedSizeBar.title = ls`${this._coverageInfo.usedSize()} bytes (${
+                usedPercent} %) belong to blocks of JavaScript that have executed at least once.`;
+          }
+        }
+        UI.ARIAUtils.setAccessibleName(
+            barContainer, ls`${unusedPercent} % of file unused, ${usedPercent} % of file used`);
     }
     return cell;
+  }
+
+  /**
+   * @param {number} value
+   * @return {string}
+   */
+  _percentageString(value) {
+    return value.toFixed(1);
   }
 
   /**
@@ -302,9 +366,26 @@ Coverage.CoverageListView.GridNode = class extends DataGrid.SortableDataGridNode
    */
   _highlight(element, textContent) {
     const matches = this._highlightRegExp.exec(textContent);
-    if (!matches || !matches.length)
+    if (!matches || !matches.length) {
       return;
+    }
     const range = new TextUtils.SourceRange(matches.index, matches[0].length);
     UI.highlightRangesWithStyleClass(element, [range], 'filter-highlight');
   }
-};
+}
+
+/* Legacy exported object */
+self.Coverage = self.Coverage || {};
+
+/* Legacy exported object */
+Coverage = Coverage || {};
+
+/**
+ * @constructor
+ */
+Coverage.CoverageListView = CoverageListView;
+
+/**
+ * @constructor
+ */
+Coverage.CoverageListView.GridNode = GridNode;

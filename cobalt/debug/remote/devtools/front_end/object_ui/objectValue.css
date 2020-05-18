@@ -20,7 +20,7 @@
 }
 
 .value.object-value-node:hover {
-    background-color: rgba(56, 121, 217, 0.1);
+    background-color: var(--item-hover-color);
 }
 
 .object-value-function-prefix,
@@ -48,7 +48,7 @@
 .object-value-string,
 .object-value-regexp,
 .object-value-symbol {
-    white-space: pre;
+    white-space: pre !important;
     unicode-bidi: -webkit-isolate;
     color: rgb(196, 26, 22);
 }
@@ -67,12 +67,6 @@
 .object-value-null,
 .object-value-undefined {
     color: rgb(128, 128, 128);
-}
-
-.object-value {
-    text-overflow: ellipsis;
-    overflow: hidden;
-    -webkit-user-select: text;
 }
 
 .object-value-calculate-value-button:hover {

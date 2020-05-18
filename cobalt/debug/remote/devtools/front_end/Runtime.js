@@ -27,16 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// This gets all concatenated module descriptors in the release mode.
-const allDescriptors = [];
-let applicationDescriptor;
 const _loadedScripts = {};
-
-// FIXME: This is a workaround to force Closure compiler provide
-// the standard ES6 runtime for all modules. This should be removed
-// once Closure provides standard externs for Map et al.
-for (const k of []) {  // eslint-disable-line
-}
 
 (function() {
 const baseUrl = self.location ? self.location.origin + self.location.pathname : '';
@@ -48,33 +39,35 @@ const REMOTE_MODULE_FALLBACK_REVISION = '@010ddcfda246975d194964ccf20038ebbdec60
 /**
  * @unrestricted
  */
-var Runtime = class {  // eslint-disable-line
+class Runtime {
   /**
-   * @param {!Array.<!Runtime.ModuleDescriptor>} descriptors
+   * @param {!Array.<!ModuleDescriptor>} descriptors
    */
   constructor(descriptors) {
     /** @type {!Array<!Runtime.Module>} */
     this._modules = [];
     /** @type {!Object<string, !Runtime.Module>} */
     this._modulesMap = {};
-    /** @type {!Array<!Runtime.Extension>} */
+    /** @type {!Array<!Extension>} */
     this._extensions = [];
     /** @type {!Object<string, !function(new:Object)>} */
     this._cachedTypeClasses = {};
-    /** @type {!Object<string, !Runtime.ModuleDescriptor>} */
+    /** @type {!Object<string, !ModuleDescriptor>} */
     this._descriptorsMap = {};
 
-    for (let i = 0; i < descriptors.length; ++i)
+    for (let i = 0; i < descriptors.length; ++i) {
       this._registerModule(descriptors[i]);
-
-    Runtime._runtimeReadyPromiseCallback();
+    }
   }
 
   /**
+   * @private
    * @param {string} url
-   * @return {!Promise.<string>}
+   * @param {boolean} asBinary
+   * @template T
+   * @return {!Promise.<T>}
    */
-  static loadResourcePromise(url) {
+  static _loadResourcePromise(url, asBinary) {
     return new Promise(load);
 
     /**
@@ -84,25 +77,64 @@ var Runtime = class {  // eslint-disable-line
     function load(fulfill, reject) {
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url, true);
+      if (asBinary) {
+        xhr.responseType = 'arraybuffer';
+      }
       xhr.onreadystatechange = onreadystatechange;
 
       /**
        * @param {Event} e
        */
       function onreadystatechange(e) {
-        if (xhr.readyState !== XMLHttpRequest.DONE)
+        if (xhr.readyState !== XMLHttpRequest.DONE) {
           return;
+        }
+
+        const {response} = e.target;
+
+        const text = asBinary ? new TextDecoder().decode(response) : response;
 
         // DevTools Proxy server can mask 404s as 200s, check the body to be sure
-        const status = /^HTTP\/1.1 404/.test(e.target.response) ? 404 : xhr.status;
+        const status = /^HTTP\/1.1 404/.test(text) ? 404 : xhr.status;
 
         if ([0, 200, 304].indexOf(status) === -1)  // Testing harness file:/// results in 0.
+        {
           reject(new Error('While loading from url ' + url + ' server responded with a status of ' + status));
-        else
-          fulfill(e.target.response);
+        } else {
+          fulfill(cleanJson(response));
+        }
       }
       xhr.send(null);
     }
+
+    function cleanJson(response) {
+      if (!asBinary && url.endsWith('.json')) {
+        // Matches commented-out lines.
+        let commented_line_re = /\s*\/\/.*/g;
+        // Matches trailing commas before closing of arrays/objects.
+        let trailing_comma_re = /,(?=\s*[\]}])/g
+        return response
+            .replace(commented_line_re, '')
+            .replace(trailing_comma_re, '');
+      }
+      return response;
+    }
+  }
+
+  /**
+   * @param {string} url
+   * @return {!Promise.<string>}
+   */
+  static loadResourcePromise(url) {
+    return Runtime._loadResourcePromise(url, false);
+  }
+
+  /**
+   * @param {string} url
+   * @return {!Promise.<!ArrayBuffer>}
+   */
+  static loadBinaryResourcePromise(url) {
+    return Runtime._loadResourcePromise(url, true);
   }
 
   /**
@@ -113,8 +145,9 @@ var Runtime = class {  // eslint-disable-line
     return Runtime.loadResourcePromise(url).catch(err => {
       const urlWithFallbackVersion = url.replace(/@[0-9a-f]{40}/, REMOTE_MODULE_FALLBACK_REVISION);
       // TODO(phulce): mark fallbacks in module.json and modify build script instead
-      if (urlWithFallbackVersion === url || !url.includes('audits2_worker_module'))
+      if (urlWithFallbackVersion === url || !url.includes('audits_worker_module')) {
         throw err;
+      }
       return Runtime.loadResourcePromise(urlWithFallbackVersion);
     });
   }
@@ -125,30 +158,50 @@ var Runtime = class {  // eslint-disable-line
    * @return {string}
    */
   static normalizePath(path) {
-    if (path.indexOf('..') === -1 && path.indexOf('.') === -1)
+    if (path.indexOf('..') === -1 && path.indexOf('.') === -1) {
       return path;
+    }
 
     const normalizedSegments = [];
     const segments = path.split('/');
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      if (segment === '.')
+      if (segment === '.') {
         continue;
-      else if (segment === '..')
+      } else if (segment === '..') {
         normalizedSegments.pop();
-      else if (segment)
+      } else if (segment) {
         normalizedSegments.push(segment);
+      }
     }
     let normalizedPath = normalizedSegments.join('/');
-    if (normalizedPath[normalizedPath.length - 1] === '/')
+    if (normalizedPath[normalizedPath.length - 1] === '/') {
       return normalizedPath;
-    if (path[0] === '/' && normalizedPath)
+    }
+    if (path[0] === '/' && normalizedPath) {
       normalizedPath = '/' + normalizedPath;
+    }
     if ((path[path.length - 1] === '/') || (segments[segments.length - 1] === '.') ||
-        (segments[segments.length - 1] === '..'))
+        (segments[segments.length - 1] === '..')) {
       normalizedPath = normalizedPath + '/';
+    }
 
     return normalizedPath;
+  }
+
+  /**
+   * @param {string} scriptName
+   * @param {string=} base
+   * @return {string}
+   */
+  static getResourceURL(scriptName, base) {
+    const sourceURL = (base || self._importScriptPathPrefix) + scriptName;
+    const schemaIndex = sourceURL.indexOf('://') + 3;
+    let pathIndex = sourceURL.indexOf('/', schemaIndex);
+    if (pathIndex === -1) {
+      pathIndex = sourceURL.length;
+    }
+    return sourceURL.substring(0, pathIndex) + Runtime.normalizePath(sourceURL.substring(pathIndex));
   }
 
   /**
@@ -165,16 +218,11 @@ var Runtime = class {  // eslint-disable-line
     let scriptToEval = 0;
     for (let i = 0; i < scriptNames.length; ++i) {
       const scriptName = scriptNames[i];
-      let sourceURL = (base || self._importScriptPathPrefix) + scriptName;
+      const sourceURL = Runtime.getResourceURL(scriptName, base);
 
-      const schemaIndex = sourceURL.indexOf('://') + 3;
-      let pathIndex = sourceURL.indexOf('/', schemaIndex);
-      if (pathIndex === -1)
-        pathIndex = sourceURL.length;
-      sourceURL = sourceURL.substring(0, pathIndex) + Runtime.normalizePath(sourceURL.substring(pathIndex));
-
-      if (_loadedScripts[sourceURL])
+      if (_loadedScripts[sourceURL]) {
         continue;
+      }
       urls.push(sourceURL);
       const loadResourcePromise =
           base ? Runtime.loadResourcePromiseWithFallback(sourceURL) : Runtime.loadResourcePromise(sourceURL);
@@ -237,8 +285,8 @@ var Runtime = class {  // eslint-disable-line
   /**
    * @return {!Promise}
    */
-  static async runtimeReady() {
-    return Runtime._runtimeReadyPromise;
+  static async appStarted() {
+    return Runtime._appStartedPromise;
   }
 
   /**
@@ -246,38 +294,40 @@ var Runtime = class {  // eslint-disable-line
    * @return {!Promise.<undefined>}
    */
   static async startApplication(appName) {
-    console.timeStamp('Runtime.startApplication');
+    console.timeStamp('Root.Runtime.startApplication');
 
     const allDescriptorsByName = {};
-    for (let i = 0; i < allDescriptors.length; ++i) {
-      const d = allDescriptors[i];
+    for (let i = 0; i < Root.allDescriptors.length; ++i) {
+      const d = Root.allDescriptors[i];
       allDescriptorsByName[d['name']] = d;
     }
 
-    if (!applicationDescriptor) {
+    if (!Root.applicationDescriptor) {
       let data = await Runtime.loadResourcePromise(appName + '.json');
-      applicationDescriptor = JSON.parse(data);
-      let descriptor = applicationDescriptor;
+      Root.applicationDescriptor = JSON.parse(data);
+      let descriptor = Root.applicationDescriptor;
       while (descriptor.extends) {
         data = await Runtime.loadResourcePromise(descriptor.extends + '.json');
         descriptor = JSON.parse(data);
-        applicationDescriptor.modules = descriptor.modules.concat(applicationDescriptor.modules);
+        Root.applicationDescriptor.modules = descriptor.modules.concat(Root.applicationDescriptor.modules);
       }
     }
 
-    const configuration = applicationDescriptor.modules;
+    const configuration = Root.applicationDescriptor.modules;
     const moduleJSONPromises = [];
     const coreModuleNames = [];
     for (let i = 0; i < configuration.length; ++i) {
       const descriptor = configuration[i];
       const name = descriptor['name'];
       const moduleJSON = allDescriptorsByName[name];
-      if (moduleJSON)
+      if (moduleJSON) {
         moduleJSONPromises.push(Promise.resolve(moduleJSON));
-      else
+      } else {
         moduleJSONPromises.push(Runtime.loadResourcePromise(name + '/module.json').then(JSON.parse.bind(JSON)));
-      if (descriptor['type'] === 'autostart')
+      }
+      if (descriptor['type'] === 'autostart') {
         coreModuleNames.push(name);
+      }
     }
 
     const moduleDescriptors = await Promise.all(moduleJSONPromises);
@@ -288,8 +338,10 @@ var Runtime = class {  // eslint-disable-line
       moduleDescriptors[i].remote = configuration[i]['type'] === 'remote';
     }
     self.runtime = new Runtime(moduleDescriptors);
-    if (coreModuleNames)
-      return /** @type {!Promise<undefined>} */ (self.runtime._loadAutoStartModules(coreModuleNames));
+    if (coreModuleNames) {
+      await self.runtime._loadAutoStartModules(coreModuleNames);
+    }
+    Runtime._appStartedPromiseCallback();
   }
 
   /**
@@ -297,7 +349,7 @@ var Runtime = class {  // eslint-disable-line
    * @return {!Promise.<undefined>}
    */
   static startWorker(appName) {
-    return Runtime.startApplication(appName).then(sendWorkerReady);
+    return Root.Runtime.startApplication(appName).then(sendWorkerReady);
 
     function sendWorkerReady() {
       self.postMessage('workerReady');
@@ -309,7 +361,7 @@ var Runtime = class {  // eslint-disable-line
    * @return {?string}
    */
   static queryParam(name) {
-    return Runtime._queryParamsObject[name] || null;
+    return Runtime._queryParamsObject.get(name);
   }
 
   /**
@@ -333,8 +385,9 @@ var Runtime = class {  // eslint-disable-line
   }
 
   static _assert(value, message) {
-    if (value)
+    if (value) {
       return;
+    }
     Runtime._originalAssert.call(Runtime._console, value, message + ' ' + new Error().stack);
   }
 
@@ -351,19 +404,24 @@ var Runtime = class {  // eslint-disable-line
    */
   static _isDescriptorEnabled(descriptor) {
     const activatorExperiment = descriptor['experiment'];
-    if (activatorExperiment === '*')
+    if (activatorExperiment === '*') {
       return Runtime.experiments.supportEnabled();
+    }
     if (activatorExperiment && activatorExperiment.startsWith('!') &&
-        Runtime.experiments.isEnabled(activatorExperiment.substring(1)))
+        Runtime.experiments.isEnabled(activatorExperiment.substring(1))) {
       return false;
+    }
     if (activatorExperiment && !activatorExperiment.startsWith('!') &&
-        !Runtime.experiments.isEnabled(activatorExperiment))
+        !Runtime.experiments.isEnabled(activatorExperiment)) {
       return false;
+    }
     const condition = descriptor['condition'];
-    if (condition && !condition.startsWith('!') && !Runtime.queryParam(condition))
+    if (condition && !condition.startsWith('!') && !Runtime.queryParam(condition)) {
       return false;
-    if (condition && condition.startsWith('!') && Runtime.queryParam(condition.substring(1)))
+    }
+    if (condition && condition.startsWith('!') && Runtime.queryParam(condition.substring(1))) {
       return false;
+    }
     return true;
   }
 
@@ -373,20 +431,37 @@ var Runtime = class {  // eslint-disable-line
    */
   static resolveSourceURL(path) {
     let sourceURL = self.location.href;
-    if (self.location.search)
+    if (self.location.search) {
       sourceURL = sourceURL.replace(self.location.search, '');
+    }
     sourceURL = sourceURL.substring(0, sourceURL.lastIndexOf('/') + 1) + path;
     return '\n/*# sourceURL=' + sourceURL + ' */';
   }
 
+  /**
+   * @param {function(string):string} localizationFunction
+   */
+  static setL10nCallback(localizationFunction) {
+    Runtime._l10nCallback = localizationFunction;
+  }
+
   useTestBase() {
     Runtime._remoteBase = 'http://localhost:8000/inspector-sources/';
-    if (Runtime.queryParam('debugFrontend'))
+    if (Runtime.queryParam('debugFrontend')) {
       Runtime._remoteBase += 'debug/';
+    }
   }
 
   /**
-   * @param {!Runtime.ModuleDescriptor} descriptor
+   * @param {string} moduleName
+   * @return {!Runtime.Module}
+   */
+  module(moduleName) {
+    return this._modulesMap[moduleName];
+  }
+
+  /**
+   * @param {!ModuleDescriptor} descriptor
    */
   _registerModule(descriptor) {
     const module = new Runtime.Module(this, descriptor);
@@ -408,39 +483,44 @@ var Runtime = class {  // eslint-disable-line
    */
   _loadAutoStartModules(moduleNames) {
     const promises = [];
-    for (let i = 0; i < moduleNames.length; ++i)
+    for (let i = 0; i < moduleNames.length; ++i) {
       promises.push(this.loadModulePromise(moduleNames[i]));
+    }
     return Promise.all(promises);
   }
 
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Extension} extension
    * @param {?function(function(new:Object)):boolean} predicate
    * @return {boolean}
    */
   _checkExtensionApplicability(extension, predicate) {
-    if (!predicate)
+    if (!predicate) {
       return false;
+    }
     const contextTypes = extension.descriptor().contextTypes;
-    if (!contextTypes)
+    if (!contextTypes) {
       return true;
+    }
     for (let i = 0; i < contextTypes.length; ++i) {
       const contextType = this._resolve(contextTypes[i]);
       const isMatching = !!contextType && predicate(contextType);
-      if (isMatching)
+      if (isMatching) {
         return true;
+      }
     }
     return false;
   }
 
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Extension} extension
    * @param {?Object} context
    * @return {boolean}
    */
   isExtensionApplicableToContext(extension, context) {
-    if (!context)
+    if (!context) {
       return true;
+    }
     return this._checkExtensionApplicability(extension, isInstanceOf);
 
     /**
@@ -453,13 +533,14 @@ var Runtime = class {  // eslint-disable-line
   }
 
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Extension} extension
    * @param {!Set.<!Function>=} currentContextTypes
    * @return {boolean}
    */
   isExtensionApplicableToContextTypes(extension, currentContextTypes) {
-    if (!extension.descriptor().contextTypes)
+    if (!extension.descriptor().contextTypes) {
       return true;
+    }
 
     return this._checkExtensionApplicability(extension, currentContextTypes ? isContextTypeKnown : null);
 
@@ -476,26 +557,28 @@ var Runtime = class {  // eslint-disable-line
    * @param {*} type
    * @param {?Object=} context
    * @param {boolean=} sortByTitle
-   * @return {!Array.<!Runtime.Extension>}
+   * @return {!Array.<!Extension>}
    */
   extensions(type, context, sortByTitle) {
     return this._extensions.filter(filter).sort(sortByTitle ? titleComparator : orderComparator);
 
     /**
-     * @param {!Runtime.Extension} extension
+     * @param {!Extension} extension
      * @return {boolean}
      */
     function filter(extension) {
-      if (extension._type !== type && extension._typeClass() !== type)
+      if (extension._type !== type && extension._typeClass() !== type) {
         return false;
-      if (!extension.enabled())
+      }
+      if (!extension.enabled()) {
         return false;
+      }
       return !context || extension.isApplicable(context);
     }
 
     /**
-     * @param {!Runtime.Extension} extension1
-     * @param {!Runtime.Extension} extension2
+     * @param {!Extension} extension1
+     * @param {!Extension} extension2
      * @return {number}
      */
     function orderComparator(extension1, extension2) {
@@ -505,8 +588,8 @@ var Runtime = class {  // eslint-disable-line
     }
 
     /**
-     * @param {!Runtime.Extension} extension1
-     * @param {!Runtime.Extension} extension2
+     * @param {!Extension} extension1
+     * @param {!Extension} extension2
      * @return {number}
      */
     function titleComparator(extension1, extension2) {
@@ -519,7 +602,7 @@ var Runtime = class {  // eslint-disable-line
   /**
    * @param {*} type
    * @param {?Object=} context
-   * @return {?Runtime.Extension}
+   * @return {?Extension}
    */
   extension(type, context) {
     return this.extensions(type, context)[0] || null;
@@ -541,35 +624,35 @@ var Runtime = class {  // eslint-disable-line
     if (!this._cachedTypeClasses[typeName]) {
       const path = typeName.split('.');
       let object = self;
-      for (let i = 0; object && (i < path.length); ++i)
+      for (let i = 0; object && (i < path.length); ++i) {
         object = object[path[i]];
-      if (object)
+      }
+      if (object) {
         this._cachedTypeClasses[typeName] = /** @type function(new:Object) */ (object);
+      }
     }
     return this._cachedTypeClasses[typeName] || null;
   }
 
   /**
-   * @param {!Function} constructorFunction
-   * @return {!Object}
+   * @param {function(new:T)} constructorFunction
+   * @return {!T}
+   * @template T
    */
   sharedInstance(constructorFunction) {
     if (Runtime._instanceSymbol in constructorFunction &&
-        Object.getOwnPropertySymbols(constructorFunction).includes(Runtime._instanceSymbol))
+        Object.getOwnPropertySymbols(constructorFunction).includes(Runtime._instanceSymbol)) {
       return constructorFunction[Runtime._instanceSymbol];
+    }
 
     const instance = new constructorFunction();
     constructorFunction[Runtime._instanceSymbol] = instance;
     return instance;
   }
-};
+}
 
-/**
- * @type {!Object.<string, string>}
- */
-Runtime._queryParamsObject = {
-  __proto__: null
-};
+/** @type {!URLSearchParams} */
+Runtime._queryParamsObject = new URLSearchParams(Runtime.queryParamsString());
 
 Runtime._instanceSymbol = Symbol('instance');
 
@@ -591,7 +674,7 @@ Runtime._platform = '';
 /**
  * @unrestricted
  */
-Runtime.ModuleDescriptor = class {
+class ModuleDescriptor {
   constructor() {
     /**
      * @type {string}
@@ -599,7 +682,7 @@ Runtime.ModuleDescriptor = class {
     this.name;
 
     /**
-     * @type {!Array.<!Runtime.ExtensionDescriptor>}
+     * @type {!Array.<!RuntimeExtensionDescriptor>}
      */
     this.extensions;
 
@@ -614,6 +697,11 @@ Runtime.ModuleDescriptor = class {
     this.scripts;
 
     /**
+     * @type {!Array.<string>}
+     */
+    this.modules;
+
+    /**
      * @type {string|undefined}
      */
     this.condition;
@@ -623,12 +711,14 @@ Runtime.ModuleDescriptor = class {
      */
     this.remote;
   }
-};
+}
 
+// This class is named like this, because we already have an "ExtensionDescriptor" in the externs
+// These two do not share the same structure
 /**
  * @unrestricted
  */
-Runtime.ExtensionDescriptor = class {
+class RuntimeExtensionDescriptor {
   constructor() {
     /**
      * @type {string}
@@ -650,28 +740,43 @@ Runtime.ExtensionDescriptor = class {
      */
     this.contextTypes;
   }
+}
+
+// Module namespaces.
+// NOTE: Update scripts/build/special_case_namespaces.json if you add a special cased namespace.
+const specialCases = {
+  'sdk': 'SDK',
+  'js_sdk': 'JSSDK',
+  'browser_sdk': 'BrowserSDK',
+  'ui': 'UI',
+  'object_ui': 'ObjectUI',
+  'javascript_metadata': 'JavaScriptMetadata',
+  'perf_ui': 'PerfUI',
+  'har_importer': 'HARImporter',
+  'sdk_test_runner': 'SDKTestRunner',
+  'cpu_profiler_test_runner': 'CPUProfilerTestRunner'
 };
 
 /**
  * @unrestricted
  */
-Runtime.Module = class {
+class Module {
   /**
    * @param {!Runtime} manager
-   * @param {!Runtime.ModuleDescriptor} descriptor
+   * @param {!ModuleDescriptor} descriptor
    */
   constructor(manager, descriptor) {
     this._manager = manager;
     this._descriptor = descriptor;
     this._name = descriptor.name;
-    /** @type {!Array<!Runtime.Extension>} */
+    /** @type {!Array<!Extension>} */
     this._extensions = [];
 
-    /** @type {!Map<string, !Array<!Runtime.Extension>>} */
+    /** @type {!Map<string, !Array<!Extension>>} */
     this._extensionsByClassName = new Map();
-    const extensions = /** @type {?Array.<!Runtime.ExtensionDescriptor>} */ (descriptor.extensions);
+    const extensions = /** @type {?Array.<!RuntimeExtensionDescriptor>} */ (descriptor.extensions);
     for (let i = 0; extensions && i < extensions.length; ++i) {
-      const extension = new Runtime.Extension(this, extensions[i]);
+      const extension = new Extension(this, extensions[i]);
       this._manager._extensions.push(extension);
       this._extensions.push(extension);
     }
@@ -699,8 +804,9 @@ Runtime.Module = class {
   resource(name) {
     const fullName = this._name + '/' + name;
     const content = Runtime.cachedResources[fullName];
-    if (!content)
+    if (!content) {
       throw new Error(fullName + ' not preloaded. Check module.json');
+    }
     return content;
   }
 
@@ -708,19 +814,23 @@ Runtime.Module = class {
    * @return {!Promise.<undefined>}
    */
   _loadPromise() {
-    if (!this.enabled())
+    if (!this.enabled()) {
       return Promise.reject(new Error('Module ' + this._name + ' is not enabled'));
+    }
 
-    if (this._pendingLoadPromise)
+    if (this._pendingLoadPromise) {
       return this._pendingLoadPromise;
+    }
 
     const dependencies = this._descriptor.dependencies;
     const dependencyPromises = [];
-    for (let i = 0; dependencies && i < dependencies.length; ++i)
+    for (let i = 0; dependencies && i < dependencies.length; ++i) {
       dependencyPromises.push(this._manager._modulesMap[dependencies[i]]._loadPromise());
+    }
 
     this._pendingLoadPromise = Promise.all(dependencyPromises)
                                    .then(this._loadResources.bind(this))
+                                   .then(this._loadModules.bind(this))
                                    .then(this._loadScripts.bind(this))
                                    .then(() => this._loadedForTest = true);
 
@@ -733,43 +843,57 @@ Runtime.Module = class {
    */
   _loadResources() {
     const resources = this._descriptor['resources'];
-    if (!resources || !resources.length)
+    if (!resources || !resources.length) {
       return Promise.resolve();
+    }
     const promises = [];
     for (let i = 0; i < resources.length; ++i) {
       const url = this._modularizeURL(resources[i]);
-      promises.push(Runtime._loadResourceIntoCache(url, true));
+      const isHtml = url.endsWith('.html');
+      promises.push(Runtime._loadResourceIntoCache(url, !isHtml /* appendSourceURL */));
     }
     return Promise.all(promises).then(undefined);
+  }
+
+  _loadModules() {
+    if (!this._descriptor.modules || !this._descriptor.modules.length) {
+      return Promise.resolve();
+    }
+
+    const namespace = this._computeNamespace();
+    self[namespace] = self[namespace] || {};
+
+    // TODO(crbug.com/680046): We are in a worker and we dont support modules yet
+    if (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope) {
+      return Promise.resolve();
+    }
+
+    const legacyFileName = `${this._name}-legacy.js`;
+    const fileName = this._descriptor.modules.includes(legacyFileName) ? legacyFileName : `${this._name}.js`;
+
+    // TODO(crbug.com/1011811): Remove eval when we use TypeScript which does support dynamic imports
+    return eval(`import('./${this._name}/${fileName}')`);
   }
 
   /**
    * @return {!Promise.<undefined>}
    */
   _loadScripts() {
-    if (!this._descriptor.scripts || !this._descriptor.scripts.length)
+    if (!this._descriptor.scripts || !this._descriptor.scripts.length) {
       return Promise.resolve();
+    }
 
-    // Module namespaces.
-    // NOTE: Update scripts/special_case_namespaces.json if you add a special cased namespace.
-    // The namespace keyword confuses clang-format.
-    // clang-format off
-    const specialCases = {
-      'sdk': 'SDK',
-      'js_sdk': 'JSSDK',
-      'browser_sdk': 'BrowserSDK',
-      'ui': 'UI',
-      'object_ui': 'ObjectUI',
-      'javascript_metadata': 'JavaScriptMetadata',
-      'perf_ui': 'PerfUI',
-      'har_importer': 'HARImporter',
-      'sdk_test_runner': 'SDKTestRunner',
-      'cpu_profiler_test_runner': 'CPUProfilerTestRunner'
-    };
-    const namespace = specialCases[this._name] || this._name.split('_').map(a => a.substring(0, 1).toUpperCase() + a.substring(1)).join('');
+    const namespace = this._computeNamespace();
     self[namespace] = self[namespace] || {};
-    // clang-format on
     return Runtime._loadScriptsPromise(this._descriptor.scripts.map(this._modularizeURL, this), this._remoteBase());
+  }
+
+  /**
+   * @return {string}
+   */
+  _computeNamespace() {
+    return specialCases[this._name] ||
+        this._name.split('_').map(a => a.substring(0, 1).toUpperCase() + a.substring(1)).join('');
   }
 
   /**
@@ -787,6 +911,16 @@ Runtime.Module = class {
   }
 
   /**
+   * @param {string} resourceName
+   * @return {!Promise.<string>}
+   */
+  fetchResource(resourceName) {
+    const base = this._remoteBase();
+    const sourceURL = Runtime.getResourceURL(this._modularizeURL(resourceName), base);
+    return base ? Runtime.loadResourcePromiseWithFallback(sourceURL) : Runtime.loadResourcePromise(sourceURL);
+  }
+
+  /**
    * @param {string} value
    * @return {string}
    */
@@ -798,16 +932,15 @@ Runtime.Module = class {
       return base + this._modularizeURL(url);
     }
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-Runtime.Extension = class {
-  /**
+class Extension { /**
    * @param {!Runtime.Module} module
-   * @param {!Runtime.ExtensionDescriptor} descriptor
+   * @param {!RuntimeExtensionDescriptor} descriptor
    */
   constructor(module, descriptor) {
     this._module = module;
@@ -848,8 +981,9 @@ Runtime.Extension = class {
    * @return {?function(new:Object)}
    */
   _typeClass() {
-    if (!this._hasTypeClass)
+    if (!this._hasTypeClass) {
       return null;
+    }
     return this._module._manager._resolve(this._type.substring(1));
   }
 
@@ -880,13 +1014,16 @@ Runtime.Extension = class {
    */
   _createInstance() {
     const className = this._className || this._factoryName;
-    if (!className)
+    if (!className) {
       throw new Error('Could not instantiate extension with no class');
+    }
     const constructorFunction = self.eval(/** @type {string} */ (className));
-    if (!(constructorFunction instanceof Function))
+    if (!(constructorFunction instanceof Function)) {
       throw new Error('Could not instantiate: ' + className);
-    if (this._className)
+    }
+    if (this._className) {
       return this._module._manager.sharedInstance(constructorFunction);
+    }
     return new constructorFunction(this);
   }
 
@@ -894,8 +1031,11 @@ Runtime.Extension = class {
    * @return {string}
    */
   title() {
-    // FIXME: should be Common.UIString() but runtime is not l10n aware yet.
-    return this._descriptor['title-' + Runtime._platform] || this._descriptor['title'];
+    const title = this._descriptor['title-' + Runtime._platform] || this._descriptor['title'];
+    if (title && Runtime._l10nCallback) {
+      return Runtime._l10nCallback(title);
+    }
+    return title;
   }
 
   /**
@@ -904,25 +1044,29 @@ Runtime.Extension = class {
    */
   hasContextType(contextType) {
     const contextTypes = this.descriptor().contextTypes;
-    if (!contextTypes)
+    if (!contextTypes) {
       return false;
+    }
     for (let i = 0; i < contextTypes.length; ++i) {
-      if (contextType === this._module._manager._resolve(contextTypes[i]))
+      if (contextType === this._module._manager._resolve(contextTypes[i])) {
         return true;
+      }
     }
     return false;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Runtime.ExperimentsSupport = class {
+class ExperimentsSupport {
   constructor() {
     this._supportEnabled = Runtime.queryParam('experiments') !== null;
     this._experiments = [];
     this._experimentNames = {};
     this._enabledTransiently = {};
+    /** @type {!Set<string>} */
+    this._serverEnabled = new Set();
   }
 
   /**
@@ -932,8 +1076,9 @@ Runtime.ExperimentsSupport = class {
     const result = [];
     for (let i = 0; i < this._experiments.length; i++) {
       const experiment = this._experiments[i];
-      if (!this._enabledTransiently[experiment.name])
+      if (!this._enabledTransiently[experiment.name]) {
         result.push(experiment);
+      }
     }
     return result;
   }
@@ -949,8 +1094,9 @@ Runtime.ExperimentsSupport = class {
    * @param {!Object} value
    */
   _setExperimentsSetting(value) {
-    if (!self.localStorage)
+    if (!self.localStorage) {
       return;
+    }
     self.localStorage['experiments'] = JSON.stringify(value);
   }
 
@@ -971,11 +1117,20 @@ Runtime.ExperimentsSupport = class {
    */
   isEnabled(experimentName) {
     this._checkExperiment(experimentName);
-
-    if (this._enabledTransiently[experimentName])
-      return true;
-    if (!this.supportEnabled())
+    // Check for explicitly disabled experiments first - the code could call setEnable(false) on the experiment enabled
+    // by default and we should respect that.
+    if (Runtime._experimentsSetting()[experimentName] === false) {
       return false;
+    }
+    if (this._enabledTransiently[experimentName]) {
+      return true;
+    }
+    if (this._serverEnabled.has(experimentName)) {
+      return true;
+    }
+    if (!this.supportEnabled()) {
+      return false;
+    }
 
     return !!Runtime._experimentsSetting()[experimentName];
   }
@@ -1002,6 +1157,16 @@ Runtime.ExperimentsSupport = class {
   }
 
   /**
+   * @param {!Array.<string>} experimentNames
+   */
+  setServerEnabledExperiments(experimentNames) {
+    for (const experiment of experimentNames) {
+      this._checkExperiment(experiment);
+      this._serverEnabled.add(experiment);
+    }
+  }
+
+  /**
    * @param {string} experimentName
    */
   enableForTest(experimentName) {
@@ -1013,6 +1178,7 @@ Runtime.ExperimentsSupport = class {
     this._experiments = [];
     this._experimentNames = {};
     this._enabledTransiently = {};
+    this._serverEnabled.clear();
   }
 
   cleanUpStaleExperiments() {
@@ -1020,8 +1186,9 @@ Runtime.ExperimentsSupport = class {
     const cleanedUpExperimentSetting = {};
     for (let i = 0; i < this._experiments.length; ++i) {
       const experimentName = this._experiments[i].name;
-      if (experimentsSetting[experimentName])
+      if (experimentsSetting[experimentName]) {
         cleanedUpExperimentSetting[experimentName] = true;
+      }
     }
     this._setExperimentsSetting(cleanedUpExperimentSetting);
   }
@@ -1032,12 +1199,12 @@ Runtime.ExperimentsSupport = class {
   _checkExperiment(experimentName) {
     Runtime._assert(this._experimentNames[experimentName], 'Unknown experiment ' + experimentName);
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Runtime.Experiment = class {
+class Experiment {
   /**
    * @param {!Runtime.ExperimentsSupport} experiments
    * @param {string} name
@@ -1064,65 +1231,59 @@ Runtime.Experiment = class {
   setEnabled(enabled) {
     this._experiments.setEnabled(this.name, enabled);
   }
-};
-
-{
-  (function parseQueryParameters() {
-    const queryParams = Runtime.queryParamsString();
-    if (!queryParams)
-      return;
-    const params = queryParams.substring(1).split('&');
-    for (let i = 0; i < params.length; ++i) {
-      const pair = params[i].split('=');
-      const name = pair.shift();
-      Runtime._queryParamsObject[name] = pair.join('=');
-    }
-  })();
 }
 
 // This must be constructed after the query parameters have been parsed.
-Runtime.experiments = new Runtime.ExperimentsSupport();
+Runtime.experiments = new ExperimentsSupport();
 
 /** @type {Function} */
-Runtime._runtimeReadyPromiseCallback;
-Runtime._runtimeReadyPromise = new Promise(fulfil => Runtime._runtimeReadyPromiseCallback = fulfil);
+Runtime._appStartedPromiseCallback;
+Runtime._appStartedPromise = new Promise(fulfil => Runtime._appStartedPromiseCallback = fulfil);
+
+/** @type {function(string):string} */
+Runtime._l10nCallback;
+
 /**
  * @type {?string}
  */
 Runtime._remoteBase;
 (function validateRemoteBase() {
-  if (location.href.startsWith('chrome-devtools://devtools/bundled/') && Runtime.queryParam('remoteBase')) {
+  if (location.href.startsWith('devtools://devtools/bundled/') && Runtime.queryParam('remoteBase')) {
     const versionMatch = /\/serve_file\/(@[0-9a-zA-Z]+)\/?$/.exec(Runtime.queryParam('remoteBase'));
-    if (versionMatch)
+    if (versionMatch) {
       Runtime._remoteBase = `${location.origin}/remote/serve_file/${versionMatch[1]}/`;
+    }
   }
 })();
 
+self.Root = self.Root || {};
+Root = Root || {};
 
-/**
- * @interface
- */
-function ServicePort() {
-}
+// This gets all concatenated module descriptors in the release mode.
+Root.allDescriptors = [];
 
-ServicePort.prototype = {
-  /**
-   * @param {function(string)} messageHandler
-   * @param {function(string)} closeHandler
-   */
-  setHandlers(messageHandler, closeHandler) {},
+Root.applicationDescriptor = undefined;
 
-  /**
-   * @param {string} message
-   * @return {!Promise<boolean>}
-   */
-  send(message) {},
-
-  /**
-   * @return {!Promise<boolean>}
-   */
-  close() {}
-};
+/** @constructor */
+Root.Runtime = Runtime;
 
 /** @type {!Runtime} */
-var runtime;  // eslint-disable-line
+Root.runtime;
+
+/** @constructor */
+Root.Runtime.ModuleDescriptor = ModuleDescriptor;
+
+/** @constructor */
+Root.Runtime.ExtensionDescriptor = RuntimeExtensionDescriptor;
+
+/** @constructor */
+Root.Runtime.Extension = Extension;
+
+/** @constructor */
+Root.Runtime.Module = Module;
+
+/** @constructor */
+Root.Runtime.ExperimentsSupport = ExperimentsSupport;
+
+/** @constructor */
+Root.Runtime.Experiment = Experiment;

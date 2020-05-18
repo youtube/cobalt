@@ -6,12 +6,14 @@
  * @implements {UI.ListWidget.Delegate}
  * @unrestricted
  */
-MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
+export class ThrottlingSettingsTab extends UI.VBox {
   constructor() {
     super(true);
     this.registerRequiredCSS('mobile_throttling/throttlingSettingsTab.css');
 
-    this.contentElement.createChild('div', 'header').textContent = Common.UIString('Network Throttling Profiles');
+    const header = this.contentElement.createChild('div', 'header');
+    header.textContent = ls`Network Throttling Profiles`;
+    UI.ARIAUtils.markAsHeading(header, 1);
 
     const addButton = UI.createTextButton(
         Common.UIString('Add custom profile...'), this._addButtonClicked.bind(this), 'add-conditions-button');
@@ -26,7 +28,6 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
     this._customSetting.addChangeListener(this._conditionsUpdated, this);
 
     this.setDefaultFocusedElement(addButton);
-    this.contentElement.tabIndex = 0;
   }
 
   /**
@@ -41,8 +42,9 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
     this._list.clear();
 
     const conditions = this._customSetting.get();
-    for (let i = 0; i < conditions.length; ++i)
+    for (let i = 0; i < conditions.length; ++i) {
       this._list.appendItem(conditions[i], true);
+    }
 
     this._list.appendSeparator();
   }
@@ -65,10 +67,9 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
     titleText.textContent = conditions.title;
     titleText.title = conditions.title;
     element.createChild('div', 'conditions-list-separator');
-    element.createChild('div', 'conditions-list-text').textContent =
-        MobileThrottling.throughputText(conditions.download);
+    element.createChild('div', 'conditions-list-text').textContent = throughputText(conditions.download);
     element.createChild('div', 'conditions-list-separator');
-    element.createChild('div', 'conditions-list-text').textContent = MobileThrottling.throughputText(conditions.upload);
+    element.createChild('div', 'conditions-list-text').textContent = throughputText(conditions.upload);
     element.createChild('div', 'conditions-list-separator');
     element.createChild('div', 'conditions-list-text').textContent = Common.UIString('%dms', conditions.latency);
     return element;
@@ -102,8 +103,9 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
     conditions.latency = latency ? parseInt(latency, 10) : 0;
 
     const list = this._customSetting.get();
-    if (isNew)
+    if (isNew) {
       list.push(conditions);
+    }
     this._customSetting.set(list);
   }
 
@@ -126,41 +128,63 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
    * @return {!UI.ListWidget.Editor}
    */
   _createEditor() {
-    if (this._editor)
+    if (this._editor) {
       return this._editor;
+    }
 
     const editor = new UI.ListWidget.Editor();
     this._editor = editor;
     const content = editor.contentElement();
 
     const titles = content.createChild('div', 'conditions-edit-row');
-    titles.createChild('div', 'conditions-list-text conditions-list-title').textContent =
-        Common.UIString('Profile Name');
+    const nameLabel = titles.createChild('div', 'conditions-list-text conditions-list-title');
+    const nameStr = ls`Profile Name`;
+    nameLabel.textContent = nameStr;
     titles.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
-    titles.createChild('div', 'conditions-list-text').textContent = Common.UIString('Download');
+    const downloadLabel = titles.createChild('div', 'conditions-list-text');
+    const downloadStr = ls`Download`;
+    downloadLabel.textContent = downloadStr;
     titles.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
-    titles.createChild('div', 'conditions-list-text').textContent = Common.UIString('Upload');
+    const uploadLabel = titles.createChild('div', 'conditions-list-text');
+    const uploadStr = ls`Upload`;
+    uploadLabel.textContent = uploadStr;
     titles.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
-    titles.createChild('div', 'conditions-list-text').textContent = Common.UIString('Latency');
+    const latencyLabel = titles.createChild('div', 'conditions-list-text');
+    const latencyStr = ls`Latency`;
+    latencyLabel.textContent = latencyStr;
 
     const fields = content.createChild('div', 'conditions-edit-row');
-    fields.createChild('div', 'conditions-list-text conditions-list-title')
-        .appendChild(editor.createInput('title', 'text', '', titleValidator));
+    const nameInput = editor.createInput('title', 'text', '', titleValidator);
+    UI.ARIAUtils.setAccessibleName(nameInput, nameStr);
+    fields.createChild('div', 'conditions-list-text conditions-list-title').appendChild(nameInput);
     fields.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
 
     let cell = fields.createChild('div', 'conditions-list-text');
-    cell.appendChild(editor.createInput('download', 'text', Common.UIString('kb/s'), throughputValidator));
-    cell.createChild('div', 'conditions-edit-optional').textContent = Common.UIString('optional');
+    const downloadInput = editor.createInput('download', 'text', ls`kb/s`, throughputValidator);
+    cell.appendChild(downloadInput);
+    UI.ARIAUtils.setAccessibleName(downloadInput, downloadStr);
+    const downloadOptional = cell.createChild('div', 'conditions-edit-optional');
+    const optionalStr = ls`optional`;
+    downloadOptional.textContent = optionalStr;
+    UI.ARIAUtils.setDescription(downloadInput, optionalStr);
     fields.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
 
     cell = fields.createChild('div', 'conditions-list-text');
-    cell.appendChild(editor.createInput('upload', 'text', Common.UIString('kb/s'), throughputValidator));
-    cell.createChild('div', 'conditions-edit-optional').textContent = Common.UIString('optional');
+    const uploadInput = editor.createInput('upload', 'text', ls`kb/s`, throughputValidator);
+    UI.ARIAUtils.setAccessibleName(uploadInput, uploadStr);
+    cell.appendChild(uploadInput);
+    const uploadOptional = cell.createChild('div', 'conditions-edit-optional');
+    uploadOptional.textContent = optionalStr;
+    UI.ARIAUtils.setDescription(uploadInput, optionalStr);
     fields.createChild('div', 'conditions-list-separator conditions-list-separator-invisible');
 
     cell = fields.createChild('div', 'conditions-list-text');
-    cell.appendChild(editor.createInput('latency', 'text', Common.UIString('ms'), latencyValidator));
-    cell.createChild('div', 'conditions-edit-optional').textContent = Common.UIString('optional');
+    const latencyInput = editor.createInput('latency', 'text', ls`ms`, latencyValidator);
+    UI.ARIAUtils.setAccessibleName(latencyInput, latencyStr);
+    cell.appendChild(latencyInput);
+    const latencyOptional = cell.createChild('div', 'conditions-edit-optional');
+    latencyOptional.textContent = optionalStr;
+    UI.ARIAUtils.setDescription(latencyInput, optionalStr);
 
     return editor;
 
@@ -168,50 +192,88 @@ MobileThrottling.ThrottlingSettingsTab = class extends UI.VBox {
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function titleValidator(item, index, input) {
+      const maxLength = 49;
       const value = input.value.trim();
-      return value.length > 0 && value.length < 50;
+      const valid = value.length > 0 && value.length <= maxLength;
+      if (!valid) {
+        const errorMessage = ls`Profile Name characters length must be between 1 to ${maxLength} inclusive`;
+        return {valid, errorMessage};
+      }
+      return {valid};
     }
 
     /**
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function throughputValidator(item, index, input) {
+      const minThroughput = 0;
+      const maxThroughput = 10000000;
       const value = input.value.trim();
-      return !value || (/^[\d]+(\.\d+)?|\.\d+$/.test(value) && value >= 0 && value <= 10000000);
+      const parsedValue = Number(value);
+      const throughput = input.getAttribute('aria-label');
+      const valid = !Number.isNaN(parsedValue) && parsedValue >= minThroughput && parsedValue <= maxThroughput;
+      if (!valid) {
+        const errorMessage =
+            ls`${throughput} must be a number between ${minThroughput}kb/s to ${maxThroughput}kb/s inclusive`;
+        return {valid, errorMessage};
+      }
+      return {valid};
     }
 
     /**
      * @param {*} item
      * @param {number} index
      * @param {!HTMLInputElement|!HTMLSelectElement} input
-     * @return {boolean}
+     * @return {!UI.ListWidget.ValidatorResult}
      */
     function latencyValidator(item, index, input) {
+      const minLatency = 0;
+      const maxLatency = 1000000;
       const value = input.value.trim();
-      return !value || (/^[\d]+$/.test(value) && value >= 0 && value <= 1000000);
+      const parsedValue = Number(value);
+      const valid = Number.isInteger(parsedValue) && parsedValue >= minLatency && parsedValue <= maxLatency;
+      if (!valid) {
+        const errorMessage = ls`Latency must be an integer between ${minLatency}ms to ${maxLatency}ms inclusive`;
+        return {valid, errorMessage};
+      }
+      return {valid};
     }
   }
-};
+}
 
 /**
  * @param {number} throughput
  * @param {boolean=} plainText
  * @return {string}
  */
-MobileThrottling.throughputText = function(throughput, plainText) {
-  if (throughput < 0)
+export function throughputText(throughput, plainText) {
+  if (throughput < 0) {
     return '';
+  }
   const throughputInKbps = throughput / (1024 / 8);
   const delimiter = plainText ? '' : ' ';
-  if (throughputInKbps < 1024)
+  if (throughputInKbps < 1024) {
     return Common.UIString('%d%skb/s', throughputInKbps, delimiter);
-  if (throughputInKbps < 1024 * 10)
+  }
+  if (throughputInKbps < 1024 * 10) {
     return Common.UIString('%.1f%sMb/s', throughputInKbps / 1024, delimiter);
+  }
   return Common.UIString('%d%sMb/s', (throughputInKbps / 1024) | 0, delimiter);
-};
+}
+
+/* Legacy exported object */
+self.MobileThrottling = self.MobileThrottling || {};
+
+/* Legacy exported object */
+MobileThrottling = MobileThrottling || {};
+
+/** @constructor */
+MobileThrottling.ThrottlingSettingsTab = ThrottlingSettingsTab;
+
+MobileThrottling.throughputText = throughputText;

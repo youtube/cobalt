@@ -12,7 +12,7 @@
  *  copyState: function(!Changes.ChangesHighlighter.DiffState):Changes.ChangesHighlighter.DiffState
  * }}
  */
-Changes.ChangesHighlighter = function(config, parserConfig) {
+export default function ChangesHighlighter(config, parserConfig) {
   const diffRows = parserConfig.diffRows;
   const baselineLines = parserConfig.baselineLines;
   const currentLines = parserConfig.currentLines;
@@ -44,8 +44,9 @@ Changes.ChangesHighlighter = function(config, parserConfig) {
     let lineNumber = from;
     while (lineNumber < to && lineNumber < lines.length) {
       const stream = new CodeMirror.StringStream(lines[lineNumber]);
-      if (stream.eol() && syntaxHighlightMode.blankLine)
+      if (stream.eol() && syntaxHighlightMode.blankLine) {
         syntaxHighlightMode.blankLine(syntaxState);
+      }
       while (!stream.eol()) {
         syntaxHighlightMode.token(stream, syntaxState);
         stream.start = stream.pos;
@@ -86,8 +87,9 @@ Changes.ChangesHighlighter = function(config, parserConfig) {
       }
       fastForward(state, diffRow.baselineLineNumber - 1, diffRow.currentLineNumber - 1);
       let classes = '';
-      if (stream.pos === 0)
+      if (stream.pos === 0) {
         classes += ' line-background-' + diffRow.type + ' line-' + diffRow.type;
+      }
 
       const syntaxHighlighterNeedsRefresh = state.diffPosition >= state.syntaxPosition;
       if (state.diffPosition <= state.syntaxPosition) {
@@ -114,10 +116,11 @@ Changes.ChangesHighlighter = function(config, parserConfig) {
 
       if (stream.eol()) {
         state.rowNumber++;
-        if (diffRow.type === Changes.ChangesView.RowType.Deletion)
+        if (diffRow.type === Changes.ChangesView.RowType.Deletion) {
           state.baselineLineNumber++;
-        else
+        } else {
           state.currentLineNumber++;
+        }
         state.diffPosition = 0;
         state.syntaxPosition = 0;
         state.diffTokenIndex = 0;
@@ -135,8 +138,9 @@ Changes.ChangesHighlighter = function(config, parserConfig) {
       state.syntaxPosition = 0;
       state.diffPosition = 0;
       state.diffTokenIndex = 0;
-      if (!diffRow)
+      if (!diffRow) {
         return '';
+      }
 
       let style = '';
       if (syntaxHighlightMode.blankLine) {
@@ -162,22 +166,30 @@ Changes.ChangesHighlighter = function(config, parserConfig) {
       return /** @type {!Changes.ChangesHighlighter.DiffState} */ (newState);
     }
   };
-};
+}
+
+CodeMirror.defineMode('devtools-diff', ChangesHighlighter);
+
+/* Legacy exported object */
+self.Changes = self.Changes || {};
+
+/* Legacy exported object */
+Changes = Changes || {};
+
+Changes.ChangesHighlighter = ChangesHighlighter;
 
 /**
  * @typedef {!{
- *  rowNumber: number,
- *  diffTokenIndex: number,
- *  currentLineNumber: number,
- *  baselineLineNumber: number,
- *  currentSyntaxState: !Object,
- *  baselineSyntaxState: !Object,
- *  syntaxPosition: number,
- *  diffPosition: number,
- *  syntaxStyle: string,
- *  diffStyle: string
- * }}
- */
+  *  rowNumber: number,
+  *  diffTokenIndex: number,
+  *  currentLineNumber: number,
+  *  baselineLineNumber: number,
+  *  currentSyntaxState: !Object,
+  *  baselineSyntaxState: !Object,
+  *  syntaxPosition: number,
+  *  diffPosition: number,
+  *  syntaxStyle: string,
+  *  diffStyle: string
+  * }}
+  */
 Changes.ChangesHighlighter.DiffState;
-
-CodeMirror.defineMode('devtools-diff', Changes.ChangesHighlighter);

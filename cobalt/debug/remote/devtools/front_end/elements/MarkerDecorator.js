@@ -5,23 +5,21 @@
 /**
  * @interface
  */
-Elements.MarkerDecorator = function() {};
-
-Elements.MarkerDecorator.prototype = {
+export class MarkerDecorator {
   /**
    * @param {!SDK.DOMNode} node
    * @return {?{title: string, color: string}}
    */
   decorate(node) {}
-};
+}
 
 /**
- * @implements {Elements.MarkerDecorator}
+ * @implements {MarkerDecorator}
  * @unrestricted
  */
-Elements.GenericDecorator = class {
+export class GenericDecorator {
   /**
-   * @param {!Runtime.Extension} extension
+   * @param {!Root.Runtime.Extension} extension
    */
   constructor(extension) {
     this._title = Common.UIString(extension.title());
@@ -36,4 +34,4 @@ Elements.GenericDecorator = class {
   decorate(node) {
     return {title: this._title, color: this._color};
   }
-};
+}

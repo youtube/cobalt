@@ -27,43 +27,30 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
-
-import ast
-import re
+import json
+import os
 import sys
 
+PYJSON5_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'third_party', 'pyjson5', 'src')
+sys.path.append(PYJSON5_DIR)
 
-def _json5_load(lines):
-    # Use json5.loads when json5 is available. Currently we use simple
-    # regexs to convert well-formed JSON5 to PYL format.
-    # Strip away comments and quote unquoted keys.
-    re_comment = re.compile(r"^\s*//.*$|//+ .*$", re.MULTILINE)
-    re_map_keys = re.compile(r"^\s*([$A-Za-z_][\w]*)\s*:", re.MULTILINE)
-    pyl = re.sub(re_map_keys, r"'\1':", re.sub(re_comment, "", lines))
-    # Convert map values of true/false to Python version True/False.
-    re_true = re.compile(r":\s*true\b")
-    re_false = re.compile(r":\s*false\b")
-    pyl = re.sub(re_true, ":True", re.sub(re_false, ":False", pyl))
-    return ast.literal_eval(pyl)
+import json5  # pylint: disable=import-error
 
 
 def _keep_only_required_keys(entry):
     for key in entry.keys():
-        if key not in ("name", "longhands", "svg", "inherited"):
+        if key not in ("name", "longhands", "svg", "inherited", "keywords"):
             del entry[key]
     return entry
 
 
 def properties_from_file(file_name):
     with open(file_name) as json5_file:
-        doc = _json5_load(json5_file.read())
+        doc = json5.loads(json5_file.read())
 
     properties = []
     property_names = {}
+    property_values = {}
     for entry in doc["data"]:
         if type(entry) is str:
             entry = {"name": entry}
@@ -71,6 +58,8 @@ def properties_from_file(file_name):
             continue
         properties.append(_keep_only_required_keys(entry))
         property_names[entry["name"]] = entry
+        if "keywords" in entry:
+            property_values[entry["name"]] = {"values": entry["keywords"]}
 
     properties.sort(key=lambda entry: entry["name"])
 
@@ -93,9 +82,10 @@ def properties_from_file(file_name):
         if all_inherited:
             property["inherited"] = True
 
-    return properties
+    return properties, property_values
 
 
-properties = properties_from_file(sys.argv[1])
+properties, property_values = properties_from_file(sys.argv[1])
 with open(sys.argv[2], "w") as f:
-    f.write("SDK.CSSMetadata._generatedProperties = %s;" % json.dumps(properties))
+    f.write("SDK.CSSMetadata._generatedProperties = %s;\n" % json.dumps(properties))
+    f.write("SDK.CSSMetadata._generatedPropertyValues = %s;" % json.dumps(property_values))

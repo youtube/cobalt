@@ -16,6 +16,10 @@
     flex: none;
 }
 
+.intro {
+    margin-top: 10px;
+}
+
 .blackbox-content-scripts {
     margin-top: 10px;
     flex: none;
@@ -54,7 +58,7 @@
  .blackbox-list-item .blackbox-pattern {
     white-space: nowrap;
     text-overflow: ellipsis;
-    -webkit-user-select: none;
+    user-select: none;
     color: #222;
     overflow: hidden;
 }

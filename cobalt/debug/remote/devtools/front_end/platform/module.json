@@ -1,7 +1,9 @@
 {
     "dependencies": [
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "platform.js",
         "utilities.js"
     ]
 }

@@ -71,9 +71,9 @@ function checkNonAutostartNonRemoteModules() {
  */
 function checkAllDevToolsFiles() {
   const errors = [];
-  const excludedFiles = ['InspectorBackendCommands.js', 'SupportedCSSProperties.js', 'ARIAProperties.js'];
+  const excludedFiles = ['InspectorBackendCommands.js', 'SupportedCSSProperties.js', 'ARIAProperties.js', 'axe.js'];
   const gnVariable = 'all_devtools_files';
-  const lines = selectGNLines(`${gnVariable} = [`, ']');
+  const lines = selectGNLines(`${gnVariable} = [`, ']').map(path.normalize);
   if (!lines.length) {
     return [
       'Could not identify all_devtools_files list in gn file',
@@ -88,7 +88,9 @@ function checkAllDevToolsFiles() {
       const moduleJSON = require(moduleJSONPath);
       const scripts = moduleJSON.scripts || [];
       const resources = moduleJSON.resources || [];
-      const files = scripts.concat(resources)
+      const files = ['module.json']
+                        .concat(scripts)
+                        .concat(resources)
                         .map(relativePathFromBuildGN)
                         .filter(file => excludedFiles.every(excludedFile => !file.includes(excludedFile)));
       moduleFiles = moduleFiles.concat(files);

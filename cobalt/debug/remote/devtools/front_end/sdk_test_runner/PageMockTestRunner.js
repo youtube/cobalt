@@ -13,23 +13,12 @@ function nextId(prefix) {
   return (prefix || '') + ++id;
 }
 
-SDKTestRunner.connectToPage = function(targetName, pageMock, makeMainTarget) {
-  const mockTarget = SDK.targetManager.createTarget(
-      nextId('mock-target-'), targetName, pageMock.capabilities(), params => pageMock.createConnection(params));
-
-  if (makeMainTarget) {
-    SDK.targetManager._targets = SDK.targetManager._targets.filter(target => target !== mockTarget);
-    SDK.targetManager._targets.unshift(mockTarget);
-  }
-
-  return mockTarget;
-};
-
 SDKTestRunner.PageMock = class {
   constructor(url) {
     this._url = url;
-    this._capabilities = SDK.Target.Capability.DOM | SDK.Target.Capability.JS | SDK.Target.Capability.Browser;
+    this._type = SDK.Target.Type.Frame;
     this._enabledDomains = new Set();
+    this._children = new Map();
 
     this._mainFrame =
         {id: nextId(), loaderId: nextId(), mimeType: 'text/html', securityOrigin: this._url, url: this._url};
@@ -49,18 +38,50 @@ SDKTestRunner.PageMock = class {
     };
   }
 
-  capabilities() {
-    return this._capabilities;
+  turnIntoWorker() {
+    this._type = SDK.Target.Type.Worker;
   }
 
-  disableDOMCapability() {
-    this._capabilities = this._capabilities & ~SDK.Target.Capability.DOM;
-  }
-
-  createConnection(params) {
+  connectAsMainTarget(targetName) {
+    Bindings.debuggerWorkspaceBinding._resetForTest(TestRunner.mainTarget);
+    Bindings.resourceMapping._resetForTest(TestRunner.mainTarget);
     this._enabledDomains.clear();
-    this._connection = new MockPageConnection(this, params);
-    return this._connection;
+    SDK.targetManager._targets = [];
+
+    const oldFactory = Protocol.Connection.getFactory();
+    Protocol.Connection.setFactory(() => {
+      this._connection = new MockPageConnection(this);
+      return this._connection;
+    });
+    const target = SDK.targetManager.createTarget(nextId('mock-target-'), targetName, this._type, null);
+    Protocol.Connection.setFactory(oldFactory);
+
+    this._target = target;
+    return target;
+  }
+
+  connectAsChildTarget(targetName, parentMock) {
+    this._enabledDomains.clear();
+    this._sessionId = nextId('mock-target-');
+    this._root = parentMock._root || parentMock;
+    this._root._children.set(this._sessionId, this);
+    const target =
+        SDK.targetManager.createTarget(this._sessionId, targetName, this._type, parentMock._target, this._sessionId);
+    this._target = target;
+    return target;
+  }
+
+  disconnect() {
+    if (this._root) {
+      this._root._children.delete(this._sessionId);
+      this._target.dispose();
+      this._root = null;
+      this._sessionId = null;
+    } else {
+      this._connection.disconnect();
+      this._connection = null;
+    }
+    this._target = null;
   }
 
   evalScript(url, content, isContentScript) {
@@ -71,6 +92,7 @@ SDKTestRunner.PageMock = class {
 
     if (!context) {
       context = this._createExecutionContext(this._mainFrame, isContentScript);
+      this._executionContexts.push(context);
 
       this._fireEvent('Runtime.executionContextCreated', {context: context});
     }
@@ -98,11 +120,20 @@ SDKTestRunner.PageMock = class {
     this._fireEvent('Debugger.scriptParsed', script);
   }
 
+  removeContentScripts() {
+    const index = this._executionContexts.findIndex(context => !context.auxData.isDefault);
+    if (index !== -1) {
+      this._fireEvent('Runtime.executionContextDestroyed', {executionContextId: this._executionContexts[index].id});
+      this._executionContexts.splice(index, 1);
+    }
+  }
+
   reload() {
     this._fireEvent('Page.frameStartedLoading', {frameId: this._mainFrame.id});
 
-    for (const context of this._executionContexts)
+    for (const context of this._executionContexts) {
       this._fireEvent('Runtime.executionContextDestroyed', {executionContextId: context.id});
+    }
 
 
     this._scripts = [];
@@ -111,8 +142,9 @@ SDKTestRunner.PageMock = class {
     this._fireEvent('Runtime.executionContextsCleared', {});
     this._executionContexts.push(this._createExecutionContext(this._mainFrame, false));
 
-    for (const context of this._executionContexts)
+    for (const context of this._executionContexts) {
       this._fireEvent('Runtime.executionContextCreated', {context: context});
+    }
 
 
     this._fireEvent('Page.frameNavigated', {frame: this._mainFrame});
@@ -124,13 +156,6 @@ SDKTestRunner.PageMock = class {
     this._fireEvent('Page.domContentEventFired', {timestamp: Date.now() / 1000});
   }
 
-  close() {
-    if (this._connection) {
-      this._connection.disconnect();
-      this._connection = null;
-    }
-  }
-
   _createExecutionContext(frame, isContentScript) {
     return {
       id: nextId(),
@@ -138,7 +163,7 @@ SDKTestRunner.PageMock = class {
       auxData: {isDefault: !isContentScript, frameId: frame.id},
 
       origin: frame.securityOrigin,
-      name: ''
+      name: isContentScript ? 'content-script-context' : ''
     };
   }
 
@@ -146,8 +171,9 @@ SDKTestRunner.PageMock = class {
     this._enabledDomains.add('Debugger');
     this._sendResponse(id, {});
 
-    for (const script of this._scripts)
+    for (const script of this._scripts) {
       this._fireEvent('Debugger.scriptParsed', script);
+    }
   }
 
   _debuggerGetScriptSource(id, params) {
@@ -166,8 +192,9 @@ SDKTestRunner.PageMock = class {
     this._enabledDomains.add('Runtime');
     this._sendResponse(id, {});
 
-    for (const context of this._executionContexts)
+    for (const context of this._executionContexts) {
       this._fireEvent('Runtime.executionContextCreated', {context: context});
+    }
   }
 
   _pageEnable(id, params) {
@@ -184,55 +211,79 @@ SDKTestRunner.PageMock = class {
   _isSupportedDomain(methodName) {
     const domain = methodName.split('.')[0];
 
-    if (domain === 'Page')
-      return !!(this._capabilities & SDK.Target.Capability.DOM);
+    if (domain === 'Page') {
+      return this._type === SDK.Target.Type.Frame;
+    }
 
     return true;
   }
 
-  _dispatch(id, methodName, params, message) {
+  _dispatch(sessionId, id, methodName, params) {
+    if (sessionId) {
+      const child = this._children.get(sessionId);
+      if (child) {
+        child._dispatch('', id, methodName, params);
+      }
+      return;
+    }
+
     const handler = (this._isSupportedDomain(methodName) ? this._dispatchMap[methodName] : null);
 
-    if (handler)
+    if (handler) {
       return handler.call(this, id, params);
+    }
 
     this._sendResponse(
-        id, undefined,
-        {message: 'Can\'t handle command ' + methodName, code: Protocol.InspectorBackend.DevToolsStubErrorCode});
+        id, undefined, {message: 'Can\'t handle command ' + methodName, code: Protocol.DevToolsStubErrorCode});
   }
 
   _sendResponse(id, result, error) {
     const message = {id: id, result: result, error: error};
-
-    this._connection.sendMessageToDevTools(message);
+    if (this._root) {
+      message.sessionId = this._sessionId;
+      this._root._connection.sendMessageToDevTools(message);
+    } else {
+      this._connection.sendMessageToDevTools(message);
+    }
   }
 
   _fireEvent(methodName, params) {
     const domain = methodName.split('.')[0];
 
-    if (!this._enabledDomains.has(domain))
+    if (!this._enabledDomains.has(domain)) {
       return;
+    }
 
     const message = {method: methodName, params: params};
-
-    this._connection.sendMessageToDevTools(message);
+    if (this._root) {
+      message.sessionId = this._sessionId;
+      this._root._connection.sendMessageToDevTools(message);
+    } else {
+      this._connection.sendMessageToDevTools(message);
+    }
   }
 };
 
 MockPageConnection = class {
-  constructor(page, params) {
+  constructor(page) {
     this._page = page;
-    this._onMessage = params.onMessage;
-    this._onDisconnect = params.onDisconnect;
+  }
+
+  setOnMessage(onMessage) {
+    this._onMessage = onMessage;
+  }
+
+  setOnDisconnect(onDisconnect) {
+    this._onDisconnect = onDisconnect;
   }
 
   sendMessageToDevTools(message) {
     setTimeout(() => this._onMessage.call(null, JSON.stringify(message)), 0);
   }
 
-  sendMessage(message) {
-    const json = JSON.parse(message);
-    this._page._dispatch(json.id, json.method, json.params, message);
+  sendRawMessage(messageString) {
+    const message = JSON.parse(messageString);
+    this._page._dispatch(message.sessionId, message.id, message.method, message.params || {});
   }
 
   disconnect() {

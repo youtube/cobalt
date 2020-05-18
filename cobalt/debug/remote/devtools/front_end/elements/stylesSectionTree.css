@@ -36,7 +36,7 @@
     margin: 0 7px 0 0;
     top: 1px;
     left: -36px; /* outdent to compensate for the top-level property indent */
-    -webkit-user-select: none;
+    user-select: none;
     cursor: default;
     z-index: 1;
 }
@@ -89,7 +89,7 @@
 ol:not(.tree-outline) {
     display: none;
     margin: 0;
-    -webkit-padding-start: 12px;
+    padding-inline-start: 12px;
     list-style: none;
 }
 
@@ -165,6 +165,13 @@ ol.expanded {
     cursor: default;
 }
 
+.styles-name-value-separator {
+    display: inline-block;
+    width: 14px;
+    text-decoration: inherit;
+    white-space: pre;
+}
+
 .styles-clipboard-only {
     display: inline-block;
     width: 0;
@@ -184,7 +191,7 @@ ol.expanded {
 }
 
 .expand-icon {
-    -webkit-user-select: none;
+    user-select: none;
     margin-left: -6px;
     margin-right: 2px;
     margin-bottom: -2px;

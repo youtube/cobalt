@@ -21,12 +21,17 @@
     padding: 2px 0;
 }
 
+.breakpoint-entry[data-keyboard-focus="true"] {
+    background-color: var(--focus-bg-color);
+}
+
 .breakpoint-list .breakpoint-entry:hover {
     background-color: #eee;
 }
 
 .breakpoint-hit {
     background-color: rgb(255, 255, 194);
+    border-right: 3px solid rgb(107, 97, 48);
 }
 
 :host-context(.-theme-with-dark-background) .breakpoint-hit {

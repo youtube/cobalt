@@ -35,6 +35,10 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
   constructor(profileNode, owningTree, hasChildren) {
     super(null, hasChildren);
 
+    this._searchMatchedSelfColumn = false;
+    this._searchMatchedTotalColumn = false;
+    this._searchMatchedFunctionColumn = false;
+
     this.profileNode = profileNode;
     this.tree = owningTree;
     /** @type {!Map<string, !Profiler.ProfileDataGridNode>} */
@@ -47,6 +51,8 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
     this.functionName = UI.beautifyFunctionName(profileNode.functionName);
     this._deoptReason = profileNode.deoptReason || '';
     this.url = profileNode.url;
+    /** @type {?Element} */
+    this.linkElement = null;
   }
 
   /**
@@ -66,8 +72,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
         // If the grid node is collapsed, then don't sort children (save operation for later).
         // If the grid node has the same sorting as previously, then there is no point in sorting it again.
         if (!force && (!gridNode.expanded || gridNode.lastComparator === comparator)) {
-          if (gridNode.children.length)
+          if (gridNode.children.length) {
             gridNode.shouldRefreshChildren = true;
+          }
           continue;
         }
 
@@ -79,8 +86,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
         if (childCount) {
           children.sort(comparator);
 
-          for (let childIndex = 0; childIndex < childCount; ++childIndex)
+          for (let childIndex = 0; childIndex < childCount; ++childIndex) {
             children[childIndex].recalculateSiblings(childIndex);
+          }
 
           gridNodeGroups.push(children);
         }
@@ -96,8 +104,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
   static merge(container, child, shouldAbsorb) {
     container.self += child.self;
 
-    if (!shouldAbsorb)
+    if (!shouldAbsorb) {
       container.total += child.total;
+    }
 
     let children = container.children.slice();
 
@@ -106,8 +115,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
     let count = children.length;
 
     for (let index = 0; index < count; ++index) {
-      if (!shouldAbsorb || children[index] !== child)
+      if (!shouldAbsorb || children[index] !== child) {
         container.appendChild(children[index]);
+      }
     }
 
     children = child.children.slice();
@@ -117,10 +127,11 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
       const orphanedChild = children[index];
       const existingChild = container.childrenByCallUID.get(orphanedChild.callUID);
 
-      if (existingChild)
+      if (existingChild) {
         existingChild.merge(/** @type{!Profiler.ProfileDataGridNode} */ (orphanedChild), false);
-      else
+      } else {
         container.appendChild(orphanedChild);
+      }
     }
   }
 
@@ -128,16 +139,18 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
    * @param {!Profiler.ProfileDataGridNode|!Profiler.ProfileDataGridTree} container
    */
   static populate(container) {
-    if (container._populated)
+    if (container._populated) {
       return;
+    }
     container._populated = true;
 
     container.populateChildren();
 
     const currentComparator = container.tree.lastComparator;
 
-    if (currentComparator)
+    if (currentComparator) {
       container.sort(currentComparator, true);
+    }
   }
 
   /**
@@ -168,13 +181,16 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
           cell.appendChild(warningIcon);
         }
         cell.createTextChild(this.functionName);
-        if (this.profileNode.scriptId === '0')
+        if (this.profileNode.scriptId === '0') {
           break;
+        }
         const urlElement = this.tree._formatter.linkifyNode(this);
-        if (!urlElement)
+        if (!urlElement) {
           break;
+        }
         urlElement.style.maxWidth = '75%';
         cell.appendChild(urlElement);
+        this.linkElement = urlElement;
         break;
 
       default:
@@ -192,8 +208,16 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
   _createValueCell(value, percent) {
     const cell = createElementWithClass('td', 'numeric-column');
     const div = cell.createChild('div', 'profile-multiple-values');
-    div.createChild('span').textContent = this.tree._formatter.formatValue(value, this);
-    div.createChild('span', 'percent-column').textContent = this.tree._formatter.formatPercent(percent, this);
+    const valueSpan = div.createChild('span');
+    const valueText = this.tree._formatter.formatValue(value, this);
+    valueSpan.textContent = valueText;
+    const percentSpan = div.createChild('span', 'percent-column');
+    const percentText = this.tree._formatter.formatPercent(percent, this);
+    percentSpan.textContent = percentText;
+    UI.ARIAUtils.markAsHidden(valueSpan);
+    UI.ARIAUtils.markAsHidden(percentSpan);
+    const valueAccessibleText = this.tree._formatter.formatValueAccessibleText(value, this);
+    UI.ARIAUtils.setAccessibleName(div, ls`${valueAccessibleText}, ${percentText}`);
     return cell;
   }
 
@@ -242,8 +266,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
    * @return {?Profiler.ProfileDataGridNode}
    */
   findChild(node) {
-    if (!node)
+    if (!node) {
       return null;
+    }
     return this.childrenByCallUID.get(node.callUID);
   }
 
@@ -272,8 +297,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
   // This allows us to restore them all to their original state when we revert.
 
   save() {
-    if (this._savedChildren)
+    if (this._savedChildren) {
       return;
+    }
 
     this._savedSelf = this.self;
     this._savedTotal = this.total;
@@ -287,8 +313,9 @@ Profiler.ProfileDataGridNode = class extends DataGrid.DataGridNode {
    * @protected
    */
   restore() {
-    if (!this._savedChildren)
+    if (!this._savedChildren) {
       return;
+    }
 
     this.self = this._savedSelf;
     this.total = this._savedTotal;
@@ -346,21 +373,25 @@ Profiler.ProfileDataGridTree = class {
     if (!comparator) {
       if (isAscending) {
         comparator = function(lhs, rhs) {
-          if (lhs[property] < rhs[property])
+          if (lhs[property] < rhs[property]) {
             return -1;
+          }
 
-          if (lhs[property] > rhs[property])
+          if (lhs[property] > rhs[property]) {
             return 1;
+          }
 
           return 0;
         };
       } else {
         comparator = function(lhs, rhs) {
-          if (lhs[property] > rhs[property])
+          if (lhs[property] > rhs[property]) {
             return -1;
+          }
 
-          if (lhs[property] < rhs[property])
+          if (lhs[property] < rhs[property]) {
             return 1;
+          }
 
           return 0;
         };
@@ -398,8 +429,9 @@ Profiler.ProfileDataGridTree = class {
    * @return {?Profiler.ProfileDataGridNode}
    */
   findChild(node) {
-    if (!node)
+    if (!node) {
       return null;
+    }
     return this.childrenByCallUID.get(node.callUID);
   }
 
@@ -416,16 +448,18 @@ Profiler.ProfileDataGridTree = class {
    * @protected
    */
   save() {
-    if (this._savedChildren)
+    if (this._savedChildren) {
       return;
+    }
 
     this._savedTotal = this.total;
     this._savedChildren = this.children.slice();
   }
 
   restore() {
-    if (!this._savedChildren)
+    if (!this._savedChildren) {
       return;
+    }
 
     this.children = this._savedChildren;
     this.total = this._savedTotal;
@@ -433,8 +467,9 @@ Profiler.ProfileDataGridTree = class {
     const children = this.children;
     const count = children.length;
 
-    for (let index = 0; index < count; ++index)
+    for (let index = 0; index < count; ++index) {
       children[index].restore();
+    }
 
     this._savedChildren = null;
   }
@@ -445,8 +480,9 @@ Profiler.ProfileDataGridTree = class {
    */
   _matchFunction(searchConfig) {
     const query = searchConfig.query.trim();
-    if (!query.length)
+    if (!query.length) {
       return null;
+    }
 
     const greaterThan = (query.startsWith('>'));
     const lessThan = (query.startsWith('<'));
@@ -457,17 +493,19 @@ Profiler.ProfileDataGridTree = class {
 
     let queryNumber = parseFloat(query);
     if (greaterThan || lessThan || equalTo) {
-      if (equalTo && (greaterThan || lessThan))
+      if (equalTo && (greaterThan || lessThan)) {
         queryNumber = parseFloat(query.substring(2));
-      else
+      } else {
         queryNumber = parseFloat(query.substring(1));
+      }
     }
 
     const queryNumberMilliseconds = (secondsUnits ? (queryNumber * 1000) : queryNumber);
 
     // Make equalTo implicitly true if it wasn't specified there is no other operator.
-    if (!isNaN(queryNumber) && !(greaterThan || lessThan))
+    if (!isNaN(queryNumber) && !(greaterThan || lessThan)) {
       equalTo = true;
+    }
 
     const matcher = createPlainTextSearchRegex(query, 'i');
 
@@ -476,53 +514,66 @@ Profiler.ProfileDataGridTree = class {
      * @return {boolean}
      */
     function matchesQuery(profileDataGridNode) {
-      delete profileDataGridNode._searchMatchedSelfColumn;
-      delete profileDataGridNode._searchMatchedTotalColumn;
-      delete profileDataGridNode._searchMatchedFunctionColumn;
+      profileDataGridNode._searchMatchedSelfColumn = false;
+      profileDataGridNode._searchMatchedTotalColumn = false;
+      profileDataGridNode._searchMatchedFunctionColumn = false;
 
       if (percentUnits) {
         if (lessThan) {
-          if (profileDataGridNode.selfPercent < queryNumber)
+          if (profileDataGridNode.selfPercent < queryNumber) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.totalPercent < queryNumber)
+          }
+          if (profileDataGridNode.totalPercent < queryNumber) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         } else if (greaterThan) {
-          if (profileDataGridNode.selfPercent > queryNumber)
+          if (profileDataGridNode.selfPercent > queryNumber) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.totalPercent > queryNumber)
+          }
+          if (profileDataGridNode.totalPercent > queryNumber) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         }
 
         if (equalTo) {
-          if (profileDataGridNode.selfPercent === queryNumber)
+          if (profileDataGridNode.selfPercent === queryNumber) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.totalPercent === queryNumber)
+          }
+          if (profileDataGridNode.totalPercent === queryNumber) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         }
       } else if (millisecondsUnits || secondsUnits) {
         if (lessThan) {
-          if (profileDataGridNode.self < queryNumberMilliseconds)
+          if (profileDataGridNode.self < queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.total < queryNumberMilliseconds)
+          }
+          if (profileDataGridNode.total < queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         } else if (greaterThan) {
-          if (profileDataGridNode.self > queryNumberMilliseconds)
+          if (profileDataGridNode.self > queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.total > queryNumberMilliseconds)
+          }
+          if (profileDataGridNode.total > queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         }
 
         if (equalTo) {
-          if (profileDataGridNode.self === queryNumberMilliseconds)
+          if (profileDataGridNode.self === queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedSelfColumn = true;
-          if (profileDataGridNode.total === queryNumberMilliseconds)
+          }
+          if (profileDataGridNode.total === queryNumberMilliseconds) {
             profileDataGridNode._searchMatchedTotalColumn = true;
+          }
         }
       }
 
       if (profileDataGridNode.functionName.match(matcher) ||
-          (profileDataGridNode.url && profileDataGridNode.url.match(matcher)))
+          (profileDataGridNode.url && profileDataGridNode.url.match(matcher))) {
         profileDataGridNode._searchMatchedFunctionColumn = true;
+      }
 
       if (profileDataGridNode._searchMatchedSelfColumn || profileDataGridNode._searchMatchedTotalColumn ||
           profileDataGridNode._searchMatchedFunctionColumn) {
@@ -544,14 +595,16 @@ Profiler.ProfileDataGridTree = class {
   performSearch(searchConfig, shouldJump, jumpBackwards) {
     this.searchCanceled();
     const matchesQuery = this._matchFunction(searchConfig);
-    if (!matchesQuery)
+    if (!matchesQuery) {
       return;
+    }
 
     this._searchResults = [];
     const deepSearch = this.deepSearch;
     for (let current = this.children[0]; current; current = current.traverseNextNode(!deepSearch, null, !deepSearch)) {
-      if (matchesQuery(current))
+      if (matchesQuery(current)) {
         this._searchResults.push({profileNode: current});
+      }
     }
     this._searchResultIndex = jumpBackwards ? 0 : this._searchResults.length - 1;
     this._searchableView.updateSearchMatchesCount(this._searchResults.length);
@@ -565,9 +618,9 @@ Profiler.ProfileDataGridTree = class {
     if (this._searchResults) {
       for (let i = 0; i < this._searchResults.length; ++i) {
         const profileNode = this._searchResults[i].profileNode;
-        delete profileNode._searchMatchedSelfColumn;
-        delete profileNode._searchMatchedTotalColumn;
-        delete profileNode._searchMatchedFunctionColumn;
+        profileNode._searchMatchedSelfColumn = false;
+        profileNode._searchMatchedTotalColumn = false;
+        profileNode._searchMatchedFunctionColumn = false;
         profileNode.refresh();
       }
     }
@@ -580,8 +633,9 @@ Profiler.ProfileDataGridTree = class {
    * @override
    */
   jumpToNextSearchResult() {
-    if (!this._searchResults || !this._searchResults.length)
+    if (!this._searchResults || !this._searchResults.length) {
       return;
+    }
     this._searchResultIndex = (this._searchResultIndex + 1) % this._searchResults.length;
     this._jumpToSearchResult(this._searchResultIndex);
   }
@@ -590,8 +644,9 @@ Profiler.ProfileDataGridTree = class {
    * @override
    */
   jumpToPreviousSearchResult() {
-    if (!this._searchResults || !this._searchResults.length)
+    if (!this._searchResults || !this._searchResults.length) {
       return;
+    }
     this._searchResultIndex = (this._searchResultIndex - 1 + this._searchResults.length) % this._searchResults.length;
     this._jumpToSearchResult(this._searchResultIndex);
   }
@@ -617,8 +672,9 @@ Profiler.ProfileDataGridTree = class {
    */
   _jumpToSearchResult(index) {
     const searchResult = this._searchResults[index];
-    if (!searchResult)
+    if (!searchResult) {
       return;
+    }
     const profileNode = searchResult.profileNode;
     profileNode.revealAndSelect();
     this._searchableView.updateCurrentMatchIndex(index);
@@ -640,6 +696,12 @@ Profiler.ProfileDataGridNode.Formatter.prototype = {
    * @return {string}
    */
   formatValue(value, node) {},
+
+  /**
+   * @param {number} value
+   * @return {string}
+   */
+  formatValueAccessibleText(value) {},
 
   /**
    * @param {number} value

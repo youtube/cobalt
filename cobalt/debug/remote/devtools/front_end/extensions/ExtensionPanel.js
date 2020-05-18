@@ -31,7 +31,7 @@
  * @implements {UI.Searchable}
  * @unrestricted
  */
-Extensions.ExtensionPanel = class extends UI.Panel {
+export default class ExtensionPanel extends UI.Panel {
   /**
    * @param {!Extensions.ExtensionServer} server
    * @param {string} panelName
@@ -116,12 +116,12 @@ Extensions.ExtensionPanel = class extends UI.Panel {
   supportsRegexSearch() {
     return false;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Extensions.ExtensionButton = class {
+export class ExtensionButton {
   /**
    * @param {!Extensions.ExtensionServer} server
    * @param {string} id
@@ -144,12 +144,15 @@ Extensions.ExtensionButton = class {
    * @param {boolean=} disabled
    */
   update(iconURL, tooltip, disabled) {
-    if (typeof iconURL === 'string')
+    if (typeof iconURL === 'string') {
       this._toolbarButton.setBackgroundImage(iconURL);
-    if (typeof tooltip === 'string')
+    }
+    if (typeof tooltip === 'string') {
       this._toolbarButton.setTitle(tooltip);
-    if (typeof disabled === 'boolean')
+    }
+    if (typeof disabled === 'boolean') {
       this._toolbarButton.setEnabled(!disabled);
+    }
   }
 
   /**
@@ -158,12 +161,12 @@ Extensions.ExtensionButton = class {
   toolbarButton() {
     return this._toolbarButton;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-Extensions.ExtensionSidebarPane = class extends UI.SimpleView {
+export class ExtensionSidebarPane extends UI.SimpleView {
   /**
    * @param {!Extensions.ExtensionServer} server
    * @param {string} panelName
@@ -223,14 +226,16 @@ Extensions.ExtensionSidebarPane = class extends UI.SimpleView {
       this._objectPropertiesView.detach();
       delete this._objectPropertiesView;
     }
-    if (this._extensionView)
+    if (this._extensionView) {
       this._extensionView.detach(true);
+    }
 
     this._extensionView = new Extensions.ExtensionView(this._server, this._id, url, 'extension fill');
     this._extensionView.show(this.element);
 
-    if (!this.element.style.height)
+    if (!this.element.style.height) {
       this.setHeight('150px');
+    }
   }
 
   /**
@@ -248,15 +253,17 @@ Extensions.ExtensionSidebarPane = class extends UI.SimpleView {
    * @param {boolean=} wasThrown
    */
   _onEvaluate(title, callback, error, result, wasThrown) {
-    if (error || !result)
+    if (error || !result) {
       callback(error.toString());
-    else
+    } else {
       this._setObject(result, title, callback);
+    }
   }
 
   _createObjectPropertiesView() {
-    if (this._objectPropertiesView)
+    if (this._objectPropertiesView) {
       return;
+    }
     if (this._extensionView) {
       this._extensionView.detach(true);
       delete this._extensionView;
@@ -277,15 +284,31 @@ Extensions.ExtensionSidebarPane = class extends UI.SimpleView {
       return;
     }
     this._objectPropertiesView.element.removeChildren();
-    Common.Renderer
-        .render(object, {
-          title: title,
-          expanded: true,
-          editable: false,
-        })
-        .then(element => {
-          this._objectPropertiesView.element.appendChild(element);
-          callback();
-        });
+    UI.Renderer.render(object, {title, editable: false}).then(result => {
+      if (!result) {
+        callback();
+        return;
+      }
+      if (result.tree && result.tree.firstChild()) {
+        result.tree.firstChild().expand();
+      }
+      this._objectPropertiesView.element.appendChild(result.node);
+      callback();
+    });
   }
-};
+}
+
+/* Legacy exported object */
+self.Extensions = self.Extensions || {};
+
+/* Legacy exported object */
+Extensions = Extensions || {};
+
+/** @constructor */
+Extensions.ExtensionPanel = ExtensionPanel;
+
+/** @constructor */
+Extensions.ExtensionButton = ExtensionButton;
+
+/** @constructor */
+Extensions.ExtensionSidebarPane = ExtensionSidebarPane;

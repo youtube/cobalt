@@ -7,10 +7,11 @@
             "className": "Snippets.SnippetsQuickOpen"
         }
     ],
-    "dependencies": ["bindings", "quick_open"],
-    "scripts": [
-        "SnippetStorage.js",
-        "ScriptSnippetModel.js",
+    "dependencies": ["bindings", "quick_open", "persistence"],
+    "scripts": [],
+    "modules": [
+        "snippets.js",
+        "ScriptSnippetFileSystem.js",
         "SnippetsQuickOpen.js"
     ]
 }
