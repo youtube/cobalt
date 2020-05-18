@@ -98,8 +98,8 @@ class VideoDecoderTest
     : public ::testing::TestWithParam<std::tuple<VideoTestParam, bool>> {
  public:
   VideoDecoderTest()
-      : test_filename_(std::get<0>(GetParam()).first),
-        output_mode_(std::get<0>(GetParam()).second),
+      : test_filename_(std::get<0>(std::get<0>(GetParam()))),
+        output_mode_(std::get<1>(std::get<0>(GetParam()))),
         using_stub_decoder_(std::get<1>(GetParam())),
         dmp_reader_(ResolveTestFileName(test_filename_).c_str()) {
     SB_LOG(INFO) << "Testing " << test_filename_ << ", output mode "

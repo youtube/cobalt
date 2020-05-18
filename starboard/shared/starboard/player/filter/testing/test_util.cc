@@ -103,7 +103,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
 #if SB_API_VERSION >= 12
                                 "",  // content_type
-#endif // SB_API_VERSION >= 12
+#endif  // SB_API_VERSION >= 12
                                 dmp_reader.audio_bitrate())) {
       test_params_with_heaac.push_back(filename);
       if (SbStringFindString(filename, "heaac") == nullptr) {
@@ -154,7 +154,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
               dmp_reader.video_codec(),
 #if SB_API_VERSION >= 12
               "",  // content_type
-#endif // SB_API_VERSION >= 12
+#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
@@ -165,7 +165,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
               video_sample_info->frame_width, video_sample_info->frame_height,
 #endif  // SB_API_VERSION >= 11
               dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
-        test_params.push_back({filename, output_mode});
+        test_params.push_back(std::make_tuple(filename, output_mode));
       }
     }
   }
