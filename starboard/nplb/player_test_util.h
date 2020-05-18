@@ -24,6 +24,8 @@
 namespace starboard {
 namespace nplb {
 
+std::string ResolveTestFileName(const char* filename);
+
 SbPlayer CallSbPlayerCreate(
     SbWindow window,
     SbMediaVideoCodec video_codec,
