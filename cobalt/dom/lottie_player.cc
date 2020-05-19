@@ -37,7 +37,9 @@ using render_tree::LottieAnimation;
 const char LottiePlayer::kTagName[] = "lottie-player";
 
 LottiePlayer::LottiePlayer(Document* document)
-    : HTMLElement(document, base::Token(kTagName)), autoplaying_(true) {}
+    : HTMLElement(document, base::Token(kTagName)),
+      autoplaying_(true),
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)) {}
 
 std::string LottiePlayer::src() const {
   return GetAttribute("src").value_or("");
@@ -311,12 +313,27 @@ void LottiePlayer::UpdateState(LottieAnimation::LottieState state) {
   autoplaying_ = false;
   if (properties_.UpdateState(state)) {
     UpdateLottieObjects();
+
+    if (state == LottieAnimation::LottieState::kPlaying) {
+      ScheduleEvent(base::Tokens::play());
+    } else if (state == LottieAnimation::LottieState::kPaused) {
+      ScheduleEvent(base::Tokens::pause());
+    } else if (state == LottieAnimation::LottieState::kStopped) {
+      ScheduleEvent(base::Tokens::stop());
+    }
   }
 }
 
 void LottiePlayer::UpdateLottieObjects() {
   node_document()->RecordMutation();
   InvalidateLayoutBoxesOfNodeAndAncestors();
+}
+
+void LottiePlayer::ScheduleEvent(base::Token event_name) {
+  // https://github.com/LottieFiles/lottie-player#events
+  scoped_refptr<Event> event = new Event(event_name);
+  event->set_target(this);
+  event_queue_.Enqueue(event);
 }
 
 }  // namespace dom
