@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/render_tree/lottie_animation.h"
@@ -108,6 +109,8 @@ class LottiePlayer : public HTMLElement {
   void UpdateState(LottieAnimation::LottieState state);
   void UpdateLottieObjects();
 
+  void ScheduleEvent(base::Token event_name);
+
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
@@ -119,6 +122,8 @@ class LottiePlayer : public HTMLElement {
   // if other playback methods have been called.
   bool autoplaying_;
   LottieAnimation::LottieProperties properties_;
+
+  EventQueue event_queue_;
 };
 
 }  // namespace dom
