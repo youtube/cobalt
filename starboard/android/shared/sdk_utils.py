@@ -258,3 +258,7 @@ def _DownloadInstallOrUpdateSdk():
       logging.warning('There were no SDK licenses to accept.')
 
   p.wait()
+  if p.returncode:
+    raise RuntimeError(
+        '\nFailed to install packages with sdkmanager. Exit status = %d' %
+        p.returncode)
