@@ -22,6 +22,14 @@ This document records all notable changes made to Cobalt since the last release.
    longer support disabling it, so we are removing the GYP configuration
    variable entirely.
 
+ - **DevTools rebased to Chromium 80; requires nodejs to build.**
+
+   DevTools has been updated to match Chromium m80 (3987), taken from the
+   [ChromeDevTools](https://github.com/ChromeDevTools/devtools-frontend/commit/757e0e1e1ffc4a0d36d005d120de5f73c1b910e0)
+   repo. This update now uses Rollup.js to build ES6 modules for the various
+   "applications" comprising the DevTools frontend, requiring nodejs to be
+   installed to build Cobalt (sudo apt-get install nodejs).
+
  - **DevTools and WebDriver listen to ANY interface, except on desktop PCs.**
 
    DevTools and WebDriver servers listen to connections on any network interface
