@@ -248,7 +248,7 @@ class WeakPtr : public internal::WeakPtrBase {
   }
 
 #if defined(STARBOARD)
-  // TODO[johnx]: Remove the implicit convertor.
+  // TODO[Cobalt]: Remove the implicit convertor.
   operator T*() const { return get(); }
 #endif
 

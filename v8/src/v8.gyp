@@ -8,14 +8,11 @@
       '<(DEPTH)/v8/include',
     ],
     'defines': [
-      # TODO[johnx]: Remove WASM module from Cobalt's V8.
       'DISABLE_GRAPHS_STARBOARD',
       'DISABLE_UNWIND_STARBOARD',
       'DISABLE_WASM_STARBOARD',
-      # TODO[johnx]: only enable this on PS4
       'DISABLE_WASM_COMPILER_ISSUE_STARBOARD',
       'NO_ARRAY_MOVE_STARBOARD',
-      # 'V8_TARGET_OS_WIN', # TODO[johnx] see if we need to turn on this macro for win32 and xb1 build
       # Disable mitigations for executing untrusted code.
       # Disabled by default on x86 due to conflicting requirements with embedded
       # builtins. 
@@ -67,7 +64,6 @@
     'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
     'v8_optimized_debug': 0,
     'v8_use_external_startup_data': 0,
-    # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
     # Embedded builtins allow V8 to share built-in codes across isolates.
     'v8_enable_embedded_builtins': '<(cobalt_v8_enable_embedded_builtins)',
@@ -107,7 +103,6 @@
     'is_asan': 0,
     'v8_use_perfetto': 0,
     'v8_use_siphash': 0,
-    # TODO[johnx]: integrate the lite mode(exciting!)
     'v8_enable_lite_mode': 0,
     'want_separate_host_toolset': 1,
 

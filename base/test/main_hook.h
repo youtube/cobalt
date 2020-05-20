@@ -5,7 +5,8 @@
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
-// TODO[johnx]: Deprecate this legacy file.
+// Note: this is a legacy file from Cobalt's old copy of Chromium libs.
+
 // Provides a way of running code before gtest-based tests with access to
 // argv and argc.
 class MainHook {
