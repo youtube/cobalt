@@ -191,6 +191,7 @@
         'player_output_mode_supported_test.cc',
         'player_test_util.cc',
         'player_test_util.h',
+        'player_write_sample_test.cc',
         'random_helpers.cc',
         'recursive_mutex_test.cc',
         'rwlock_test.cc',
