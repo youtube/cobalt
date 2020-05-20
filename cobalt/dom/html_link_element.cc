@@ -106,6 +106,9 @@ void HTMLLinkElement::set_cross_origin(
 void HTMLLinkElement::OnRemovedFromDocument() {
   HTMLElement::OnRemovedFromDocument();
 
+  DCHECK(base::MessageLoop::current());
+  ReleaseLoader();
+
   if (style_sheet_) {
     Document* document = node_document();
     if (document) {
