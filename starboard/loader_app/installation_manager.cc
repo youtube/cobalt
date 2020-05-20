@@ -484,7 +484,7 @@ bool InstallationManager::SaveInstallationStore() {
   }
   installation_store_.SerializeToArray(buf, installation_store_.ByteSize());
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
   if (!SbFileAtomicReplace(store_path_.c_str(), buf,
                            installation_store_.ByteSize())) {
     SB_LOG(ERROR)
@@ -497,15 +497,14 @@ bool InstallationManager::SaveInstallationStore() {
 
 #else
   SB_NOTREACHED()
-      << "SbFileAtomicReplace is not available before starboard version "
-      << SB_FILE_ATOMIC_REPLACE_VERSION;
+      << "SbFileAtomicReplace is not available before starboard version 12";
   return false;
 #endif
 }
 
 bool InstallationManager::InitInstallationStorePath() {
   std::vector<char> storage_dir(kSbFileMaxPath);
-#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+#if SB_API_VERSION >= 12
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        kSbFileMaxPath)) {
     SB_LOG(ERROR) << "InitInstallationStorePath: Failed to get "
@@ -516,7 +515,7 @@ bool InstallationManager::InitInstallationStorePath() {
   SB_NOTREACHED() << "InitInstallationStorePath: kSbSystemPathStorageDirectory "
                      "is not available before "
                      "starboard version "
-                  << SB_STORAGE_PATH_VERSION;
+                  << 12;
   return false;
 
 #endif

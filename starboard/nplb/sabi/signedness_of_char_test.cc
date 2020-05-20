@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+#if SB_API_VERSION >= 12
 
 namespace starboard {
 namespace sabi {
@@ -27,4 +27,4 @@ SB_COMPILE_ASSERT((static_cast<char>(-1) < 0) == SB_HAS_SIGNED_CHAR,  // NOLINT(
 }  // namespace sabi
 }  // namespace starboard
 
-#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+#endif  // SB_API_VERSION >= 12

@@ -85,9 +85,9 @@ void AudioRendererSinkImpl::Start(
         audio_frame_storage_type, frame_buffers, frames_per_channel,
         &AudioRendererSinkImpl::UpdateSourceStatusFunc,
         &AudioRendererSinkImpl::ConsumeFramesFunc,
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#if SB_API_VERSION >= 12
         &AudioRendererSinkImpl::ErrorFunc,
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
         this);
     if (!audio_sink_type->IsValid(audio_sink_)) {
       SB_LOG(WARNING) << "Created invalid SbAudioSink from "
@@ -102,9 +102,9 @@ void AudioRendererSinkImpl::Start(
             audio_frame_storage_type, frame_buffers, frames_per_channel,
             &AudioRendererSinkImpl::UpdateSourceStatusFunc,
             &AudioRendererSinkImpl::ConsumeFramesFunc,
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#if SB_API_VERSION >= 12
             &AudioRendererSinkImpl::ErrorFunc,
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
             this);
         if (!fallback_type->IsValid(audio_sink_)) {
           SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";

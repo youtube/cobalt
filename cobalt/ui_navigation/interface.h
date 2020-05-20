@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace ui_navigation {
 
-#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#if SB_API_VERSION >= 12
 
 // Alias the starboard interface. See starboard/ui_navigation.h for details.
 using NativeItem = SbUiNavItem;

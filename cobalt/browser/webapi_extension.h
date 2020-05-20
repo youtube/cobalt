@@ -23,7 +23,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 
-#if SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 namespace cobalt {
 namespace browser {
@@ -64,6 +64,6 @@ scoped_refptr<script::Wrappable> CreateWebAPIExtensionObject(
   "Web Extension support has been deprecated. Please use Platform Services " \
   "(cobalt/doc/platform_services.md) instead."
 
-#endif  // SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12
 
 #endif  // COBALT_BROWSER_WEBAPI_EXTENSION_H_

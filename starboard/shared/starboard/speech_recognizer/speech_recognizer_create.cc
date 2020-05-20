@@ -14,8 +14,7 @@
 
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 #include "starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h"
 
@@ -24,6 +23,6 @@ SbSpeechRecognizer SbSpeechRecognizerCreate(
   return SbSpeechRecognizerPrivate::CreateSpeechRecognizer(handler);
 }
 
-#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_RECOGNIZER)
         // && SB_API_VERSION >= 5

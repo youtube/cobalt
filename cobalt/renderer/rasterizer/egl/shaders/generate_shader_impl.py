@@ -150,7 +150,7 @@ SOURCE_FILE_TEMPLATE = """\
 // Do not edit!
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "{header_filename}"
 
@@ -164,7 +164,7 @@ namespace egl {{
 }}  // namespace renderer
 }}  // namespace cobalt
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)
 """
 
 

@@ -63,7 +63,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 #define STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_
 
-#if SB_API_VERSION >= SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION >= 12
 #error "Starboard Crypto API is deprecated"
 #else
 
@@ -216,6 +216,6 @@ void AES_gcm128_tag(GCM128_CONTEXT *ctx, void *tag, size_t len);
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_SHARED_STARBOARD_CRYPTOGRAPHY_SOFTWARE_AES_H_

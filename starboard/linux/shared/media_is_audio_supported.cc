@@ -20,16 +20,16 @@
 #include "starboard/media.h"
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                              const char* content_type,
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
                              int64_t bitrate) {
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
   if (!content_type) {
     SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
     return false;
   }
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 
   if (audio_codec == kSbMediaAudioCodecAac) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
@@ -39,15 +39,14 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_AC3_AUDIO)
+#if SB_API_VERSION >= 12 || defined(SB_HAS_AC3_AUDIO)
   if (kSbHasAc3Audio) {
     if (audio_codec == kSbMediaAudioCodecAc3 ||
         audio_codec == kSbMediaAudioCodecEac3) {
       return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
     }
   }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // defined(SB_HAS_AC3_AUDIO)
 
   return false;

@@ -34,7 +34,7 @@ namespace browser {
 namespace memory_settings {
 namespace {
 bool HasBlitter() {
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
   const bool has_blitter = true;
 #else
   const bool has_blitter = false;
@@ -230,7 +230,7 @@ AutoMemSettings GetDefaultBuildSettings() {
       MakeValidIfGreaterThanOrEqualToZero(
           config->CobaltOffscreenTargetCacheSizeInBytes());
 
-#if SB_API_VERSION < SB_FEATURE_GYP_CONFIGURATION_VERSION
+#if SB_API_VERSION < 12
 #if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
   settings.max_cpu_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);
@@ -239,7 +239,7 @@ AutoMemSettings GetDefaultBuildSettings() {
   settings.max_gpu_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_GPU_USAGE_IN_BYTES);
 #endif  // defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
-#endif  // SB_API_VERSION < SB_FEATURE_GYP_CONFIGURATION_VERSION
+#endif  // SB_API_VERSION < 12
 
   settings.reduce_cpu_memory_by =
       MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceCpuMemoryBy());

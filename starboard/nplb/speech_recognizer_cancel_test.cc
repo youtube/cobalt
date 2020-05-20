@@ -20,8 +20,7 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 TEST_F(SpeechRecognizerTest, CancelTestSunnyDay) {
   if (SkipLocale())
@@ -74,7 +73,7 @@ TEST_F(SpeechRecognizerTest, CancelWithInvalidSpeechRecognizer) {
   SbSpeechRecognizerCancel(kSbSpeechRecognizerInvalid);
 }
 
-#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 }  // namespace nplb

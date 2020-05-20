@@ -67,7 +67,7 @@ bool GraphicsContext::IsMapToMeshEnabled(
     const GraphicsContext* graphics_context) {
   const CobaltExtensionGraphicsApi* graphics_ext =
       graphics_context ? graphics_context->graphics_extension_ : nullptr;
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 #if defined(ENABLE_MAP_TO_MESH)
 #error \
     "ENABLE_MAP_TO_MESH is deprecated after Starboard version 12, use \
@@ -80,7 +80,7 @@ the Cobalt graphics extension function IsMapToMeshEnabled() instead."
   // If there is a callable gles interface, assume map to mesh is enabled, as
   // it is for most platforms.
   return SbGetGlesInterface() != nullptr;
-#else  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#else  // SB_API_VERSION >= 12
 #if defined(ENABLE_MAP_TO_MESH)
   if (graphics_ext && graphics_ext->version >= 3) {
     DLOG(ERROR)
@@ -97,7 +97,7 @@ the Cobalt graphics extension function IsMapToMeshEnabled() instead."
   }
 
   return false;
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#endif  // SB_API_VERSION >= 12
 }
 
 }  // namespace backend

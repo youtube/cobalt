@@ -29,14 +29,13 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 // Returns whether the platform supports speech synthesis
 SB_EXPORT bool SbSpeechSynthesisIsSupported();
 #endif
@@ -60,7 +59,7 @@ SB_EXPORT void SbSpeechSynthesisCancel();
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_SYNTHESIS)
 
 #endif  // STARBOARD_SPEECH_SYNTHESIS_H_

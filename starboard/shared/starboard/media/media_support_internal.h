@@ -58,7 +58,7 @@ extern "C" {
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              const char* content_type,
@@ -74,7 +74,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int fps,
                              bool decode_to_texture_required);
 
-#else  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#else  // SB_API_VERSION >= 12
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
@@ -91,7 +91,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int fps,
                              bool decode_to_texture_required);
 
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -102,17 +102,17 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 //                 interface if there is any.  Otherwise it will be set to "".
 //                 It should never to set to NULL.
 // |bitrate|: The media's bitrate.
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
                              int64_t bitrate);
 
-#else  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#else  // SB_API_VERSION >= 12
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate);
 
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 // Indicates whether this platform supports |transfer_id| as a transfer

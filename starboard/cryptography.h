@@ -54,7 +54,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION >= 12
 #error "Starboard Crypto API is deprecated"
 #else
 
@@ -230,6 +230,6 @@ SB_EXPORT bool SbCryptographyGetTag(
 }  // extern "C"
 #endif
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_CRYPTOGRAPHY_H_

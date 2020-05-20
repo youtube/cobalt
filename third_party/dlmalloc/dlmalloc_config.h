@@ -99,11 +99,10 @@
 
 // Adapt Starboard configuration to old LBShell-style configuration.
 #if defined(STARBOARD)
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 #define LB_HAS_MMAP
 #endif
-#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED && \
-    SB_HAS(VIRTUAL_REGIONS)
+#if SB_API_VERSION < 12 && SB_HAS(VIRTUAL_REGIONS)
 #define LB_HAS_VIRTUAL_REGIONS
 #endif
 #endif  // defined(STARBOARD)
@@ -130,7 +129,7 @@
 
 #if defined(STARBOARD)
 
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 #define DEFAULT_MMAP_THRESHOLD kSbDefaultMmapThreshold
 #endif
 

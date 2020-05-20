@@ -24,7 +24,7 @@ using starboard::shared::starboard::EnsureInitialized;
 using starboard::shared::starboard::SetInitialized;
 
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
   SB_COMPILE_ASSERT(sizeof(SbOnceControl) >= sizeof(SbOnceControlPrivate),
                     sb_once_control_private_larger_than_sb_once_control);
 #endif
@@ -34,7 +34,7 @@ bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
   if (init_routine == NULL) {
     return false;
   }
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
   if (!EnsureInitialized(
           &(SB_INTERNAL_ONCE(once_control)->initialized_state))) {
     *SB_PTHREAD_INTERNAL_ONCE(once_control) = PTHREAD_ONCE_INIT;

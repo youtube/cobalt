@@ -16,10 +16,10 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 #include "starboard/condition_variable.h"
 #include "starboard/once.h"
-#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#endif  // SB_API_VERSION >= 12
 
 namespace starboard {
 namespace nplb {

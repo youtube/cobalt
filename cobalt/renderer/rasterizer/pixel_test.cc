@@ -3897,7 +3897,7 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
 }
 #endif  // !SB_HAS(BLITTER)
 
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || ENABLE_MAP_TO_MESH
+#if SB_API_VERSION >= 12 || ENABLE_MAP_TO_MESH
 
 namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
@@ -4021,7 +4021,7 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // ENABLE_MAP_TO_MESH
 
 TEST_F(PixelTest, DrawNullImage) {

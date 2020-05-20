@@ -23,7 +23,7 @@
 
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
 
 // Determines the threshhold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
@@ -160,6 +160,6 @@ extern const char* kSbPathSepString;
 // The maximum number of users that can be signed in at the same time.
 extern const uint32_t kSbUserMaxSignedIn;
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

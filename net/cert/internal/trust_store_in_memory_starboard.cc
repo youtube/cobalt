@@ -77,7 +77,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     return std::unordered_set<std::string>();
   }
   std::unordered_set<std::string> trusted_certs_on_disk;
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   std::vector<char> dir_entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(sb_certs_directory, dir_entry.data(),
@@ -87,7 +87,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     }
     trusted_certs_on_disk.emplace(dir_entry.data());
   }
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   SbDirectoryEntry dir_entry;
 
   while (SbDirectoryGetNext(sb_certs_directory, &dir_entry)) {
@@ -96,7 +96,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
     }
     trusted_certs_on_disk.emplace(dir_entry.name);
   }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
   SbDirectoryClose(sb_certs_directory);
   return std::move(trusted_certs_on_disk);

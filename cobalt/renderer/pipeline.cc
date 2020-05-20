@@ -318,13 +318,11 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
         graphics_context_
             ? graphics_context_->GetMinimumFrameIntervalInMilliseconds()
             : -1.0f;
-#if SB_API_VERSION >= SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION && \
-    defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
+#if SB_API_VERSION >= 12 && defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
 #error \
     "'cobalt_minimum_frame_time_in_milliseconds' was replaced by" \
     "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
-#elif SB_API_VERSION < SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION && \
-    defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
+#elif SB_API_VERSION < 12 && defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
     COMPILE_ASSERT(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0,
                    frame_time_must_be_positive);
     if (minimum_frame_interval_milliseconds < 0.0f) {

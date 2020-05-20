@@ -211,17 +211,13 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
   condition_variable_.Signal();
 }
 
-#if SB_API_VERSION >=                                             \
-        SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION || \
-    !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed) {
   ScopedLock lock(mutex_);
   frames_consumed_ += frames_consumed;
   condition_variable_.Signal();
 }
-#else   // SB_API_VERSION >=                                          \
-        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||  \
-        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#else   // SB_API_VERSION >= 12 ||!SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed,
                                                SbTime frames_consumed_at) {
   SB_DCHECK(frames_consumed_at <= SbTimeGetMonotonicNow());
@@ -229,9 +225,7 @@ void AudioSinkTestEnvironment::OnConsumeFrames(int frames_consumed,
   frames_consumed_ += frames_consumed;
   condition_variable_.Signal();
 }
-#endif  // SB_API_VERSION >=
-        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||
-        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
 // static
 void AudioSinkTestEnvironment::UpdateSourceStatusFunc(int* frames_in_buffer,
@@ -245,9 +239,7 @@ void AudioSinkTestEnvironment::UpdateSourceStatusFunc(int* frames_in_buffer,
                                     is_playing, is_eos_reached);
 }
 
-#if SB_API_VERSION >=                                             \
-        SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION || \
-    !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#if SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 // static
 void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
                                                  void* context) {
@@ -255,9 +247,7 @@ void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
       reinterpret_cast<AudioSinkTestEnvironment*>(context);
   environment->OnConsumeFrames(frames_consumed);
 }
-#else   // SB_API_VERSION >=                                          \
-        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||  \
-        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#else   // SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 // static
 void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
                                                  SbTime frames_consumed_at,
@@ -267,9 +257,7 @@ void AudioSinkTestEnvironment::ConsumeFramesFunc(int frames_consumed,
   frames_consumed_at = SbTimeGetMonotonicNow();
   environment->OnConsumeFrames(frames_consumed, frames_consumed_at);
 }
-#endif  // SB_API_VERSION >=
-        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION ||
-        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
 }  // namespace nplb
 }  // namespace starboard

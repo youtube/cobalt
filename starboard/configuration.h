@@ -42,19 +42,19 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 12
+#define SB_MAXIMUM_API_VERSION 13
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 12
+#define SB_EXPERIMENTAL_API_VERSION 13
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-#define SB_RELEASE_CANDIDATE_API_VERSION 11
+#define SB_RELEASE_CANDIDATE_API_VERSION 12
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -67,242 +67,6 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for platform-based UI navigation.
-// The system can be disabled by implementing the function
-// `SbUiNavGetInterface()` to return `false`.  Platform-based UI navigation
-// allows the platform to receive feedback on where UI elements are located and
-// also lets the platform control what is selected and what the scroll
-// parameters are.
-#define SB_UI_NAVIGATION_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the OpenGL, Blitter, and Skia renderers on all platforms.
-// The system must implement `SbGetGlesInterface()` in `starboard/gles.h`
-// or use the provided stub implementation, and must do the same for
-// the blitter functions in `starboad/blitter.h`. The provided blitter stubs
-// will return responses that denote failures. The system should implement
-// `SbGetGlesInterface()` to return `nullptr` when OpenGL is not supported and
-// implement `SbBlitterIsBlitterSupported()` to return false when blitter is
-// not supported, as the stubs do.
-//
-// This change also effectively deprecates the gyp variable
-// "enable_map_to_mesh" in favor of CobaltGraphicsExtensionApi function
-// `IsMapToMeshEnabled()` and the command line switch --disable_map_to_mesh.
-// Now, Cobalt will assume the platform supports map_to_mesh, so platforms that
-// do not will have to have return |false| from `IsMapToMeshEnabled()` or use
-// the provided command line switch.
-#define SB_ALL_RENDERERS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Blitter API is no longer supported on any platform. Use the OpenGL ES
-// interface instead.
-#define SB_BLITTER_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Crypto API is no longer supported on any platform. BoringSSL CPU
-// optimizations are used instead.
-#define SB_CRYPTOAPI_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the captions API.
-// The system must implement the captions functions in
-// `starboard/accessibility.h` or use the provided stub implementations.
-// System caption can be disabled by implementing the function
-// `SbAccessibilityGetCaptionSettings(SbAccessibilityCaptionSettings*
-// caption_settings)` to return false as the stub implementation does.
-// This change also deprecates the SB_HAS_CAPTIONS flag.
-#define SB_CAPTIONS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require compilation with Ipv6.
-// Cobalt must be able to determine at runtime if the system supportes Ipv6.
-// Ipv6 can be disabled by defining SB_HAS_IPV6 to 0.
-#define SB_IPV6_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the microphone API.
-// The system must implement the microphone functions in
-// `starboard/microphone.h` or use the provided stub functions.
-// The microphone can be disabled by having `SbMicrophoneCreate()` return
-// |kSbMicrophoneInvalid|.
-// This change also deprecates the SB_HAS_MICROPHONE flag.
-#define SB_MICROPHONE_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the memory mapping API.
-// The system must implement the memory mapping functions in
-// `starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided
-// stub implementations.
-// This change also deprecates the SB_HAS_MMAP flag.
-#define SB_MMAP_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the on screen keyboard API.
-// The system must implement the on screen keyboard functions in
-// `starboard/window.h` or use the provided stub implementations.
-// The on screen keyboard can be disabled by implementing the function
-// `SbWindowOnScreenKeyboardIsSupported()` to return false
-// as the stub implementation does.
-#define SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require speech recognizer API.
-// The system must implement the functions in `starboard/speech_recognizer.h`
-// or use the provided stub implementations.
-// The speech recognizer can be disabled by implementing the function
-// `SbSpeechRecognizerIsSupported()` to return `false` as the stub
-// implementation does.
-#define SB_SPEECH_RECOGNIZER_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the speech synthesis API.
-// The system must implement the speech synthesis function in
-// `starboard/speech_synthesis.h` or use the provided stub implementations.
-// Speech synthesis can be disabled by implementing the function
-// `SbSpeechSynthesisIsSupported()` to return false as the stub
-// implementation does.
-#define SB_SPEECH_SYNTHESIS_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require the time thread now API.
-// The system must implement the time thread now functions in
-// `starboard/time.h` or use the provided stub implementations.
-// Time thread now can be disabled by implementing the function
-// `SbTimeIsTimeThreadNowSupported()` to return false as the stub
-// implementation does.
-#define SB_TIME_THREAD_NOW_REQUIRED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce the Starboard function SbFileAtomicReplace() to provide the ability
-// to atomically replace the content of a file.
-#define SB_FILE_ATOMIC_REPLACE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduces new system property kSbSystemPathStorageDirectory.
-// Path to directory for permanent storage. Both read and write
-// access are required.
-#define SB_STORAGE_PATH_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate the usage of SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER.
-#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// The variable 'cobalt_minimum_frame_time_in_milliseconds' is deprecated
-// in favor of the usage of
-// 'CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds' API.
-// The declaration of 'GetMinimumFrameIntervalInMilliseconds' can be found
-// in cobalt/renderer/backend/graphics_context.h
-#define SB_COBALT_MINIMUM_FRAME_TIME_DEPRECATED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Introduce Starboard Application Binary Interface (SABI) files.
-//   SABI files are used to describe the configuration for targets such that two
-//   targets, built with the same SABI file and varying toolchains, have
-//   compatible Starboard APIs and ABIs.
-//
-//   With this define, we have:
-//     1) Moved architecture specific defines and configurations from
-//        configuration_public.h and *.gyp[i] files into SABI files.
-//     2) Included the appropriate SABI file in each platform configuration.
-//     3) Included the //starboard/sabi/sabi.gypi file in each platform
-//        configuration which consumes SABI file fields and defines a set of
-//        constants that are accessible when building.
-//     4) Provided a set of tests that ensure the toolchain being used produces
-//        an executable or shared library that conforms to the included SABI
-//        file.
-//
-//  For further information on what is provided by SABI files, or how these
-//  values are consumed, take a look at //starboard/sabi.
-#define SB_SABI_FILE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Updates the API guarantees of SbMutexAcquireTry.
-// SbMutexAcquireTry now has undefined behavior when it is invoked on a mutex
-// that has already been locked by the calling thread. In addition, since
-// SbMutexAcquireTry was used in SbMutexDestroy, SbMutexDestroy now has
-// undefined behavior when invoked on a locked mutex.
-#define SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Migrate the Starboard configuration variables from macros to extern consts.
-//
-// The migration allows Cobalt to make platform level decisions at runtime
-// instead of compile time which lets us create a more comprehensive Cobalt
-// binary.
-//
-// This means Cobalt must remove all references to these macros that would not
-// translate well to constants, i.e. in compile time references or initializing
-// arrays. Therefore, we needed to change the functionality of the function
-// `SbDirectoryGetNext` in "starboard/directory.h". Because we do not want to
-// use variable length arrays, we pass in a c-string and length to the function
-// to achieve the same result as before when passing in a `SbDirectoryEntry`.
-//
-// A platform will define the extern constants declared in
-// "starboard/configuration_constants.h". The definitions are done in
-// "starboard/<PLATFORM_PATH>/configuration_constants.cc".
-//
-// The exact mapping between macros and extern variables can be found in
-// "starboard/shared/starboard/configuration_constants_compatibility_defines.h"
-// though the naming scheme is very nearly the same: the old SB_FOO macro will
-// always become the constant kSbFoo.
-#define SB_FEATURE_RUNTIME_CONFIGS_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Improve player creation and output mode query.
-// 1. Introduce the new type SbPlayerCreationParam that holds the common
-//    parameters used to create an SbPlayer() and to query for the output mode
-//    support.
-// 2. Replace SbPlayerOutputModeSupported() by SbPlayerGetPreferredOutputMode()
-//    so the SbPlayer implementation can explicitly indicate its preference on
-//    output mode, when all output modes are supported.
-//    For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
-//    first, without providing details about the video going to be played, and
-//    not query for output modes if punch out is supported.  The new interface
-//    allows the implementation to fine tune its output mode.  For example, it
-//    may decide to use |kSbPlayerOutputModeDecodeToTexture| for low resolution
-//    videos.
-#define SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Introduce error handling into reference SbAudioSinkPrivate implementation in
-// "starboard/shared/starboard/audio_sink/audio_sink_internal.*".
-#define SB_AUDIO_SINK_ERROR_HANDLING_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Defines new, portable thread types with stable ABI for
-// SbThread, SbMutex, SbOnce and SbConditionVariable.
-#define SB_PORTABLE_THREAD_TYPES_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce support of cbcs encryption scheme into SbDrmSystem, as defined in
-// ISO/IEC 23001 part 7.
-#define SB_DRM_CBCS_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate the SB_HAS_VIRTUAL_REGIONS flag as all platforms define it to 0.
-#define SB_VIRTUAL_REGIONS_FLAG_DEPRECATED SB_EXPERIMENTAL_API_VERSION
-
-// Add link register to SbThreadContext.
-#define SB_THREAD_CONTEXT_LINK_REGISTER_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Make GYP configuration variables cobalt extensions instead.
-// This change moves all of the GYP configuration variables to be members of
-// the struct declared in "cobalt/extension/configuration.h". All members are
-// function pointers that can be set for each platform, otherwise defaults
-// will be used. These can be referenced through functions declared in
-// "cobalt/configuration/configuration.h", which will use the extension API if
-// available, but will otherwise fall back onto default values.
-#define SB_FEATURE_GYP_CONFIGURATION_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add the PCLMULQDQ instruction feature to the Starboard CPU features interface
-// for x86 architectures.
-#define SB_CPU_FEATURE_PCLMULQDQ SB_EXPERIMENTAL_API_VERSION
-
-// |content_type| is added to SbMediaIsVideoSupported() and
-// SbMediaIsAudioSupported().
-#define SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate support for gles3 features.
-#define SB_GLES3_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate Web Extension support. The Platform Services API should be used
-// instead. See cobalt/doc/platform_services.md.
-#define SB_WEBAPI_EXTENSION_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Enables a test that checks that Opus is supported.
-#define SB_REQUIRES_OPUS_AUDIO_CODEC_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate unused enums |kSbPlayerDecoderStateBufferFull| and
-// |kSbPlayerDecoderStateDestroyed|.
-#define SB_PLAYER_DEPRECATE_UNUSED_DECODER_STATES_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate the |SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING| macro.
-#define SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -394,13 +158,13 @@ struct CompileAssert {};
 // and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
 
-#if SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
-// After SB_FEATURE_RUNTIME_CONFIGS_VERSION, we start to use runtime constants
+#if SB_API_VERSION < 12
+// After version 12, we start to use runtime constants
 // instead of macros for certain platform dependent configurations. This file
 // substitutes configuration macros for the corresponding runtime constants so
 // we don't reference these constants when they aren't defined.
 #include "starboard/shared/starboard/configuration_constants_compatibility_defines.h"
-#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION < 12
 
 // --- Overridable Helper Macros ---------------------------------------------
 
@@ -596,14 +360,14 @@ struct CompileAssert {};
 #error "Your platform must be exactly one of { 32-bit, 64-bit }."
 #endif
 
-#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+#if SB_API_VERSION >= 12
 
 #if !SB_IS(BIG_ENDIAN) && !SB_IS(LITTLE_ENDIAN) || \
     (SB_IS(BIG_ENDIAN) == SB_IS(LITTLE_ENDIAN))
 #error "Your platform's endianness must be defined as big or little."
 #endif
 
-#else   // SB_API_VERSION < SB_SABI_FILE_VERSION
+#else  // SB_API_VERSION < 12
 
 #if SB_IS(ARCH_X86) && SB_IS(64_BIT)
 #undef SB_IS_ARCH_X86
@@ -638,7 +402,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_IS_LITTLE_ENDIAN is set based on SB_IS_BIG_ENDIAN."
 #endif
 
-#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if (SB_SIZE_OF(POINTER) != 4) && (SB_SIZE_OF(POINTER) != 8)
 #error "Your platform's pointer sizes must be either 32 bit or 64 bit."
@@ -710,7 +474,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
 
 #if defined(SB_DEFAULT_MMAP_THRESHOLD)
 #error \
@@ -904,7 +668,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#else  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else  // SB_API_VERSION >= 12
 
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
 #error "Your platform must define SB_FILE_MAX_NAME > 1."
@@ -924,7 +688,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AC3_AUDIO)
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+#if SB_API_VERSION >= 12
 #if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #error "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING has been deprecated."
 #endif  // defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
@@ -984,15 +748,14 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
 #endif
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
 #error \
     "Your platform must define SB_HAS_MICROPHONE in API versions 11 or earlier."
 #endif
 
-#if SB_API_VERSION < SB_TIME_THREAD_NOW_REQUIRED_VERSION && \
-    !defined(SB_HAS_TIME_THREAD_NOW)
+#if SB_API_VERSION < 12 && !defined(SB_HAS_TIME_THREAD_NOW)
 #error \
     "Your platform must define SB_HAS_TIME_THREAD_NOW in API versions 3 to 11."
 #endif
@@ -1010,7 +773,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
-#if SB_API_VERSION >= SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
+#if SB_API_VERSION >= 12
 #if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
 #error "Use `CobaltExtensionGraphicsApi` instead."
@@ -1022,7 +785,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 #endif
 
-#if SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+#if SB_API_VERSION >= 12
 #if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
 #error "|max_cobalt_cpu_usage| is deprecated "
 #error "SbSystemGetTotalCPUMemory() instead."
@@ -1031,7 +794,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "|max_cobalt_gpu_usage| is deprecated. "
 #error "Implement SbSystemGetTotalGPUMemory() instead."
 #endif
-#endif  // SB_API_VERSION >= SB_FEATURE_GYP_CONFIGURATION_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
 #error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
@@ -1054,7 +817,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "is deprecated. Implement"
 #error "|SbMediaGetBufferGarbageCollectionDurationThreshold| instead."
 #endif  // defined(
-        // COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+// COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
 
 #if defined(COBALT_MEDIA_BUFFER_PADDING)
 #error "COBALT_MEDIA_BUFFER_PADDING is deprecated."
@@ -1151,12 +914,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
         // >= 5
 
-#if SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION && \
-    SB_API_VERSION >= 8
+#if SB_API_VERSION < 12 && SB_API_VERSION >= 8
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION < SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION &&
+#endif  // SB_API_VERSION < 12 &&
         // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
@@ -1173,8 +935,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
        ">= 10."
 #endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
-#if SB_API_VERSION >= \
-    SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
+#if SB_API_VERSION >= 12
 #if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
@@ -1184,8 +945,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
 #endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#endif  // SB_API_VERSION >=
-        // SB_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #if SB_API_VERSION < 11
@@ -1195,7 +955,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // SB_API_VERSION < 11
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-#if SB_API_VERSION >= SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION >= 12 && SB_HAS(BLITTER)
 #error \
     "Blitter API is no longer supported. All blitter functions in " \
 "'starboard/blitter.h' are deprecated."
@@ -1203,7 +963,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 
 // --- Derived Configuration -------------------------------------------------
 
-#if SB_API_VERSION < SB_SABI_FILE_VERSION
+#if SB_API_VERSION < 12
 
 // Whether the current platform is little endian.
 #if SB_IS(BIG_ENDIAN)
@@ -1212,7 +972,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #define SB_IS_LITTLE_ENDIAN 1
 #endif
 
-#endif  // SB_API_VERSION < SB_SABI_FILE_VERSION
+#endif  // SB_API_VERSION < 12
 
 // Whether the current platform has 64-bit atomic operations.
 #if SB_IS(64_BIT)
@@ -1240,8 +1000,7 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 
 // Specifies whether this platform has any kind of supported graphics system.
 #if !defined(SB_HAS_GRAPHICS)
-#if SB_HAS(GLES2) || SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || \
-    SB_HAS(BLITTER)
+#if SB_HAS(GLES2) || SB_API_VERSION >= 12 || SB_HAS(BLITTER)
 #define SB_HAS_GRAPHICS 1
 #else
 #define SB_HAS_GRAPHICS 0

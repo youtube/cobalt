@@ -73,8 +73,7 @@ typedef void* SbPageVirtualMemory;
 //
 // See also dlmalloc_config.h which controls some dlmalloc behavior.
 
-#if SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED && \
-    SB_HAS(VIRTUAL_REGIONS)
+#if SB_API_VERSION < 12 && SB_HAS(VIRTUAL_REGIONS)
 // Reserves a virtual address space |size_bytes| big, without mapping any
 // physical pages to that range, returning a pointer to the beginning of the
 // reserved virtual address range. To get memory that is actually usable and
@@ -101,10 +100,10 @@ int SbPageUnmapAndFreePhysical(SbPageVirtualMemory virtual_address,
 
 // How big of a virtual region dlmalloc should allocate.
 size_t SbPageGetVirtualRegionSize();
-#endif  // SB_API_VERSION < SB_VIRTUAL_REGIONS_FLAG_DEPRECATED &&
+#endif  // SB_API_VERSION < 12 &&
         // SB_HAS(VIRTUAL_REGIONS)
 
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
 // available virtual region. On some platforms, |name| appears in the debugger
 // and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
@@ -132,7 +131,7 @@ bool SbPageUnmapUntracked(void* virtual_address, size_t size_bytes);
 // Change the protection of |size_bytes| of physical pages, starting from
 // |virtual_address|, to |flags|, returning |true| on success.
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
-#endif  // SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(MMAP)
 
 // Returns the total amount, in bytes, of physical memory available. Should
 // always be a multiple of kSbMemoryPageSize.

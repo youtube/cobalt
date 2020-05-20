@@ -769,7 +769,7 @@ std::vector<InputDeviceInfo> GetInputDevices() {
   }
 
   while (true) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     std::vector<char> entry(kSbFileMaxName);
 
     if (!SbDirectoryGetNext(directory, entry.data(), kSbFileMaxName)) {
@@ -779,7 +779,7 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     std::string path = kDevicePath;
     path += "/";
     path += entry.data();
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
     SbDirectoryEntry entry;
 
     if (!SbDirectoryGetNext(directory, &entry)) {
@@ -789,7 +789,7 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     std::string path = kDevicePath;
     path += "/";
     path += entry.name;
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
     if (SbDirectoryCanOpen(path.c_str())) {
       // This is a subdirectory. Skip.

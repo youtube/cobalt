@@ -21,7 +21,7 @@ namespace cobalt {
 namespace renderer {
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
   // If there is no need to frequently flip the display buffer, then enable
   // support for an optimization where the scene is not re-rasterized each frame
   // if it has not changed from the last frame.

@@ -24,7 +24,7 @@
 #include "cobalt/renderer/rasterizer/skia/image.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -171,4 +171,4 @@ void SinglePlaneImage::InitializeImageFromRenderTree(
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)

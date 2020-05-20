@@ -23,8 +23,7 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(THREAD_PRIORITY_SUPPORT)
+#if SB_API_VERSION >= 12 || SB_HAS(THREAD_PRIORITY_SUPPORT)
 // This is the maximum priority that will be passed to SetRoundRobinScheduler().
 const int kMaxRoundRobinPriority = 2;
 
@@ -131,7 +130,7 @@ void ThreadSetPriority(SbThreadPriority priority) {
   }
 }
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(THREAD_PRIORITY_SUPPORT)
 
 }  // namespace pthread

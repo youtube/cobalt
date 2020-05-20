@@ -64,8 +64,8 @@ int NetworkDelegate::OnBeforeURLRequest(net::URLRequest* request,
   // This will be our host string if we are not using IPV6.
   host.append(valid_spec_cstr + parsed.host.begin,
               valid_spec_cstr + parsed.host.begin + parsed.host.len);
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
+#if SB_API_VERSION >= 12
   if (SbSocketIsIpv6Supported())
 #endif
     host = url.HostNoBrackets();

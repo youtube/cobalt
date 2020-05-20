@@ -84,7 +84,7 @@ class RendererModule {
     // (e.g. screenshot diff tools).
     bool force_deterministic_rendering;
 
-#if SB_API_VERSION < SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
     // If this flag is set to true, the pipeline will not re-submit a render
     // tree if it has not changed from the previous submission.  This can save
     // CPU time so long as there's no problem with the fact that the display
