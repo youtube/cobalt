@@ -97,10 +97,21 @@ void BaseEventHandler(const SbEvent* event) {
       g_at_exit = NULL;
       break;
     }
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur:
+    case kSbEventTypeFocus:
+    case kSbEventTypeConceal:
+    case kSbEventTypeReveal:
+    case kSbEventTypeFreeze:
+    case kSbEventTypeUnfreeze:
+#else
     case kSbEventTypePause:
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     case kSbEventTypeInput:
     case kSbEventTypeUser:
     case kSbEventTypeLink:
