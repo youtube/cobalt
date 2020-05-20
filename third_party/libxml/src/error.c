@@ -9,9 +9,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #include <stdarg.h>
 #include <libxml/parser.h>
 #include <libxml/xmlerror.h>
@@ -20,7 +18,7 @@
 
 void XMLCDECL xmlGenericErrorDefaultFunc	(void *ctx ATTRIBUTE_UNUSED,
 				 const char *msg,
-				 ...);
+				 ...) LIBXML_ATTR_FORMAT(2,3);
 
 #define XML_GET_VAR_STR(msg, str) {				\
     int       size, prev_size = -1;				\
@@ -35,7 +33,7 @@ void XMLCDECL xmlGenericErrorDefaultFunc	(void *ctx ATTRIBUTE_UNUSED,
 								\
     while (size < 64000) {					\
 	va_start(ap, msg);					\
-	chars = XML_VSNPRINTF(str, size, msg, ap);			\
+	chars = vsnprintf(str, size, msg, ap);			\
 	va_end(ap);						\
 	if ((chars > -1) && (chars < size)) {			\
 	    if (prev_size == chars) {				\
@@ -73,18 +71,17 @@ void XMLCDECL
 xmlGenericErrorDefaultFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...) {
     va_list args;
 
-#ifndef STARBOARD
     if (xmlGenericErrorContext == NULL)
 	xmlGenericErrorContext = (void *) stderr;
-
+#ifndef STARBOARD
     va_start(args, msg);
     vfprintf((FILE *)xmlGenericErrorContext, msg, args);
     va_end(args);
-#else
+#else  // #ifndef STARBOARD
     va_start(args, msg);
     SbLogFormatF(msg, args);
     va_end(args);
-#endif
+#endif  //  #ifndef STARBOARD
 }
 
 /**
@@ -154,7 +151,7 @@ xmlSetStructuredErrorFunc(void *ctx, xmlStructuredErrorFunc handler) {
  * xmlParserPrintFileInfo:
  * @input:  an xmlParserInputPtr input
  *
- * Displays the associated file and line informations for the current input
+ * Displays the associated file and line information for the current input
  */
 
 void
@@ -185,7 +182,9 @@ xmlParserPrintFileContextInternal(xmlParserInputPtr input ,
     xmlChar  content[81]; /* space for 80 chars + line terminator */
     xmlChar *ctnt;
 
-    if (input == NULL) return;
+    if ((input == NULL) || (input->cur == NULL))
+        return;
+
     cur = input->cur;
     base = input->base;
     /* skip backwards over any end-of-lines */
@@ -244,7 +243,7 @@ xmlParserPrintFileContext(xmlParserInputPtr input) {
  * @ctx: the parser context or NULL
  * @str: the formatted error message
  *
- * Report an erro with its context, replace the 4 old error/warning
+ * Report an error with its context, replace the 4 old error/warning
  * routines.
  */
 static void
@@ -638,10 +637,10 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
 	(channel == xmlParserValidityWarning))
 	xmlReportError(to, ctxt, str, NULL, NULL);
 #ifndef STARBOARD
-    else if ((channel == (xmlGenericErrorFunc) fprintf) ||
+    else if (((void(*)(void)) channel == (void(*)(void)) fprintf) ||
              (channel == xmlGenericErrorDefaultFunc))
 	xmlReportError(to, ctxt, str, channel, data);
-#endif
+#endif  // #ifndef STARBOARD
     else
 	channel(data, "%s", str);
 }
@@ -651,7 +650,7 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
  * @domain: where the error comes from
  * @code: the error code
  * @node: the context node
- * @extra:  extra informations
+ * @extra:  extra information
  *
  * Handle an out of memory condition
  */
@@ -861,7 +860,7 @@ xmlParserValidityWarning(void *ctx, const char *msg, ...)
  * Get the last global error registered. This is per thread if compiled
  * with thread support.
  *
- * Returns NULL if no error occured or a pointer to the error
+ * Returns NULL if no error occurred or a pointer to the error
  */
 xmlErrorPtr
 xmlGetLastError(void)
@@ -894,7 +893,7 @@ xmlResetError(xmlErrorPtr err)
         xmlFree(err->str2);
     if (err->str3 != NULL)
         xmlFree(err->str3);
-    XML_MEMSET(err, 0, sizeof(xmlError));
+    memset(err, 0, sizeof(xmlError));
     err->code = XML_ERR_OK;
 }
 
@@ -918,7 +917,7 @@ xmlResetLastError(void)
  *
  * Get the last parsing error registered.
  *
- * Returns NULL if no error occured or a pointer to the error
+ * Returns NULL if no error occurred or a pointer to the error
  */
 xmlErrorPtr
 xmlCtxtGetLastError(void *ctx)

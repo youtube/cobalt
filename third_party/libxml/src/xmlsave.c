@@ -1,5 +1,5 @@
 /*
- * xmlsave.c: Implemetation of the document serializer
+ * xmlsave.c: Implementation of the document serializer
  *
  * See Copyright for the status of this software.
  *
@@ -9,9 +9,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
@@ -85,7 +83,6 @@ struct _xmlSaveCtxt {
     const xmlChar *encoding;
     xmlCharEncodingHandlerPtr handler;
     xmlOutputBufferPtr buf;
-    xmlDocPtr doc;
     int options;
     int level;
     int format;
@@ -103,7 +100,7 @@ struct _xmlSaveCtxt {
  ************************************************************************/
 /**
  * xmlSaveErrMemory:
- * @extra:  extra informations
+ * @extra:  extra information
  *
  * Handle an out of memory condition
  */
@@ -117,7 +114,7 @@ xmlSaveErrMemory(const char *extra)
  * xmlSaveErr:
  * @code:  the error number
  * @node:  the location of the error.
- * @extra:  extra informations
+ * @extra:  extra information
  *
  * Handle an out of memory condition
  */
@@ -340,12 +337,12 @@ xmlSaveCtxtInit(xmlSaveCtxtPtr ctxt)
         ctxt->escape = xmlEscapeEntities;
     len = xmlStrlen((xmlChar *)xmlTreeIndentString);
     if ((xmlTreeIndentString == NULL) || (len == 0)) {
-        XML_MEMSET(&ctxt->indent[0], 0, MAX_INDENT + 1);
+        memset(&ctxt->indent[0], 0, MAX_INDENT + 1);
     } else {
 	ctxt->indent_size = len;
 	ctxt->indent_nr = MAX_INDENT / ctxt->indent_size;
 	for (i = 0;i < ctxt->indent_nr;i++)
-	    XML_MEMCPY(&ctxt->indent[i * ctxt->indent_size], xmlTreeIndentString,
+	    memcpy(&ctxt->indent[i * ctxt->indent_size], xmlTreeIndentString,
 		   ctxt->indent_size);
         ctxt->indent[ctxt->indent_nr * ctxt->indent_size] = 0;
     }
@@ -358,7 +355,7 @@ xmlSaveCtxtInit(xmlSaveCtxtPtr ctxt)
 /**
  * xmlFreeSaveCtxt:
  *
- * Free a saving context, destroying the ouptut in any remaining buffer
+ * Free a saving context, destroying the output in any remaining buffer
  */
 static void
 xmlFreeSaveCtxt(xmlSaveCtxtPtr ctxt)
@@ -388,7 +385,7 @@ xmlNewSaveCtxt(const char *encoding, int options)
 	xmlSaveErrMemory("creating saving context");
 	return ( NULL );
     }
-    XML_MEMSET(ret, 0, sizeof(xmlSaveCtxt));
+    memset(ret, 0, sizeof(xmlSaveCtxt));
 
     if (encoding != NULL) {
         ret->handler = xmlFindCharEncodingHandler(encoding);
@@ -709,7 +706,6 @@ static void
 xmlDtdDumpOutput(xmlSaveCtxtPtr ctxt, xmlDtdPtr dtd) {
     xmlOutputBufferPtr buf;
     int format, level;
-    xmlDocPtr doc;
 
     if (dtd == NULL) return;
     if ((ctxt == NULL) || (ctxt->buf == NULL))
@@ -744,14 +740,11 @@ xmlDtdDumpOutput(xmlSaveCtxtPtr ctxt, xmlDtdPtr dtd) {
     }
     format = ctxt->format;
     level = ctxt->level;
-    doc = ctxt->doc;
     ctxt->format = 0;
     ctxt->level = -1;
-    ctxt->doc = dtd->doc;
     xmlNodeListDumpOutput(ctxt, dtd->children);
     ctxt->format = format;
     ctxt->level = level;
-    ctxt->doc = doc;
     xmlOutputBufferWrite(buf, 2, "]>");
 }
 
@@ -1125,9 +1118,6 @@ xmlDocContentDumpOutput(xmlSaveCtxtPtr ctxt, xmlDocPtr cur) {
         cur->encoding = BAD_CAST ctxt->encoding;
     } else if (cur->encoding != NULL) {
 	encoding = cur->encoding;
-    } else if (cur->charset != XML_CHAR_ENCODING_UTF8) {
-	encoding = (const xmlChar *)
-		     xmlGetCharEncodingName((xmlCharEncoding) cur->charset);
     }
 
     if (((cur->type == XML_HTML_DOCUMENT_NODE) &&
@@ -1597,31 +1587,31 @@ xhtmlNodeDumpOutput(xmlSaveCtxtPtr ctxt, xmlNodePtr cur) {
     if (cur->properties != NULL)
         xhtmlAttrListDumpOutput(ctxt, cur->properties);
 
-	if ((cur->type == XML_ELEMENT_NODE) &&
-		(cur->parent != NULL) &&
-		(cur->parent->parent == (xmlNodePtr) cur->doc) &&
-		xmlStrEqual(cur->name, BAD_CAST"head") &&
-		xmlStrEqual(cur->parent->name, BAD_CAST"html")) {
+    if ((cur->type == XML_ELEMENT_NODE) &&
+        (cur->parent != NULL) &&
+        (cur->parent->parent == (xmlNodePtr) cur->doc) &&
+        xmlStrEqual(cur->name, BAD_CAST"head") &&
+        xmlStrEqual(cur->parent->name, BAD_CAST"html")) {
 
-		tmp = cur->children;
-		while (tmp != NULL) {
-			if (xmlStrEqual(tmp->name, BAD_CAST"meta")) {
-				xmlChar *httpequiv;
+        tmp = cur->children;
+        while (tmp != NULL) {
+            if (xmlStrEqual(tmp->name, BAD_CAST"meta")) {
+                xmlChar *httpequiv;
 
-				httpequiv = xmlGetProp(tmp, BAD_CAST"http-equiv");
-				if (httpequiv != NULL) {
-					if (xmlStrcasecmp(httpequiv, BAD_CAST"Content-Type") == 0) {
-						xmlFree(httpequiv);
-						break;
-					}
-					xmlFree(httpequiv);
-				}
-			}
-			tmp = tmp->next;
-		}
-		if (tmp == NULL)
-			addmeta = 1;
-	}
+                httpequiv = xmlGetProp(tmp, BAD_CAST"http-equiv");
+                if (httpequiv != NULL) {
+                    if (xmlStrcasecmp(httpequiv, BAD_CAST"Content-Type") == 0) {
+                        xmlFree(httpequiv);
+                        break;
+                    }
+                    xmlFree(httpequiv);
+                }
+            }
+            tmp = tmp->next;
+        }
+        if (tmp == NULL)
+            addmeta = 1;
+    }
 
     if ((cur->type == XML_ELEMENT_NODE) && (cur->children == NULL)) {
 	if (((cur->ns == NULL) || (cur->ns->prefix == NULL)) &&
@@ -1812,6 +1802,7 @@ xmlSaveToFd(int fd, const char *encoding, int options)
     if (ret == NULL) return(NULL);
     ret->buf = xmlOutputBufferCreateFd(fd, ret->handler);
     if (ret->buf == NULL) {
+        xmlCharEncCloseFunc(ret->handler);
 	xmlFreeSaveCtxt(ret);
 	return(NULL);
     }
@@ -1841,6 +1832,7 @@ xmlSaveToFilename(const char *filename, const char *encoding, int options)
     ret->buf = xmlOutputBufferCreateFilename(filename, ret->handler,
                                              compression);
     if (ret->buf == NULL) {
+        xmlCharEncCloseFunc(ret->handler);
 	xmlFreeSaveCtxt(ret);
 	return(NULL);
     }
@@ -1863,28 +1855,15 @@ xmlSaveCtxtPtr
 xmlSaveToBuffer(xmlBufferPtr buffer, const char *encoding, int options)
 {
     xmlSaveCtxtPtr ret;
-    xmlOutputBufferPtr out_buff;
-    xmlCharEncodingHandlerPtr handler;
 
     ret = xmlNewSaveCtxt(encoding, options);
     if (ret == NULL) return(NULL);
-
-    if (encoding != NULL) {
-        handler = xmlFindCharEncodingHandler(encoding);
-        if (handler == NULL) {
-            xmlFree(ret);
-            return(NULL);
-        }
-    } else
-        handler = NULL;
-    out_buff = xmlOutputBufferCreateBuffer(buffer, handler);
-    if (out_buff == NULL) {
-        xmlFree(ret);
-        if (handler) xmlCharEncCloseFunc(handler);
-        return(NULL);
+    ret->buf = xmlOutputBufferCreateBuffer(buffer, ret->handler);
+    if (ret->buf == NULL) {
+        xmlCharEncCloseFunc(ret->handler);
+	xmlFreeSaveCtxt(ret);
+	return(NULL);
     }
-
-    ret->buf = out_buff;
     return(ret);
 }
 
@@ -1912,6 +1891,7 @@ xmlSaveToIO(xmlOutputWriteCallback iowrite,
     if (ret == NULL) return(NULL);
     ret->buf = xmlOutputBufferCreateIO(iowrite, ioclose, ioctx, ret->handler);
     if (ret->buf == NULL) {
+        xmlCharEncCloseFunc(ret->handler);
 	xmlFreeSaveCtxt(ret);
 	return(NULL);
     }
@@ -2099,8 +2079,8 @@ xmlBufAttrSerializeTxtContent(xmlBufPtr buf, xmlDocPtr doc,
             xmlBufAdd(buf, BAD_CAST "&amp;", 5);
             cur++;
             base = cur;
-        } else if ((*cur >= 0x80) && ((doc == NULL) ||
-                                      (doc->encoding == NULL))) {
+        } else if ((*cur >= 0x80) && (cur[1] != 0) &&
+	           ((doc == NULL) || (doc->encoding == NULL))) {
             /*
              * We assume we have UTF-8 content.
              */
@@ -2111,8 +2091,6 @@ xmlBufAttrSerializeTxtContent(xmlBufPtr buf, xmlDocPtr doc,
                 xmlBufAdd(buf, base, cur - base);
             if (*cur < 0xC0) {
                 xmlSaveErr(XML_SAVE_NOT_UTF8, (xmlNodePtr) attr, NULL);
-                if (doc != NULL)
-                    doc->encoding = xmlStrdup(BAD_CAST "ISO-8859-1");
 		xmlSerializeHexCharRef(tmp, *cur);
                 xmlBufAdd(buf, (xmlChar *) tmp, -1);
                 cur++;
@@ -2123,14 +2101,14 @@ xmlBufAttrSerializeTxtContent(xmlBufPtr buf, xmlDocPtr doc,
                 val <<= 6;
                 val |= (cur[1]) & 0x3F;
                 l = 2;
-            } else if (*cur < 0xF0) {
+            } else if ((*cur < 0xF0) && (cur [2] != 0)) {
                 val = (cur[0]) & 0x0F;
                 val <<= 6;
                 val |= (cur[1]) & 0x3F;
                 val <<= 6;
                 val |= (cur[2]) & 0x3F;
                 l = 3;
-            } else if (*cur < 0xF8) {
+            } else if ((*cur < 0xF8) && (cur [2] != 0) && (cur[3] != 0)) {
                 val = (cur[0]) & 0x07;
                 val <<= 6;
                 val |= (cur[1]) & 0x3F;
@@ -2142,9 +2120,6 @@ xmlBufAttrSerializeTxtContent(xmlBufPtr buf, xmlDocPtr doc,
             }
             if ((l == 1) || (!IS_CHAR(val))) {
                 xmlSaveErr(XML_SAVE_CHAR_INVALID, (xmlNodePtr) attr, NULL);
-                if (doc != NULL)
-                    doc->encoding = xmlStrdup(BAD_CAST "ISO-8859-1");
-
 		xmlSerializeHexCharRef(tmp, *cur);
                 xmlBufAdd(buf, (xmlChar *) tmp, -1);
                 cur++;
@@ -2201,9 +2176,9 @@ xmlAttrSerializeTxtContent(xmlBufferPtr buf, xmlDocPtr doc,
  *
  * Dump an XML node, recursive behaviour,children are printed too.
  * Note that @format = 1 provide node indenting only if xmlIndentTreeOutput = 1
- * or xmlKeepBlanksDefault(0) was called
+ * or xmlKeepBlanksDefault(0) was called.
  * Since this is using xmlBuffer structures it is limited to 2GB and somehow
- * deprecated, use xmlBufNodeDump() instead.
+ * deprecated, use xmlNodeDumpOutput() instead.
  *
  * Returns the number of bytes written to the buffer or -1 in case of error
  */
@@ -2212,7 +2187,7 @@ xmlNodeDump(xmlBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur, int level,
             int format)
 {
     xmlBufPtr buffer;
-    int ret;
+    size_t ret;
 
     if ((buf == NULL) || (cur == NULL))
         return(-1);
@@ -2272,7 +2247,7 @@ xmlBufNodeDump(xmlBufPtr buf, xmlDocPtr doc, xmlNodePtr cur, int level,
         xmlSaveErrMemory("creating buffer");
         return (-1);
     }
-    XML_MEMSET(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
+    memset(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
     outbuf->buffer = buf;
     outbuf->encoder = NULL;
     outbuf->writecallback = NULL;
@@ -2369,8 +2344,7 @@ xmlNodeDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur,
     if (encoding == NULL)
         encoding = "UTF-8";
 
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = doc;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = buf;
     ctxt.level = level;
     ctxt.format = format ? 1 : 0;
@@ -2455,8 +2429,7 @@ xmlDocDumpFormatMemoryEnc(xmlDocPtr out_doc, xmlChar **doc_txt_ptr,
         return;
     }
 
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = out_doc;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = out_buff;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2574,8 +2547,7 @@ xmlDocFormatDump(FILE *f, xmlDocPtr cur, int format) {
     }
     buf = xmlOutputBufferCreateFile(f, handler);
     if (buf == NULL) return(-1);
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2606,7 +2578,7 @@ xmlDocDump(FILE *f, xmlDocPtr cur) {
  * xmlSaveFileTo:
  * @buf:  an output I/O buffer
  * @cur:  the document
- * @encoding:  the encoding if any assuming the I/O layer handles the trancoding
+ * @encoding:  the encoding if any assuming the I/O layer handles the transcoding
  *
  * Dump an XML document to an I/O buffer.
  * Warning ! This call xmlOutputBufferClose() on buf which is not available
@@ -2624,8 +2596,7 @@ xmlSaveFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur, const char *encoding) {
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = 0;
@@ -2641,7 +2612,7 @@ xmlSaveFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur, const char *encoding) {
  * xmlSaveFormatFileTo:
  * @buf:  an output I/O buffer
  * @cur:  the document
- * @encoding:  the encoding if any assuming the I/O layer handles the trancoding
+ * @encoding:  the encoding if any assuming the I/O layer handles the transcoding
  * @format: should formatting spaces been added
  *
  * Dump an XML document to an I/O buffer.
@@ -2664,8 +2635,7 @@ xmlSaveFormatFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur,
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;
@@ -2711,7 +2681,7 @@ xmlSaveFormatFileEnc( const char * filename, xmlDocPtr cur,
 		return(-1);
     }
 
-#ifdef HAVE_ZLIB_H
+#ifdef LIBXML_ZLIB_ENABLED
     if (cur->compression < 0) cur->compression = xmlGetCompressMode();
 #endif
     /*
@@ -2719,8 +2689,7 @@ xmlSaveFormatFileEnc( const char * filename, xmlDocPtr cur,
      */
     buf = xmlOutputBufferCreateFilename(filename, handler, cur->compression);
     if (buf == NULL) return(-1);
-    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
-    ctxt.doc = cur;
+    memset(&ctxt, 0, sizeof(ctxt));
     ctxt.buf = buf;
     ctxt.level = 0;
     ctxt.format = format ? 1 : 0;

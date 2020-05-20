@@ -11,9 +11,7 @@
 #include "libxml.h"
 #ifdef LIBXML_HTML_ENABLED
 
-#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
-#endif
 
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -178,7 +176,7 @@ htmlSetMetaEncoding(htmlDocPtr doc, const xmlChar *encoding) {
         return(-1);
 
     if (encoding != NULL) {
-	XML_SNPRINTF(newcontent, sizeof(newcontent), "text/html; charset=%s",
+	snprintf(newcontent, sizeof(newcontent), "text/html; charset=%s",
                 (char *)encoding);
 	newcontent[sizeof(newcontent) - 1] = 0;
     }
@@ -228,7 +226,7 @@ found_head:
 found_meta:
     /*
      * Search and update all the remaining the meta elements carrying
-     * encoding informations
+     * encoding information
      */
     while (cur != NULL) {
 	if ((cur->type == XML_ELEMENT_NODE) && (cur->name != NULL)) {
@@ -347,7 +345,7 @@ xmlAllocOutputBufferInternal(xmlCharEncodingHandlerPtr encoder);
  ************************************************************************/
 /**
  * htmlSaveErrMemory:
- * @extra:  extra informations
+ * @extra:  extra information
  *
  * Handle an out of memory condition
  */
@@ -361,7 +359,7 @@ htmlSaveErrMemory(const char *extra)
  * htmlSaveErr:
  * @code:  the error number
  * @node:  the location of the error.
- * @extra:  extra informations
+ * @extra:  extra information
  *
  * Handle an out of memory condition
  */
@@ -424,7 +422,7 @@ htmlBufNodeDumpFormat(xmlBufPtr buf, xmlDocPtr doc, xmlNodePtr cur,
         htmlSaveErrMemory("allocating HTML output buffer");
 	return (-1);
     }
-    XML_MEMSET(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
+    memset(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
     outbuf->buffer = buf;
     outbuf->encoder = NULL;
     outbuf->writecallback = NULL;
@@ -504,15 +502,15 @@ htmlNodeDumpFileFormat(FILE *out, xmlDocPtr doc,
 	    if (handler == NULL)
 		htmlSaveErr(XML_SAVE_UNKNOWN_ENCODING, NULL, encoding);
 	}
+    } else {
+        /*
+         * Fallback to HTML or ASCII when the encoding is unspecified
+         */
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("HTML");
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("ascii");
     }
-
-    /*
-     * Fallback to HTML or ASCII when the encoding is unspecified
-     */
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("HTML");
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("ascii");
 
     /*
      * save the content to a temp buffer.
@@ -572,32 +570,21 @@ htmlDocDumpMemoryFormat(xmlDocPtr cur, xmlChar**mem, int *size, int format) {
 	xmlCharEncoding enc;
 
 	enc = xmlParseCharEncoding(encoding);
-	if (enc != cur->charset) {
-	    if (cur->charset != XML_CHAR_ENCODING_UTF8) {
-		/*
-		 * Not supported yet
-		 */
-		*mem = NULL;
-		*size = 0;
-		return;
-	    }
-
+	if (enc != XML_CHAR_ENCODING_UTF8) {
 	    handler = xmlFindCharEncodingHandler(encoding);
 	    if (handler == NULL)
                 htmlSaveErr(XML_SAVE_UNKNOWN_ENCODING, NULL, encoding);
 
-	} else {
-	    handler = xmlFindCharEncodingHandler(encoding);
 	}
+    } else {
+        /*
+         * Fallback to HTML or ASCII when the encoding is unspecified
+         */
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("HTML");
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("ascii");
     }
-
-    /*
-     * Fallback to HTML or ASCII when the encoding is unspecified
-     */
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("HTML");
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("ascii");
 
     buf = xmlAllocOutputBufferInternal(handler);
     if (buf == NULL) {
@@ -670,7 +657,8 @@ htmlDtdDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc,
 	    xmlOutputBufferWriteString(buf, " ");
 	    xmlBufWriteQuotedString(buf->buffer, cur->SystemID);
 	}
-    }  else if (cur->SystemID != NULL) {
+    } else if (cur->SystemID != NULL &&
+	       xmlStrcmp(cur->SystemID, BAD_CAST "about:legacy-compat")) {
 	xmlOutputBufferWriteString(buf, " SYSTEM ");
 	xmlBufWriteQuotedString(buf->buffer, cur->SystemID);
     }
@@ -752,7 +740,7 @@ htmlAttrDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc, xmlAttrPtr cur,
 
 		    /* Do not escape anything within server side includes. */
 		    *start = '<'; /* Restore the first character of "<!--". */
-		    end += 3; /* XML_STRLEN("-->") */
+		    end += 3; /* strlen("-->") */
 		    endChar = *end;
 		    *end = '\0';
 		    xmlBufCat(buf->buffer, start);
@@ -1060,7 +1048,7 @@ htmlDocContentDumpFormatOutput(xmlOutputBufferPtr buf, xmlDocPtr cur,
  * @cur:  the document
  * @encoding:  the encoding string
  *
- * Dump an HTML document. Formating return/spaces are added.
+ * Dump an HTML document. Formatting return/spaces are added.
  */
 void
 htmlDocContentDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr cur,
@@ -1102,29 +1090,20 @@ htmlDocDump(FILE *f, xmlDocPtr cur) {
 	xmlCharEncoding enc;
 
 	enc = xmlParseCharEncoding(encoding);
-	if (enc != cur->charset) {
-	    if (cur->charset != XML_CHAR_ENCODING_UTF8) {
-		/*
-		 * Not supported yet
-		 */
-		return(-1);
-	    }
-
+	if (enc != XML_CHAR_ENCODING_UTF8) {
 	    handler = xmlFindCharEncodingHandler(encoding);
 	    if (handler == NULL)
 		htmlSaveErr(XML_SAVE_UNKNOWN_ENCODING, NULL, encoding);
-	} else {
-	    handler = xmlFindCharEncodingHandler(encoding);
 	}
+    } else {
+        /*
+         * Fallback to HTML or ASCII when the encoding is unspecified
+         */
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("HTML");
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("ascii");
     }
-
-    /*
-     * Fallback to HTML or ASCII when the encoding is unspecified
-     */
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("HTML");
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("ascii");
 
     buf = xmlOutputBufferCreateFile(f, handler);
     if (buf == NULL) return(-1);
@@ -1161,27 +1140,20 @@ htmlSaveFile(const char *filename, xmlDocPtr cur) {
 	xmlCharEncoding enc;
 
 	enc = xmlParseCharEncoding(encoding);
-	if (enc != cur->charset) {
-	    if (cur->charset != XML_CHAR_ENCODING_UTF8) {
-		/*
-		 * Not supported yet
-		 */
-		return(-1);
-	    }
-
+	if (enc != XML_CHAR_ENCODING_UTF8) {
 	    handler = xmlFindCharEncodingHandler(encoding);
 	    if (handler == NULL)
 		htmlSaveErr(XML_SAVE_UNKNOWN_ENCODING, NULL, encoding);
 	}
+    } else {
+        /*
+         * Fallback to HTML or ASCII when the encoding is unspecified
+         */
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("HTML");
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("ascii");
     }
-
-    /*
-     * Fallback to HTML or ASCII when the encoding is unspecified
-     */
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("HTML");
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("ascii");
 
     /*
      * save the content to a temp buffer.
@@ -1222,14 +1194,7 @@ htmlSaveFileFormat(const char *filename, xmlDocPtr cur,
 	xmlCharEncoding enc;
 
 	enc = xmlParseCharEncoding(encoding);
-	if (enc != cur->charset) {
-	    if (cur->charset != XML_CHAR_ENCODING_UTF8) {
-		/*
-		 * Not supported yet
-		 */
-		return(-1);
-	    }
-
+	if (enc != XML_CHAR_ENCODING_UTF8) {
 	    handler = xmlFindCharEncodingHandler(encoding);
 	    if (handler == NULL)
 		htmlSaveErr(XML_SAVE_UNKNOWN_ENCODING, NULL, encoding);
@@ -1237,15 +1202,15 @@ htmlSaveFileFormat(const char *filename, xmlDocPtr cur,
         htmlSetMetaEncoding(cur, (const xmlChar *) encoding);
     } else {
 	htmlSetMetaEncoding(cur, (const xmlChar *) "UTF-8");
-    }
 
-    /*
-     * Fallback to HTML or ASCII when the encoding is unspecified
-     */
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("HTML");
-    if (handler == NULL)
-	handler = xmlFindCharEncodingHandler("ascii");
+        /*
+         * Fallback to HTML or ASCII when the encoding is unspecified
+         */
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("HTML");
+        if (handler == NULL)
+            handler = xmlFindCharEncodingHandler("ascii");
+    }
 
     /*
      * save the content to a temp buffer.
