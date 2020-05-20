@@ -11,7 +11,7 @@
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- * MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHORS AND
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHORS AND
  * CONTRIBUTORS ACCEPT NO RESPONSIBILITY IN ANY CONCEIVABLE MANNER.
  *
  * Author: breese@users.sourceforge.net
@@ -20,9 +20,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -35,7 +33,8 @@
  * it seems that having hash randomization might be a good idea
  * when using XML with untrusted data
  */
-#if defined(HAVE_RAND) && defined(HAVE_SRAND) && defined(HAVE_TIME)
+#if defined(HAVE_RAND) && defined(HAVE_SRAND) && defined(HAVE_TIME) && \
+    !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 #define HASH_RANDOMIZATION
 #endif
 
@@ -80,6 +79,9 @@ struct _xmlHashTable {
  * xmlHashComputeKey:
  * Calculate the hash key
  */
+#ifdef __clang__
+ATTRIBUTE_NO_SANITIZE("unsigned-integer-overflow")
+#endif
 static unsigned long
 xmlHashComputeKey(xmlHashTablePtr table, const xmlChar *name,
 	          const xmlChar *name2, const xmlChar *name3) {
@@ -110,6 +112,9 @@ xmlHashComputeKey(xmlHashTablePtr table, const xmlChar *name,
     return (value % table->size);
 }
 
+#ifdef __clang__
+ATTRIBUTE_NO_SANITIZE("unsigned-integer-overflow")
+#endif
 static unsigned long
 xmlHashComputeQKey(xmlHashTablePtr table,
 		   const xmlChar *prefix, const xmlChar *name,
@@ -170,7 +175,7 @@ xmlHashComputeQKey(xmlHashTablePtr table,
  *
  * Create a new xmlHashTablePtr.
  *
- * Returns the newly created object, or NULL if an error occured.
+ * Returns the newly created object, or NULL if an error occurred.
  */
 xmlHashTablePtr
 xmlHashCreate(int size) {
@@ -186,7 +191,7 @@ xmlHashCreate(int size) {
 	table->nbElems = 0;
         table->table = xmlMalloc(size * sizeof(xmlHashEntry));
         if (table->table) {
-	    XML_MEMSET(table->table, 0, size * sizeof(xmlHashEntry));
+	    memset(table->table, 0, size * sizeof(xmlHashEntry));
 #ifdef HASH_RANDOMIZATION
             table->random_seed = __xmlRandom();
 #endif
@@ -204,7 +209,7 @@ xmlHashCreate(int size) {
  *
  * Create a new xmlHashTablePtr which will use @dict as the internal dictionary
  *
- * Returns the newly created object, or NULL if an error occured.
+ * Returns the newly created object, or NULL if an error occurred.
  */
 xmlHashTablePtr
 xmlHashCreateDict(int size, xmlDictPtr dict) {
@@ -254,7 +259,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	table->table = oldtable;
 	return(-1);
     }
-    XML_MEMSET(table->table, 0, size * sizeof(xmlHashEntry));
+    memset(table->table, 0, size * sizeof(xmlHashEntry));
     table->size = size;
 
     /*	If the two loops are merged, there would be situations where
@@ -268,7 +273,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	    continue;
 	key = xmlHashComputeKey(table, oldtable[i].name, oldtable[i].name2,
 				oldtable[i].name3);
-	XML_MEMCPY(&(table->table[key]), &(oldtable[i]), sizeof(xmlHashEntry));
+	memcpy(&(table->table[key]), &(oldtable[i]), sizeof(xmlHashEntry));
 	table->table[key].next = NULL;
     }
 
@@ -284,7 +289,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	    key = xmlHashComputeKey(table, iter->name, iter->name2,
 		                    iter->name3);
 	    if (table->table[key].valid == 0) {
-		XML_MEMCPY(&(table->table[key]), iter, sizeof(xmlHashEntry));
+		memcpy(&(table->table[key]), iter, sizeof(xmlHashEntry));
 		table->table[key].next = NULL;
 		xmlFree(iter);
 	    } else {
@@ -360,6 +365,18 @@ xmlHashFree(xmlHashTablePtr table, xmlHashDeallocator f) {
     if (table->dict)
         xmlDictFree(table->dict);
     xmlFree(table);
+}
+
+/**
+ * xmlHashDefaultDeallocator:
+ * @entry: the hash table entry
+ * @name: the entry's name
+ *
+ * Free a hash table entry with xmlFree.
+ */
+void
+xmlHashDefaultDeallocator(void *entry, const xmlChar *name ATTRIBUTE_UNUSED) {
+    xmlFree(entry);
 }
 
 /**
@@ -914,8 +931,11 @@ void
 xmlHashScan3(xmlHashTablePtr table, const xmlChar *name,
 	     const xmlChar *name2, const xmlChar *name3,
 	     xmlHashScanner f, void *data) {
-    xmlHashScanFull3 (table, name, name2, name3,
-		      (xmlHashScannerFull) f, data);
+    stubData stubdata;
+    stubdata.data = data;
+    stubdata.hashscanner = f;
+    xmlHashScanFull3(table, name, name2, name3, stubHashScannerFull,
+                     &stubdata);
 }
 
 /**
@@ -1109,7 +1129,7 @@ xmlHashRemoveEntry3(xmlHashTablePtr table, const xmlChar *name,
 			entry->valid = 0;
 		    } else {
 			entry = entry->next;
-			XML_MEMCPY(&(table->table[key]), entry, sizeof(xmlHashEntry));
+			memcpy(&(table->table[key]), entry, sizeof(xmlHashEntry));
 			xmlFree(entry);
 		    }
 		}

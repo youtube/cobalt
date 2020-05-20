@@ -10,9 +10,7 @@
 #ifndef __XML_IO_H__
 #define __XML_IO_H__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
 #include <libxml/xmlversion.h>
 
 #ifdef __cplusplus
@@ -29,7 +27,7 @@ extern "C" {
  * @filename: the filename or URI
  *
  * Callback used in the I/O Input API to detect if the current handler
- * can provide input fonctionnalities for this resource.
+ * can provide input functionality for this resource.
  *
  * Returns 1 if yes and 0 if another Input module should be used
  */
@@ -75,7 +73,7 @@ typedef int (XMLCALL *xmlInputCloseCallback) (void * context);
  * @filename: the filename or URI
  *
  * Callback used in the I/O Output API to detect if the current handler
- * can provide output fonctionnalities for this resource.
+ * can provide output functionality for this resource.
  *
  * Returns 1 if yes and 0 if another Output module should be used
  */
@@ -171,11 +169,9 @@ XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFilename	(const char *URI,
                                                  xmlCharEncoding enc);
-#ifndef COBALT
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFile		(FILE *file,
                                                  xmlCharEncoding enc);
-#endif
 XMLPUBFUN xmlParserInputBufferPtr XMLCALL
 	xmlParserInputBufferCreateFd		(int fd,
 	                                         xmlCharEncoding enc);
@@ -221,6 +217,8 @@ xmlParserInputBufferPtr
  */
 XMLPUBFUN void XMLCALL
 	xmlCleanupOutputCallbacks		(void);
+XMLPUBFUN int XMLCALL
+	xmlPopOutputCallbacks			(void);
 XMLPUBFUN void XMLCALL
 	xmlRegisterDefaultOutputCallbacks(void);
 XMLPUBFUN xmlOutputBufferPtr XMLCALL
@@ -231,11 +229,9 @@ XMLPUBFUN xmlOutputBufferPtr XMLCALL
 					 xmlCharEncodingHandlerPtr encoder,
 					 int compression);
 
-#ifndef COBALT
 XMLPUBFUN xmlOutputBufferPtr XMLCALL
 	xmlOutputBufferCreateFile	(FILE *file,
 					 xmlCharEncodingHandlerPtr encoder);
-#endif
 
 XMLPUBFUN xmlOutputBufferPtr XMLCALL
 	xmlOutputBufferCreateBuffer	(xmlBufferPtr buffer,
