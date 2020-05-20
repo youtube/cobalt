@@ -36,7 +36,6 @@
 
 namespace base {
 
-// TODO[johnx]: Disable/Replace and remove AlignedMemory if possible.
 #if defined(STARBOARD)
 // AlignedMemory is a POD type that gives you a portable way to specify static
 // or local stack data of a given alignment and size. For example, if you need

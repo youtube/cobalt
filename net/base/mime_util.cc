@@ -163,7 +163,7 @@ static const MimeInfo kSecondaryMappings[] = {
 };
 
 #if defined(STARBOARD)
-// TODO[johnx]: deprecate the following legacy functions.
+// The following functions are copied from old Chromium libs.
 // From WebKit's WebCore/platform/MIMETypeRegistry.cpp:
 static const char* const supported_image_types[] = {
     "image/jpeg",      "image/pjpeg", "image/jpg", "image/webp",

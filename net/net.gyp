@@ -15,9 +15,6 @@
         'ENABLE_BUILT_IN_DNS',
         # To be removed in the future when want to enable HTTP cache.
         'HTTP_CACHE_DISABLED_FOR_STARBOARD',
-        # TODO[johnx]: find out how we can verify local cert issuer and
-        # re-enable this test. Consider adding a binary cert for local issuer
-        # for debug builds.
         'QUIC_TRACE_DISABLED',
         'COBALT_QUIC46',
         'COMMON_CERT_SET_DISABLED_FOR_STARBOARD',

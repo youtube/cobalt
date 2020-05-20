@@ -144,7 +144,6 @@ namespace {
 #if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
 // This is why we need the CONST workaround in this file: atomic can't be used
 // with const on some compiler.
-// TODO[johnx] restore the const qualifier after compiler upgrade.
 #endif
 std::atomic<CONST uint8_t*> current_embedded_blob_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_size_(0);
