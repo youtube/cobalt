@@ -55,7 +55,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 #ifdef __cplusplus
 extern "C" {
@@ -778,6 +778,6 @@ SB_DEPRECATED(
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 #endif  // STARBOARD_BLITTER_H_

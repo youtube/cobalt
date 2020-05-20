@@ -29,7 +29,7 @@
 extern "C" {
 #endif
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 
 // Max size of the SbConditionVariable type.
 #define SB_CONDITION_VARIABLE_MAX_SIZE 80
@@ -54,7 +54,7 @@ typedef union SbConditionVariable {
   { 0 }
 #endif
 
-#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#endif  // SB_API_VERSION >= 12
 
 // Enumeration of possible results from waiting on a condvar.
 typedef enum SbConditionVariableResult {

@@ -18,7 +18,7 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
 
 namespace starboard {
 namespace shared {
@@ -32,6 +32,6 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_SHARED_STARBOARD_FILE_ATOMIC_REPLACE_WRITE_FILE_H_

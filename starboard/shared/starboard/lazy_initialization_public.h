@@ -28,7 +28,7 @@
 // "starboard/atomic.h".
 typedef int32_t InitializedState;
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 #define INITIALIZED_STATE_UNINITIALIZED 0
 #else
 #define INITIALIZED_STATE_UNINITIALIZED 1

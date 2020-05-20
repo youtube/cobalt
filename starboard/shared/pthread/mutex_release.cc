@@ -27,7 +27,7 @@ bool SbMutexRelease(SbMutex* mutex) {
     return false;
   }
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
   if (!IsInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
     // If the mutex is not initialized there is nothing to release.
     return true;

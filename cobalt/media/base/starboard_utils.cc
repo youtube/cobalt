@@ -31,7 +31,7 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
   switch (codec) {
     case kCodecAAC:
       return kSbMediaAudioCodecAac;
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kCodecAC3:
       if (!kSbHasAc3Audio) {
         DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
@@ -46,7 +46,7 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
         return kSbMediaAudioCodecNone;
       }
       return kSbMediaAudioCodecEac3;
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(AC3_AUDIO)
     case kCodecVorbis:
       return kSbMediaAudioCodecVorbis;
@@ -155,22 +155,22 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 
   const DecryptConfig* config = buffer->decrypt_config();
 
-#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#if SB_API_VERSION >= 12
   if (config->encryption_mode() == EncryptionMode::kCenc) {
     drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCtr;
   } else {
     DCHECK_EQ(config->encryption_mode(), EncryptionMode::kCbcs);
     drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCbc;
   }
-#else   // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#else   // SB_API_VERSION >= 12
   DCHECK_EQ(config->encryption_mode(), EncryptionMode::kCenc);
-#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 12
 
 // Set content of |drm_info| to default or invalid values.
-#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#if SB_API_VERSION >= 12
   drm_info->encryption_pattern.crypt_byte_block = 0;
   drm_info->encryption_pattern.skip_byte_block = 0;
-#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 12
   drm_info->initialization_vector_size = 0;
   drm_info->identifier_size = 0;
   drm_info->subsample_count = 0;
@@ -209,19 +209,19 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     subsample_mapping->encrypted_byte_count = buffer->data_size();
   }
 
-#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#if SB_API_VERSION >= 12
   if (buffer->decrypt_config()->HasPattern()) {
     drm_info->encryption_pattern.crypt_byte_block =
         config->encryption_pattern()->crypt_byte_block();
     drm_info->encryption_pattern.skip_byte_block =
         config->encryption_pattern()->skip_byte_block();
   }
-#else   // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#else   // SB_API_VERSION >= 12
   if (buffer->decrypt_config()->HasPattern()) {
     DCHECK_EQ(config->encryption_pattern()->crypt_byte_block(), 0);
     DCHECK_EQ(config->encryption_pattern()->skip_byte_block(), 0);
   }
-#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 12
 }
 
 // Ensure that the enums in starboard/media.h match enums in gfx::ColorSpace.

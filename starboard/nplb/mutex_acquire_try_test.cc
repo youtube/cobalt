@@ -16,16 +16,16 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#if SB_API_VERSION >= 12
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
-#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#if SB_API_VERSION >= 12
 struct TestContext {
   explicit TestContext(SbMutex* mutex) : was_locked_(false), mutex_(mutex) {}
   bool was_locked_;
@@ -38,7 +38,7 @@ void* EntryPoint(void* parameter) {
       (SbMutexAcquireTry(context->mutex_) == kSbMutexAcquired);
   return NULL;
 }
-#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 TEST(SbMutexAcquireTryTest, SunnyDayUncontended) {
   SbMutex mutex;
@@ -66,7 +66,7 @@ TEST(SbMutexAcquireTryTest, RainyDayReentrant) {
   EXPECT_EQ(result, kSbMutexAcquired);
   EXPECT_TRUE(SbMutexIsSuccess(result));
 
-#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#if SB_API_VERSION >= 12
   TestContext context(&mutex);
   SbThread thread =
       SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
@@ -75,11 +75,11 @@ TEST(SbMutexAcquireTryTest, RainyDayReentrant) {
   EXPECT_TRUE(SbThreadIsValid(thread));
   EXPECT_TRUE(SbThreadJoin(thread, NULL));
   EXPECT_FALSE(context.was_locked_);
-#else   // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#else   // SB_API_VERSION >= 12
   result = SbMutexAcquireTry(&mutex);
   EXPECT_EQ(result, kSbMutexBusy);
   EXPECT_FALSE(SbMutexIsSuccess(result));
-#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#endif  // SB_API_VERSION >= 12
 
   EXPECT_TRUE(SbMutexRelease(&mutex));
   EXPECT_TRUE(SbMutexDestroy(&mutex));

@@ -15,7 +15,7 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+#if SB_API_VERSION >= 12
 
 namespace starboard {
 namespace sabi {
@@ -40,4 +40,4 @@ TEST(SbSabiEndiannessTest, Endianness) {
 }  // namespace sabi
 }  // namespace starboard
 
-#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+#endif  // SB_API_VERSION >= 12

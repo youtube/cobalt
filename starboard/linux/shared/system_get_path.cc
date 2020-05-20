@@ -231,7 +231,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     case kSbSystemPathFontDirectory:
         return false;
 
-#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+#if SB_API_VERSION >= 12
     case kSbSystemPathStorageDirectory:
       if (!GetStorageDirectory(path.data(), kPathSize)) {
         return false;

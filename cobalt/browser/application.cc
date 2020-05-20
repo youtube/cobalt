@@ -94,7 +94,7 @@ bool IsStringNone(const std::string& str) {
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
 std::string GetDevServersListenIp() {
   bool ip_v6;
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   ip_v6 = SbSocketIsIpv6Supported();
 #elif SB_HAS(IPV6)
   ip_v6 = true;
@@ -588,12 +588,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   if (command_line->HasSwitch(browser::switches::kDisableOnScreenKeyboard)) {
     options.enable_on_screen_keyboard = false;
   }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -755,8 +754,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   on_screen_keyboard_shown_event_callback_ = base::Bind(
       &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::OnScreenKeyboardShownEvent::TypeId(),
@@ -784,16 +782,16 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -859,8 +857,7 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardShownEvent::TypeId(),
       on_screen_keyboard_shown_event_callback_);
@@ -878,13 +875,13 @@ Application::~Application() {
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   app_status_ = kShutDownAppStatus;
 }
@@ -943,8 +940,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
               ->size));
       break;
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
       DCHECK(starboard_event->data);
       DispatchEventInternal(new base::OnScreenKeyboardShownEvent(
@@ -969,7 +965,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           *static_cast<int*>(starboard_event->data)));
       break;
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
@@ -985,12 +981,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
       DispatchEventInternal(
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
@@ -1070,11 +1066,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
@@ -1082,7 +1077,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
@@ -1127,8 +1122,7 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
 }
 #endif  // SB_API_VERSION >= 8
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardShownEvent()");
@@ -1171,10 +1165,10 @@ void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
           const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnCaptionSettingsChangedEvent()");
@@ -1182,7 +1176,7 @@ void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<
           const base::AccessibilityCaptionSettingsChangedEvent*>(event));
 }
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 void Application::WebModuleRecreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");

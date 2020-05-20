@@ -14,12 +14,11 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window,
                                              SbWindowRect* bounding_rect) {
   // Stub.
   return true;
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)

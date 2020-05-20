@@ -18,12 +18,12 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
 
 // Default implementation without thread priority support
 void ThreadSetPriority(SbThreadPriority priority) {}
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
 }  // namespace pthread
 }  // namespace shared

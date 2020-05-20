@@ -29,7 +29,7 @@ SbMutexResult SbMutexAcquire(SbMutex* mutex) {
     return kSbMutexDestroyed;
   }
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
   if (!EnsureInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
     *SB_PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
     SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));

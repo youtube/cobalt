@@ -82,7 +82,7 @@ static inline uint32_t SkPackARGB_as_BGRA(U8CPU a, U8CPU r, U8CPU g, U8CPU b) {
 }
 
 static inline SkPMColor SkSwizzle_RGBA_to_PMColor(uint32_t c) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     return (GetSkPmcolor() == SkPmcolorIsRgba) ? c : SkSwizzle_RB(c);
 #else
 #ifdef SK_PMCOLOR_IS_RGBA
@@ -94,7 +94,7 @@ static inline SkPMColor SkSwizzle_RGBA_to_PMColor(uint32_t c) {
 }
 
 static inline SkPMColor SkSwizzle_BGRA_to_PMColor(uint32_t c) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     return (GetSkPmcolor() == SkPmcolorIsBgra) ? c : SkSwizzle_RB(c);
 #else
 #ifdef SK_PMCOLOR_IS_BGRA
@@ -412,7 +412,7 @@ static inline Sk4f swizzle_rb(const Sk4f& x) {
 }
 
 static inline Sk4f swizzle_rb_if_bgra(const Sk4f& x) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     return (GetSkPmcolor() == SkPmcolorIsBgra) ? swizzle_rb(x) : x;
 #else
 #ifdef SK_PMCOLOR_IS_BGRA

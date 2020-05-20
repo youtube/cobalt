@@ -14,7 +14,7 @@
 
 #include "starboard/speech_synthesis.h"
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 
 bool SbSpeechSynthesisIsSupported() {
   return true;

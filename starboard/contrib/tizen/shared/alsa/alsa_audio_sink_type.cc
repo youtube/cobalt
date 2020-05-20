@@ -332,9 +332,9 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
         consumed = 0;
       consume_frame_func_(
           consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
           (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif // SB_API_VERSION >= 12
           context_);
       if (consumed != frames_to_buffer_end) {
         return;
@@ -354,9 +354,9 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
     }
     consume_frame_func_(
         consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
         (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif // SB_API_VERSION >= 12
         context_);
   } else {
     // A very low quality resampler that simply shift the audio frames to play
@@ -391,9 +391,9 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
     }
     consume_frame_func_(
         consumed * playback_rate_,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
         (SbTime)kSbTimeMax,  // Async audio frames reporting not supported
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif // SB_API_VERSION >= 12
         context_);
   }
 }

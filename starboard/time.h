@@ -91,10 +91,9 @@ SB_EXPORT SbTime SbTimeGetNow();
 // Gets a monotonically increasing time representing right now.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
 
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
-    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 // Returns whether the current platform supports time thread now
 SB_EXPORT bool SbTimeIsTimeThreadNowSupported();
 #endif
@@ -106,7 +105,7 @@ SB_EXPORT bool SbTimeIsTimeThreadNowSupported();
 // available then SbTimeGetMonotonicNow() should be used.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicThreadNow();
 
-#endif  // SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
 #ifdef __cplusplus

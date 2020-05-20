@@ -294,11 +294,10 @@ bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
 
 }  // namespace
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool SkipLocale() {
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   bool skipTests = !SbWindowOnScreenKeyboardIsSupported();
   if (skipTests) {
     SB_LOG(INFO) << "On screen keyboard not supported. Test skipped.";
@@ -709,8 +708,8 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
   )";
   EXPECT_TRUE(EvaluateScript(script, NULL));
 }
-#else   // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+#else   // SB_API_VERSION >= 12 ||
+   // SB_HAS(ON_SCREEN_KEYBOARD)
 TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   std::string result;
 
@@ -739,7 +738,7 @@ TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   EXPECT_TRUE(EvaluateScript(object_script, &result));
   EXPECT_EQ("true", result);
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 }  // namespace dom

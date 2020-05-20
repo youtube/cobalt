@@ -34,7 +34,7 @@
 #include "cobalt/debug/console/command_manager.h"
 #endif
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -305,4 +305,4 @@ render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
