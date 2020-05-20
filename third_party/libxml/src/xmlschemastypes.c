@@ -7,25 +7,28 @@
  * Daniel Veillard <veillard@redhat.com>
  */
 
+/* To avoid EBCDIC trouble when parsing on zOS */
+#if defined(__MVS__)
+#pragma convert("ISO8859-1")
+#endif
+
 #define IN_LIBXML
-#include "libxml.h"
+#include "third_party/libxml/src/libxml.h"
 
 #ifdef LIBXML_SCHEMAS_ENABLED
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
-#include <libxml/xmlmemory.h>
-#include <libxml/parser.h>
-#include <libxml/parserInternals.h>
-#include <libxml/hash.h>
-#include <libxml/valid.h>
-#include <libxml/xpath.h>
-#include <libxml/uri.h>
+#include "third_party/libxml/src/include/libxml/xmlmemory.h"
+#include "third_party/libxml/src/include/libxml/parser.h"
+#include "third_party/libxml/src/include/libxml/parserInternals.h"
+#include "third_party/libxml/src/include/libxml/hash.h"
+#include "third_party/libxml/src/include/libxml/valid.h"
+#include "third_party/libxml/src/include/libxml/xpath.h"
+#include "third_party/libxml/src/include/libxml/uri.h"
 
-#include <libxml/xmlschemas.h>
-#include <libxml/schemasInternals.h>
-#include <libxml/xmlschemastypes.h>
+#include "third_party/libxml/src/include/libxml/xmlschemas.h"
+#include "third_party/libxml/src/include/libxml/schemasInternals.h"
+#include "third_party/libxml/src/include/libxml/xmlschemastypes.h"
 
 #ifdef HAVE_MATH_H
 #include <math.h>
@@ -64,10 +67,10 @@ struct _xmlSchemaValDate {
     long		year;
     unsigned int	mon	:4;	/* 1 <=  mon    <= 12   */
     unsigned int	day	:5;	/* 1 <=  day    <= 31   */
-    unsigned int	hour	:5;	/* 0 <=  hour   <= 23   */
+    unsigned int	hour	:5;	/* 0 <=  hour   <= 24   */
     unsigned int	min	:6;	/* 0 <=  min    <= 59	*/
     double		sec;
-    unsigned int	tz_flag	:1;	/* is tzo explicitely set? */
+    unsigned int	tz_flag	:1;	/* is tzo explicitly set? */
     signed int		tzo	:12;	/* -1440 <= tzo <= 1440;
 					   currently only -840 to +840 are needed */
 };
@@ -228,7 +231,7 @@ xmlSchemaNewValue(xmlSchemaValType type) {
     if (value == NULL) {
 	return(NULL);
     }
-    XML_MEMSET(value, 0, sizeof(xmlSchemaVal));
+    memset(value, 0, sizeof(xmlSchemaVal));
     value->type = type;
     return(value);
 }
@@ -269,7 +272,7 @@ xmlSchemaInitBasicType(const char *name, xmlSchemaValType type,
         xmlSchemaTypeErrMemory(NULL, "could not initialize basic types");
 	return(NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlSchemaType));
+    memset(ret, 0, sizeof(xmlSchemaType));
     ret->name = (const xmlChar *)name;
     ret->targetNamespace = XML_SCHEMAS_NAMESPACE_NAME;
     ret->type = XML_SCHEMA_TYPE_BASIC;
@@ -377,7 +380,7 @@ xmlSchemaAddParticle(void)
 	xmlSchemaTypeErrMemory(NULL, "allocating particle component");
 	return (NULL);
     }
-    XML_MEMSET(ret, 0, sizeof(xmlSchemaParticle));
+    memset(ret, 0, sizeof(xmlSchemaParticle));
     ret->type = XML_SCHEMA_TYPE_PARTICLE;
     ret->minOccurs = 1;
     ret->maxOccurs = 1;
@@ -425,7 +428,7 @@ xmlSchemaInitTypes(void)
 	    xmlSchemaTypeErrMemory(NULL, "allocating model group component");
 	    return;
 	}
-	XML_MEMSET(sequence, 0, sizeof(xmlSchemaModelGroup));
+	memset(sequence, 0, sizeof(xmlSchemaModelGroup));
 	sequence->type = XML_SCHEMA_TYPE_SEQUENCE;
 	particle->children = (xmlSchemaTreeItemPtr) sequence;
 	/* Second particle. */
@@ -441,7 +444,7 @@ xmlSchemaInitTypes(void)
 	    xmlSchemaTypeErrMemory(NULL, "allocating wildcard component");
 	    return;
 	}
-	XML_MEMSET(wild, 0, sizeof(xmlSchemaWildcard));
+	memset(wild, 0, sizeof(xmlSchemaWildcard));
 	wild->type = XML_SCHEMA_TYPE_ANY;
 	wild->any = 1;
 	wild->processContents = XML_SCHEMAS_ANY_LAX;
@@ -455,7 +458,7 @@ xmlSchemaInitTypes(void)
 		"wildcard on anyType");
 	    return;
 	}
-	XML_MEMSET(wild, 0, sizeof(xmlSchemaWildcard));
+	memset(wild, 0, sizeof(xmlSchemaWildcard));
 	wild->any = 1;
 	wild->processContents = XML_SCHEMAS_ANY_LAX;
 	xmlSchemaTypeAnyTypeDef->attributeWildcard = wild;
@@ -616,6 +619,11 @@ xmlSchemaInitTypes(void)
     xmlSchemaTypesInitialized = 1;
 }
 
+static void
+xmlSchemaFreeTypeEntry(void *type, const xmlChar *name ATTRIBUTE_UNUSED) {
+    xmlSchemaFreeType((xmlSchemaTypePtr) type);
+}
+
 /**
  * xmlSchemaCleanupTypes:
  *
@@ -643,7 +651,7 @@ xmlSchemaCleanupTypes(void) {
 	xmlFree((xmlSchemaParticlePtr) particle);
 	xmlSchemaTypeAnyTypeDef->subtypes = NULL;
     }
-    xmlHashFree(xmlSchemaTypesBank, (xmlHashDeallocator) xmlSchemaFreeType);
+    xmlHashFree(xmlSchemaTypesBank, xmlSchemaFreeTypeEntry);
     xmlSchemaTypesInitialized = 0;
 }
 
@@ -950,7 +958,7 @@ xmlSchemaNewStringValue(xmlSchemaValType type,
     if (val == NULL) {
 	return(NULL);
     }
-    XML_MEMSET(val, 0, sizeof(xmlSchemaVal));
+    memset(val, 0, sizeof(xmlSchemaVal));
     val->type = type;
     val->value.str = (xmlChar *) value;
     return(val);
@@ -1121,7 +1129,7 @@ xmlSchemaGetBuiltInListSimpleTypeItemType(xmlSchemaTypePtr type)
 #define VALID_HOUR(hr)          ((hr >= 0) && (hr <= 23))
 #define VALID_MIN(min)          ((min >= 0) && (min <= 59))
 #define VALID_SEC(sec)          ((sec >= 0) && (sec < 60))
-#define VALID_TZO(tzo)          ((tzo > -840) && (tzo < 840))
+#define VALID_TZO(tzo)          ((tzo >= -840) && (tzo <= 840))
 #define IS_LEAP(y)						\
 	(((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0))
 
@@ -1141,9 +1149,13 @@ static const unsigned int daysInMonthLeap[12] =
 #define VALID_DATE(dt)						\
 	(VALID_YEAR(dt->year) && VALID_MONTH(dt->mon) && VALID_MDAY(dt))
 
+#define VALID_END_OF_DAY(dt)					\
+	((dt)->hour == 24 && (dt)->min == 0 && (dt)->sec == 0)
+
 #define VALID_TIME(dt)						\
-	(VALID_HOUR(dt->hour) && VALID_MIN(dt->min) &&		\
-	 VALID_SEC(dt->sec) && VALID_TZO(dt->tzo))
+	(((VALID_HOUR(dt->hour) && VALID_MIN(dt->min) &&	\
+	  VALID_SEC(dt->sec)) || VALID_END_OF_DAY(dt)) &&	\
+	 VALID_TZO(dt->tzo))
 
 #define VALID_DATETIME(dt)					\
 	(VALID_DATE(dt) && VALID_TIME(dt))
@@ -1357,7 +1369,7 @@ _xmlSchemaParseTime (xmlSchemaValDatePtr dt, const xmlChar **str) {
 	return ret;
     if (*cur != ':')
 	return 1;
-    if (!VALID_HOUR(value))
+    if (!VALID_HOUR(value) && value != 24 /* Allow end-of-day hour */)
 	return 2;
     cur++;
 
@@ -1379,7 +1391,7 @@ _xmlSchemaParseTime (xmlSchemaValDatePtr dt, const xmlChar **str) {
     if (ret != 0)
 	return ret;
 
-    if ((!VALID_SEC(dt->sec)) || (!VALID_TZO(dt->tzo)))
+    if (!VALID_TIME(dt))
 	return 2;
 
     *str = cur;
@@ -2118,7 +2130,7 @@ xmlSchemaParseUInt(const xmlChar **str, unsigned long *llo,
  * @value: the value to check
  * @val:  the return computed value
  * @node:  the node containing the value
- * flags:  flags to control the vlidation
+ * flags:  flags to control the validation
  *
  * Check that a value conforms to the lexical space of the atomic type.
  * if true a value is computed and returned in @val.
@@ -2143,7 +2155,7 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
         return (-1);
 
     /*
-     * validating a non existant text node is similar to validating
+     * validating a non existent text node is similar to validating
      * an empty one.
      */
     if (value == NULL)
@@ -2504,7 +2516,7 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
 			    * value for extremely high/low values.
 			    * E.g. "1E-149" results in zero.
 			    */
-                            if (XML_SSCANF((const char *) value, "%f",
+                            if (sscanf((const char *) value, "%f",
                                  &(v->value.f)) == 1) {
                                 *val = v;
                             } else {
@@ -2521,7 +2533,7 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
 			    * TODO: sscanf seems not to give the correct
 			    * value for extremely high/low values.
 			    */
-                            if (XML_SSCANF((const char *) value, "%lf",
+                            if (sscanf((const char *) value, "%lf",
                                  &(v->value.d)) == 1) {
                                 *val = v;
                             } else {
@@ -2913,7 +2925,7 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
                 if (*value != 0) {
 		    xmlURIPtr uri;
 		    xmlChar *tmpval, *cur;
-		    if (normOnTheFly) {
+		    if ((norm == NULL) && (normOnTheFly)) {
 			norm = xmlSchemaCollapseString(value);
 			if (norm != NULL)
 			    value = norm;
@@ -3055,7 +3067,7 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
                  * following cases can arise: (1) the final quantum of
                  * encoding input is an integral multiple of 24 bits; here,
                  * the final unit of encoded output will be an integral
-                 * multiple ofindent: Standard input:701: Warning:old style
+                 * multiple of indent: Standard input:701: Warning:old style
 		 * assignment ambiguity in "=*".  Assuming "= *" 4 characters
 		 * with no "=" padding, (2) the final
                  * quantum of encoding input is exactly 8 bits; here, the
@@ -3616,8 +3628,10 @@ xmlSchemaCompareDurations(xmlSchemaValPtr x, xmlSchemaValPtr y)
 	minday = 0;
 	maxday = 0;
     } else {
-	maxday = 366 * ((myear + 3) / 4) +
-	         365 * ((myear - 1) % 4);
+        /* FIXME: This doesn't take leap year exceptions every 100/400 years
+           into account. */
+	maxday = 365 * myear + (myear + 3) / 4;
+        /* FIXME: Needs to be calculated separately */
 	minday = maxday - 1;
     }
 
@@ -3639,7 +3653,7 @@ xmlSchemaCompareDurations(xmlSchemaValPtr x, xmlSchemaValPtr y)
 /*
  * macros for adding date/times and durations
  */
-#define FQUOTIENT(a,b)                  (XML_FLOOR(((double)a/(double)b)))
+#define FQUOTIENT(a,b)                  (floor(((double)a/(double)b)))
 #define MODULO(a,b)                     (a - FQUOTIENT(a,b) * b)
 #define FQUOTIENT_RANGE(a,low,high)     (FQUOTIENT((a-low),(high-low)))
 #define MODULO_RANGE(a,low,high)        ((MODULO((a-low),(high-low)))+low)
@@ -3660,7 +3674,7 @@ xmlSchemaDupVal (xmlSchemaValPtr v)
     if (ret == NULL)
         return NULL;
 
-    XML_MEMCPY(ret, v, sizeof(xmlSchemaVal));
+    memcpy(ret, v, sizeof(xmlSchemaVal));
     ret->next = NULL;
     return ret;
 }
@@ -3865,7 +3879,7 @@ _xmlSchemaDateAdd (xmlSchemaValPtr dt, xmlSchemaValPtr dur)
 
         temp = r->mon + carry;
         r->mon = (unsigned int) MODULO_RANGE(temp, 1, 13);
-        r->year = r->year + (unsigned int) FQUOTIENT_RANGE(temp, 1, 13);
+        r->year = r->year + (long) FQUOTIENT_RANGE(temp, 1, 13);
         if (r->year == 0) {
             if (temp < 1)
                 r->year--;
@@ -5305,6 +5319,7 @@ xmlSchemaValidateFacetInternal(xmlSchemaFacetPtr facet,
 			       xmlSchemaWhitespaceValueType ws)
 {
     int ret;
+    int stringType;
 
     if (facet == NULL)
 	return(-1);
@@ -5317,7 +5332,15 @@ xmlSchemaValidateFacetInternal(xmlSchemaFacetPtr facet,
 	    */
 	    if (value == NULL)
 		return(-1);
-	    ret = xmlRegexpExec(facet->regexp, value);
+	    /*
+	    * If string-derived type, regexp must be tested on the value space of
+	    * the datatype.
+	    * See https://www.w3.org/TR/xmlschema-2/#rf-pattern
+	    */
+	    stringType = val && ((val->type >= XML_SCHEMAS_STRING && val->type <= XML_SCHEMAS_NORMSTRING)
+			      || (val->type >= XML_SCHEMAS_TOKEN && val->type <= XML_SCHEMAS_NCNAME));
+	    ret = xmlRegexpExec(facet->regexp,
+	                        (stringType && val->value.str) ? val->value.str : value);
 	    if (ret == 1)
 		return(0);
 	    if (ret == 0)
@@ -5387,7 +5410,7 @@ xmlSchemaValidateFacetInternal(xmlSchemaFacetPtr facet,
 	    if ((valType == XML_SCHEMAS_QNAME) ||
 		(valType == XML_SCHEMAS_NOTATION))
 		return (0);
-	    /* No break on purpose. */
+            /* Falls through. */
 	case XML_SCHEMA_FACET_MAXLENGTH:
 	case XML_SCHEMA_FACET_MINLENGTH: {
 	    unsigned int len = 0;
@@ -5592,18 +5615,18 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
     switch (xmlXPathIsInf(number)) {
     case 1:
 	if (buffersize > (int)sizeof("INF"))
-	    XML_SNPRINTF(buffer, buffersize, "INF");
+	    snprintf(buffer, buffersize, "INF");
 	break;
     case -1:
 	if (buffersize > (int)sizeof("-INF"))
-	    XML_SNPRINTF(buffer, buffersize, "-INF");
+	    snprintf(buffer, buffersize, "-INF");
 	break;
     default:
 	if (xmlXPathIsNaN(number)) {
 	    if (buffersize > (int)sizeof("NaN"))
-		XML_SNPRINTF(buffer, buffersize, "NaN");
+		snprintf(buffer, buffersize, "NaN");
 	} else if (number == 0) {
-	    XML_SNPRINTF(buffer, buffersize, "0.0E0");
+	    snprintf(buffer, buffersize, "0.0E0");
 	} else {
 	    /* 3 is sign, decimal point, and terminating zero */
 	    char work[DBL_DIG + EXPONENT_DIGITS + 3];
@@ -5613,7 +5636,7 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
 	    double absolute_value;
 	    int size;
 
-	    absolute_value = XML_FABS(number);
+	    absolute_value = fabs(number);
 
 	    /*
 	     * Result is in work, and after_fraction points
@@ -5622,9 +5645,9 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
 	    */
 	    integer_place = DBL_DIG + EXPONENT_DIGITS + 1;
 	    fraction_place = DBL_DIG - 1;
-	    XML_SNPRINTF(work, sizeof(work),"%*.*e",
+	    snprintf(work, sizeof(work),"%*.*e",
 		integer_place, fraction_place, number);
-	    after_fraction = XML_STRCHR(work + DBL_DIG, 'e');
+	    after_fraction = strchr(work + DBL_DIG, 'e');
 	    /* Remove fractional trailing zeroes */
 	    ptr = after_fraction;
 	    while (*(--ptr) == '0')
@@ -5634,12 +5657,12 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
 	    while ((*ptr++ = *after_fraction++) != 0);
 
 	    /* Finally copy result back to caller */
-	    size = XML_STRLEN(work) + 1;
+	    size = strlen(work) + 1;
 	    if (size > buffersize) {
 		work[buffersize - 1] = 0;
 		size = buffersize;
 	    }
-	    XML_MEMMOVE(buffer, work, size);
+	    memmove(buffer, work, size);
 	}
 	break;
     }
@@ -5753,13 +5776,13 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    *offs++ = '.';
 		}
 		if (dec.hi != 0)
-		    XML_SNPRINTF(offs, bufsize - (offs - buf),
+		    snprintf(offs, bufsize - (offs - buf),
 			"%lu%lu%lu", dec.hi, dec.mi, dec.lo);
 		else if (dec.mi != 0)
-		    XML_SNPRINTF(offs, bufsize - (offs - buf),
+		    snprintf(offs, bufsize - (offs - buf),
 			"%lu%lu", dec.mi, dec.lo);
 		else
-		    XML_SNPRINTF(offs, bufsize - (offs - buf),
+		    snprintf(offs, bufsize - (offs - buf),
 			"%lu", dec.lo);
 
 		if (dec.frac != 0) {
@@ -5768,7 +5791,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 			/*
 			* Insert the decimal point.
 			*/
-			XML_MEMMOVE(offs + diff + 1, offs + diff, dec.frac +1);
+			memmove(offs + diff + 1, offs + diff, dec.frac +1);
 			offs[diff] = '.';
 		    } else {
 			unsigned int i = 0;
@@ -5778,8 +5801,8 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 			while (*(offs + i) != 0)
 			    i++;
 			if (i < dec.total) {
-			    XML_MEMMOVE(offs + (dec.total - i), offs, i +1);
-			    XML_MEMSET(offs, '0', dec.total - i);
+			    memmove(offs + (dec.total - i), offs, i +1);
+			    memset(offs, '0', dec.total - i);
 			}
 		    }
 		} else {
@@ -5822,23 +5845,23 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    return(-1);
 		if (dec.hi != 0) {
 		    if (dec.sign)
-			XML_SNPRINTF((char *) *retValue, bufsize,
+			snprintf((char *) *retValue, bufsize,
 			    "-%lu%lu%lu", dec.hi, dec.mi, dec.lo);
 		    else
-			XML_SNPRINTF((char *) *retValue, bufsize,
+			snprintf((char *) *retValue, bufsize,
 			    "%lu%lu%lu", dec.hi, dec.mi, dec.lo);
 		} else if (dec.mi != 0) {
 		    if (dec.sign)
-			XML_SNPRINTF((char *) *retValue, bufsize,
+			snprintf((char *) *retValue, bufsize,
 			    "-%lu%lu", dec.mi, dec.lo);
 		    else
-			XML_SNPRINTF((char *) *retValue, bufsize,
+			snprintf((char *) *retValue, bufsize,
 			    "%lu%lu", dec.mi, dec.lo);
 		} else {
 		    if (dec.sign)
-			XML_SNPRINTF((char *) *retValue, bufsize, "-%lu", dec.lo);
+			snprintf((char *) *retValue, bufsize, "-%lu", dec.lo);
 		    else
-			XML_SNPRINTF((char *) *retValue, bufsize, "%lu", dec.lo);
+			snprintf((char *) *retValue, bufsize, "%lu", dec.lo);
 		}
 	    }
 	    break;
@@ -5862,11 +5885,11 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		* recoverable. Think about extending the structure to
 		* provide a field for every property.
 		*/
-		year = (unsigned long) FQUOTIENT(XML_LABS(val->value.dur.mon), 12);
-		mon = XML_LABS(val->value.dur.mon) - 12 * year;
+		year = (unsigned long) FQUOTIENT(labs(val->value.dur.mon), 12);
+		mon = labs(val->value.dur.mon) - 12 * year;
 
-		day = (unsigned long) FQUOTIENT(XML_FABS(val->value.dur.sec), 86400);
-		left = XML_FABS(val->value.dur.sec) - day * 86400;
+		day = (unsigned long) FQUOTIENT(fabs(val->value.dur.sec), 86400);
+		left = fabs(val->value.dur.sec) - day * 86400;
 		if (left > 0) {
 		    hour = (unsigned long) FQUOTIENT(left, 3600);
 		    left = left - (hour * 3600);
@@ -5876,10 +5899,10 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    }
 		}
 		if ((val->value.dur.mon < 0) || (val->value.dur.sec < 0))
-		    XML_SNPRINTF(buf, 100, "P%luY%luM%luDT%luH%luM%.14gS",
+		    snprintf(buf, 100, "P%luY%luM%luDT%luH%luM%.14gS",
 			year, mon, day, hour, min, sec);
 		else
-		    XML_SNPRINTF(buf, 100, "-P%luY%luM%luDT%luH%luM%.14gS",
+		    snprintf(buf, 100, "-P%luY%luM%luDT%luH%luM%.14gS",
 			year, mon, day, hour, min, sec);
 		*retValue = BAD_CAST xmlStrdup(BAD_CAST buf);
 	    }
@@ -5888,7 +5911,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		char buf[30];
 		/* TODO: Unclear in XML Schema 1.0 */
 		/* TODO: What to do with the timezone? */
-		XML_SNPRINTF(buf, 30, "%04ld", val->value.date.year);
+		snprintf(buf, 30, "%04ld", val->value.date.year);
 		*retValue = BAD_CAST xmlStrdup(BAD_CAST buf);
 	    }
 	    break;
@@ -5898,7 +5921,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		*retValue = xmlMalloc(6);
 		if (*retValue == NULL)
 		    return(-1);
-		XML_SNPRINTF((char *) *retValue, 6, "--%02u",
+		snprintf((char *) *retValue, 6, "--%02u",
 		    val->value.date.mon);
 	    }
 	    break;
@@ -5908,7 +5931,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		*retValue = xmlMalloc(6);
 		if (*retValue == NULL)
 		    return(-1);
-		XML_SNPRINTF((char *) *retValue, 6, "---%02u",
+		snprintf((char *) *retValue, 6, "---%02u",
 		    val->value.date.day);
 	    }
 	    break;
@@ -5918,7 +5941,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		*retValue = xmlMalloc(8);
 		if (*retValue == NULL)
 		    return(-1);
-		XML_SNPRINTF((char *) *retValue, 8, "--%02u-%02u",
+		snprintf((char *) *retValue, 8, "--%02u-%02u",
 		    val->value.date.mon, val->value.date.day);
 	    }
 	    break;
@@ -5927,11 +5950,11 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		/* TODO: Unclear in XML Schema 1.0 */
 		/* TODO: What to do with the timezone? */
 		if (val->value.date.year < 0)
-		    XML_SNPRINTF(buf, 35, "-%04ld-%02u",
-			XML_LABS(val->value.date.year),
+		    snprintf(buf, 35, "-%04ld-%02u",
+			labs(val->value.date.year),
 			val->value.date.mon);
 		else
-		    XML_SNPRINTF(buf, 35, "%04ld-%02u",
+		    snprintf(buf, 35, "%04ld-%02u",
 			val->value.date.year, val->value.date.mon);
 		*retValue = BAD_CAST xmlStrdup(BAD_CAST buf);
 	    }
@@ -5949,14 +5972,14 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    /*
 		    * TODO: Check if "%.14g" is portable.
 		    */
-		    XML_SNPRINTF(buf, 30,
+		    snprintf(buf, 30,
 			"%02u:%02u:%02.14gZ",
 			norm->value.date.hour,
 			norm->value.date.min,
 			norm->value.date.sec);
 		    xmlSchemaFreeValue(norm);
 		} else {
-		    XML_SNPRINTF(buf, 30,
+		    snprintf(buf, 30,
 			"%02u:%02u:%02.14g",
 			val->value.date.hour,
 			val->value.date.min,
@@ -5979,14 +6002,14 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    * TODO: Append the canonical value of the
 		    * recoverable timezone and not "Z".
 		    */
-		    XML_SNPRINTF(buf, 30,
-			"%04ld:%02u:%02uZ",
+		    snprintf(buf, 30,
+			"%04ld-%02u-%02uZ",
 			norm->value.date.year, norm->value.date.mon,
 			norm->value.date.day);
 		    xmlSchemaFreeValue(norm);
 		} else {
-		    XML_SNPRINTF(buf, 30,
-			"%04ld:%02u:%02u",
+		    snprintf(buf, 30,
+			"%04ld-%02u-%02u",
 			val->value.date.year, val->value.date.mon,
 			val->value.date.day);
 		}
@@ -6006,15 +6029,15 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		    /*
 		    * TODO: Check if "%.14g" is portable.
 		    */
-		    XML_SNPRINTF(buf, 50,
-			"%04ld:%02u:%02uT%02u:%02u:%02.14gZ",
+		    snprintf(buf, 50,
+			"%04ld-%02u-%02uT%02u:%02u:%02.14gZ",
 			norm->value.date.year, norm->value.date.mon,
 			norm->value.date.day, norm->value.date.hour,
 			norm->value.date.min, norm->value.date.sec);
 		    xmlSchemaFreeValue(norm);
 		} else {
-		    XML_SNPRINTF(buf, 50,
-			"%04ld:%02u:%02uT%02u:%02u:%02.14g",
+		    snprintf(buf, 50,
+			"%04ld-%02u-%02uT%02u:%02u:%02.14g",
 			val->value.date.year, val->value.date.mon,
 			val->value.date.day, val->value.date.hour,
 			val->value.date.min, val->value.date.sec);
@@ -6042,7 +6065,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		* yet conformant. The c type float does not cover
 		* the whole range.
 		*/
-		XML_SNPRINTF(buf, 30, "%01.14e", val->value.f);
+		snprintf(buf, 30, "%01.14e", val->value.f);
 		*retValue = BAD_CAST xmlStrdup(BAD_CAST buf);
 	    }
 	    break;
@@ -6054,7 +6077,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		* yet conformant. The c type float does not cover
 		* the whole range.
 		*/
-		XML_SNPRINTF(buf, 40, "%01.14e", val->value.d);
+		snprintf(buf, 40, "%01.14e", val->value.d);
 		*retValue = BAD_CAST xmlStrdup(BAD_CAST buf);
 	    }
 	    break;
@@ -6137,5 +6160,5 @@ xmlSchemaGetValType(xmlSchemaValPtr val)
 }
 
 #define bottom_xmlschemastypes
-#include "elfgcchack.h"
+#include "third_party/libxml/src/elfgcchack.h"
 #endif /* LIBXML_SCHEMAS_ENABLED */

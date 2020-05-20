@@ -16,9 +16,7 @@
 
 #ifdef LIBXML_UNICODE_ENABLED
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #include <libxml/xmlversion.h>
 #include <libxml/xmlunicode.h>
 #include <libxml/chvalid.h>
@@ -31,14 +29,14 @@ typedef struct {
 } xmlUnicodeRange;
 
 typedef struct {
-    xmlUnicodeRange *table;
+    const xmlUnicodeRange *table;
     int		    numentries;
 } xmlUnicodeNameTable;
 
 
 static xmlIntFunc *xmlUnicodeLookup(xmlUnicodeNameTable *tptr, const char *tname);
 
-static xmlUnicodeRange xmlUnicodeBlocks[] = {
+static const xmlUnicodeRange xmlUnicodeBlocks[] = {
   {"AegeanNumbers", xmlUCSIsAegeanNumbers},
   {"AlphabeticPresentationForms", xmlUCSIsAlphabeticPresentationForms},
   {"Arabic", xmlUCSIsArabic},
@@ -947,7 +945,7 @@ static xmlUnicodeNameTable xmlUnicodeCatTbl = {xmlUnicodeCats, 36};
 static xmlIntFunc
 *xmlUnicodeLookup(xmlUnicodeNameTable *tptr, const char *tname) {
     int low, high, mid, cmp;
-    xmlUnicodeRange *sptr;
+    const xmlUnicodeRange *sptr;
 
     if ((tptr == NULL) || (tname == NULL)) return(NULL);
 
@@ -956,7 +954,7 @@ static xmlIntFunc
     sptr = tptr->table;
     while (low <= high) {
 	mid = (low + high) / 2;
-	if ((cmp=XML_STRCMP(tname, sptr[mid].rangename)) == 0)
+	if ((cmp=strcmp(tname, sptr[mid].rangename)) == 0)
 	    return (sptr[mid].func);
 	if (cmp < 0)
 	    high = mid - 1;

@@ -12,12 +12,8 @@
 #ifndef __XML_SAX_H__
 #define __XML_SAX_H__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 #include <libxml/xmlversion.h>
 #include <libxml/parser.h>
 #include <libxml/xlink.h>
