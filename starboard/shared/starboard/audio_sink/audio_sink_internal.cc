@@ -38,18 +38,16 @@ void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
                            int frames_consumed,
                            SbTime frames_consumed_at,
                            void* context) {
-#if SB_API_VERSION >= SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+#if SB_API_VERSION >= 12
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
   sb_consume_frames_func(frames_consumed, context);
-#else  // SB_API_VERSION >=
-  // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+#else  // SB_API_VERSION >= 12
   sb_consume_frames_func(frames_consumed,
 #if SB_HAS(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
                          frames_consumed_at,
 #endif
                          context);
-#endif  // SB_API_VERSION >=
-        // SB_DEPRECATED_HAS_ASYNC_AUDIO_FRAMES_REPORTING_VERSION
+#endif  // SB_API_VERSION >=  12
 }
 
 }  // namespace

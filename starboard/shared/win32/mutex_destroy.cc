@@ -22,7 +22,7 @@ bool SbMutexDestroy(SbMutex* mutex) {
   if (!mutex) {
     return false;
   }
-#if SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#if SB_API_VERSION >= 12
 // On Windows a SRWLOCK is used in place of the heavier mutex. These locks
 // cannot be acquired recursively, and the behavior when this is attempted is
 // not clear in the documentation. A Microsoft DevBlog seems to suggest this
@@ -34,10 +34,10 @@ bool SbMutexDestroy(SbMutex* mutex) {
 //   rule will result in undefined behavior.
 //
 // https://devblogs.microsoft.com/oldnewthing/20160819-00/?p=94125
-#else   // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#else   // SB_API_VERSION >= 12
   if (SbMutexAcquireTry(mutex) == kSbMutexBusy) {
     return false;
   }
-#endif  // SB_API_VERSION >= SB_MUTEX_ACQUIRE_TRY_API_CHANGE_VERSION
+#endif  // SB_API_VERSION >= 12
   return true;
 }

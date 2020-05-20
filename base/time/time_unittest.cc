@@ -1000,8 +1000,7 @@ class ThreadTicksOverride {
 // static
 ThreadTicks ThreadTicksOverride::now_ticks_;
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
 // IOS doesn't support ThreadTicks::Now().
 #if defined(OS_IOS)
 #define MAYBE_NowOverride DISABLED_NowOverride
@@ -1009,12 +1008,12 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #define MAYBE_NowOverride NowOverride
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   if (!SbTimeIsTimeThreadNowSupported()) {
     SB_LOG(INFO) << "Time thread now not supported. Test skipped.";
     return;
   }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
   ThreadTicksOverride::now_ticks_ = ThreadTicks::Min();
 
@@ -1051,7 +1050,7 @@ TEST(ThreadTicks, MAYBE_NowOverride) {
   EXPECT_LE(initial_thread_ticks, subtle::ThreadTicksNowIgnoringOverride());
   EXPECT_GT(ThreadTicks::Max(), subtle::ThreadTicksNowIgnoringOverride());
 }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
 TEST(ThreadTicks, ThreadNow) {

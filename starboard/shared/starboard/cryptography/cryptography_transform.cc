@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 #include "starboard/cryptography.h"
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
@@ -114,4 +114,4 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
   return in_data_size;
 }
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12

@@ -24,7 +24,7 @@
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
 
 namespace {
 
@@ -69,4 +69,4 @@ bool SbFileAtomicReplace(const char* path,
   return false;
 }
 
-#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#endif  // SB_API_VERSION >= 12

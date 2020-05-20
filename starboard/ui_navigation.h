@@ -38,7 +38,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#if SB_API_VERSION >= 12
 
 #ifdef __cplusplus
 extern "C" {
@@ -268,6 +268,6 @@ SB_EXPORT bool SbUiNavGetInterface(SbUiNavInterface* out_interface);
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_UI_NAVIGATION_H_

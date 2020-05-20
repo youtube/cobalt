@@ -114,7 +114,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   // set.
   bool found_dot_dot = false;
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
@@ -124,7 +124,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     }
     ret.push_back(GenerateEntry(entry.data()));
   }
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   SbDirectoryEntry entry;
 
   while (SbDirectoryGetNext(dir, &entry)) {
@@ -134,7 +134,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     }
     ret.push_back(GenerateEntry(entry.name));
   }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
   if ((INCLUDE_DOT_DOT & file_type_) && !found_dot_dot) {
     ret.push_back(GenerateEntry(".."));

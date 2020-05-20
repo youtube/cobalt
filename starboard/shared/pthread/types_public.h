@@ -18,9 +18,9 @@
 #ifndef STARBOARD_SHARED_PTHREAD_TYPES_PUBLIC_H_
 #define STARBOARD_SHARED_PTHREAD_TYPES_PUBLIC_H_
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 #error "The starboard/shared/pthread/types_public.h is deprecated."
-#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #include "starboard/types.h"
 

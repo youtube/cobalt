@@ -23,13 +23,13 @@
 #error "Evergreen requires starboard version 12 or higher!"
 #endif
 
-#if SB_API_VERSION < SB_STORAGE_PATH_VERSION
+#if SB_API_VERSION < 12
 #error \
     "Evergreen requires support for the kSbSystemPathStorageDirectory" \
     " system property!"
 #endif
 
-#if SB_API_VERSION < SB_MMAP_REQUIRED_VERSION
+#if SB_API_VERSION < 12
 #error "Evergreen requires memory mapping!"
 #endif
 

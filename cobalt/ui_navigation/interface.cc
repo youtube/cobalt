@@ -90,7 +90,7 @@ void GetItemContentOffset(NativeItem item,
 
 NativeInterface InitializeInterface() {
   NativeInterface interface = { 0 };
-#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#if SB_API_VERSION >= 12
   if (SbUiNavGetInterface(&interface)) {
     return interface;
   }

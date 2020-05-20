@@ -54,12 +54,12 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
 
       return true;
     case url::CanonHostInfo::NEUTRAL:
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
       if (!SbSocketIsIpv6Supported()) {
         return false;
       }
 #endif
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
+#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
       unsigned char address_v6[net::IPAddress::kIPv6AddressSize];
       if (!url::IPv6AddressToNumber(spec, host_component, address_v6)) {
         break;

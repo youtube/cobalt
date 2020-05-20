@@ -34,7 +34,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
     PLOG(ERROR) << "opendir " << cache_path.value() << ", erron: " << error;
     return false;
   }
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   std::vector<char> entry(kSbFileMaxName);
 
   while (true) {
@@ -44,7 +44,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
     }
 
     const std::string file_name(entry.data());
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   SbDirectoryEntry entry;
 
   while (true) {
@@ -54,7 +54,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
     }
 
     const std::string file_name(entry.name);
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
     if (file_name == "." || file_name == "..")
       continue;
     const base::FilePath file_path =

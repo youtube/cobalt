@@ -17,7 +17,7 @@
 #include "base/compiler_specific.h"
 #include "cobalt/script/global_environment.h"
 
-#if SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 namespace cobalt {
 namespace browser {
@@ -40,4 +40,4 @@ scoped_refptr<script::Wrappable> CreateWebAPIExtensionObject(
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_WEBAPI_EXTENSION_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12

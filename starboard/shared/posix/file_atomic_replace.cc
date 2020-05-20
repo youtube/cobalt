@@ -22,7 +22,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
 
 namespace {
 
@@ -56,4 +56,4 @@ bool SbFileAtomicReplace(const char* path,
   return true;
 }
 
-#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#endif  // SB_API_VERSION >= 12

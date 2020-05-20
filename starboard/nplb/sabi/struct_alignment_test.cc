@@ -17,7 +17,7 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_SABI_FILE_VERSION
+#if SB_API_VERSION >= 12
 
 // 8-byte integers make structs 4-byte aligned on x86.
 #if SB_IS(ARCH_X86)
@@ -166,4 +166,4 @@ TEST(SbSabiStructAlignmentTest, NestedUnion) {
 
 #undef ALIGNMENT_8_BYTE_INT
 
-#endif  // SB_API_VERSION >= SB_SABI_FILE_VERSION
+#endif  // SB_API_VERSION >= 12
