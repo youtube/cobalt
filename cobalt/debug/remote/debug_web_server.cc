@@ -79,7 +79,7 @@ base::Optional<base::FilePath> AppendIndexFile(
   return base::nullopt;
 }
 
-const char kContentDir[] = "cobalt/debug/remote";
+const char kContentDir[] = "debug_remote";
 const char kDetached[] = "Inspector.detached";
 const char kDetachReasonField[] = "params.reason";
 const char kErrorField[] = "error.message";

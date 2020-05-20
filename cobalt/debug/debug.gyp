@@ -109,7 +109,9 @@
         'content_web_input_files': [
           '<(DEPTH)/cobalt/debug/backend/content/',
         ],
-        'content_web_output_subdir': 'cobalt/debug/backend',
+        # Canonically this should be "cobalt/debug/backend" to match the source
+        # path, but we put it in the root of the content dir to reduce depth.
+        'content_web_output_subdir': 'debug_backend',
       },
       'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },
@@ -121,7 +123,9 @@
         'content_web_input_files': [
           '<(DEPTH)/cobalt/debug/console/content/',
         ],
-        'content_web_output_subdir': 'cobalt/debug/console',
+        # Canonically this should be "cobalt/debug/console" to match the source
+        # path, but we put it in the root of the content dir to reduce depth.
+        'content_web_output_subdir': 'debug_console',
       },
       'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },
@@ -133,7 +137,9 @@
         'content_web_input_files': [
           '<(DEPTH)/cobalt/debug/remote/content/',
         ],
-        'content_web_output_subdir': 'cobalt/debug/remote',
+        # Canonically this should be "cobalt/debug/remote" to match the source
+        # path, but we put it in the root of the content dir to reduce depth.
+        'content_web_output_subdir': 'debug_remote',
       },
       'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },

@@ -32,7 +32,7 @@ namespace debug {
 namespace console {
 
 namespace {
-constexpr char kContentDir[] = "cobalt/debug";
+constexpr char kContentDir[] = "debug_console";
 }  // namespace
 
 DebugHub::DebugHub(

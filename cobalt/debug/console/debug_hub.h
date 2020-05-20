@@ -80,7 +80,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);
 
-  // Read a text file from the content/web/cobalt/debug/ directory and return
+  // Read a text file from the content/web/debug_console/ directory and return
   // its contents.
   std::string ReadDebugContentText(const std::string& filename);
 
