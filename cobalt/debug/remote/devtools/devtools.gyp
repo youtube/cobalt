@@ -1249,7 +1249,7 @@
       # "front_end/Images/whatsnew.png",
     ],
 
-    'resources_out_dir': '<(sb_static_contents_output_data_dir)/web/cobalt/debug/remote/devtools',
+    'resources_out_dir': '<(sb_static_contents_output_data_dir)/web/debug_remote/devtools',
     'resources_out_debug_dir': '<(resources_out_dir)/debug',
 
     'generated_scripts': [

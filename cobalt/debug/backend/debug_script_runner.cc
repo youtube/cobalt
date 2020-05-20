@@ -27,7 +27,7 @@ namespace debug {
 namespace backend {
 
 namespace {
-const char kContentDir[] = "cobalt/debug/backend";
+const char kContentDir[] = "debug_backend";
 }  // namespace
 
 DebugScriptRunner::DebugScriptRunner(

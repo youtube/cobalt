@@ -31,7 +31,7 @@ namespace browser {
 namespace {
 // Files for the debug console web page are bundled with the executable.
 const char kInitialDebugConsoleUrl[] =
-    "file:///cobalt/debug/console/debug_console.html";
+    "file:///debug_console/debug_console.html";
 
 const char kDebugConsoleModeOffString[] = "off";
 const char kDebugConsoleModeHudString[] = "hud";
