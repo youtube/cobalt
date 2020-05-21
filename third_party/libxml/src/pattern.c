@@ -1,5 +1,5 @@
 /*
- * pattern.c: Implemetation of selectors for nodes
+ * pattern.c: Implementation of selectors for nodes
  *
  * Reference:
  *   http://www.w3.org/TR/2001/REC-xmlschema-1-20010502/
@@ -26,9 +26,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/hash.h>
@@ -57,7 +55,7 @@
 /*
 * NOTE: Those private flags (XML_STREAM_xxx) are used
 *   in _xmlStreamCtxt->flag. They extend the public
-*   xmlPatternFlags, so be carefull not to interfere with the
+*   xmlPatternFlags, so be careful not to interfere with the
 *   reserved values for xmlPatternFlags.
 */
 #define XML_STREAM_FINAL_IS_ANY_NODE 1<<14
@@ -211,7 +209,7 @@ xmlNewPattern(void) {
 		"xmlNewPattern : malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlPattern));
+    memset(cur, 0, sizeof(xmlPattern));
     cur->maxStep = 10;
     cur->steps = (xmlStepOpPtr) xmlMalloc(cur->maxStep * sizeof(xmlStepOp));
     if (cur->steps == NULL) {
@@ -231,13 +229,16 @@ xmlNewPattern(void) {
  */
 void
 xmlFreePattern(xmlPatternPtr comp) {
+    xmlFreePatternList(comp);
+}
+
+static void
+xmlFreePatternInternal(xmlPatternPtr comp) {
     xmlStepOpPtr op;
     int i;
 
     if (comp == NULL)
 	return;
-    if (comp->next != NULL)
-        xmlFreePattern(comp->next);
     if (comp->stream != NULL)
         xmlFreeStreamComp(comp->stream);
     if (comp->pattern != NULL)
@@ -257,7 +258,7 @@ xmlFreePattern(xmlPatternPtr comp) {
     if (comp->dict != NULL)
         xmlDictFree(comp->dict);
 
-    XML_MEMSET(comp, -1, sizeof(xmlPattern));
+    memset(comp, -1, sizeof(xmlPattern));
     xmlFree(comp);
 }
 
@@ -275,7 +276,7 @@ xmlFreePatternList(xmlPatternPtr comp) {
 	cur = comp;
 	comp = comp->next;
 	cur->next = NULL;
-	xmlFreePattern(cur);
+	xmlFreePatternInternal(cur);
     }
 }
 
@@ -304,7 +305,7 @@ xmlNewPatParserContext(const xmlChar *pattern, xmlDictPtr dict,
 		"xmlNewPatParserContext : malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlPatParserContext));
+    memset(cur, 0, sizeof(xmlPatParserContext));
     cur->dict = dict;
     cur->cur = pattern;
     cur->base = pattern;
@@ -330,7 +331,7 @@ static void
 xmlFreePatParserContext(xmlPatParserContextPtr ctxt) {
     if (ctxt == NULL)
 	return;
-    XML_MEMSET(ctxt, -1, sizeof(xmlPatParserContext));
+    memset(ctxt, -1, sizeof(xmlPatParserContext));
     xmlFree(ctxt);
 }
 
@@ -744,7 +745,7 @@ rollback:
  * xmlPatScanLiteral:
  * @ctxt:  the XPath Parser context
  *
- * Parse an XPath Litteral:
+ * Parse an XPath Literal:
  *
  * [29] Literal ::= '"' [^"]* '"'
  *                | "'" [^']* "'"
@@ -971,6 +972,7 @@ xmlCompileAttributeTest(xmlPatParserContextPtr ctxt) {
 		ERROR5(NULL, NULL, NULL,
 		    "xmlCompileAttributeTest : no namespace bound to prefix %s\n",
 		    prefix);
+	        XML_PAT_FREE_STRING(ctxt, prefix);
 		ctxt->error = 1;
 		goto error;
 	    }
@@ -1502,7 +1504,7 @@ xmlNewStreamComp(int size) {
 		"xmlNewStreamComp: malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlStreamComp));
+    memset(cur, 0, sizeof(xmlStreamComp));
     cur->steps = (xmlStreamStepPtr) xmlMalloc(size * sizeof(xmlStreamStep));
     if (cur->steps == NULL) {
 	xmlFree(cur);
@@ -1767,7 +1769,7 @@ xmlNewStreamCtxt(xmlStreamCompPtr stream) {
 		"xmlNewStreamCtxt: malloc failed\n");
 	return(NULL);
     }
-    XML_MEMSET(cur, 0, sizeof(xmlStreamCtxt));
+    memset(cur, 0, sizeof(xmlStreamCtxt));
     cur->states = (int *) xmlMalloc(4 * 2 * sizeof(int));
     if (cur->states == NULL) {
 	xmlFree(cur);
@@ -1974,7 +1976,7 @@ xmlStreamPushInternal(xmlStreamCtxtPtr stream,
 	    } else {
 		/*
 		* If there are "//", then we need to process every "//"
-		* occuring in the states, plus any other state for this
+		* occurring in the states, plus any other state for this
 		* level.
 		*/
 		stepNr = stream->states[2 * i];

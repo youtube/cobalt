@@ -98,12 +98,12 @@ XMLPUBFUN int XMLCALL
                 xmlStrPrintf             (xmlChar *buf,
                                          int len,
                                          const char *msg,
-                                         ...);
+                                         ...) LIBXML_ATTR_FORMAT(3,4);
 XMLPUBFUN int XMLCALL
                 xmlStrVPrintf                (xmlChar *buf,
                                          int len,
-                                         const xmlChar *msg,
-                                         va_list ap);
+                                         const char *msg,
+                                         va_list ap) LIBXML_ATTR_FORMAT(3,0);
 
 XMLPUBFUN int XMLCALL
         xmlGetUTF8Char                   (const unsigned char *utf,

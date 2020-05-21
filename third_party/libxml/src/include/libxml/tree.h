@@ -12,12 +12,8 @@
 #ifndef __XML_TREE_H__
 #define __XML_TREE_H__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
 #include <libxml/xmlversion.h>
 #include <libxml/xmlstring.h>
 
@@ -76,13 +72,12 @@ typedef xmlEntity *xmlEntityPtr;
  */
 
 typedef enum {
-  XML_BUFFER_ALLOC_DOUBLEIT,  /* double each time one need to grow */
-  XML_BUFFER_ALLOC_EXACT,     /* grow only to the minimal size */
-  XML_BUFFER_ALLOC_IMMUTABLE, /* immutable buffer */
-  XML_BUFFER_ALLOC_IO,        /* special allocation scheme used for I/O */
-  XML_BUFFER_ALLOC_HYBRID,    /* exact up to a threshold, and doubleit thereafter
-                               */
-  XML_BUFFER_ALLOC_BOUNDED    /* limit the upper size of the buffer */
+    XML_BUFFER_ALLOC_DOUBLEIT,	/* double each time one need to grow */
+    XML_BUFFER_ALLOC_EXACT,	/* grow only to the minimal size */
+    XML_BUFFER_ALLOC_IMMUTABLE, /* immutable buffer */
+    XML_BUFFER_ALLOC_IO,	/* special allocation scheme used for I/O */
+    XML_BUFFER_ALLOC_HYBRID,	/* exact up to a threshold, and doubleit thereafter */
+    XML_BUFFER_ALLOC_BOUNDED	/* limit the upper size of the buffer */
 } xmlBufferAllocationScheme;
 
 /**
@@ -448,7 +443,7 @@ struct _xmlAttr {
     struct _xmlDoc  *doc;	/* the containing document */
     xmlNs           *ns;        /* pointer to the associated namespace */
     xmlAttributeType atype;     /* the attribute type if validating */
-    void            *psvi;	/* for type/PSVI informations */
+    void            *psvi;	/* for type/PSVI information */
 };
 
 /**
@@ -507,7 +502,7 @@ struct _xmlNode {
     xmlChar         *content;   /* the content */
     struct _xmlAttr *properties;/* properties list */
     xmlNs           *nsDef;     /* namespace definitions on this node */
-    void            *psvi;	/* for type/PSVI informations */
+    void            *psvi;	/* for type/PSVI information */
     unsigned short   line;	/* line number */
     unsigned short   extra;	/* extra data for XPath/XSLT */
 };
@@ -532,7 +527,7 @@ struct _xmlNode {
  * xmlDocProperty
  *
  * Set of properties of the document as found by the parser
- * Some of them are linked to similary named xmlParserOption
+ * Some of them are linked to similarly named xmlParserOption
  */
 typedef enum {
     XML_DOC_WELLFORMED		= 1<<0, /* document is XML well formed */
@@ -580,10 +575,10 @@ struct _xmlDoc {
     void           *ids;        /* Hash table for ID attributes if any */
     void           *refs;       /* Hash table for IDREFs attributes if any */
     const xmlChar  *URL;	/* The URI for that document */
-    int             charset;    /* encoding of the in-memory content
+    int             charset;    /* Internal flag for charset handling,
 				   actually an xmlCharEncoding */
     struct _xmlDict *dict;      /* dict used to allocate names or NULL */
-    void           *psvi;	/* for type/PSVI informations */
+    void           *psvi;	/* for type/PSVI information */
     int             parseFlags;	/* set of xmlParserOption used to parse the
 				   document */
     int             properties;	/* set of xmlDocProperties for this document
@@ -715,11 +710,9 @@ XMLPUBFUN int XMLCALL
 					 unsigned int size);
 XMLPUBFUN void XMLCALL
 		xmlBufferFree		(xmlBufferPtr buf);
-#ifndef COBALT
 XMLPUBFUN int XMLCALL
 		xmlBufferDump		(FILE *file,
 					 xmlBufferPtr buf);
-#endif
 XMLPUBFUN int XMLCALL
 		xmlBufferAdd		(xmlBufferPtr buf,
 					 const xmlChar *str,
@@ -1178,7 +1171,6 @@ XMLPUBFUN void XMLCALL
 					 int * doc_txt_len,
 					 const char *txt_encoding,
 					 int format);
-#ifndef COBALT
 XMLPUBFUN int XMLCALL
 		xmlDocFormatDump	(FILE *f,
 					 xmlDocPtr cur,
@@ -1190,7 +1182,6 @@ XMLPUBFUN void XMLCALL
 		xmlElemDump		(FILE *f,
 					 xmlDocPtr doc,
 					 xmlNodePtr cur);
-#endif
 XMLPUBFUN int XMLCALL
 		xmlSaveFile		(const char *filename,
 					 xmlDocPtr cur);
