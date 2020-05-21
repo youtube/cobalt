@@ -52,6 +52,8 @@ class LottiePlayer : public HTMLElement {
   void set_src(const std::string& src);
   bool autoplay() const;
   void set_autoplay(bool loop);
+  int count() const;
+  void set_count(int count);
   int direction() const;
   void set_direction(int direction);
   bool loop() const;
@@ -67,6 +69,8 @@ class LottiePlayer : public HTMLElement {
   void SetDirection(int direction);
   void SetLooping(bool loop);
   void SetSpeed(double speed);
+  void ToggleLooping();
+  void TogglePlay();
 
   // Custom, not in any spec
   //
@@ -107,6 +111,8 @@ class LottiePlayer : public HTMLElement {
           scoped_prevent_gc);
 
   void UpdateState(LottieAnimation::LottieState state);
+  void UpdatePlaybackStateForAutoplay();
+  void SetCount(int count);
   void UpdateLottieObjects();
 
   void ScheduleEvent(base::Token event_name);
