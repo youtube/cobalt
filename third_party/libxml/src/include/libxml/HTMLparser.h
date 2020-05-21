@@ -115,12 +115,12 @@ XMLPUBFUN htmlParserCtxtPtr XMLCALL
 XMLPUBFUN int XMLCALL
 			htmlParseDocument(htmlParserCtxtPtr ctxt);
 XMLPUBFUN htmlDocPtr XMLCALL
-			htmlSAXParseDoc	(xmlChar *cur,
+			htmlSAXParseDoc	(const xmlChar *cur,
 					 const char *encoding,
 					 htmlSAXHandlerPtr sax,
 					 void *userData);
 XMLPUBFUN htmlDocPtr XMLCALL
-			htmlParseDoc	(xmlChar *cur,
+			htmlParseDoc	(const xmlChar *cur,
 					 const char *encoding);
 XMLPUBFUN htmlDocPtr XMLCALL
 			htmlSAXParseFile(const char *filename,
@@ -144,7 +144,7 @@ XMLPUBFUN int XMLCALL
 			htmlIsScriptAttribute(const xmlChar *name);
 XMLPUBFUN int XMLCALL
 			htmlHandleOmittedElem(int val);
-#if defined(COBALT)
+#if defined(STARBOARD)
 XMLPUBFUN void XMLCALL
 			htmlEmitImpliedRootLevelParagraph(int val);
 #endif  // defined(COBALT)

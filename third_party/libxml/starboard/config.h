@@ -6,14 +6,6 @@
 #include "starboard/string.h"
 #include "starboard/types.h"
 
-/* Manually adapted from config.h.in. */
-#define PACKAGE "libxml2"
-#define VERSION "2.7.7"
-#undef HAVE_LIBM
-
-/* Define if IPV6 support is there */
-#undef SUPPORT_IP6
-
 /* Define if getaddrinfo is there */
 #undef HAVE_GETADDRINFO
 
@@ -33,7 +25,7 @@
 #undef HAVE_CLASS
 
 /* Define to 1 if you have the <ctype.h> header file. */
-#undef HAVE_CTYPE_H
+#define HAVE_CTYPE_H 1
 
 /* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
@@ -121,7 +113,7 @@
 #undef HAVE_MALLOC_H
 
 /* Define to 1 if you have the <math.h> header file. */
-#undef HAVE_MATH_H
+#define HAVE_MATH_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -165,6 +157,9 @@
 /* Define to 1 if you have the `sprintf' function. */
 #undef HAVE_SPRINTF
 
+/* Define to 1 if you have the `srand' function. */
+#undef HAVE_SRAND
+
 /* Define to 1 if you have the `sscanf' function. */
 #undef HAVE_SSCANF
 
@@ -177,6 +172,9 @@
 #else
 #undef HAVE_STDARG_H
 #endif
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -231,13 +229,15 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the `time' function. */
+#undef HAVE_TIME
+
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Whether va_copy() is available */
 #undef HAVE_VA_COPY
 
 /* Define to 1 if you have the `vfprintf' function. */
@@ -250,14 +250,13 @@
 #undef HAVE_VSPRINTF
 
 /* Define to 1 if you have the <zlib.h> header file. */
-/* NOTE: We actually do have this, but do not need the integration. */
-#undef HAVE_ZLIB_H
+/* #define HAVE_ZLIB_H 1 */
 
 /* Define to 1 if you have the `_stat' function. */
-#undef HAVE__STAT
+ #undef HAVE__STAT 
 
 /* Whether __va_copy() is available */
-#undef HAVE___VA_COPY
+ #undef HAVE___VA_COPY 
 
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
@@ -287,8 +286,8 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#define PROTOTYPES 1
+/* Type cast for the send() function 2nd arg */
+#define SEND_ARG2_CAST /**/
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -296,26 +295,28 @@
 /* Support for IPv6 */
 #undef SUPPORT_IP6
 
+/* Define if va_list is an array type */
+#define VA_LIST_IS_ARRAY 1
+
 /* Version number of package */
-#define VERSION "2.7.7"
+#define VERSION "2.9.10"
 
 /* Determine what socket length (socklen_t) data type is */
 #undef XML_SOCKLEN_T
 
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+/* #undef _UINT32_T */
+
 /* Using the Win32 Socket implementation */
-#undef _WINSOCKAPI_
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#define __PROTOTYPES 1
-
-/* Win32 Std C name mangling work-around */
-#undef snprintf
+/* #undef _WINSOCKAPI_ */
 
 /* ss_family is not defined here, use __ss_family instead */
-#undef ss_family
+/* #undef ss_family */
 
 /* Win32 Std C name mangling work-around */
-#undef vsnprintf
+/* #undef vsnprintf */
 
 /* Define to 1 if you have the <stdio.h> header file. */
 #undef HAVE_STDIO_H
@@ -325,16 +326,16 @@
 #undef HAVE_GETENV
 
 /* toupper() wrapping */
-#define XML_TOUPPER SbCharacterToUpper
+#define XML_TOUPPER toupper
 
 /* floor() wrapping */
-#define XML_FLOOR SbDoubleFloor
+#define XML_FLOOR floor
 
 /* fabs() wrapping */
-#define XML_FABS SbDoubleAbsolute
+#define XML_FABS fabs
 
 /* labs() wrapping */
-#define XML_LABS(x) ((x) < 0 ? -(x) : (x))
+#define XML_LABS labs
 
 /* malloc() wrapping */
 #define XML_MALLOC SbMemoryAllocate
@@ -345,44 +346,44 @@
 /* free() wrapping */
 #define XML_FREE SbMemoryDeallocate
 
-/* memcmp() wrapping */
-#define XML_MEMCMP SbMemoryCompare
-
 /* memcpy() wrapping */
-#define XML_MEMCPY SbMemoryCopy
+#define XML_MEMCPY memcpy
 
 /* memchr() wrapping */
-#define XML_MEMCHR SbMemoryFindByte
+#define XML_MEMCHR memchr
+
+/* memcmp() wrapping */
+#define XML_MEMCMP memcmp
 
 /* memcpy() wrapping */
-#define XML_MEMSET SbMemorySet
+#define XML_MEMSET memset
 
 /* memmove() wrapping */
-#define XML_MEMMOVE SbMemoryMove
+#define XML_MEMMOVE memmove
 
 /* snprintf() wrapping */
-#define XML_SNPRINTF SbStringFormatF
+#define XML_SNPRINTF snprintf
 
 /* sscanf() wrapping */
-#define XML_SSCANF SbStringScanF
+#define XML_SSCANF sscanf
 
 /* strlen() wrapping */
-#define XML_STRLEN SbStringGetLength
+#define XML_STRLEN strlen
 
 /* strncpy() wrapping */
-#define XML_STRNCPY SbStringCopy
+#define XML_STRNCPY strncpy
 
 /* strncat() wrapping */
-#define XML_STRNCAT SbStringConcat
+#define XML_STRNCAT strncat
 
 /* strcmp() wrapping */
-#define XML_STRCMP(a, b) SbStringCompare((a), (b), kSbInt32Max)
+#define XML_STRCMP strcmp
 
 /* strncmp() wrapping */
-#define XML_STRNCMP SbStringCompare
+#define XML_STRNCMP strncmp
 
 /* strchr() wrapping */
-#define XML_STRCHR SbStringFindCharacter
+#define XML_STRCHR strchr
 
 /* vsnprintf() wrapping */
-#define XML_VSNPRINTF SbStringFormat
+#define XML_VSNPRINTF vsnprintf

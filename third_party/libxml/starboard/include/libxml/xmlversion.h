@@ -1,6 +1,6 @@
 /*
- * Summary: compile-time version informations
- * Description: compile-time version informations for the XML library
+ * Summary: compile-time version information
+ * Description: compile-time version information for the XML library
  *
  * Copy: See Copyright for the status of this software.
  *
@@ -29,21 +29,21 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * the version string like "1.2.3"
  */
-#define LIBXML_DOTTED_VERSION "2.7.7"
+#define LIBXML_DOTTED_VERSION "2.9.10"
 
 /**
  * LIBXML_VERSION:
  *
  * the version number: 1.2.3 value is 10203
  */
-#define LIBXML_VERSION 20707
+#define LIBXML_VERSION 20910
 
 /**
  * LIBXML_VERSION_STRING:
  *
  * the version number string, 1.2.3 value is "10203"
  */
-#define LIBXML_VERSION_STRING "20707"
+#define LIBXML_VERSION_STRING "20910"
 
 /**
  * LIBXML_VERSION_EXTRA:
@@ -58,7 +58,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Macro to check that the libxml version in use is compatible with
  * the version the software has been compiled against
  */
-#define LIBXML_TEST_VERSION xmlCheckVersion(20707);
+#define LIBXML_TEST_VERSION xmlCheckVersion(20910);
 
 #ifndef VMS
 #if 0
@@ -91,11 +91,16 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Whether the thread support is configured in
  */
 #if 0
-#if defined(_REENTRANT) || defined(__MT__) || \
-    (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE - 0 >= 199506L)) || \
-    defined(__LB_SHELL__)
 #define LIBXML_THREAD_ENABLED
 #endif
+
+/**
+ * LIBXML_THREAD_ALLOC_ENABLED:
+ *
+ * Whether the allocation hooks are per-thread
+ */
+#if 0
+#define LIBXML_THREAD_ALLOC_ENABLED
 #endif
 
 /**
@@ -202,7 +207,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the deprecated APIs are compiled in for compatibility
  */
-#if 1
+#if 0
 #define LIBXML_LEGACY_ENABLED
 #endif
 
@@ -345,8 +350,10 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * LIBXML_EXPR_ENABLED:
  *
  * Whether the formal expressions interfaces are compiled in
+ *
+ * This code is unused and disabled unconditionally for now.
  */
-#if 1
+#if 0
 #define LIBXML_EXPR_ENABLED
 #endif
 

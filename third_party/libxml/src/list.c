@@ -9,7 +9,7 @@
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- * MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHORS AND
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE AUTHORS AND
  * CONTRIBUTORS ACCEPT NO RESPONSIBILITY IN ANY CONCEIVABLE MANNER.
  *
  * Author: Gary.Pennington@uk.sun.com
@@ -18,12 +18,8 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/list.h>
 #include <libxml/globals.h>
@@ -198,7 +194,7 @@ xmlListCreate(xmlListDeallocator deallocator, xmlListDataCompare compare)
         return (NULL);
     }
     /* Initialize the list to NULL */
-    XML_MEMSET(l, 0, sizeof(xmlList));
+    memset(l, 0, sizeof(xmlList));
 
     /* Add the sentinel */
     if (NULL ==(l->sentinel = (xmlLinkPtr )xmlMalloc(sizeof(xmlLink)))) {
@@ -351,7 +347,7 @@ void xmlListDelete(xmlListPtr l)
  *
  * Remove the first instance associated to data in the list
  *
- * Returns 1 if a deallocation occured, or 0 if not found
+ * Returns 1 if a deallocation occurred, or 0 if not found
  */
 int
 xmlListRemoveFirst(xmlListPtr l, void *data)
@@ -376,7 +372,7 @@ xmlListRemoveFirst(xmlListPtr l, void *data)
  *
  * Remove the last instance associated to data in the list
  *
- * Returns 1 if a deallocation occured, or 0 if not found
+ * Returns 1 if a deallocation occurred, or 0 if not found
  */
 int
 xmlListRemoveLast(xmlListPtr l, void *data)
@@ -677,7 +673,7 @@ xmlListSort(xmlListPtr l)
  * apply the walker function to it
  */
 void
-xmlListWalk(xmlListPtr l, xmlListWalker walker, const void *user) {
+xmlListWalk(xmlListPtr l, xmlListWalker walker, void *user) {
     xmlLinkPtr lk;
 
     if ((l == NULL) || (walker == NULL))
@@ -698,7 +694,7 @@ xmlListWalk(xmlListPtr l, xmlListWalker walker, const void *user) {
  * apply the walker function to it
  */
 void
-xmlListReverseWalk(xmlListPtr l, xmlListWalker walker, const void *user) {
+xmlListReverseWalk(xmlListPtr l, xmlListWalker walker, void *user) {
     xmlLinkPtr lk;
 
     if ((l == NULL) || (walker == NULL))
