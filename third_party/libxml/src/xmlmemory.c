@@ -7,9 +7,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -77,7 +75,7 @@ void xmlMallocBreakpoint(void);
 #endif
 
 /*
- * Each of the blocks allocated begin with a header containing informations
+ * Each of the blocks allocated begin with a header containing information
  */
 
 #define MEMTAG 0x5aa5
@@ -111,8 +109,9 @@ typedef struct memnod {
 #define RESERVE_SIZE (((HDR_SIZE + (ALIGN_SIZE-1)) \
 		      / ALIGN_SIZE ) * ALIGN_SIZE)
 
+#define MAX_SIZE_T ((size_t)-1)
 
-#define CLIENT_2_HDR(a) ((MEMHDR *) (((char *) (a)) - RESERVE_SIZE))
+#define CLIENT_2_HDR(a) ((void *) (((char *) (a)) - RESERVE_SIZE))
 #define HDR_2_CLIENT(a)    ((void *) (((char *) (a)) + RESERVE_SIZE))
 
 
@@ -154,7 +153,7 @@ xmlMallocBreakpoint(void) {
  * @file:  the file name or NULL
  * @line:  the line number
  *
- * a XML_MALLOC() equivalent, with logging of the allocation info.
+ * a malloc() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the allocated area or NULL in case of lack of memory.
  */
@@ -172,6 +171,13 @@ xmlMallocLoc(size_t size, const char * file, int line)
 #endif
 
     TEST_POINT
+
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMallocLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
 
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
@@ -219,11 +225,11 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
 /**
  * xmlMallocAtomicLoc:
- * @size:  an int specifying the size in byte to allocate.
+ * @size:  an unsigned int specifying the size in byte to allocate.
  * @file:  the file name or NULL
  * @line:  the line number
  *
- * a XML_MALLOC() equivalent, with logging of the allocation info.
+ * a malloc() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the allocated area or NULL in case of lack of memory.
  */
@@ -242,11 +248,18 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMallocAtomicLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
+
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
-		"xmlMallocLoc : Out of free space\n");
+		"xmlMallocAtomicLoc : Out of free space\n");
 	xmlMemoryDump();
 	return(NULL);
     }
@@ -289,7 +302,7 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
  * xmlMemMalloc:
  * @size:  an int specifying the size in byte to allocate.
  *
- * a XML_MALLOC() equivalent, with logging of the allocation info.
+ * a malloc() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the allocated area or NULL in case of lack of memory.
  */
@@ -307,7 +320,7 @@ xmlMemMalloc(size_t size)
  * @file:  the file name or NULL
  * @line:  the line number
  *
- * a XML_REALLOC() equivalent, with logging of the allocation info.
+ * a realloc() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the allocated area or NULL in case of lack of memory.
  */
@@ -345,6 +358,13 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
     debugmem_list_delete(p);
 #endif
     xmlMutexUnlock(xmlMemMutex);
+
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlReallocLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
 
     tmp = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
     if (!tmp) {
@@ -391,7 +411,7 @@ error:
  * @ptr:  the initial memory block pointer
  * @size:  an int specifying the size in byte to allocate.
  *
- * a XML_REALLOC() equivalent, with logging of the allocation info.
+ * a realloc() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the allocated area or NULL in case of lack of memory.
  */
@@ -405,7 +425,7 @@ xmlMemRealloc(void *ptr,size_t size) {
  * xmlMemFree:
  * @ptr:  the memory block pointer
  *
- * a XML_FREE() equivalent, with error checking.
+ * a free() equivalent, with error checking.
  */
 void
 xmlMemFree(void *ptr)
@@ -442,7 +462,7 @@ xmlMemFree(void *ptr)
     }
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
     p->mh_tag = ~MEMTAG;
-    XML_MEMSET(target, -1, p->mh_size);
+    memset(target, -1, p->mh_size);
     xmlMutexLock(xmlMemMutex);
     debugMemSize -= p->mh_size;
     debugMemBlocks--;
@@ -467,7 +487,7 @@ xmlMemFree(void *ptr)
 
 error:
     xmlGenericError(xmlGenericErrorContext,
-	    "xmlMemFree(%lX) error\n", (unsigned long) ptr);
+	    "xmlMemFree(%p) error\n", ptr);
     xmlMallocBreakpoint();
     return;
 }
@@ -478,7 +498,7 @@ error:
  * @file:  the file name or NULL
  * @line:  the line number
  *
- * a XML_STRDUP() equivalent, with logging of the allocation info.
+ * a strdup() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the new string or NULL if allocation error occurred.
  */
@@ -487,11 +507,18 @@ char *
 xmlMemStrdupLoc(const char *str, const char *file, int line)
 {
     char *s;
-    size_t size = XML_STRLEN(str) + 1;
+    size_t size = strlen(str) + 1;
     MEMHDR *p;
 
     if (!xmlMemInitialized) xmlInitMemory();
     TEST_POINT
+
+    if (size > (MAX_SIZE_T - RESERVE_SIZE)) {
+	xmlGenericError(xmlGenericErrorContext,
+		"xmlMemStrdupLoc : Unsigned overflow\n");
+	xmlMemoryDump();
+	return(NULL);
+    }
 
     p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
     if (!p) {
@@ -516,7 +543,7 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
 
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
 
-    XML_STRNCPY(s,str,size);
+    strcpy(s,str);
 
     TEST_POINT
 
@@ -536,7 +563,7 @@ error:
  * xmlMemoryStrdup:
  * @str:  the initial string pointer
  *
- * a XML_STRDUP() equivalent, with logging of the allocation info.
+ * a strdup() equivalent, with logging of the allocation info.
  *
  * Returns a pointer to the new string or NULL if allocation error occurred.
  */
@@ -556,7 +583,12 @@ xmlMemoryStrdup(const char *str) {
 
 int
 xmlMemUsed(void) {
-     return(debugMemSize);
+    int res;
+
+    xmlMutexLock(xmlMemMutex);
+    res = debugMemSize;
+    xmlMutexUnlock(xmlMemMutex);
+    return(res);
 }
 
 /**
@@ -569,7 +601,12 @@ xmlMemUsed(void) {
 
 int
 xmlMemBlocks(void) {
-     return(debugMemBlocks);
+    int res;
+
+    xmlMutexLock(xmlMemMutex);
+    res = debugMemBlocks;
+    xmlMutexUnlock(xmlMemMutex);
+    return(res);
 }
 
 #ifdef MEM_LIST
@@ -675,9 +712,9 @@ xmlMemDisplayLast(FILE *fp, long nbBytes)
 	  fprintf(fp,"%-5u  %6lu %6lu ",idx++,p->mh_number,
 		  (unsigned long)p->mh_size);
         switch (p->mh_type) {
-           case STRDUP_TYPE:fprintf(fp,"XML_STRDUP()  in ");break;
-           case MALLOC_TYPE:fprintf(fp,"XML_MALLOC()  in ");break;
-           case REALLOC_TYPE:fprintf(fp,"XML_REALLOC() in ");break;
+           case STRDUP_TYPE:fprintf(fp,"strdup()  in ");break;
+           case MALLOC_TYPE:fprintf(fp,"malloc()  in ");break;
+           case REALLOC_TYPE:fprintf(fp,"realloc() in ");break;
            case MALLOC_ATOMIC_TYPE:fprintf(fp,"atomicmalloc()  in ");break;
            case REALLOC_ATOMIC_TYPE:fprintf(fp,"atomicrealloc() in ");break;
            default:
@@ -707,9 +744,7 @@ xmlMemDisplayLast(FILE *fp, long nbBytes)
     if (old_fp == NULL)
 	fclose(fp);
 }
-#endif
 
-#ifndef STARBOARD
 /**
  * xmlMemDisplay:
  * @fp:  a FILE descriptor used as the output file, if NULL, the result is
@@ -758,9 +793,9 @@ xmlMemDisplay(FILE *fp)
 	  fprintf(fp,"%-5u  %6lu %6lu ",idx++,p->mh_number,
 		  (unsigned long)p->mh_size);
         switch (p->mh_type) {
-           case STRDUP_TYPE:fprintf(fp,"XML_STRDUP()  in ");break;
-           case MALLOC_TYPE:fprintf(fp,"XML_MALLOC()  in ");break;
-           case REALLOC_TYPE:fprintf(fp,"XML_REALLOC() in ");break;
+           case STRDUP_TYPE:fprintf(fp,"strdup()  in ");break;
+           case MALLOC_TYPE:fprintf(fp,"malloc()  in ");break;
+           case REALLOC_TYPE:fprintf(fp,"realloc() in ");break;
            case MALLOC_ATOMIC_TYPE:fprintf(fp,"atomicmalloc()  in ");break;
            case REALLOC_ATOMIC_TYPE:fprintf(fp,"atomicrealloc() in ");break;
            default:
@@ -789,7 +824,7 @@ xmlMemDisplay(FILE *fp)
     if (old_fp == NULL)
 	fclose(fp);
 }
-#endif
+#endif  // #ifndef STARBOARD
 
 #ifdef MEM_LIST
 
@@ -868,10 +903,10 @@ xmlMemShow(FILE *fp, int nr ATTRIBUTE_UNUSED)
 	while ((p) && nr > 0) {
 	      fprintf(fp,"%6lu %6lu ",p->mh_number,(unsigned long)p->mh_size);
 	    switch (p->mh_type) {
-	       case STRDUP_TYPE:fprintf(fp,"XML_STRDUP()  in ");break;
-	       case MALLOC_TYPE:fprintf(fp,"XML_MALLOC()  in ");break;
+	       case STRDUP_TYPE:fprintf(fp,"strdup()  in ");break;
+	       case MALLOC_TYPE:fprintf(fp,"malloc()  in ");break;
 	       case MALLOC_ATOMIC_TYPE:fprintf(fp,"atomicmalloc()  in ");break;
-	      case REALLOC_TYPE:fprintf(fp,"XML_REALLOC() in ");break;
+	      case REALLOC_TYPE:fprintf(fp,"realloc() in ");break;
 	      case REALLOC_ATOMIC_TYPE:fprintf(fp,"atomicrealloc() in ");break;
 		default:fprintf(fp,"   ???    in ");break;
 	    }
@@ -888,7 +923,7 @@ xmlMemShow(FILE *fp, int nr ATTRIBUTE_UNUSED)
     xmlMutexUnlock(xmlMemMutex);
 #endif /* MEM_LIST */
 }
-#endif
+#endif  // #ifndef STARBOARD
 
 /**
  * xmlMemoryDump:
@@ -950,13 +985,13 @@ xmlInitMemory(void)
 #ifdef HAVE_STDLIB_H
      breakpoint = getenv("XML_MEM_BREAKPOINT");
      if (breakpoint != NULL) {
-         XML_SSCANF(breakpoint, "%ud", &xmlMemStopAtBlock);
+         sscanf(breakpoint, "%ud", &xmlMemStopAtBlock);
      }
 #endif
 #ifdef HAVE_STDLIB_H
      breakpoint = getenv("XML_MEM_TRACE");
      if (breakpoint != NULL) {
-         XML_SSCANF(breakpoint, "%p", &xmlMemTraceBlockAt);
+         sscanf(breakpoint, "%p", &xmlMemTraceBlockAt);
      }
 #endif
 
@@ -993,10 +1028,10 @@ xmlCleanupMemory(void) {
 
 /**
  * xmlMemSetup:
- * @freeFunc: the XML_FREE() function to use
- * @mallocFunc: the XML_MALLOC() function to use
- * @reallocFunc: the XML_REALLOC() function to use
- * @strdupFunc: the XML_STRDUP() function to use
+ * @freeFunc: the free() function to use
+ * @mallocFunc: the malloc() function to use
+ * @reallocFunc: the realloc() function to use
+ * @strdupFunc: the strdup() function to use
  *
  * Override the default memory access functions with a new set
  * This has to be called before any other libxml routines !
@@ -1035,10 +1070,10 @@ xmlMemSetup(xmlFreeFunc freeFunc, xmlMallocFunc mallocFunc,
 
 /**
  * xmlMemGet:
- * @freeFunc: place to save the XML_FREE() function in use
- * @mallocFunc: place to save the XML_MALLOC() function in use
- * @reallocFunc: place to save the XML_REALLOC() function in use
- * @strdupFunc: place to save the XML_STRDUP() function in use
+ * @freeFunc: place to save the free() function in use
+ * @mallocFunc: place to save the malloc() function in use
+ * @reallocFunc: place to save the realloc() function in use
+ * @strdupFunc: place to save the strdup() function in use
  *
  * Provides the memory access functions set currently in use
  *
@@ -1056,11 +1091,11 @@ xmlMemGet(xmlFreeFunc *freeFunc, xmlMallocFunc *mallocFunc,
 
 /**
  * xmlGcMemSetup:
- * @freeFunc: the XML_FREE() function to use
- * @mallocFunc: the XML_MALLOC() function to use
- * @mallocAtomicFunc: the XML_MALLOC() function to use for atomic allocations
- * @reallocFunc: the XML_REALLOC() function to use
- * @strdupFunc: the XML_STRDUP() function to use
+ * @freeFunc: the free() function to use
+ * @mallocFunc: the malloc() function to use
+ * @mallocAtomicFunc: the malloc() function to use for atomic allocations
+ * @reallocFunc: the realloc() function to use
+ * @strdupFunc: the strdup() function to use
  *
  * Override the default memory access functions with a new set
  * This has to be called before any other libxml routines !
@@ -1104,11 +1139,11 @@ xmlGcMemSetup(xmlFreeFunc freeFunc, xmlMallocFunc mallocFunc,
 
 /**
  * xmlGcMemGet:
- * @freeFunc: place to save the XML_FREE() function in use
- * @mallocFunc: place to save the XML_MALLOC() function in use
- * @mallocAtomicFunc: place to save the atomic XML_MALLOC() function in use
- * @reallocFunc: place to save the XML_REALLOC() function in use
- * @strdupFunc: place to save the XML_STRDUP() function in use
+ * @freeFunc: place to save the free() function in use
+ * @mallocFunc: place to save the malloc() function in use
+ * @mallocAtomicFunc: place to save the atomic malloc() function in use
+ * @reallocFunc: place to save the realloc() function in use
+ * @strdupFunc: place to save the strdup() function in use
  *
  * Provides the memory access functions set currently in use
  * The mallocAtomicFunc is specialized for atomic block

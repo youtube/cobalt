@@ -17,9 +17,7 @@
 #ifndef __XML_CATALOG_H__
 #define __XML_CATALOG_H__
 
-#ifdef HAVE_STDIO_H
 #include <stdio.h>
-#endif
 
 #include <libxml/xmlversion.h>
 #include <libxml/xmlstring.h>
@@ -41,7 +39,7 @@ extern "C" {
 /**
  * XML_CATALOG_PI:
  *
- * The specific XML Catalog Processing Instuction name.
+ * The specific XML Catalog Processing Instruction name.
  */
 #define XML_CATALOG_PI						\
     (const xmlChar *) "oasis-xml-catalog"

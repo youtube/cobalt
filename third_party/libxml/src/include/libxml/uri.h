@@ -67,11 +67,9 @@ XMLPUBFUN int XMLCALL
 					 const char *str);
 XMLPUBFUN xmlChar * XMLCALL
 		xmlSaveUri		(xmlURIPtr uri);
-#ifndef COBALT
 XMLPUBFUN void XMLCALL
 		xmlPrintURI		(FILE *stream,
 					 xmlURIPtr uri);
-#endif
 XMLPUBFUN xmlChar * XMLCALL
 		xmlURIEscapeStr         (const xmlChar *str,
 					 const xmlChar *list);

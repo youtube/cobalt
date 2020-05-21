@@ -54,11 +54,9 @@ XMLPUBFUN void XMLCALL			 xmlRegFreeRegexp(xmlRegexpPtr regexp);
 XMLPUBFUN int XMLCALL
 		    xmlRegexpExec	(xmlRegexpPtr comp,
 					 const xmlChar *value);
-#ifndef COBALT
 XMLPUBFUN void XMLCALL
 		    xmlRegexpPrint	(FILE *output,
 					 xmlRegexpPtr regexp);
-#endif
 XMLPUBFUN int XMLCALL
 		    xmlRegexpIsDeterminist(xmlRegexpPtr comp);
 
