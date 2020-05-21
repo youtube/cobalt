@@ -100,6 +100,12 @@
 #include "handler/linux/exception_handler_server.h"
 #endif  // OS_MACOSX
 
+#if defined(STARBOARD)
+// Stub out required starboard implementation as this is built in parallel.
+#include "starboard/event.h"
+void SbEventHandle(const SbEvent* event) {}
+#endif  // defined(STARBOARD)
+
 namespace crashpad {
 
 namespace {

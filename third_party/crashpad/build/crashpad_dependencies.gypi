@@ -32,9 +32,6 @@
   # and its copy of the gtest library.
 
   'variables': {
-    # When with external dependencies, build/gyp_crashpad.py sets
-    # crashpad_dependencies to "external", and this % assignment will not
-    # override it.
-    'crashpad_dependencies%': 'standalone',
+    'crashpad_dependencies%': 'external',
   },
 }
