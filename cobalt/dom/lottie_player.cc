@@ -59,6 +59,12 @@ void LottiePlayer::set_autoplay(bool autoplay) {
   }
 }
 
+int LottiePlayer::count() const { return properties_.count; }
+
+void LottiePlayer::set_count(int count) {
+  SetAttribute("count", base::Int32ToString(count));
+}
+
 int LottiePlayer::direction() const { return properties_.direction; }
 
 void LottiePlayer::set_direction(int direction) {
@@ -155,16 +161,23 @@ void LottiePlayer::SetSpeed(double speed) {
   }
 }
 
-LottieAnimation::LottieProperties LottiePlayer::GetUpdatedProperties() {
-  // The state may not have be initialized properly if the animation is
-  // autoplaying.
-  if (autoplaying_) {
-    LottieAnimation::LottieState state =
-        autoplay() ? LottieAnimation::LottieState::kPlaying
-                   : LottieAnimation::LottieState::kStopped;
-    properties_.UpdateState(state);
-  }
+void LottiePlayer::ToggleLooping() {
+  // https://github.com/LottieFiles/lottie-player#togglelooping--void
+  properties_.ToggleLooping();
+  UpdateLottieObjects();
+}
 
+void LottiePlayer::TogglePlay() {
+  // https://github.com/LottieFiles/lottie-player#toggleplay--void
+  UpdatePlaybackStateForAutoplay();
+  properties_.TogglePlay();
+
+  autoplaying_ = false;
+  UpdateLottieObjects();
+}
+
+LottieAnimation::LottieProperties LottiePlayer::GetUpdatedProperties() {
+  UpdatePlaybackStateForAutoplay();
   return properties_;
 }
 
@@ -181,6 +194,10 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
                                   const std::string& value) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "count") {
+    int count;
+    base::StringToInt32(value, &count);
+    SetCount(count);
   } else if (name == "direction") {
     int direction;
     base::StringToInt32(value, &direction);
@@ -199,6 +216,8 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
 void LottiePlayer::OnRemoveAttribute(const std::string& name) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "count") {
+    SetCount(LottieAnimation::LottieProperties::kDefaultCount);
   } else if (name == "direction") {
     SetDirection(LottieAnimation::LottieProperties::kDefaultDirection);
   } else if (name == "loop") {
@@ -269,6 +288,7 @@ void LottiePlayer::OnLoadingSuccess() {
   // Set up the Lottie objects in the box and render trees once the file has
   // successfully loaded.
   UpdateLottieObjects();
+  ScheduleEvent(base::Tokens::load());
 }
 
 void LottiePlayer::OnLoadingError() {
@@ -279,6 +299,7 @@ void LottiePlayer::OnLoadingError() {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
   cached_image_loaded_callback_handler_.reset();
+  ScheduleEvent(base::Tokens::error());
 }
 
 void LottiePlayer::PreventGarbageCollectionUntilEventIsDispatched(
@@ -321,6 +342,23 @@ void LottiePlayer::UpdateState(LottieAnimation::LottieState state) {
     } else if (state == LottieAnimation::LottieState::kStopped) {
       ScheduleEvent(base::Tokens::stop());
     }
+  }
+}
+
+void LottiePlayer::UpdatePlaybackStateForAutoplay() {
+  // The state may not have be initialized properly if the animation is
+  // autoplaying.
+  if (autoplaying_) {
+    LottieAnimation::LottieState state =
+        autoplay() ? LottieAnimation::LottieState::kPlaying
+                   : LottieAnimation::LottieState::kStopped;
+    properties_.UpdateState(state);
+  }
+}
+
+void LottiePlayer::SetCount(int count) {
+  if (properties_.UpdateCount(count)) {
+    UpdateLottieObjects();
   }
 }
 
