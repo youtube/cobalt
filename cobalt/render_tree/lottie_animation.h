@@ -31,6 +31,10 @@ class LottieAnimation : public Image {
 
   // https://lottiefiles.github.io/lottie-player/properties.html
   struct LottieProperties {
+    // Since an explicitly specified value of |count| must be greater than 0,
+    // a default value of -1 indicates that there is no limit to the number of
+    // times the animation should loop.
+    static constexpr int kDefaultCount = -1;
     static constexpr int kDefaultDirection = 1;
     static constexpr bool kDefaultLoop = false;
     static constexpr double kDefaultSpeed = 1;
@@ -47,6 +51,16 @@ class LottieAnimation : public Image {
         return false;
       }
       state = new_state;
+      return true;
+    }
+
+    // Return true if |count| is updated to a new & valid number.
+    bool UpdateCount(int new_count) {
+      // |count| must be positive.
+      if (new_count <= 0 || new_count == count) {
+        return false;
+      }
+      count = new_count;
       return true;
     }
 
@@ -103,11 +117,22 @@ class LottieAnimation : public Image {
       ++seek_counter;
     }
 
+    void ToggleLooping() { loop = !loop; }
+
+    void TogglePlay() {
+      if (state == LottieState::kPlaying) {
+        state = LottieState::kPaused;
+      } else {
+        state = LottieState::kPlaying;
+      }
+    }
+
     // |state| indicates whether the animation is playing (visible and
     // animating), paused (visible but not animating), or stopped (not visible
     // and frame time = 0).
     LottieState state = LottieState::kStopped;
 
+    int count = kDefaultCount;
     int direction = kDefaultDirection;
     bool loop = kDefaultLoop;
     double speed = kDefaultSpeed;

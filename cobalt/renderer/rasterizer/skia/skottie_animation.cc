@@ -51,20 +51,34 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
     return;
   }
 
+  // Reset |current_animation_time| to the start of the animation if the
+  // animation is stopped.
+  if (properties_.state == LottieState::kStopped) {
+    skottie_animation_->seekFrameTime(0);
+    current_animation_time_ = base::TimeDelta();
+    last_updated_animate_function_time_ = animate_function_time;
+    return;
+  }
+
+  // Update |current_animation_time_| if the animation is playing.
   if (properties_.state == LottieState::kPlaying) {
-    // Only update |current_animation_time_| if the animation is playing.
     base::TimeDelta time_elapsed =
         animate_function_time - last_updated_animate_function_time_;
     current_animation_time_ += time_elapsed * properties_.speed;
-  } else if (properties_.state == LottieState::kStopped) {
-    // Reset to the start of the animation if it has been stopped.
-    current_animation_time_ = base::TimeDelta();
   }
 
   double current_frame_time = current_animation_time_.InSecondsF();
   if (properties_.loop) {
-    current_frame_time = std::fmod(current_animation_time_.InSecondsF(),
-                                   skottie_animation_->duration());
+    // Note: LottieProperties::count refers to the number of loops after the
+    // animation plays once through.
+    if (properties_.count > 0 &&
+        current_frame_time / skottie_animation_->duration() >=
+            (properties_.count + 1)) {
+      current_frame_time = skottie_animation_->duration();
+    } else {
+      current_frame_time =
+          std::fmod(current_frame_time, skottie_animation_->duration());
+    }
   }
   if (properties_.direction == -1) {
     current_frame_time = skottie_animation_->duration() - current_frame_time;
