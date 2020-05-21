@@ -116,7 +116,7 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_SSIZE_T`**<br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF32`**<br><br>Type detection for wchar_t.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF16`**<br><br>The default value in the Stub implementation is `1` |
-| **`SB_IS_WCHAR_T_UNSIGNED`**<br><br>Chrome only defines these two if ARMEL or MIPSEL are defined. Chrome has an exclusion for iOS here, we should too when we support iOS.<br><br>The default value in the Stub implementation is `1` |
+| **`SB_IS_WCHAR_T_UNSIGNED`**<br><br>Chrome only defines this if ARMEL is defined. Chrome has an exclusion for iOS here, we should too when we support iOS.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_SIGNED`**<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_SOCKET_BSD_HEADERS`**<br><br>This quirk is used to switch the headers included in starboard/shared/linux/socket_get_interface_address.cc for darwin system headers. It may be removed at some point in favor of a different solution.<br><br>By default, this property is undefined. |
 
