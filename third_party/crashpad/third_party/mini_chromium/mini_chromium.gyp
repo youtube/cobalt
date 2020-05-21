@@ -35,10 +35,10 @@
         }],
         ['crashpad_dependencies=="external"', {
           'dependencies': [
-            '../../../../mini_chromium/mini_chromium/base/base.gyp:base',
+            '<(DEPTH)/third_party/mini_chromium/base/base.gyp:base',
           ],
           'export_dependent_settings': [
-            '../../../../mini_chromium/mini_chromium/base/base.gyp:base',
+            '<(DEPTH)/third_party/mini_chromium/base/base.gyp:base',
           ],
         }],
       ],

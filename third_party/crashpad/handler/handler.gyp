@@ -31,11 +31,17 @@
         '../third_party/zlib/zlib.gyp:zlib',
         '../tools/tools.gyp:crashpad_tool_support',
         '../util/util.gyp:crashpad_util',
+        '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto_full',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'include_dirs': [
         '..',
       ],
+      'defines': [
+        'CRASHPAD_USE_BORINGSSL',
+      ],
       'sources': [
+        '../util/net/http_transport_socket.cc',
         'crash_report_upload_thread.cc',
         'crash_report_upload_thread.h',
         'handler_main.cc',
