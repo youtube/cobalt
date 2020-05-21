@@ -293,15 +293,6 @@ improvements in many high profile projects.
 **Tags:** *framerate, startup, browse-to-watch, input latency*
 
 
-#### The GCC '-mplt' flag for MIPS architectures
-The '-mplt' flag has been found to improve all around performance by
-~20% on MIPS architecture platforms.  If your platform has a MIPS
-architecture, it is suggested that you enable this flag in gold builds.
-
-**Tags:** *gyp_configuration.gypi, framerate, startup, browse-to-watch,
-           input latency.*
-
-
 ### Close "Stats for Nerds" when measuring performance
 
 The YouTube web app offers a feature called "Stats for Nerds" that enables
