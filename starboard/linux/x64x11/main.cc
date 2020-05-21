@@ -20,10 +20,16 @@
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
+#include "third_party/crashpad/wrapper/wrapper.h"
+
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  third_party::crashpad::wrapper::InstallCrashpadHandler();
+#endif
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
   // Call backtrace() once to work around potential
