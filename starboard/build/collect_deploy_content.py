@@ -39,6 +39,26 @@ def _ClearDir(path):
   port_symlink.Rmtree(path)
 
 
+def _CheckDepth(max_depth, content_dir):
+  """Check that the number of content path components doesn't exceed max_depth.
+
+  The depth is counted as each path component from the content directory itself
+  to the deepest file, inclusive.
+  """
+  # Tuple (depth, path) of a file that's deepest in content_dir.
+  walk_deepest = max(
+      (root.count(os.sep) + 1, os.path.join(root, (files + dirs)[0]))
+      for root, dirs, files in os.walk(content_dir, followlinks=True))
+  # Relative path of the deepest file, including the content directory itself.
+  deepest_file = os.path.relpath(walk_deepest[1],
+                                 os.path.join(content_dir, os.pardir))
+  depth = deepest_file.count(os.sep) + 1  # +1 for fencepost error
+  logging.info('depth %d: %s', depth, deepest_file)
+  if depth > max_depth:
+    raise RuntimeError('Content is %d levels deep (max allowed is %d): %s' %
+                       (depth, max_depth, deepest_file))
+
+
 def main(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -50,6 +70,12 @@ def main(argv):
       dest='stamp_file',
       required=True,
       help='stamp file to update after the output directory is populated')
+  parser.add_argument(
+      '--max_depth',
+      type=int,
+      help='maximum depth of directories allowed. Depth is not checked if '
+      'unspecified or 0. E.g. if output_dir is "content/" then '
+      '"content/web/foo/file.txt" is depth of 4.')
   parser.add_argument(
       '--use_absolute_symlinks',
       action='store_true',
@@ -67,6 +93,7 @@ def main(argv):
     log_level = logging.WARNING
   logging.basicConfig(level=log_level, format='COLLECT CONTENT: %(message)s')
 
+  logging.info('max_depth: %s', options.max_depth)
   logging.info('< %s', options.input_dir)
   logging.info('> %s', options.output_dir)
   for subdir in options.subdirs:
@@ -113,6 +140,9 @@ def main(argv):
           link_path=os.path.abspath(dst_path))
     else:
       port_symlink.MakeSymLink(target_path=rel_path, link_path=dst_path)
+
+  if options.max_depth:
+    _CheckDepth(options.max_depth, options.output_dir)
 
   if options.stamp_file:
     with open(options.stamp_file, 'w') as stamp_file:
