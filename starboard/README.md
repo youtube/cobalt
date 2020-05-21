@@ -63,11 +63,11 @@ different device architectures so it will need to define multiple platform
 configurations.
 
 All the BobCo devices are called BobBox, so it's a reasonable choice as a
-product `<family-name>`. But they have both big- and little-endian MIPS
+product `<family-name>`. But they have both big- and little-endian ARM
 chips. So they might define two platform configurations:
 
-  1. `bobbox-mipseb` - For big-endian MIPS devices.
-  1. `bobbox-mipsel` - For little-endian MIPS devices.
+  1. `bobbox-armeb` - For big-endian ARM devices.
+  1. `bobbox-armel` - For little-endian ARM devices.
 
 
 ### II. Choose a Location in the Source Tree for Your Starboard Port
@@ -99,14 +99,14 @@ In the BobCo's BobBox example, we would see something like:
 
   * `src/third_party/starboard/bobbox/`
       * `shared/`
-      * `mipseb/`
+      * `armeb/`
           * `atomic_public.h`
           * `configuration_public.h`
           * `gyp_configuration.gypi`
           * `gyp_configuration.py`
           * `starboard_platform.gyp`
           * `thread_types_public.h`
-      * `mipsel/`
+      * `armel/`
           * `atomic_public.h`
           * `configuration_public.h`
           * `gyp_configuration.gypi`
@@ -126,14 +126,14 @@ In the BobCo's BobBox example, we would see a directory tree like:
 
   * `src/third_party/starboard/bobbox/`
       * `shared/`
-      * `mipseb/`
+      * `armeb/`
           * `buildconfig.gni`
           * `configuration.gni`
           * `atomic_public.h`
           * `BUILD.gn`
           * `configuration_public.h`
           * `thread_types_public.h`
-      * `mipsel/`
+      * `armel/`
           * `buildconfig.gni`
           * `configuration.gni`
           * `atomic_public.h`
@@ -164,10 +164,10 @@ module-by-module, until you have gone through all modules.
 You may also choose to copy either the Desktop Linux or Raspberry Pi ports and
 work backwards fixing things that don't compile or work on your platform.
 
-For example, for `bobbox-mipsel`, you might do:
+For example, for `bobbox-armel`, you might do:
 
     mkdir -p src/third_party/starboard/bobbox
-    cp -R src/starboard/stub src/third_party/starboard/bobbox/mipsel
+    cp -R src/starboard/stub src/third_party/starboard/bobbox/armel
 
 Modify the files in `<binary-variant>/` as appropriate (you will probably be
 coming back to these files a lot).
@@ -185,8 +185,8 @@ the header files `configuration_public.h`, `atomic_public.h`, and
 `thread_types_public.h`. `gyp_cobalt` will scan your directories for these
 files, and then calculate a port name based on the directories between
 `src/third_party/starboard` and your `gyp_configuration.*` files. (e.g. for
-`src/third_party/starboard/bobbox/mipseb/gyp_configuration.py`, it would choose
-the platform configuration name `bobbox-mipseb`.)
+`src/third_party/starboard/bobbox/armeb/gyp_configuration.py`, it would choose
+the platform configuration name `bobbox-armeb`.)
 
 #### GN Instructions
 
@@ -205,8 +205,8 @@ own directory for each binary variant, plus the header files
 build will scan your directories for these files, and then calculate a port name
 based on the directories between `src/third_party/starboard` and your
 `configuration.gni` files. (e.g. for
-`src/third_party/starboard/bobbox/mipseb/configuration.gni`, it would choose the
-platform configuration name `bobbox-mipseb`.)
+`src/third_party/starboard/bobbox/armeb/configuration.gni`, it would choose the
+platform configuration name `bobbox-armeb`.)
 
 
 ### IV. A New Port, Step-by-Step
@@ -218,7 +218,7 @@ platform configuration name `bobbox-mipseb`.)
   1. In `gyp_configuration.py`
       1. In the `CreatePlatformConfig()` function, pass your
          `<platform-configuration>` as the parameter to the PlatformConfig
-         constructor, like `return PlatformConfig('bobbox-mipseb')`.
+         constructor, like `return PlatformConfig('bobbox-armeb')`.
       1. In `GetVariables`
           1. Set `'clang': 1` if your toolchain is clang.
           1. Delete other variables in that function that are not needed for
@@ -231,8 +231,8 @@ platform configuration name `bobbox-mipseb`.)
          configuration name, where `<build-type>` is one of `debug`, `devel`,
          `qa`, `gold`.
       1. Update your platform variables.
-          1. Set `'target_arch'` to your architecture: `'arm'`, `'ppc'`,
-             `'x64'`, `'x86'`, `'mips'`
+          1. Set `'target_arch'` to your architecture: `'arm'`,
+             `'x64'`, `'x86'`
           1. Set `'target_os': 'linux'` if your platform is Linux-based.
           1. Set `'gl_type': 'system_gles2'` if you are using the system EGL +
              GLES2 implementation.
@@ -255,8 +255,8 @@ platform configuration name `bobbox-mipseb`.)
 
 You should now be able to run gyp with your new port. From your `src/` directory:
 
-    $ cobalt/build/gyp_cobalt -C debug bobbox-mipseb
-    $ ninja -C out/bobbox-mipseb_debug nplb
+    $ cobalt/build/gyp_cobalt -C debug bobbox-armeb
+    $ ninja -C out/bobbox-armeb_debug nplb
 
 This will attempt to build the "No Platform Left Behind" test suite with your
 new Starboard implementation, and you are ready to start porting!
@@ -275,8 +275,8 @@ Follow the above list, except:
       1. If you're not using a predefined toolchain, define one.
   1. In `buildconfig.gni`:
       1. If your platform is Linux-based, set `target_os_ = "linux"`.
-      1. Set `target_cpu_` to your target architecture (e.g. `arm`, `ppc`,
-         `x64`, `x86`, `mips`).
+      1. Set `target_cpu_` to your target architecture (e.g. `arm`,
+         `x64`, `x86`).
       1. Set the target and host toolchains. If you defined a target
          toolchain in `BUILD.gn`, you'll want to set it to that.
   1. In `configuration.gni`, set platform-specific defaults for any
@@ -287,16 +287,16 @@ Follow the above list, except:
 
 You should now be able to run GN with your new port. From your `src/` directory:
 
-    $ gn args out/bobbox-mipseb_debug
+    $ gn args out/bobbox-armeb_debug
 
 An editor will open up. Type into the editor:
 
     cobalt_config = "debug"
-    target_platform = "bobbox-mipseb"
+    target_platform = "bobbox-armeb"
 
 Save and close the editor. Then run
 
-    $ ninja -C out/bobbox-mipseb_debug nplb
+    $ ninja -C out/bobbox-armeb_debug nplb
 
 This will attempt to build the "No Platform Left Behind" test suite with your
 new Starboard implementation, and you are ready to start porting!
