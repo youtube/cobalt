@@ -163,7 +163,7 @@
             ],
           },
           'dependencies': [
-            '../../../../zlib/zlib.gyp:zlib',
+            '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
           ],
         }],
       ],

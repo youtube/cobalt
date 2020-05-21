@@ -23,10 +23,12 @@
       'dependencies': [
         '../compat/compat.gyp:crashpad_compat',
         '../third_party/mini_chromium/mini_chromium.gyp:base',
-        '../third_party/zlib/zlib.gyp:zlib',
         '../third_party/lss/lss.gyp:lss',
       ],
-      'defines': [ 'ZLIB_CONST' ],
+      'defines': [
+        'ZLIB_CONST',
+        'CRASHPAD_USE_BORINGSSL',
+      ],
       'include_dirs': [
         '..',
         '<(INTERMEDIATE_DIR)',
