@@ -22,7 +22,7 @@
       'type': 'none',
       'variables': {
         'content_test_input_files': [ '<(DEPTH)/cobalt/demos/content/' ],
-        'content_test_output_subdir': 'cobalt/demos',
+        'content_test_output_subdir': 'demos',
       },
       'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
