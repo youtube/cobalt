@@ -189,10 +189,14 @@ class ZipReaderTest : public PlatformTest {
     EXPECT_TRUE(success);
     if (!success)
       return false;
+#if defined(OS_STARBOARD)
+    *path = path->AppendASCII("zlib");
+#else
     *path = path->AppendASCII("third_party");
     *path = path->AppendASCII("zlib");
     *path = path->AppendASCII("google");
     *path = path->AppendASCII("test");
+#endif
     *path = path->AppendASCII("data");
     return true;
   }
