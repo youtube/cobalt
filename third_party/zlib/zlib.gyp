@@ -528,7 +528,9 @@
             'content_test_input_files': [
               '<(DEPTH)/third_party/zlib/google/test/data',
             ],
-            'content_test_output_subdir': 'third_party/zlib/google/test',
+            # Canonically this should be "third_party/zlib/google/test" to
+            # match the source path, but we put it higher to reduce depth.
+            'content_test_output_subdir': 'zlib',
           },
           'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
         }],
