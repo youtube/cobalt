@@ -67,8 +67,11 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     return variables
 
   def GetEnvironmentVariables(self):
-    env_variables = build.GetHostCompilerEnvironment(
-        clang_specification.GetClangSpecification(), False)
+    if not hasattr(self, 'host_compiler_environment'):
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang_specification.GetClangSpecification(), False)
+
+    env_variables = self.host_compiler_environment
     toolchain = os.path.realpath(
         os.path.join(
             self.raspi_home,
