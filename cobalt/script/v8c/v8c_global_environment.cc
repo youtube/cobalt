@@ -104,7 +104,7 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script",
                "V8cGlobalEnvironment::~V8cGlobalEnvironment()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  destructing_ = true;
+  InvalidateWeakPtrs();
 }
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
@@ -242,9 +242,6 @@ void V8cGlobalEnvironment::PreventGarbageCollection(
 void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  // AllowGarbageCollection is unnecessary when the environment is destroyed.
-  if (destructing_) return;
 
   RemoveRoot(wrappable);
 }
