@@ -76,10 +76,8 @@ void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  if (!deep_link_event->IsH5vccLink()) {
-    DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
-    on_deep_link()->DispatchEvent(deep_link_event->link());
-  }
+  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
+  on_deep_link()->DispatchEvent(deep_link_event->link());
 }
 }  // namespace h5vcc
 }  // namespace cobalt
