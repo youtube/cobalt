@@ -506,8 +506,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     return;
   }
 
-  // First try the registered handlers (e.g. for h5vcc://). If one of these
-  // handles the URL, we don't use the web module.
+  // First try any registered handlers. If one of these handles the URL, we
+  // don't use the web module.
   if (TryURLHandlers(url)) {
     return;
   }

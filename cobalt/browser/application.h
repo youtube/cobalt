@@ -68,9 +68,6 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(SbEventType event_type);
 
-  // Called to handle a deep link event.
-  void OnDeepLinkEvent(const base::Event* event);
-
 #if SB_API_VERSION >= 8
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
@@ -115,8 +112,6 @@ class Application {
   std::unique_ptr<BrowserModule> browser_module_;
 
   // Event callbacks.
-  base::EventCallback network_event_callback_;
-  base::EventCallback deep_link_event_callback_;
 #if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
 #endif  // SB_API_VERSION >= 8

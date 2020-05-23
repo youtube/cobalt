@@ -27,9 +27,6 @@ class DeepLinkEvent : public Event {
  public:
   explicit DeepLinkEvent(const std::string& link) : link_(link) {}
   const std::string& link() const { return link_; }
-  bool IsH5vccLink() const {
-    return StartsWith(link_, "h5vcc", base::CompareCase::SENSITIVE);
-  }
 
   BASE_EVENT_SUBCLASS(DeepLinkEvent);
 

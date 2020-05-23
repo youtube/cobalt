@@ -744,10 +744,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
 
   // Register event callbacks.
-  deep_link_event_callback_ =
-      base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
-                                     deep_link_event_callback_);
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
@@ -851,8 +847,6 @@ Application::~Application() {
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   // Unregister event callbacks.
-  event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
-                                        deep_link_event_callback_);
 #if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
@@ -1091,16 +1085,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeVerticalSync:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
-  }
-}
-
-void Application::OnDeepLinkEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnDeepLinkEvent()");
-  const base::DeepLinkEvent* deep_link_event =
-      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  // TODO: Remove this when terminal application states are properly handled.
-  if (deep_link_event->IsH5vccLink()) {
-    browser_module_->Navigate(GURL(deep_link_event->link()));
   }
 }
 

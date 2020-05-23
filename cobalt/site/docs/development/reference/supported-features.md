@@ -139,7 +139,7 @@ title: "Cobalt Support Quick Reference"
 ## Protocols
 
 *   https:
-*   h5vcc: (for embedded resources)
+*   h5vcc-embedded: (for embedded resources)
 *   [Content Security Policy Level 2](https://www.w3.org/TR/CSP2/)
     in HTTP headers is _required_, and report-only is disabled.
 
