@@ -569,7 +569,7 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private void stop() {
-    synchronized (mCallback) {
+    synchronized (this) {
       mNativeMediaCodecBridge = 0;
     }
     try {
