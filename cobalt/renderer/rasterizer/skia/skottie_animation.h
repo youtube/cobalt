@@ -43,8 +43,6 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
-  bool stopped() const { return properties_.state == LottieState::kStopped; }
-
  private:
   sk_sp<skottie::Animation> skottie_animation_;
   math::Size animation_size_;
