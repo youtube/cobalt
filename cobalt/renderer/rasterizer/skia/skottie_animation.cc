@@ -69,18 +69,28 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
 
   double current_frame_time = current_animation_time_.InSecondsF();
   if (properties_.loop) {
-    // Note: LottieProperties::count refers to the number of loops after the
-    // animation plays once through.
-    if (properties_.count > 0 &&
-        current_frame_time / skottie_animation_->duration() >=
-            (properties_.count + 1)) {
+    // If the animation mode is "bounce", then the animation should change
+    // the direction in which it plays after each loop.
+    int new_loop_count =
+        floor(current_frame_time / skottie_animation_->duration());
+    if (new_loop_count > total_loops_ &&
+        properties_.mode == LottieMode::kBounce) {
+      direction_ *= -1;
+    }
+    total_loops_ = new_loop_count;
+
+    // Check whether the number of loops exceeds the limits set by
+    // LottieProperties::count.
+    // (Note: LottieProperties::count refers to the number of loops after the
+    // animation plays once through.)
+    if (properties_.count > 0 && total_loops_ > properties_.count) {
       current_frame_time = skottie_animation_->duration();
     } else {
       current_frame_time =
           std::fmod(current_frame_time, skottie_animation_->duration());
     }
   }
-  if (properties_.direction == -1) {
+  if (direction_ * properties_.direction == -1) {
     current_frame_time = skottie_animation_->duration() - current_frame_time;
   }
   skottie_animation_->seekFrameTime(current_frame_time);

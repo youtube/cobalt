@@ -19,6 +19,7 @@ interface LottiePlayer : HTMLElement {
   attribute boolean autoplay;
   attribute long count;
   attribute long direction;
+  attribute DOMString mode;
   attribute boolean loop;
   attribute double speed;
   readonly attribute DOMString renderer;

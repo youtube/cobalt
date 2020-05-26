@@ -83,6 +83,10 @@ void LottiePlayer::set_loop(bool loop) {
   }
 }
 
+std::string LottiePlayer::mode() const { return properties_.GetModeAsString(); }
+
+void LottiePlayer::set_mode(std::string mode) { SetAttribute("mode", mode); }
+
 double LottiePlayer::speed() const { return properties_.speed; }
 
 void LottiePlayer::set_speed(double speed) {
@@ -204,6 +208,8 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
     SetDirection(direction);
   } else if (name == "loop") {
     SetLooping(true);
+  } else if (name == "mode") {
+    SetMode(value);
   } else if (name == "speed") {
     double speed;
     base::StringToDouble(value, &speed);
@@ -222,6 +228,8 @@ void LottiePlayer::OnRemoveAttribute(const std::string& name) {
     SetDirection(LottieAnimation::LottieProperties::kDefaultDirection);
   } else if (name == "loop") {
     SetLooping(LottieAnimation::LottieProperties::kDefaultLoop);
+  } else if (name == "mode") {
+    SetMode(LottieAnimation::LottieProperties::kDefaultMode);
   } else if (name == "speed") {
     SetSpeed(LottieAnimation::LottieProperties::kDefaultSpeed);
   } else {
@@ -358,6 +366,18 @@ void LottiePlayer::UpdatePlaybackStateForAutoplay() {
 
 void LottiePlayer::SetCount(int count) {
   if (properties_.UpdateCount(count)) {
+    UpdateLottieObjects();
+  }
+}
+
+void LottiePlayer::SetMode(std::string mode) {
+  if (properties_.UpdateMode(mode)) {
+    UpdateLottieObjects();
+  }
+}
+
+void LottiePlayer::SetMode(LottieAnimation::LottieMode mode) {
+  if (properties_.UpdateMode(mode)) {
     UpdateLottieObjects();
   }
 }
