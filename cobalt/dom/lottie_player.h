@@ -58,6 +58,8 @@ class LottiePlayer : public HTMLElement {
   void set_direction(int direction);
   bool loop() const;
   void set_loop(bool loop);
+  std::string mode() const;
+  void set_mode(std::string mode);
   double speed() const;
   void set_speed(double speed);
   std::string renderer() const;
@@ -113,6 +115,8 @@ class LottiePlayer : public HTMLElement {
   void UpdateState(LottieAnimation::LottieState state);
   void UpdatePlaybackStateForAutoplay();
   void SetCount(int count);
+  void SetMode(std::string mode);
+  void SetMode(LottieAnimation::LottieMode mode);
   void UpdateLottieObjects();
 
   void ScheduleEvent(base::Token event_name);

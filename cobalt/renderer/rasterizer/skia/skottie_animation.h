@@ -55,6 +55,15 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   // LottieProperties.
   size_t seek_counter_ = 0;
 
+  // |total_loops_| keeps track of how many times the animation has played
+  // in its entirety.
+  int total_loops_ = 0;
+  // |direction_| is used to indicate whether the animation should be playing
+  // in the the direction set by |LottieProperties::direction|, or whether it
+  // should be playing in the opposite direction (ex: when mode = "bounce", the
+  // animation needs to switch direction in between each loop).
+  int direction_ = 1;
+
   // The last timestamp from the animation function in which we updated the
   // the frame time for |skottie_animation_|. Used for calculating the time
   // elapsed and updating the frame time again.
