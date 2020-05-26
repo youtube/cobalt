@@ -4323,6 +4323,27 @@ TEST_F(PixelTest, OverLoopLimitCountLottieAnimationTest) {
   TestTree(lottie_node);
 }
 
+TEST_F(PixelTest, BounceModeLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateLoop(true);
+  lottie_properties.UpdateMode(LottieAnimation::LottieMode::kBounce);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  // Because the animation is in "bounce" mode, it should be playing backwards
+  // and be near the end of the animation when animation_time = 4.1.
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(4.1);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
 TEST_F(PixelTest, 2xSpeedLottieAnimationTest) {
   std::vector<uint8> animation_data =
       GetFileData(GetTestFilePath("white_material_wave_loading.json"));

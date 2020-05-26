@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 #define COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 
+#include <string>
+
 #include "base/time/time.h"
 #include "cobalt/render_tree/image.h"
 
@@ -29,6 +31,8 @@ class LottieAnimation : public Image {
  public:
   enum class LottieState { kPlaying, kPaused, kStopped };
 
+  enum class LottieMode { kNormal, kBounce };
+
   // https://lottiefiles.github.io/lottie-player/properties.html
   struct LottieProperties {
     // Since an explicitly specified value of |count| must be greater than 0,
@@ -37,6 +41,7 @@ class LottieAnimation : public Image {
     static constexpr int kDefaultCount = -1;
     static constexpr int kDefaultDirection = 1;
     static constexpr bool kDefaultLoop = false;
+    static constexpr LottieMode kDefaultMode = LottieMode::kNormal;
     static constexpr double kDefaultSpeed = 1;
 
     LottieProperties() = default;
@@ -81,6 +86,34 @@ class LottieAnimation : public Image {
         return false;
       }
       loop = new_loop;
+      return true;
+    }
+
+    // Return the string equivalent of |mode|.
+    std::string GetModeAsString() const {
+      if (mode == LottieMode::kBounce) {
+        return "bounce";
+      }
+      // Always fallback to the default.
+      return "normal";
+    }
+
+    // Return true if |mode| is updated to a new & valid mode.
+    bool UpdateMode(std::string new_mode) {
+      if (new_mode == "normal") {
+        return UpdateMode(LottieMode::kNormal);
+      } else if (new_mode == "bounce") {
+        return UpdateMode(LottieMode::kBounce);
+      }
+      return false;
+    }
+
+    // Return true if |mode| is updated.
+    bool UpdateMode(LottieMode new_mode) {
+      if (new_mode == mode) {
+        return false;
+      }
+      mode = new_mode;
       return true;
     }
 
@@ -135,6 +168,7 @@ class LottieAnimation : public Image {
     int count = kDefaultCount;
     int direction = kDefaultDirection;
     bool loop = kDefaultLoop;
+    LottieMode mode = kDefaultMode;
     double speed = kDefaultSpeed;
 
     // |seek_value| indicates either the frame or the normalized [0..1] frame
