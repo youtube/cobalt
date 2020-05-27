@@ -172,10 +172,8 @@ sk_sp<sksg::ShaderPaint> AttachGradient(const skjson::ObjectValue& jgrad,
         gradient_node = std::move(radial_node);
     }
 
-    abuilder->bindProperty<VectorValue>((*stops)["k"],
-        [adapter](const VectorValue& stops) {
-            adapter->setColorStops(stops);
-        });
+    abuilder->bindProperty<VectorValue>(
+            (*stops)["k"], [adapter](const VectorValue& stops) { adapter->setStops(stops); });
     abuilder->bindProperty<VectorValue>(jgrad["s"],
         [adapter](const VectorValue& s) {
             adapter->setStartPoint(ValueTraits<VectorValue>::As<SkPoint>(s));
@@ -295,17 +293,16 @@ std::vector<sk_sp<sksg::GeometryNode>> AttachMergeGeometryEffect(
 std::vector<sk_sp<sksg::GeometryNode>> AttachTrimGeometryEffect(
         const skjson::ObjectValue& jtrim, const AnimationBuilder* abuilder,
         std::vector<sk_sp<sksg::GeometryNode>>&& geos) {
-
     enum class Mode {
-        kMerged,   // "m": 1
-        kSeparate, // "m": 2
-    } gModes[] = { Mode::kMerged, Mode::kSeparate };
+        kParallel,  // "m": 1 (Trim Multiple Shapes: Simultaneously)
+        kSerial,    // "m": 2 (Trim Multiple Shapes: Individually)
+    } gModes[] = {Mode::kParallel, Mode::kSerial};
 
     const auto mode = gModes[SkTMin<size_t>(ParseDefault<size_t>(jtrim["m"], 1) - 1,
                                             SK_ARRAY_COUNT(gModes) - 1)];
 
     std::vector<sk_sp<sksg::GeometryNode>> inputs;
-    if (mode == Mode::kMerged) {
+    if (mode == Mode::kSerial) {
         inputs.push_back(Merge(std::move(geos), sksg::Merge::Mode::kMerge));
     } else {
         inputs = std::move(geos);

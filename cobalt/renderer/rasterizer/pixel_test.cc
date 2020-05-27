@@ -4461,6 +4461,42 @@ TEST_F(PixelTest, TogglePlayFromPlayingLottieAnimationTest) {
   TestTree(lottie_node);
 }
 
+TEST_F(PixelTest, TransparencyLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("complex_lottie_animation.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateLoop(true);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(1);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, ConcurrentTrimPathsLottieAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("youtube_logo_animation.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  lottie_properties.UpdateLoop(true);
+  animation->SetProperties(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0.8);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
 #endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
