@@ -14,17 +14,15 @@
 
 package dev.cobalt.coat;
 
-import static dev.cobalt.util.Log.TAG;
-
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.customview.widget.ExploreByTouchHelper;
-import dev.cobalt.util.Log;
 import java.util.BitSet;
 import java.util.List;
 
@@ -56,7 +54,7 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
   // This set tracks whether onPopulateNodeForVirtualView has been
   // called for each virtual view id.
   private final BitSet nodePopulatedSet = new BitSet(9);
-  private final Handler handler = new Handler();
+  private final Handler handler = new Handler(Looper.getMainLooper());
   private boolean unhandledInput;
   private boolean hasInitialFocusBeenSet;
 
@@ -98,7 +96,7 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
           }
         });
 
-    // There is a knwon Android bug about setting focus too early
+    // There is a known Android bug about setting focus too early
     // taking no effect. The impact for Cobalt is that sometimes after
     // we click on a video, TalkBack sees nothing in focus in the watch
     // page if no user input happens. To avoid this bug we have to
