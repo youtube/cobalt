@@ -35,8 +35,9 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
-import android.view.WindowManager;
+import android.view.Display;
 import androidx.annotation.RequiresApi;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.UsedByNative;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
@@ -221,9 +222,9 @@ public final class VideoFrameReleaseTimeHelper {
   }
 
   private static double getDefaultDisplayRefreshRate(Context context) {
-    WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-    return manager.getDefaultDisplay() != null
-        ? manager.getDefaultDisplay().getRefreshRate()
+    Display defaultDisplay = DisplayUtil.getDefaultDisplay(context);
+    return defaultDisplay != null
+        ?  defaultDisplay.getRefreshRate()
         : DISPLAY_REFRESH_RATE_UNKNOWN;
   }
 
