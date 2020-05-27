@@ -123,7 +123,8 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
-        &MinRequiredFramesTester::ConsumeFramesFunc, this);
+        &MinRequiredFramesTester::ConsumeFramesFunc,
+        &MinRequiredFramesTester::ErrorFunc, this);
     {
       ScopedLock scoped_lock(mutex_);
       wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
@@ -175,6 +176,12 @@ void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
   SB_DCHECK(tester);
 
   tester->ConsumeFrames(frames_consumed);
+}
+
+// static
+void MinRequiredFramesTester::ErrorFunc(bool capability_changed,
+                                        void* context) {
+  // TODO
 }
 
 void MinRequiredFramesTester::UpdateSourceStatus(int* frames_in_buffer,
