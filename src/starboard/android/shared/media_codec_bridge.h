@@ -78,6 +78,9 @@ class MediaCodecBridge {
   // Flush() is returned.
   class Handler {
    public:
+    virtual void OnMediaCodecFrameRendered(
+        int64_t presentation_time_us,
+        int64_t render_at_system_time_ns) = 0;
     virtual void OnMediaCodecError(bool is_recoverable,
                                    bool is_transient,
                                    const std::string& diagnostic_info) = 0;
@@ -107,7 +110,8 @@ class MediaCodecBridge {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool require_software_codec);
+      bool require_software_codec,
+      int tunneling_audio_session_id);
 
   ~MediaCodecBridge();
 
@@ -134,6 +138,8 @@ class MediaCodecBridge {
   SurfaceDimensions GetOutputDimensions();
   AudioOutputFormatResult GetAudioOutputFormat();
 
+  void OnMediaCodecFrameRendered(int64_t presentation_time_us,
+                                 int64_t render_at_system_time_ns);
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& diagnostic_info);
