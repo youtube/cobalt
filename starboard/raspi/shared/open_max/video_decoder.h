@@ -84,6 +84,7 @@ class VideoDecoder
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
   bool eos_written_;
+  bool first_input_written_ = false;
 
   SbThread thread_;
   bool request_thread_termination_;
