@@ -19,7 +19,7 @@
 {
   'targets': [
     {
-      'target_name': 'starboard',
+      'target_name': 'starboard_base',
       'type': 'none',
       'conditions': [
         ['sb_evergreen == 1', {
@@ -38,6 +38,14 @@
           ],
         }],
        ],
+    },
+    {
+      'target_name': 'starboard',
+      'type': 'none',
+      'dependencies': [
+        '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+        'starboard_base',
+      ],
     },
     {
       'target_name': 'starboard_full',
