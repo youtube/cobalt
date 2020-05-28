@@ -74,6 +74,18 @@ This document records all notable changes made to Cobalt since the last release.
    NOTE: The CSS "direction" property is explicitly not supported since the
    spec recommends using the "dir" attribute instead.
 
+ - **Local font package switched to WOFF2 format.**
+
+   All packaged fonts that were previously in TTF format are now converted to WOFF2.
+   This change compresses the default Cobalt font package size by about 38% (14MB)
+   and overall Cobalt package size with a standard font configuration by about 21%.
+   TTF and other font formats continue to be supported for remotely downloaded fonts
+   and system fonts.
+
+   In order to support native WOFF2 font loading, we've also updated our FreeType
+   version from 2.6.2 to 2.10.2. For a full list of FreeType updates included in
+   this change, visit www.freetype.org.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
