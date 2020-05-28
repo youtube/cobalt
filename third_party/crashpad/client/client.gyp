@@ -26,8 +26,18 @@
         '../third_party/lss/lss.gyp:lss',
         '../util/util.gyp:crashpad_util',
       ],
+      # We change including the top level directory here to a isystem include
+      # to ensure it is included after all normal includes for Crashpad. This
+      # guarantees that Crashpad will find mini_chromium's base before Cobalt's
+      # base. The same is true for direct dependents.
+      'include_dirs!': [
+        '<(DEPTH)',
+      ],
       'include_dirs': [
         '..',
+      ],
+      'cflags': [
+        '-isystem../..',
       ],
       'sources': [
         'annotation.cc',
@@ -82,8 +92,15 @@
         }],
       ],
       'direct_dependent_settings': {
+        'include_dirs!': [
+          '<(DEPTH)',
+        ],
         'include_dirs': [
           '..',
+          '<(DEPTH)/third_party/mini_chromium',
+        ],
+        'cflags': [
+          '-isystem../..',
         ],
       },
     },
