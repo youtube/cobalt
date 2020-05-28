@@ -11,8 +11,14 @@
     {
       'target_name': 'base',
       'type': 'static_library',
+      'include_dirs!': [
+        '<(DEPTH)',
+      ],
       'include_dirs': [
         '..',
+      ],
+      'cflags': [
+        '-isystem../..',
       ],
       'link_settings': {
         'conditions': [
@@ -132,8 +138,14 @@
         '../build/build_config.h',
       ],
       'direct_dependent_settings': {
+        'include_dirs!': [
+          '<(DEPTH)',
+        ],
         'include_dirs': [
           '..',
+        ],
+        'cflags': [
+          '-isystem../..',
         ],
       },
     },
