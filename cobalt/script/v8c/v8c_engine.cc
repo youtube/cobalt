@@ -91,6 +91,26 @@ void GCEpilogueCallback(v8::Isolate* isolate, v8::GCType type,
   }
 }
 
+void ErrorMessageListener(v8::Local<v8::Message> message,
+                          v8::Local<v8::Value> data) {
+  v8::Isolate* isolate = message->GetIsolate();
+  std::string description(*v8::String::Utf8Value(isolate, message->Get()));
+
+  v8::Local<v8::StackTrace> stack = message->GetStackTrace();
+  for (int i = 0; i < stack->GetFrameCount(); ++i) {
+    v8::Local<v8::StackFrame> frame = stack->GetFrame(isolate, i);
+    description += "\n";
+    description += *v8::String::Utf8Value(isolate, frame->GetScriptName());
+    description += ":";
+    description += std::to_string(frame->GetLineNumber());
+    description += ":";
+    description += std::to_string(frame->GetColumn());
+  }
+
+  // TODO: Send the description to the console instead of logging it.
+  LOG(ERROR) << description;
+}
+
 }  // namespace
 
 V8cEngine::V8cEngine(const Options& options) : options_(options) {
@@ -138,6 +158,12 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
   uintptr_t here = reinterpret_cast<uintptr_t>(&here);
   isolate_->SetStackLimit(here -
                           (3 * cobalt::browser::kWebModuleStackSize) / 4);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // Report callstacks for exceptions.
+  isolate_->AddMessageListener(&ErrorMessageListener);
+  isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
+#endif
 }
 
 V8cEngine::~V8cEngine() {
