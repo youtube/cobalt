@@ -204,6 +204,11 @@
                 'INFLATE_CHUNK_READ_64LE',
               ],
             }],
+            ['target_arch=="x86"', {
+              'cflags': [
+                '-msse2',
+              ],
+            }],
           ],
         }],
         ['use_arm_neon_optimizations==1', {
