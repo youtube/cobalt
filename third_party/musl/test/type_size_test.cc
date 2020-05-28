@@ -186,20 +186,4 @@ SB_COMPILE_ASSERT(sizeof(wchar_t) == SB_SIZE_OF_INT,
                   SB_SIZE_OF_INT_is_inconsistent_with_sizeof_wchar_t);
 #endif  // SB_IS(ARCH_X86)
 
-#if (defined(__FLT_EVAL_METHOD__)) && \
-    ((SB_IS(ARCH_X86) && (__FLT_EVAL_METHOD__ != 0)) || \
-     (SB_IS(ARCH_X64) && (__FLT_EVAL_METHOD__ == 2)))
-SB_COMPILE_ASSERT(sizeof(float_t) == SB_SIZE_OF_LONG_DOUBLE,
-                  SB_SIZE_OF_LONG_DOUBLE_is_inconsistent_with_sizeof_float_t);
-
-SB_COMPILE_ASSERT(sizeof(double_t) == SB_SIZE_OF_LONG_DOUBLE,
-                  SB_SIZE_OF_LONG_DOUBLE_is_inconsistent_with_sizeof_double_t);
-#else
-SB_COMPILE_ASSERT(sizeof(float_t) == SB_SIZE_OF_FLOAT,
-                  SB_SIZE_OF_FLOAT_is_inconsistent_with_sizeof_float_t);
-
-SB_COMPILE_ASSERT(sizeof(double_t) == SB_SIZE_OF_DOUBLE,
-                  SB_SIZE_OF_DOUBLE_is_inconsistent_with_sizeof_double_t);
-#endif
-
 #endif  // SB_IS(EVERGREEN)
