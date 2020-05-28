@@ -218,6 +218,7 @@
             'linker_flags_host%': [
               '-target', 'i386-unknown-linux-gnu',
               '-pthread',
+              '-latomic',
             ],
           }, {
             'compiler_flags_cc_host%': [
