@@ -64,6 +64,16 @@ This document records all notable changes made to Cobalt since the last release.
    effort to move away from injecting compile-time modules into the Cobalt layer
    in favor of using runtime extensions provided by the Starboard layer.
 
+- **Improved support of "dir" global DOM attribute.**
+
+   Although the "dir" attribute was supported in previous versions, it only
+   impacted text direction. Now layout will also abide by the "dir" attribute.
+   Additionally, dir="auto" is now supported. These changes are intended to
+   support right-to-left (RTL) languages.
+
+   NOTE: The CSS "direction" property is explicitly not supported since the
+   spec recommends using the "dir" attribute instead.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
