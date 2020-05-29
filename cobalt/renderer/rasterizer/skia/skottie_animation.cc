@@ -48,6 +48,7 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
     }
     last_updated_animate_function_time_ = animate_function_time;
     seek_counter_ = properties_.seek_counter;
+    is_complete_ = false;
     return;
   }
 
@@ -57,6 +58,7 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
     skottie_animation_->seekFrameTime(0);
     current_animation_time_ = base::TimeDelta();
     last_updated_animate_function_time_ = animate_function_time;
+    is_complete_ = false;
     return;
   }
 
@@ -73,25 +75,37 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
     // the direction in which it plays after each loop.
     int new_loop_count =
         floor(current_frame_time / skottie_animation_->duration());
-    if (new_loop_count > total_loops_ &&
-        properties_.mode == LottieMode::kBounce) {
-      direction_ *= -1;
-    }
-    total_loops_ = new_loop_count;
 
     // Check whether the number of loops exceeds the limits set by
     // LottieProperties::count.
     // (Note: LottieProperties::count refers to the number of loops after the
     // animation plays once through.)
-    if (properties_.count > 0 && total_loops_ > properties_.count) {
+    if (properties_.count > 0 && new_loop_count > properties_.count) {
       current_frame_time = skottie_animation_->duration();
     } else {
+      // If the animation should continue playing, check whether the animation
+      // has completed and needs to trigger a "loop" and potentially reverse
+      // direction.
+      if (new_loop_count > total_loops_) {
+        if (!properties_.onloop_callback.is_null()) {
+          properties_.onloop_callback.Run();
+        }
+        if (properties_.mode == LottieMode::kBounce) {
+          direction_ *= -1;
+        }
+      }
       current_frame_time =
           std::fmod(current_frame_time, skottie_animation_->duration());
     }
+    total_loops_ = new_loop_count;
   }
   if (direction_ * properties_.direction == -1) {
     current_frame_time = skottie_animation_->duration() - current_frame_time;
+  }
+  if (!is_complete_ && current_frame_time > skottie_animation_->duration() &&
+      !properties_.oncomplete_callback.is_null()) {
+    is_complete_ = true;
+    properties_.oncomplete_callback.Run();
   }
   skottie_animation_->seekFrameTime(current_frame_time);
   last_updated_animate_function_time_ = animate_function_time;

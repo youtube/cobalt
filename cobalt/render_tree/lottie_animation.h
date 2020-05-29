@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/time/time.h"
 #include "cobalt/render_tree/image.h"
 
@@ -182,6 +183,9 @@ class LottieAnimation : public Image {
     // |seek_counter| is incremented every time "seek()" is called on a Lottie
     // animation.
     size_t seek_counter = 0;
+
+    base::Closure oncomplete_callback;
+    base::Closure onloop_callback;
   };
 
   virtual void SetProperties(LottieProperties properties) = 0;
