@@ -45,6 +45,7 @@ namespace base {
     MacroOpWithNameOnly(childList)                                   \
     MacroOpWithNameOnly(click)                                       \
     MacroOpWithNameOnly(close)                                       \
+    MacroOpWithNameOnly(complete)                                    \
     MacroOpWithNameOnly(dataavailable)                               \
     MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \
@@ -68,6 +69,7 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                              \
     MacroOpWithNameOnly(loadend)                                     \
     MacroOpWithNameOnly(loadstart)                                   \
+    MacroOpWithNameOnly(loop)                                        \
     MacroOpWithNameOnly(lostpointercapture)                          \
     MacroOpWithNameOnly(mark)                                        \
     MacroOpWithNameOnly(message)                                     \

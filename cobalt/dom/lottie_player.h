@@ -120,6 +120,10 @@ class LottiePlayer : public HTMLElement {
   void UpdateLottieObjects();
 
   void ScheduleEvent(base::Token event_name);
+  void SetAnimationEventCallbacks();
+
+  void OnComplete();
+  void OnLoop();
 
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>

@@ -182,6 +182,8 @@ void LottiePlayer::TogglePlay() {
 
 LottieAnimation::LottieProperties LottiePlayer::GetUpdatedProperties() {
   UpdatePlaybackStateForAutoplay();
+  SetAnimationEventCallbacks();
+
   return properties_;
 }
 
@@ -401,6 +403,21 @@ void LottiePlayer::ScheduleEvent(base::Token event_name) {
   event->set_target(this);
   event_queue_.Enqueue(event);
 }
+
+void LottiePlayer::SetAnimationEventCallbacks() {
+  properties_.oncomplete_callback = base::Bind(
+      base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Unretained(base::MessageLoop::current()->task_runner().get()),
+      FROM_HERE, base::Bind(&LottiePlayer::OnComplete, base::AsWeakPtr(this)));
+  properties_.onloop_callback = base::Bind(
+      base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Unretained(base::MessageLoop::current()->task_runner().get()),
+      FROM_HERE, base::Bind(&LottiePlayer::OnLoop, base::AsWeakPtr(this)));
+}
+
+void LottiePlayer::OnComplete() { ScheduleEvent(base::Tokens::complete()); }
+
+void LottiePlayer::OnLoop() { ScheduleEvent(base::Tokens::loop()); }
 
 }  // namespace dom
 }  // namespace cobalt

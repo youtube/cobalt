@@ -63,6 +63,13 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   // should be playing in the opposite direction (ex: when mode = "bounce", the
   // animation needs to switch direction in between each loop).
   int direction_ = 1;
+  // |is_complete_| indicates whether the animation has finished playback. It
+  // should be set to true only after the animation frame time exceeds the
+  // animation duration due to normal playback, and after the "complete" event
+  // is triggered. It should be reset to false whenever the animation frame time
+  // is updated by a change outside of normal playback, such as seeking or
+  // stopping the animation.
+  bool is_complete_ = false;
 
   // The last timestamp from the animation function in which we updated the
   // the frame time for |skottie_animation_|. Used for calculating the time
