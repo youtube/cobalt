@@ -296,7 +296,10 @@ void LottiePlayer::OnLoadingSuccess() {
   // Set up the Lottie objects in the box and render trees once the file has
   // successfully loaded.
   UpdateLottieObjects();
+  // Trigger a load event to indicate that the animation data has loaded, and
+  // then a "ready" event to indicate the DOM element is ready.
   ScheduleEvent(base::Tokens::load());
+  ScheduleEvent(base::Tokens::ready());
 }
 
 void LottiePlayer::OnLoadingError() {

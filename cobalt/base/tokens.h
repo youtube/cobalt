@@ -94,6 +94,7 @@ namespace base {
     MacroOpWithNameOnly(polite)                                      \
     MacroOpWithNameOnly(progress)                                    \
     MacroOpWithNameOnly(ratechange)                                  \
+    MacroOpWithNameOnly(ready)                                       \
     MacroOpWithNameOnly(readystatechange)                            \
     MacroOpWithNameOnly(removals)                                    \
     MacroOpWithNameOnly(removesourcebuffer)                          \
