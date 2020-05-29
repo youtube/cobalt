@@ -1,6 +1,5 @@
-FROM base
+FROM cobalt-build-base
 
-# TODO - cleanup - test which -dev packages are really needed.
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         pkgconf ninja-build bison yasm \
@@ -18,19 +17,5 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
-RUN git clone https://cobalt.googlesource.com/depot_tools /depot_tools
-
-ENV PATH="${PATH}:/depot_tools:/root/fake_goma" \
-    DEPOT_TOOLS_UPDATE=0 \
-    CCACHE_DIR=/root/ccache \
-    CCACHE_MAXSIZE=30G
-
-COPY ./files/fake_goma /root/fake_goma
-
-# Pull in gclient deps
-RUN cd /tmp && gclient verify || true \
-    && chmod +x /root/fake_goma/gomacc /root/fake_goma/goma_ctl.py \
-    && mkdir /root/ccache
-
-WORKDIR /code
-CMD ["/scripts/build_cobalt.py"]
+CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
+    ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
