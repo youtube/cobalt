@@ -1,3 +1,5 @@
+# Lint as: python2
+
 # Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,6 +90,7 @@ def GetSdkPath():
 
 
 def _DownloadAndUnzipFile(url, destination_path):
+  """Download a zip file from a url and uncompress it."""
   shutil.rmtree(destination_path, ignore_errors=True)
   try:
     os.makedirs(destination_path)
