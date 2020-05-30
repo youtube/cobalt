@@ -68,6 +68,8 @@ class PlayerWorker {
     typedef std::function<void(SbPlayerError error,
                                const std::string& error_message)>
         UpdatePlayerErrorCB;
+
+    Handler() = default;
     virtual ~Handler() {}
 
     // All the following functions return false to signal a fatal error.  The
@@ -94,6 +96,10 @@ class PlayerWorker {
     virtual void Stop() = 0;
 
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+
+   private:
+    Handler(const Handler&) = delete;
+    Handler& operator=(const Handler&) = delete;
   };
 
   static PlayerWorker* CreateInstance(
@@ -167,6 +173,9 @@ class PlayerWorker {
                SbPlayerErrorFunc player_error_func,
                SbPlayer player,
                void* context);
+
+  PlayerWorker(const PlayerWorker&) = delete;
+  PlayerWorker& operator=(const PlayerWorker&) = delete;
 
   void UpdateMediaInfo(SbTime time, int dropped_video_frames, bool underflow);
 
