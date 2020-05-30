@@ -14,6 +14,9 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <locale>
+#include <sstream>
+
 #include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
