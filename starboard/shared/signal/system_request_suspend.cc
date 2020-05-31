@@ -17,7 +17,9 @@
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
-void SuspendDone(void* context) {
+#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
+    !SB_HAS(CONCEALED_STATE)
+void SuspendDone(void* /*context*/) {
   // Stop all thread execution after fully transitioning into Suspended.
   raise(SIGSTOP);
 }
@@ -25,3 +27,5 @@ void SuspendDone(void* context) {
 void SbSystemRequestSuspend() {
   starboard::shared::starboard::Application::Get()->Suspend(NULL, &SuspendDone);
 }
+#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
+        // !SB_HAS(CONCEALED_STATE)
