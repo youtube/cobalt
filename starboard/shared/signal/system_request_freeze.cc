@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,19 @@
 
 #include "starboard/system.h"
 
+#include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
-    !SB_HAS(CONCEALED_STATE)
-void SbSystemRequestUnpause() {
-  starboard::shared::starboard::Application::Get()->Unpause(NULL, NULL);
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+void FreezeDone(void* /*context*/) {
+  // Stop all thread execution after fully transitioning into Frozen.
+  raise(SIGSTOP);
 }
-#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
-        // !SB_HAS(CONCEALED_STATE)
+
+void SbSystemRequestFreeze() {
+  // Let the platform decide if directly transit into Frozen.
+  starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
+}
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)

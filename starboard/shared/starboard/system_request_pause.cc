@@ -16,6 +16,10 @@
 
 #include "starboard/shared/starboard/application.h"
 
+#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
+    !SB_HAS(CONCEALED_STATE)
 void SbSystemRequestPause() {
   starboard::shared::starboard::Application::Get()->Pause(NULL, NULL);
 }
+#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
+        // !SB_HAS(CONCEALED_STATE)
