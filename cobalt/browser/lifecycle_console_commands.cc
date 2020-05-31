@@ -50,6 +50,21 @@ const char kQuitCommandLongHelp[] =
     "ending the process (peacefully).";
 
 namespace {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+// This is temporary that will be changed in later CLs, for mapping Starboard
+// Concealed state support onto Cobalt without Concealed state support to be
+// able to test the former.
+void OnPause(const std::string& /*message*/) { SbSystemRequestBlur(); }
+
+void OnUnpause(const std::string& /*message*/) { SbSystemRequestFocus(); }
+
+void OnSuspend(const std::string& /*message*/) {
+  LOG(INFO) << "Concealing Cobalt through the console, but you will need to "
+            << "reveal Cobalt using a platform-specific method.";
+  SbSystemRequestConceal();
+}
+#else
 void OnPause(const std::string& message) { SbSystemRequestPause(); }
 
 void OnUnpause(const std::string& message) { SbSystemRequestUnpause(); }
@@ -60,7 +75,9 @@ void OnSuspend(const std::string& message) {
   SbSystemRequestSuspend();
 }
 
-void OnQuit(const std::string& message) { SbSystemRequestStop(0); }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
+void OnQuit(const std::string& /*message*/) { SbSystemRequestStop(0); }
 }  // namespace
 
 LifecycleConsoleCommands::LifecycleConsoleCommands()
