@@ -12,6 +12,85 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// For platforms that define SB_HAS_CONCEALED_STATE
+//
+// Module Overview: Starboard Event module
+//
+// Defines the event system that wraps the Starboard main loop and entry point.
+//
+// # The Starboard Application Lifecycle
+//
+//                    * ----------
+//                    |           |
+//                  Start         |
+//                    |           |
+//                    V           |
+//              [===========]     |
+//         ---> [  STARTED  ]     |
+//        |     [===========]     |
+//        |           |           |
+//      Focus       Blur      Preload
+//        |           |           |
+//        |           V           |
+//         ---- [===========]     |
+//         ---> [  BLURRED  ]     |
+//        |     [===========]     |
+//        |           |           |
+//      Reveal     Conceal        |
+//        |           |           |
+//        |           V           |
+//        |     [===========]     |
+//         ---- [ CONCEALED ] <---
+//         ---> [===========]
+//        |           |
+//     Unfreeze     Freeze
+//        |           |
+//        |           V
+//        |     [===========]
+//         ---- [  FROZEN   ]
+//              [===========]
+//                    |
+//                   Stop
+//                    |
+//                    V
+//              [===========]
+//              [  STOPPED  ]
+//              [===========]
+//
+// The first event that a Starboard application receives is either |Start|
+// (|kSbEventTypeStart|) or |Preload| (|kSbEventTypePreload|). |Start| puts the
+// application in the |STARTED| state, whereas |Preload| puts the application in
+// the |CONCEALED| state.
+//
+// In the |STARTED| state, the application is in the foreground and can expect
+// to do all of the normal things it might want to do. Once in the |STARTED|
+// state, it may receive a |Blur| event, putting the application into the
+// |BLURRED| state.
+//
+// In the |BLURRED| state, the application is still visible, but has lost
+// focus, or it is partially obscured by a modal dialog, or it is on its way
+// to being shut down. The application should blur activity in this state.
+// In this state, it can receive |Focus| to be brought back to the foreground
+// state (|STARTED|), or |Conceal| to be pushed to the |CONCEALED| state.
+//
+// In the |CONCEALED| state, the application should behave as it should for
+// an invisible program that can still run, and that can optionally access
+// the network and playback audio, albeit potentially will have less
+// CPU and memory available. The application may get switched from |CONCEALED|
+// to |FROZEN| at any time, when the platform decides to do so.
+//
+// In the |FROZEN| state, the application is not visible. It should immediately
+// release all graphics and video resources, and shut down all background
+// activity (timers, rendering, etc). Additionally, the application should
+// flush storage to ensure that if the application is killed, the storage will
+// be up-to-date. The application may be killed at this point, but will ideally
+// receive a |Stop| event for a more graceful shutdown.
+//
+// Note that the application is always expected to transition through |BLURRED|,
+// |CONCEALED| to |FROZEN| before receiving |Stop| or being killed.
+//
+// For platforms that do not define SB_HAS_CONCEALED_STATE
+//
 // Module Overview: Starboard Event module
 //
 // Defines the event system that wraps the Starboard main loop and entry point.
@@ -97,6 +176,81 @@ extern "C" {
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
 typedef enum SbEventType {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // Applications should perform initialization and prepare to react to
+  // subsequent events, but must not initialize any graphics resources (through
+  // GL or SbBlitter). The intent of this event is to allow the application to
+  // do as much work as possible ahead of time, so that when the application is
+  // first brought to the foreground, it's as fast as a resume.
+
+  // The system may send |kSbEventTypePreload| in |UNSTARTED| if it wants to
+  // push the app into a lower resource consumption state. Applications will
+  // also call SbSystemRequestConceal() when they request this. The only
+  // events that should be dispatched after a Preload event are Reveal or
+  // Freeze. No data argument.
+  kSbEventTypePreload,
+
+  // The first event that an application receives on startup when starting
+  // normally. Applications should perform initialization, start running,
+  // and prepare to react to subsequent events. Applications that wish to run
+  // and then exit must call |SbSystemRequestStop()| to terminate. This event
+  // will only be sent once for a given process launch. |SbEventStartData| is
+  // passed as the data argument.
+  kSbEventTypeStart,
+
+  // A dialog will be raised or the application will otherwise be put into a
+  // background-but-visible or partially-obscured state (BLURRED). Graphics and
+  // video resources will still be available, but the application could pause
+  // foreground activity like animations and video playback. Can only be
+  // received after a Start event. The only events that should be dispatched
+  // after a Blur event are Focus or Conceal. No data argument.
+  kSbEventTypeBlur,
+
+  // The application is returning to the foreground (STARTED) after having been
+  // put in the BLURRED (e.g. partially-obscured) state. The application should
+  // resume foreground activity like animations and video playback. Can only be
+  // received after a Blur or Reveal event. No data argument.
+  kSbEventTypeFocus,
+
+  // The operating system will put the application into the Concealed state
+  // after this event is handled. The application is expected to be made
+  // invisible, but background tasks can still be running, such as audio
+  // playback, or updating of recommandations. Can only be received after a
+  // Blur or Reveal event. The only events that should be dispatched after
+  // a Conceal event are Freeze or Reveal. On some platforms, the process may
+  // also be killed after Conceal without a Freeze event.
+  kSbEventTypeConceal,
+
+  // The operating system will restore the application to the BLURRED state
+  // from the CONCEALED state. This is the first event the application will
+  // receive coming out of CONCEALED, and it can be received after a
+  // Conceal or Unfreeze event. The application will now be in the BLURRED
+  // state. No data argument.
+  kSbEventTypeReveal,
+
+  // The operating system will put the application into the Frozen state after
+  // this event is handled. The application is expected to stop periodic
+  // background work, release ALL graphics and video resources, and flush any
+  // pending SbStorage writes. Some platforms will terminate the application if
+  // work is done or resources are retained after freezing. Can be received
+  // after a Conceal or Unfreeze event. The only events that should be
+  // dispatched after a Freeze event are Unfreeze or Stop. On some platforms,
+  // the process may also be killed after Freeze without a Stop event.
+  // No data argument.
+  kSbEventTypeFreeze,
+
+  // The operating system has restored the application to the CONCEALED state
+  // from the FROZEN state. This is the first event the application will receive
+  // coming out of FROZEN, and it will only be received after a Freeze event.
+  // The application will now be in the CONCEALED state. NO data argument.
+  kSbEventTypeUnfreeze,
+
+  // The operating system will shut the application down entirely after this
+  // event is handled. Can only be received after a Freeze event, in the
+  // FROZEN state. No data argument.
+  kSbEventTypeStop,
+# else
   // Applications should perform initialization and prepare to react to
   // subsequent events, but must not initialize any graphics resources (through
   // GL or SbBlitter). The intent of this event is to allow the application to
@@ -137,7 +291,6 @@ typedef enum SbEventType {
   // unpause foreground activity like animations and video playback. Can only be
   // received after a Pause or Resume event. No data argument.
   kSbEventTypeUnpause,
-
   // The operating system will put the application into a Suspended state after
   // this event is handled. The application is expected to stop periodic
   // background work, release ALL graphics and video resources, and flush any
@@ -155,9 +308,11 @@ typedef enum SbEventType {
   kSbEventTypeResume,
 
   // The operating system will shut the application down entirely after this
-  // event is handled. Can only be recieved after a Suspend event, in the
+  // event is handled. Can only be received after a Suspend event, in the
   // SUSPENDED state. No data argument.
   kSbEventTypeStop,
+  #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   // A user input event, including keyboard, mouse, gesture, or something else.
   // SbInputData (from input.h) is passed as the data argument.
