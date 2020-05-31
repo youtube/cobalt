@@ -45,10 +45,20 @@ void SbEventHandle(const SbEvent* event) {
       g_window = SbWindowCreate(NULL);
       SB_CHECK(SbWindowIsValid(g_window));
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+      SB_LOG(INFO) << "    F1 - Blur";
+      SB_LOG(INFO) << "    F2 - Focus";
+      SB_LOG(INFO) << "    F3 - Conceal";
+      SB_LOG(INFO) << "    F4 - Freeze";
+      SB_LOG(INFO) << "    F5 - Stop";
+#else
       SB_LOG(INFO) << "    F1 - Pause";
       SB_LOG(INFO) << "    F2 - Unpause";
       SB_LOG(INFO) << "    F3 - Suspend";
       SB_LOG(INFO) << "    F5 - Stop";
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
       break;
     }
     case kSbEventTypeInput: {
@@ -85,7 +95,29 @@ void SbEventHandle(const SbEvent* event) {
           SB_LOG(INFO) << keys.str();
         }
       }
-
+#if  SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+     SB_HAS(CONCEALED_STATE)
+      switch (data->key) {
+        case kSbKeyF1:
+          SbSystemRequestBlur();
+          break;
+        case kSbKeyF2:
+          SbSystemRequestFocus();
+          break;
+        case kSbKeyF3:
+          SbSystemRequestConceal();
+          break;
+        case kSbKeyF4:
+          SbSystemRequestFreeze();
+          break;
+        case kSbKeyF5:
+          SbSystemRequestStop(0);
+          break;
+        default:
+          // Do nothing.
+          break;
+      }
+#else
       switch (data->key) {
         case kSbKeyF1:
           SbSystemRequestPause();
@@ -103,8 +135,42 @@ void SbEventHandle(const SbEvent* event) {
           // Do nothing.
           break;
       }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
       break;
     }
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur: {
+      SB_LOG(INFO) << "BLUR";
+      break;
+    }
+    case kSbEventTypeConceal: {
+      SB_LOG(INFO) << "CONCEAL";
+      break;
+    }
+    case kSbEventTypeFreeze: {
+      SB_LOG(INFO) << "FREEZE";
+      break;
+    }
+    case kSbEventTypeStop: {
+      SB_LOG(INFO) << "STOP";
+      SbWindowDestroy(g_window);
+      break;
+    }
+    case kSbEventTypeUnfreeze: {
+      SB_LOG(INFO) << "UNFREEZE";
+      break;
+    }
+    case kSbEventTypeReveal: {
+      SB_LOG(INFO) << "REVEAL";
+      break;
+    }
+    case kSbEventTypeFocus: {
+      SB_LOG(INFO) << "FOCUS";
+      break;
+    }
+#else
     case kSbEventTypePause: {
       SB_LOG(INFO) << "PAUSE";
       break;
@@ -126,6 +192,8 @@ void SbEventHandle(const SbEvent* event) {
       SB_LOG(INFO) << "UNPAUSE";
       break;
     }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     default:
       SB_LOG(INFO) << "Event Type " << event->type << " not handled.";
       break;
