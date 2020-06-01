@@ -4463,7 +4463,7 @@ TEST_F(PixelTest, TogglePlayFromPlayingLottieAnimationTest) {
 
 TEST_F(PixelTest, TransparencyLottieAnimationTest) {
   std::vector<uint8> animation_data =
-      GetFileData(GetTestFilePath("complex_lottie_animation.json"));
+      GetFileData(GetTestFilePath("hunter_gone_too_deep.json"));
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
@@ -4481,7 +4481,7 @@ TEST_F(PixelTest, TransparencyLottieAnimationTest) {
 
 TEST_F(PixelTest, ConcurrentTrimPathsLottieAnimationTest) {
   std::vector<uint8> animation_data =
-      GetFileData(GetTestFilePath("youtube_logo_animation.json"));
+      GetFileData(GetTestFilePath("ytk_ink_logo_rotate.json"));
   scoped_refptr<LottieAnimation> animation =
       GetResourceProvider()->CreateLottieAnimation(
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
