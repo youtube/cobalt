@@ -169,6 +169,9 @@ void UnpackCompleteOnBlockingTaskRunner(
     const base::FilePath& crx_path,
 #if defined(OS_STARBOARD)
     const int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -188,6 +191,15 @@ void UnpackCompleteOnBlockingTaskRunner(
                        static_cast<int>(result.error), result.extended_error));
     return;
   }
+
+#if defined(OS_STARBOARD)
+  // Write the version of the unpacked update package to the persisted data.
+  if (metadata != nullptr) {
+    main_task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetLastUnpackedVersion,
+                                  base::Unretained(metadata), id, version));
+  }
+#endif
 
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
@@ -217,12 +229,12 @@ void StartInstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
-      crx_format, metadata, id, version);
+      crx_format);
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
                                   main_task_runner, crx_path,
 #if defined(OS_STARBOARD)
-                                  installation_index,
+                                  installation_index, metadata, id, version,
 #endif
                                   fingerprint, installer, std::move(callback)));
 }
