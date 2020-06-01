@@ -7,21 +7,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_IS_BIG_ENDIAN`**<br><br>Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be automatically set based on this.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_IS_ARCH_ARM`**<br><br>Whether the current platform is an ARM architecture.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_IS_ARCH_MIPS`**<br><br>Whether the current platform is a MIPS architecture.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_IS_ARCH_PPC`**<br><br>Whether the current platform is a PPC architecture.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_IS_ARCH_X86`**<br><br>Whether the current platform is an x86 architecture.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_IS_32_BIT`**<br><br>Assume a 64-bit architecture.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_IS_64_BIT`**<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_32_BIT_POINTERS`**<br><br>Whether the current platform's pointers are 32-bit. Whether the current platform's longs are 32-bit.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_32_BIT_LONG`**<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_32_BIT_POINTERS`**<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_32_BIT_LONG`**<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_64_BIT_POINTERS`**<br><br>Whether the current platform's pointers are 64-bit. Whether the current platform's longs are 64-bit.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_64_BIT_LONG`**<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_64_BIT_POINTERS`**<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_64_BIT_LONG`**<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_CROSS_CORE_SCHEDULER`**<br><br>Whether the current platform's thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`**<br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED`**<br><br>Some platforms do not have thread affinity support. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
