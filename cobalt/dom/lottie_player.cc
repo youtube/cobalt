@@ -39,7 +39,9 @@ const char LottiePlayer::kTagName[] = "lottie-player";
 LottiePlayer::LottiePlayer(Document* document)
     : HTMLElement(document, base::Token(kTagName)),
       autoplaying_(true),
-      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)) {
+  SetAnimationEventCallbacks();
+}
 
 std::string LottiePlayer::src() const {
   return GetAttribute("src").value_or("");
@@ -140,7 +142,6 @@ void LottiePlayer::Seek(FrameType frame) {
     properties_.SeekPercent(frame_percent);
   }
 
-  autoplaying_ = false;
   UpdateLottieObjects();
 }
 
@@ -173,17 +174,12 @@ void LottiePlayer::ToggleLooping() {
 
 void LottiePlayer::TogglePlay() {
   // https://github.com/LottieFiles/lottie-player#toggleplay--void
-  UpdatePlaybackStateForAutoplay();
   properties_.TogglePlay();
 
-  autoplaying_ = false;
   UpdateLottieObjects();
 }
 
-LottieAnimation::LottieProperties LottiePlayer::GetUpdatedProperties() {
-  UpdatePlaybackStateForAutoplay();
-  SetAnimationEventCallbacks();
-
+LottieAnimation::LottieProperties LottiePlayer::GetProperties() const {
   return properties_;
 }
 
@@ -307,6 +303,9 @@ void LottiePlayer::OnLoadingSuccess() {
   // then a "ready" event to indicate the DOM element is ready.
   ScheduleEvent(base::Tokens::load());
   ScheduleEvent(base::Tokens::ready());
+  // If the animation is autoplaying and autoplay is true, then the animation
+  // playback state needs to be set to LottieAnimation::LottieState::kPlaying.
+  UpdatePlaybackStateIfAutoplaying();
 }
 
 void LottiePlayer::OnLoadingError() {
@@ -349,29 +348,16 @@ void LottiePlayer::DestroyScopedPreventGC(
 }
 
 void LottiePlayer::UpdateState(LottieAnimation::LottieState state) {
-  autoplaying_ = false;
   if (properties_.UpdateState(state)) {
     UpdateLottieObjects();
-
-    if (state == LottieAnimation::LottieState::kPlaying) {
-      ScheduleEvent(base::Tokens::play());
-    } else if (state == LottieAnimation::LottieState::kPaused) {
-      ScheduleEvent(base::Tokens::pause());
-    } else if (state == LottieAnimation::LottieState::kStopped) {
-      ScheduleEvent(base::Tokens::stop());
-    }
   }
 }
 
-void LottiePlayer::UpdatePlaybackStateForAutoplay() {
-  // The state may not have be initialized properly if the animation is
-  // autoplaying.
-  if (autoplaying_) {
-    LottieAnimation::LottieState state =
-        autoplay() ? LottieAnimation::LottieState::kPlaying
-                   : LottieAnimation::LottieState::kStopped;
-    properties_.UpdateState(state);
+void LottiePlayer::UpdatePlaybackStateIfAutoplaying() {
+  if (autoplaying_ && autoplay()) {
+    properties_.UpdateState(LottieAnimation::LottieState::kPlaying);
   }
+  autoplaying_ = false;
 }
 
 void LottiePlayer::SetCount(int count) {
@@ -405,6 +391,18 @@ void LottiePlayer::ScheduleEvent(base::Token event_name) {
 }
 
 void LottiePlayer::SetAnimationEventCallbacks() {
+  properties_.onplay_callback = base::Bind(
+      base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Unretained(base::MessageLoop::current()->task_runner().get()),
+      FROM_HERE, base::Bind(&LottiePlayer::OnPlay, base::AsWeakPtr(this)));
+  properties_.onpause_callback = base::Bind(
+      base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Unretained(base::MessageLoop::current()->task_runner().get()),
+      FROM_HERE, base::Bind(&LottiePlayer::OnPause, base::AsWeakPtr(this)));
+  properties_.onstop_callback = base::Bind(
+      base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Unretained(base::MessageLoop::current()->task_runner().get()),
+      FROM_HERE, base::Bind(&LottiePlayer::OnStop, base::AsWeakPtr(this)));
   properties_.oncomplete_callback = base::Bind(
       base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
       base::Unretained(base::MessageLoop::current()->task_runner().get()),
@@ -414,6 +412,12 @@ void LottiePlayer::SetAnimationEventCallbacks() {
       base::Unretained(base::MessageLoop::current()->task_runner().get()),
       FROM_HERE, base::Bind(&LottiePlayer::OnLoop, base::AsWeakPtr(this)));
 }
+
+void LottiePlayer::OnPlay() { ScheduleEvent(base::Tokens::play()); }
+
+void LottiePlayer::OnPause() { ScheduleEvent(base::Tokens::pause()); }
+
+void LottiePlayer::OnStop() { ScheduleEvent(base::Tokens::stop()); }
 
 void LottiePlayer::OnComplete() { ScheduleEvent(base::Tokens::complete()); }
 
