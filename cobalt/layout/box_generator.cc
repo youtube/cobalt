@@ -444,7 +444,7 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
       base::nullopt, base::nullopt, context_,
       ReplacedBox::ReplacedBoxMode::kLottie,
       math::Size() /* only relevant to punch out video */,
-      lottie_player->GetUpdatedProperties());
+      lottie_player->GetProperties());
   lottie_player->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
