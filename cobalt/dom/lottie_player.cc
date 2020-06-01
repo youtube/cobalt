@@ -264,6 +264,11 @@ void LottiePlayer::UpdateAnimationData() {
 
     if (cached_image_->TryGetResource()) {
       PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
+      // The requested resource has already been loaded. Trigger the "load" and
+      // "ready" events to indicate that the animation data is already loaded
+      // and the DOM element is already ready.
+      ScheduleEvent(base::Tokens::load());
+      ScheduleEvent(base::Tokens::ready());
       return;
     }
   } else {
