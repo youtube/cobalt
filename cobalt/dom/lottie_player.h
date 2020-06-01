@@ -83,7 +83,7 @@ class LottiePlayer : public HTMLElement {
     return cached_image_;
   }
 
-  LottieAnimation::LottieProperties GetUpdatedProperties();
+  LottieAnimation::LottieProperties GetProperties() const;
 
   DEFINE_WRAPPABLE_TYPE(LottiePlayer);
 
@@ -113,7 +113,7 @@ class LottiePlayer : public HTMLElement {
           scoped_prevent_gc);
 
   void UpdateState(LottieAnimation::LottieState state);
-  void UpdatePlaybackStateForAutoplay();
+  void UpdatePlaybackStateIfAutoplaying();
   void SetCount(int count);
   void SetMode(std::string mode);
   void SetMode(LottieAnimation::LottieMode mode);
@@ -122,6 +122,9 @@ class LottiePlayer : public HTMLElement {
   void ScheduleEvent(base::Token event_name);
   void SetAnimationEventCallbacks();
 
+  void OnPlay();
+  void OnPause();
+  void OnStop();
   void OnComplete();
   void OnLoop();
 

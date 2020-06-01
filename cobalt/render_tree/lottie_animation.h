@@ -49,10 +49,19 @@ class LottieAnimation : public Image {
 
     // Return true if |state| is updated to a new & valid LottieState.
     bool UpdateState(LottieState new_state) {
-      // It is not possible to pause a stopped animation.
-      if (new_state == LottieState::kPaused && state == LottieState::kStopped) {
-        return false;
+      // Regardless of whether the state actually changes, per the web spec, we
+      // need to dispatch an event signaling that a particular playback state
+      // was requested.
+      if (new_state == LottieState::kPlaying && !onplay_callback.is_null()) {
+        onplay_callback.Run();
+      } else if (new_state == LottieState::kPaused &&
+                 !onpause_callback.is_null()) {
+        onpause_callback.Run();
+      } else if (new_state == LottieState::kStopped &&
+                 !onstop_callback.is_null()) {
+        onstop_callback.Run();
       }
+
       if (new_state == state) {
         return false;
       }
@@ -155,9 +164,9 @@ class LottieAnimation : public Image {
 
     void TogglePlay() {
       if (state == LottieState::kPlaying) {
-        state = LottieState::kPaused;
+        UpdateState(LottieState::kPaused);
       } else {
-        state = LottieState::kPlaying;
+        UpdateState(LottieState::kPlaying);
       }
     }
 
@@ -184,6 +193,9 @@ class LottieAnimation : public Image {
     // animation.
     size_t seek_counter = 0;
 
+    base::Closure onplay_callback;
+    base::Closure onpause_callback;
+    base::Closure onstop_callback;
     base::Closure oncomplete_callback;
     base::Closure onloop_callback;
   };
