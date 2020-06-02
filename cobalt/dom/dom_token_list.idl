@@ -20,5 +20,6 @@ interface DOMTokenList {
   boolean contains(DOMString token);
   void add(DOMString... tokens);
   void remove(DOMString... tokens);
+  boolean toggle(DOMString token, optional boolean force);
   stringifier;
 };
