@@ -698,22 +698,6 @@ void Context::GenBuffers(GLsizei n, GLuint* buffers) {
   }
 }
 
-void Context::GenBuffersForVideoFrame(GLsizei n, GLuint* buffers) {
-  GLIMP_TRACE_EVENT0(__FUNCTION__);
-  if (n < 0) {
-    SetError(GL_INVALID_VALUE);
-    return;
-  }
-
-  for (GLsizei i = 0; i < n; ++i) {
-    nb::scoped_ptr<BufferImpl> buffer_impl = impl_->CreateBufferForVideoFrame();
-    SB_DCHECK(buffer_impl);
-
-    buffers[i] = resource_manager_->RegisterBuffer(
-        nb::make_scoped_refptr(new Buffer(buffer_impl.Pass())));
-  }
-}
-
 void Context::FrontFace(GLenum mode) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
   if ((mode != GL_CW) && (mode != GL_CCW)) {
