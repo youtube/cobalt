@@ -13,33 +13,9 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'variables': {
-      'sb_evergreen_compatible': 1,
-    },
-  },
-
-  'target_defaults': {
-    'default_configuration': 'raspi-2_debug',
-    'configurations': {
-      'raspi-2_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'raspi-2_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'raspi-2_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'raspi-2_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
-  },
-
   'includes': [
-    'architecture.gypi',
-    '../shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
+    # Note that we are 'includes'ing a 'gyp' file, not a 'gypi' file.  The idea
+    # is that we just want this file to *be* the parent gyp file.
+    '<(DEPTH)/starboard/raspi/2/starboard_platform.gyp',
   ],
 }
