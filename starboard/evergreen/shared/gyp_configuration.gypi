@@ -26,6 +26,8 @@
     'cobalt_v8_buildtime_snapshot': 1,
     'cobalt_v8_enable_embedded_builtins': 1,
 
+    'cobalt_font_package': 'minimal',
+
     # Override that omits the "data" subdirectory.
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.
     'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
