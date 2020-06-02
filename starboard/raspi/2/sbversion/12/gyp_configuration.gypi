@@ -20,26 +20,26 @@
   },
 
   'target_defaults': {
-    'default_configuration': 'raspi-2_debug',
+    'default_configuration': 'raspi-2-sbversion-12_debug',
     'configurations': {
-      'raspi-2_debug': {
+      'raspi-2-sbversion-12_debug': {
         'inherit_from': ['debug_base'],
       },
-      'raspi-2_devel': {
+      'raspi-2-sbversion-12_devel': {
         'inherit_from': ['devel_base'],
       },
-      'raspi-2_qa': {
+      'raspi-2-sbversion-12_qa': {
         'inherit_from': ['qa_base'],
       },
-      'raspi-2_gold': {
+      'raspi-2-sbversion-12_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
   },
 
   'includes': [
-    'architecture.gypi',
-    '../shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
+    '<(DEPTH)/starboard/raspi/2/architecture.gypi',
+    '<(DEPTH)/starboard/raspi/shared/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/sabi/sbversion/12/sabi.gypi',
   ],
 }
