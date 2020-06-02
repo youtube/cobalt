@@ -75,9 +75,9 @@ int VideoFrameCadencePatternGenerator::GetNumberOfTimesCurrentFrameDisplays()
 }
 
 void VideoFrameCadencePatternGenerator::AdvanceToNextFrame() {
-  SB_DCHECK(refresh_rate_ != kInvalidRefreshRate);
-  SB_DCHECK(frame_rate_ != kInvalidFrameRate);
-
+  // It is possible that AdvanceToNextFrame() is called before refresh rate and
+  // frame rate are set.  This can happen when the platform release the frame on
+  // rendering.
   ++frame_index_;
 }
 

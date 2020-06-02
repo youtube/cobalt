@@ -37,6 +37,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "net/url_request/data_protocol_handler.h"
@@ -92,6 +93,10 @@ URLRequestContext::URLRequestContext(
           std::unique_ptr<net::ProxyConfigService>(
               new ProxyConfigService(proxy_config)),
           net_log));
+
+  // ack decimation significantly increases download bandwidth on low-end
+  // android devices.
+  SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
 
   net::HostResolver::Options options;
   options.max_concurrent_resolves = net::HostResolver::kDefaultParallelism;

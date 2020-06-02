@@ -402,6 +402,7 @@ void ShellDemuxer::AllocateBuffer() {
                               requested_au_->GetMaxSize()));
     if (decoder_buffer) {
       decoder_buffer->set_is_key_frame(requested_au_->IsKeyframe());
+      buffer_allocator_->UpdateVideoConfig(VideoConfig());
       Download(decoder_buffer);
     } else {
       // As the buffer is full of media data, it is safe to delay 100

@@ -16,6 +16,7 @@
 
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
+#include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -98,10 +99,8 @@ class SbMediaSetAudioWriteDurationTest
     sample_info.buffer_size = player_sample_info.buffer_size;
     sample_info.timestamp = player_sample_info.timestamp;
     sample_info.drm_info = NULL;
-#if SB_API_VERSION >= 11
     sample_info.type = kSbMediaTypeAudio;
     sample_info.audio_sample_info = dmp_reader_.audio_sample_info();
-#endif  // SB_API_VERSION >= 11
 
     SbPlayer player = pending_decoder_status_->player;
     SbMediaType type = pending_decoder_status_->type;
@@ -136,25 +135,40 @@ class SbMediaSetAudioWriteDurationTest
     SbMediaAudioCodec kAudioCodec = dmp_reader_.audio_codec();
     SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
+    last_input_timestamp_ =
+        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, 0).timestamp;
+    first_input_timestamp_ = last_input_timestamp_;
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+    SbPlayerCreationParam creation_param = CreatePlayerCreationParam(
+        audio_sample_info.codec, kSbMediaVideoCodecNone);
+    creation_param.audio_sample_info = audio_sample_info;
+    creation_param.output_mode =
+        SbPlayerGetPreferredOutputMode(&creation_param);
+    EXPECT_NE(creation_param.output_mode, kSbPlayerOutputModeInvalid);
+
+    SbPlayer player = SbPlayerCreate(
+        fake_graphics_context_provider_.window(), &creation_param,
+        DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
+        DummyErrorFunc, this /* context */,
+        fake_graphics_context_provider_.decoder_target_provider());
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
+
     if (!SbPlayerOutputModeSupported(output_mode, kSbMediaVideoCodecNone,
                                      kSbDrmSystemInvalid)) {
       output_mode = kSbPlayerOutputModePunchOut;
     }
 
-    last_input_timestamp_ =
-        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, 0).timestamp;
-    first_input_timestamp_ = last_input_timestamp_;
-
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
-#if SB_API_VERSION >= 11
         NULL /* max_video_capabilities */,
-#endif  // SB_API_VERSION >= 11
         DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
         DummyErrorFunc, this /* context */, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
     EXPECT_TRUE(SbPlayerIsValid(player));
     return player;
   }

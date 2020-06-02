@@ -21,6 +21,7 @@ from starboard.tools import environment
 
 # The name->platform path mapping.
 _PATH_MAP = {{platforms_map}}
+_PATH_MAP = {k:os.path.normpath(v) for k,v in _PATH_MAP.iteritems()}
 
 
 # Cache of the name->PlatformInfo mapping.

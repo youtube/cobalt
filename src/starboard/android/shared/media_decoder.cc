@@ -18,11 +18,9 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION >= 11
-#include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= 11
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/format_string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {

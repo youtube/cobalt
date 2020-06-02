@@ -16,13 +16,13 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.annotation.TargetApi;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
@@ -213,7 +213,7 @@ public class AudioTrackBridge {
     return 0;
   }
 
-  @TargetApi(24)
+  @RequiresApi(24)
   private int getUnderrunCountV24() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to call getUnderrunCount() with NULL audio track.");

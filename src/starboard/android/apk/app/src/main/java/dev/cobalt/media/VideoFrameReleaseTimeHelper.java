@@ -29,7 +29,6 @@
 
 package dev.cobalt.media;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -37,10 +36,11 @@ import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
 import android.view.WindowManager;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.util.UsedByNative;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
-@TargetApi(16)
+@RequiresApi(16)
 @SuppressWarnings("unused")
 @UsedByNative
 public final class VideoFrameReleaseTimeHelper {

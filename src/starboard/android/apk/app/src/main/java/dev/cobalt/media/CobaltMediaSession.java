@@ -16,7 +16,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -31,6 +30,7 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.WindowManager;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -262,7 +262,7 @@ public class CobaltMediaSession
         .requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
   }
 
-  @TargetApi(26)
+  @RequiresApi(26)
   private int requestAudioFocusV26() {
     if (audioFocusRequest == null) {
       AudioAttributes audioAtrributes =
@@ -281,7 +281,7 @@ public class CobaltMediaSession
     getAudioManager().abandonAudioFocus(this);
   }
 
-  @TargetApi(26)
+  @RequiresApi(26)
   private void abandonAudioFocusV26() {
     if (audioFocusRequest != null) {
       getAudioManager().abandonAudioFocusRequest(audioFocusRequest);

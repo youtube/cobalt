@@ -17,7 +17,7 @@ package dev.cobalt.storage;
 import static dev.cobalt.util.Log.TAG;
 
 import android.os.FileObserver;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.google.protobuf.InvalidProtocolBufferException;
 import dev.cobalt.storage.StorageProto.Storage;
 import dev.cobalt.util.Log;

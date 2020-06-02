@@ -151,7 +151,7 @@
         # TODO: Separate functions tested by media buffer test into multiple
         # files.
         'media_buffer_test.cc',
-        'media_set_audio_write_duration_test.cc',
+        'media_can_play_mime_and_key_system_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
@@ -181,6 +181,9 @@
         'once_test.cc',
         'optional_test.cc',
         'player_create_test.cc',
+        'player_creation_param_helpers.cc',
+        'player_creation_param_helpers.h',
+        'player_get_preferred_output_mode_test.cc',
         'player_output_mode_supported_test.cc',
         'random_helpers.cc',
         'recursive_mutex_test.cc',

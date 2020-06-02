@@ -35,8 +35,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer>> BufferQueue;
 
-  ChunkDemuxerStream(Type type, bool splice_frames_enabled,
-                     MediaTrack::Id media_track_id);
+  ChunkDemuxerStream(Type type, const std::string& mime,
+                     bool splice_frames_enabled, MediaTrack::Id media_track_id);
   ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
@@ -148,6 +148,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Specifies the type of the stream.
   Type type_;
 
+  const std::string mime_;
+
   Liveness liveness_;
 
   std::unique_ptr<SourceBufferStream> stream_;
@@ -212,15 +214,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void StartWaitingForSeek(base::TimeDelta seek_time) override;
   void CancelPendingSeek(base::TimeDelta seek_time) override;
 
-  // Registers a new |id| to use for AppendData() calls. |type| indicates
+  // Registers a new |id| to use for AppendData() calls. |mime| indicates
   // the MIME type for the data that we intend to append for this ID.
   // kOk is returned if the demuxer has enough resources to support another ID
   //    and supports the format indicated by |type|.
   // kNotSupported is returned if |type| is not a supported format.
   // kReachedIdLimit is returned if the demuxer cannot handle another ID right
   //    now.
-  Status AddId(const std::string& id, const std::string& type,
-               const std::string& codecs);
+  Status AddId(const std::string& id, const std::string& mime);
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
   // for a given |id| has changed.
@@ -351,6 +352,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Returns a pointer to a new ChunkDemuxerStream instance, which is owned by
   // ChunkDemuxer.
   ChunkDemuxerStream* CreateDemuxerStream(const std::string& source_id,
+                                          const std::string& mime,
                                           DemuxerStream::Type type);
 
   void OnNewTextTrack(ChunkDemuxerStream* text_stream,

@@ -630,10 +630,11 @@ class TCP(object):
     Subclass MUST implement `handle` method. It accepts an instance of accepted `Client` connection.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100):
+    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, client_ips=None):
         self.hostname = hostname
         self.port = port
         self.backlog = backlog
+        self.client_ips = client_ips
         self.socket = None
 
     def handle(self, client):
@@ -648,6 +649,12 @@ class TCP(object):
             self.socket.listen(self.backlog)
             while True:
                 conn, addr = self.socket.accept()
+                if self.client_ips and addr[0] not in self.client_ips:
+                    logger.warning('Closing socket on rejected client IP %s' % addr[0])
+                    conn.shutdown(socket.SHUT_RDWR)
+                    conn.close()
+                    continue
+                logger.info('Handling socket on accepted client IP %s' % addr[0])
                 client = Client(conn, addr)
                 self.handle(client)
         except Exception as e:
@@ -665,8 +672,8 @@ class HTTP(TCP):
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
                  auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192,
-                 host_resolver=None):
-        super(HTTP, self).__init__(hostname, port, backlog)
+                 host_resolver=None, client_ips=None):
+        super(HTTP, self).__init__(hostname, port, backlog, client_ips)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
@@ -719,7 +726,9 @@ def main():
                                                                   'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
     parser.add_argument('--host_resolver', default=None, help='Default: No host resolution. '
-                                                      'JSON hosts file used for hostname IP resolution.')
+                                                              'JSON hosts file used for hostname IP resolution.')
+    parser.add_argument('--client_ips', default=None, nargs='*', help='Default: No client IP restriction. '
+                                                                      'The only client IPs that the proxy will accept.')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
@@ -743,7 +752,8 @@ def main():
                      auth_code=auth_code,
                      server_recvbuf_size=int(args.server_recvbuf_size),
                      client_recvbuf_size=int(args.client_recvbuf_size),
-                     host_resolver=host_resolver)
+                     host_resolver=host_resolver,
+                     client_ips=args.client_ips)
         proxy.run()
     except KeyboardInterrupt:
         pass

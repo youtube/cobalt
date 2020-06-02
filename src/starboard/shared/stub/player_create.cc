@@ -14,6 +14,24 @@
 
 #include "starboard/player.h"
 
+#include "starboard/configuration.h"
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+SbPlayer SbPlayerCreate(
+    SbWindow /*window*/,
+    const SbPlayerCreationParam* /*creation_param*/,
+    SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
+    SbPlayerDecoderStatusFunc /*decoder_status_func*/,
+    SbPlayerStatusFunc /*player_status_func*/,
+    SbPlayerErrorFunc /*player_error_func*/,
+    void* /*context*/,
+    SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
+  return kSbPlayerInvalid;
+}
+
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
@@ -34,3 +52,5 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbDecodeTargetGraphicsContextProvider* /*provider*/) {
   return kSbPlayerInvalid;
 }
+
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

@@ -33,7 +33,8 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       self.skipTest('Can only run web platform tests on debug or devel config.')
 
   def test_simple(self):
-    with WebPlatformTestServer(binding_address=self.GetBindingAddress()):
+    with WebPlatformTestServer(binding_address=self.GetBindingAddress(),
+                               wpt_http_port=self.GetWptHttpPort()):
       target_params = []
 
       filters = self.cobalt_config.GetWebPlatformTestFilters()

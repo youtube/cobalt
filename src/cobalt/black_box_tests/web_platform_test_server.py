@@ -31,12 +31,16 @@ from tools.wptserve.wptserve import stash
 class WebPlatformTestServer(object):
   """Runs a WPT StashServer on its own thread in a Python context manager."""
 
-  def __init__(self, binding_address=None):
+  def __init__(self, binding_address=None, wpt_http_port=None):
     # IP config['host'] should map to either through a dns or the hosts file.
     if binding_address:
       self._binding_address = binding_address
     else:
       self._binding_address = '127.0.0.1'
+    if wpt_http_port:
+      self._wpt_http_port = wpt_http_port
+    else:
+      self._wpt_http_port = '8000'
 
   def main(self):
     kwargs = vars(serve.get_parser().parse_args())
@@ -45,6 +49,7 @@ class WebPlatformTestServer(object):
     config = serve.load_config(os.path.join(WPT_DIR, 'config.default.json'),
                                os.path.join(WPT_DIR, 'config.json'),
                                **kwargs)
+    config['ports']['http'][0] = int(self._wpt_http_port)
 
     serve.setup_logger(config['log_level'])
 

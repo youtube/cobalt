@@ -150,6 +150,11 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
 
+#if SB_API_VERSION >= 11
+  audio_sample_info_.codec = kSbMediaAudioCodecNone;
+  video_sample_info_.codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= 11
+
   if (audio_config.IsValidConfig()) {
     UpdateAudioConfig(audio_config);
   }
@@ -157,9 +162,7 @@ StarboardPlayer::StarboardPlayer(
     UpdateVideoConfig(video_config);
   }
 
-  output_mode_ = ComputeSbPlayerOutputMode(
-      MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
-      prefer_decode_to_texture);
+  output_mode_ = ComputeSbPlayerOutputMode(prefer_decode_to_texture);
 
   CreatePlayer();
 
@@ -554,8 +557,30 @@ void StarboardPlayer::CreatePlayer() {
   }
 #endif  // SB_API_VERSION >= 11
 
-  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+  SbPlayerCreationParam creation_param = {};
+  creation_param.audio_mime =
+      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
+  creation_param.video_mime =
+      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
+  creation_param.drm_system = drm_system_;
+  creation_param.audio_sample_info = audio_sample_info_;
+  creation_param.video_sample_info = video_sample_info_;
+  creation_param.output_mode = output_mode_;
+  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
+  DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
+  player_ = SbPlayerCreate(
+      window_, &creation_param, &StarboardPlayer::DeallocateSampleCB,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
+      &StarboardPlayer::PlayerErrorCB, this,
+      get_decode_target_graphics_context_provider_func_.Run());
+
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec,
 #if SB_API_VERSION < 10
@@ -573,6 +598,9 @@ void StarboardPlayer::CreatePlayer() {
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       this, output_mode_,
       get_decode_target_graphics_context_provider_func_.Run());
+
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -935,24 +963,54 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
-    SbMediaVideoCodec codec, SbDrmSystem drm_system,
-    bool prefer_decode_to_texture) {
-  // Try to choose the output mode according to the passed in value of
-  // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
-  // though, fallback to an output mode that is available.
-  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, codec,
-                                  drm_system)) {
-    output_mode = kSbPlayerOutputModePunchOut;
-  }
-  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
-      SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture, codec,
-                                  drm_system)) {
-    output_mode = kSbPlayerOutputModeDecodeToTexture;
-  }
-  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
+    bool prefer_decode_to_texture) const {
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  SbPlayerCreationParam creation_param = {};
+  creation_param.audio_mime =
+      audio_config_.IsValidConfig() ? audio_config_.mime().c_str() : "";
+  creation_param.video_mime =
+      video_config_.IsValidConfig() ? video_config_.mime().c_str() : "";
+  creation_param.drm_system = drm_system_;
+  creation_param.audio_sample_info = audio_sample_info_;
+  creation_param.video_sample_info = video_sample_info_;
+  creation_param.max_video_capabilities = max_video_capabilities_.c_str();
 
+  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
+  // |prefer_decode_to_texture| is true.
+  if (prefer_decode_to_texture) {
+    creation_param.output_mode = kSbPlayerOutputModeDecodeToTexture;
+  } else {
+    creation_param.output_mode = kSbPlayerOutputModePunchOut;
+  }
+  auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
+#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+
+#if SB_API_VERSION >= 11
+  video_codec = video_sample_info_.codec;
+#else   // SB_API_VERSION >= 11
+  video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+#endif  // SB_API_VERSION >= 11
+
+  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
+  // |prefer_decode_to_texture| is true.
+  if (prefer_decode_to_texture) {
+    if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
+                                    video_codec, drm_system_)) {
+      return kSbPlayerOutputModeDecodeToTexture;
+    }
+  }
+
+  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, video_codec,
+                                  drm_system_)) {
+    return kSbPlayerOutputModePunchOut;
+  }
+  CHECK(SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
+                                    video_codec, drm_system_));
+  return kSbPlayerOutputModeDecodeToTexture;
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 }  // namespace media
