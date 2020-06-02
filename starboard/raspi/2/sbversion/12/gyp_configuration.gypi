@@ -1,4 +1,4 @@
-# Copyright 2016 The Cobalt Authors. All Rights Reserved.
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,45 +14,32 @@
 
 {
   'variables': {
-    # RasPi 1 is ARMv6
-    'arm_version': 6,
-    'armv7': 0,
-    'arm_neon': 0,
-    # Raspi-0 is equipped with hardware Floating-Point-Unit and supports
-    # hardware floating point ABI.
-    'arm_float_abi': 'hard',
-    # Cobalt's default value for arm_fpu is vfpv3 but Raspi-0's FPU is vfpv2.
-    'arm_fpu': 'vfpv2',
-
-    'compiler_flags': [
-      # Optimize for Raspberry Pi 1 chips.
-      '-march=armv6zk',
-      '-mcpu=arm1176jzf-s',
-      '-mfloat-abi=hard',
-      '-mfpu=vfp',
-    ],
+    'variables': {
+      'sb_evergreen_compatible': 1,
+    },
   },
 
   'target_defaults': {
-    'default_configuration': 'raspi-0_debug',
+    'default_configuration': 'raspi-2-sbversion-12_debug',
     'configurations': {
-      'raspi-0_debug': {
+      'raspi-2-sbversion-12_debug': {
         'inherit_from': ['debug_base'],
       },
-      'raspi-0_devel': {
+      'raspi-2-sbversion-12_devel': {
         'inherit_from': ['devel_base'],
       },
-      'raspi-0_qa': {
+      'raspi-2-sbversion-12_qa': {
         'inherit_from': ['qa_base'],
       },
-      'raspi-0_gold': {
+      'raspi-2-sbversion-12_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
   },
 
   'includes': [
-    '../shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
+    '<(DEPTH)/starboard/raspi/2/architecture.gypi',
+    '<(DEPTH)/starboard/raspi/shared/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/sabi/sbversion/12/sabi.gypi',
   ],
 }
