@@ -1043,76 +1043,67 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
       app_status_ = kBlurredAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Pause();
+      browser_module_->Blur();
       DLOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       DLOG(INFO) << "Got focus event.";
       app_status_ = kRunningAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Unpause();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       DLOG(INFO) << "Got conceal event.";
       app_status_ = kConcealedAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Suspend();
-#if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
-#endif
+      browser_module_->Conceal();
       DLOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got reveal event.";
       app_status_ = kBlurredAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Resume();
-#if SB_IS(EVERGREEN)
-      updater_module_->Resume();
-#endif
+      browser_module_->Reveal();
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
-      DLOG(INFO) << "Got freeze event, but no action was taken.";
+      DLOG(INFO) << "Got freeze event.";
+      app_status_ = kFrozenAppStatus;
+      browser_module_->Freeze();
+#if SB_IS(EVERGREEN)
+      updater_module_->Suspend();
+#endif
+      DLOG(INFO) << "Finished freezing.";
       break;
     case kSbEventTypeUnfreeze:
-      DLOG(INFO) << "Got unfreeze event, but no action was taken.";
+      DLOG(INFO) << "Got unfreeze event.";
+      app_status_ = kConcealedAppStatus;
+      browser_module_->Unfreeze();
+#if SB_IS(EVERGREEN)
+      updater_module_->Resume();
+#endif
+      DLOG(INFO) << "Finished unfreezing.";
       break;
 #else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
-      app_status_ = kPausedAppStatus;
+      app_status_ = kBlurredAppStatus;
       ++app_pause_count_;
-      browser_module_->Pause();
+      browser_module_->Blur();
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
       app_status_ = kRunningAppStatus;
       ++app_unpause_count_;
-      browser_module_->Unpause();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      app_status_ = kSuspendedAppStatus;
+      app_status_ = kFrozenAppStatus;
       ++app_suspend_count_;
-      browser_module_->Suspend();
+      browser_module_->Conceal();
+      browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       updater_module_->Suspend();
 #endif
@@ -1121,9 +1112,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      app_status_ = kPausedAppStatus;
+      app_status_ = kBlurredAppStatus;
       ++app_resume_count_;
-      browser_module_->Resume();
+      browser_module_->Unfreeze();
+      browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
       updater_module_->Resume();
 #endif
