@@ -13,6 +13,7 @@
 // limitations under the License.
 
 interface H5vccRuntime {
+  readonly attribute DOMString initialDeepLink;
   readonly attribute H5vccDeepLinkEventTarget onDeepLink;
   readonly attribute H5vccRuntimeEventTarget onPause;
   readonly attribute H5vccRuntimeEventTarget onResume;

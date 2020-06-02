@@ -25,7 +25,8 @@ H5vcc::H5vcc(const Settings& settings) {
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
-  runtime_ = new H5vccRuntime(settings.event_dispatcher);
+  runtime_ =
+      new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
   settings_ = new H5vccSettings(settings.media_module, settings.network_module);
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();

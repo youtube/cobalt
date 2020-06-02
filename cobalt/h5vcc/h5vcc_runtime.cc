@@ -20,8 +20,10 @@
 
 namespace cobalt {
 namespace h5vcc {
-H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
+H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher,
+                           const std::string& initial_deep_link)
     : event_dispatcher_(event_dispatcher) {
+  initial_deep_link_ = initial_deep_link;
   on_deep_link_ = new H5vccDeepLinkEventTarget;
   on_pause_ = new H5vccRuntimeEventTarget;
   on_resume_ = new H5vccRuntimeEventTarget;
@@ -42,6 +44,10 @@ H5vccRuntime::~H5vccRuntime() {
                                          application_event_callback_);
   event_dispatcher_->RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                          deep_link_event_callback_);
+}
+
+const std::string& H5vccRuntime::initial_deep_link() const {
+  return initial_deep_link_;
 }
 
 const scoped_refptr<H5vccDeepLinkEventTarget>& H5vccRuntime::on_deep_link()
