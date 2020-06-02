@@ -163,6 +163,17 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
 
   return true;
 }
+
+// Gets the path to the content directory.
+bool GetContentDirectory(char* out_path, int path_size) {
+  if (!GetExecutableDirectory(out_path, path_size)) {
+    return false;
+  }
+  if (SbStringConcat(out_path, "/content", path_size) >= path_size) {
+    return false;
+  }
+  return true;
+}
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
@@ -176,10 +187,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
   switch (path_id) {
     case kSbSystemPathContentDirectory:
-      if (!GetExecutableDirectory(path.data(), kPathSize)) {
-        return false;
-      }
-      if (SbStringConcat(path.data(), "/content", kPathSize) >= kPathSize) {
+      if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -229,7 +237,17 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
     case kSbSystemPathFontConfigurationDirectory:
     case kSbSystemPathFontDirectory:
+#if SB_IS(EVERGREEN_COMPATIBLE)
+      if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
+      }
+      if (SbStringConcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
+        return false;
+      }
+      break;
+#else
+      return false;
+#endif
 
 #if SB_API_VERSION >= 12
     case kSbSystemPathStorageDirectory:

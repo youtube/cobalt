@@ -324,8 +324,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
       continue;
     }
 
-    families_.push_back().reset(SkRef(new_family.get()));
-
+    bool is_duplicate_font = false;
     if (is_named_family) {
       for (int j = 0; j < family_info.names.count(); j++) {
         // Verify that the name was not previously added.
@@ -335,21 +334,20 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
           name_to_family_map_.insert(
               std::make_pair(family_info.names[j].c_str(), new_family.get()));
         } else {
-          NOTREACHED() << "Duplicate Font name: \""
-                       << family_info.names[j].c_str() << "\"";
+          is_duplicate_font = true;
+          SB_LOG(WARNING) << "Duplicate Font name: \""
+                          << family_info.names[j].c_str() << "\"";
         }
       }
     }
 
-    // If this is a fallback family, add it to the fallback family array
-    // that corresponds to its priority. This will be used to generate a
-    // priority-ordered fallback families list once the family map is fully
-    // built.
-    if (family_info.is_fallback_family) {
-      (*priority_fallback_families)[family_info.fallback_priority].push_back(
-          new_family.get());
+    // If there was a duplicate font we would not add the family
+    // again but re-use the original family.
+    if (!is_duplicate_font) {
+      families_.push_back().reset(SkRef(new_family.get()));
     }
 
+    bool is_duplicate_font_face = false;
     for (sk_sp<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
              family_style_entry = new_family->styles_.begin();
          family_style_entry != new_family->styles_.end();
@@ -375,12 +373,25 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
             font_face_name_to_family_map.end()) {
           font_face_name_to_family_map[font_face_name] = new_family.get();
         } else {
+          is_duplicate_font_face = true;
           const std::string font_face_name_type =
               i == 0 ? "Full Font" : "Postscript";
-          NOTREACHED() << "Duplicate " << font_face_name_type << " name: \""
-                       << font_face_name << "\"";
+          SB_LOG(WARNING) << "Duplicate " << font_face_name_type << " name: \""
+                          << font_face_name << "\"";
         }
       }
+    }
+
+    // If this is a fallback family, add it to the fallback family array
+    // that corresponds to its priority. This will be used to generate a
+    // priority-ordered fallback families list once the family map is fully
+    // built.
+    //
+    // Also if there was a duplicate font face we would not add the family
+    // again but re-use the original family.
+    if (family_info.is_fallback_family && !is_duplicate_font_face) {
+      (*priority_fallback_families)[family_info.fallback_priority].push_back(
+          new_family.get());
     }
   }
 }
