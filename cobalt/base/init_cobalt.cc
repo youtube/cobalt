@@ -29,14 +29,14 @@ namespace cobalt {
 namespace {
 
 base::LazyInstance<std::string>::DestructorAtExit::DestructorAtExit
-    s_start_url = LAZY_INSTANCE_INITIALIZER;
+    s_initial_deep_link = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
-void InitCobalt(int argc, char* argv[], const char* start_url) {
+void InitCobalt(int argc, char* argv[], const char* link) {
   base::CommandLine::Init(argc, argv);
-  if (start_url) {
-    s_start_url.Get() = start_url;
+  if (link) {
+    s_initial_deep_link.Get() = link;
   }
   bool icu_initialized = base::i18n::InitializeICU();
   LOG_IF(ERROR, !icu_initialized) << "ICU initialization failed.";
@@ -46,6 +46,6 @@ void InitCobalt(int argc, char* argv[], const char* start_url) {
                                       paths::PATH_COBALT_END);
 }
 
-const char* GetStarboardStartURL() { return s_start_url.Get().c_str(); }
+const char* GetInitialDeepLink() { return s_initial_deep_link.Get().c_str(); }
 
 }  // namespace cobalt

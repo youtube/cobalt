@@ -27,9 +27,11 @@ namespace h5vcc {
 
 class H5vccRuntime : public script::Wrappable {
  public:
-  explicit H5vccRuntime(base::EventDispatcher* event_dispatcher);
+  explicit H5vccRuntime(base::EventDispatcher* event_dispatcher,
+                        const std::string& initial_deep_link);
   ~H5vccRuntime();
 
+  const std::string& initial_deep_link() const;
   const scoped_refptr<H5vccDeepLinkEventTarget>& on_deep_link() const;
   const scoped_refptr<H5vccRuntimeEventTarget>& on_pause() const;
   const scoped_refptr<H5vccRuntimeEventTarget>& on_resume() const;
@@ -42,6 +44,7 @@ class H5vccRuntime : public script::Wrappable {
   void OnApplicationEvent(const base::Event* event);
   void OnDeepLinkEvent(const base::Event* event);
 
+  std::string initial_deep_link_;
   scoped_refptr<H5vccDeepLinkEventTarget> on_deep_link_;
   scoped_refptr<H5vccRuntimeEventTarget> on_pause_;
   scoped_refptr<H5vccRuntimeEventTarget> on_resume_;
