@@ -148,6 +148,45 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   RunUpdateSteps();
 }
 
+// Algorithm for Toggle:
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-toggle
+bool DOMTokenList::Toggle(const std::string& token,
+                          const base::Optional<bool>& force) {
+  // Custom, not in any spec.
+  MaybeRefresh();
+
+  // If token is the empty string, then throw a "SyntaxError" exception.
+  // If token contains any ASCII whitespace, then throw an
+  // "InvalidCharacterError" exception.
+  if (!IsTokenValid(token)) {
+    return false;
+  }
+
+  bool containsToken = ContainsValid(base::Token(token));
+
+  // If token in tokens, and force is true, return true.
+  // If token not in tokens, and force is false, return false.
+  if (containsToken == force) {
+    return containsToken;
+  }
+
+  // If token in tokens, then remove token from tokens.
+  // If token not in tokens, append token to tokens.
+  if (containsToken) {
+    tokens_.erase(std::remove(tokens_.begin(), tokens_.end(), token),
+                  tokens_.end());
+  } else {
+    tokens_.push_back(base::Token(token));
+  }
+
+  // Run the update steps.
+  RunUpdateSteps();
+
+  // Return true if token was appended to tokens.
+  // Return false if token was removed from tokens.
+  return !containsToken;
+}
+
 // Algorithm for AnonymousStringifier:
 //   https://www.w3.org/TR/dom/#dom-domtokenlist-stringifier
 std::string DOMTokenList::AnonymousStringifier() const {
