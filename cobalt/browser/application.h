@@ -146,8 +146,6 @@ class Application {
 #endif
 
  private:
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
   enum AppStatus {
     kUninitializedAppStatus,
     kRunningAppStatus,
@@ -158,19 +156,6 @@ class Application {
     kQuitAppStatus,
     kShutDownAppStatus,
   };
-#else
-  enum AppStatus {
-    kUninitializedAppStatus,
-    kPreloadingAppStatus,
-    kRunningAppStatus,
-    kPausedAppStatus,
-    kSuspendedAppStatus,
-    kWillQuitAppStatus,
-    kQuitAppStatus,
-    kShutDownAppStatus,
-  };
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
 
   enum NetworkStatus {
     kDisconnectedNetworkStatus,
