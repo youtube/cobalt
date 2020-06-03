@@ -294,6 +294,7 @@
         'time_narrow_test.cc',
         'time_zone_get_current_test.cc',
         'time_zone_get_name_test.cc',
+        'ui_navigation_test.cc',
         'undefined_behavior_test.cc',
         'unsafe_math_test.cc',
         'url_player_create_test.cc',
