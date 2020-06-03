@@ -23,6 +23,9 @@ allows the platform to receive feedback on where UI elements are located and
 also lets the platform control what is selected and what the scroll
 parameters are.
 
+NOTE: This API is not used in the production web app yet, so please use the
+stub implementation for `SbUiNavGetInterface()` for now.
+
 ### Require the OpenGL and Skia renderers on all platforms.
 
 The system must implement `SbGetGlesInterface()` in `starboard/gles.h`
