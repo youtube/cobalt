@@ -26,7 +26,7 @@
 #   2. Start Cobalt, and point it to the socket created in Step 1.
 #   3. Send 3 deep links.
 #   4. Load & run the javascript resource.
-#   5. Check to see if JSTestsSucceeded().
+#   5. Check to see if JSTestsSucceeded(), receiving only the last deep link.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -101,7 +101,7 @@ class FireDeepLinkBeforeLoad(black_box_tests.BlackBoxTestCase):
           for i in range(1, 4):
             link = 'link ' + str(i)
             print('Sending link : ' + link)
-            self.assertTrue(runner.SendDeepLink(link) == 0)
+            self.assertTrue(runner.SendDeepLink(link))
           print('Links fired.')
           # Step 4. Load & run the javascript resource.
           _links_fired.set()

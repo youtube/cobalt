@@ -217,17 +217,18 @@ class AbstractLauncher(object):
     Args:
       link:  Link to send to the executable.
 
+    Returns:
+      True if the link was sent, False if it wasn't.
+
     Raises:
       RuntimeError: Deep link not supported on platform.
     """
-
     raise RuntimeError(
         "Deep link not supported for this platform (link {} sent).".format(
             link))
 
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
-
     return self.startup_timeout_seconds
 
   def GetHostAndPortGivenPort(self, port):
