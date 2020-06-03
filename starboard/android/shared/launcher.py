@@ -317,8 +317,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
           '--android_log_sleep_time=1000',
           '--disable_sign_in',
       ]
-      if self.target_command_line_params:
-        command_line_params += self.target_command_line_params
+      for param in self.target_command_line_params:
+        if param.startswith('--link='):
+          # Android deeplinks go in the Intent data
+          link = param.split('=')[1]
+          args += ['-d', "'{}'".format(link)]
+        else:
+          command_line_params.append(param)
       args += ['--esa', 'args', "'{}'".format(','.join(command_line_params))]
       args += [_APP_START_INTENT]
 
