@@ -371,7 +371,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif
   h5vcc_settings.account_manager = account_manager;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
-  h5vcc_settings.initial_deep_link = options_.initial_deep_link;
   options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 

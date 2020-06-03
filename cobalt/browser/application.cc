@@ -540,13 +540,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
+  early_deep_link_ = GetInitialDeepLink();
+  DLOG(INFO) << "Initial deep link: " << early_deep_link_;
+
   WebModule::Options web_options;
   storage::StorageManager::Options storage_manager_options;
   network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
-  options.initial_deep_link = GetInitialDeepLink();
   network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
@@ -976,10 +978,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
       if (browser_module_->IsWebModuleLoaded()) {
-        DLOG(INFO) << "Dispatching deep link " << link;
+        DLOG(INFO) << "Dispatching deep link: " << link;
         DispatchEventInternal(new base::DeepLinkEvent(link));
       } else {
-        DLOG(INFO) << "Storing deep link " << link;
+        DLOG(INFO) << "Storing deep link: " << link;
         early_deep_link_ = link;
       }
       break;
@@ -1320,7 +1322,7 @@ void Application::DispatchEarlyDeepLink() {
   if (early_deep_link_.empty()) {
     return;
   }
-  DLOG(INFO) << "Dispatching early deep link " << early_deep_link_;
+  DLOG(INFO) << "Dispatching early deep link: " << early_deep_link_;
   DispatchEventInternal(new base::DeepLinkEvent(early_deep_link_.c_str()));
   early_deep_link_ = "";
 }
