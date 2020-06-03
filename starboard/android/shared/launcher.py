@@ -377,6 +377,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _Shutdown(self):
     self._CallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
 
+  def SupportsDeepLink(self):
+    return True
+
+  def SendDeepLink(self, link):
+    shell_cmd = 'am start -d "{}" {}'.format(link, _APP_START_INTENT)
+    args = ['shell', shell_cmd]
+    self._CheckCallAdb(*args)
+    return True
+
   def Kill(self):
     if not self.killed.is_set():
       sys.stderr.write('***Killing Launcher***\n')

@@ -176,7 +176,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # this happens.
     connection_attempts = 3
     return send_link.SendLink(
-        os.path.basename(self.executable), link, connection_attempts)
+        os.path.basename(self.executable), link, connection_attempts) == 0
 
   def WaitForProcessStatus(self, target_status, timeout):
     """Wait for Cobalt to turn to target status within specified timeout limit.
