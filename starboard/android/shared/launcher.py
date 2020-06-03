@@ -16,15 +16,15 @@
 """Android implementation of Starboard launcher abstraction."""
 
 import os
-import Queue
 import re
 import socket
 import subprocess
 import sys
 import threading
 import time
+import Queue
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import,g-bad-import-order
 
 from starboard.android.shared import sdk_utils
 from starboard.tools import abstract_launcher
@@ -40,10 +40,10 @@ _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
 _QUEUE_CODE_CRASHED = 'crashed'
 
 # Args to ***REMOVED***crow, which is started if no other device is attached.
-_CROW_COMMANDLINE = ['/***REMOVED***/teams/mobile_eng_prod/crow/crow.par',
-                     '--api_level', '24', '--device', 'tv',
-                     '--open_gl_driver', 'host',
-                     '--noenable_g3_monitor']
+_CROW_COMMANDLINE = [
+    '/***REMOVED***/teams/mobile_eng_prod/crow/crow.par', '--api_level', '24',
+    '--device', 'tv', '--open_gl_driver', 'host', '--noenable_g3_monitor'
+]
 
 # How long to keep logging after a crash in order to emit the stack trace.
 _CRASH_LOG_SECONDS = 1.0
@@ -179,8 +179,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
-    p = subprocess.Popen([_ADB, 'devices'], stderr=_DEV_NULL,
-                         stdout=subprocess.PIPE, close_fds=True)
+    p = subprocess.Popen([_ADB, 'devices'],
+                         stderr=_DEV_NULL,
+                         stdout=subprocess.PIPE,
+                         close_fds=True)
     result = p.stdout.readlines()[1:-1]
     p.wait()
 
@@ -228,7 +230,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
     p = subprocess.Popen([_ADB, 'connect', '{}:5555'.format(self.device_id)],
-                         stderr=subprocess.STDOUT, stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT,
+                         stdout=subprocess.PIPE,
                          close_fds=True)
     result = p.stdout.readlines()[0]
     p.wait()
@@ -248,8 +251,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _Call(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL,
-                    close_fds=True)
+    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL, close_fds=True)
 
   def _CallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
@@ -257,16 +259,16 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _CheckCall(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.check_call(args, stdout=_DEV_NULL, stderr=_DEV_NULL,
-                          close_fds=True)
+    subprocess.check_call(
+        args, stdout=_DEV_NULL, stderr=_DEV_NULL, close_fds=True)
 
   def _CheckCallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
     self._CheckCall(*args)
 
   def _PopenAdb(self, *args, **kwargs):
-    return subprocess.Popen(self.adb_builder.Build(*args), close_fds=True,
-                            **kwargs)
+    return subprocess.Popen(
+        self.adb_builder.Build(*args), close_fds=True, **kwargs)
 
   def Run(self):
     # The return code for binaries run on Android is read from a log line that
@@ -305,9 +307,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     #  Ctrl + C will kill this process
     logcat_process = self._PopenAdb(
-        'logcat', '-v', 'raw', '-s', '*:F', 'DEBUG:*', 'System.err:*',
-        'starboard:*', 'starboard_media:*',
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        'logcat',
+        '-v',
+        'raw',
+        '-s',
+        '*:F',
+        'DEBUG:*',
+        'System.err:*',
+        'starboard:*',
+        'starboard_media:*',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
 
     # Actually running executable
     run_timer = StepTimer('running executable')
@@ -407,7 +417,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetHostAndPortGivenPort(self, port):
     forward_p = self._PopenAdb(
-        'forward', 'tcp:0', 'tcp:{}'.format(port),
+        'forward',
+        'tcp:0',
+        'tcp:{}'.format(port),
         stdout=subprocess.PIPE,
         stderr=_DEV_NULL)
     forward_p.wait()
