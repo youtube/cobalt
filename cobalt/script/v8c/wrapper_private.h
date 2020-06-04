@@ -17,6 +17,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/wrappable.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -40,23 +41,31 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   // should never be called on objects that don't have private data.
   static WrapperPrivate* GetFromWrapperObject(v8::Local<v8::Object> object) {
     DCHECK(object->InternalFieldCount() == kInternalFieldCount);
+    DCHECK(object->GetAlignedPointerFromInternalField(kInternalFieldIdIndex) ==
+           kInternalFieldIdValue);
     return static_cast<WrapperPrivate*>(
         object->GetAlignedPointerFromInternalField(kInternalFieldDataIndex));
   }
 
   // Check whether |object| has private wrapper data.
   static bool HasWrapperPrivate(v8::Local<v8::Object> object) {
-    return object->InternalFieldCount() == kInternalFieldCount;
+    return object->InternalFieldCount() == kInternalFieldCount &&
+           object->GetAlignedPointerFromInternalField(kInternalFieldIdIndex) ==
+               kInternalFieldIdValue;
   }
 
   // The total amount of internal fields in |wrapper_| we use.  See
-  // |kInternalFieldDataIndex| and |kInternalFieldDummyIndex| below for
+  // |kInternalFieldDataIndex| and |kInternalFieldIdIndex| below for
   // further information.
   static const int kInternalFieldCount = 2;
 
   // Start at 1009 out of paranoia that we will collide with V8 looking for
   // Blink specific class ids in the future.
   static const int kClassId = 1009;
+
+  // This magic number is used to positively identify the object as a Cobalt
+  // platform object.
+  static void* const kInternalFieldIdValue;
 
   WrapperPrivate() = delete;
   WrapperPrivate(v8::Isolate* isolate,
@@ -66,8 +75,8 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
         wrappable_(wrappable),
         traced_global_(isolate, wrapper) {
     wrapper->SetAlignedPointerInInternalField(kInternalFieldDataIndex, this);
-    wrapper->SetAlignedPointerInInternalField(kInternalFieldDummyIndex,
-                                              nullptr);
+    wrapper->SetAlignedPointerInInternalField(kInternalFieldIdIndex,
+                                              kInternalFieldIdValue);
     traced_global_.SetFinalizationCallback(this, &WrapperPrivate::Callback);
     traced_global_.SetWrapperClassId(kClassId);
   }
@@ -90,18 +99,9 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   // For the time being, we only use a single internal field, which stores a
   // pointer back to us (us being the |WrapperPrivate|).
   static const int kInternalFieldDataIndex = 0;
-  // Blink uses two fields, so V8 won't believe we're a potential wrapper
-  // unless we have two fields.
-  //      .-""""""-.
-  //    .'          '.
-  //   /   O      O   \
-  //  :                :
-  //  |                |
-  //  :    .------.    :
-  //   \  '        '  /
-  //    '.          .'
-  //      '-......-'
-  static const int kInternalFieldDummyIndex = 1;
+  // V8 built-in types may also use internal fields, so use a special Id to
+  // confirm that the object is a Cobalt platform object.
+  static const int kInternalFieldIdIndex = 1;
 
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;
