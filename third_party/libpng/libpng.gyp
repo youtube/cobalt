@@ -26,6 +26,7 @@
           'defines': [
             'CHROME_PNG_WRITE_SUPPORT',
             'PNG_USER_CONFIG',
+            'PNG_SKIP_SETJMP_CHECK',
           ],
           'sources': [
             'png.c',
@@ -56,6 +57,7 @@
             'defines': [
               'CHROME_PNG_WRITE_SUPPORT',
               'PNG_USER_CONFIG',
+              'PNG_SKIP_SETJMP_CHECK',
             ],
           },
           'export_dependent_settings': [

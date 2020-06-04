@@ -1229,7 +1229,6 @@
                 # The mips toolchain currently has problems with stack-protector.
                 'cflags!': [
                   '-fstack-protector',
-                  '-U__linux__'
                 ],
                 'cflags': [
                   '-fno-stack-protector',

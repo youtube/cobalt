@@ -150,9 +150,6 @@ class AndroidConfiguration(PlatformConfiguration):
       cxx_path = cc_path + '++'
       ar_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][1]
       clang_flags = [
-          # We'll pretend not to be Linux, but Starboard instead.
-          '-U__linux__',
-
           # libwebp uses the cpufeatures library to detect ARM NEON support
           '-I{}/sources/android/cpufeatures'.format(self.android_ndk_home),
 

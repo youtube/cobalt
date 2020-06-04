@@ -25,11 +25,6 @@ import("//starboard/linux/shared/dlmalloc.gni")
 # =============================================================================
 
 config("compiler_defaults") {
-  cflags = [
-     # We'll pretend not to be Linux, but Starboard instead.
-    "-U__linux__",
-  ]
-
   cflags_c = [
     # Limit to C99. This allows Linux to be a canary build for any
     # C11 features that are not supported on some platforms' compilers.
