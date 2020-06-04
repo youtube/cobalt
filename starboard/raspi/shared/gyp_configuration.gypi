@@ -192,4 +192,8 @@
       }],
     ],
   }, # end of target_defaults
+
+  'includes': [
+    '<(DEPTH)/starboard/sabi/sabi.gypi',
+  ],
 }

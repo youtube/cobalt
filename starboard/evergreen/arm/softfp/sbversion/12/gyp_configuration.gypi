@@ -37,6 +37,6 @@
     }, # end of configurations
   },
   'includes': [
-    '<(DEPTH)/starboard/evergreen/arm/shared/sbversion/12/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/evergreen/arm/shared/gyp_configuration.gypi',
   ],
 }
