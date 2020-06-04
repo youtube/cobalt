@@ -40,6 +40,5 @@
   'includes': [
     '<(DEPTH)/starboard/raspi/2/architecture.gypi',
     '<(DEPTH)/starboard/raspi/shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sbversion/12/sabi.gypi',
   ],
 }

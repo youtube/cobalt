@@ -16,14 +16,10 @@
 # though it may have been modified since its creation.
 """Starboard evergreen-arm-softfp platform configuration for gyp_cobalt."""
 
-import importlib
-
-# Dynamically imported to get around the number in the path.
-_PARENT_CONFIGURATION = importlib.import_module(
-    'starboard.evergreen.arm.shared.sbversion.12.gyp_configuration')
+from starboard.evergreen.arm.shared import gyp_configuration as parent_configuration
 
 
 def CreatePlatformConfig():
-  return _PARENT_CONFIGURATION.EvergreenArmConfiguration(
+  return parent_configuration.EvergreenArmConfiguration(
       'evergreen-arm-softfp-sbversion-12',
       sabi_json_path='starboard/sabi/arm/softfp/sabi-v12.json')

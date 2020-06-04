@@ -15,7 +15,6 @@
 #ifndef STARBOARD_EVERGREEN_X86_SBVERSION_12_ATOMIC_PUBLIC_H_
 #define STARBOARD_EVERGREEN_X86_SBVERSION_12_ATOMIC_PUBLIC_H_
 
-#include "starboard/atomic.h"
-#include "starboard/shared/gcc/atomic_gcc_public.h"
+#include "starboard/evergreen/x86/atomic_public.h"
 
 #endif  // STARBOARD_EVERGREEN_X86_SBVERSION_12_ATOMIC_PUBLIC_H_

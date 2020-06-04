@@ -38,6 +38,6 @@
 
   'includes': [
     '<(DEPTH)/starboard/linux/x64x11/shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sbversion/12/sabi.gypi',
+    '<(DEPTH)/starboard/sabi/sabi.gypi',
   ],
 }
