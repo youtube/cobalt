@@ -74,6 +74,7 @@
         'v8c_wrapper_handle.h',
         'wrapper_factory.cc',
         'wrapper_factory.h',
+        'wrapper_private.cc',
         'wrapper_private.h',
       ],
       'dependencies': [
