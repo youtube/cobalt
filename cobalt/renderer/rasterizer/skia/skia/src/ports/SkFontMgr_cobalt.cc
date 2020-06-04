@@ -387,9 +387,10 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
     // priority-ordered fallback families list once the family map is fully
     // built.
     //
-    // Also if there was a duplicate font face we would not add the family
-    // again but re-use the original family.
-    if (family_info.is_fallback_family && !is_duplicate_font_face) {
+    // Also if there was a duplicate font or font face we would not add the
+    // family again but re-use the original family.
+    if (family_info.is_fallback_family && !is_duplicate_font &&
+        !is_duplicate_font_face) {
       (*priority_fallback_families)[family_info.fallback_priority].push_back(
           new_family.get());
     }
