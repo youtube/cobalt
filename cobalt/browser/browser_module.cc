@@ -467,16 +467,17 @@ BrowserModule::~BrowserModule() {
   // currently be in, to prepare for shutdown.
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Pause();
+      Blur();
     // Intentional fall-through.
-    case base::kApplicationStatePaused:
-    case base::kApplicationStatePreloading:
-      Suspend();
+    case base::kApplicationStateBlurred:
+      Conceal();
+    case base::kApplicationStateConcealed:
+      Freeze();
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";
       break;
-    case base::kApplicationStateSuspended:
+    case base::kApplicationStateFrozen:
       break;
   }
 
@@ -517,10 +518,10 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   on_error_retry_timer_.Stop();
   waiting_for_error_retry_ = false;
 
-  // Navigations aren't allowed if the app is suspended. If this is the case,
+  // Navigations aren't allowed if the app is frozen. If this is the case,
   // simply set the pending navigate url, which will cause the navigation to
   // occur when Cobalt resumes, and return.
-  if (application_state_ == base::kApplicationStateSuspended) {
+  if (application_state_ == base::kApplicationStateFrozen) {
     pending_navigate_url_ = url;
     return;
   }
