@@ -125,7 +125,7 @@ class VideoDecoderTestFixture {
 
   void ResetDecoderAndClearPendingEvents();
 
-  scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const;
+  scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index);
 
   void UseInvalidDataForInput(size_t index, uint8_t byte_to_fill) {
     invalid_inputs_[index] = byte_to_fill;

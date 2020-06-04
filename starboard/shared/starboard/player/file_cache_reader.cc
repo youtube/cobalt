@@ -25,15 +25,11 @@ namespace starboard {
 namespace player {
 
 FileCacheReader::FileCacheReader(const char* filename, int file_cache_size)
-    : file_(filename, kSbFileOpenOnly | kSbFileRead),
-      max_file_cache_size_(
-          std::min(file_cache_size, static_cast<int>(file_.GetSize()))) {
-  SB_CHECK(file_.IsValid());
-  file_cache_.resize(max_file_cache_size_);
-  file_cache_offset_ = max_file_cache_size_;
-}
+    : filename_(filename), default_file_cache_size_(file_cache_size) {}
 
 int FileCacheReader::Read(void* out_buffer, int bytes_to_read) {
+  EnsureFileOpened();
+
   int total_bytes_read = 0;
 
   while (bytes_to_read > 0 && file_cache_.size() != 0) {
@@ -46,6 +42,24 @@ int FileCacheReader::Read(void* out_buffer, int bytes_to_read) {
   }
 
   return total_bytes_read;
+}
+
+int64_t FileCacheReader::GetSize() {
+  EnsureFileOpened();
+  return file_->GetSize();
+}
+
+void FileCacheReader::EnsureFileOpened() {
+  if (file_) {
+    return;
+  }
+  file_.reset(new ScopedFile(filename_.c_str(), kSbFileOpenOnly | kSbFileRead));
+  SB_CHECK(file_->IsValid());
+
+  max_file_cache_size_ =
+      std::min(default_file_cache_size_, static_cast<int>(file_->GetSize()));
+  file_cache_.resize(max_file_cache_size_);
+  file_cache_offset_ = max_file_cache_size_;
 }
 
 int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
@@ -63,7 +77,7 @@ void FileCacheReader::RefillCacheIfEmpty() {
     return;
   }
   file_cache_offset_ = 0;
-  int bytes_read = file_.ReadAll(file_cache_.data(), file_cache_.size());
+  int bytes_read = file_->ReadAll(file_cache_.data(), file_cache_.size());
   SB_CHECK(bytes_read >= 0);
   if (bytes_read < static_cast<int>(file_cache_.size())) {
     file_cache_.resize(bytes_read);
