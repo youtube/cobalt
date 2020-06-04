@@ -90,8 +90,8 @@ configurations.
 Cobalt Evergreen is built by a separate gyp platform using the Google toolchain:
 
 ```
-$ cobalt/build/gyp_cobalt evergreen-arm-softfp- sbversion-12
-$ ninja -C out/evergreen-arm-softfp_qa cobalt
+$ cobalt/build/gyp_cobalt evergreen-arm-softfp-sbversion-12
+$ ninja -C out/evergreen-arm-softfp-sbversion-12_qa cobalt
 ```
 
 Which produces a shared library `libcobalt.so` targeted for specific
@@ -162,11 +162,11 @@ Cobalt library to all affected devices much more quickly without all the
 engineering effort required to deploy a new Cobalt build. With this simpler
 updating capability, device behavior will be more consistent and there is less
 technical debt from workarounds on the web application side. Additionally, users
-can benefit from the latest performance, security, and functional fixes. 
+can benefit from the latest performance, security, and functional fixes.
 
 ## Platform Requirements
 
-Cobalt Evergreen currently supports the following 
+Cobalt Evergreen currently supports the following
 
 Target Architectures:
 
@@ -421,7 +421,7 @@ Yes, there are tests available to help validate the implementation:
 
 The Cobalt team is focusing a large amount of effort to identify and integrate
 various methods to reduce the size of the Cobalt binary such as compression and
-using less fonts. 
+using less fonts.
 
 ### What if something goes wrong in the field? Can we rollback?
 
