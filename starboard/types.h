@@ -25,67 +25,24 @@
 
 #include "starboard/configuration.h"
 
-#if SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-#include <stdbool.h>
-#endif  // SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-
-#if SB_HAS(STDINT_H)
-#include <stdint.h>
-#endif
-
-#if SB_HAS(INTTYPES_H)
+// The C library used must provide these headers to be standard conforming.
+#include <float.h>
 #include <inttypes.h>
-#endif  // SB_HAS(STDINT_H)
+#include <limits.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #if SB_HAS(SYS_TYPES_H)
 #include <sys/types.h>
 #endif  // SB_HAS(SYS_TYPES_H)
-
-#if SB_HAS(STDDEF_H)
-#include <stddef.h>
-#endif
-
-#if SB_HAS(LIMITS_H)
-#include <limits.h>
-#endif
-
-#if SB_HAS(STDARG_H)
-#include <stdarg.h>
-#endif
-
-#if SB_HAS(FLOAT_H)
-#include <float.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // --- Standard Include Emulation ----------------------------------------------
-
-// Simulate stdint.h for platforms that don't provide it.
-#if !SB_HAS(STDINT_H) && !SB_HAS(INTTYPES_H)
-#if !defined(SB_INT8) || !defined(SB_UINT8) || !defined(SB_INT16) ||    \
-    !defined(SB_UINT16) || !defined(SB_INT32) || !defined(SB_UINT32) || \
-    !defined(SB_INT64) || !defined(SB_UINT64) || !defined(SB_INTPTR) || \
-    !defined(SB_UINTPTR)
-#error "No stdint.h or inttypes.h, so define SB_U?INT(8|16|32|64|PTR)."
-#endif  // !defined(SB_U?INT(8|16|32|64|PTR))
-typedef SB_INT8 int8_t;
-typedef SB_UINT8 uint8_t;
-
-typedef SB_INT16 int16_t;
-typedef SB_UINT16 uint16_t;
-
-typedef SB_INT32 int32_t;
-typedef SB_UINT32 uint32_t;
-
-typedef SB_INT64 int64_t;
-typedef SB_UINT64 uint64_t;
-
-typedef SB_INTPTR intptr_t;
-typedef SB_UINTPTR uintptr_t;
-#endif  // !SB_HAS(STDINT_H) && !SB_HAS(INTTYPES_H)
 
 #if !SB_HAS(SSIZE_T)
 #if SB_IS(32_BIT)
@@ -95,72 +52,7 @@ typedef int64_t ssize_t;
 #endif
 #endif  // !SB_HAS(SSIZE_T)
 
-// Simulate stdbool.h for platforms that don't provide it.
-#if !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-#if __STDC_VERSION__ >= 199901L
-#define bool _Bool
-#else
-#define bool int
-#endif
-#define false 0
-#define true 1
-#endif  // !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-
-// Simulate stddef.h for platforms that don't provide it.
-#if !SB_HAS(STDDEF_H)
-#define NULL ((void*)0)
-#endif
-
 // Simulate needed portions of limits.h for platforms that don't provide it.
-
-// Assume int is 32-bits until we find a platform for which that fails.
-SB_COMPILE_ASSERT(sizeof(int) == sizeof(int32_t),  // NOLINT[runtime/int]
-                  starboard_int_is_32_bits);
-#if !defined(UINT_MAX)
-#define UINT_MAX 0xFFFFFFFFU
-#endif
-
-#if !defined(INT_MIN)
-#define INT_MIN 0x80000000
-#endif
-
-#if !defined(INT_MAX)
-#define INT_MAX 0x7FFFFFFF
-#endif
-
-#if SB_SIZE_OF(LONG) == 4
-
-SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
-                  starboard_long_is_32_bits);
-#if !defined(LONG_MIN)
-#define LONG_MIN INT_MIN
-#endif
-
-#if !defined(LONG_MAX)
-#define LONG_MAX INT_MAX
-#endif
-
-#if !defined(ULONG_MAX)
-#define ULONG_MAX UINT_MAX
-#endif
-
-#else  // SB_SIZE_OF(LONG) == 8
-
-SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
-                  starboard_long_is_64_bits);
-#if !defined(LONG_MIN)
-#define LONG_MIN SB_INT64_C(0x8000000000000000)
-#endif
-
-#if !defined(LONG_MAX)
-#define LONG_MAX SB_INT64_C(0x7FFFFFFFFFFFFFFF)
-#endif
-
-#if !defined(ULONG_MAX)
-#define ULONG_MAX SB_INT64_C(0xFFFFFFFFFFFFFFFF)
-#endif
-
-#endif  // SB_SIZE_OF(LONG) == 4
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -190,16 +82,7 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt kSbInt32Min
 
-#if !SB_HAS(FLOAT_H)
-#define DBL_MANT_DIG 53
-#endif
-
 // --- Standard Include Emulation Audits ---------------------------------------
-
-#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
-    !defined(LONG_MIN) || !defined(LONG_MAX)
-#error "limits.h or emulation did not provide a needed limit macro."
-#endif
 
 #if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
     (LONG_MIN + 1 == LONG_MAX - 1)
