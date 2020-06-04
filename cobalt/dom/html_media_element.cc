@@ -661,7 +661,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
   }
 
   if (!html_element_context()->web_media_player_factory()) {
-    DLOG(ERROR) << "Media playback in PRELOADING is not supported.";
+    DLOG(ERROR) << "Media playback in CONCEALED is not supported.";
     return;
   }
 

@@ -128,7 +128,7 @@ class BrowserModule {
   std::string GetUserAgent() { return network_module_->GetUserAgent(); }
 
   // Recreates web module with the given URL. In the case where Cobalt is
-  // currently suspended, this defers the navigation and instead sets
+  // currently frozen, this defers the navigation and instead sets
   // |pending_navigate_url_| to the specified url, which will trigger a
   // navigation when Cobalt resumes.
   void Navigate(const GURL& url_reference);
@@ -410,7 +410,7 @@ class BrowserModule {
   void StartOrResumeInternalPostStateUpdate();
 
   // Gets a viewport size to use for now. This may change depending on the
-  // current application state. While preloading, this returns the requested
+  // current application state. While concealed, this returns the requested
   // viewport size. If there was no requested viewport size, it returns a
   // default viewport size of 1280x720 (720p). Once a system window is created,
   // it returns the confirmed size of the window.
@@ -488,7 +488,7 @@ class BrowserModule {
   std::unique_ptr<renderer::RendererModule> renderer_module_;
 
   // A stub implementation of ResourceProvider that can be used until a real
-  // ResourceProvider is created. Only valid in the Preloading state.
+  // ResourceProvider is created. Only valid in the Concealed state.
   base::Optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
   // Controls all media playback related objects/resources.
@@ -611,10 +611,10 @@ class BrowserModule {
 #endif
 
   // The URL that Cobalt will attempt to navigate to during an OnErrorRetry()
-  // and also when starting from a preloaded state or resuming from a suspended
-  // state. This url is set within OnError() and also when a navigation is
-  // deferred as a result of Cobalt being suspended; it is cleared when a
-  // navigation occurs.
+  // and also when starting from a concealed state or unfreezing from a
+  // frozen state. This url is set within OnError() and also when a
+  // navigation is deferred as a result of Cobalt being frozen; it is
+  // cleared when a navigation occurs.
   GURL pending_navigate_url_;
 
   // The number of OnErrorRetry() calls that have occurred since the last

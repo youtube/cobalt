@@ -731,7 +731,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 #endif
   browser_module_.reset(new BrowserModule(
       initial_url,
-      (should_preload ? base::kApplicationStatePreloading
+      (should_preload ? base::kApplicationStateConcealed
                       : base::kApplicationStateStarted),
       &event_dispatcher_, account_manager_.get(), network_module_.get(),
 #if SB_IS(EVERGREEN)
@@ -741,13 +741,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   UpdateUserAgent();
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
   app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
-#else
-  app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+
   // Register event callbacks.
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
@@ -892,14 +887,10 @@ void Application::Start() {
     return;
   }
 
-#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
-    !SB_HAS(CONCEALED_STATE)
-  if (app_status_ != kPreloadingAppStatus) {
+  if (app_status_ != kConcealedAppStatus) {
     NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
-#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
-        // !SB_HAS(CONCEALED_STATE)
 
   OnApplicationEvent(kSbEventTypeStart);
 }
