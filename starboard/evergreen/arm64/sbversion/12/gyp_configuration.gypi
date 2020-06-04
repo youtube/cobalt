@@ -52,7 +52,7 @@
     }, # end of configurations
   },
   'includes': [
-    '<(DEPTH)/starboard/evergreen/shared/sbversion/12/compiler_flags.gypi',
-    '<(DEPTH)/starboard/evergreen/shared/sbversion/12/gyp_configuration.gypi',
+    '<(DEPTH)/starboard/evergreen/shared/compiler_flags.gypi',
+    '<(DEPTH)/starboard/evergreen/shared/gyp_configuration.gypi',
   ],
 }

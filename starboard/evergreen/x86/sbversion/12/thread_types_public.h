@@ -18,6 +18,6 @@
 #ifndef STARBOARD_EVERGREEN_X86_SBVERSION_12_THREAD_TYPES_PUBLIC_H_
 #define STARBOARD_EVERGREEN_X86_SBVERSION_12_THREAD_TYPES_PUBLIC_H_
 
-#include "starboard/shared/pthread/types_public.h"
+#include "starboard/evergreen/x86/thread_types_public.h"
 
 #endif  // STARBOARD_EVERGREEN_X86_SBVERSION_12_THREAD_TYPES_PUBLIC_H_
