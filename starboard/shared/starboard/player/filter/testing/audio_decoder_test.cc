@@ -56,7 +56,8 @@ class AudioDecoderTest
   AudioDecoderTest()
       : test_filename_(std::get<0>(GetParam())),
         using_stub_decoder_(std::get<1>(GetParam())),
-        dmp_reader_(ResolveTestFileName(test_filename_).c_str()) {
+        dmp_reader_(ResolveTestFileName(test_filename_).c_str(),
+                    VideoDmpReader::kEnableReadOnDemand) {
     SB_LOG(INFO) << "Testing " << test_filename_
                  << (using_stub_decoder_ ? " with stub audio decoder." : ".");
   }
@@ -296,7 +297,7 @@ class AudioDecoderTest
     }
   }
 
-  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const {
+  scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
 #if SB_API_VERSION >= 11

@@ -15,14 +15,18 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/file_cache_reader.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
 namespace starboard {
@@ -33,6 +37,11 @@ namespace video_dmp {
 
 class VideoDmpReader {
  public:
+  enum ReadOnDemandOptions {
+    kDisableReadOnDemand,
+    kEnableReadOnDemand,
+  };
+
   class AccessUnit {
    public:
     AccessUnit(SbTime timestamp,
@@ -90,45 +99,73 @@ class VideoDmpReader {
     SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info_;
   };
 
-  explicit VideoDmpReader(const char* filename);
+  explicit VideoDmpReader(
+      const char* filename,
+      ReadOnDemandOptions read_on_demand_options = kDisableReadOnDemand);
   ~VideoDmpReader();
 
-  SbMediaAudioCodec audio_codec() const { return audio_codec_; }
+  SbMediaAudioCodec audio_codec() const { return dmp_info_.audio_codec; }
   const SbMediaAudioSampleInfo& audio_sample_info() const {
-    return audio_sample_info_;
+    return dmp_info_.audio_sample_info;
   }
-  int64_t audio_bitrate() const { return audio_bitrate_; }
+  int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
 
-  SbMediaVideoCodec video_codec() const { return video_codec_; }
-  int64_t video_bitrate() const { return video_bitrate_; }
-  int video_fps() const { return video_fps_; }
+  SbMediaVideoCodec video_codec() const { return dmp_info_.video_codec; }
+  int64_t video_bitrate() const { return dmp_info_.video_bitrate; }
+  int video_fps() const { return dmp_info_.video_fps; }
 
-  size_t number_of_audio_buffers() const { return audio_access_units_.size(); }
+  size_t number_of_audio_buffers() const {
+    return dmp_info_.audio_access_units_size;
+  }
+  size_t number_of_video_buffers() const {
+    return dmp_info_.video_access_units_size;
+  }
 
-  size_t number_of_video_buffers() const { return video_access_units_.size(); }
-
-  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index) const;
-  const SbMediaAudioSampleInfo& GetAudioSampleInfo(size_t index) const;
+  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index);
+  const SbMediaAudioSampleInfo& GetAudioSampleInfo(size_t index);
 
  private:
+  struct DmpInfo {
+    SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+    SbMediaAudioSampleInfoWithConfig audio_sample_info;
+    size_t audio_access_units_size = 0;
+    int64_t audio_bitrate = 0;
+
+    SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+    size_t video_access_units_size = 0;
+    int64_t video_bitrate = 0;
+    int video_fps = 0;
+  };
+
+  class Registry {
+   public:
+    bool GetDmpInfo(const char* filename, DmpInfo* dmp_info) const;
+    void Register(const char* filename, const DmpInfo& dmp_info);
+
+   private:
+    Mutex mutex_;
+    std::map<std::string, DmpInfo> dmp_infos_;
+  };
+
   VideoDmpReader(const VideoDmpReader&) = delete;
   VideoDmpReader& operator=(const VideoDmpReader&) = delete;
 
+  void ParseHeader(uint32_t* dmp_writer_version);
+  bool ParseOneRecord();
   void Parse();
+  void EnsureSampleLoaded(SbMediaType type, size_t index);
+
   AudioAccessUnit ReadAudioAccessUnit();
   VideoAccessUnit ReadVideoAccessUnit();
+  static Registry* GetRegistry();
 
+  const bool allow_read_on_demand_;
+
+  FileCacheReader file_reader_;
   ReadCB read_cb_;
+  DmpInfo dmp_info_;
 
-  bool reverse_byte_order_;
-
-  SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
-  SbMediaAudioSampleInfoWithConfig audio_sample_info_;
-  int64_t audio_bitrate_ = 0;
-
-  SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-  int64_t video_bitrate_ = 0;
-  int video_fps_ = 0;
+  optional<bool> reverse_byte_order_;
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;

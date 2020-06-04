@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILE_CACHE_READER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILE_CACHE_READER_H_
 
+#include <string>
 #include <vector>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/file.h"
 
 namespace starboard {
@@ -29,10 +31,12 @@ class FileCacheReader {
   FileCacheReader(const char* filename, int file_cache_size);
 
   int Read(void* out_buffer, int bytes_to_read);
-
-  int64_t GetSize() const { return file_.GetSize(); }
+  int64_t GetSize();
 
  private:
+  // This function CHECK() if file is successfully opened.
+  void EnsureFileOpened();
+
   // Reads from the currently cached file contents, into the output buffer.
   // Returns the final number of bytes read out from the cache.
   int ReadFromCache(void* out_buffer, int bytes_to_read);
@@ -41,10 +45,13 @@ class FileCacheReader {
   // is emptied out.
   void RefillCacheIfEmpty();
 
-  ScopedFile file_;
+  const std::string filename_;
+  const int default_file_cache_size_;
+
+  scoped_ptr<ScopedFile> file_;
 
   // Maximum size of the buffered file.
-  const int max_file_cache_size_;
+  int max_file_cache_size_ = 0;
 
   // Position marker in the buffer that we have finished reading.
   int file_cache_offset_ = 0;

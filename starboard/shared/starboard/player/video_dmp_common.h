@@ -78,7 +78,11 @@ struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
         stored_audio_specific_config(that.stored_audio_specific_config) {
     audio_specific_config = stored_audio_specific_config.data();
   }
-  void operator=(const SbMediaAudioSampleInfoWithConfig& that) = delete;
+  void operator=(const SbMediaAudioSampleInfoWithConfig& that) {
+    SbMemoryCopy(this, &that, sizeof(SbMediaAudioSampleInfo));
+    stored_audio_specific_config = that.stored_audio_specific_config;
+    audio_specific_config = stored_audio_specific_config.data();
+  }
 
   std::vector<uint8_t> stored_audio_specific_config;
 };
@@ -109,14 +113,21 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
     }
 #endif  // SB_API_VERSION < 11
   }
-  void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) =
-      delete;
+  void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) {
+    SbMemoryCopy(this, &that, sizeof(SbMediaVideoSampleInfo));
+#if SB_API_VERSION < 11
+    stored_color_metadata = that.stored_color_metadata;
+    if (color_metadata) {
+      color_metadata = &stored_color_metadata;
+    }
+#endif  // SB_API_VERSION < 11
+  }
 
   SbMediaColorMetadata stored_color_metadata;
 };
 
 const uint32_t kByteOrderMark = 0x76543210;
-const uint32_t kSupportWriterVersion = 0x00001000;
+const uint32_t kSupportedWriterVersion = 0x00001000;
 
 void Read(const ReadCB& read_cb, void* buffer, size_t size);
 

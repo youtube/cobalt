@@ -101,7 +101,8 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
   }
 
   for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
+    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
+                              VideoDmpReader::kEnableReadOnDemand);
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
 #if SB_API_VERSION >= 12
@@ -140,7 +141,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   }
 
   for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
+    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
+                              VideoDmpReader::kEnableReadOnDemand);
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
 
     for (auto output_mode : kOutputModes) {

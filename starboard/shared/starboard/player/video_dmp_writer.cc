@@ -88,7 +88,7 @@ VideoDmpWriter::VideoDmpWriter() : file_(kSbFileInvalid) {
   write_cb_ = std::bind(&VideoDmpWriter::WriteToFile, this, _1, _2);
 
   Write(write_cb_, kByteOrderMark);
-  Write(write_cb_, kSupportWriterVersion);
+  Write(write_cb_, kSupportedWriterVersion);
 }
 
 VideoDmpWriter::~VideoDmpWriter() {

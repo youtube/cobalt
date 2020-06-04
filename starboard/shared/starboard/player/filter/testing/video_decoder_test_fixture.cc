@@ -67,7 +67,8 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
       test_filename_(test_filename),
       output_mode_(output_mode),
       using_stub_decoder_(using_stub_decoder),
-      dmp_reader_(ResolveTestFileName(test_filename).c_str()) {
+      dmp_reader_(ResolveTestFileName(test_filename).c_str(),
+                  VideoDmpReader::kEnableReadOnDemand) {
   SB_DCHECK(job_queue_);
   SB_DCHECK(fake_graphics_context_provider_);
   SB_LOG(INFO) << "Testing " << test_filename_ << ", output mode "
@@ -358,7 +359,7 @@ void VideoDecoderTestFixture::ResetDecoderAndClearPendingEvents() {
 }
 
 scoped_refptr<InputBuffer> VideoDecoderTestFixture::GetVideoInputBuffer(
-    size_t index) const {
+    size_t index) {
   auto video_sample_info =
       dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
 #if SB_API_VERSION >= 11
