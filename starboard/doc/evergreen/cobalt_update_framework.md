@@ -7,7 +7,7 @@ features and crucial bug fixes in a timely manner. It significantly reduces the
 amount of work on partners’ shoulders to update to a newer version of Cobalt.
 This document introduces how Cobalt updates itself and what the system is like
 that supports the update of Cobalt. Note that the Cobalt Update Framework is
-currently used only for Evergreen configurations. 
+currently used only for Evergreen configurations.
 
 ## Goal
 
@@ -45,7 +45,7 @@ update link that matches the SABI string from the request, and responds to the
 Cobalt updater.
 
 Google Update allows the setup of multiple channels. We set up different
-channels for internal testing, partner testing, production and developers. 
+channels for internal testing, partner testing, production and developers.
 
 Google Update also allows staged rollout and rollback when things go wrong. In
 the case where a problem is detected that requires rollback or fixes, Google
@@ -84,7 +84,7 @@ the new installation and the update is complete. If the target platform supports
 app exits/suspends on user exiting, Cobalt will exit when an installation is
 pending, so that the new update will be picked up on the next start; otherwise,
 Cobalt is not able to exit by itself, then a manual termination of the app is
-required to pick up the update on restart.  
+required to pick up the update on restart.
 
 ## FAQ
 
