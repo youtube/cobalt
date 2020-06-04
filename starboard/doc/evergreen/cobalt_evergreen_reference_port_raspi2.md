@@ -2,7 +2,9 @@
 
 ## Requirements
 
-*   Raspberry Pi 2 (image configured per [instructions](https://cobalt.dev/development/setup-raspi.html) on cobalt.dev)
+*   Raspberry Pi 2 (image configured per
+    [instructions](https://cobalt.dev/development/setup-raspi.html) on
+    cobalt.dev)
 
 ## Build instructions
 
@@ -37,7 +39,9 @@ $ rm cobalt.zip
 $ cd -
 ```
 
-The following are the steps to build the Cobalt content that’s contained in the crx package. Note you only need to do this if you want to build the Cobalt shared library and supplementary components.
+The following are the steps to build the Cobalt content that’s contained in the
+crx package. Note you only need to do this if you want to build the Cobalt
+shared library and supplementary components.
 
 ```
 ## Build Cobalt core locally
@@ -85,19 +89,24 @@ Cobalt should load and work as usual, but leveraging Evergreen. That’s it!
 
 ### Certificate errors on execution of loader\_app
 
-Certificate issues may occur on certain network environments when launching `loader_app` via SSH. In this case, try launching with a keyboard directly connected to the device.
+Certificate issues may occur on certain network environments when launching
+`loader_app` via SSH. In this case, try launching with a keyboard directly
+connected to the device.
 
 ### “Failed to load library at <path>” thrown on startup
 
-The loader can’t find the `libcobalt.so` file. Check that the path to `libcobalt.so` completely matches the one in Deployment instructions.
+The loader can’t find the `libcobalt.so` file. Check that the path to
+`libcobalt.so` completely matches the one in Deployment instructions.
 
 ### “fatal error: “assert(sk\_file)”” thrown on startup
 
-The loader can’t find the content/data folder or it is malformed. Check that the path to this folder completely matches the one in Deployment instructions.
+The loader can’t find the content/data folder or it is malformed. Check that the
+path to this folder completely matches the one in Deployment instructions.
 
 ### “Check failed: address. Failed to retrieve the address” thrown on startup
 
-Ensure that `libcobalt.so` being used is the correct version. For a rebuild, you may need to remove the old .cobalt\_storage directory on your device.
+Ensure that `libcobalt.so` being used is the correct version. For a rebuild, you
+may need to remove the old .cobalt\_storage directory on your device.
 
 ```
 ## Remove old storage directory
