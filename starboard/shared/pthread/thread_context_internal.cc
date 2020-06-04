@@ -16,7 +16,7 @@
 
 #if SB_API_VERSION >= 11
 
-#if !defined(__gnu_linux__)  // Note: __linux__ is undef'd for Starboard builds.
+#if !defined(__linux__)
 #error "SbThreadContext is only implemented for Linux"
 #endif
 

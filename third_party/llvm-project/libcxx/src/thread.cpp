@@ -24,9 +24,11 @@
 # endif // defined(BSD)
 #endif // defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
+#if !SB_IS(EVERGREEN)
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__CloudABI__) || defined(__Fuchsia__)
 # include <unistd.h>
 #endif // defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__CloudABI__) || defined(__Fuchsia__)
+#endif  // !SB_IS(EVERGREEN)
 
 #if defined(__NetBSD__)
 #pragma weak pthread_create // Do not create libpthread dependency

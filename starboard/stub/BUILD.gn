@@ -21,8 +21,6 @@ import("//starboard/build/delegated_config.gni")
 
 config("compiler_defaults") {
   cflags = [
-    # We'll pretend not to be Linux, but Starboard instead.
-    "-U__linux__",
     "-Werror",
     "-fcolor-diagnostics",
     # Default visibility to hidden, to enable dead stripping.

@@ -35,16 +35,6 @@
     'final_executable_type': 'shared_library',
     'gtest_target_type': 'shared_library',
 
-    'compiler_flags': [
-      # We'll pretend not to be Linux, but Starboard instead.
-      '-U__linux__',
-
-      # Pretend not to be unix, so that _LIBCPP_HAS_CATOPEN is not defined in
-      # third_party/llvm-project/libcxx/include/__config. Then leaks catopen,
-      # catgets and catclose are plugged.
-      '-U__unix__',
-    ],
-
     # Using an inner scope for 'variables' so that it can be made a default
     # (and so overridden elsewhere), but yet still used immediately in this
     # file.
