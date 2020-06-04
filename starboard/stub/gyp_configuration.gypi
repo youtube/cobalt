@@ -28,10 +28,6 @@
       # Do not warn about unused function params.
       '-Wno-unused-parameter',
      ],
-    'compiler_flags': [
-      # We'll pretend not to be Linux, but Starboard instead.
-      '-U__linux__',
-    ],
     'linker_flags': [
       '-static-libstdc++'
     ],

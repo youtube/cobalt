@@ -34,11 +34,6 @@
       '-lrt',
     ],
 
-    'compiler_flags': [
-      # We'll pretend not to be Linux, but Starboard instead.
-      '-U__linux__',
-    ],
-
     # Using an inner scope for 'variables' so that it can be made a default
     # (and so overridden elsewhere), but yet still used immediately in this
     # file.

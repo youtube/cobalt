@@ -37,6 +37,7 @@ static unsigned int simd_support = ~0;
 static unsigned int simd_huffman = 1;
 
 #if defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
 
 #define SOMEWHAT_SANE_PROC_CPUINFO_SIZE_LIMIT  (1024 * 1024)
 
@@ -99,6 +100,7 @@ parse_proc_cpuinfo(int bufsize)
 }
 
 #endif
+#endif
 
 /*
  * Check what SIMD accelerations are supported.
@@ -112,7 +114,9 @@ init_simd(void)
   char *env = NULL;
 #endif
 #if !defined(__ARM_NEON__) && defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
   int bufsize = 1024; /* an initial guess for the line buffer size limit */
+#endif
 #endif
 
   if (simd_support != ~0U)
@@ -123,6 +127,7 @@ init_simd(void)
 #if defined(__ARM_NEON__)
   simd_support |= JSIMD_NEON;
 #elif defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
   /* We still have a chance to use NEON regardless of globally used
    * -mcpu/-mfpu options passed to gcc by performing runtime detection via
    * /proc/cpuinfo parsing on linux/android */
@@ -131,6 +136,7 @@ init_simd(void)
     if (bufsize > SOMEWHAT_SANE_PROC_CPUINFO_SIZE_LIMIT)
       break;
   }
+#endif
 #endif
 
 #ifndef NO_GETENV
