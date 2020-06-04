@@ -141,6 +141,7 @@
         'flat_map_test.cc',
         'gles_test.cc',
         'murmurhash2_test.cc',
+        'image_test.cc',
         'include_all.c',
         'include_all_too.c',
         'key_test.cc',
