@@ -236,9 +236,11 @@ class WebModule::Impl {
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
   void Start(render_tree::ResourceProvider* resource_provider);
-  void Pause();
-  void Unpause();
-  void Resume(render_tree::ResourceProvider* resource_provider);
+  void Blur();
+  void Conceal();
+  void Reveal(render_tree::ResourceProvider* resource_provider);
+  void Focus();
+  void unfreeze();
 
   void ReduceMemory();
   void GetJavaScriptHeapStatistics(

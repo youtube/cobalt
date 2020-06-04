@@ -174,10 +174,12 @@ class BrowserModule {
 
   // LifecycleObserver-similar interface.
   void Start();
-  void Pause();
-  void Unpause();
-  void Suspend();
-  void Resume();
+  void Blur();
+  void Conceal();
+  void Freeze();
+  void Unfreeze();
+  void Reveal();
+  void Focus();
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
