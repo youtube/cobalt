@@ -115,18 +115,11 @@ title: "Starboard Configuration Reference Guide"
 
 ## System Header Configuration
 
- Any system headers listed here that are not provided by the platform will be emulated in starboard/types.h.
+ Standard C headers are expected to be available. System headers listed below that are not provided by the platfom will be emulated in starboard/types.h.
 
 | Properties |
 | :--- |
-| **`SB_HAS_STDARG_H`**<br><br> Whether the current platform provides the standard header stdarg.h.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_STDBOOL_H`**<br><br>Whether the current platform provides the standard header stdbool.h.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_STDDEF_H`**<br><br>Whether the current platform provides the standard header stddef.h.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_STDINT_H`**<br><br>Whether the current platform provides the standard header stdint.h.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_INTTYPES_H`**<br><br>Whether the current platform provides the standard header inttypes.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SYS_TYPES_H`**<br><br>Whether the current platform provides the standard header sys/types.h.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_LIMITS_H`**<br><br>Whether the current platform provides the standard header limits.h.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_FLOAT_H`**<br><br>Whether the current platform provides the standard header float.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SSIZE_T`**<br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF32`**<br><br>Type detection for wchar_t.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF16`**<br><br>The default value in the Stub implementation is `1` |
