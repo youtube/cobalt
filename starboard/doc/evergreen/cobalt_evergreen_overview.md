@@ -364,6 +364,42 @@ alternate between the two available slots (not the read-only installation slot).
 The installation slot that will be used when Cobalt Evergreen is run is
 determined, and stored, exactly the same as it is for the 2 slot configuration.
 
+### Fonts
+The system font directory `kSbSystemPathStorageDirectory` should be configured to
+point to the `standard` (23MB) or the `limited` (3.1MB) cobalt font packages. An
+easy way to do that is to use the `loader_app/content` directory and setting the
+`cobalt_font_package` to `standard` or `limited` in your port.
+
+Cobalt Evergreen, built by Google, will by default use the `minimal` cobalt
+package which is around 16KB to minimize storage requirements. A separate
+`cobalt_font_package` variable is set to `minimal` in the Evergreen platform.
+
+On Raspberry Pi this is:
+
+`minimal` set of fonts under:
+```
+~/.cobalt_storage/installation_0/content/fonts/
+```
+
+`standard` or `limited` set of fonts under:
+```
+loader_app/content/fonts
+```
+
+### ICU Tables
+The ICU table should be deployed under the kSbSystemPathStorageDirectory.
+This way all Cobalt Evergreen installations would be able to share the same
+tables. The current storage size for the ICU tables is 7MB.
+
+On Raspberry Pi this is:
+
+```
+/home/pi/.cobalt_storage/icu
+```
+The Cobalt Evergreen package will not carry ICU tables by default but may add
+them in the future if needed. When the package has ICU tables they would be
+stored under the content location for the installation.
+
 ### Platform Security
 
 As Cobalt binary packages ([CRX
