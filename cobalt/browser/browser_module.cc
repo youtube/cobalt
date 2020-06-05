@@ -421,9 +421,9 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (application_state_ == base::kApplicationStateStarted ||
-      application_state_ == base::kApplicationStatePaused) {
+      application_state_ == base::kApplicationStateBlurred) {
     InitializeSystemWindow();
-  } else if (application_state_ == base::kApplicationStatePreloading) {
+  } else if (application_state_ == base::kApplicationStateConcealed) {
     resource_provider_stub_.emplace(true /*allocate_image_data*/);
   }
 
@@ -818,7 +818,7 @@ void BrowserModule::OnRenderTreeProduced(
       splash_screen_->Shutdown();
     }
   }
-  if (application_state_ == base::kApplicationStatePreloading) {
+  if (application_state_ == base::kApplicationStateConcealed) {
     layout_results.on_rasterized_callback.Run();
     return;
   }
@@ -849,7 +849,7 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
                "BrowserModule::OnSplashScreenRenderTreeProduced()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
 
-  if (application_state_ == base::kApplicationStatePreloading ||
+  if (application_state_ == base::kApplicationStateConcealed ||
       !splash_screen_) {
     return;
   }
@@ -909,7 +909,7 @@ void BrowserModule::OnQrCodeOverlayRenderTreeProduced(
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(qr_overlay_info_layer_);
 
-  if (application_state_ == base::kApplicationStatePreloading) {
+  if (application_state_ == base::kApplicationStateConcealed) {
     return;
   }
 
@@ -1467,7 +1467,6 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 void BrowserModule::Start() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Start()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStatePreloading);
 
   SuspendInternal(true /*is_start*/);
   StartOrResumeInternalPreStateUpdate(true /*is_start*/);
@@ -1477,52 +1476,84 @@ void BrowserModule::Start() {
   StartOrResumeInternalPostStateUpdate();
 }
 
-void BrowserModule::Pause() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Pause()");
+void BrowserModule::Blur() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Pause());
-  application_state_ = base::kApplicationStatePaused;
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur());
+  application_state_ = base::kApplicationStateBlurred;
 }
 
-void BrowserModule::Unpause() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unpause()");
+void BrowserModule::Conceal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Conceal()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(application_state_ == base::kApplicationStateBlurred);
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Conceal());
+
+  if (renderer_module_) {
+    // Destroy the renderer module into so that it releases all its graphical
+    // resources.
+    DestroyRendererModule();
+  }
+  DCHECK(system_window_);
+  window_size_ = system_window_->GetWindowSize();
+  system_window_.reset();
+  input_device_manager_.reset();
+
+  application_state_ = base::kApplicationStateConcealed;
+}
+
+void BrowserModule::Focus() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStatePaused);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Unpause());
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus());
   application_state_ = base::kApplicationStateStarted;
 }
 
-void BrowserModule::Suspend() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
+void BrowserModule::Freeze() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStatePaused ||
-         application_state_ == base::kApplicationStatePreloading);
+  DCHECK(application_state_ == base::kApplicationStateConcealed);
 
   SuspendInternal(false /*is_start*/);
 
-  application_state_ = base::kApplicationStateSuspended;
+  application_state_ = base::kApplicationStateFrozen;
 }
 
-void BrowserModule::Resume() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
+void BrowserModule::Reveal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-  // This is temporary for Cobalt black box tests, will be removed
-  // with Cobalt Concealed mode changes.
-  if (application_state_ == base::kApplicationStatePreloading) {
-    Start();
-    Pause();
-    return;
-  }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
-  DCHECK(application_state_ == base::kApplicationStateSuspended);
+  DCHECK(application_state_ == base::kApplicationStateConcealed);
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Reveal());
+
+  DCHECK(!system_window_);
+  system_window_.reset(
+      new system_window::SystemWindow(event_dispatcher_, window_size_));
+  DCHECK(!input_device_manager_);
+  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnPointerEventProduced,
+                 base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
+      base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
+                 base::Unretained(this)),
+#endif  // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
+      system_window_.get());
+  InstantiateRendererModule();
+
+  application_state_ = base::kApplicationStateBlurred;
+}
+
+void BrowserModule::Unfreeze() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(application_state_ == base::kApplicationStateFrozen);
 
   StartOrResumeInternalPreStateUpdate(false /*is_start*/);
 
-  application_state_ = base::kApplicationStatePaused;
+  application_state_ = base::kApplicationStateConcealed;
 
   StartOrResumeInternalPostStateUpdate();
 }
