@@ -156,11 +156,14 @@ FileHandle LoggingOpenFileForWrite(const base::FilePath& path,
 FileHandle LoggingOpenMemoryFileForReadAndWrite(const base::FilePath& name) {
   DCHECK(name.value().find('/') == std::string::npos);
 
-  int result = HANDLE_EINTR(memfd_create(name.value().c_str(), 0));
+  int result;
+#if !defined(STARBOARD)
+  result = HANDLE_EINTR(memfd_create(name.value().c_str(), 0));
   if (result >= 0 || errno != ENOSYS) {
     PLOG_IF(ERROR, result < 0) << "memfd_create";
     return result;
   }
+#endif
 
   const char* tmp = getenv("TMPDIR");
   tmp = tmp ? tmp : "/tmp";
