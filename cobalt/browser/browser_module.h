@@ -679,6 +679,10 @@ class BrowserModule {
 
   // Callback to run when the Web Module is loaded.
   base::Closure web_module_loaded_callback_;
+
+  // Save the current window size before transitioning to Concealed state,
+  // and resuse this vaule to recreate the window.
+  math::Size window_size_;
 };
 
 }  // namespace browser
