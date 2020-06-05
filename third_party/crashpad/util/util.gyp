@@ -418,7 +418,6 @@
         }],
         ['target_os=="linux" or target_os=="android"', {
           'sources': [
-            'net/http_transport_socket.cc',
             'process/process_memory_sanitized.cc',
             'process/process_memory_sanitized.h',
           ],

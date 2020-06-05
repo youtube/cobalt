@@ -51,6 +51,18 @@ bool MapInsertOrReplace(T* map,
   return result.second;
 }
 
+template <typename T>
+bool MapInsertOrReplace(T* map,
+                        const typename T::key_type& key,
+                        const typename T::mapped_type& value,
+                        std::nullptr_t) {
+  const auto result = map->insert(std::make_pair(key, value));
+  if (!result.second) {
+    result.first->second = value;
+  }
+  return result.second;
+}
+
 }  // namespace crashpad
 
 #endif  // CRASHPAD_UTIL_STDLIB_MAP_INSERT_H_
