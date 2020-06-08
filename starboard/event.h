@@ -359,7 +359,12 @@ typedef enum SbEventType {
   // The platform's accessibility settings have changed. The application should
   // query the accessibility settings using the appropriate APIs to get the
   // new settings. Note this excludes captions settings changes, which
-  // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire.
+  // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the
+  // starboard version has kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
+  // then that event should be used to signal text-to-speech settings changes
+  // instead; platforms using older starboard versions should use
+  // kSbEventTypeAccessiblitySettingsChanged for text-to-speech settings
+  // changes.
   kSbEventTypeAccessiblitySettingsChanged,
 
   // An optional event that platforms may send to indicate that the application
@@ -430,6 +435,11 @@ typedef enum SbEventType {
   // has changed.
   kSbEventTypeAccessibilityCaptionSettingsChanged,
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+
+#if SB_API_VERSION >= 12
+  // The platform's text-to-speech settings have changed.
+  kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
+#endif  // SB_API_VERSION >= 12
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
