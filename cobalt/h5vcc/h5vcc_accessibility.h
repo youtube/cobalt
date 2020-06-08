@@ -42,6 +42,8 @@ class H5vccAccessibility : public script::Wrappable {
   void OnApplicationEvent(const base::Event* event);
 
   bool text_to_speech() const;
+  void AddTextToSpeechListener(
+      const H5vccAccessibilityCallbackHolder& holder);
 
   bool built_in_screen_reader() const;
   void set_built_in_screen_reader(bool value);
@@ -52,7 +54,7 @@ class H5vccAccessibility : public script::Wrappable {
   typedef H5vccAccessibilityCallbackHolder::Reference
       H5vccAccessibilityCallbackReference;
 
-  void InternalOnApplicationEvent();
+  void InternalOnApplicationEvent(base::TypeId type);
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
@@ -60,6 +62,8 @@ class H5vccAccessibility : public script::Wrappable {
   base::EventDispatcher* event_dispatcher_;
   std::unique_ptr<H5vccAccessibilityCallbackReference>
       high_contrast_text_listener_;
+  std::unique_ptr<H5vccAccessibilityCallbackReference>
+      text_to_speech_listener_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAccessibility);
 };
