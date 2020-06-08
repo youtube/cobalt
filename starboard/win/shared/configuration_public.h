@@ -26,18 +26,6 @@
 
 // --- Architecture Configuration --------------------------------------------
 
-#define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
-
-// Configuration parameters that allow the application to make some general
-// compile-time decisions with respect to the the number of cores likely to be
-// available on this platform. For a definitive measure, the application should
-// still call SbSystemGetNumberOfProcessors at runtime.
-
-// Whether the current platform's thread scheduler will automatically balance
-// threads between cores, as opposed to systems where threads will only ever run
-// on the specifically pinned core.
-#define SB_HAS_CROSS_CORE_SCHEDULER 1
-
 // Some platforms will not align variables on the stack with an alignment
 // greater than 16 bytes. Platforms where this is the case should define the
 // following quirk.
@@ -48,26 +36,8 @@
 // Any system headers listed here that are not provided by the platform will be
 // emulated in starboard/types.h.
 
-// Whether the current platform provides the standard header stdarg.h.
-#define SB_HAS_STDARG_H 0
-
-// Whether the current platform provides the standard header stdbool.h.
-#define SB_HAS_STDBOOL_H 0
-
-// Whether the current platform provides the standard header stddef.h.
-#define SB_HAS_STDDEF_H 1
-
-// Whether the current platform provides the standard header stdint.h.
-#define SB_HAS_STDINT_H 1
-
-// Whether the current platform provides the standard header inttypes.h.
-#define SB_HAS_INTTYPES_H 1
-
-// Whether the current platform provides the standard header limits.h.
-#define SB_HAS_LIMITS_H 1
-
-// Whether the current platform provides the standard header float.h.
-#define SB_HAS_FLOAT_H 1
+// Whether the current platform provides the standard header sys/types.h.
+#define SB_HAS_SYS_TYPES_H 0
 
 // Whether the current platform provides ssize_t.
 #define SB_HAS_SSIZE_T 0
@@ -116,15 +86,6 @@
 // the current linking unit.
 #define SB_IMPORT_PLATFORM
 
-// On some platforms the __GNUC__ is defined even though parts of the
-// functionality are missing. Setting this to non-zero allows disabling missing
-// functionality encountered.
-#undef SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT
-
-// On some compilers, the frontend has a quirk such that #ifdef cannot
-// correctly detect __has_feature is defined, and an example error you get is:
-#undef SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS
-
 // --- Extensions Configuration ----------------------------------------------
 
 // Please use <unordered_map> and <unordered_set> for the hash table types.
@@ -159,9 +120,6 @@
 
 // The location to include hash_set on this platform.
 #define SB_HASH_SET_INCLUDE <hash_set>
-
-// Define this to how this platform copies varargs blocks.
-#define SB_VA_COPY(dest, source) va_copy(dest, source)
 
 // --- Filesystem Configuration ----------------------------------------------
 
@@ -252,5 +210,8 @@ SB_HAS_MMAP 1
 // --- User Configuration ----------------------------------------------------
 
 // --- Platform Specific Audits ----------------------------------------------
+
+// Whether or not the platform supports socket connection reset.
+#define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
 
 #endif  // STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_

@@ -21,40 +21,18 @@
 #ifndef STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_EVERGREEN_ARM_HARDFP_CONFIGURATION_PUBLIC_H_
 
+// --- Architecture Configuration --------------------------------------------
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
 // emulated in starboard/types.h.
 
-// Whether the current platform provides the standard header stdarg.h.
-#define SB_HAS_STDARG_H 1
-
-// Whether the current platform provides the standard header stdbool.h.
-#define SB_HAS_STDBOOL_H 1
-
-// Whether the current platform provides the standard header stddef.h.
-#define SB_HAS_STDDEF_H 1
-
-// Whether the current platform provides the standard header stdint.h.
-#define SB_HAS_STDINT_H 1
-
-// Whether the current platform provides the standard header inttypes.h.
-#define SB_HAS_INTTYPES_H 1
-
 // Whether the current platform provides the standard header sys/types.h.
-#define SB_HAS_SYS_TYPES_H 1
-
-// Whether the current platform provides the standard header wchar.h.
-#define SB_HAS_WCHAR_H 1
-
-// Whether the current platform provides the standard header limits.h.
-#define SB_HAS_LIMITS_H 1
-
-// Whether the current platform provides the standard header float.h.
-#define SB_HAS_FLOAT_H 1
+#define SB_HAS_SYS_TYPES_H 0
 
 // Whether the current platform provides ssize_t.
-#define SB_HAS_SSIZE_T 1
+#define SB_HAS_SSIZE_T 0
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
@@ -127,9 +105,6 @@
 
 // The location to include hash_set on this platform.
 #define SB_HASH_SET_INCLUDE <ext/hash_set>
-
-// Define this to how this platform copies varargs blocks.
-#define SB_VA_COPY(dest, source) va_copy(dest, source)
 
 // --- Graphics Configuration ------------------------------------------------
 
