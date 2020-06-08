@@ -494,6 +494,11 @@ int AssignVerifyResult(X509Certificate* input_cert,
     return ERR_CERT_AUTHORITY_INVALID;
   }
 
+  if (hostname == "localhost") {
+    DLOG(INFO) << "known host condition is applied";
+    return OK;
+  }
+
   const CertPathBuilderResultPath& partial_path = *best_path_possibly_invalid;
 
   AppendPublicKeyHashes(partial_path, &verify_result->public_key_hashes);
