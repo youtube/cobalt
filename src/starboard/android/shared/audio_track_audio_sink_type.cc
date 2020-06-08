@@ -85,7 +85,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int frames_per_channel,
     int preferred_buffer_size_in_bytes,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frame_func,
+    ConsumeFramesFunc consume_frames_func,
     void* context)
     : type_(type),
       channels_(channels),
@@ -94,7 +94,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       frame_buffer_(frame_buffers[0]),
       frames_per_channel_(frames_per_channel),
       update_source_status_func_(update_source_status_func),
-      consume_frame_func_(consume_frame_func),
+      consume_frames_func_(consume_frames_func),
       context_(context),
       last_playback_head_position_(0),
       j_audio_track_bridge_(NULL),
@@ -104,7 +104,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       playback_rate_(1.0f),
       written_frames_(0) {
   SB_DCHECK(update_source_status_func_);
-  SB_DCHECK(consume_frame_func_);
+  SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
 
@@ -236,7 +236,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       if (frames_consumed != 0) {
         SB_DCHECK(frames_consumed >= 0);
-        consume_frame_func_(frames_consumed, frames_consumed_at, context_);
+        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         written_frames_ -= frames_consumed;
       }
     }
@@ -414,7 +414,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkFrameBuffers frame_buffers,
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(

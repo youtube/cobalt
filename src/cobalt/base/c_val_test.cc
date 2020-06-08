@@ -561,7 +561,6 @@ TEST(CValTest, NativeType) {
 
     virtual void OnValueChanged(const std::string& name,
                                 const base::CValGenericValue& value) {
-      SB_UNREFERENCED_PARAMETER(name);
       EXPECT_TRUE(value.IsNativeType<int32_t>());
 
       EXPECT_FALSE(value.IsNativeType<uint32_t>());

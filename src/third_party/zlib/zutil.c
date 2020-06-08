@@ -299,13 +299,11 @@ void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 
 voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, uInt items, uInt size)
 {
-    SB_UNREFERENCED_PARAMETER(opaque);
     return (voidpf)SbMemoryAllocate(items * size);
 }
 
 void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 {
-    SB_UNREFERENCED_PARAMETER(opaque);
     SbMemoryDeallocate(ptr);
 }
 

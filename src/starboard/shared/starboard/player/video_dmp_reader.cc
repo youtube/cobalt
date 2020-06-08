@@ -54,9 +54,6 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
 static void DeallocateSampleFunc(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
 }
 
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(

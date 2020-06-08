@@ -223,14 +223,14 @@ changed.
 ### Try enabling rendering only to regions that change
 
 If you set the
-[`cobalt_configuration.gypi`](../build/cobalt_configuration.gypi) variable,
-`render_dirty_region_only` to `1`, then Cobalt will invoke logic to detect which
-part of the frame has been affected by animations and can be configured to only
-render to that region.  However, this feature requires support from the driver
-for GLES platforms.  In particular, `eglChooseConfig()` will first be called
-with `EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set in its attribute list.  If this
-fails, Cobalt will call eglChooseConfig() again without
-`EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set and dirty region rendering will
+[`CobaltConfigurationExtensionApi`](../extension/configuration.h) function
+`CobaltRenderDirtyRegionOnly` to return `true`, then Cobalt will invoke logic
+to detect which part of the frame has been affected by animations and can be
+configured to only render to that region.  However, this feature requires
+support from the driver for GLES platforms.  In particular, `eglChooseConfig()`
+will first be called with `EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set in its
+attribute list.  If this fails, Cobalt will call eglChooseConfig() again
+without `EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set and dirty region rendering will
 be disabled.  By having Cobalt render only small parts of the screen,
 CPU (and GPU) resources can be freed to work on other tasks.  This can
 especially affect startup time since usually only a small part of the

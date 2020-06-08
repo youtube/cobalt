@@ -118,7 +118,6 @@ bool SignalHandler::Thaw(SbThreadSampler sampler) {
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
-  SB_UNREFERENCED_PARAMETER(info);
   if (signal != SIGPROF) return;
   sb_context_ = SbThreadContextPrivate(reinterpret_cast<ucontext_t*>(context));
   // |Freeze| can return the context now.

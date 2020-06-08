@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 
@@ -282,4 +282,4 @@ base::TypeId DrawRRectColorTexture::GetTypeId() const {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

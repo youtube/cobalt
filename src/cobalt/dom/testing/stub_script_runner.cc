@@ -21,9 +21,6 @@ namespace testing {
 std::string StubScriptRunner::Execute(
     const std::string& script_utf8, const base::SourceLocation& script_location,
     bool mute_errors, bool* out_succeeded) {
-  SB_UNREFERENCED_PARAMETER(script_utf8);
-  SB_UNREFERENCED_PARAMETER(script_location);
-  SB_UNREFERENCED_PARAMETER(mute_errors);
   if (out_succeeded) {
     *out_succeeded = true;
   }

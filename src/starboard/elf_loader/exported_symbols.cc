@@ -104,6 +104,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
   REGISTER_SYMBOL(SbDrmGenerateSessionUpdateRequest);
+#if SB_API_VERSION >= 12
+  REGISTER_SYMBOL(SbDrmGetMetrics);
+#endif  // SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
@@ -247,10 +250,21 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
+  #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+      SB_HAS(CONCEALED_STATE)
+  REGISTER_SYMBOL(SbSystemRequestBlur);
+  REGISTER_SYMBOL(SbSystemRequestConceal);
+  REGISTER_SYMBOL(SbSystemRequestFocus);
+  REGISTER_SYMBOL(SbSystemRequestFreeze);
+  REGISTER_SYMBOL(SbSystemRequestReveal);
+  REGISTER_SYMBOL(SbSystemRequestStop);
+  #else
   REGISTER_SYMBOL(SbSystemRequestPause);
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
+  #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+          // SB_HAS(CONCEALED_STATE)
   REGISTER_SYMBOL(SbSystemSort);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadCreate);
@@ -287,9 +301,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbGetGlesInterface);
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbFileAtomicReplace);
-#endif  // SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#endif  // SB_API_VERSION >= 12
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
@@ -301,18 +315,17 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbPlayerOutputModeSupported);
 #endif
 
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
   REGISTER_SYMBOL(SbMemoryProtect);
 #endif  // SB_HAS(MMAP)
 
-#if SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbUiNavGetInterface);
-#endif  // SB_API_VERSION >= SB_UI_NAVIGATION_VERSION
+#endif  // SB_API_VERSION >= 12
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
@@ -324,19 +337,19 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+#endif  // SB_API_VERSION >= 12
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
-#if SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION || SB_HAS(MICROPHONE)
+#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -344,46 +357,43 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
-#endif  // SB_API_VERSION >= SB_MICROPHONE_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(MICROPHONE)
 
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
 #endif
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
-#endif  // SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_SYNTHESIS)
 
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
-    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
-#endif  // SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
 #if SB_API_VERSION >= 5
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
 #endif
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_RECOGNIZER)
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
   REGISTER_SYMBOL(SbSpeechRecognizerCancel);
-#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
 #endif
 
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
 #endif
 
@@ -422,7 +432,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
 #endif  // SB_API_VERSION >= 11
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(kSbDefaultMmapThreshold);
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxOpen);
@@ -432,7 +442,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
   REGISTER_SYMBOL(kSbHasAc3Audio);
-  REGISTER_SYMBOL(kSbHasAsyncAudioFramesReporting);
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
@@ -451,8 +460,8 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-}
+#endif  // SB_API_VERSION >= 12
+}  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];

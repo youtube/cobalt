@@ -39,7 +39,7 @@
         '<(DEPTH)/starboard/common/test_main.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
-        'accessibility_get_setting_test.cc',
+        'accessibility_test.cc',
         'align_test.cc',
         'atomic_base_test.cc',
         'atomic_test.cc',
@@ -118,6 +118,7 @@
         'double_is_finite_test.cc',
         'double_is_nan_test.cc',
         'drm_create_system_test.cc',
+        'drm_get_metrics_test.cc',
         'drm_helpers.cc',
         'drm_helpers.h',
         'drm_is_server_certificate_updatable_test.cc',
@@ -140,6 +141,7 @@
         'flat_map_test.cc',
         'gles_test.cc',
         'murmurhash2_test.cc',
+        'image_test.cc',
         'include_all.c',
         'include_all_too.c',
         'key_test.cc',
@@ -186,6 +188,8 @@
         'player_creation_param_helpers.h',
         'player_get_preferred_output_mode_test.cc',
         'player_output_mode_supported_test.cc',
+        'player_test_util.cc',
+        'player_test_util.h',
         'random_helpers.cc',
         'recursive_mutex_test.cc',
         'rwlock_test.cc',
@@ -291,6 +295,7 @@
         'time_narrow_test.cc',
         'time_zone_get_current_test.cc',
         'time_zone_get_name_test.cc',
+        'ui_navigation_test.cc',
         'undefined_behavior_test.cc',
         'unsafe_math_test.cc',
         'url_player_create_test.cc',
@@ -316,6 +321,7 @@
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'copy_nplb_file_tests_data',
       ],
       'conditions': [
         ['sb_evergreen != 1', {
@@ -333,6 +339,17 @@
         }],
       ],
       'includes': [ '<(DEPTH)/starboard/nplb/sabi/sabi.gypi' ],
+    },
+    {
+      'target_name': 'copy_nplb_file_tests_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/',
+        ],
+        'content_test_output_subdir': 'starboard/nplb/file_tests',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
     {
       'target_name': 'nplb_deploy',

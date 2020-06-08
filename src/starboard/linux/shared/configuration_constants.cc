@@ -16,7 +16,7 @@
 
 #include "starboard/configuration_constants.h"
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
 
 // Determines the threshhold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
@@ -53,9 +53,6 @@ const char* kSbFileSepString = "/";
 
 // Allow ac3 and ec3 support
 const bool kSbHasAc3Audio = true;
-
-// Specifies whether this platform updates audio frames asynchronously.
-const bool kSbHasAsyncAudioFramesReporting = false;
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
@@ -147,4 +144,4 @@ const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 // The maximum number of users that can be signed in at the same time.
 const uint32_t kSbUserMaxSignedIn = 1;
 
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12

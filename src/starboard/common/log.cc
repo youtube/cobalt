@@ -45,7 +45,7 @@ SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
 #pragma optimize("", off)
 #endif
 
-void Alias(const void* /*var*/) {}
+void Alias(const void* var) {}
 
 #if defined(COMPILER_MSVC)
 #pragma optimize("", on)

@@ -65,7 +65,6 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
       const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
-    SB_UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(std::move(violation_reporter), url,
                                      require_csp, policy_changed_callback);
   }
@@ -271,8 +270,8 @@ HarnessResult ParseResults(const std::string& json_results) {
   return harness_result;
 }
 
-::testing::AssertionResult CheckResult(const char* /* expectation_str */,
-                                       const char* /* results_str */,
+::testing::AssertionResult CheckResult(const char* expectation_str,
+                                       const char* results_str,
                                        bool should_pass,
                                        const TestResult& result) {
   bool test_passed = result.status == WebPlatformTestInfo::kPass;
@@ -299,9 +298,9 @@ HarnessResult ParseResults(const std::string& json_results) {
   }
 }
 
-::testing::AssertionResult CheckHarnessResult(const char* /* expectation_str */,
-    const char* /* results_str */, WebPlatformTestInfo::State expect_status,
-    const HarnessResult& result) {
+::testing::AssertionResult CheckHarnessResult(
+    const char* expectation_str, const char* results_str,
+    WebPlatformTestInfo::State expect_status, const HarnessResult& result) {
   if ((expect_status == WebPlatformTestInfo::State::kPass) &&
       (result.status != kTestsOk)) {
     return ::testing::AssertionFailure()

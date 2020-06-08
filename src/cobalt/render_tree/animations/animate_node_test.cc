@@ -71,7 +71,6 @@ class ImageFake : public Image {
 // The following tests ensure that simple single time-independent animations
 // work fine on single-node render trees of different types.
 void AnimateText(TextNode::Builder* text_node, base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   text_node->color = ColorRGBA(.5f, .5f, .5f);
 }
 TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
@@ -92,7 +91,6 @@ TEST(AnimateNodeTest, EnsureSingleTextNodeAnimates) {
 
 void AnimateImage(ImageNode::Builder* image_node,
                   base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   image_node->destination_rect = RectF(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
@@ -112,7 +110,6 @@ TEST(AnimateNodeTest, EnsureSingleImageNodeAnimates) {
 }
 
 void AnimateRect(RectNode::Builder* rect_node, base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, EnsureSingleRectNodeAnimates) {
@@ -220,7 +217,6 @@ TEST(AnimateNodeTest, MultipleAnimationsTargetingOneNodeApplyInCorrectOrder) {
 // leaves its child node untouched.
 void AnimateTransform(MatrixTransformNode::Builder* transform_node,
                       base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   transform_node->transform = math::TranslateMatrix(2.0f, 2.0f);
 }
 TEST(AnimateNodeTest, AnimatingTransformNodeDoesNotAffectSourceChild) {
@@ -353,7 +349,6 @@ TEST(AnimateNodeTest, SubAnimateNodeWithTwoAncestors) {
 
 void BoundsAnimateRect(RectNode::Builder* rect_node,
                        base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(3.0f, 5.0f, 15.0f, 20.0f);
 }
 TEST(AnimateNodeTest, AnimationBounds) {
@@ -434,7 +429,6 @@ TEST(AnimateNodeTest, AnimationBoundsExpiration) {
 
 void BoundsAnimateRect2(RectNode::Builder* rect_node,
                         base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   rect_node->rect = RectF(2.0f, 6.0f, 10.0f, 25.0f);
 }
 TEST(AnimateNodeTest, AnimationBoundsUnionsMultipleAnimations) {
@@ -470,7 +464,6 @@ TEST(AnimateNodeTest, AnimationBoundsUnionsMultipleAnimations) {
 
 void AnimateTranslate(CompositionNode::Builder* composition_node,
                       base::TimeDelta time_elapsed) {
-  SB_UNREFERENCED_PARAMETER(time_elapsed);
   composition_node->set_offset(math::Vector2dF(4.0f, 4.0f));
 }
 // This test makes sure that the animation bounds are calculated correctly when

@@ -14,8 +14,7 @@
 
 #include "starboard/speech_synthesis.h"
 
-#if SB_API_VERSION >= SB_SPEECH_SYNTHESIS_REQUIRED_VERSION || \
-    SB_HAS(SPEECH_SYNTHESIS)
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
 
 void SbSpeechSynthesisCancel() {}
 

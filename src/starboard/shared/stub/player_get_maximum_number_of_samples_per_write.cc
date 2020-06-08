@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer /*player*/,
-                                              SbMediaType /*sample_type*/) {
+int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
+                                              SbMediaType sample_type) {
   return 0;
 }

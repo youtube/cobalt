@@ -9,6 +9,7 @@ Sources.DebuggerPausedMessage = class {
     this._element = createElementWithClass('div', 'paused-message flex-none');
     const root = UI.createShadowRootWithCoreStyles(this._element, 'sources/debuggerPausedMessage.css');
     this._contentElement = root.createChild('div');
+    UI.ARIAUtils.markAsPoliteLiveRegion(this._element);
   }
 
   /**
@@ -34,16 +35,18 @@ Sources.DebuggerPausedMessage = class {
   static async _createDOMBreakpointHitMessage(details) {
     const messageWrapper = createElement('span');
     const domDebuggerModel = details.debuggerModel.target().model(SDK.DOMDebuggerModel);
-    if (!details.auxData || !domDebuggerModel)
+    if (!details.auxData || !domDebuggerModel) {
       return messageWrapper;
+    }
     const data = domDebuggerModel.resolveDOMBreakpointData(/** @type {!Object} */ (details.auxData));
-    if (!data)
+    if (!data) {
       return messageWrapper;
+    }
 
     const mainElement = messageWrapper.createChild('div', 'status-main');
     mainElement.appendChild(UI.Icon.create('smallicon-info', 'status-icon'));
-    mainElement.appendChild(createTextNode(
-        String.sprintf('Paused on %s', Sources.DebuggerPausedMessage.BreakpointTypeNouns.get(data.type))));
+    const breakpointType = Sources.DebuggerPausedMessage.BreakpointTypeNouns.get(data.type);
+    mainElement.appendChild(createTextNode(ls`Paused on ${breakpointType}`));
 
     const subElement = messageWrapper.createChild('div', 'status-sub monospace');
     const linkifiedNode = await Common.Linkifier.linkify(data.node);
@@ -51,13 +54,18 @@ Sources.DebuggerPausedMessage = class {
 
     if (data.targetNode) {
       const targetNodeLink = await Common.Linkifier.linkify(data.targetNode);
-      let message;
-      if (data.insertion)
-        message = data.targetNode === data.node ? 'Child %s added' : 'Descendant %s added';
-      else
-        message = 'Descendant %s removed';
+      let messageElement;
+      if (data.insertion) {
+        if (data.targetNode === data.node) {
+          messageElement = UI.formatLocalized('Child %s added', [targetNodeLink]);
+        } else {
+          messageElement = UI.formatLocalized('Descendant %s added', [targetNodeLink]);
+        }
+      } else {
+        messageElement = UI.formatLocalized('Descendant %s removed', [targetNodeLink]);
+      }
       subElement.appendChild(createElement('br'));
-      subElement.appendChild(UI.formatLocalized(message, [targetNodeLink]));
+      subElement.appendChild(messageElement);
     }
     return messageWrapper;
   }
@@ -71,8 +79,9 @@ Sources.DebuggerPausedMessage = class {
   async render(details, debuggerWorkspaceBinding, breakpointManager) {
     this._contentElement.removeChildren();
     this._contentElement.hidden = !details;
-    if (!details)
+    if (!details) {
       return;
+    }
 
     const status = this._contentElement.createChild('div', 'paused-status');
 
@@ -108,9 +117,7 @@ Sources.DebuggerPausedMessage = class {
       messageWrapper = buildWrapper(Common.UIString('Paused before potential out-of-memory crash'));
     } else if (details.callFrames.length) {
       const uiLocation = debuggerWorkspaceBinding.rawLocationToUILocation(details.callFrames[0].location());
-      const breakpoint = uiLocation ?
-          breakpointManager.findBreakpoint(uiLocation.uiSourceCode, uiLocation.lineNumber, uiLocation.columnNumber) :
-          null;
+      const breakpoint = uiLocation ? breakpointManager.findBreakpoint(uiLocation) : null;
       const defaultText = breakpoint ? Common.UIString('Paused on breakpoint') : Common.UIString('Debugger paused');
       messageWrapper = buildWrapper(defaultText);
     } else {
@@ -119,8 +126,9 @@ Sources.DebuggerPausedMessage = class {
     }
 
     status.classList.toggle('error-reason', errorLike);
-    if (messageWrapper)
+    if (messageWrapper) {
       status.appendChild(messageWrapper);
+    }
 
     /**
      * @param  {string} mainText

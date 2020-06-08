@@ -31,7 +31,7 @@ struct SlotTraits : public base::internal::LeakyLazyInstanceTraits<Slot> {
 base::LazyInstance<Slot, SlotTraits> gSkTLSKey = LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
-void* SkTLS::PlatformGetSpecific(bool /*forceCreateTheSlot*/) {
+void* SkTLS::PlatformGetSpecific(bool forceCreateTheSlot) {
   return gSkTLSKey.Get().Get();
 }
 

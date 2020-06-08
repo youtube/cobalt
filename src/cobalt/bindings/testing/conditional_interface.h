@@ -29,13 +29,13 @@ class ConditionalInterface : public script::Wrappable {
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
   void EnabledOperation() {}
   int32 enabled_attribute() { return 0; }
-  void set_enabled_attribute(int32 /* value */) {}
+  void set_enabled_attribute(int32 value) {}
 #endif  // defined(ENABLE_CONDITIONAL_PROPERTY)
 
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
   void DisabledOperation() {}
   int32 disabled_attribute() { return 0; }
-  void set_disabled_attribute(int32 /* value */) {}
+  void set_disabled_attribute(int32 value) {}
 #endif  // defined(NO_ENABLE_CONDITIONAL_PROPERTY)
 
   DEFINE_WRAPPABLE_TYPE(ConditionalInterface);

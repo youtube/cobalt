@@ -31,9 +31,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required) {
-  SB_UNREFERENCED_PARAMETER(profile);
-  SB_UNREFERENCED_PARAMETER(level);
-
   using starboard::shared::starboard::media::IsSDRVideo;
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {

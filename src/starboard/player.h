@@ -39,13 +39,14 @@ typedef enum SbPlayerDecoderState {
   // The decoder is asking for one more sample.
   kSbPlayerDecoderStateNeedsData,
 
+#if SB_API_VERSION < 12
   // The decoder is not ready for any more samples, so do not send them.
   // Note that this enum value has been deprecated and the SbPlayer
   // implementation should no longer use this value.
   kSbPlayerDecoderStateBufferFull,
-
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerDecoderStateDestroyed,
+#endif  // SB_API_VERSION < 12
 } SbPlayerDecoderState;
 
 // An indicator of the general playback state.
@@ -492,14 +493,14 @@ SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                            SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-// Destroys |player|, freeing all associated resources. Each callback must
-// receive one more callback to say that the player was destroyed. Callbacks
-// may be in-flight when SbPlayerDestroy is called, and should be ignored once
-// this function is called.
-//
-// It is not allowed to pass |player| into any other |SbPlayer| function once
-// SbPlayerDestroy has been called on that player.
-//
+// Destroys |player|, freeing all associated resources.
+//  * Upon calling this method, there should be one call to the player status
+//    callback (i.e. |player_status_func| used in the creation of the player)
+//    which indicates the player is destroyed. Note, the callback has to be
+//    in-flight when SbPlayerDestroyed is called.
+//  * No more other callbacks should be issued after this function returns.
+//  * It is not allowed to pass |player| into any other |SbPlayer| function
+//    once SbPlayerDestroy has been called on that player.
 // |player|: The player to be destroyed.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
@@ -537,45 +538,6 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
                              SbTime seek_to_timestamp,
                              int ticket);
 
-// Writes a single sample of the given media type to |player|'s input stream.
-// Its data may be passed in via more than one buffers.  The lifetime of
-// |sample_buffers|, |sample_buffer_sizes|, |video_sample_info|, and
-// |sample_drm_info| (as well as member |subsample_mapping| contained inside it)
-// are not guaranteed past the call to SbPlayerWriteSample. That means that
-// before returning, the implementation must synchronously copy any information
-// it wants to retain from those structures.
-//
-// |player|: The player to which the sample is written.
-// |sample_type|: The type of sample being written. See the |SbMediaType|
-//   enum in media.h.
-// |sample_buffers|: A pointer to an array of buffers with
-//   |number_of_sample_buffers| elements that hold the data for this sample. The
-//   buffers are expected to be a portion of a bytestream of the codec type that
-//   the player was created with. The buffers should contain a sequence of whole
-//   NAL Units for video, or a complete audio frame.  |sample_buffers| cannot be
-//   assumed to live past the call into SbPlayerWriteSample(), so it must be
-//   copied if its content will be used after SbPlayerWriteSample() returns.
-// |sample_buffer_sizes|: A pointer to an array of sizes with
-//   |number_of_sample_buffers| elements.  Each of them specify the number of
-//   bytes in the corresponding buffer contained in |sample_buffers|.  None of
-//   them can be 0.  |sample_buffer_sizes| cannot be assumed to live past the
-//   call into SbPlayerWriteSample(), so it must be copied if its content will
-//   be used after SbPlayerWriteSample() returns.
-// |number_of_sample_buffers|: Specify the number of elements contained inside
-//   |sample_buffers| and |sample_buffer_sizes|.  It has to be at least one, or
-//   the call will be ignored.
-// |sample_pts|: The timestamp of the sample in 90KHz ticks (PTS). Note that
-//   samples MAY be written "slightly" out of order.
-// |video_sample_info|: Information about a video sample. This value is
-//   required if |sample_type| is |kSbMediaTypeVideo|. Otherwise, it must be
-//   |NULL|.
-// |sample_drm_info|: The DRM system related info for the media sample. This
-//   value is required for encrypted samples. Otherwise, it must be |NULL|.
-
-// SbPlayerWriteSample2 is like the deprecated SbPlayerWriteSample, but accepts
-// SbTime |sample_timestamp| instead of SbMediaTime |sample_pts|, and also
-// allows writing of multiple samples in one SbPlayerWriteSample2() call.
-
 // Writes samples of the given media type to |player|'s input stream. The
 // lifetime of |sample_infos|, and the members of its elements like |buffer|,
 // |video_sample_info|, and |drm_info| (as well as member |subsample_mapping|
@@ -583,6 +545,8 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 // SbPlayerWriteSample2. That means that before returning, the implementation
 // must synchronously copy any information it wants to retain from those
 // structures.
+//
+// SbPlayerWriteSample2 allows writing of multiple samples in one call.
 //
 // |player|: The player to which the sample is written.
 // |sample_type|: The type of sample being written. See the |SbMediaType|

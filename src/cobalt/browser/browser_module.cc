@@ -169,7 +169,6 @@ void ScreenshotCompleteCallback(const base::FilePath& output_path) {
 
 void OnScreenshotMessage(BrowserModule* browser_module,
                          const std::string& message) {
-  SB_UNREFERENCED_PARAMETER(message);
   base::FilePath dir;
   if (!base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir)) {
     NOTREACHED() << "Failed to get debug out directory.";
@@ -196,16 +195,16 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(global_environment);
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
 }
 
+#if SB_API_VERSION < 12
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
   return CreateWebAPIExtensionObject(window, global_environment);
 }
+#endif
 
 renderer::RendererModule::Options RendererModuleWithCameraOptions(
     renderer::RendererModule::Options options,
@@ -250,16 +249,15 @@ BrowserModule::BrowserModule(const GURL& url,
       updater_module_(updater_module),
 #endif
       splash_screen_cache_(new SplashScreenCache()),
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
       on_screen_keyboard_bridge_(
           OnScreenKeyboardStarboardBridge::IsSupported() &&
                   options.enable_on_screen_keyboard
               ? new OnScreenKeyboardStarboardBridge(base::Bind(
                     &BrowserModule::GetSbWindow, base::Unretained(this)))
               : NULL),
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= 12 ||
+      // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
@@ -373,7 +371,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif
   h5vcc_settings.account_manager = account_manager;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
-  h5vcc_settings.initial_deep_link = options_.initial_deep_link;
   options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
@@ -389,6 +386,7 @@ BrowserModule::BrowserModule(const GURL& url,
       !command_line->HasSwitch(switches::kDisablePartialLayout);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+#if SB_API_VERSION < 12
   base::Optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {
@@ -396,6 +394,7 @@ BrowserModule::BrowserModule(const GURL& url,
         .injected_window_attributes[*extension_object_name] =
         base::Bind(&CreateExtensionInterface);
   }
+#endif
 
 #if defined(ENABLE_DEBUGGER) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
@@ -507,8 +506,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     return;
   }
 
-  // First try the registered handlers (e.g. for h5vcc://). If one of these
-  // handles the URL, we don't use the web module.
+  // First try any registered handlers. If one of these handles the URL, we
+  // don't use the web module.
   if (TryURLHandlers(url)) {
     return;
   }
@@ -934,8 +933,13 @@ void BrowserModule::OnWindowMinimize() {
     return;
   }
 #endif
-
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  SbSystemRequestConceal();
+#else
   SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 }
 
 #if SB_API_VERSION >= 8
@@ -957,8 +961,7 @@ void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
 }
 #endif  // SB_API_VERSION >= 8
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -1009,17 +1012,17 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
   }
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 void BrowserModule::OnCaptionSettingsChanged(
-    const base::AccessibilityCaptionSettingsChangedEvent* /*event*/) {
+    const base::AccessibilityCaptionSettingsChangedEvent* event) {
   if (web_module_) {
     web_module_->InjectCaptionSettingsChangedEvent();
   }
 }
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 #if defined(ENABLE_DEBUGGER)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
@@ -1108,8 +1111,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1130,7 +1132,7 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 
   InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnKeyEventProduced(base::Token type,
@@ -1206,8 +1208,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   web_module_->InjectKeyboardEvent(type, event);
 }
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0(
@@ -1225,7 +1226,7 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
   DCHECK(web_module_);
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
@@ -1335,8 +1336,14 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
   } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
     if (type == base::Tokens::keydown()) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+      SbSystemRequestConceal();
+#else
       // Ctrl+S suspends Cobalt.
       SbSystemRequestSuspend();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     }
     return false;
   }
@@ -1499,6 +1506,17 @@ void BrowserModule::Suspend() {
 void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // This is temporary for Cobalt black box tests, will be removed
+  // with Cobalt Concealed mode changes.
+  if (application_state_ == base::kApplicationStatePreloading) {
+    Start();
+    Pause();
+    return;
+  }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
   StartOrResumeInternalPreStateUpdate(false /*is_start*/);
@@ -1629,12 +1647,11 @@ void BrowserModule::InitializeSystemWindow() {
       base::Bind(&BrowserModule::OnPointerEventProduced,
                  base::Unretained(this)),
       base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
       base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
                  base::Unretained(this)),
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= 12 ||
+      // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window_.get());
   InstantiateRendererModule();
 

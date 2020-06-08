@@ -66,7 +66,6 @@ class StdAllocator : public std::allocator<T> {
 
   pointer allocate(size_type n,
                    std::allocator<void>::const_pointer hint = NULL) {
-    SB_UNREFERENCED_PARAMETER(hint);
     void* ptr = AllocatorT::Allocate(n * sizeof(value_type));
     return static_cast<pointer>(ptr);
   }
@@ -146,7 +145,6 @@ class StdDynamicAllocator : public std::allocator<T> {
 
   pointer allocate(size_type n,
                    std::allocator<void>::const_pointer hint = NULL) {
-    SB_UNREFERENCED_PARAMETER(hint);
     void* ptr = allocator_->Allocate(n * sizeof(value_type));
     return static_cast<pointer>(ptr);
   }

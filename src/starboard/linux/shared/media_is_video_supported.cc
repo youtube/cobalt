@@ -32,9 +32,9 @@ using starboard::shared::starboard::media::IsSDRVideo;
 using starboard::shared::vpx::is_vpx_supported;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                              const char* content_type,
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,
@@ -53,15 +53,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #endif  // SB_API_VERSION < 11
 
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  SB_UNREFERENCED_PARAMETER(profile);
-  SB_UNREFERENCED_PARAMETER(level);
 
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
   if (!content_type) {
     SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
     return false;
   }
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {

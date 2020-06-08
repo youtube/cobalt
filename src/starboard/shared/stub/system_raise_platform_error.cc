@@ -21,8 +21,6 @@ SbSystemPlatformError SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data) {
-  SB_UNREFERENCED_PARAMETER(callback);
-  SB_UNREFERENCED_PARAMETER(user_data);
   std::string message;
   switch (type) {
     case kSbSystemPlatformErrorTypeConnectionError:
@@ -39,8 +37,6 @@ SbSystemPlatformError SbSystemRaisePlatformError(
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                                 SbSystemPlatformErrorCallback callback,
                                 void* user_data) {
-  SB_UNREFERENCED_PARAMETER(callback);
-  SB_UNREFERENCED_PARAMETER(user_data);
   std::string message;
   switch (type) {
     case kSbSystemPlatformErrorTypeConnectionError:

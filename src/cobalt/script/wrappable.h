@@ -72,9 +72,9 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
 
   // Our implementation of the |Traceable| interface.  All |Wrappable|s that
   // own any |Traceable|s must override |TraceMembers| and trace them.
-  void TraceMembers(Tracer* /*tracer*/) override {}
+  void TraceMembers(Tracer* tracer) override {}
   bool IsWrappable() const final { return true; }
-  virtual JSObjectType GetJSObjectType() { return JSObjectType::kObject; };
+  virtual JSObjectType GetJSObjectType() { return JSObjectType::kObject; }
 
  protected:
   virtual ~Wrappable() { }

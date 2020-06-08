@@ -86,6 +86,7 @@
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests_deploy',
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
+        '<(DEPTH)/third_party/zlib/zlib.gyp:zip_unittests_deploy',
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
         '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',

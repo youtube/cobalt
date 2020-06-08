@@ -128,6 +128,46 @@ class Launcher(abstract_launcher.AbstractLauncher):
     else:
       sys.stderr.write("Cannot send suspend to executable; it is closed.\n")
 
+  def SendConceal(self):
+    """Sends conceal to the launcher's executable."""
+    sys.stderr.write("\n***Sending conceal signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGUSR1)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("S", STATUS_CHANGE_TIMEOUT)
+    else:
+      sys.stderr.write("Cannot send conceal to executable; it is closed.\n")
+
+  def SendFocus(self):
+    """Sends focus to the launcher's executable."""
+    sys.stderr.write("\n***Sending focus signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGCONT)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("R", STATUS_CHANGE_TIMEOUT)
+    else:
+      sys.stderr.write("Cannot send unpause to executable; it is closed.\n")
+
+  def SendFreeze(self):
+    """Sends freeze to the launcher's executable."""
+    sys.stderr.write("\n***Sending freeze signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGTSTP)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("T", STATUS_CHANGE_TIMEOUT)
+    else:
+      sys.stderr.write("Cannot send freeze to executable; it is closed.\n")
+
+  def SendStop(self):
+    """Sends stop to the launcher's executable."""
+    sys.stderr.write("\n***Sending stop signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGPWR)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("T", STATUS_CHANGE_TIMEOUT)
+    else:
+      sys.stderr.write("Cannot send stop to executable; it is closed.\n")
+
   def SupportsDeepLink(self):
     return True
 
@@ -136,7 +176,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # this happens.
     connection_attempts = 3
     return send_link.SendLink(
-        os.path.basename(self.executable), link, connection_attempts)
+        os.path.basename(self.executable), link, connection_attempts) == 0
 
   def WaitForProcessStatus(self, target_status, timeout):
     """Wait for Cobalt to turn to target status within specified timeout limit.

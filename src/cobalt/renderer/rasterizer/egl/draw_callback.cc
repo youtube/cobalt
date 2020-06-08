@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 
@@ -33,14 +33,10 @@ DrawCallback::DrawCallback(const base::Closure& rasterize_callback)
 
 void DrawCallback::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
-  SB_UNREFERENCED_PARAMETER(graphics_state);
-  SB_UNREFERENCED_PARAMETER(program_manager);
 }
 
 void DrawCallback::ExecuteRasterize(GraphicsState* graphics_state,
                                     ShaderProgramManager* program_manager) {
-  SB_UNREFERENCED_PARAMETER(graphics_state);
-  SB_UNREFERENCED_PARAMETER(program_manager);
   if (!rasterize_callback_.is_null()) {
     rasterize_callback_.Run();
   }
@@ -55,4 +51,4 @@ base::TypeId DrawCallback::GetTypeId() const {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION || SB_HAS(GLES2)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

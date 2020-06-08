@@ -14,5 +14,4 @@
 
 #include "starboard/thread.h"
 
-void SbThreadDetach(SbThread /*thread*/) {
-}
+void SbThreadDetach(SbThread thread) {}

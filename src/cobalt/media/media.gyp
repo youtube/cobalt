@@ -81,6 +81,8 @@
         'base/mime_util.h',
         'base/mime_util_internal.cc',
         'base/mime_util_internal.h',
+        'base/playback_statistics.cc',
+        'base/playback_statistics.h',
         'base/ranges.cc',
         'base/ranges.h',
         'base/sample_format.cc',

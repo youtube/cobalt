@@ -16,9 +16,9 @@
 
 #if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
-                                 SbMediaVideoCodec /*codec*/,
-                                 SbDrmSystem /*drm_system*/) {
+bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mod /,
+                                 SbMediaVideoCodec codec,
+                                 SbDrmSystem drm_system) {
   return false;
 }
 

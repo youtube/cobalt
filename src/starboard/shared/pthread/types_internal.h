@@ -17,7 +17,7 @@
 #ifndef STARBOARD_SHARED_PTHREAD_TYPES_INTERNAL_H_
 #define STARBOARD_SHARED_PTHREAD_TYPES_INTERNAL_H_
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 #define SB_INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<SbMutexPrivate*>((mutex_var)->mutex_buffer)
 #define SB_PTHREAD_INTERNAL_MUTEX(mutex_var) \
@@ -41,7 +41,7 @@
   reinterpret_cast<pthread_t*>(&(thread))
 #define SB_THREAD(thread) (thread)
 #define SB_PTHREAD_INTERNAL_CONDITION(condition_var) (condition_var)
-#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#endif  // SB_API_VERSION >= 12
 
 // Transparent Condition Variable handle.
 // It is customized from the plain pthread_cont_t object because we

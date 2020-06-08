@@ -44,20 +44,9 @@
         'utils.cc',
         'utils.h',
       ],
-      'defines': [
-        'COBALT_EGL_SWAP_INTERVAL=<(cobalt_egl_swap_interval)',
-      ],
       'dependencies': [
         '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
-      ],
-
-      'conditions': [
-        ['render_dirty_region_only==1', {
-          'defines': [
-            'COBALT_RENDER_DIRTY_REGION_ONLY',
-          ],
-        }],
       ],
     },
   ],

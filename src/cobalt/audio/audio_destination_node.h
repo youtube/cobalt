@@ -52,8 +52,7 @@ class AudioDestinationNode : public AudioNode,
   // From AudioNode.
   void OnInputNodeConnected() override;
   std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 /*number_of_frames*/, SampleType /*sample_type*/,
-      bool* /*finished*/) override {
+      int32 number_of_frames, SampleType sample_type, bool* finished) override {
     NOTREACHED();
     return std::unique_ptr<ShellAudioBus>();
   }

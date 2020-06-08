@@ -28,7 +28,7 @@ class EnumerationInterface : public script::Wrappable {
   MOCK_METHOD0(enum_property, TestEnum());
   MOCK_METHOD1(set_enum_property, void(TestEnum));
 
-  void OptionalEnumWithDefault(TestEnum /* value */) {}
+  void OptionalEnumWithDefault(TestEnum value) {}
 
   DEFINE_WRAPPABLE_TYPE(EnumerationInterface);
 };

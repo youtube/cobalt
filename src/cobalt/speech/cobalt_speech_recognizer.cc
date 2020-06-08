@@ -48,7 +48,6 @@ std::unique_ptr<Microphone> CreateMicrophone(int buffer_size_bytes) {
   return std::unique_ptr<Microphone>(
       new MicrophoneStarboard(kSampleRate, buffer_size_bytes));
 #else
-  SB_UNREFERENCED_PARAMETER(buffer_size_bytes);
   return std::unique_ptr<Microphone>();
 #endif  // defined(SB_USE_SB_MICROPHONE)
 }
@@ -63,7 +62,7 @@ std::unique_ptr<net::URLFetcher> CreateFakeURLFetcher(
 }
 
 std::unique_ptr<Microphone> CreateFakeMicrophone(
-    const Microphone::Options& options, int /*buffer_size_bytes*/) {
+    const Microphone::Options& options, int buffer_size_bytes) {
   return std::unique_ptr<Microphone>(new MicrophoneFake(options));
 }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
@@ -75,7 +74,6 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     const Microphone::Options& microphone_options,
     const EventCallback& event_callback)
     : SpeechRecognizer(event_callback), endpointer_delegate_(kSampleRate) {
-  SB_UNREFERENCED_PARAMETER(microphone_options);
 
   GoogleSpeechService::URLFetcherCreator url_fetcher_creator =
       base::Bind(&CreateURLFetcher);

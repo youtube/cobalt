@@ -19,7 +19,7 @@
 #include "cobalt/math/rect_f.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 namespace cobalt {
 namespace renderer {
@@ -39,6 +39,6 @@ inline SbBlitterRect RectFToBlitterRect(const math::RectF& rectf) {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_COBALT_BLITTER_CONVERSIONS_H_

@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketDestroy(SbSocket /*socket*/) {
+bool SbSocketDestroy(SbSocket socket) {
   return false;
 }

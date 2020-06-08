@@ -14,5 +14,4 @@
 
 #include "starboard/player.h"
 
-void SbPlayerWriteEndOfStream(SbPlayer /*player*/,
-                              SbMediaType /*stream_type*/) {}
+void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {}

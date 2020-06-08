@@ -54,7 +54,7 @@ bool CheckForAndExecuteStartupSwitches() {
   return g_is_startup_switch_set;
 }
 
-void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
+void PreloadApplication(int argc, char** argv, const char* link,
                         const base::Closure& quit_closure) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);
@@ -67,13 +67,20 @@ void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
   DCHECK(g_application);
 }
 
-void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
+void StartApplication(int argc, char** argv, const char* link,
                       const base::Closure& quit_closure) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);
     return;
   }
   LOG(INFO) << "Starting application.";
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  DCHECK(!g_application);
+  g_application =
+      new cobalt::browser::Application(quit_closure, false /*not_preload*/);
+  DCHECK(g_application);
+#else
   if (!g_application) {
     g_application = new cobalt::browser::Application(quit_closure,
                                                      false /*should_preload*/);
@@ -81,6 +88,8 @@ void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
   } else {
     g_application->Start();
   }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 }
 
 void StopApplication() {

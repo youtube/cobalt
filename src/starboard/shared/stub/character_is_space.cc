@@ -14,6 +14,6 @@
 
 #include "starboard/character.h"
 
-bool SbCharacterIsSpace(int /*c*/) {
+bool SbCharacterIsSpace(int c) {
   return false;
 }

@@ -83,7 +83,7 @@ MediaConsole.prototype.initialize = function() {
 }
 
 MediaConsole.prototype.initializeMediaConsoleContext = function() {
-  let js = debugHub.readDebugContentText('console/media_console_context.js');
+  let js = debugHub.readDebugContentText('media_console_context.js');
   this.debuggerClient.evaluate(js);
 }
 

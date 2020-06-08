@@ -130,6 +130,108 @@ TEST(SbFileSeekTest, FromBeginWorks) {
   EXPECT_TRUE(result);
 }
 
+std::string GetTestStaticContentFile() {
+  std::string filename = GetFileTestsFilePaths().front();
+  int content_length = GetTestFileExpectedContent(filename).length();
+  EXPECT_GT(content_length, 40);
+  return filename;
+}
+
+TEST(SbFileSeekTest, FromEndInStaticContentWorks) {
+  std::string filename = GetTestStaticContentFile();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  int content_length = GetTestFileExpectedContent(filename).length();
+
+  SbFileInfo info;
+  bool result = SbFileGetInfo(file, &info);
+  EXPECT_TRUE(result);
+
+  int64_t position = SbFileSeek(file, kSbFileFromEnd, 0);
+  EXPECT_EQ(info.size, position);
+
+  int64_t target = -(content_length / 6);
+  position = SbFileSeek(file, kSbFileFromEnd, target);
+  EXPECT_EQ(info.size + target, position);
+
+  position = SbFileSeek(file, kSbFileFromEnd, -info.size);
+  EXPECT_EQ(0, position);
+
+  result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+TEST(SbFileSeekTest, FromCurrentInStaticContentWorks) {
+  std::string filename = GetTestStaticContentFile();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  int content_length = GetTestFileExpectedContent(filename).length();
+
+  SbFileInfo info;
+  bool result = SbFileGetInfo(file, &info);
+  EXPECT_TRUE(result);
+
+  int64_t position = SbFileSeek(file, kSbFileFromCurrent, 0);
+  EXPECT_EQ(0, position);
+
+  int64_t target = content_length / 6;
+  position = SbFileSeek(file, kSbFileFromCurrent, target);
+  EXPECT_EQ(target, position);
+
+  position = SbFileSeek(file, kSbFileFromCurrent, target);
+  EXPECT_EQ(target * 2, position);
+
+  position = SbFileSeek(file, kSbFileFromCurrent, 0);
+  EXPECT_EQ(target * 2, position);
+
+  position = SbFileSeek(file, kSbFileFromCurrent, info.size - position);
+  EXPECT_EQ(info.size, position);
+
+  position = SbFileSeek(file, kSbFileFromCurrent, -info.size);
+  EXPECT_EQ(0, position);
+
+  result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
+TEST(SbFileSeekTest, FromBeginInStaticContentWorks) {
+  std::string filename = GetFileTestsFilePaths().front();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  ASSERT_TRUE(SbFileIsValid(file));
+
+  int content_length = GetTestFileExpectedContent(filename).length();
+
+  SbFileInfo info;
+  bool result = SbFileGetInfo(file, &info);
+  EXPECT_TRUE(result);
+
+  int64_t position = SbFileSeek(file, kSbFileFromBegin, 0);
+  EXPECT_EQ(0, position);
+
+  int64_t target = content_length / 6;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
+
+  target = content_length / 3;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
+
+  target = info.size - content_length / 6;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
+
+  position = SbFileSeek(file, kSbFileFromBegin, info.size);
+  EXPECT_EQ(info.size, position);
+
+  result = SbFileClose(file);
+  EXPECT_TRUE(result);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

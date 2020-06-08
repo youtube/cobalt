@@ -24,8 +24,7 @@ namespace starboard {
 namespace elf_loader {
 
 ElfLoaderImpl::ElfLoaderImpl() {
-#if SB_API_VERSION < 12 ||                                           \
-    !(SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)) || \
+#if SB_API_VERSION < 12 || !(SB_API_VERSION >= 12 || SB_HAS(MMAP)) || \
     !SB_CAN(MAP_EXECUTABLE_MEMORY)
   SB_CHECK(false) << "The elf_loader requires SB_API_VERSION >= 12 with "
                      "executable memory map support!";
@@ -108,7 +107,7 @@ bool ElfLoaderImpl::Load(
 
   if (relocations_->HasTextRelocations()) {
     // Restores the memory protection to its original state.
-#if SB_API_VERSION >= SB_MMAP_REQUIRED_VERSION || SB_HAS(MMAP)
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
     if (program_table_->AdjustMemoryProtectionOfReadOnlySegments(
             kSbMemoryMapProtectReserved) < 0) {
       SB_LOG(ERROR) << "Unable to restore segment protection";

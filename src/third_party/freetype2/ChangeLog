@@ -1,3 +1,374 @@
+2020-05-09  Werner Lemberg  <wl@gnu.org>
+
+	* Version 2.10.2 released.
+	==========================
+
+
+	Tag sources with `VER-2-10-2'.
+
+	* docs/VERSION.TXT: Add entry for version 2.10.2.
+
+	* README, Jamfile (RefDoc), src/base/ftver.rc,
+	builds/windows/vc2010/index.html, builds/windows/visualc/index.html,
+	builds/windows/visualce/index.html,
+	builds/wince/vc2005-ce/index.html,
+	builds/wince/vc2008-ce/index.html, docs/freetype-config.1:
+	s/2.10.1/2.10.2/, s/2101/2102/.
+
+	* include/freetype/freetype.h (FREETYPE_PATCH): Set to 2.
+
+	* builds/unix/configure.raw (version_info): Set to 23:2:17.
+	* CMakeLists.txt (VERSION_PATCH): Set to 2.
+
+	* docs/CHANGES: Updated.
+
+2020-05-08  Jakub Alba  <jalba@vewd.com>
+
+	* src/truetype/ttinterp.c (TT_RunIns): Adjust loop counter (#58319).
+
+	The font that exceeds the old limit is Icono Regular, version
+	1.00000.
+
+2020-05-03  Alexei Podtelezhnikov  <apodtele@gmail.com>
+
+	* builds/freetype.mk: Refactor for readability.
+
+2020-05-02  Alexei Podtelezhnikov  <apodtele@gmail.com>
+
+	[builds] Clean up Windows CE project files.
+
+	Remove version from filenames that caused a lot of polution in the
+	release process. Use VERSIONINFO resource instead.
+
+	* builds/wince/vc2005-ce/freetype.vcproj,
+	builds/wince/vc2008-ce/freetype.vcproj,
+	builds/windows/visualce/freetype.vcproj,
+	builds/windows/visualce/freetype.dsp: s/2101//g, but add `ftver.rc'.
+	* builds/wince/vc2008-ce/index.html,
+	builds/wince/vc2005-ce/index.html,
+	builds/windows/visualce/index.html: s/2101//g.
+
+2020-05-01  Alexei Podtelezhnikov  <apodtele@gmail.com>
+
+	* devel/ft2build.h: Override FT_CONFIG_MODULES_H here as well.
+
+2020-05-01  Alexei Podtelezhnikov  <apodtele@gmail.com>
+
+	[builds/unix] Consolidate marco overrides (for the demos to see them).
+
+	* builds/unix/unix-cc.in (FT_CONFIG_MODULES_H, FT_CONFIG_OPTIONS_H):
+	Override them here...
+	* builds/freetype.mk: ... instead of here.
+
+2020-04-08  Werner Lemberg  <wl@gnu.org>
+
+	Allow setting `CC' in Unix build (#58051).
+
+	* builds/unix/unix-cc.in (CC): Use `override'.  The command line
+	  value of `CC' (if any) is stored already in `CCraw'.
+
+2020-04-04  Nikhil Ramakrishnan  <ramakrishnan.nikhil@gmail.com>
+
+	[woff2] Return if single stream operation fails.
+
+	* src/sfnt/sfwoff2.c (get_x_mins): Do it.
+
+	* src/sfnt/woff2tags.c: Remove unused include.
+
+2020-03-22  Nikhil Ramakrishnan  <ramakrishnan.nikhil@gmail.com>
+
+	[docs] Fix building docs if `srcdir' != `builddir'.
+
+	`docs/reference/*' was moved one directory up in commit 237fed6.
+
+	* builds/unix/unix-def.in (PIP): Remove variable.
+
+	* configure: Create `docs' directory and copy assets from
+	`docs/markdown'.
+
+	* docs/README: Output directory is `reference'.
+
+2020-03-21  Nikhil Ramakrishnan  <ramakrishnan.nikhil@gmail.com>
+
+	[docwriter] Drop support for Python < 3.5.
+
+	Python versions < 3.5 have reached end-of-life and as such, no
+	security or bug fixes will be provided for those versions.  See
+
+	  https://devguide.python.org/#status-of-python-branches
+	
+	for more information.
+
+	* Jamfile (RefDoc): Add `site' parameter.
+
+	* builds/detect.mk (std_setup): Update Python version requirement.
+
+	* builds/freetype.mk (refdoc-venv): Use pip as `python -m pip'.
+
+	* builds/unix/ax_compare_version.m4,
+	builds/unix/ax_prog_python_version.m4: Macros to detect Python
+	version.  New files.
+
+	* builds/unix/configure.raw: Check for Python >= 3.5 and remove
+	check for `pip'.
+
+	* docs/CHANGES, docs/INSTALL.GNU, docs/README: Updated.
+
+2020-03-02  Moazin Khatti  <moazinkhatri@gmail.com>
+
+	[gzip] Support `gzip' encoded header conditionally.
+
+	In order to support `gzip' encoded header the call to
+	`inflateInit2' was modified in commit 6a92b1fadde26477a9179.
+	However, this code breaks with the outdated internal version
+	of zlib.  This is a temporary fix to conditionally support
+	`gzip' encoded header whenever a system installation of zlib
+	is being used.
+
+	Problem report in
+
+	  https://lists.nongnu.org/archive/html/freetype-devel/2020-02/msg00023.html
+
+	* src/gzip/ftgzip.c (FT_Gzip_Uncompress): Change the the call to
+	`inflateInit2' depending on whether the system installation is
+	being used or the internal copy.
+
+2020-02-29  Ben Wagner  <bungeman@google.com>
+
+	[truetype] Fix state of `FT_Face' for buggy `gvar' tables (#57923).
+
+	By resetting the blend as implemented with this commit fonts with
+	invalid `gvar' tables may keep calling into `ft_var_load_gvar' from
+	`tt_set_mm_blend' and failing, but the font was invalid anyway and
+	we want to keep seeing the failure in `tt_set_mm_blend'.
+
+	* src/truetype/ttgxvar.c (ft_var_load_gvar): Calculate length of
+	offset array once.
+	Allocate arrays after `FT_FRAME_ENTER' (extra check before
+	allocating and avoid needing to free array later if error entering
+	frame).
+	Always call `FT_FRAME_EXIT'.
+	Consistently set counts immediately after array initialized.
+	Reset the blend (particularly `blend->glyphoffsets') on failure.
+
+2020-03-01  Nikhil Ramakrishnan  <ramakrishnan.nikhil@gmail.com>
+
+	[docs] Update docwriter stylesheet.
+
+	This change is required to support docwriter 1.2.1.
+
+	See
+
+	  https://github.com/freetype/docwriter/issues/36
+
+	for more information.
+
+	* docs/markdown/stylesheets/extra.css:
+	(.md-typeset code) -> (.md-typeset pre>code)
+	(pre) -> (pre>code)
+	(p, .md-typeset p, h4): Remove commented styles.
+	(table.index): Remove unused styles.
+
+2020-02-28  Ben Wagner  <bungeman@google.com>
+
+	[truetype] Add better checks for loading `gvar' table (#57905).
+
+	* src/truetype/ttgxvar.c (ft_var_load_gvar): Delay settings of any
+	`blend->xxxcount' values until the corresponding data has been
+	checked.
+	Also do some sanitizing to avoid a too early exit.
+
+	(TT_Vary_Apply_Glyph_Deltas): Improve tracing message.
+
+2020-02-27  Werner Lemberg  <wl@gnu.org>
+
+	Make `FT_HAS_*' and `FT_IS_*' really return true (#57906).
+
+	* include/freetype/freetype.h (FT_HAS_*, FT_IS_*): Implement it.
+
+2020-02-25  Dominik Röttsches  <drott@chromium.org>
+
+	Fix for CFF space glyph regression (#57541).
+
+	* src/psaux/psft.c (cf2_decoder_parse_substrings): Replace early-out
+	  with FT_OFFSET.
+
+2020-02-22  Werner Lemberg  <wl@gnu.org>
+
+	[woff2] Fix font table access.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=20778
+
+	* src/sfnt/sfwoff2.c (get_x_mins): Explicitly check for presence of
+	`head' table, which might not have been processed yet.
+
+2020-02-21  Werner Lemberg  <wl@gnu.org>
+
+	[psaux] Make `t1_decoder_parse_metrics' handle `op_div' (#57519).
+
+	* src/psaux/t1decode.c (t1_decoder_parse_metrics): Copy
+	corresponding code from old engine's `t1_decoder_parse_charstrings'
+	function.
+
+2020-02-19  Nikolaus Waxweiler  <nikolaus.waxweiler@daltonmaag.com>
+
+	[autofit] Add support for Hanifi Rohingya script.
+
+	* src/autofit/afblue.dat: Add blue zone data for Hanifi Rohingya.
+	* src/autofit/afblue.c, src/autofit/afblue.h: Regenerated.
+
+	* src/autofit/afscript.h: Add Hanifi Rohingya standard character.
+
+	* src/autofit/afranges.c, src/autofit/afstyles.h: Add Hanifi
+	  Rohingya data.
+
+2020-02-19  Werner Lemberg  <wl@gnu.org>
+
+	Require HarfBuzz 1.8.
+
+	* builds/unix/configure.raw, CMakeLists.txt: Request HarfBuzz 1.8.0
+	or newer.
+
+	We are going to add auto-hinter support for Hanifi Rohingya, which
+	was introduced in Unicode 11.0.
+
+2020-02-12  Werner Lemberg  <wl@gnu.org>
+
+	* src/sfnt/ttcmap.c (tt_face_build_cmaps): Ignore version (#57708).
+
+2020-02-04  Werner Lemberg  <wl@gnu.org>
+
+	* src/truetype/ttinterp.c (TT_RunIns): Adjust loop counter (#57732).
+
+	The font that exceeds the old limit is Constantine, version 1.001.
+
+2020-01-04  Werner Lemberg  <wl@gnu.org>
+
+	[base] Fix `FREETYPE_PROPERTIES=type1:hinting-engine=adobe`.
+
+	* src/base/ftpsprop.c (ps_property_set) [hinting-engine]: Avoid an
+	incorrect return value that caused a warning.  The function did the
+	right thing, though.
+
+2020-01-03  Werner Lemberg  <wl@gnu.org>
+
+	[woff2] Fix memory leaks and a runtime warning.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19773
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=18101
+
+	* src/sfnt/sfwoff2.c (compute_ULong_sum): Add missing cast.
+	(reconstruct_hmtx): Add missing deallocation calls.
+
+2020-01-02  Dominik Röttsches  <drott@chromium.org>
+
+	[truetype] Fix UBSan warning on offset to nullptr (#57501).
+
+	* src/truetype/ttinterp.c (Ins_CALL): Fail if `exc->FDefs' is null.
+
+2019-12-31  Nikhil Ramakrishnan  <ramakrishnan.nikhil@gmail.com>
+
+	[woff2] Allow bitmap-only fonts (#57394).
+
+	* src/sfnt/sfwoff2.c (reconstruct_font): Fix test for `glyf' and
+	`loca' tables.
+
+2019-12-21  Hugh McMaster  <hugh.mcmaster@outlook.com>
+
+	[docs] (2/2) Fix generation of API documentation (#56745).
+
+	Creating the API Reference in the (new) `reference' sub-directory is
+	consistent with other documentation sub-topics, such as `design',
+	`glyphs' and `tutorial'.
+
+	This patch fixes broken hyperlinks in the documentation pointing to
+	and from the API Reference.  It also allows web assets to load from
+	their relative paths.
+
+	* builds/freetype.mk (DOC_DIR): Adjust.
+	(refdoc, refdoc-venv): Add `--site' argument.
+
+	* builds/toplevel.mk (do-dist): Updated.
+
+2019-12-21  Hugh McMaster  <hugh.mcmaster@outlook.com>
+
+	[docs] (1/2) Move static web assets (#56745).
+
+	* docs/reference/*: Move ...
+	* docs: ... one directory up.
+
+2019-12-21  Dominik Röttsches  <drott@chromium.org>
+
+	Fix more UBSan warnings on adding offset to nullptr (#57432).
+
+	* src/truetype/ttinterp.c (Ins_LOOPCALL), src/psaux/psft.c
+	(cf2_initLocalRegionBuffer): Use `FT_OFFSET'.
+
+2019-12-16  Werner Lemberg  <wl@gnu.org>
+
+	[truetype] Fix UBSan warnings on adding offsets to nullptr.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/chromium/issues/detail?id=1032152
+
+	* src/truetype/ttinterp.c (Ins_FDEF, Ins_IDEF): Use `FT_OFFSET'.
+
+2019-12-14  Werner Lemberg  <wl@gnu.org>
+
+	[truetype] Fix integer overflow.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19305
+
+	* src/truetype/ttinterp.c (Ins_MIRP): Use `ADD_LONG'.
+
+2019-12-13  Werner Lemberg  <wl@gnu.org>
+
+	Another bunch of UBSan warnings on adding offsets to nullptr.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19427
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19433
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19441
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19451
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19452
+	  https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=19457
+
+	* src/autofit/aflatin.c (af_latin_hints_compute_segments,
+	af_latin_hints_compute_edges): Use `FT_OFFSET'.
+
+	* src/base/ftstream.c (FT_Stream_EnterFrame): Use `FT_OFFSET'.
+
+	* src/psaux/cffdecode.c (cff_decoder_parse_charstrings): Exit early
+	if there is no charstring.
+
+	* src/psaux/psobjs.c (t1_decrypt): Use `FT_OFFSET'.
+
+	* src/smooth/ftsmooth.c (ft_smooth_render_generic): Exit early for
+	zero bitmap dimensions.
+
+2019-12-09  Dominik Röttsches  <drott@chromium.org>
+
+	Fix more UBSan warnings on adding offset to nullptr (#57384).
+
+	* src/smooth/ftsmooth.c (ft_smooth_render_generic),
+	src/psaux/psobjs.c (ps_table_add): Use `FT_OFFSET'.
+
+2019-12-05  Werner Lemberg  <wl@gnu.org>
+
+	* src/truetype/ttinterp.c (TT_RunIns): Use `FT_OFFSET'.
+
+	Reported as
+
+	  https://bugs.chromium.org/p/chromium/issues/detail?id=1030614
+
 2019-12-03  Werner Lemberg  <wl@gnu.org>
 
 	More nullptr offset UBSan warnings (#57331, #57347).
@@ -3900,7 +4271,7 @@
 
 ----------------------------------------------------------------------------
 
-Copyright (C) 2018-2019 by
+Copyright (C) 2018-2020 by
 David Turner, Robert Wilhelm, and Werner Lemberg.
 
 This file is part of the FreeType project, and may only be used, modified,

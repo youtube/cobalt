@@ -215,10 +215,6 @@
 
 #define SB_HAS_VIRTUAL_REALITY 1
 
-#ifndef COBALT_FORCE_STUB_RASTERIZER
-#define COBALT_FORCE_STUB_RASTERIZER 1
-#endif
-
 // --- I/O Configuration -----------------------------------------------------
 
 // Whether the current platform implements the on screen keyboard interface.
@@ -255,7 +251,7 @@
 
 // Whether this platform has and should use an MMAP function to map physical
 // memory to the virtual address space.
-#if SB_API_VERSION < SB_MMAP_REQUIRED_VERSION
+#if SB_API_VERSION < 12
 #define SB_HAS_MMAP 1
 #endif
 

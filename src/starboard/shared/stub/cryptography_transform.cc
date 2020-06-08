@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 #include "starboard/cryptography.h"
 
@@ -22,11 +22,7 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
                             const void* in_data,
                             int in_data_size,
                             void* out_data) {
-  SB_UNREFERENCED_PARAMETER(transformer);
-  SB_UNREFERENCED_PARAMETER(in_data);
-  SB_UNREFERENCED_PARAMETER(in_data_size);
-  SB_UNREFERENCED_PARAMETER(out_data);
   return 0;
 }
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12

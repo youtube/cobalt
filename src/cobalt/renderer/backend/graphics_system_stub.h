@@ -38,7 +38,6 @@ class GraphicsSystemStub : public GraphicsSystem {
  public:
   std::unique_ptr<Display> CreateDisplay(
       system_window::SystemWindow* system_window) override {
-    SB_UNREFERENCED_PARAMETER(system_window);
     return std::unique_ptr<Display>(new DisplayStub());
   }
 

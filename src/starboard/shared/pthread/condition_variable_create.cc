@@ -45,7 +45,7 @@ struct ConditionVariableAttributes {
 }  // namespace
 
 bool SbConditionVariableCreate(SbConditionVariable* out_condition,
-                               SbMutex* /*opt_mutex*/) {
+                               SbMutex* opt_mutex) {
   SB_COMPILE_ASSERT(
       sizeof(SbConditionVariable) >= sizeof(SbConditionVariablePrivate),
       sb_condition_variable_private_larger_than_sb_condition_variable);

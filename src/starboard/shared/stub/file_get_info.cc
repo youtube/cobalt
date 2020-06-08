@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileGetInfo(SbFile /*file*/, SbFileInfo* /*out_info*/) {
+bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
   return false;
 }

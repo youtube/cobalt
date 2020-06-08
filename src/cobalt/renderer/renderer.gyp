@@ -41,9 +41,6 @@
         'submission_queue.h',
       ],
 
-      'includes': [
-        'renderer_parameters_setup.gypi',
-      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/content/fonts/fonts.gyp:copy_font_data',

@@ -70,7 +70,7 @@ class AndroidConfiguration(PlatformConfiguration):
                platform,
                android_abi,
                asan_enabled_by_default=False,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(AndroidConfiguration, self).__init__(platform,
                                                asan_enabled_by_default)
     self._target_toolchain = None
@@ -108,13 +108,11 @@ class AndroidConfiguration(PlatformConfiguration):
             'starboard/android/shared/platform_deploy.gypi',
         'javascript_engine':
             'v8',
-        'cobalt_enable_jit':
-            1,
     })
     return variables
 
   def GetDeployPathPatterns(self):
-    """example src/out/android-arm64/devel/cobalt.apk"""
+    # example src/out/android-arm64/devel/cobalt.apk
     return ['*.apk']
 
   def GetGeneratorVariables(self, configuration):
@@ -144,7 +142,7 @@ class AndroidConfiguration(PlatformConfiguration):
 
     return env_variables
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     if not self._target_toolchain:
       tool_prefix = os.path.join(sdk_utils.GetNdkPath(), 'toolchains', 'llvm',
                                  'prebuilt', 'linux-x86_64', 'bin', '')
@@ -244,7 +242,7 @@ class AndroidConfiguration(PlatformConfiguration):
       ]
     return self._target_toolchain
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
@@ -327,6 +325,11 @@ class AndroidConfiguration(PlatformConfiguration):
           # This test is failing because localhost is not defined for IPv6 in
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+          # SbDirectory has problems with empty Asset dirs. See b/154881065.
+          'SbDirectoryCanOpenTest.SunnyDayStaticContent',
+          'SbDirectoryGetNextTest.SunnyDayStaticContent',
+          'SbDirectoryOpenTest.SunnyDayStaticContent',
+          'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
       ],
   }
 

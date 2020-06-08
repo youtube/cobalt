@@ -1446,7 +1446,6 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
   }
 
   void VisitDefault(PropertyValue* property_value) override {
-    SB_UNREFERENCED_PARAMETER(property_value);
   }
 
   bool computed_length_is_negative() { return computed_length_is_negative_; }

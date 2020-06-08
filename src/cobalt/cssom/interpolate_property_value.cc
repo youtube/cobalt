@@ -384,36 +384,35 @@ scoped_refptr<PropertyValue> AnimateTransform(PropertyValue* start_value,
 }  // namespace
 
 void InterpolateVisitor::VisitAbsoluteURL(
-    AbsoluteURLValue* /*start_absolute_url_value*/) {
+    AbsoluteURLValue* start_absolute_url_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitCalc(CalcValue* /*start_calc_value*/) {
+void InterpolateVisitor::VisitCalc(CalcValue* start_calc_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitFilterFunctionList(
-    FilterFunctionListValue* /*start_filter_function_list_value*/) {
+    FilterFunctionListValue* start_filter_function_list_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitFontStyle(
-    FontStyleValue* /*start_font_style_value*/) {
+    FontStyleValue* start_font_style_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitFontWeight(
-    FontWeightValue* /*start_font_weight_value*/) {
+    FontWeightValue* start_font_weight_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitInteger(IntegerValue* integer_value) {
-  SB_UNREFERENCED_PARAMETER(integer_value);
   interpolated_value_ = end_value_;
 }
 
@@ -442,18 +441,18 @@ void InterpolateVisitor::VisitLength(LengthValue* start_length_value) {
 }
 
 void InterpolateVisitor::VisitLinearGradient(
-    LinearGradientValue* /*start_linear_gradient_value*/) {
+    LinearGradientValue* start_linear_gradient_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitLocalSrc(LocalSrcValue* /*local_src_value*/) {
+void InterpolateVisitor::VisitLocalSrc(LocalSrcValue* local_src_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitMediaFeatureKeywordValue(
-    MediaFeatureKeywordValue* /*media_feature_keyword_value*/) {
+    MediaFeatureKeywordValue* media_feature_keyword_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
@@ -468,36 +467,36 @@ void InterpolateVisitor::VisitNumber(NumberValue* start_number_value) {
 }
 
 void InterpolateVisitor::VisitPercentage(
-    PercentageValue* /*start_percentage_value*/) {
+    PercentageValue* start_percentage_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitPropertyList(
-    PropertyListValue* /*property_list_value*/) {
+    PropertyListValue* property_list_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitPropertyKeyList(
-    PropertyKeyListValue* /*property_key_list_value*/) {
+    PropertyKeyListValue* property_key_list_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitRadialGradient(
-    RadialGradientValue* /*radial_gradient_value*/) {
+    RadialGradientValue* radial_gradient_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitRatio(RatioValue* /*start_ratio_value*/) {
+void InterpolateVisitor::VisitRatio(RatioValue* start_ratio_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitResolution(
-    ResolutionValue* /*start_resolution_value*/) {
+    ResolutionValue* start_resolution_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
@@ -514,18 +513,17 @@ void InterpolateVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
       Lerp(start_color_value->a(), end_color_value.a(), progress_)));
 }
 
-void InterpolateVisitor::VisitShadow(ShadowValue* /*shadow_value*/) {
+void InterpolateVisitor::VisitShadow(ShadowValue* shadow_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitString(StringValue* /*start_string_value*/) {
+void InterpolateVisitor::VisitString(StringValue* start_string_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitTimeList(
-    TimeListValue* /*start_time_list_value*/) {
+void InterpolateVisitor::VisitTimeList(TimeListValue* start_time_list_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
@@ -566,23 +564,23 @@ void InterpolateVisitor::VisitTransformPropertyValue(
 }
 
 void InterpolateVisitor::VisitTimingFunctionList(
-    TimingFunctionListValue* /*start_timing_function_list_value*/) {
+    TimingFunctionListValue* start_timing_function_list_value) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitUnicodeRange(
-    UnicodeRangeValue* /*unicode_range_value*/) {
+    UnicodeRangeValue* unicode_range_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitURL(URLValue* /*url_value*/) {
+void InterpolateVisitor::VisitURL(URLValue* url_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }
 
-void InterpolateVisitor::VisitUrlSrc(UrlSrcValue* /*url_src_value*/) {
+void InterpolateVisitor::VisitUrlSrc(UrlSrcValue* url_src_value) {
   NOTREACHED();
   interpolated_value_ = end_value_;
 }

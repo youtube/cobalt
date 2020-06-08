@@ -98,7 +98,6 @@ class Keyframe : public script::Wrappable {
     return std::string("linear");
   }
   void set_easing(const std::string& easing) {
-    SB_UNREFERENCED_PARAMETER(easing);
     NOTIMPLEMENTED();
   }
 

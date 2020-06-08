@@ -40,6 +40,16 @@ TEST(SbDirectoryOpenTest, SunnyDay) {
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
 
+TEST(SbDirectoryOpenTest, SunnyDayStaticContent) {
+  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+    SbFileError error = kSbFileErrorMax;
+    SbDirectory directory = SbDirectoryOpen(dir_path.c_str(), &error);
+    EXPECT_TRUE(SbDirectoryIsValid(directory)) << dir_path;
+    EXPECT_EQ(kSbFileOk, error) << "Can't open: " << dir_path;
+    EXPECT_TRUE(SbDirectoryClose(directory));
+  }
+}
+
 TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());

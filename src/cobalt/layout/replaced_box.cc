@@ -106,7 +106,10 @@ ReplacedBox::ReplacedBox(
     const base::Optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
     base::Optional<ReplacedBoxMode> replaced_box_mode,
-    const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker)
+    const math::SizeF& content_size,
+    base::Optional<render_tree::LottieAnimation::LottieProperties>
+        lottie_properties,
+    LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
       maybe_intrinsic_width_(maybe_intrinsic_width),
@@ -120,13 +123,14 @@ ReplacedBox::ReplacedBox(
       paragraph_(paragraph),
       text_position_(text_position),
       replaced_box_mode_(replaced_box_mode),
-      content_size_(content_size) {}
+      content_size_(content_size),
+      lottie_properties_(lottie_properties) {}
 
-WrapResult ReplacedBox::TryWrapAt(
-    WrapAtPolicy /*wrap_at_policy*/,
-    WrapOpportunityPolicy wrap_opportunity_policy,
-    bool is_line_existence_justified, LayoutUnit /*available_width*/,
-    bool /*should_collapse_trailing_white_space*/) {
+WrapResult ReplacedBox::TryWrapAt(WrapAtPolicy wrap_at_policy,
+                                  WrapOpportunityPolicy wrap_opportunity_policy,
+                                  bool is_line_existence_justified,
+                                  LayoutUnit available_width,
+                                  bool should_collapse_trailing_white_space) {
   // NOTE: This logic must stay in sync with
   // InlineLevelBlockContainerBox::TryWrapAt().
   DCHECK(!IsAbsolutelyPositioned());
@@ -184,12 +188,12 @@ base::Optional<int> ReplacedBox::GetBidiLevel() const {
 }
 
 void ReplacedBox::SetShouldCollapseLeadingWhiteSpace(
-    bool /*should_collapse_leading_white_space*/) {
+    bool should_collapse_leading_white_space) {
   // Do nothing.
 }
 
 void ReplacedBox::SetShouldCollapseTrailingWhiteSpace(
-    bool /*should_collapse_trailing_white_space*/) {
+    bool should_collapse_trailing_white_space) {
   // Do nothing.
 }
 
@@ -284,14 +288,17 @@ void AnimateVideoWithLetterboxing(
   }
 }
 
-void AnimateLottie(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-                   math::RectF destination_rect,
-                   LottieNode::Builder* node_builder,
-                   base::TimeDelta time_elapsed) {
+void AnimateLottie(
+    const ReplacedBox::ReplaceImageCB& replace_image_cb,
+    const render_tree::LottieAnimation::LottieProperties& lottie_properties,
+    math::RectF destination_rect, LottieNode::Builder* node_builder,
+    base::TimeDelta time_elapsed) {
   scoped_refptr<render_tree::Image> animation = replace_image_cb.Run();
-  node_builder->animation =
+  render_tree::LottieAnimation* lottie =
       base::polymorphic_downcast<render_tree::LottieAnimation*>(
           animation.get());
+  lottie->SetProperties(lottie_properties);
+  node_builder->animation = lottie;
   node_builder->destination_rect = destination_rect;
   node_builder->animation_time = time_elapsed;
 }
@@ -300,7 +307,7 @@ void AnimateLottie(const ReplacedBox::ReplaceImageCB& replace_image_cb,
 
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder,
-    ContainerBox* /*stacking_context*/) const {
+    ContainerBox* stacking_context) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }
@@ -324,9 +331,10 @@ void ReplacedBox::RenderAndAnimateContent(
     AnimateNode::Builder animate_node_builder;
     scoped_refptr<LottieNode> lottie_node =
         new LottieNode(nullptr, math::RectF());
-    animate_node_builder.Add(lottie_node,
-                             base::Bind(&AnimateLottie, replace_image_cb_,
-                                        math::RectF(content_box_size())));
+    animate_node_builder.Add(
+        lottie_node,
+        base::Bind(&AnimateLottie, replace_image_cb_, *lottie_properties_,
+                   math::RectF(content_box_size())));
     border_node_builder->AddChild(
         new AnimateNode(animate_node_builder, lottie_node));
     return;
@@ -344,28 +352,6 @@ void ReplacedBox::RenderAndAnimateContent(
     RenderAndAnimateContentWithMapToMesh(border_node_builder,
                                          mtm_filter_function);
   } else {
-#if defined(FORCE_VIDEO_EXTERNAL_MESH)
-    if (*replaced_box_mode_ == ReplacedBox : ReplacedBoxMode::kVideo) {
-      AnimateNode::Builder animate_node_builder;
-      scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
-      animate_node_builder.Add(
-          image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
-
-      render_tree::StereoMode stereo_mode = render_tree::kMono;
-
-      if (mtm_filter_function) {
-        // For rectangular stereo.
-        stereo_mode = ReadStereoMode(mtm_filter_function->stereo_mode());
-      }
-
-      // Attach an empty map to mesh filter node to signal the need for an
-      // external mesh.
-      border_node_builder->AddChild(new FilterNode(
-          MapToMeshFilter(stereo_mode, render_tree::kRectangular),
-          new AnimateNode(animate_node_builder, image_node)));
-      return;
-    }
-#endif
     RenderAndAnimateContentWithLetterboxing(border_node_builder);
   }
 }

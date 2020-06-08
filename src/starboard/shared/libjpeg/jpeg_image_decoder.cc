@@ -46,12 +46,10 @@ void ErrorManagerExit(j_common_ptr common_ptr) {
 }
 
 void SourceManagerInitSource(j_decompress_ptr decompress_ptr) {
-  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // no-op.
 }
 
 boolean SourceManagerFillInputBuffer(j_decompress_ptr decompress_ptr) {
-  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // Normally, this function is called when we need to read more of the encoded
   // buffer into memory and a return false indicates that we have no data to
   // supply yet, but in our case, the encoded buffer is always in memory, so
@@ -62,13 +60,10 @@ boolean SourceManagerFillInputBuffer(j_decompress_ptr decompress_ptr) {
 
 boolean SourceManagerResyncToRestart(j_decompress_ptr decompress_ptr,
                                      int desired) {
-  SB_UNREFERENCED_PARAMETER(decompress_ptr);
-  SB_UNREFERENCED_PARAMETER(desired);
   return false;
 }
 
 void SourceManagerTermSource(j_decompress_ptr decompress_ptr) {
-  SB_UNREFERENCED_PARAMETER(decompress_ptr);
   // no-op.
 }
 

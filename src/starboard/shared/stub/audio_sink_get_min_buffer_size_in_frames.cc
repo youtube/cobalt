@@ -14,8 +14,8 @@
 
 #include "starboard/audio_sink.h"
 
-int SbAudioSinkGetMinBufferSizeInFrames(int /*channels*/,
-                                        SbMediaAudioSampleType /*sample_type*/,
-                                        int /*sampling_frequency_hz*/) {
-  return 8 * 1024;
+int SbAudioSinkGetMinBufferSizeInFrames(int channels,
+                                        SbMediaAudioSampleType sample_type,
+                                        int sampling_frequency_hz) {
+  return 5 * 1024;
 }

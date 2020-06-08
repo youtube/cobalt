@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-FormatterWorker.ESTreeWalker = class {
+export class ESTreeWalker {
   /**
    * @param {function(!ESTree.Node):(!Object|undefined)} beforeVisit
    * @param {function(!ESTree.Node)=} afterVisit
@@ -40,8 +40,9 @@ FormatterWorker.ESTreeWalker = class {
       node = /** @type {!ESTree.Node} */ (result);
     }
 
-    if (!node)
+    if (!node) {
       return;
+    }
     node.parent = parent;
 
     if (this._beforeVisit.call(null, node) === FormatterWorker.ESTreeWalker.SkipSubtree) {
@@ -49,7 +50,7 @@ FormatterWorker.ESTreeWalker = class {
       return;
     }
 
-    const walkOrder = FormatterWorker.ESTreeWalker._walkOrder[node.type];
+    const walkOrder = _walkOrder[node.type];
     if (!walkOrder) {
       console.error('Walk order not defined for ' + node.type);
       return;
@@ -66,10 +67,11 @@ FormatterWorker.ESTreeWalker = class {
     } else {
       for (let i = 0; i < walkOrder.length; ++i) {
         const entity = node[walkOrder[i]];
-        if (Array.isArray(entity))
+        if (Array.isArray(entity)) {
           this._walkArray(entity, node);
-        else
+        } else {
           this._innerWalk(entity, node);
+        }
       }
     }
 
@@ -81,21 +83,20 @@ FormatterWorker.ESTreeWalker = class {
    * @param {?ESTree.Node} parentNode
    */
   _walkArray(nodeArray, parentNode) {
-    for (let i = 0; i < nodeArray.length; ++i)
+    for (let i = 0; i < nodeArray.length; ++i) {
       this._innerWalk(nodeArray[i], parentNode);
+    }
   }
-};
-
-/** @typedef {!Object} FormatterWorker.ESTreeWalker.SkipSubtree */
-FormatterWorker.ESTreeWalker.SkipSubtree = {};
+}
 
 /** @enum {!Array.<string>} */
-FormatterWorker.ESTreeWalker._walkOrder = {
+const _walkOrder = {
   'AwaitExpression': ['arguments'],
   'ArrayExpression': ['elements'],
   'ArrayPattern': ['elements'],
   'ArrowFunctionExpression': ['params', 'body'],
   'AssignmentExpression': ['left', 'right'],
+  'AssignmentPattern': ['left', 'right'],
   'BinaryExpression': ['left', 'right'],
   'BlockStatement': ['body'],
   'BreakStatement': ['label'],
@@ -116,6 +117,11 @@ FormatterWorker.ESTreeWalker._walkOrder = {
   'FunctionDeclaration': ['id', 'params', 'body'],
   'FunctionExpression': ['id', 'params', 'body'],
   'Identifier': [],
+  'ImportDeclaration': ['specifiers', 'source'],
+  'ImportExpression': ['source'],
+  'ExportAllDeclaration': ['source'],
+  'ExportDefaultDeclaration': ['declaration'],
+  'ExportNamedDeclaration': ['specifiers', 'source', 'declaration'],
   'IfStatement': ['test', 'consequent', 'alternate'],
   'LabeledStatement': ['label', 'body'],
   'Literal': [],
@@ -128,8 +134,10 @@ FormatterWorker.ESTreeWalker._walkOrder = {
   'ParenthesizedExpression': ['expression'],
   'Program': ['body'],
   'Property': ['key', 'value'],
+  'RestElement': ['argument'],
   'ReturnStatement': ['argument'],
   'SequenceExpression': ['expressions'],
+  'SpreadElement': ['argument'],
   'Super': [],
   'SwitchCase': ['test', 'consequent'],
   'SwitchStatement': ['discriminant', 'cases'],
@@ -147,3 +155,15 @@ FormatterWorker.ESTreeWalker._walkOrder = {
   'WithStatement': ['object', 'body'],
   'YieldExpression': ['argument']
 };
+
+/* Legacy exported object */
+self.FormatterWorker = self.FormatterWorker || {};
+
+/* Legacy exported object */
+FormatterWorker = FormatterWorker || {};
+
+/** @constructor */
+FormatterWorker.ESTreeWalker = ESTreeWalker;
+
+/** @typedef {!Object} FormatterWorker.ESTreeWalker.SkipSubtree */
+FormatterWorker.ESTreeWalker.SkipSubtree = {};

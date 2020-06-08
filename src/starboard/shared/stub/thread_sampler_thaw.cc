@@ -16,7 +16,6 @@
 
 #if SB_API_VERSION >= 11
 bool SbThreadSamplerThaw(SbThreadSampler sampler) {
-  SB_UNREFERENCED_PARAMETER(sampler);
   return false;
 }
 #endif  // SB_API_VERSION >= 11

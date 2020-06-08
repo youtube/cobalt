@@ -42,7 +42,6 @@ shared::starboard::Application::Event* ApplicationStub::PollNextSystemEvent() {
 
 shared::starboard::Application::Event*
 ApplicationStub::WaitForSystemEventWithTimeout(SbTime time) {
-  SB_UNREFERENCED_PARAMETER(time);
   return NULL;
 }
 

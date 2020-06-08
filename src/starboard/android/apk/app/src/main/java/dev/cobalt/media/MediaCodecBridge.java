@@ -332,6 +332,33 @@ class MediaCodecBridge {
     }
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private static class CreateMediaCodecBridgeResult {
+    private MediaCodecBridge mMediaCodecBridge;
+    // Contains the error message when mMediaCodecBridge is null.
+    private String mErrorMessage;
+
+    @SuppressWarnings("unused")
+    @UsedByNative
+    private CreateMediaCodecBridgeResult() {
+      mMediaCodecBridge = null;
+      mErrorMessage = "";
+    }
+
+    @SuppressWarnings("unused")
+    @UsedByNative
+    private MediaCodecBridge mediaCodecBridge() {
+      return mMediaCodecBridge;
+    }
+
+    @SuppressWarnings("unused")
+    @UsedByNative
+    private String errorMessage() {
+      return mErrorMessage;
+    }
+  }
+
   private MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
@@ -452,7 +479,7 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  public static MediaCodecBridge createVideoMediaCodecBridge(
+  public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
       boolean isSecure,
@@ -461,8 +488,10 @@ class MediaCodecBridge {
       int height,
       Surface surface,
       MediaCrypto crypto,
-      ColorInfo colorInfo) {
+      ColorInfo colorInfo,
+      CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
+    outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
 
     boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
@@ -478,16 +507,21 @@ class MediaCodecBridge {
       String decoderName = findVideoDecoderResult.name;
       if (decoderName.equals("") || findVideoDecoderResult.videoCapabilities == null) {
         Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
-        return null;
+        outCreateMediaCodecBridgeResult.mErrorMessage =
+            String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure);
+        return;
       }
       Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
       Log.e(TAG, String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure), e);
-      return null;
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure);
+      return;
     }
     if (mediaCodec == null) {
-      return null;
+      outCreateMediaCodecBridgeResult.mErrorMessage = "mediaCodec is null";
+      return;
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
@@ -512,18 +546,28 @@ class MediaCodecBridge {
 
     int maxWidth = findVideoDecoderResult.videoCapabilities.getSupportedWidths().getUpper();
     int maxHeight = findVideoDecoderResult.videoCapabilities.getSupportedHeights().getUpper();
-    if (!bridge.configureVideo(mediaFormat, surface, crypto, 0, true, maxWidth, maxHeight)) {
+    if (!bridge.configureVideo(
+        mediaFormat,
+        surface,
+        crypto,
+        0,
+        true,
+        maxWidth,
+        maxHeight,
+        outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
       bridge.release();
-      return null;
+      // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
+      return;
     }
     if (!bridge.start()) {
       Log.e(TAG, "Failed to start video codec.");
       bridge.release();
-      return null;
+      outCreateMediaCodecBridgeResult.mErrorMessage = "Failed to start video codec";
+      return;
     }
 
-    return bridge;
+    outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
   @SuppressWarnings("unused")
@@ -569,7 +613,7 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private void stop() {
-    synchronized (mCallback) {
+    synchronized (this) {
       mNativeMediaCodecBridge = 0;
     }
     try {
@@ -772,7 +816,8 @@ class MediaCodecBridge {
       int flags,
       boolean allowAdaptivePlayback,
       int maxSupportedWidth,
-      int maxSupportedHeight) {
+      int maxSupportedHeight,
+      CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
       // If adaptive playback is turned off by request, then treat it as
       // not supported.  Note that configureVideo is only called once
@@ -785,12 +830,12 @@ class MediaCodecBridge {
       if (mAdaptivePlaybackSupported) {
         // Since we haven't passed the properties of the stream we're playing
         // down to this level, from our perspective, we could potentially
-        // adapt up to 4k at any point.  We thus request 4k buffers up front,
-        // unless the decoder claims to not be able to do 4k, in which case
-        // we're ok, since we would've rejected a 4k stream when canPlayType
+        // adapt up to 8k at any point.  We thus request 8k buffers up front,
+        // unless the decoder claims to not be able to do 8k, in which case
+        // we're ok, since we would've rejected a 8k stream when canPlayType
         // was called, and then use those decoder values instead.
-        int maxWidth = Math.min(3840, maxSupportedWidth);
-        int maxHeight = Math.min(2160, maxSupportedHeight);
+        int maxWidth = Math.min(7680, maxSupportedWidth);
+        int maxHeight = Math.min(4320, maxSupportedHeight);
         format.setInteger(MediaFormat.KEY_MAX_WIDTH, maxWidth);
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, maxHeight);
       }
@@ -798,13 +843,21 @@ class MediaCodecBridge {
       mMediaCodec.configure(format, surface, crypto, flags);
       return true;
     } catch (IllegalArgumentException e) {
-      Log.e(TAG, "Cannot configure the video codec, wrong format or surface", e);
+      Log.e(TAG, "Cannot configure the video codec with IllegalArgumentException: ", e);
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          "Cannot configure the video codec with IllegalArgumentException: " + e.toString();
     } catch (IllegalStateException e) {
-      Log.e(TAG, "Cannot configure the video codec", e);
+      Log.e(TAG, "Cannot configure the video codec with IllegalStateException: ", e);
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          "Cannot configure the video codec with IllegalStateException: " + e.toString();
     } catch (MediaCodec.CryptoException e) {
-      Log.e(TAG, "Cannot configure the video codec: DRM error", e);
+      Log.e(TAG, "Cannot configure the video codec with CryptoException: ", e);
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          "Cannot configure the video codec with CryptoException: " + e.toString();
     } catch (Exception e) {
-      Log.e(TAG, "Cannot configure the video codec", e);
+      Log.e(TAG, "Cannot configure the video codec with Exception: ", e);
+      outCreateMediaCodecBridgeResult.mErrorMessage =
+          "Cannot configure the video codec with Exception: " + e.toString();
     }
     return false;
   }

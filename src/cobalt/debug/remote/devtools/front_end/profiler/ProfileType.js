@@ -21,8 +21,9 @@ Profiler.ProfileType = class extends Common.Object {
     this._profileBeingRecorded = null;
     this._nextProfileUid = 1;
 
-    if (!window.opener)
+    if (!window.opener) {
       window.addEventListener('unload', this._clearTempStorage.bind(this), false);
+    }
   }
 
   /**
@@ -124,26 +125,34 @@ Profiler.ProfileType = class extends Common.Object {
   }
 
   /**
+   * @param {boolean} enable
+   */
+  setCustomContentEnabled(enable) {
+  }
+
+  /**
    * @param {number} uid
    * @return {?Profiler.ProfileHeader}
    */
   getProfile(uid) {
     for (let i = 0; i < this._profiles.length; ++i) {
-      if (this._profiles[i].uid === uid)
+      if (this._profiles[i].uid === uid) {
         return this._profiles[i];
+      }
     }
     return null;
   }
 
   /**
    * @param {!File} file
-   * @return {!Promise<?Error>}
+   * @return {!Promise<?Error|?FileError>}
    */
   loadFromFile(file) {
     let name = file.name;
     const fileExtension = this.fileExtension();
-    if (fileExtension && name.endsWith(fileExtension))
+    if (fileExtension && name.endsWith(fileExtension)) {
       name = name.substr(0, name.length - fileExtension.length);
+    }
     const profile = this.createProfileLoadedFromFile(name);
     profile.setFromFile();
     this.setProfileBeingRecorded(profile);
@@ -172,15 +181,17 @@ Profiler.ProfileType = class extends Common.Object {
    */
   removeProfile(profile) {
     const index = this._profiles.indexOf(profile);
-    if (index === -1)
+    if (index === -1) {
       return;
+    }
     this._profiles.splice(index, 1);
     this._disposeProfile(profile);
   }
 
   _clearTempStorage() {
-    for (let i = 0; i < this._profiles.length; ++i)
+    for (let i = 0; i < this._profiles.length; ++i) {
       this._profiles[i].removeTempFile();
+    }
   }
 
   /**
@@ -201,8 +212,9 @@ Profiler.ProfileType = class extends Common.Object {
   }
 
   reset() {
-    for (const profile of this._profiles.slice())
+    for (const profile of this._profiles.slice()) {
       this._disposeProfile(profile);
+    }
     this._profiles = [];
     this._nextProfileUid = 1;
   }
@@ -247,8 +259,8 @@ Profiler.ProfileType.DataDisplayDelegate.prototype = {
   showObject(snapshotObjectId, perspectiveName) {},
 
   /**
-   * @param {!Protocol.HeapProfiler.HeapSnapshotObjectId} snapshotObjectId
+   * @param {number} nodeIndex
    * @return {!Promise<?Element>}
    */
-  async linkifyObject(snapshotObjectId) {}
+  async linkifyObject(nodeIndex) {}
 };

@@ -30,6 +30,7 @@ class SharedLibraryLinker(clangxx.DynamicLinkerBase,
                      '-X '
                      '-v '
                      '--eh-frame-hdr '
+                     '--fini=__cxa_finalize '
                      '{2} '
                      '-shared '
                      '-o $out '

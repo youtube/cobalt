@@ -30,6 +30,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STDIO_LEAKS_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STDIO_LEAKS_POEM_H_
 
+#if defined(STARBOARD)
+
 #include <cstdio>
 
 #include "starboard/common/string.h"
@@ -49,5 +51,7 @@ inline int SbStringFormat(char* buffer,
 #define __builtin_vsnprintf SbStringFormat
 #undef vsnprintf
 #define vsnprintf SbStringFormat
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STDIO_LEAKS_POEM_H_

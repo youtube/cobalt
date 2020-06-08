@@ -22,14 +22,18 @@
         'conditions': [
           ['crashpad_dependencies=="external"', {
             'zlib_source%': 'external',
-          }, 'OS!="win"', {
-            # Use the system zlib by default where available, as it is on most
-            # platforms. Windows does not have a system zlib, so use “embedded”
-            # which directs the build to use the source code in the zlib
-            # subdirectory.
-            'zlib_source%': 'system',
           }, {
-            'zlib_source%': 'embedded',
+            'conditions': [
+              ['OS!="win"', {
+                # Use the system zlib by default where available, as it is on most
+                # platforms. Windows does not have a system zlib, so use “embedded”
+                # which directs the build to use the source code in the zlib
+                # subdirectory.
+                'zlib_source%': 'system',
+              }, {
+                'zlib_source%': 'embedded',
+              }],
+            ],
           }],
         ],
       },

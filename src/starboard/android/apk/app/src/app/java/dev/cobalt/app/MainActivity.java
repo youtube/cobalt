@@ -18,7 +18,6 @@ import android.app.Activity;
 import dev.cobalt.account.UserAuthorizerImpl;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.StarboardBridge;
-import dev.cobalt.feedback.NoopFeedbackService;
 import dev.cobalt.util.Holder;
 
 /**
@@ -41,12 +40,10 @@ public class MainActivity extends CobaltActivity {
         };
     UserAuthorizerImpl userAuthorizer =
         new UserAuthorizerImpl(getApplicationContext(), activityHolder, stopRequester);
-    NoopFeedbackService feedbackService = new NoopFeedbackService();
     return new StarboardBridge(
         getApplicationContext(),
         activityHolder,
         userAuthorizer,
-        feedbackService,
         args,
         startDeepLink);
   }

@@ -74,7 +74,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
                                        JS::HandleObject object);
 
   // Called when the wrapper object is about to be deleted by the GC.
-  static void Finalizer(JSFreeOp* /* free_op */, JSObject* object);
+  static void Finalizer(JSFreeOp* free_op, JSObject* object);
 
   // Trace callback called during garbage collection.
   static void Trace(JSTracer* trace, JSObject* object);

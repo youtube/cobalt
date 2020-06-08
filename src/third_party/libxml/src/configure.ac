@@ -3,12 +3,13 @@ AC_PREREQ([2.63])
 AC_INIT
 AC_CONFIG_SRCDIR([entities.c])
 AC_CONFIG_HEADERS([config.h])
+AM_MAINTAINER_MODE([enable])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 
 LIBXML_MAJOR_VERSION=2
 LIBXML_MINOR_VERSION=9
-LIBXML_MICRO_VERSION=2
+LIBXML_MICRO_VERSION=10
 LIBXML_MICRO_VERSION_SUFFIX=
 LIBXML_VERSION=$LIBXML_MAJOR_VERSION.$LIBXML_MINOR_VERSION.$LIBXML_MICRO_VERSION$LIBXML_MICRO_VERSION_SUFFIX
 LIBXML_VERSION_INFO=`expr $LIBXML_MAJOR_VERSION + $LIBXML_MINOR_VERSION`:$LIBXML_MICRO_VERSION:$LIBXML_MINOR_VERSION
@@ -158,7 +159,7 @@ AC_ARG_WITH(readline,
   if test "$withval" != "no" -a "$withval" != "yes"; then
     RDL_DIR=$withval
     CPPFLAGS="${CPPFLAGS} -I$withval/include"
-    LIBS="${LIBS} -L$withval/lib"
+    LDFLAGS="${LDFLAGS} -L$withval/lib"
   fi
 ])
 AC_ARG_WITH(regexps,
@@ -194,7 +195,7 @@ AC_ARG_WITH(zlib,
   if test "$withval" != "no" -a "$withval" != "yes"; then
     Z_DIR=$withval
     CPPFLAGS="${CPPFLAGS} -I$withval/include"
-    LIBS="${LIBS} -L$withval/lib"
+    LDFLAGS="${LDFLAGS} -L$withval/lib"
   fi
 ])
 AC_ARG_WITH(lzma,
@@ -202,7 +203,7 @@ AC_ARG_WITH(lzma,
   if test "$withval" != "no" -a "$withval" != "yes"; then
     LZMA_DIR=$withval
     CPPFLAGS="${CPPFLAGS} -I$withval/include"
-    LIBS="${LIBS} -L$withval/lib"
+    LDFLAGS="${LDFLAGS} -L$withval/lib"
   fi
 ])
 AC_ARG_WITH(coverage,
@@ -216,7 +217,7 @@ fi
 AM_CONDITIONAL([REBUILD_DOCS], [test "$enable_rebuild_docs" = "yes" -o "$USER" = "veillard"])
 
 dnl
-dnl hard dependancies on options
+dnl hard dependencies on options
 dnl
 if test "$with_schemas" = "yes"
 then
@@ -388,26 +389,33 @@ dnl Checks for zlib library.
 
 WITH_ZLIB=0
 if test "$with_zlib" = "no"; then
-    echo "Disabling compression support"
+    echo "Disabling zlib compression support"
 else
-    AC_CHECK_HEADERS(zlib.h,
-        [SAVE_LDFLAGS="${LDFLAGS}"
-	 LDFLAGS="-L${Z_DIR}/lib"
-	AC_CHECK_LIB(z, gzread,[
-	    AC_DEFINE([HAVE_LIBZ], [1], [Have compression library])
-	    WITH_ZLIB=1
-	    if test "x${Z_DIR}" != "x"; then
-		Z_CFLAGS="-I${Z_DIR}/include"
-		Z_LIBS="-L${Z_DIR}/lib -lz"
-		[case ${host} in
-		    *-*-solaris*)
-			Z_LIBS="-L${Z_DIR}/lib -R${Z_DIR}/lib -lz"
-			;;
-		esac]
-	    else
-		Z_LIBS="-lz"
-	    fi])
-	 LDFLAGS="${SAVE_LDFLAGS}"])
+    # Don't run pkg-config if with_zlib contains a path.
+    if test "x$Z_DIR" = "x"; then
+        # Try pkg-config first so that static linking works.
+        PKG_CHECK_MODULES([Z],[zlib],
+            [WITH_ZLIB=1],
+            [:])
+    fi
+
+    if test "$WITH_ZLIB" = "0"; then
+        AC_CHECK_HEADERS(zlib.h,
+            AC_CHECK_LIB(z, gzread,[
+                WITH_ZLIB=1
+                if test "x${Z_DIR}" != "x"; then
+                    Z_CFLAGS="-I${Z_DIR}/include"
+                    Z_LIBS="-L${Z_DIR}/lib -lz"
+                    [case ${host} in
+                        *-*-solaris*)
+                            Z_LIBS="-L${Z_DIR}/lib -R${Z_DIR}/lib -lz"
+                            ;;
+                    esac]
+                else
+                    Z_LIBS="-lz"
+                fi])
+            )
+    fi
 fi
 
 AC_SUBST(Z_CFLAGS)
@@ -420,37 +428,30 @@ dnl Checks for lzma library.
 
 WITH_LZMA=0
 if test "$with_lzma" = "no"; then
-    echo "Disabling compression support"
+    echo "Disabling lzma compression support"
 else
-    # Try pkg-config first so that static linking works.
-    # If this succeeeds, we ignore the WITH_LZMA directory.
-    PKG_CHECK_MODULES([LZMA],[liblzma],
-        [have_liblzma=yes],
-        [have_liblzma=no])
+    # Don't run pkg-config if with_lzma contains a path.
+    if test "x$LZMA_DIR" = "x"; then
+        # Try pkg-config first so that static linking works.
+        PKG_CHECK_MODULES([LZMA],[liblzma],
+            [WITH_LZMA=1],
+            [:])
+    fi
 
-     # If pkg-config failed, fall back to AC_CHECK_LIB. This
-     # will not pick up the necessary LIBS flags for liblzma's
-     # private dependencies, though, so static linking may fail.
-     if test "x$have_liblzma" = "xno"; then
-         AC_CHECK_HEADERS(lzma.h,
-	    [SAVE_LDFLAGS="${LDFLAGS}"
-	     LDFLAGS="-L${LZMA_DIR}/lib"
+    # If pkg-config failed, fall back to AC_CHECK_LIB. This
+    # will not pick up the necessary LIBS flags for liblzma's
+    # private dependencies, though, so static linking may fail.
+    if test "$WITH_LZMA" = "0"; then
+        AC_CHECK_HEADERS(lzma.h,
             AC_CHECK_LIB(lzma, lzma_code,[
-                have_liblzma=yes
+                WITH_LZMA=1
                 if test "x${LZMA_DIR}" != "x"; then
                     LZMA_CFLAGS="-I${LZMA_DIR}/include"
                     LZMA_LIBS="-L${LZMA_DIR}/lib -llzma"
                 else
                     LZMA_LIBS="-llzma"
-                fi],
-                [have_liblzma=no])
-	     LDFLAGS="${SAVE_LDFLAGS}"])
-    fi
-
-    # Found the library via either method?
-    if test "x$have_liblzma" = "xyes"; then
-        AC_DEFINE([HAVE_LIBLZMA], [1], [Have compression library])
-        WITH_LZMA=1
+                fi])
+            )
     fi
 fi
 
@@ -478,12 +479,8 @@ AC_CHECK_HEADERS([sys/types.h])
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([time.h])
-AC_CHECK_HEADERS([ansidecl.h])
-AC_CHECK_HEADERS([ieeefp.h])
-AC_CHECK_HEADERS([nan.h])
 AC_CHECK_HEADERS([math.h])
 AC_CHECK_HEADERS([limits.h])
-AC_CHECK_HEADERS([fp_class.h])
 AC_CHECK_HEADERS([float.h])
 AC_CHECK_HEADERS([stdlib.h])
 AC_CHECK_HEADERS([sys/socket.h], [], [],
@@ -540,10 +537,8 @@ echo Checking libraries
 
 dnl Checks for library functions.
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS(strdup strndup strerror)
-AC_CHECK_FUNCS(finite isnand fp_class class fpclass)
 AC_CHECK_FUNCS(strftime localtime gettimeofday ftime)
-AC_CHECK_FUNCS(stat _stat signal)
+AC_CHECK_FUNCS(stat signal)
 AC_CHECK_FUNCS(rand rand_r srand time)
 AC_CHECK_FUNCS(isascii mmap munmap putenv)
 
@@ -754,13 +749,13 @@ dnl
 if test "${GCC}" != "yes" ; then
     case "${host}" in
           hppa*-*-hpux* )
-	       CFLAGS="${CFLAGS} -Wp,-H30000"
+	       EXTRA_CFLAGS="${EXTRA_CFLAGS} -Wp,-H30000"
 	       ;;
           *-dec-osf* )
-               CFLAGS="${CFLAGS} -ieee"
+               EXTRA_CFLAGS="${EXTRA_CFLAGS} -ieee"
                ;;
 	  alpha*-*-linux* )
-	       CFLAGS="${CFLAGS} -ieee"
+	       EXTRA_CFLAGS="${EXTRA_CFLAGS} -ieee"
 	       ;;
     esac
 else
@@ -770,19 +765,19 @@ else
 	# Not activated by default because this inflates the code size
 	# Used to allow propagation of C++ exceptions through the library
 	#
-	CFLAGS="${CFLAGS} -fexceptions"
+	EXTRA_CFLAGS="${EXTRA_CFLAGS} -fexceptions"
     fi
 
     # warnings we'd like to see
-    CFLAGS="${CFLAGS} -pedantic -W -Wformat -Wunused -Wimplicit -Wreturn-type -Wswitch -Wcomment -Wtrigraphs -Wformat -Wchar-subscripts -Wuninitialized -Wparentheses -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wredundant-decls"
-    # warnings we'd like to supress
-    CFLAGS="${CFLAGS} -Wno-long-long"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS} -pedantic -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wredundant-decls"
+    # warnings we'd like to suppress
+    EXTRA_CFLAGS="${EXTRA_CFLAGS} -Wno-long-long -Wno-format-extra-args"
     case "${host}" in
           alpha*-*-linux* )
-	       CFLAGS="${CFLAGS} -mieee"
+	       EXTRA_CFLAGS="${EXTRA_CFLAGS} -mieee"
 	       ;;
 	  alpha*-*-osf* )
-	       CFLAGS="${CFLAGS} -mieee"
+	       EXTRA_CFLAGS="${EXTRA_CFLAGS} -mieee"
 	       ;;
     esac
 fi
@@ -795,13 +790,13 @@ case ${host} in
 	;;
     *-*-mingw* | *-*-cygwin* | *-*-msvc* )
         # If the host is Windows, and shared libraries are disabled, we
-        # need to add -DLIBXML_STATIC to CFLAGS in order for linking to
+        # need to add -DLIBXML_STATIC to EXTRA_CFLAGS in order for linking to
         # work properly (without it, xmlexports.h would force the use of
         # DLL imports, which obviously aren't present in a static
         # library).
         if test "x$enable_shared" = "xno"; then
             XML_CFLAGS="$XML_CFLAGS -DLIBXML_STATIC"
-            CFLAGS="$CFLAGS -DLIBXML_STATIC"
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -DLIBXML_STATIC"
         fi
         ;;
 esac
@@ -993,7 +988,7 @@ if [[ "${LOGNAME}" = "veillard" -a "`pwd`" = "/u/veillard/XML" ]] || \
 	fi
     fi
     if test "${GCC}" = "yes" ; then
-    CFLAGS="-g -O -pedantic -W -Wformat -Wunused -Wimplicit -Wreturn-type -Wswitch -Wcomment -Wtrigraphs -Wformat -Wchar-subscripts -Wuninitialized -Wparentheses -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wredundant-decls -Wall"
+    EXTRA_CFLAGS="-g -O -pedantic -W -Wformat -Wno-format-extra-args -Wunused -Wimplicit -Wreturn-type -Wswitch -Wcomment -Wtrigraphs -Wchar-subscripts -Wuninitialized -Wparentheses -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wredundant-decls -Wall"
     fi
     STATIC_BINARIES="-static"
 dnl -Wcast-qual -ansi
@@ -1036,9 +1031,9 @@ if test "$with_threads" = "no" ; then
 else
     echo Enabling multithreaded support
 
-    dnl Default to native threads on Win32
+    dnl Default to native threads on Windows
     case $host_os in
-       *mingw32*) if test "$with_threads" != "pthread" && test "$with_threads" != "no"; then
+       *mingw*) if test "$with_threads" != "pthread" && test "$with_threads" != "no"; then
                WITH_THREADS="1"
                THREADS_W32="1"
                THREAD_CFLAGS="$THREAD_CFLAGS -DHAVE_WIN32_THREADS"
@@ -1476,8 +1471,6 @@ case "$host" in
 	*) M_LIBS="-lm"
 	;;
 esac
-XML_LIBS="-lxml2 $Z_LIBS $THREAD_LIBS $ICONV_LIBS $M_LIBS $LIBS"
-XML_LIBTOOLLIBS="libxml2.la"
 AC_SUBST(WITH_ICONV)
 
 WITH_ICU=0
@@ -1485,18 +1478,65 @@ ICU_LIBS=""
 if test "$with_icu" != "yes" ; then
     echo Disabling ICU support
 else
-    ICU_CONFIG=icu-config
-    if ${ICU_CONFIG} --cflags >/dev/null 2>&1
-    then
-        ICU_LIBS=`${ICU_CONFIG} --ldflags`
+    # Try pkg-config first so that static linking works.
+    # If this succeeeds, we ignore the WITH_ICU directory.
+    PKG_CHECK_MODULES([ICU],[icu-i18n],
+        [have_libicu=yes],
+        [have_libicu=no])
+
+    # If pkg-config failed, fall back to AC_CHECK_LIB. This
+    # will not pick up the necessary LIBS flags for liblzma's
+    # private dependencies, though, so static linking may fail.
+    if test "x$have_libicu" = "xno"; then
+        ICU_CONFIG=icu-config
+        if ${ICU_CONFIG} --cflags >/dev/null 2>&1
+        then
+            ICU_LIBS=`${ICU_CONFIG} --ldflags`
+            have_libicu=yes
+            echo Enabling ICU support
+        else
+            if test "$with_icu" != "yes" -a "$with_iconv" != "" ; then
+                CPPFLAGS="${CPPFLAGS} -I$with_icu"
+                # Export this since our headers include icu.h
+                XML_INCLUDEDIR="${XML_INCLUDEDIR} -I$with_icu"
+            fi
+
+            AC_CHECK_HEADER(unicode/ucnv.h,
+            AC_MSG_CHECKING(for icu)
+            AC_TRY_LINK([#include <unicode/ucnv.h>],[
+        UConverter *utf = ucnv_open("UTF-8", NULL);],[
+                AC_MSG_RESULT(yes)
+                have_libicu=yes],[
+                AC_MSG_RESULT(no)
+                AC_MSG_CHECKING(for icu in -licucore)
+
+                _ldflags="${LDFLAGS}"
+                _libs="${LIBS}"
+                LDFLAGS="${LDFLAGS} ${ICU_LIBS}"
+                LIBS="${LIBS} -licucore"
+
+                AC_TRY_LINK([#include <unicode/ucnv.h>],[
+        UConverter *utf = ucnv_open("UTF-8", NULL);],[
+                    AC_MSG_RESULT(yes)
+                    have_libicu=yes
+                    ICU_LIBS="${ICU_LIBS} -licucore"
+                    LIBS="${_libs}"
+                    LDFLAGS="${_ldflags}"],[
+                    AC_MSG_RESULT(no)
+                    LIBS="${_libs}"
+                LDFLAGS="${_ldflags}"])]))
+        fi
+    fi
+
+    # Found the library via either method?
+    if test "x$have_libicu" = "xyes"; then
         WITH_ICU=1
-        echo Enabling ICU support
-    else
-        AC_MSG_ERROR([libicu config program icu-config not found])
     fi
 fi
+XML_LIBS="-lxml2"
+XML_PRIVATE_LIBS="$Z_LIBS $LZMA_LIBS $THREAD_LIBS $ICONV_LIBS $ICU_LIBS $M_LIBS $LIBS"
+XML_LIBTOOLLIBS="libxml2.la"
 AC_SUBST(WITH_ICU)
-AC_SUBST(ICU_LIBS)
 
 WITH_ISO8859X=1
 if test "$WITH_ICONV" != "1" ; then
@@ -1579,10 +1619,16 @@ case "$host" in
  CPPFLAGS="$CPPFLAGS -DWIN32"
  WIN32_EXTRA_LIBADD="-lws2_32"
  WIN32_EXTRA_LDFLAGS="-no-undefined"
- AC_DEFINE([_WINSOCKAPI_],1,[Using the Win32 Socket implementation])
  if test "${PYTHON}" != ""
  then
-   WIN32_EXTRA_PYTHON_LIBADD="-L${pythondir}/../../libs -lpython$(echo ${PYTHON_VERSION} | tr -d .)"
+   case "$host" in
+     *-w64-mingw*)
+       WIN32_EXTRA_PYTHON_LIBADD="-shrext .pyd -L${pythondir}/../../lib -lpython${PYTHON_VERSION}"
+       ;;
+     *)
+       WIN32_EXTRA_PYTHON_LIBADD="-L${pythondir}/../../libs -lpython$(echo ${PYTHON_VERSION} | tr -d .)"
+       ;;
+   esac
  fi
  ;;
  *-*-cygwin*)
@@ -1609,7 +1655,7 @@ dnl  http://sourceforge.net/project/shownotes.php?release_id=24832
 dnl
 dnl Also *win32*config.h files redefine them for various MSC compilers.
 dnl
-dnl So do not redefine {v}snprintf to _{v}snprintf like follwing:
+dnl So do not redefine {v}snprintf to _{v}snprintf like following:
 dnl  AC_DEFINE([snprintf],[_snprintf],[Win32 Std C name mangling work-around])
 dnl  AC_DEFINE([vsnprintf],[_vsnprintf],[Win32 Std C name mangling work-around])
 dnl and do not redefine those functions is C-source files.
@@ -1620,21 +1666,23 @@ AC_CHECK_FUNCS(printf sprintf fprintf snprintf vfprintf vsprintf vsnprintf sscan
 if test "$with_coverage" = "yes" -a "${GCC}" = "yes"
 then
     echo Enabling code coverage for GCC
-    CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fprofile-arcs -ftest-coverage"
     LDFLAGS="$LDFLAGS -fprofile-arcs -ftest-coverage"
 else
     echo Disabling code coverage for GCC
 fi
 
 AC_SUBST(CPPFLAGS)
-AC_SUBST(CFLAGS)
+AC_SUBST(EXTRA_CFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(XML_CFLAGS)
 
 AC_SUBST(XML_LIBDIR)
 AC_SUBST(XML_LIBS)
+AC_SUBST(XML_PRIVATE_LIBS)
 AC_SUBST(XML_LIBTOOLLIBS)
 AC_SUBST(ICONV_LIBS)
+AC_SUBST(ICU_LIBS)
 AC_SUBST(XML_INCLUDEDIR)
 AC_SUBST(HTML_DIR)
 AC_SUBST(HAVE_ISNAN)

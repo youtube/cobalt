@@ -28,6 +28,8 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_cadence_pattern_generator_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_frame_rate_estimator_test.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',

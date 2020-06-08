@@ -48,8 +48,6 @@ class Fetcher {
         Fetcher* fetcher,
         const scoped_refptr<net::HttpResponseHeaders>& headers)
         WARN_UNUSED_RESULT {
-      SB_UNREFERENCED_PARAMETER(fetcher);
-      SB_UNREFERENCED_PARAMETER(headers);
       return kLoadResponseContinue;
     }
     virtual void OnReceived(Fetcher* fetcher, const char* data,

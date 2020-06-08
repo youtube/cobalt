@@ -61,9 +61,9 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
   if (!SbMediaIsAudioSupported(audio_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                                mime_type.raw_content_type().c_str(),
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
                                bitrate)) {
     return false;
   }
@@ -74,7 +74,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
       return false;
     case kSbMediaAudioCodecAac:
       return mime_type.subtype() == "mp4";
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       if (!kSbHasAc3Audio) {
         SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
@@ -89,7 +89,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
         return false;
       }
       return mime_type.subtype() == "mp4";
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
     case kSbMediaAudioCodecVorbis:
@@ -162,9 +162,9 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                                mime_type.raw_content_type().c_str(),
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
                                profile, level, bit_depth, primary_id,
                                transfer_id, matrix_id, width, height, bitrate,
                                fps, decode_to_texture_required)) {
@@ -424,7 +424,7 @@ const char* GetCodecName(SbMediaAudioCodec codec) {
       return "none";
     case kSbMediaAudioCodecAac:
       return "aac";
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || SB_HAS(AC3_AUDIO)
+#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       if (!kSbHasAc3Audio) {
         SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
@@ -439,7 +439,7 @@ const char* GetCodecName(SbMediaAudioCodec codec) {
         return "invalid";
       }
       return "ec3";
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return "opus";

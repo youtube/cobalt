@@ -17,6 +17,7 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
 
+#if defined(STARBOARD)
 #include "starboard/byte_swap.h"
 
 #undef htonl
@@ -30,5 +31,7 @@
 
 #undef ntohs
 #define ntohs(x) SB_NET_TO_HOST_U16(x)
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_

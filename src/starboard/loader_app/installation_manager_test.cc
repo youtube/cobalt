@@ -21,8 +21,7 @@
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION && \
-    SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12 && SB_API_VERSION >= 12
 
 #define NUMBER_INSTALLS_PARAMS ::testing::Values(2, 3, 4, 5, 6)
 
@@ -168,7 +167,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     ImUninitialize();
     SbDirectory dir = SbDirectoryOpen(storage_path_.c_str(), NULL);
     std::vector<std::string> dir_;
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     std::vector<char> dir_entry(kSbFileMaxName);
 
     while (SbDirectoryGetNext(dir, dir_entry.data(), dir_entry.size())) {
@@ -177,7 +176,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       full_path += dir_entry.data();
       SbFileDelete(full_path.c_str());
     }
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
     SbDirectoryEntry dir_entry;
 
     while (SbDirectoryGetNext(dir, &dir_entry)) {
@@ -186,7 +185,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       full_path += dir_entry.name;
       SbFileDelete(full_path.c_str());
     }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
     SbDirectoryClose(dir);
     SbFileDelete(storage_path_.c_str());
   }
@@ -551,5 +550,5 @@ INSTANTIATE_TEST_CASE_P(NumberOfMaxInstallations,
 }  // namespace loader_app
 }  // namespace starboard
 
-#endif  // SB_API_VERSION >= SB_STORAGE_PATH_VERSION && SB_API_VERSION >=
-        // SB_FILE_ATOMIC_REPLACE_VERSION
+#endif  // SB_API_VERSION >= 12 && SB_API_VERSION >=
+        // 12

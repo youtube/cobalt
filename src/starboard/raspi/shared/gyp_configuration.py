@@ -35,7 +35,9 @@ _UNDEFINED_RASPI_HOME = '/UNDEFINED/RASPI_HOME'
 class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard Raspberry Pi platform configuration."""
 
-  def __init__(self, platform, sabi_json_path=None):
+  def __init__(self,
+               platform,
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     super(RaspiPlatformConfig, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)
@@ -65,8 +67,11 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     return variables
 
   def GetEnvironmentVariables(self):
-    env_variables = build.GetHostCompilerEnvironment(
-        clang_specification.GetClangSpecification(), False)
+    if not hasattr(self, 'host_compiler_environment'):
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang_specification.GetClangSpecification(), False)
+
+    env_variables = self.host_compiler_environment
     toolchain = os.path.realpath(
         os.path.join(
             self.raspi_home,
@@ -88,7 +93,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       raise RuntimeError('RasPi builds require $RASPI_HOME/sysroot '
                          'to be a valid directory.')
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -106,7 +111,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_host']
     cxx_path = environment_variables['CXX_host']

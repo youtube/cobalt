@@ -95,11 +95,6 @@
           'ENGINE_USES_CONSERVATIVE_ROOTING',
         ],
       },
-      'conditions' :[
-        ['cobalt_enable_jit == 1', {
-          'defines': [ 'ENGINE_SUPPORTS_JIT', ],
-        }],
-      ],
     },
 
     {

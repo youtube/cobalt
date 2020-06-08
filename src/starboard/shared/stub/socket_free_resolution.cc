@@ -14,5 +14,4 @@
 
 #include "starboard/common/socket.h"
 
-void SbSocketFreeResolution(SbSocketResolution* /*resolution*/) {
-}
+void SbSocketFreeResolution(SbSocketResolution* resolution) {}

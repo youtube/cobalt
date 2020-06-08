@@ -34,15 +34,8 @@ class AudioRendererSink {
                                  int* offset_in_frames,
                                  bool* is_playing,
                                  bool* is_eos_reached) = 0;
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
     virtual void ConsumeFrames(int frames_consumed,
                                SbTime frames_consumed_at) = 0;
-#else   //  SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        //  SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-    virtual void ConsumeFrames(int frames_consumed) = 0;
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
     // When |capability_changed| is true, it hints that the error is caused by a
     // a transisent capability on the platform.  The app should retry playback

@@ -24,7 +24,7 @@ namespace cobalt {
 namespace cssom {
 
 std::string CSSStyleDeclaration::align_content(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAlignContentProperty);
 }
 
@@ -35,7 +35,7 @@ void CSSStyleDeclaration::set_align_content(
 }
 
 std::string CSSStyleDeclaration::align_items(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAlignItemsProperty);
 }
 
@@ -46,7 +46,7 @@ void CSSStyleDeclaration::set_align_items(
 }
 
 std::string CSSStyleDeclaration::align_self(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAlignSelfProperty);
 }
 
@@ -56,7 +56,7 @@ void CSSStyleDeclaration::set_align_self(
 }
 
 std::string CSSStyleDeclaration::animation(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationProperty);
 }
 
@@ -66,7 +66,7 @@ void CSSStyleDeclaration::set_animation(
 }
 
 std::string CSSStyleDeclaration::animation_delay(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationDelayProperty);
 }
 
@@ -78,7 +78,7 @@ void CSSStyleDeclaration::set_animation_delay(
 }
 
 std::string CSSStyleDeclaration::animation_direction(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationDirectionProperty);
 }
 
@@ -90,7 +90,7 @@ void CSSStyleDeclaration::set_animation_direction(
 }
 
 std::string CSSStyleDeclaration::animation_duration(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationDurationProperty);
 }
 
@@ -102,7 +102,7 @@ void CSSStyleDeclaration::set_animation_duration(
 }
 
 std::string CSSStyleDeclaration::animation_fill_mode(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationFillModeProperty);
 }
 
@@ -114,7 +114,7 @@ void CSSStyleDeclaration::set_animation_fill_mode(
 }
 
 std::string CSSStyleDeclaration::animation_iteration_count(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationIterationCountProperty);
 }
 
@@ -126,7 +126,7 @@ void CSSStyleDeclaration::set_animation_iteration_count(
 }
 
 std::string CSSStyleDeclaration::animation_name(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationNameProperty);
 }
 
@@ -138,7 +138,7 @@ void CSSStyleDeclaration::set_animation_name(
 }
 
 std::string CSSStyleDeclaration::animation_timing_function(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kAnimationTimingFunctionProperty);
 }
 
@@ -150,7 +150,7 @@ void CSSStyleDeclaration::set_animation_timing_function(
 }
 
 std::string CSSStyleDeclaration::background(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundProperty);
 }
 
@@ -160,7 +160,7 @@ void CSSStyleDeclaration::set_background(
 }
 
 std::string CSSStyleDeclaration::background_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundColorProperty);
 }
 
@@ -172,7 +172,7 @@ void CSSStyleDeclaration::set_background_color(
 }
 
 std::string CSSStyleDeclaration::background_image(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundImageProperty);
 }
 
@@ -184,7 +184,7 @@ void CSSStyleDeclaration::set_background_image(
 }
 
 std::string CSSStyleDeclaration::background_position(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundPositionProperty);
 }
 
@@ -196,7 +196,7 @@ void CSSStyleDeclaration::set_background_position(
 }
 
 std::string CSSStyleDeclaration::background_repeat(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundRepeatProperty);
 }
 
@@ -208,7 +208,7 @@ void CSSStyleDeclaration::set_background_repeat(
 }
 
 std::string CSSStyleDeclaration::background_size(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBackgroundSizeProperty);
 }
 
@@ -220,7 +220,7 @@ void CSSStyleDeclaration::set_background_size(
 }
 
 std::string CSSStyleDeclaration::border(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderProperty);
 }
 
@@ -230,7 +230,7 @@ void CSSStyleDeclaration::set_border(const std::string& border,
 }
 
 std::string CSSStyleDeclaration::border_bottom(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomProperty);
 }
 
@@ -241,7 +241,7 @@ void CSSStyleDeclaration::set_border_bottom(
 }
 
 std::string CSSStyleDeclaration::border_left(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderLeftProperty);
 }
 
@@ -252,7 +252,7 @@ void CSSStyleDeclaration::set_border_left(
 }
 
 std::string CSSStyleDeclaration::border_right(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderRightProperty);
 }
 
@@ -263,7 +263,7 @@ void CSSStyleDeclaration::set_border_right(
 }
 
 std::string CSSStyleDeclaration::border_top(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopProperty);
 }
 
@@ -273,7 +273,7 @@ void CSSStyleDeclaration::set_border_top(
 }
 
 std::string CSSStyleDeclaration::border_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderColorProperty);
 }
 
@@ -284,7 +284,7 @@ void CSSStyleDeclaration::set_border_color(
 }
 
 std::string CSSStyleDeclaration::border_top_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopColorProperty);
 }
 
@@ -296,7 +296,7 @@ void CSSStyleDeclaration::set_border_top_color(
 }
 
 std::string CSSStyleDeclaration::border_right_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderRightColorProperty);
 }
 
@@ -308,7 +308,7 @@ void CSSStyleDeclaration::set_border_right_color(
 }
 
 std::string CSSStyleDeclaration::border_bottom_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomColorProperty);
 }
 
@@ -320,7 +320,7 @@ void CSSStyleDeclaration::set_border_bottom_color(
 }
 
 std::string CSSStyleDeclaration::border_left_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderLeftColorProperty);
 }
 
@@ -332,7 +332,7 @@ void CSSStyleDeclaration::set_border_left_color(
 }
 
 std::string CSSStyleDeclaration::border_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderStyleProperty);
 }
 
@@ -343,7 +343,7 @@ void CSSStyleDeclaration::set_border_style(
 }
 
 std::string CSSStyleDeclaration::border_top_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopStyleProperty);
 }
 
@@ -355,7 +355,7 @@ void CSSStyleDeclaration::set_border_top_style(
 }
 
 std::string CSSStyleDeclaration::border_right_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderRightStyleProperty);
 }
 
@@ -367,7 +367,7 @@ void CSSStyleDeclaration::set_border_right_style(
 }
 
 std::string CSSStyleDeclaration::border_bottom_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomStyleProperty);
 }
 
@@ -379,7 +379,7 @@ void CSSStyleDeclaration::set_border_bottom_style(
 }
 
 std::string CSSStyleDeclaration::border_left_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderLeftStyleProperty);
 }
 
@@ -391,7 +391,7 @@ void CSSStyleDeclaration::set_border_left_style(
 }
 
 std::string CSSStyleDeclaration::border_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderWidthProperty);
 }
 
@@ -402,7 +402,7 @@ void CSSStyleDeclaration::set_border_width(
 }
 
 std::string CSSStyleDeclaration::border_top_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopWidthProperty);
 }
 
@@ -414,7 +414,7 @@ void CSSStyleDeclaration::set_border_top_width(
 }
 
 std::string CSSStyleDeclaration::border_right_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderRightWidthProperty);
 }
 
@@ -426,7 +426,7 @@ void CSSStyleDeclaration::set_border_right_width(
 }
 
 std::string CSSStyleDeclaration::border_bottom_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomWidthProperty);
 }
 
@@ -438,7 +438,7 @@ void CSSStyleDeclaration::set_border_bottom_width(
 }
 
 std::string CSSStyleDeclaration::border_left_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderLeftWidthProperty);
 }
 
@@ -450,7 +450,7 @@ void CSSStyleDeclaration::set_border_left_width(
 }
 
 std::string CSSStyleDeclaration::border_radius(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderRadiusProperty);
 }
 
@@ -461,7 +461,7 @@ void CSSStyleDeclaration::set_border_radius(
 }
 
 std::string CSSStyleDeclaration::border_top_left_radius(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopLeftRadiusProperty);
 }
 
@@ -473,7 +473,7 @@ void CSSStyleDeclaration::set_border_top_left_radius(
 }
 
 std::string CSSStyleDeclaration::border_top_right_radius(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderTopRightRadiusProperty);
 }
 
@@ -485,7 +485,7 @@ void CSSStyleDeclaration::set_border_top_right_radius(
 }
 
 std::string CSSStyleDeclaration::border_bottom_right_radius(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomRightRadiusProperty);
 }
 
@@ -497,7 +497,7 @@ void CSSStyleDeclaration::set_border_bottom_right_radius(
 }
 
 std::string CSSStyleDeclaration::border_bottom_left_radius(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBorderBottomLeftRadiusProperty);
 }
 
@@ -509,7 +509,7 @@ void CSSStyleDeclaration::set_border_bottom_left_radius(
 }
 
 std::string CSSStyleDeclaration::bottom(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBottomProperty);
 }
 
@@ -519,7 +519,7 @@ void CSSStyleDeclaration::set_bottom(const std::string& bottom,
 }
 
 std::string CSSStyleDeclaration::box_shadow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kBoxShadowProperty);
 }
 
@@ -529,7 +529,7 @@ void CSSStyleDeclaration::set_box_shadow(
 }
 
 std::string CSSStyleDeclaration::color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kColorProperty);
 }
 
@@ -539,7 +539,7 @@ void CSSStyleDeclaration::set_color(const std::string& color,
 }
 
 std::string CSSStyleDeclaration::content(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kContentProperty);
 }
 
@@ -549,7 +549,7 @@ void CSSStyleDeclaration::set_content(const std::string& content,
 }
 
 std::string CSSStyleDeclaration::display(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kDisplayProperty);
 }
 
@@ -559,7 +559,7 @@ void CSSStyleDeclaration::set_display(const std::string& display,
 }
 
 std::string CSSStyleDeclaration::filter(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFilterProperty);
 }
 
@@ -569,7 +569,7 @@ void CSSStyleDeclaration::set_filter(const std::string& filter,
 }
 
 std::string CSSStyleDeclaration::flex(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexProperty);
 }
 
@@ -579,7 +579,7 @@ void CSSStyleDeclaration::set_flex(const std::string& flex,
 }
 
 std::string CSSStyleDeclaration::flex_basis(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexBasisProperty);
 }
 
@@ -589,7 +589,7 @@ void CSSStyleDeclaration::set_flex_basis(
 }
 
 std::string CSSStyleDeclaration::flex_direction(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexDirectionProperty);
 }
 
@@ -601,7 +601,7 @@ void CSSStyleDeclaration::set_flex_direction(
 }
 
 std::string CSSStyleDeclaration::flex_flow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexFlowProperty);
 }
 
@@ -611,7 +611,7 @@ void CSSStyleDeclaration::set_flex_flow(
 }
 
 std::string CSSStyleDeclaration::flex_grow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexGrowProperty);
 }
 
@@ -621,7 +621,7 @@ void CSSStyleDeclaration::set_flex_grow(
 }
 
 std::string CSSStyleDeclaration::flex_shrink(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexShrinkProperty);
 }
 
@@ -632,7 +632,7 @@ void CSSStyleDeclaration::set_flex_shrink(
 }
 
 std::string CSSStyleDeclaration::flex_wrap(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFlexWrapProperty);
 }
 
@@ -642,7 +642,7 @@ void CSSStyleDeclaration::set_flex_wrap(
 }
 
 std::string CSSStyleDeclaration::font(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFontProperty);
 }
 
@@ -652,7 +652,7 @@ void CSSStyleDeclaration::set_font(const std::string& font,
 }
 
 std::string CSSStyleDeclaration::font_family(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFontFamilyProperty);
 }
 
@@ -663,7 +663,7 @@ void CSSStyleDeclaration::set_font_family(
 }
 
 std::string CSSStyleDeclaration::font_size(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFontSizeProperty);
 }
 
@@ -673,7 +673,7 @@ void CSSStyleDeclaration::set_font_size(
 }
 
 std::string CSSStyleDeclaration::font_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFontStyleProperty);
 }
 
@@ -683,7 +683,7 @@ void CSSStyleDeclaration::set_font_style(
 }
 
 std::string CSSStyleDeclaration::font_weight(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kFontWeightProperty);
 }
 
@@ -694,7 +694,7 @@ void CSSStyleDeclaration::set_font_weight(
 }
 
 std::string CSSStyleDeclaration::height(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kHeightProperty);
 }
 
@@ -704,7 +704,7 @@ void CSSStyleDeclaration::set_height(const std::string& height,
 }
 
 std::string CSSStyleDeclaration::justify_content(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kJustifyContentProperty);
 }
 
@@ -716,7 +716,7 @@ void CSSStyleDeclaration::set_justify_content(
 }
 
 std::string CSSStyleDeclaration::left(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kLeftProperty);
 }
 
@@ -726,7 +726,7 @@ void CSSStyleDeclaration::set_left(const std::string& left,
 }
 
 std::string CSSStyleDeclaration::line_height(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kLineHeightProperty);
 }
 
@@ -737,7 +737,7 @@ void CSSStyleDeclaration::set_line_height(
 }
 
 std::string CSSStyleDeclaration::margin(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMarginProperty);
 }
 
@@ -747,7 +747,7 @@ void CSSStyleDeclaration::set_margin(const std::string& margin,
 }
 
 std::string CSSStyleDeclaration::margin_bottom(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMarginBottomProperty);
 }
 
@@ -758,7 +758,7 @@ void CSSStyleDeclaration::set_margin_bottom(
 }
 
 std::string CSSStyleDeclaration::margin_left(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMarginLeftProperty);
 }
 
@@ -769,7 +769,7 @@ void CSSStyleDeclaration::set_margin_left(
 }
 
 std::string CSSStyleDeclaration::margin_right(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMarginRightProperty);
 }
 
@@ -780,7 +780,7 @@ void CSSStyleDeclaration::set_margin_right(
 }
 
 std::string CSSStyleDeclaration::margin_top(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMarginTopProperty);
 }
 
@@ -790,7 +790,7 @@ void CSSStyleDeclaration::set_margin_top(
 }
 
 std::string CSSStyleDeclaration::max_height(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMaxHeightProperty);
 }
 
@@ -800,7 +800,7 @@ void CSSStyleDeclaration::set_max_height(
 }
 
 std::string CSSStyleDeclaration::max_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMaxWidthProperty);
 }
 
@@ -810,7 +810,7 @@ void CSSStyleDeclaration::set_max_width(
 }
 
 std::string CSSStyleDeclaration::min_height(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMinHeightProperty);
 }
 
@@ -820,7 +820,7 @@ void CSSStyleDeclaration::set_min_height(
 }
 
 std::string CSSStyleDeclaration::min_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kMinWidthProperty);
 }
 
@@ -830,7 +830,7 @@ void CSSStyleDeclaration::set_min_width(
 }
 
 std::string CSSStyleDeclaration::opacity(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOpacityProperty);
 }
 
@@ -840,7 +840,7 @@ void CSSStyleDeclaration::set_opacity(const std::string& opacity,
 }
 
 std::string CSSStyleDeclaration::order(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOrderProperty);
 }
 
@@ -850,7 +850,7 @@ void CSSStyleDeclaration::set_order(const std::string& order,
 }
 
 std::string CSSStyleDeclaration::outline(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOutlineProperty);
 }
 
@@ -860,7 +860,7 @@ void CSSStyleDeclaration::set_outline(const std::string& outline,
 }
 
 std::string CSSStyleDeclaration::outline_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOutlineColorProperty);
 }
 
@@ -871,7 +871,7 @@ void CSSStyleDeclaration::set_outline_color(
 }
 
 std::string CSSStyleDeclaration::outline_style(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOutlineStyleProperty);
 }
 
@@ -882,7 +882,7 @@ void CSSStyleDeclaration::set_outline_style(
 }
 
 std::string CSSStyleDeclaration::outline_width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOutlineWidthProperty);
 }
 
@@ -893,7 +893,7 @@ void CSSStyleDeclaration::set_outline_width(
 }
 
 std::string CSSStyleDeclaration::overflow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOverflowProperty);
 }
 
@@ -903,7 +903,7 @@ void CSSStyleDeclaration::set_overflow(
 }
 
 std::string CSSStyleDeclaration::overflow_wrap(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOverflowWrapProperty);
 }
 
@@ -914,7 +914,7 @@ void CSSStyleDeclaration::set_overflow_wrap(
 }
 
 std::string CSSStyleDeclaration::padding(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPaddingProperty);
 }
 
@@ -924,7 +924,7 @@ void CSSStyleDeclaration::set_padding(const std::string& padding,
 }
 
 std::string CSSStyleDeclaration::padding_bottom(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPaddingBottomProperty);
 }
 
@@ -936,7 +936,7 @@ void CSSStyleDeclaration::set_padding_bottom(
 }
 
 std::string CSSStyleDeclaration::padding_left(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPaddingLeftProperty);
 }
 
@@ -947,7 +947,7 @@ void CSSStyleDeclaration::set_padding_left(
 }
 
 std::string CSSStyleDeclaration::padding_right(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPaddingRightProperty);
 }
 
@@ -958,7 +958,7 @@ void CSSStyleDeclaration::set_padding_right(
 }
 
 std::string CSSStyleDeclaration::padding_top(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPaddingTopProperty);
 }
 
@@ -969,7 +969,7 @@ void CSSStyleDeclaration::set_padding_top(
 }
 
 std::string CSSStyleDeclaration::pointer_events(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPointerEventsProperty);
 }
 
@@ -981,7 +981,7 @@ void CSSStyleDeclaration::set_pointer_events(
 }
 
 std::string CSSStyleDeclaration::position(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kPositionProperty);
 }
 
@@ -991,7 +991,7 @@ void CSSStyleDeclaration::set_position(
 }
 
 std::string CSSStyleDeclaration::right(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kRightProperty);
 }
 
@@ -1001,7 +1001,7 @@ void CSSStyleDeclaration::set_right(const std::string& right,
 }
 
 std::string CSSStyleDeclaration::text_align(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextAlignProperty);
 }
 
@@ -1011,7 +1011,7 @@ void CSSStyleDeclaration::set_text_align(
 }
 
 std::string CSSStyleDeclaration::text_decoration(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   // TODO: Redirect text decoration to text decoration line for now and
   // change it when fully implement text decoration.
   return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);
@@ -1027,7 +1027,7 @@ void CSSStyleDeclaration::set_text_decoration(
 }
 
 std::string CSSStyleDeclaration::text_decoration_color(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextDecorationColorProperty);
 }
 
@@ -1039,7 +1039,7 @@ void CSSStyleDeclaration::set_text_decoration_color(
 }
 
 std::string CSSStyleDeclaration::text_decoration_line(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);
 }
 
@@ -1051,7 +1051,7 @@ void CSSStyleDeclaration::set_text_decoration_line(
 }
 
 std::string CSSStyleDeclaration::text_indent(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextIndentProperty);
 }
 
@@ -1062,7 +1062,7 @@ void CSSStyleDeclaration::set_text_indent(
 }
 
 std::string CSSStyleDeclaration::text_overflow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextOverflowProperty);
 }
 
@@ -1073,7 +1073,7 @@ void CSSStyleDeclaration::set_text_overflow(
 }
 
 std::string CSSStyleDeclaration::text_shadow(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextShadowProperty);
 }
 
@@ -1084,7 +1084,7 @@ void CSSStyleDeclaration::set_text_shadow(
 }
 
 std::string CSSStyleDeclaration::text_transform(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTextTransformProperty);
 }
 
@@ -1096,7 +1096,7 @@ void CSSStyleDeclaration::set_text_transform(
 }
 
 std::string CSSStyleDeclaration::top(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTopProperty);
 }
 
@@ -1106,7 +1106,7 @@ void CSSStyleDeclaration::set_top(const std::string& top,
 }
 
 std::string CSSStyleDeclaration::transform(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransformProperty);
 }
 
@@ -1116,7 +1116,7 @@ void CSSStyleDeclaration::set_transform(
 }
 
 std::string CSSStyleDeclaration::transform_origin(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransformOriginProperty);
 }
 
@@ -1128,7 +1128,7 @@ void CSSStyleDeclaration::set_transform_origin(
 }
 
 std::string CSSStyleDeclaration::transition(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransitionProperty);
 }
 
@@ -1138,7 +1138,7 @@ void CSSStyleDeclaration::set_transition(
 }
 
 std::string CSSStyleDeclaration::transition_delay(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransitionDelayProperty);
 }
 
@@ -1150,7 +1150,7 @@ void CSSStyleDeclaration::set_transition_delay(
 }
 
 std::string CSSStyleDeclaration::transition_duration(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransitionDurationProperty);
 }
 
@@ -1162,7 +1162,7 @@ void CSSStyleDeclaration::set_transition_duration(
 }
 
 std::string CSSStyleDeclaration::transition_property(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransitionPropertyProperty);
 }
 
@@ -1174,7 +1174,7 @@ void CSSStyleDeclaration::set_transition_property(
 }
 
 std::string CSSStyleDeclaration::transition_timing_function(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kTransitionTimingFunctionProperty);
 }
 
@@ -1186,7 +1186,7 @@ void CSSStyleDeclaration::set_transition_timing_function(
 }
 
 std::string CSSStyleDeclaration::vertical_align(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kVerticalAlignProperty);
 }
 
@@ -1198,7 +1198,7 @@ void CSSStyleDeclaration::set_vertical_align(
 }
 
 std::string CSSStyleDeclaration::visibility(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kVisibilityProperty);
 }
 
@@ -1208,7 +1208,7 @@ void CSSStyleDeclaration::set_visibility(
 }
 
 std::string CSSStyleDeclaration::white_space(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kWhiteSpaceProperty);
 }
 
@@ -1219,7 +1219,7 @@ void CSSStyleDeclaration::set_white_space(
 }
 
 std::string CSSStyleDeclaration::width(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kWidthProperty);
 }
 
@@ -1231,7 +1231,7 @@ void CSSStyleDeclaration::set_width(const std::string& width,
 // word-wrap is treated as an alias for overflow-wrap
 //   https://www.w3.org/TR/css-text-3/#overflow-wrap
 std::string CSSStyleDeclaration::word_wrap(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kOverflowWrapProperty);
 }
 
@@ -1241,7 +1241,7 @@ void CSSStyleDeclaration::set_word_wrap(
 }
 
 std::string CSSStyleDeclaration::z_index(
-    script::ExceptionState* /*exception_state*/) const {
+    script::ExceptionState* exception_state) const {
   return GetDeclaredPropertyValueStringByKey(kZIndexProperty);
 }
 

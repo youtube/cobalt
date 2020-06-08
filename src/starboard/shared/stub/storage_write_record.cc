@@ -14,8 +14,8 @@
 
 #include "starboard/common/storage.h"
 
-bool SbStorageWriteRecord(SbStorageRecord /*record*/,
-                          const char* /*data*/,
-                          int64_t /*data_size*/) {
+bool SbStorageWriteRecord(SbStorageRecord record,
+                          const char* data,
+                          int64_t data_size) {
   return false;
 }

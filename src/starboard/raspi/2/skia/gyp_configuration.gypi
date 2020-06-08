@@ -13,11 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    # Use the skia hardware rasterizer.
-    'rasterizer_type': 'hardware',
-  },
-
   'target_defaults': {
     'default_configuration': 'raspi-2-skia_debug',
     'configurations': {
@@ -39,6 +34,5 @@
   'includes': [
     '../architecture.gypi',
     '../../shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/sabi/sabi.gypi',
   ],
 }

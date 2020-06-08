@@ -99,7 +99,8 @@ class Element : public Node {
                                              const std::string& name) const;
   bool HasAttributeNS(const std::string& namespace_uri,
                       const std::string& name) const;
-  bool Matches(const std::string& selectors,script::ExceptionState* exception_state);
+  bool Matches(const std::string& selectors,
+               script::ExceptionState* exception_state);
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& local_name) const;
@@ -127,8 +128,8 @@ class Element : public Node {
   // If the element does not have any associated CSS layout box, the element
   // has no associated scrolling box, or the element has no overflow, terminate
   // these steps.
-  virtual void set_scroll_left(float /* x */) {}
-  virtual void set_scroll_top(float /* y */) {}
+  virtual void set_scroll_left(float x) {}
+  virtual void set_scroll_top(float y) {}
 
   // Web API: DOM Parsing and Serialization (partial interface)
   //   https://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
@@ -177,7 +178,6 @@ class Element : public Node {
   // opening_tag_location points to ">" of opening tag.
   virtual void OnParserStartTag(
       const base::SourceLocation& opening_tag_location) {
-    SB_UNREFERENCED_PARAMETER(opening_tag_location);
   }
   virtual void OnParserEndTag() {}
 
@@ -228,15 +228,14 @@ class Element : public Node {
   // From EventTarget.
   std::string GetDebugName() override;
 
-  virtual void OnSetAttribute(const std::string& /* name */,
-                              const std::string& /* value */) {}
-  virtual void OnRemoveAttribute(const std::string& /* name */) {}
+  virtual void OnSetAttribute(const std::string& name,
+                              const std::string& value) {}
+  virtual void OnRemoveAttribute(const std::string& name) {}
 
   // Adds this element's style sheet to the style sheet vector. By default, this
   // function does nothing, but is implemented by element subclasses that
   // generate style sheets (HTMLStyleElement and HTMLLinkElement).
-  virtual void CollectStyleSheet(
-      cssom::StyleSheetVector* /*style_sheets*/) const {}
+  virtual void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const {}
 
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);

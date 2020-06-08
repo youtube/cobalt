@@ -47,7 +47,6 @@ std::unique_ptr<Microphone> CreateMicrophone(
         new speech::MicrophoneFake(options));
   }
 #else
-  SB_UNREFERENCED_PARAMETER(options);
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
 
   std::unique_ptr<Microphone> mic;

@@ -85,7 +85,6 @@ class MockDecoder : public Decoder {
       MockDecoder* mock_decoder,
       const loader::Loader::OnCompleteFunction& load_complete_callback =
           loader::Loader::OnCompleteFunction()) {
-    SB_UNREFERENCED_PARAMETER(load_complete_callback);
     return std::unique_ptr<Decoder>(mock_decoder);
   }
 

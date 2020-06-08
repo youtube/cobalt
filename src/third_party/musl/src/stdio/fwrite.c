@@ -34,8 +34,9 @@ size_t __fwritex(const unsigned char *restrict s, size_t l, FILE *restrict f)
 size_t fwrite(const void *restrict src, size_t size, size_t nmemb, FILE *restrict f)
 {
 #ifdef STARBOARD
-  SB_NOTREACHED();
-  return 0;
+  SB_DCHECK((f == stdout) || (f == stderr));
+  SbLogRawFormatF("%.*s", size * nmemb, src);
+  return size * nmemb;
 #else   // !STARBOARD
 	size_t k, l = size*nmemb;
 	if (!size) nmemb = 0;

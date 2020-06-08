@@ -14,10 +14,10 @@
 
 #include "starboard/system.h"
 
-void* SbSystemBinarySearch(const void* /*key*/,
-                           const void* /*base*/,
-                           size_t /*element_count*/,
-                           size_t /*element_width*/,
-                           SbSystemComparator /*comparator*/) {
+void* SbSystemBinarySearch(const void* key,
+                           const void* base,
+                           size_t element_count,
+                           size_t element_width,
+                           SbSystemComparator comparator) {
   return NULL;
 }

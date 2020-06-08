@@ -56,9 +56,6 @@ LogAgent::~LogAgent() {
 
 bool LogAgent::OnLogMessage(int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
-  SB_UNREFERENCED_PARAMETER(file);
-  SB_UNREFERENCED_PARAMETER(line);
-  SB_UNREFERENCED_PARAMETER(message_start);
   DCHECK(this);
 
   if (enabled_) {

@@ -207,7 +207,6 @@ bool FilterBasedPlayerWorkerHandler::Init(
 }
 
 bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
-  SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time << ", and media time provider is "

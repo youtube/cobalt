@@ -88,7 +88,6 @@ class SourceBuffer : public dom::EventTarget {
   // Web API: SourceBuffer
   //
   SourceBufferAppendMode mode(script::ExceptionState* exception_state) const {
-    SB_UNREFERENCED_PARAMETER(exception_state);
     return mode_;
   }
   void set_mode(SourceBufferAppendMode mode,
@@ -97,7 +96,6 @@ class SourceBuffer : public dom::EventTarget {
   scoped_refptr<TimeRanges> buffered(
       script::ExceptionState* exception_state) const;
   double timestamp_offset(script::ExceptionState* exception_state) const {
-    SB_UNREFERENCED_PARAMETER(exception_state);
     return timestamp_offset_;
   }
   void set_timestamp_offset(double offset,
@@ -105,13 +103,11 @@ class SourceBuffer : public dom::EventTarget {
   scoped_refptr<AudioTrackList> audio_tracks() const { return audio_tracks_; }
   scoped_refptr<VideoTrackList> video_tracks() const { return video_tracks_; }
   double append_window_start(script::ExceptionState* exception_state) const {
-    SB_UNREFERENCED_PARAMETER(exception_state);
     return append_window_start_;
   }
   void set_append_window_start(double start,
                                script::ExceptionState* exception_state);
   double append_window_end(script::ExceptionState* exception_state) const {
-    SB_UNREFERENCED_PARAMETER(exception_state);
     return append_window_end_;
   }
   void set_append_window_end(double start,
@@ -125,7 +121,6 @@ class SourceBuffer : public dom::EventTarget {
               script::ExceptionState* exception_state);
   scoped_refptr<TrackDefaultList> track_defaults(
       script::ExceptionState* exception_state) const {
-    SB_UNREFERENCED_PARAMETER(exception_state);
     return track_defaults_;
   }
   void set_track_defaults(const scoped_refptr<TrackDefaultList>& track_defaults,

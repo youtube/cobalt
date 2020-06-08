@@ -29,6 +29,8 @@
 // guarantee when <cstring> will be included. The order of this include must be
 // preserved or the leaks will not be plugged.
 
+#if defined(STARBOARD)
+
 #include <cstring>
 
 #include "starboard/common/string.h"
@@ -49,5 +51,7 @@ inline size_t SbStringGetLength(const char* str) {
 #define __builtin_strlen std::SbStringGetLength
 #undef strlen
 #define strlen std::SbStringGetLength
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRING_LEAKS_POEM_H_

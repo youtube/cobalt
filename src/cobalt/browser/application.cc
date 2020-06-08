@@ -94,7 +94,7 @@ bool IsStringNone(const std::string& str) {
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
 std::string GetDevServersListenIp() {
   bool ip_v6;
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   ip_v6 = SbSocketIsIpv6Supported();
 #elif SB_HAS(IPV6)
   ip_v6 = true;
@@ -540,13 +540,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
+  early_deep_link_ = GetInitialDeepLink();
+  DLOG(INFO) << "Initial deep link: " << early_deep_link_;
+
   WebModule::Options web_options;
   storage::StorageManager::Options storage_manager_options;
   network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
-  options.initial_deep_link = GetInitialDeepLink();
   network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
@@ -577,12 +579,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   if (command_line->HasSwitch(browser::switches::kDisableOnScreenKeyboard)) {
     options.enable_on_screen_keyboard = false;
   }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -731,21 +732,21 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   UpdateUserAgent();
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
+#else
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
-
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   // Register event callbacks.
-  deep_link_event_callback_ =
-      base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
-                                     deep_link_event_callback_);
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   on_screen_keyboard_shown_event_callback_ = base::Bind(
       &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::OnScreenKeyboardShownEvent::TypeId(),
@@ -773,16 +774,16 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   on_caption_settings_changed_event_callback_ = base::Bind(
       &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -842,14 +843,11 @@ Application::~Application() {
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
   // Unregister event callbacks.
-  event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
-                                        deep_link_event_callback_);
 #if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardShownEvent::TypeId(),
       on_screen_keyboard_shown_event_callback_);
@@ -867,13 +865,13 @@ Application::~Application() {
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   app_status_ = kShutDownAppStatus;
 }
@@ -885,10 +883,14 @@ void Application::Start() {
     return;
   }
 
+#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
+    !SB_HAS(CONCEALED_STATE)
   if (app_status_ != kPreloadingAppStatus) {
     NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
+#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
+        // !SB_HAS(CONCEALED_STATE)
 
   OnApplicationEvent(kSbEventTypeStart);
 }
@@ -916,6 +918,18 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur:
+    case kSbEventTypeFocus:
+    case kSbEventTypeConceal:
+    case kSbEventTypeReveal:
+    case kSbEventTypeFreeze:
+    case kSbEventTypeUnfreeze:
+    case kSbEventTypeLowMemory:
+      OnApplicationEvent(starboard_event->type);
+      break;
+#else
     case kSbEventTypePause:
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
@@ -923,6 +937,8 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLowMemory:
       OnApplicationEvent(starboard_event->type);
       break;
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
@@ -932,8 +948,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
               ->size));
       break;
 #endif  // SB_API_VERSION >= 8
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
       DCHECK(starboard_event->data);
       DispatchEventInternal(new base::OnScreenKeyboardShownEvent(
@@ -958,15 +973,15 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           *static_cast<int*>(starboard_event->data)));
       break;
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
       const char* link = static_cast<const char*>(starboard_event->data);
       if (browser_module_->IsWebModuleLoaded()) {
-        DLOG(INFO) << "Dispatching deep link " << link;
+        DLOG(INFO) << "Dispatching deep link: " << link;
         DispatchEventInternal(new base::DeepLinkEvent(link));
       } else {
-        DLOG(INFO) << "Storing deep link " << link;
+        DLOG(INFO) << "Storing deep link: " << link;
         early_deep_link_ = link;
       }
       break;
@@ -974,12 +989,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
       DispatchEventInternal(
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
@@ -1014,6 +1029,62 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Start();
       DLOG(INFO) << "Finished starting.";
       break;
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    case kSbEventTypeBlur:
+      DLOG(INFO) << "Got blur event.";
+      app_status_ = kBlurredAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Pause();
+      DLOG(INFO) << "Finished blurring.";
+      break;
+    case kSbEventTypeFocus:
+      DLOG(INFO) << "Got focus event.";
+      app_status_ = kRunningAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Unpause();
+      DLOG(INFO) << "Finished focusing.";
+      break;
+    case kSbEventTypeConceal:
+      DLOG(INFO) << "Got conceal event.";
+      app_status_ = kConcealedAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Suspend();
+#if SB_IS(EVERGREEN)
+      updater_module_->Suspend();
+#endif
+      DLOG(INFO) << "Finished concealing.";
+      break;
+    case kSbEventTypeReveal:
+      DCHECK(SbSystemSupportsResume());
+      DLOG(INFO) << "Got reveal event.";
+      app_status_ = kBlurredAppStatus;
+      // This is temporary that will be changed in later CLs,
+      // for mapping Starboard Concealed state support onto
+      // Cobalt without Concealed state support to be able to
+      // test the former.
+      browser_module_->Resume();
+#if SB_IS(EVERGREEN)
+      updater_module_->Resume();
+#endif
+      DLOG(INFO) << "Finished revealing.";
+      break;
+    case kSbEventTypeFreeze:
+      DLOG(INFO) << "Got freeze event, but no action was taken.";
+      break;
+    case kSbEventTypeUnfreeze:
+      DLOG(INFO) << "Got unfreeze event, but no action was taken.";
+      break;
+#else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
       app_status_ = kPausedAppStatus;
@@ -1033,6 +1104,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kSuspendedAppStatus;
       ++app_suspend_count_;
       browser_module_->Suspend();
+#if SB_IS(EVERGREEN)
+      updater_module_->Suspend();
+#endif
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
@@ -1041,8 +1115,13 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kPausedAppStatus;
       ++app_resume_count_;
       browser_module_->Resume();
+#if SB_IS(EVERGREEN)
+      updater_module_->Resume();
+#endif
       DLOG(INFO) << "Finished resuming.";
       break;
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
@@ -1053,11 +1132,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
 #endif
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
@@ -1065,7 +1143,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
@@ -1079,16 +1157,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeVerticalSync:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
-  }
-}
-
-void Application::OnDeepLinkEvent(const base::Event* event) {
-  TRACE_EVENT0("cobalt::browser", "Application::OnDeepLinkEvent()");
-  const base::DeepLinkEvent* deep_link_event =
-      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  // TODO: Remove this when terminal application states are properly handled.
-  if (deep_link_event->IsH5vccLink()) {
-    browser_module_->Navigate(GURL(deep_link_event->link()));
   }
 }
 
@@ -1110,8 +1178,7 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
 }
 #endif  // SB_API_VERSION >= 8
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardShownEvent()");
@@ -1154,10 +1221,10 @@ void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
           const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
 #endif  // SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnCaptionSettingsChangedEvent()");
@@ -1165,7 +1232,7 @@ void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<
           const base::AccessibilityCaptionSettingsChangedEvent*>(event));
 }
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 void Application::WebModuleRecreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
@@ -1255,7 +1322,7 @@ void Application::DispatchEarlyDeepLink() {
   if (early_deep_link_.empty()) {
     return;
   }
-  DLOG(INFO) << "Dispatching early deep link " << early_deep_link_;
+  DLOG(INFO) << "Dispatching early deep link: " << early_deep_link_;
   DispatchEventInternal(new base::DeepLinkEvent(early_deep_link_.c_str()));
   early_deep_link_ = "";
 }

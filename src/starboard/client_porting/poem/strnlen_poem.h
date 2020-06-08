@@ -18,6 +18,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_STRNLEN_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_STRNLEN_POEM_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/configuration.h"
 
 static SB_C_INLINE size_t StringGetLengthFixed(const char* s, size_t maxlen) {
@@ -30,5 +32,7 @@ static SB_C_INLINE size_t StringGetLengthFixed(const char* s, size_t maxlen) {
 
 #undef strnlen
 #define strnlen(s, maxlen) StringGetLengthFixed(s, maxlen)
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRNLEN_POEM_H_

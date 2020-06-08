@@ -20,6 +20,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_PR_STARBOARD_PR_STARBOARD_H_
 #define STARBOARD_CLIENT_PORTING_PR_STARBOARD_PR_STARBOARD_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -185,5 +187,7 @@ PRStatus PR_CallOnceWithArg(PRCallOnceType* once,
 static inline PRUint32 PR_TicksPerSecond() {
   return 1000;
 }
+
+#endif  // STARBOAR
 
 #endif  // STARBOARD_CLIENT_PORTING_PR_STARBOARD_PR_STARBOARD_H_

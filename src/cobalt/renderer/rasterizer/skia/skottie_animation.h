@@ -37,7 +37,9 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   bool IsOpaque() const override { return false; }
 
-  void SetAnimationTime(base::TimeDelta animation_time) override;
+  void SetProperties(LottieProperties properties) override;
+
+  void SetAnimationTime(base::TimeDelta animate_function_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
@@ -45,6 +47,37 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   sk_sp<skottie::Animation> skottie_animation_;
   math::Size animation_size_;
   uint32 json_size_in_bytes_;
+
+  LottieProperties properties_;
+  // |seek_counter_| is used to indicate whether a particular seek has already
+  // been processed. When |LottieProperties::seek_counter| is different, then
+  // the requested seek should be performed and |seek_counter_| updated to match
+  // LottieProperties.
+  size_t seek_counter_ = 0;
+
+  // |total_loops_| keeps track of how many times the animation has played
+  // in its entirety.
+  int total_loops_ = 0;
+  // |direction_| is used to indicate whether the animation should be playing
+  // in the the direction set by |LottieProperties::direction|, or whether it
+  // should be playing in the opposite direction (ex: when mode = "bounce", the
+  // animation needs to switch direction in between each loop).
+  int direction_ = 1;
+  // |is_complete_| indicates whether the animation has finished playback. It
+  // should be set to true only after the animation frame time exceeds the
+  // animation duration due to normal playback, and after the "complete" event
+  // is triggered. It should be reset to false whenever the animation frame time
+  // is updated by a change outside of normal playback, such as seeking or
+  // stopping the animation.
+  bool is_complete_ = false;
+
+  // The last timestamp from the animation function in which we updated the
+  // the frame time for |skottie_animation_|. Used for calculating the time
+  // elapsed and updating the frame time again.
+  base::TimeDelta last_updated_animate_function_time_;
+
+  // The most recently updated frame time for |skottie_animation_|.
+  base::TimeDelta current_animation_time_;
 };
 
 }  // namespace skia

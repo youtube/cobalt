@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    # Use the skia hardware rasterizer.
-    'rasterizer_type': 'hardware',
-  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-skia_debug',
     'configurations': {

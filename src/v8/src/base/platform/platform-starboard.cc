@@ -85,16 +85,14 @@ bool g_hard_abort = false;
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   // This is only used on Posix, we don't need to use it for anything.
-  SB_UNREFERENCED_PARAMETER(gc_fake_mmap);
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   if (!SbTimeIsTimeThreadNowSupported()) return -1;
 #endif
 
-#if SB_API_VERSION >= SB_TIME_THREAD_NOW_REQUIRED_VERSION || \
-    SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
   SbTimeMonotonic thread_now = SbTimeGetMonotonicThreadNow();
   *secs = thread_now / kSbTimeSecond;
   *usecs = thread_now % kSbTimeSecond;
@@ -397,7 +395,6 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 //
 
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
-  SB_UNREFERENCED_PARAMETER(length);
   SbStringCopy(dest, src, n);
 }
 

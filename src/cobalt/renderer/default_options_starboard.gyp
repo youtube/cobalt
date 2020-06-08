@@ -17,9 +17,6 @@
     {
      'target_name': 'default_options',
       'type': 'static_library',
-      'includes': [
-        'renderer_parameters_setup.gypi',
-      ],
       'sources': [
         '<(DEPTH)/cobalt/renderer/get_default_rasterizer_for_platform.cc',
       ],

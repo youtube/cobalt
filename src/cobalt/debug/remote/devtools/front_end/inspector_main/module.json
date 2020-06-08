@@ -14,7 +14,7 @@
             "bindings": [
                 {
                     "platform": "windows,linux",
-                    "shortcut": "F5 Ctrl+R"
+                    "shortcut": "Ctrl+R F5"
                 },
                 {
                     "platform": "mac",
@@ -31,7 +31,7 @@
             "bindings": [
                 {
                     "platform": "windows,linux",
-                    "shortcut": "Shift+F5 Ctrl+F5 Ctrl+Shift+F5 Shift+Ctrl+R"
+                    "shortcut": "Shift+Ctrl+R Shift+F5 Ctrl+F5 Ctrl+Shift+F5"
                 },
                 {
                     "platform": "mac",
@@ -85,6 +85,26 @@
         },
         {
             "type": "setting",
+            "category": "DevTools",
+            "title": "Emulate a focused page",
+            "settingName": "emulatePageFocus",
+            "settingType": "boolean",
+            "storageType": "session",
+            "order": 2,
+            "defaultValue": false,
+            "options": [
+                {
+                    "value": true,
+                    "title": "Emulate a focused page"
+                },
+                {
+                    "value": false,
+                    "title": "Do not emulate a focused page"
+                }
+            ]
+        },
+        {
+            "type": "setting",
             "category": "Appearance",
             "title": "Don't show Chrome Data Saver warning",
             "settingName": "disableDataSaverInfobar",
@@ -98,7 +118,7 @@
             "settingName": "disablePausedStateOverlay",
             "settingType": "boolean",
             "defaultValue": false
-        },
+        }
         // {
         //     "type": "view",
         //     "location": "drawer-view",
@@ -107,22 +127,16 @@
         //     "persistence": "closeable",
         //     "order": 50,
         //     "className": "InspectorMain.RenderingOptionsView"
-        // },
-        // {
-        //     "type": "action",
-        //     "category": "Mobile",
-        //     "actionId": "components.request-app-banner",
-        //     "className": "InspectorMain.RequestAppBannerActionDelegate",
-        //     "title": "Add to homescreen"
         // }
     ],
     "dependencies": [
         "components",
         "mobile_throttling"
     ],
-    "scripts": [
+    "scripts": [],
+    "modules": [
+        "inspector_main.js",
         // "RenderingOptions.js",
-        "RequestAppBannerActionDelegate.js",
         "InspectorMain.js"
     ],
     "resources": [

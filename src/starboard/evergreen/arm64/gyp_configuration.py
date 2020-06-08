@@ -32,17 +32,17 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
                platform_name='evergreen-arm64',
                asan_enabled_by_default=False,
                goma_supports_compiler=True,
-               sabi_json_path=None):
+               sabi_json_path='starboard/sabi/default/sabi.json'):
     # pylint: disable=useless-super-delegation
     super(EvergreenArm64Configuration,
           self).__init__(platform_name, asan_enabled_by_default,
                          goma_supports_compiler, sabi_json_path)
     self._host_toolchain = None
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
@@ -78,7 +78,8 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
     return super(EvergreenArm64Configuration, self).GetTestFilters()
 
   def GetVariables(self, configuration):
-    variables = super(EvergreenArm64Configuration, self).GetVariables(configuration)
+    variables = super(EvergreenArm64Configuration,
+                      self).GetVariables(configuration)
     variables.update({
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/arm64/platform_deploy.gypi',
@@ -88,4 +89,4 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
 
 def CreatePlatformConfig():
   return EvergreenArm64Configuration(
-      sabi_json_path='starboard/sabi/arm64/sabi.json')
+      sabi_json_path='starboard/sabi/arm64/sabi-v{sb_api_version}.json')

@@ -563,7 +563,7 @@ int GetMinLogLevel() {
   return LOG_NUM_SEVERITIES;
 }
 
-bool ShouldCreateLogMessage(int /*severity*/) {
+bool ShouldCreateLogMessage(int severity) {
   return false;
 }
 
@@ -571,14 +571,16 @@ int GetVlogVerbosity() {
   return LOG_INFO - GetMinLogLevel();
 }
 
-int GetVlogLevelHelper(const char* /*file*/, size_t /*N*/) {
+int GetVlogLevelHelper(const char* file, size_t N) {
   return GetVlogVerbosity();
 }
 
-void SetLogItems(bool /*enable_process_id*/, bool /*enable_thread_id*/,
-                 bool /*enable_timestamp*/, bool /*enable_tickcount*/) {}
+void SetLogItems(bool enable_process_id,
+                 bool enable_thread_id,
+                 bool enable_timestamp,
+                 bool enable_tickcount) {}
 
-void SetLogPrefix(const char* /*prefix*/) {}
+void SetLogPrefix(const char* prefix) {}
 
 #else  // defined(OFFICIAL_BUILD)
 

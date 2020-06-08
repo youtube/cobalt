@@ -15,7 +15,5 @@
 #include "starboard/drm.h"
 
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
-  SB_UNREFERENCED_PARAMETER(drm_system);
-
   return false;
 }

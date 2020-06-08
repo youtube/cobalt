@@ -107,9 +107,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbDecodeTargetGraphicsContextProvider* provider) {
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-  SB_UNREFERENCED_PARAMETER(window);
 #if SB_API_VERSION >= 11
-  SB_UNREFERENCED_PARAMETER(max_video_capabilities);
 #endif  // SB_API_VERSION >= 11
 #if SB_API_VERSION >= 11
   if (audio_sample_info) {
@@ -126,9 +124,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone &&
       !SbMediaIsAudioSupported(audio_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                                audio_mime,
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
                                kDefaultBitRate)) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
@@ -143,9 +141,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (video_codec != kSbMediaVideoCodecNone &&
       !SbMediaIsVideoSupported(
           video_codec,
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
           video_mime,
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
           kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
           kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,

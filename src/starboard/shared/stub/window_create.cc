@@ -14,6 +14,6 @@
 
 #include "starboard/window.h"
 
-SbWindow SbWindowCreate(const SbWindowOptions* /*options*/) {
+SbWindow SbWindowCreate(const SbWindowOptions* options) {
   return kSbWindowInvalid;
 }

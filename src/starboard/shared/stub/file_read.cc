@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-int SbFileRead(SbFile /*file*/, char* /*data*/, int /*size*/) {
+int SbFileRead(SbFile file, char* data, int size) {
   return 0;
 }

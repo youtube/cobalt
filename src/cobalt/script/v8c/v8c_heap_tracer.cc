@@ -48,11 +48,6 @@ void V8cHeapTracer::TracePrologue() {
   }
   DCHECK_EQ(frontier_.size(), 0);
   DCHECK_EQ(visited_.size(), 0);
-
-  // This feels a bit weird, but as far as I can tell, we're expected to
-  // manually decide to trace the from the global object.
-  MaybeAddToFrontier(
-      V8cGlobalEnvironment::GetFromIsolate(isolate_)->global_wrappable());
 }
 
 bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
@@ -63,6 +58,11 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
   if (disabled_) {
     return true;
   }
+
+  // This feels a bit weird, but as far as I can tell, we're expected to
+  // manually decide to trace the from the global object.
+  MaybeAddToFrontier(
+      V8cGlobalEnvironment::GetFromIsolate(isolate_)->global_wrappable());
 
   // Objects that we want to keep alive.
   for (Traceable* traceable : roots_) {

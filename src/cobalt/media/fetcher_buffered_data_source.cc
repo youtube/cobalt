@@ -205,8 +205,8 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
 }
 
 void FetcherBufferedDataSource::OnURLFetchDownloadProgress(
-    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
-    int64_t /*current_network_bytes*/) {
+    const net::URLFetcher* source, int64_t current, int64_t total,
+    int64_t current_network_bytes) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   auto* download_data_writer =
       base::polymorphic_downcast<loader::URLFetcherStringWriter*>(

@@ -15,6 +15,9 @@
 #ifndef COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 #define COBALT_RENDER_TREE_LOTTIE_ANIMATION_H_
 
+#include <string>
+
+#include "base/callback.h"
 #include "base/time/time.h"
 #include "cobalt/render_tree/image.h"
 
@@ -27,7 +30,167 @@ namespace render_tree {
 // LottieAnimation object.
 class LottieAnimation : public Image {
  public:
-  virtual void SetAnimationTime(base::TimeDelta animation_time) = 0;
+  enum class LottieState { kPlaying, kPaused, kStopped };
+
+  enum class LottieMode { kNormal, kBounce };
+
+  // https://lottiefiles.github.io/lottie-player/properties.html
+  struct LottieProperties {
+    // Since an explicitly specified value of |count| must be greater than 0,
+    // a default value of -1 indicates that there is no limit to the number of
+    // times the animation should loop.
+    static constexpr int kDefaultCount = -1;
+    static constexpr int kDefaultDirection = 1;
+    static constexpr bool kDefaultLoop = false;
+    static constexpr LottieMode kDefaultMode = LottieMode::kNormal;
+    static constexpr double kDefaultSpeed = 1;
+
+    LottieProperties() = default;
+
+    // Return true if |state| is updated to a new & valid LottieState.
+    bool UpdateState(LottieState new_state) {
+      // It is not possible to pause a stopped animation.
+      if (new_state == LottieState::kPaused && state == LottieState::kStopped) {
+        return false;
+      }
+      if (new_state == state) {
+        return false;
+      }
+      state = new_state;
+      return true;
+    }
+
+    // Return true if |count| is updated to a new & valid number.
+    bool UpdateCount(int new_count) {
+      // |count| must be positive.
+      if (new_count <= 0 || new_count == count) {
+        return false;
+      }
+      count = new_count;
+      return true;
+    }
+
+    // Return true if |direction| is updated to a new & valid direction.
+    bool UpdateDirection(int new_direction) {
+      // |direction| can either be 1 or -1.
+      if ((new_direction != 1 && new_direction != -1) ||
+          (new_direction == direction)) {
+        return false;
+      }
+      direction = new_direction;
+      return true;
+    }
+
+    // Return true if |loop| is updated.
+    bool UpdateLoop(bool new_loop) {
+      if (new_loop == loop) {
+        return false;
+      }
+      loop = new_loop;
+      return true;
+    }
+
+    // Return the string equivalent of |mode|.
+    std::string GetModeAsString() const {
+      if (mode == LottieMode::kBounce) {
+        return "bounce";
+      }
+      // Always fallback to the default.
+      return "normal";
+    }
+
+    // Return true if |mode| is updated to a new & valid mode.
+    bool UpdateMode(std::string new_mode) {
+      if (new_mode == "normal") {
+        return UpdateMode(LottieMode::kNormal);
+      } else if (new_mode == "bounce") {
+        return UpdateMode(LottieMode::kBounce);
+      }
+      return false;
+    }
+
+    // Return true if |mode| is updated.
+    bool UpdateMode(LottieMode new_mode) {
+      if (new_mode == mode) {
+        return false;
+      }
+      mode = new_mode;
+      return true;
+    }
+
+    // Return true is |speed| is updated to a new & valid speed.
+    bool UpdateSpeed(double new_speed) {
+      // |speed| must be a nonnegative value.
+      if (new_speed < 0 || new_speed == speed) {
+        return false;
+      }
+      speed = new_speed;
+      return true;
+    }
+
+    void SeekFrame(double frame_number) {
+      seek_value = frame_number;
+      seek_value_is_frame = true;
+      UpdateStateAndSeekCounter();
+    }
+
+    void SeekPercent(double percent) {
+      // Store as normalized [0..1] frame selector.
+      seek_value = percent / 100;
+      seek_value_is_frame = false;
+      UpdateStateAndSeekCounter();
+    }
+
+    void UpdateStateAndSeekCounter() {
+      // A stopped animation will become paused (i.e. will not be hidden)
+      // if seek() has been called.
+      if (state == LottieState::kStopped) {
+        state = LottieState::kPaused;
+      }
+      // Update |seek_counter| to indicate that a seek needs to occur.
+      ++seek_counter;
+    }
+
+    void ToggleLooping() { loop = !loop; }
+
+    void TogglePlay() {
+      if (state == LottieState::kPlaying) {
+        state = LottieState::kPaused;
+      } else {
+        state = LottieState::kPlaying;
+      }
+    }
+
+    // |state| indicates whether the animation is playing (visible and
+    // animating), paused (visible but not animating), or stopped (not visible
+    // and frame time = 0).
+    LottieState state = LottieState::kStopped;
+
+    int count = kDefaultCount;
+    int direction = kDefaultDirection;
+    bool loop = kDefaultLoop;
+    LottieMode mode = kDefaultMode;
+    double speed = kDefaultSpeed;
+
+    // |seek_value| indicates either the frame or the normalized [0..1] frame
+    // selector that the animation should seek to. The internal implementation
+    // that we use for the Lottie animations will handle out-of-bounds values,
+    // so there is no need to check here.
+    double seek_value;
+    // |seek_value_is_frame| indicates whether |seek_value| is a frame (true)
+    // or a normalized [0..1] frame selector (false).
+    bool seek_value_is_frame;
+    // |seek_counter| is incremented every time "seek()" is called on a Lottie
+    // animation.
+    size_t seek_counter = 0;
+
+    base::Closure oncomplete_callback;
+    base::Closure onloop_callback;
+  };
+
+  virtual void SetProperties(LottieProperties properties) = 0;
+
+  virtual void SetAnimationTime(base::TimeDelta animate_function_time) = 0;
 
  protected:
   virtual ~LottieAnimation() {}

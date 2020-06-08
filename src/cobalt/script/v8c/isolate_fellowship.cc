@@ -22,6 +22,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/v8c/switches.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/configuration_constants.h"
@@ -51,10 +52,14 @@ void V8FlagsInit() {
     "--noincremental_marking_wrappers",
     "--noexpose_wasm",
     "--novalidate_asm",
-#if !defined(ENGINE_SUPPORTS_JIT)
-    "--jitless"
-#endif
   };
+
+  if (!configuration::Configuration::GetInstance()->CobaltEnableJit()) {
+#if !defined(V8_EMBEDDED_BUILTINS)
+    CHECK(false) << "Jitless mode required embedded builtins.";
+#endif
+    kV8CommandLineFlags.push_back("--jitless");
+  }
 
   if (configuration::Configuration::GetInstance()->CobaltGcZeal()) {
     kV8CommandLineFlags.push_back("--gc_interval=1200");

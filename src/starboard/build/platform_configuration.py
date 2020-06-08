@@ -21,6 +21,7 @@ import os
 import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.optional import get_optional_tests
+from starboard.sabi import sabi
 from starboard.tools import environment
 from starboard.tools import paths
 from starboard.tools import platform
@@ -256,7 +257,14 @@ class PlatformConfiguration(object):
         # V8 are supported.  Note that V8 can only be used on platforms that
         # support JIT.
         'javascript_engine': 'v8',
-        'sabi_json_path': self.GetPathToSabiJsonFile(),
+
+        # If the path to the Starboard ABI file is able to be formatted, it will
+        # be using the experimental Starboard API version of the file, i.e.
+        # |sabi.SB_API_VERSION|. Otherwise, the value provided is just assumed
+        # to be a complete path to a Starboard ABI file.
+        'sabi_json_path':
+            self.GetPathToSabiJsonFile().format(
+                sb_api_version=sabi.SB_API_VERSION),
 
         # TODO: Remove these compatibility variables.
         'cobalt_config': config_name,
@@ -282,14 +290,14 @@ class PlatformConfiguration(object):
     """Returns the instance of the toolchain implementation class."""
     return None
 
-  def GetTargetToolchain(self):
+  def GetTargetToolchain(self, **kwargs):
     """Returns a list of target tools."""
     # TODO: If this method throws |NotImplementedError|, GYP will fall back to
     #       the legacy toolchain. Once all platforms are migrated to the
     #       abstract toolchain, this method should be made |@abstractmethod|.
     raise NotImplementedError()
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     """Returns a list of host tools."""
     # TODO: If this method throws |NotImplementedError|, GYP will fall back to
     #       the legacy toolchain. Once all platforms are migrated to the
@@ -338,8 +346,14 @@ class PlatformConfiguration(object):
   def GetPathToSabiJsonFile(self):
     """Gets the path to the JSON file with Starboard ABI information for the build.
 
+    Examples:
+        'starboard/sabi/arm64/sabi-v12.json'
+        'starboard/sabi/arm64/sabi-v{sb_api_version}.json'
+
     Returns:
-      A string path to the appropriate Starboard ABI JSON file. This file is
+      A string path to the appropriate Starboard ABI JSON file. This path can
+      either be a complete path, or be capable of being formatted with an
+      integer representing the desired Starboard API version. This file is
       required for a variety of definitions and variables pertaining to the ABI.
     """
     return 'starboard/sabi/default/sabi.json'

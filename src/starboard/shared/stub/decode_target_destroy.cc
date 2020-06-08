@@ -14,4 +14,4 @@
 
 #include "starboard/decode_target.h"
 
-void SbDecodeTargetDestroy(SbDecodeTarget /*decode_target*/) {}
+void SbDecodeTargetDestroy(SbDecodeTarget decode_target) {}

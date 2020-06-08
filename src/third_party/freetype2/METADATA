@@ -1,7 +1,6 @@
 name: "freetype2"
 description:
-  "Subtree at third_party/freetype2."
-
+  "Font engine, used for decoding and loading fonts. Required by Skia font parsing."
 third_party {
   url {
     type: LOCAL_SOURCE
@@ -11,10 +10,11 @@ third_party {
     type: GIT
     value: "git://git.savannah.gnu.org/freetype/freetype2.git"
   }
-  version: "551bd3a90e352fa3a66ee7644c07440939c03d81"
+  # Note: version is 2.10.2 release.
+  version: "132f19b779828b194b3fede187cee719785db4d8"
   last_upgrade_date {
-    year: 2019
-    month: 12
-    day: 3
+    year: 2020
+    month: 05
+    day: 12
   }
 }

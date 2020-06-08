@@ -215,8 +215,9 @@ OpenMaxComponent::~OpenMaxComponent() {
   SendCommandAndWaitForCompletion(OMX_CommandStateSet, OMX_StateLoaded);
 }
 
-void OpenMaxComponent::OnErrorEvent(OMX_U32 data1, OMX_U32 data2,
-                                    OMX_PTR /* event_data */) {
+void OpenMaxComponent::OnErrorEvent(OMX_U32 data1,
+                                    OMX_U32 data2,
+                                    OMX_PTR event_data) {
   SB_NOTREACHED() << "OMX_EventError received with " << std::hex << data1
                   << " " << data2;
 }

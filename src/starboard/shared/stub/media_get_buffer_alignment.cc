@@ -15,6 +15,5 @@
 #include "starboard/media.h"
 
 int SbMediaGetBufferAlignment(SbMediaType type) {
-  SB_UNREFERENCED_PARAMETER(type);
   return 0;
 }

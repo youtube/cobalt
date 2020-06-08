@@ -197,7 +197,7 @@ class Window : public EventTarget,
   scoped_refptr<Window> top() { return this; }
   scoped_refptr<Window> opener() { return this; }
   scoped_refptr<Window> parent() { return this; }
-  scoped_refptr<Window> AnonymousIndexedGetter(unsigned int /* index */) {
+  scoped_refptr<Window> AnonymousIndexedGetter(unsigned int index) {
     return NULL;
   }
 

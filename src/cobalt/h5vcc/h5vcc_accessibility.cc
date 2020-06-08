@@ -98,7 +98,6 @@ void H5vccAccessibility::AddHighContrastTextListener(
 }
 
 void H5vccAccessibility::OnApplicationEvent(const base::Event* event) {
-  SB_UNREFERENCED_PARAMETER(event);
   // This method should be called from the application event thread.
   DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner_);
   task_runner_->PostTask(

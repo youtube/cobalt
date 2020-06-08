@@ -372,7 +372,7 @@ class NetLogServer {
   }
 
  private:
-  void WriterTask(Semaphore* /*joined_sema*/) {
+  void WriterTask(Semaphore* joined_sema) {
     while (true) {
       writer_thread_sema_.Take();
 

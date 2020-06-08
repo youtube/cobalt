@@ -90,7 +90,7 @@ EpStatus Endpointer::Status(int64_t* time) {
 
 #if defined(STARBOARD)
 EpStatus Endpointer::ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out) {
-  // TODO[johnx]: replace ShellAudioData with AudioChunk and deprecate
+  // TODO[Cobalt]: replace ShellAudioData with AudioChunk and deprecate
   // ShellAudioData.
   DCHECK_EQ(audio_bus.channels(), 1);
 

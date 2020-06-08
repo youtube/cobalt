@@ -40,7 +40,7 @@ bool GetProductDirectory(base::FilePath* path) {
 #endif
 
   std::vector<char> storage_dir(kSbFileMaxPath);
-#if SB_API_VERSION >= SB_STORAGE_PATH_VERSION
+#if SB_API_VERSION >= 12
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        kSbFileMaxPath)) {
     SB_LOG(ERROR) << "GetProductDirectory: Failed to get "
@@ -50,8 +50,7 @@ bool GetProductDirectory(base::FilePath* path) {
 #else
   SB_NOTREACHED() << "GetProductDirectory: kSbSystemPathStorageDirectory "
                      "is not available before "
-                     "starboard version "
-                  << SB_STORAGE_PATH_VERSION;
+                     "starboard version 12";
   return false;
 
 #endif

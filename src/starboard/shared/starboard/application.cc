@@ -76,7 +76,6 @@ Application::Application()
           reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
           reinterpret_cast<SbAtomicPtr>(this)));
   SB_DCHECK(!old_instance);
-  SB_UNREFERENCED_PARAMETER(old_instance);
 }
 
 Application::~Application() {
@@ -126,6 +125,33 @@ const CommandLine* Application::GetCommandLine() {
   return command_line_.get();
 }
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+void Application::Blur(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeBlur, context, callback));
+}
+
+void Application::Focus(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeFocus, context, callback));
+}
+
+void Application::Conceal(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeConceal, context, callback));
+}
+
+void Application::Reveal(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeReveal, context, callback));
+}
+
+void Application::Freeze(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeFreeze, context, callback));
+}
+
+void Application::Unfreeze(void* context, EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeUnfreeze, context, callback));
+}
+
+#else
 void Application::Pause(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypePause, context, callback));
 }
@@ -141,6 +167,8 @@ void Application::Suspend(void* context, EventHandledCallback callback) {
 void Application::Resume(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeResume, context, callback));
 }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
 void Application::Stop(int error_level) {
   Event* event = new Event(kSbEventTypeStop, NULL, NULL);
@@ -199,7 +227,13 @@ void Application::SetStartLink(const char* start_link) {
 
 void Application::DispatchStart() {
   SB_DCHECK(IsCurrentThread());
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  SB_DCHECK(state_ == kStateUnstarted);
+#else
   SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart));
 }
 
@@ -222,6 +256,139 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // Ensure that we go through the the appropriate lifecycle events based on the
+  // current state.
+  switch (scoped_event->event->type) {
+    case kSbEventTypePreload:
+      if (state() != kStateUnstarted) {
+        return true;
+      }
+      break;
+    case kSbEventTypeStart:
+      if (state() != kStateUnstarted && state() != kStateStarted) {
+        Inject(new Event(kSbEventTypeFocus, NULL, NULL));
+        return true;
+      }
+      break;
+    case kSbEventTypeBlur:
+      if (state() != kStateStarted) {
+        return true;
+      }
+      break;
+    case kSbEventTypeFocus:
+      switch (state()) {
+        case kStateStopped:
+          return true;
+        case kStateFrozen:
+          Inject(new Event(kSbEventTypeUnfreeze, NULL, NULL));
+          // The fall-through is intentional.
+        case kStateConcealed:
+          Inject(new Event(kSbEventTypeReveal, NULL, NULL));
+          Inject(scoped_event.release());
+          return true;
+        case kStateBlurred:
+          break;
+        case kStateStarted:
+        case kStateUnstarted:
+          return true;
+      }
+      break;
+    case kSbEventTypeConceal:
+      switch (state()) {
+        case kStateUnstarted:
+          return true;
+        case kStateStarted:
+          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          Inject(scoped_event.release());
+          return true;
+        case kStateBlurred:
+          break;
+        case kStateConcealed:
+        case kStateFrozen:
+        case kStateStopped:
+          return true;
+      }
+      break;
+    case kSbEventTypeReveal:
+      switch (state()) {
+        case kStateStopped:
+          return true;
+        case kStateFrozen:
+          Inject(new Event(kSbEventTypeUnfreeze, NULL, NULL));
+          Inject(scoped_event.release());
+          return true;
+        case kStateConcealed:
+          break;
+        case kStateBlurred:
+        case kStateStarted:
+        case kStateUnstarted:
+          return true;
+      }
+      break;
+    case kSbEventTypeFreeze:
+      switch (state()) {
+        case kStateUnstarted:
+          return true;
+        case kStateStarted:
+          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          // The fall-through is intentional
+        case kStateBlurred:
+          Inject(new Event(kSbEventTypeConceal, NULL, NULL));
+          Inject(scoped_event.release());
+          return true;
+        case kStateConcealed:
+          break;
+        case kStateFrozen:
+        case kStateStopped:
+          return true;
+      }
+      break;
+    case kSbEventTypeUnfreeze:
+      switch (state()) {
+        case kStateStopped:
+          return true;
+        case kStateFrozen:
+          break;
+        case kStateConcealed:
+        case kStateBlurred:
+        case kStateStarted:
+        case kStateUnstarted:
+          return true;
+      }
+      break;
+    case kSbEventTypeStop:
+      switch (state()) {
+        case kStateUnstarted:
+          return true;
+        case kStateStarted:
+          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          // The fall-through is intentional.
+        case kStateBlurred:
+          Inject(new Event(kSbEventTypeConceal, NULL, NULL));
+          // The fall-through is intentional.
+        case kStateConcealed:
+          Inject(new Event(kSbEventTypeFreeze, NULL, NULL));
+          Inject(scoped_event.release());
+          return true;
+        case kStateFrozen:
+          break;
+        case kStateStopped:
+          return true;
+      }
+      error_level_ = scoped_event->error_level;
+      break;
+    case kSbEventTypeScheduled: {
+      TimedEvent* timed_event =
+          reinterpret_cast<TimedEvent*>(scoped_event->event->data);
+      timed_event->callback(timed_event->context);
+      return true;
+    }
+    default:
+      break;
+  }
+#else
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
   switch (scoped_event->event->type) {
@@ -306,9 +473,54 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     default:
       break;
   }
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   SbEventHandle(scoped_event->event);
-
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  switch (scoped_event->event->type) {
+    case kSbEventTypePreload:
+      SB_DCHECK(state() == kStateUnstarted);
+      state_ = kStateConcealed;
+      break;
+    case kSbEventTypeStart:
+      SB_DCHECK(state() == kStateUnstarted);
+      state_ = kStateStarted;
+      break;
+    case kSbEventTypeBlur:
+      SB_DCHECK(state() == kStateStarted);
+      state_ = kStateBlurred;
+      break;
+    case kSbEventTypeFocus:
+      SB_DCHECK(state() == kStateBlurred);
+      state_ = kStateStarted;
+      break;
+    case kSbEventTypeConceal:
+      SB_DCHECK(state() == kStateBlurred);
+      state_ = kStateConcealed;
+      break;
+    case kSbEventTypeReveal:
+      SB_DCHECK(state() == kStateConcealed);
+      state_ = kStateBlurred;
+      break;
+    case kSbEventTypeFreeze:
+      SB_DCHECK(state() == kStateConcealed);
+      state_ = kStateFrozen;
+      OnSuspend();
+      break;
+    case kSbEventTypeUnfreeze:
+      SB_DCHECK(state() == kStateFrozen);
+      state_ = kStateConcealed;
+      break;
+    case kSbEventTypeStop:
+      SB_DCHECK(state() == kStateFrozen);
+      state_ = kStateStopped;
+      return false;
+    default:
+      break;
+  }
+#else
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
       SB_DCHECK(state() == kStateUnstarted);
@@ -342,7 +554,8 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     default:
       break;
   }
-
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   // Should not be unstarted after the first event.
   SB_DCHECK(state() != kStateUnstarted);
   return true;

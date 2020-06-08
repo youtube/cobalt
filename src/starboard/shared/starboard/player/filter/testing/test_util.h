@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_
 
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -23,6 +24,7 @@
 
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace shared {
@@ -31,7 +33,7 @@ namespace player {
 namespace filter {
 namespace testing {
 
-typedef std::pair<const char*, SbPlayerOutputMode> VideoTestParam;
+typedef std::tuple<const char*, SbPlayerOutputMode> VideoTestParam;
 
 // The function doesn't free the buffer, it assumes that the lifetime of the
 // buffer is actually managed by other code.  It can be used in the places where
@@ -49,6 +51,12 @@ bool CreateAudioComponents(bool using_stub_decoder,
                            const SbMediaAudioSampleInfo& audio_sample_info,
                            scoped_ptr<AudioDecoder>* audio_decoder,
                            scoped_ptr<AudioRendererSink>* audio_renderer_sink);
+
+::testing::AssertionResult AlmostEqualTime(SbTime time1, SbTime time2);
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec);
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter

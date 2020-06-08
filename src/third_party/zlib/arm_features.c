@@ -10,13 +10,25 @@
 #include <stdint.h>
 
 int ZLIB_INTERNAL arm_cpu_enable_crc32 = 0;
+#if defined(STARBOARD)
+int ZLIB_INTERNAL arm_cpu_enable_neon = 0;
+#endif
 int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 
+#if !defined(STARBOARD)
 #if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
 #include <pthread.h>
 #endif
+#endif
 
-#if defined(ARMV8_OS_ANDROID)
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/once.h"
+#include "starboard/string.h"
+#if SB_API_VERSION >= 11
+#include "starboard/cpu_features.h"
+#endif
+#elif defined(ARMV8_OS_ANDROID)
 #include <cpu-features.h>
 #elif defined(ARMV8_OS_LINUX)
 #include <asm/hwcap.h>
@@ -33,7 +45,13 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 
 static void _arm_check_features(void);
 
-#if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
+#if defined(STARBOARD)
+SbOnceControl cpu_check_inited_once = SB_ONCE_INITIALIZER;
+void ZLIB_INTERNAL arm_check_features(void)
+{
+    SbOnce(&cpu_check_inited_once, _arm_check_features);
+}
+#elif defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
 static pthread_once_t cpu_check_inited_once = PTHREAD_ONCE_INIT;
 void ZLIB_INTERNAL arm_check_features(void)
 {
@@ -59,9 +77,27 @@ void ZLIB_INTERNAL arm_check_features(void)
  */
 static void _arm_check_features(void)
 {
-#if defined(ARMV8_OS_ANDROID) && defined(__aarch64__)
+#if defined(STARBOARD)
+#if SB_API_VERSION >= 11
+    SbCPUFeatures features;
+
+    if (SbCPUFeaturesGet(&features)) {
+      arm_cpu_enable_crc32 = features.arm.has_crc32;
+      arm_cpu_enable_neon = features.arm.has_neon;
+      arm_cpu_enable_pmull = features.arm.has_pmull;
+    }
+#endif
+
+    if (!arm_cpu_enable_crc32 ||
+        !arm_cpu_enable_neon ||
+        !arm_cpu_enable_pmull) {
+      SbLogFormatF("Not all Zlib optimizations enabled: neon is %i, crc32 is "
+                   "%i, pmull is %i.\n", arm_cpu_enable_crc32,
+                   arm_cpu_enable_neon, arm_cpu_enable_pmull);
+      SbLogFlush();
+    }
+#elif defined(ARMV8_OS_ANDROID) && defined(__aarch64__)
     uint64_t features = android_getCpuFeatures();
-    arm_cpu_enable_crc32 = !!(features & ANDROID_CPU_ARM64_FEATURE_CRC32);
     arm_cpu_enable_pmull = !!(features & ANDROID_CPU_ARM64_FEATURE_PMULL);
 #elif defined(ARMV8_OS_ANDROID) /* aarch32 */
     uint64_t features = android_getCpuFeatures();

@@ -135,7 +135,7 @@ static SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
   return socket != kSbSocketInvalid;
 }
 
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 // Returns whether IPV6 is supported on the current platform.
 SB_EXPORT bool SbSocketIsIpv6Supported();
 #endif

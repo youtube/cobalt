@@ -6,6 +6,20 @@
 #define __SLIDE_HASH__NEON__
 
 #include "deflate.h"
+
+/*
+   For Starboard we want to check NEON availability at runtime, and this means
+   we do not want to inline functions that use NEON instructions in the rest of
+   the code. This should be compiled separately.
+ */
+#if defined(STARBOARD)
+void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
+                                          const uInt hash_size,
+                                          const ush w_size);
+void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
+                                   const unsigned short w_size,
+                                   const uInt hash_size);
+#else
 #include <arm_neon.h>
 
 inline static void ZLIB_INTERNAL neon_slide_hash_update(Posf *hash,
@@ -61,5 +75,6 @@ inline static void ZLIB_INTERNAL neon_slide_hash(Posf *head, Posf *prev,
     neon_slide_hash_update(prev, w_size, w_size);
 #endif
 }
+#endif
 
 #endif

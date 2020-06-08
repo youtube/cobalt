@@ -4,11 +4,17 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 21
 
+ - **SpiderMonkey(mozjs-45) JavaScript Engine is no longer supported.**
+   We will only support V8 from now on. For platforms without Just-In-Time
+   compilation ability, please use JIT-less V8 instead. Overriding
+   `cobalt_enable_jit` environment variable in `gyp_configuration.py` will
+   switch V8 to use JIT-less mode. V8 requires at least Starboard version 10.
+
  - **scratch_surface_cache_size_in_bytes is removed.**
 
-   Because it never ended up being used, scratch_suface_cache_size_in_bytes has
-   been removed. This had only been implemented for possible performance gains,
-   but was found to have inconsistent improvement.
+   Because it never ended up being used, `scratch_suface_cache_size_in_bytes`
+   has been removed. This had only been implemented for possible performance
+   gains, but was found to have inconsistent improvement.
 
  - **Disabling spdy is no longer supported.**
 
@@ -16,11 +22,19 @@ This document records all notable changes made to Cobalt since the last release.
    longer support disabling it, so we are removing the GYP configuration
    variable entirely.
 
+ - **DevTools rebased to Chromium 80; requires nodejs to build.**
+
+   DevTools has been updated to match Chromium m80 (3987), taken from the
+   [ChromeDevTools](https://github.com/ChromeDevTools/devtools-frontend/commit/757e0e1e1ffc4a0d36d005d120de5f73c1b910e0)
+   repo. This update now uses Rollup.js to build ES6 modules for the various
+   "applications" comprising the DevTools frontend, requiring nodejs to be
+   installed to build Cobalt (sudo apt-get install nodejs).
+
  - **DevTools and WebDriver listen to ANY interface, except on desktop PCs.**
 
    DevTools and WebDriver servers listen to connections on any network interface
    by default, except on desktop PCs (i.e. Linux and Win32) where they listen
-   only to loopback (localhost) by default. A new "--dev_servers_listen_ip"
+   only to loopback (localhost) by default. A new `--dev_servers_listen_ip`
    command line parameter can be used to specify a different interface for both
    of them to listen to.
 
@@ -37,10 +51,40 @@ This document records all notable changes made to Cobalt since the last release.
    MainWebModule thread.  Peak memory usage during downloading is also reduced.
    Also reduced redundant notifications from the NetworkModule thread to the
    MainWebModule thread on downloading progresses.
+
    CPU utilization of both threads is reduced by more than 10% with the above
    optimizations on some less powerful platforms during high bitrate content
    playback.  The lower CPU utilization of the MainWebModule thread allows it to
    process other tasks (like Javascript execution) more responsively.
+
+ - **Web Extension support is deprecated.**
+
+   Web Extension support is deprecated. Please migrate to
+   [Platform Services](doc/platform_services.md) instead. This is part of an
+   effort to move away from injecting compile-time modules into the Cobalt layer
+   in favor of using runtime extensions provided by the Starboard layer.
+
+- **Improved support of "dir" global DOM attribute.**
+
+   Although the "dir" attribute was supported in previous versions, it only
+   impacted text direction. Now layout will also abide by the "dir" attribute.
+   Additionally, dir="auto" is now supported. These changes are intended to
+   support right-to-left (RTL) languages.
+
+   NOTE: The CSS "direction" property is explicitly not supported since the
+   spec recommends using the "dir" attribute instead.
+
+ - **Local font package switched to WOFF2 format.**
+
+   All packaged fonts that were previously in TTF format are now converted to WOFF2.
+   This change compresses the default Cobalt font package size by about 38% (14MB)
+   and overall Cobalt package size with a standard font configuration by about 21%.
+   TTF and other font formats continue to be supported for remotely downloaded fonts
+   and system fonts.
+
+   In order to support native WOFF2 font loading, we've also updated our FreeType
+   version from 2.6.2 to 2.10.2. For a full list of FreeType updates included in
+   this change, visit www.freetype.org.
 
 ## Version 20
 
@@ -63,12 +107,12 @@ This document records all notable changes made to Cobalt since the last release.
    JPEG images are decoded into RGBA in previous versions of Cobalt.  The native
    format of most JPEG images is YV12, which takes only 3/8 of memory compare to
    RGBA.  Now JPEG images are decoded into multi-plane YUV images on platforms
-   with "rasterizer_type" set to "direct-gles".  As a result, when decoding to
+   with `rasterizer_type` set to `direct-gles`.  As a result, when decoding to
    multi-plane image is enabled, image cache size set by AutoMem will be reduced
    by half due to the more compact nature of the YUV image format versus RGB.
    This feature can also be enabled/disabled explicitly by passing command line
-   parameter "allow_image_decoding_to_multi_plane" to Cobalt with value "true"
-   or "false".
+   parameter `--allow_image_decoding_to_multi_plane` to Cobalt with value `true`
+   or `false`.
 
  - **Improved image cache purge strategy.**
 
@@ -171,7 +215,7 @@ This document records all notable changes made to Cobalt since the last release.
    options to be instead run-time options.  This will primarily be enabled
    by the new Starboard extensions framework.  An example of an platform
    specific option added in this way can be found in
-   `cobalt/extension/graphics.h`.
+   [cobalt/extension/graphics.h](extension/graphics.h).
 
  - **Cobalt code assumes that no errors are generated for unused parameters**
 
@@ -180,6 +224,7 @@ This document records all notable changes made to Cobalt since the last release.
    may need to adjust your Starboard configuration so that your compiler no
    longer emits this error, e.g. build with the `-Wno-unused-parameter`
    command line flag in GCC.
+
    `UNREFERENCED_PARAMETER` has been removed, but `SB_UNREFERENCED_PARAMETER`
    will continue to be supported.
 
@@ -209,23 +254,21 @@ This document records all notable changes made to Cobalt since the last release.
   configs support these types of compiler flag gyp variables.
 
  - **Improvements and Bug Fixes**
-
    - Fix bug where Cobalt would not refresh the layout when the textContent
      property of a DOM TextNode is modified.
-   - Media codecs can now be disabled with the “--disable_media_codecs” command
+   - Media codecs can now be disabled with the `--disable_media_codecs` command
      line option to help with debugging.
-   - Enable “--proxy” command line flag in gold builds of Cobalt.
+   - Enable `--proxy` command line flag in gold builds of Cobalt.
    - Add `GetMaximumFrameIntervalInMilliseconds()` platform Cobalt configuration
-     setting (in `cobalt/extension/graphics.h`) to allow a platform to indicate a
-     minimum framerate causing Cobalt to rerender the display even if nothing has
-     changed after the specified interval.
+     setting (in [cobalt/extension/graphics.h](extension/graphics.h)) to allow a
+     platform to indicate a minimum framerate causing Cobalt to rerender the
+     display even if nothing has changed after the specified interval.
    - Removed old embedded screen reader from Cobalt source code, all platforms
      should use the new JavaScript screen reader updated and shipped from YouTube
      now.
 
 ### Version 20.lts.3
  - **Improvements and Bug Fixes**
-
    - Fix a bug where deep links that are fired before the WebModule is loaded
      were ignored. Now Cobalt stores the last deep link fired before WebModule
      is loaded & handles the deep link once the WebModule is loaded.
@@ -234,8 +277,8 @@ This document records all notable changes made to Cobalt since the last release.
  - **Add support for V8 JavaScript Engine**
 
    Cobalt now supports V8 (in addition to SpiderMonkey) as JavaScript engines.
-   V8 can be enabled by setting the gyp variable 'javascript_engine' to 'v8',
-   and additionally setting the gyp variable 'cobalt_enable_jit' to 1.  These
+   V8 can be enabled by setting the gyp variable `javascript_engine` to `v8`,
+   and additionally setting the gyp variable `cobalt_enable_jit` to 1.  These
    variables should be set from your `gyp_configuration.py` Python file (and
    not for example your `gyp_configuration.gypi` file).
 
@@ -249,8 +292,9 @@ This document records all notable changes made to Cobalt since the last release.
    Cobalt's internal representation for persistent storage of cookies and local
    storage entries changed from sqlite3 to protobuf. The header of the
    SbStorageRecord blob was updated from SAV0 to SAV1 and all the data will be
-   migrated to the new format the next time Cobalt is launched.
-   The schema is available at cobalt/storage/store/storage.proto.
+   migrated to the new format the next time Cobalt is launched.  The schema is
+   available at
+   [cobalt/storage/store/storage.proto](storage/store/storage.proto).
 
  - **IPv4 Preference**
 
@@ -278,17 +322,17 @@ This document records all notable changes made to Cobalt since the last release.
    has been removed. Please update to version 3.x.
 
  - **Improvements and Bug Fixes**
-  - Fix pointer/mouse events not being dispatched to JavaScript in the same
-    order that they are generated by Starboard, relative to other input events
-    like key presses.
-  - Fix issue with CSS media queries not assigning correct rule indices.
-    An issue was discovered and fixed where CSS rules defined within `@media`
-    rules would be assigned a CSS rule index relative to their position within
-    the nested `@media` rule rather than being assigned an index relative to
-    their position within the parent CSS file.  As a result, rules may have been
-    assigned incorrect precedence during CSS rule matching.
-  - Fix issue where the style attribute would not appear in the string output
-    of calls to element.outerHTML.
+   - Fix pointer/mouse events not being dispatched to JavaScript in the same
+     order that they are generated by Starboard, relative to other input events
+     like key presses.
+   - Fix issue with CSS media queries not assigning correct rule indices.  An
+     issue was discovered and fixed where CSS rules defined within `@media`
+     rules would be assigned a CSS rule index relative to their position within
+     the nested `@media` rule rather than being assigned an index relative to
+     their position within the parent CSS file.  As a result, rules may have
+     been assigned incorrect precedence during CSS rule matching.
+   - Fix issue where the style attribute would not appear in the string output
+     of calls to element.outerHTML.
 
 ## Version 16
  - **Rebase libwebp to version 1.0.0**
@@ -323,15 +367,16 @@ This document records all notable changes made to Cobalt since the last release.
  - **Add support for cobalt_media_buffer_max_capacity**
 
    Allow bounding the max capacity allocated by decoder buffers, by setting the
-   gypi variables cobalt_media_buffer_max_capacity_1080p and
-   cobalt_media_buffer_max_capacity_4k. 1080p applies to all resolutions 1080p
+   gypi variables `cobalt_media_buffer_max_capacity_1080p` and
+   `cobalt_media_buffer_max_capacity_4k`. 1080p applies to all resolutions 1080p
    and below. Those values default to 0, which imposes no bounds. If non-zero,
    each capacity must be greater than or equal to the sum of the video budget
    and non video budget for that resolution (see
-   cobalt_media_buffer_video_buffer_1080p, cobalt_media_buffer_non_video_budget,
-   etc.), and the max capacities must be greater than or equal to the
-   corresponding initial capacities: cobalt_media_buffer_initial_capacity_1080p
-   and cobalt_media_buffer_initial_capacity_4k.
+   `cobalt_media_buffer_video_buffer_1080p`,
+   `cobalt_media_buffer_non_video_budget`, etc.), and the max capacities must be
+   greater than or equal to the corresponding initial capacities:
+   `cobalt_media_buffer_initial_capacity_1080p` `and
+   cobalt_media_buffer_initial_capacity_4k`.
 
 - **Fix issue with CSS animations not working with the 'outline' property**
 
@@ -365,10 +410,10 @@ This document records all notable changes made to Cobalt since the last release.
 
 - **Add support for MediaDevices.enumerateDevices()**
 
-   It is now possible to enumerate microphone devices from JavaScript via a
-   call to navigator.mediaDevices.enumerateDevices().  This returns a promise
-   of an array of MediaDeviceInfo objects, each partially implemented to have
-   valid `label` and `kind` attributes.
+   It is now possible to enumerate microphone devices from JavaScript via a call
+   to `navigator.mediaDevices.enumerateDevices()`.  This returns a promise of an
+   array of MediaDeviceInfo objects, each partially implemented to have valid
+   `label` and `kind` attributes.
 
 - **Improvements and Bug Fixes**
   - Fix for pseudo elements not visually updating when their CSS is modified
@@ -480,8 +525,8 @@ This document records all notable changes made to Cobalt since the last release.
    A frame rate counter is now made accessible.  It actually displays frame
    times, the inverse of frame rate.  In this case, 16.6ms corresponds to 60fps.
    It is accessible both as an overlay on the display by the command line
-   option, "--fps_overlay".  The data can also be printed to stdout with the
-   command line option "--fps_stdout".  The frame rate statistics will be
+   option, `--fps_overlay`.  The data can also be printed to stdout with the
+   command line option `--fps_stdout`.  The frame rate statistics will be
    updated each time an animation ends, or after 60 frames have been processed.
    Both command line flags are available in Gold builds.
 

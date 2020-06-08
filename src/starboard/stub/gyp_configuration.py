@@ -16,10 +16,16 @@
 import logging
 
 import config.base
-from starboard.build import clang
+from starboard.build import clang as clang_specification
 from starboard.tools import build
+from starboard.tools.toolchain import ar
+from starboard.tools.toolchain import bash
+from starboard.tools.toolchain import clang
+from starboard.tools.toolchain import clangxx
+from starboard.tools.toolchain import cp
+from starboard.tools.toolchain import touch
 
-_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi.json'
+_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json'
 
 
 def CreatePlatformConfig():
@@ -41,7 +47,6 @@ class StubConfiguration(config.base.PlatformConfigBase):
         configuration, use_clang=1)
     variables.update({
         'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
     })
     return variables
 
@@ -49,7 +54,7 @@ class StubConfiguration(config.base.PlatformConfigBase):
     if not hasattr(self, 'host_compiler_environment'):
       goma_supports_compiler = True
       self.host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang.GetClangSpecification(), goma_supports_compiler)
+          clang_specification.GetClangSpecification(), goma_supports_compiler)
 
     env_variables = self.host_compiler_environment
     env_variables.update({
@@ -57,6 +62,42 @@ class StubConfiguration(config.base.PlatformConfigBase):
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
+
+  def GetTargetToolchain(self, **kwargs):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC']
+    cxx_path = environment_variables['CXX']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
+
+  def GetHostToolchain(self, **kwargs):
+    environment_variables = self.GetEnvironmentVariables()
+    cc_path = environment_variables['CC_host']
+    cxx_path = environment_variables['CXX_host']
+
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
 
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.

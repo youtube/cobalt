@@ -24,10 +24,16 @@ namespace shared {
 namespace {
 
 const char* CobaltUserOnExitStrategy() {
+  // On Android, we almost never want to actually terminate the process, so
+  // instead indicate that we would instead like to be suspended when users
+  // initiate an "exit".
   return "suspend";
 }
 
 int CobaltEglSwapInterval() {
+  // Switch Android's SurfaceFlinger queue to "async mode" so that we don't
+  // queue up rendered frames which would interfere with frame timing and
+  // more importantly lead to input latency.
   return 0;
 }
 

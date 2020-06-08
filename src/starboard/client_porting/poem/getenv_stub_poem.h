@@ -17,6 +17,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_POEM_GETENV_STUB_POEM_H_
 #define STARBOARD_CLIENT_PORTING_POEM_GETENV_STUB_POEM_H_
 
+#if defined(STARBOARD)
+
 #include <stdlib.h>
 
 #include "starboard/configuration.h"
@@ -24,5 +26,7 @@
 static SB_C_INLINE const char* getenv(const char* unused) {
   return NULL;
 }
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_GETENV_STUB_POEM_H_

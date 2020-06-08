@@ -26,7 +26,7 @@
 #   2. Start Cobalt, and point it to the socket created in Step 1.
 #   3. Send 3 deep links.
 #   4. Load & run the javascript resource.
-#   5. Check to see if JSTestsSucceeded().
+#   5. Check to see if JSTestsSucceeded(), receiving only the last deep link.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -35,14 +35,15 @@ from __future__ import print_function
 import _env  # pylint: disable=unused-import,g-bad-import-order
 
 import os
-import SimpleHTTPServer
 import threading
 import traceback
-import urlparse
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+
+import SimpleHTTPServer
+import urlparse
 
 _FIRE_DEEP_LINK_BEFORE_LOAD_HTML = 'fire_deep_link_before_load.html'
 _FIRE_DEEP_LINK_BEFORE_LOAD_JS = 'fire_deep_link_before_load.js'
@@ -83,7 +84,8 @@ class FireDeepLinkBeforeLoad(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
 
-  def test_simple(self):
+  def test_send_link(self):
+    """Test sending links into Cobalt after it's started."""
 
     # Step 2. Start Cobalt, and point it to the socket created in Step 1.
     try:
@@ -101,7 +103,7 @@ class FireDeepLinkBeforeLoad(black_box_tests.BlackBoxTestCase):
           for i in range(1, 4):
             link = 'link ' + str(i)
             print('Sending link : ' + link)
-            self.assertTrue(runner.SendDeepLink(link) == 0)
+            self.assertTrue(runner.SendDeepLink(link))
           print('Links fired.')
           # Step 4. Load & run the javascript resource.
           _links_fired.set()
@@ -117,3 +119,15 @@ class FireDeepLinkBeforeLoad(black_box_tests.BlackBoxTestCase):
     finally:
       print('Cleaning up.')
       _links_fired.set()
+
+  def test_start_link(self):
+    """Test the initial link provided when starting Cobalt."""
+
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/' +
+                          _FIRE_DEEP_LINK_BEFORE_LOAD_HTML)
+      initial_deep_link = 'link 3'  # Expected by our test JS
+
+      with self.CreateCobaltRunner(
+          url=url, target_params=['--link=' + initial_deep_link]) as runner:
+        self.assertTrue(runner.JSTestsSucceeded())

@@ -512,7 +512,7 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 // syntax error. Most of error reporting is implemented in semantic actions
 // in the grammar.
 inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
-                    Scanner* /*scanner*/, const char* /*message*/) {
+                    Scanner* scanner, const char* message) {
   parser_impl->set_last_syntax_error_location(*source_location);
 }
 

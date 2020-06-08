@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <queue>
 #include <set>
 #include <string>
 
@@ -35,7 +36,7 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   std::string directory_name = files[0].filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
   EXPECT_TRUE(SbFileExists(directory_name.c_str()))
-      << "Directory_name is " << directory_name;
+      << "Missing directory: " << directory_name;
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(directory_name.c_str(), &error);
@@ -49,21 +50,20 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   }
 
   StringSet names_to_find(names);
-  int count = 0;
   while (true) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
     std::vector<char> entry(kSbFileMaxName, 0);
     if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
       break;
     }
     const char* entry_name = entry.data();
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
     SbDirectoryEntry entry = {0};
     if (!SbDirectoryGetNext(directory, &entry)) {
       break;
     }
     const char* entry_name = entry.name;
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
     // SbDirectoryEntry just contains the last component of the absolute path to
     // the file, but ScopedRandomFile::filename() returns the full path.
@@ -88,15 +88,91 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
 
+TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
+  std::string testdata_dir = GetFileTestsDataDir();
+  EXPECT_FALSE(testdata_dir.empty());
+  EXPECT_TRUE(SbFileExists(testdata_dir.c_str()))
+      << "Missing directory: " << testdata_dir;
+
+  // Make sure all the test directories and files are found exactly once.
+  StringSet paths_to_find;
+  for (auto path : GetFileTestsDirectoryPaths()) {
+    paths_to_find.insert(path);
+  }
+  for (auto path : GetFileTestsFilePaths()) {
+    paths_to_find.insert(path);
+  }
+
+  // Breadth-first traversal of our test data.
+  std::queue<std::string> directory_queue;
+  directory_queue.push(testdata_dir);
+  while (!directory_queue.empty()) {
+    std::string path = directory_queue.front();
+    directory_queue.pop();
+
+    SbFileError error = kSbFileErrorMax;
+    SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
+    EXPECT_TRUE(SbDirectoryIsValid(directory)) << "Can't open: " << path;
+    EXPECT_EQ(kSbFileOk, error) << "Error opening: " << path;
+
+    // Iterate all entries in this directory.
+    while (true) {
+#if SB_API_VERSION >= 12
+      std::vector<char> entry(kSbFileMaxName, 0);
+      if (!SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+        break;
+      }
+      std::string entry_name = entry.data();
+#else   // SB_API_VERSION >= 12
+      SbDirectoryEntry entry = {0};
+      if (!SbDirectoryGetNext(directory, &entry)) {
+        break;
+      }
+      std::string entry_name = entry.name;
+#endif  // SB_API_VERSION >= 12
+
+      // Accept and ignore '.' and '..' directories.
+      if (entry_name == "." || entry_name == "..") {
+        continue;
+      }
+
+      // Absolute path of the entry.
+      std::string entry_path = path + kSbFileSepChar + entry_name;
+
+      StringSet::iterator iterator = paths_to_find.find(entry_path);
+      if (iterator != paths_to_find.end()) {
+        paths_to_find.erase(iterator);
+      } else {
+        ADD_FAILURE() << "Unexpected entry: " << entry_path;
+      }
+
+      // Traverse into the subdirectory.
+      SbFileInfo file_info;
+      EXPECT_TRUE(SbFileGetPathInfo(entry_path.c_str(), &file_info));
+      if (file_info.is_directory) {
+        directory_queue.push(entry_path);
+      }
+    }
+
+    EXPECT_TRUE(SbDirectoryClose(directory));
+  }
+
+  // Make sure we found all of test data directories and files.
+  EXPECT_EQ(0, paths_to_find.size());
+  for (auto it = paths_to_find.begin(); it != paths_to_find.end(); ++it) {
+    ADD_FAILURE() << "Missing entry: " << *it;
+  }
+}
+
 TEST(SbDirectoryGetNextTest, FailureInvalidSbDirectory) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   std::vector<char> entry(kSbFileMaxName, 0);
   EXPECT_FALSE(
       SbDirectoryGetNext(kSbDirectoryInvalid, entry.data(), entry.size()));
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   SbDirectoryEntry entry = {0};
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, &entry));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 }
 
 TEST(SbDirectoryGetNextTest, FailureNullEntry) {
@@ -111,42 +187,23 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
   SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
   EXPECT_TRUE(SbDirectoryIsValid(directory));
   EXPECT_EQ(kSbFileOk, error);
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   EXPECT_FALSE(SbDirectoryGetNext(directory, NULL, kSbFileMaxName));
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else  // SB_API_VERSION >= 12
   EXPECT_FALSE(SbDirectoryGetNext(directory, NULL));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
 
 TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, kSbFileMaxName));
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 }
 
-TEST(SbDirectoryGetNextTest, FailureOnEmptyDirectory) {
-  ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-  const std::string& path = dir.filename();
-  ASSERT_TRUE(SbDirectoryCreate(path.c_str()));
-  SbFileError error = kSbFileErrorMax;
-  SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
-  ASSERT_TRUE(SbDirectoryIsValid(directory));
-  ASSERT_EQ(kSbFileOk, error);
-
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  std::vector<char> entry(kSbFileMaxName, 0);
-  EXPECT_FALSE(SbDirectoryGetNext(directory, entry.data(), entry.size()));
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  SbDirectoryEntry entry = {0};
-  EXPECT_FALSE(SbDirectoryGetNext(directory, &entry));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  ASSERT_TRUE(SbDirectoryClose(directory));
-}
-
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
 TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
   ScopedRandomFile file;
   std::string directory_name = file.filename();
@@ -170,7 +227,7 @@ TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
 
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
 }  // namespace
 }  // namespace nplb

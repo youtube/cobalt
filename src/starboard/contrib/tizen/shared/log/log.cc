@@ -31,7 +31,6 @@
 #define LOG_TAG "COBALT"
 
 void SbLog(SbLogPriority priority, const char* message) {
-  SB_UNREFERENCED_PARAMETER(priority);
   log_priority dlog_priority = DLOG_UNKNOWN;
 
   switch (priority) {

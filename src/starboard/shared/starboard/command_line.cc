@@ -176,7 +176,6 @@ void CommandLine::AppendArg(const CommandLine::StringType& value) {
 
 void CommandLine::AppendArguments(const CommandLine& other,
                                   bool include_program) {
-  SB_UNREFERENCED_PARAMETER(include_program);
   AppendSwitchesAndArguments(this, other.argv());
 }
 

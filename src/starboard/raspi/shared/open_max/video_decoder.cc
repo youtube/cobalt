@@ -73,7 +73,9 @@ void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
   SB_DCHECK(decoder_status_cb_);
+  SB_DCHECK(!eos_written_);
 
+  first_input_written_ = true;
   queue_.Put(new Event(input_buffer));
   if (!TryToDeliverOneFrame()) {
     SbThreadSleep(kSbTimeMillisecond);
@@ -84,12 +86,21 @@ void VideoDecoder::WriteInputBuffer(
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  queue_.Put(new Event(Event::kWriteEOS));
   eos_written_ = true;
+  if (first_input_written_) {
+    queue_.Put(new Event(Event::kWriteEOS));
+  } else {
+    decoder_status_cb_(kNeedMoreInput, VideoFrame::CreateEOSFrame());
+  }
 }
 
 void VideoDecoder::Reset() {
   queue_.Put(new Event(Event::kReset));
+  // TODO: we should introduce a wait here for |queue_| to be fully processed
+  // before returning however the wait time is very long (over 40 seconds).
+  // The cause for the long wait is unknown and should be investigated.
+  eos_written_ = false;
+  first_input_written_ = false;
 }
 
 void VideoDecoder::Update() {

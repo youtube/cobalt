@@ -52,6 +52,34 @@ class Application {
   // Signature for a function that will be called at the beginning of Teardown.
   typedef void (*TeardownCallback)(void);
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // Enumeration of states that the application can be in.
+  enum State {
+    // The initial Unstarted state.
+    kStateUnstarted,
+
+    // The normal foreground, fully-visible state after receiving the initial
+    // START event or after FOCUS from Blurred.
+    kStateStarted,
+
+    // The background-but-visible or partially-obscured state after receiving a
+    // BLUR event from Started or REVEAL event from Concealed.
+    kStateBlurred,
+
+    // The background-invisible state after receving a CONCEAL event from
+    // Blurred or UNFREEZE event from Frozen.
+    kStateConcealed,
+
+    // The fully-obscured or about-to-be-terminated state after receiving a
+    // FREEZE event in Concealed.
+    kStateFrozen,
+
+    // The completely terminated state after receiving the STOP event in the
+    // Frozen.
+    kStateStopped,
+  };
+#else
   // Enumeration of states that the application can be in.
   enum State {
     // The initial Unstarted state.
@@ -78,6 +106,8 @@ class Application {
     // Suspended state.
     kStateStopped,
   };
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
@@ -176,6 +206,72 @@ class Application {
   // NULL until Run() is called.
   const CommandLine* GetCommandLine();
 
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  // Signals that the application should transition from STARTED to BLURRED as
+  // soon as possible. Does nothing if already BLURRED or CONCEALED. May be
+  // called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Blur(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to STARTED as soon as
+  // possible, moving through all required state transitions to get there. Does
+  // nothing if already STARTED. May be called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Focus(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to CONCEALED from BLURRED
+  // as soon as possible, moving through all required state transitions to get
+  // there. Does nothing if already CONCEALED, FROZEN, or STOPPED. May be called
+  // from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Conceal(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to BLURRED from CONCEALED as
+  // soon as possible, moving through all required state transitions to get
+  // there. Does nothing if already STARTED or BLURRED. May be called from
+  // an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Reveal(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to FROZEN as soon as
+  // possible, moving through all required state transitions to get there. Does
+  // nothing if already FROZEN or STOPPED. May be called from an external
+  // thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Freeze(void* context, EventHandledCallback callback);
+
+  // Signals that the application should transition to CONCEALED from FROZEN as
+  // soon as possible. Does nothing if already CONCEALED, BLURRED, or STARTED.
+  // May be called from an external thread.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void Unfreeze(void* context, EventHandledCallback callback);
+
+  // Signals that the application should gracefully terminate as soon as
+  // possible. Will transition through BLURRED, CONCEALED and FROZEN to STOPPED
+  // as appropriate for the current state. May be called from an external
+  // thread.
+  void Stop(int error_level);
+
+#else
   // Signals that the application should transition from STARTED to PAUSED as
   // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
   // called from an external thread.
@@ -216,6 +312,8 @@ class Application {
   // possible. Will transition through PAUSED and SUSPENDED to STOPPED as
   // appropriate for the current state. May be called from an external thread.
   void Stop(int error_level);
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   // Injects a link event to the application with the given |link_data|, which
   // must be a null-terminated string. Makes a copy of |link_data|, so it only
@@ -284,13 +382,13 @@ class Application {
 
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
-  virtual void AcceptFrame(SbPlayer /* player */,
-                           const scoped_refptr<VideoFrame>& /* frame */,
-                           int /* z_index */,
-                           int /* x */,
-                           int /* y */,
-                           int /* width */,
-                           int /* height */) {}
+  virtual void AcceptFrame(SbPlayer player,
+                           const scoped_refptr<VideoFrame>& frame,
+                           int z_index,
+                           int x,
+                           int y,
+                           int width,
+                           int height) {}
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

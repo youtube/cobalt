@@ -33,43 +33,32 @@ namespace iso {
 namespace impl {
 
 bool SbDirectoryGetNext(SbDirectory directory,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
                         char* out_entry,
                         size_t out_entry_size) {
   if (out_entry_size < kSbFileMaxName) {
     return false;
   }
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else  // SB_API_VERSION >= 12
                         SbDirectoryEntry* out_entry) {
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
   if (!directory || !directory->directory || !out_entry) {
     return false;
   }
 
-  // Look for the first directory that isn't current or parent.
   struct dirent dirent_buffer;
   struct dirent* dirent;
-  int result;
-  do {
-    result = readdir_r(directory->directory, &dirent_buffer, &dirent);
-    if (!result && dirent) {
-      if ((SbStringCompareAll(dirent->d_name, ".") == 0) ||
-          (SbStringCompareAll(dirent->d_name, "..") == 0)) {
-        continue;
-      } else {
-        break;
-      }
-    } else {
-      return false;
-    }
-  } while (true);
+  int result = readdir_r(directory->directory, &dirent_buffer, &dirent);
+  if (result || !dirent) {
+    return false;
+  }
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#if SB_API_VERSION >= 12
   SbStringCopy(out_entry, dirent->d_name, out_entry_size);
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#else   // SB_API_VERSION >= 12
   SbStringCopy(out_entry->name, dirent->d_name,
                SB_ARRAY_SIZE_INT(out_entry->name));
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
+#endif  // SB_API_VERSION >= 12
 
   return true;
 }

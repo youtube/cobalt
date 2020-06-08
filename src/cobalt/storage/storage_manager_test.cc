@@ -88,7 +88,6 @@ class MemoryStoreWaiter : public CallbackWaiter {
  public:
   MemoryStoreWaiter() {}
   void OnMemoryStore(MemoryStore* memory_store) {
-    SB_UNREFERENCED_PARAMETER(memory_store);
     Signal();
   }
 
@@ -100,7 +99,6 @@ class ReadOnlyMemoryStoreWaiter : public CallbackWaiter {
  public:
   ReadOnlyMemoryStoreWaiter() {}
   void OnMemoryStore(const MemoryStore& memory_store) {
-    SB_UNREFERENCED_PARAMETER(memory_store);
     Signal();
   }
 

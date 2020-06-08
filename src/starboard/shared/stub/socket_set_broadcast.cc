@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketSetBroadcast(SbSocket /*socket*/, bool /*value*/) {
+bool SbSocketSetBroadcast(SbSocket socket, bool value) {
   return false;
 }

@@ -29,7 +29,7 @@
  * @implements {Common.ContentProvider}
  * @unrestricted
  */
-SDK.Resource = class {
+export default class Resource {
   /**
    * @param {!SDK.ResourceTreeModel} resourceTreeModel
    * @param {?SDK.NetworkRequest} request
@@ -57,18 +57,21 @@ SDK.Resource = class {
     this._contentSize = contentSize;
 
     /** @type {?string} */ this._content;
+    /** @type {?string} */ this._contentLoadError;
     /** @type {boolean} */ this._contentEncoded;
     this._pendingContentCallbacks = [];
-    if (this._request && !this._request.finished)
+    if (this._request && !this._request.finished) {
       this._request.addEventListener(SDK.NetworkRequest.Events.FinishedLoading, this._requestFinished, this);
+    }
   }
 
   /**
    * @return {?Date}
    */
   lastModified() {
-    if (this._lastModified || !this._request)
+    if (this._lastModified || !this._request) {
       return this._lastModified;
+    }
     const lastModifiedHeader = this._request.responseLastModified();
     const date = lastModifiedHeader ? new Date(lastModifiedHeader) : null;
     this._lastModified = date && date.isValid() ? date : null;
@@ -79,8 +82,9 @@ SDK.Resource = class {
    * @return {?number}
    */
   contentSize() {
-    if (typeof this._contentSize === 'number' || !this._request)
+    if (typeof this._contentSize === 'number' || !this._request) {
       return this._contentSize;
+    }
     return this._request.resourceSize;
   }
 
@@ -172,8 +176,9 @@ SDK.Resource = class {
    * @return {!Common.ResourceType}
    */
   contentType() {
-    if (this.resourceType() === Common.resourceTypes.Document && this.mimeType.indexOf('javascript') !== -1)
+    if (this.resourceType() === Common.resourceTypes.Document && this.mimeType.indexOf('javascript') !== -1) {
       return Common.resourceTypes.Script;
+    }
     return this.resourceType();
   }
 
@@ -188,17 +193,19 @@ SDK.Resource = class {
 
   /**
    * @override
-   * @return {!Promise<?string>}
+   * @return {!Promise<!Common.DeferredContent>}
    */
   requestContent() {
-    if (typeof this._content !== 'undefined')
-      return Promise.resolve(this._content);
+    if (typeof this._content !== 'undefined') {
+      return Promise.resolve({content: /** @type {string} */ (this._content), isEncoded: this._contentEncoded});
+    }
 
     let callback;
     const promise = new Promise(fulfill => callback = fulfill);
     this._pendingContentCallbacks.push(callback);
-    if (!this._request || this._request.finished)
+    if (!this._request || this._request.finished) {
       this._innerRequestContent();
+    }
     return promise;
   }
 
@@ -217,10 +224,12 @@ SDK.Resource = class {
    * @return {!Promise<!Array<!Common.ContentProvider.SearchMatch>>}
    */
   async searchInContent(query, caseSensitive, isRegex) {
-    if (!this.frameId)
+    if (!this.frameId) {
       return [];
-    if (this.request)
+    }
+    if (this.request) {
       return this.request.searchInContent(query, caseSensitive, isRegex);
+    }
     const result = await this._resourceTreeModel.target().pageAgent().searchInResource(
         this.frameId, this.url, query, caseSensitive, isRegex);
     return result || [];
@@ -229,48 +238,55 @@ SDK.Resource = class {
   /**
    * @param {!Element} image
    */
-  populateImageSource(image) {
-    /**
-     * @param {?string} content
-     * @this {SDK.Resource}
-     */
-    function onResourceContent(content) {
-      let imageSrc = Common.ContentProvider.contentAsDataURL(content, this._mimeType, true);
-      if (imageSrc === null)
-        imageSrc = this._url;
-      image.src = imageSrc;
-    }
-
-    this.requestContent().then(onResourceContent.bind(this));
+  async populateImageSource(image) {
+    const {content} = await this.requestContent();
+    const encoded = this._contentEncoded;
+    image.src = Common.ContentProvider.contentAsDataURL(content, this._mimeType, encoded) || this._url;
   }
 
   _requestFinished() {
     this._request.removeEventListener(SDK.NetworkRequest.Events.FinishedLoading, this._requestFinished, this);
-    if (this._pendingContentCallbacks.length)
+    if (this._pendingContentCallbacks.length) {
       this._innerRequestContent();
+    }
   }
 
   async _innerRequestContent() {
-    if (this._contentRequested)
+    if (this._contentRequested) {
       return;
+    }
     this._contentRequested = true;
 
+    /** @type {!Common.DeferredContent} */
+    let loadResult;
     if (this.request) {
       const contentData = await this.request.contentData();
       this._content = contentData.content;
       this._contentEncoded = contentData.encoded;
+      loadResult = {content: /** @type{string} */ (contentData.content), isEncoded: contentData.encoded};
     } else {
       const response = await this._resourceTreeModel.target().pageAgent().invoke_getResourceContent(
           {frameId: this.frameId, url: this.url});
-      this._content = response[Protocol.Error] ? null : response.content;
+      if (response[Protocol.Error]) {
+        this._contentLoadError = response[Protocol.Error];
+        this._content = null;
+        loadResult = {error: response[Protocol.Error], isEncoded: false};
+      } else {
+        this._content = response.content;
+        this._contentLoadError = null;
+        loadResult = {content: response.content, isEncoded: response.base64Encoded};
+      }
       this._contentEncoded = response.base64Encoded;
     }
 
-    if (this._content === null)
+    if (this._content === null) {
       this._contentEncoded = false;
+    }
 
-    for (const callback of this._pendingContentCallbacks.splice(0))
-      callback(this._content);
+    for (const callback of this._pendingContentCallbacks.splice(0)) {
+      callback(loadResult);
+    }
+
     delete this._contentRequested;
   }
 
@@ -278,10 +294,12 @@ SDK.Resource = class {
    * @return {boolean}
    */
   hasTextContent() {
-    if (this._type.isTextType())
+    if (this._type.isTextType()) {
       return true;
-    if (this._type === Common.resourceTypes.Other)
+    }
+    if (this._type === Common.resourceTypes.Other) {
       return !!this._content && !this._contentEncoded;
+    }
     return false;
   }
 
@@ -291,4 +309,13 @@ SDK.Resource = class {
   frame() {
     return this._resourceTreeModel.frameForId(this._frameId);
   }
-};
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.Resource = Resource;

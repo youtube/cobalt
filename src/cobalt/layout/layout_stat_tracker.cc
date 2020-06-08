@@ -117,7 +117,7 @@ base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
   return stop_watch_durations_[type];
 }
 
-bool LayoutStatTracker::IsStopWatchEnabled(int /*id*/) const {
+bool LayoutStatTracker::IsStopWatchEnabled(int id) const {
   return is_tracking_event_;
 }
 

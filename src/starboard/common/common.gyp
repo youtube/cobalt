@@ -34,7 +34,6 @@
         'locked_ptr.h',
         'log.cc',
         'log.h',
-        'memory.cc',
         'move.h',
         'murmurhash2.cc',
         'murmurhash2.h',
@@ -70,11 +69,6 @@
 
         'experimental/concurrency_debug.cc',
         'experimental/concurrency_debug.h',
-      ],
-      'defines': [
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
       ],
       'conditions': [
         ['custom_media_session_client==0', {

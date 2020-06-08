@@ -27,7 +27,6 @@ TEST(SbWindowGetPlatformHandleTest, SunnyDay) {
   // 0 could actually be a valid value here, because we don't know what the
   // platform uses as its native window handle type, so we can't do any
   // verification here.
-  SB_UNREFERENCED_PARAMETER(handle);
   ASSERT_TRUE(SbWindowDestroy(window));
 }
 
@@ -35,7 +34,6 @@ TEST(SbWindowGetPlatformHandleTest, RainyDay) {
   void* handle = SbWindowGetPlatformHandle(kSbWindowInvalid);
   // We don't know what the platform's invalid window handle value is, so we
   // can't do any verification here.
-  SB_UNREFERENCED_PARAMETER(handle);
 }
 
 }  // namespace

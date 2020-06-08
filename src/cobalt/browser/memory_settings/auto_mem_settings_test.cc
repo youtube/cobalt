@@ -132,8 +132,7 @@ TEST(AutoMemSettingsTest, InitialState) {
 
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
   EXPECT_EQ(AutoMemSettings::kTypeBuild, build_settings.type);
-  EXPECT_TRUE(build_settings.max_cpu_in_bytes);
-  EXPECT_EQ(0, *build_settings.max_cpu_in_bytes);
+  EXPECT_FALSE(build_settings.max_cpu_in_bytes);
 }
 
 // Tests the expectation that numerous string variations (whole numbers vs

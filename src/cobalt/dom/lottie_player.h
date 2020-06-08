@@ -17,33 +17,62 @@
 
 #include <string>
 
+#include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
+#include "cobalt/render_tree/lottie_animation.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/union_type.h"
 
 namespace cobalt {
 namespace dom {
 
 class Document;
 
+typedef render_tree::LottieAnimation LottieAnimation;
+
 // Custom element that represents a Lottie web player, which embeds and plays
 // Lottie animations.
 // Although LottiePlayer does not inherit from HTMLImageElement, much of its
 // functionality is based off that of HTMLImageElement - in particular, loading
 // the animation pointed to by the "src" attribute.
-//   https://github.com/LottieFiles/lottie-player
+//   https://lottiefiles.github.io/lottie-player/
 class LottiePlayer : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit LottiePlayer(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+  typedef script::UnionType2<double, std::string> FrameType;
+
+  explicit LottiePlayer(Document* document);
 
   // Web API: LottiePlayer
   //
-  std::string src() const { return GetAttribute("src").value_or(""); }
-  void set_src(const std::string& src) { SetAttribute("src", src); }
+  std::string src() const;
+  void set_src(const std::string& src);
+  bool autoplay() const;
+  void set_autoplay(bool loop);
+  int count() const;
+  void set_count(int count);
+  int direction() const;
+  void set_direction(int direction);
+  bool loop() const;
+  void set_loop(bool loop);
+  std::string mode() const;
+  void set_mode(std::string mode);
+  double speed() const;
+  void set_speed(double speed);
+  std::string renderer() const;
+  void Load(std::string src);
+  void Play();
+  void Pause();
+  void Stop();
+  void Seek(FrameType frame);
+  void SetDirection(int direction);
+  void SetLooping(bool loop);
+  void SetSpeed(double speed);
+  void ToggleLooping();
+  void TogglePlay();
 
   // Custom, not in any spec
   //
@@ -53,6 +82,8 @@ class LottiePlayer : public HTMLElement {
   const scoped_refptr<loader::image::CachedImage>& cached_image() {
     return cached_image_;
   }
+
+  LottieAnimation::LottieProperties GetUpdatedProperties();
 
   DEFINE_WRAPPABLE_TYPE(LottiePlayer);
 
@@ -81,12 +112,32 @@ class LottiePlayer : public HTMLElement {
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
 
+  void UpdateState(LottieAnimation::LottieState state);
+  void UpdatePlaybackStateForAutoplay();
+  void SetCount(int count);
+  void SetMode(std::string mode);
+  void SetMode(LottieAnimation::LottieMode mode);
+  void UpdateLottieObjects();
+
+  void ScheduleEvent(base::Token event_name);
+  void SetAnimationEventCallbacks();
+
+  void OnComplete();
+  void OnLoop();
+
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
 
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_load_complete_;
+
+  // Indicates whether playback is dictated by the "autoplay" attributes, or
+  // if other playback methods have been called.
+  bool autoplaying_;
+  LottieAnimation::LottieProperties properties_;
+
+  EventQueue event_queue_;
 };
 
 }  // namespace dom

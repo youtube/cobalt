@@ -64,8 +64,6 @@ class MediaModule : public WebMediaPlayerFactory,
   // already been set to the expected value.  Returns false when the setting is
   // invalid or not set to the expected value.
   bool SetConfiguration(const std::string& name, int32 value) {
-    SB_UNREFERENCED_PARAMETER(name);
-    SB_UNREFERENCED_PARAMETER(value);
     return false;
   }
 

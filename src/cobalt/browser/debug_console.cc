@@ -31,7 +31,7 @@ namespace browser {
 namespace {
 // Files for the debug console web page are bundled with the executable.
 const char kInitialDebugConsoleUrl[] =
-    "file:///cobalt/debug/console/debug_console.html";
+    "file:///debug_console/debug_console.html";
 
 const char kDebugConsoleModeOffString[] = "off";
 const char kDebugConsoleModeHudString[] = "hud";
@@ -97,8 +97,6 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::CreateDebugClientCallback& create_debug_client_callback,
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(global_environment);
   return new debug::console::DebugHub(get_hud_mode_function,
                                       create_debug_client_callback);
 }
@@ -186,8 +184,7 @@ bool DebugConsole::FilterPointerEvent(base::Token type,
   return false;
 }
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 bool DebugConsole::FilterOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
   // Return true to indicate the event should still be handled.
@@ -196,7 +193,7 @@ bool DebugConsole::FilterOnScreenKeyboardInputEvent(
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
   return false;
 }
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::CycleMode() {

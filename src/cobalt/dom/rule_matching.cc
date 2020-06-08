@@ -175,7 +175,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // The universal selector represents the qualified name of any element type.
   //   https://www.w3.org/TR/selectors4/#universal-selector
   void VisitUniversalSelector(
-      cssom::UniversalSelector* /* universal_selector */) override {}
+      cssom::UniversalSelector* universal_selector) override {}
 
   // A type selector represents an instance of the element type in the document
   // tree.

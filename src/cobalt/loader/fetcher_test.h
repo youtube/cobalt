@@ -45,7 +45,6 @@ class FetcherHandlerForTest : public Fetcher::Handler {
         FROM_HERE, run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
-    SB_UNREFERENCED_PARAMETER(error);
     CheckFetcher(fetcher);
     base::MessageLoop::current()->task_runner()->PostTask(
         FROM_HERE, run_loop_->QuitClosure());

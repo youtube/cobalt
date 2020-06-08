@@ -5,18 +5,19 @@
 /**
  * @implements {Protocol.InspectorDispatcher}
  */
-Components.TargetDetachedDialog = class extends SDK.SDKModel {
+export default class TargetDetachedDialog extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
   constructor(target) {
     super(target);
-    if (target.parentTarget())
+    if (target.parentTarget()) {
       return;
+    }
     target.registerInspectorDispatcher(this);
     target.inspectorAgent().enable();
     this._hideCrashedDialog = null;
-    Components.TargetDetachedDialog._disconnectedScreenWithReasonWasShown = false;
+    TargetDetachedDialog._disconnectedScreenWithReasonWasShown = false;
   }
 
   /**
@@ -24,12 +25,12 @@ Components.TargetDetachedDialog = class extends SDK.SDKModel {
    * @param {string} reason
    */
   detached(reason) {
-    Components.TargetDetachedDialog._disconnectedScreenWithReasonWasShown = true;
+    TargetDetachedDialog._disconnectedScreenWithReasonWasShown = true;
     UI.RemoteDebuggingTerminatedScreen.show(reason);
   }
 
   static webSocketConnectionLost() {
-    UI.RemoteDebuggingTerminatedScreen.show('WebSocket disconnected');
+    UI.RemoteDebuggingTerminatedScreen.show(ls`WebSocket disconnected`);
   }
 
   /**
@@ -49,11 +50,21 @@ Components.TargetDetachedDialog = class extends SDK.SDKModel {
    * @override;
    */
   targetReloadedAfterCrash() {
+    this.target().runtimeAgent().runIfWaitingForDebugger();
     if (this._hideCrashedDialog) {
       this._hideCrashedDialog.call(null);
       this._hideCrashedDialog = null;
     }
   }
-};
+}
 
-SDK.SDKModel.register(Components.TargetDetachedDialog, SDK.Target.Capability.Inspector, true);
+/* Legacy exported object */
+self.Components = self.Components || {};
+
+/* Legacy exported object */
+Components = Components || {};
+
+/** @constructor */
+Components.TargetDetachedDialog = TargetDetachedDialog;
+
+SDK.SDKModel.register(TargetDetachedDialog, SDK.Target.Capability.Inspector, true);

@@ -32,10 +32,10 @@ class LinuxX64WaylandConfiguration(shared_configuration.LinuxConfiguration):
     super(LinuxX64WaylandConfiguration, self).__init__(
         platform_name, asan_enabled_by_default, goma_supports_compiler)
 
-  def GetTargetToolchain(self):
-    return self.GetHostToolchain()
+  def GetTargetToolchain(self, **kwargs):
+    return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self):
+  def GetHostToolchain(self, **kwargs):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']

@@ -17,14 +17,26 @@
 
 #include "starboard/common/byte_swap.h"
 
-int16_t SbByteSwapS16(int16_t /*value*/) { return 0; }
+int16_t SbByteSwapS16(int16_t value) {
+  return 0;
+}
 
-uint16_t SbByteSwapU16(uint16_t /*value*/) { return 0; }
+uint16_t SbByteSwapU16(uint16_t value) {
+  return 0;
+}
 
-int32_t SbByteSwapS32(int32_t /*value*/) { return 0; }
+int32_t SbByteSwapS32(int32_t value) {
+  return 0;
+}
 
-uint32_t SbByteSwapU32(uint32_t /*value*/) { return 0; }
+uint32_t SbByteSwapU32(uint32_t value) {
+  return 0;
+}
 
-int64_t SbByteSwapS64(int64_t /*value*/) { return 0; }
+int64_t SbByteSwapS64(int64_t value) {
+  return 0;
+}
 
-uint64_t SbByteSwapU64(uint64_t /*value*/) { return 0; }
+uint64_t SbByteSwapU64(uint64_t value) {
+  return 0;
+}

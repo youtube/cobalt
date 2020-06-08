@@ -122,7 +122,6 @@ void LogWriterTool::OnMapMemory(void* context, const void* memory,
 
 void LogWriterTool::OnUnMapMemory(void* context, const void* memory,
                                   size_t size) {
-  SB_UNREFERENCED_PARAMETER(size);
   LogWriterTool* self = static_cast<LogWriterTool*>(context);
   self->OnMemoryDeallocation(memory);
 }

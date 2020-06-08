@@ -14,6 +14,6 @@
 
 #include "starboard/player.h"
 
-bool SbPlayerSetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) {
+bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   return false;
 }

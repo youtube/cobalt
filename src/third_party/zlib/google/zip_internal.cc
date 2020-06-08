@@ -28,6 +28,7 @@
 #endif  // defined(USE_SYSTEM_MINIZIP)
 
 #if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
 

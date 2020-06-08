@@ -32,6 +32,9 @@ namespace filter {
 namespace testing {
 namespace {
 
+using ::testing::AssertionFailure;
+using ::testing::AssertionResult;
+using ::testing::AssertionSuccess;
 using video_dmp::VideoDmpReader;
 
 std::string GetTestInputDirectory() {
@@ -56,9 +59,6 @@ std::string GetTestInputDirectory() {
 void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(context);
-  SB_UNREFERENCED_PARAMETER(sample_buffer);
 }
 
 std::string ResolveTestFileName(const char* filename) {
@@ -104,9 +104,9 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
     VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
                                 "",  // content_type
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
                                 dmp_reader.audio_bitrate())) {
       test_params_with_heaac.push_back(filename);
       if (SbStringFindString(filename, "heaac") == nullptr) {
@@ -155,9 +155,9 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
       if (SbMediaIsVideoSupported(
               dmp_reader.video_codec(),
-#if SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#if SB_API_VERSION >= 12
               "",  // content_type
-#endif  // SB_API_VERSION >= SB_MEDIA_SUPPORT_QUERY_WITH_CONTENT_TYPE_VERSION
+#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
@@ -168,7 +168,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
               video_sample_info->frame_width, video_sample_info->frame_height,
 #endif  // SB_API_VERSION >= 11
               dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
-        test_params.push_back({filename, output_mode});
+        test_params.push_back(std::make_tuple(filename, output_mode));
       }
     }
   }
@@ -208,6 +208,36 @@ bool CreateAudioComponents(bool using_stub_decoder,
   audio_decoder->reset();
   return false;
 }
+
+AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
+  const SbTime kEpsilon = kSbTimeSecond / 1000;
+  SbTime diff = time1 - time2;
+  if (-kEpsilon <= diff && diff <= kEpsilon) {
+    return AssertionSuccess();
+  }
+  return AssertionFailure()
+         << "time " << time1 << " doesn't match with time " << time2;
+}
+
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
+  shared::starboard::media::VideoSampleInfo video_sample_info = {};
+
+  video_sample_info.codec = codec;
+  video_sample_info.mime = "";
+  video_sample_info.max_video_capabilities = "";
+
+  video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
+  video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
+  video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
+  video_sample_info.color_metadata.range = kSbMediaRangeIdLimited;
+
+  video_sample_info.frame_width = 1920;
+  video_sample_info.frame_height = 1080;
+
+  return video_sample_info;
+}
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter

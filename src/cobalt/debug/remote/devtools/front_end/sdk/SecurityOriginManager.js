@@ -4,16 +4,22 @@
 /**
  * @unrestricted
  */
-SDK.SecurityOriginManager = class extends SDK.SDKModel {
+export default class SecurityOriginManager extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
   constructor(target) {
     super(target);
 
+    // if a URL is unreachable, the browser will jump to an error page at
+    // 'chrome-error://chromewebdata/', and |this._mainSecurityOrigin| stores
+    // its origin. In this situation, the original unreachable URL's security
+    // origin will be stored in |this._unreachableMainSecurityOrigin|.
+    this._mainSecurityOrigin = '';
+    this._unreachableMainSecurityOrigin = '';
+
     /** @type {!Set<string>} */
     this._securityOrigins = new Set();
-    this._mainSecurityOrigin = '';
   }
 
   /**
@@ -24,13 +30,15 @@ SDK.SecurityOriginManager = class extends SDK.SDKModel {
     this._securityOrigins = securityOrigins;
 
     for (const origin of oldOrigins) {
-      if (!this._securityOrigins.has(origin))
-        this.dispatchEventToListeners(SDK.SecurityOriginManager.Events.SecurityOriginRemoved, origin);
+      if (!this._securityOrigins.has(origin)) {
+        this.dispatchEventToListeners(Events.SecurityOriginRemoved, origin);
+      }
     }
 
     for (const origin of this._securityOrigins) {
-      if (!oldOrigins.has(origin))
-        this.dispatchEventToListeners(SDK.SecurityOriginManager.Events.SecurityOriginAdded, origin);
+      if (!oldOrigins.has(origin)) {
+        this.dispatchEventToListeners(Events.SecurityOriginAdded, origin);
+      }
     }
   }
 
@@ -49,19 +57,44 @@ SDK.SecurityOriginManager = class extends SDK.SDKModel {
   }
 
   /**
-   * @param {string} securityOrigin
+   * @return {string}
    */
-  setMainSecurityOrigin(securityOrigin) {
-    this._mainSecurityOrigin = securityOrigin;
-    this.dispatchEventToListeners(SDK.SecurityOriginManager.Events.MainSecurityOriginChanged, securityOrigin);
+  unreachableMainSecurityOrigin() {
+    return this._unreachableMainSecurityOrigin;
   }
-};
 
-SDK.SDKModel.register(SDK.SecurityOriginManager, SDK.Target.Capability.None, false);
+  /**
+   * @param {string} securityOrigin
+   * @param {string} unreachableSecurityOrigin
+   */
+  setMainSecurityOrigin(securityOrigin, unreachableSecurityOrigin) {
+    this._mainSecurityOrigin = securityOrigin;
+    this._unreachableMainSecurityOrigin = unreachableSecurityOrigin || null;
+    this.dispatchEventToListeners(Events.MainSecurityOriginChanged, {
+      mainSecurityOrigin: this._mainSecurityOrigin,
+      unreachableMainSecurityOrigin: this._unreachableMainSecurityOrigin
+    });
+  }
+}
 
 /** @enum {symbol} */
-SDK.SecurityOriginManager.Events = {
+export const Events = {
   SecurityOriginAdded: Symbol('SecurityOriginAdded'),
   SecurityOriginRemoved: Symbol('SecurityOriginRemoved'),
   MainSecurityOriginChanged: Symbol('MainSecurityOriginChanged')
 };
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.SecurityOriginManager = SecurityOriginManager;
+
+/** @enum {symbol} */
+SDK.SecurityOriginManager.Events = Events;
+
+// TODO(jarhar): this is the only usage of Capability.None. Do something about it!
+SDK.SDKModel.register(SDK.SecurityOriginManager, SDK.Target.Capability.None, false);

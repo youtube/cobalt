@@ -42,7 +42,7 @@
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 namespace cobalt {
 
@@ -128,6 +128,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 #endif  // COBALT_RENDERER_RASTERIZER_BLITTER_RENDER_TREE_NODE_VISITOR_H_

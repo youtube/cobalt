@@ -14,6 +14,6 @@
 
 #include "starboard/common/socket.h"
 
-bool SbSocketIsConnectedAndIdle(SbSocket /*socket*/) {
+bool SbSocketIsConnectedAndIdle(SbSocket socket) {
   return false;
 }

@@ -405,37 +405,22 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRendererImpl::ConsumeFrames(int frames_consumed
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-                                      ,
-                                      SbTime frames_consumed_at
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-) {
+void AudioRendererImpl::ConsumeFrames(int frames_consumed,
+                                      SbTime frames_consumed_at) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-// Note that occasionally thread context switch may cause that the time
-// recorded here is several milliseconds later than the time |frames_consumed|
-// is recorded.  This causes the audio time to drift as much as the difference
-// between the two times.
-// This is usually not a huge issue as:
-// 1. It happens rarely.
-// 2. It doesn't accumulate.
-// 3. It doesn't affect frame presenting even with a 60fps video.
-// However, if this ever becomes a problem, we can smooth it out over multiple
-// ConsumeFrames() calls.
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-  if (!kSbHasAsyncAudioFramesReporting) {
-    frames_consumed_at = SbTimeGetMonotonicNow();
-  }
-#elif SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION && \
-    !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  SbTime frames_consumed_at = SbTimeGetMonotonicNow();
-#endif  // SB_API_VERSION < SB_FEATURE_RUNTIME_CONFIGS_VERSION &&
-        // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  // Note that occasionally thread context switch may cause that the time
+  // recorded here is several milliseconds later than the time |frames_consumed|
+  // is recorded.  This causes the audio time to drift as much as the difference
+  // between the two times.
+  // This is usually not a huge issue as:
+  // 1. It happens rarely.
+  // 2. It doesn't accumulate.
+  // 3. It doesn't affect frame presenting even with a 60fps video.
+  // However, if this ever becomes a problem, we can smooth it out over multiple
+  // ConsumeFrames() calls.
 
   ScopedTryLock lock(mutex_);
   if (lock.is_locked()) {

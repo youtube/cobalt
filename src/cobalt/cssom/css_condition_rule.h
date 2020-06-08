@@ -42,7 +42,6 @@ class CSSConditionRule : public CSSGroupingRule {
   //
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) override {
-    SB_UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
 

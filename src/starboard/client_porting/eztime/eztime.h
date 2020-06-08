@@ -15,6 +15,8 @@
 #ifndef STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 #define STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
 
+#if defined(STARBOARD)
+
 #include "starboard/common/log.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -206,5 +208,7 @@ EzTimeT EzTimeTImplodeUTC(EzTimeExploded* SB_RESTRICT exploded);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_

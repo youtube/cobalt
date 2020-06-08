@@ -1,3 +1,5 @@
+# Lint as: python2
+
 # Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,6 +15,7 @@
 # limitations under the License.
 """Utilities to use the toolchain from the Android NDK."""
 
+import errno
 import fcntl
 import logging
 import os
@@ -21,27 +24,26 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib
 import zipfile
+import requests
 
 from starboard.tools import build
 
 # Which version of the Android NDK and CMake to install and build with.
 # Note that build.gradle parses these out of this file too.
-_NDK_VERSION = '21.0.6113669'
+_NDK_VERSION = '21.1.6352462'
 _CMAKE_VERSION = '3.10.2.4988404'
 
 # Packages to install in the Android SDK.
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;29.0.2',
+    'build-tools;30.0.0-rc4',  # TODO: Change to the stable released SDK
     'cmake;' + _CMAKE_VERSION,
     'cmdline-tools;1.0',
     'emulator',
     'extras;android;m2repository',
     'extras;google;m2repository',
-    'lldb;3.1',
     'ndk;' + _NDK_VERSION,
     'patcher;v4',
     'platforms;android-29',
@@ -88,7 +90,16 @@ def GetSdkPath():
 
 
 def _DownloadAndUnzipFile(url, destination_path):
-  dl_file, dummy_headers = urllib.urlretrieve(url)
+  """Download a zip file from a url and uncompress it."""
+  shutil.rmtree(destination_path, ignore_errors=True)
+  try:
+    os.makedirs(destination_path)
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
+  dl_file = os.path.join(destination_path, 'tmp.zip')
+  request = requests.get(url, allow_redirects=True)
+  open(dl_file, 'wb').write(request.content)
   _UnzipFile(dl_file, destination_path)
 
 
@@ -125,8 +136,7 @@ def InstallSdkIfNeeded():
         logging.warning(msg)
 
       if not os.path.exists(GetNdkPath()):
-        logging.error('Error: ANDROID_HOME is is missing NDK %s.',
-                      _NDK_VERSION)
+        logging.error('Error: ANDROID_HOME is is missing NDK %s.', _NDK_VERSION)
         sys.exit(1)
 
       reply = raw_input(
@@ -163,8 +173,8 @@ def _GetInstalledSdkPackages():
   section_re = re.compile(r'^[A-Z][^:]*:$')
   version_re = re.compile(r'^\s+Version:\s+(\S+)')
 
-  p = subprocess.Popen(
-      [_SDKMANAGER_TOOL, '--list', '--verbose'], stdout=subprocess.PIPE)
+  p = subprocess.Popen([_SDKMANAGER_TOOL, '--list', '--verbose'],
+                       stdout=subprocess.PIPE)
 
   installed_package_versions = {}
   new_style = False
@@ -244,10 +254,19 @@ def _DownloadInstallOrUpdateSdk():
       [_SDKMANAGER_TOOL, '--verbose'] + _ANDROID_SDK_PACKAGES, stdin=stdin)
 
   if _IsOnBuildbot():
-    time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
     try:
+      # Accept "Terms and Conditions" (android-sdk-license)
+      time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
+      p.stdin.write('y\n')
+      # Accept "SDK Preview" license (android-sdk-preview-license)
+      # TODO: Remove when no longer on prerelease SDK (build-tools;30.0.0-rc4).
+      time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
       p.stdin.write('y\n')
     except IOError:
       logging.warning('There were no SDK licenses to accept.')
 
   p.wait()
+  if p.returncode:
+    raise RuntimeError(
+        '\nFailed to install packages with sdkmanager. Exit status = %d' %
+        p.returncode)

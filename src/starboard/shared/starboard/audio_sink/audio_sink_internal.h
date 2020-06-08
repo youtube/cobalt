@@ -16,16 +16,23 @@
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 
 #include "starboard/audio_sink.h"
+
+#include <functional>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 
 struct SbAudioSinkPrivate {
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#if SB_API_VERSION >= 12
   // When |capability_changed| is true, it hints that the error is caused by a
   // a transisent capability on the platform.  The app should retry playback to
   // recover from the error.
   typedef void (*ErrorFunc)(bool capability_changed, void* context);
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
+
+  typedef std::function<
+      void(int frames_consumed, SbTime frames_consumed_at, void* context)>
+      ConsumeFramesFunc;
 
   class Type {
    public:
@@ -40,10 +47,10 @@ struct SbAudioSinkPrivate {
         SbAudioSinkFrameBuffers frame_buffers,
         int frame_buffers_size_in_frames,
         SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-        SbAudioSinkConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+        ConsumeFramesFunc consume_frames_func,
+#if SB_API_VERSION >= 12
         ErrorFunc error_func,
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
         void* context) = 0;
     virtual bool IsValid(SbAudioSink audio_sink) = 0;
     virtual void Destroy(SbAudioSink audio_sink) = 0;
@@ -80,6 +87,9 @@ struct SbAudioSinkPrivate {
   // functions, which will be called inside Initialize() and TearDown().
   static void PlatformInitialize();
   static void PlatformTearDown();
+
+  static ConsumeFramesFunc GetConsumeFramesFunc(
+      SbAudioSinkConsumeFramesFunc sb_consume_frames_func);
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_

@@ -12,10 +12,12 @@
  * doesn't get reset between tests.
  */
 ApplicationTestRunner.resetState = async function() {
-  const securityOrigin = new Common.ParsedURL(TestRunner.url()).securityOrigin();
-  const storageTypes =
-      ['appcache', 'cache_storage', 'cookies', 'indexeddb', 'local_storage', 'service_workers', 'websql'];
-  await TestRunner.mainTarget.storageAgent().clearDataForOrigin(securityOrigin, storageTypes.join(','));
+  const targets = SDK.targetManager.targets();
+  for (const target of targets) {
+    const securityOrigin = new Common.ParsedURL(target.inspectedURL()).securityOrigin();
+    await target.storageAgent().clearDataForOrigin(
+        securityOrigin, Resources.ClearStorageView.AllStorageTypes.join(','));
+  }
 };
 
 ApplicationTestRunner.createWebSQLDatabase = function(name) {
@@ -27,10 +29,11 @@ ApplicationTestRunner.requestURLComparer = function(r1, r2) {
 };
 
 ApplicationTestRunner.runAfterCachedResourcesProcessed = function(callback) {
-  if (!TestRunner.resourceTreeModel._cachedResourcesProcessed)
+  if (!TestRunner.resourceTreeModel._cachedResourcesProcessed) {
     TestRunner.resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.CachedResourcesLoaded, callback);
-  else
+  } else {
     callback();
+  }
 };
 
 ApplicationTestRunner.runAfterResourcesAreFinished = function(resourceURLs, callback) {
@@ -40,8 +43,9 @@ ApplicationTestRunner.runAfterResourcesAreFinished = function(resourceURLs, call
     for (const url of resourceURLsMap) {
       const resource = ApplicationTestRunner.resourceMatchingURL(url);
 
-      if (resource)
+      if (resource) {
         resourceURLsMap.delete(url);
+      }
     }
 
     if (!resourceURLsMap.size) {
@@ -52,16 +56,18 @@ ApplicationTestRunner.runAfterResourcesAreFinished = function(resourceURLs, call
 
   checkResources();
 
-  if (resourceURLsMap.size)
+  if (resourceURLsMap.size) {
     TestRunner.resourceTreeModel.addEventListener(SDK.ResourceTreeModel.Events.ResourceAdded, checkResources);
+  }
 };
 
 ApplicationTestRunner.showResource = function(resourceURL, callback) {
   let reported = false;
 
   function callbackWrapper(sourceFrame) {
-    if (reported)
+    if (reported) {
       return;
+    }
 
     callback(sourceFrame);
     reported = true;
@@ -70,16 +76,18 @@ ApplicationTestRunner.showResource = function(resourceURL, callback) {
   function showResourceCallback() {
     const resource = ApplicationTestRunner.resourceMatchingURL(resourceURL);
 
-    if (!resource)
+    if (!resource) {
       return;
+    }
 
     UI.panels.resources.showResource(resource, 1);
     const sourceFrame = UI.panels.resources._resourceViewForResource(resource);
 
-    if (sourceFrame.loaded)
+    if (sourceFrame.loaded) {
       callbackWrapper(sourceFrame);
-    else
+    } else {
       TestRunner.addSniffer(sourceFrame, 'setContent', callbackWrapper.bind(null, sourceFrame));
+    }
   }
 
   ApplicationTestRunner.runAfterResourcesAreFinished([resourceURL], showResourceCallback);
@@ -108,8 +116,9 @@ ApplicationTestRunner.waitForCookies = function() {
 ApplicationTestRunner.dumpCookieDomains = function() {
   const cookieListChildren = UI.panels.resources._sidebar.cookieListTreeElement.children();
   TestRunner.addResult('Available cookie domains:');
-  for (const child of cookieListChildren)
+  for (const child of cookieListChildren) {
     TestRunner.addResult(child._cookieDomain);
+  }
 };
 
 ApplicationTestRunner.dumpCookies = function() {
@@ -121,8 +130,9 @@ ApplicationTestRunner.dumpCookies = function() {
   TestRunner.addResult('Visible cookies');
   for (const item of UI.panels.resources._cookieView._cookiesTable._data) {
     const cookies = item.cookies || [];
-    for (const cookie of cookies)
+    for (const cookie of cookies) {
       TestRunner.addResult(`${cookie.name()}=${cookie.value()}`);
+    }
   }
 };
 

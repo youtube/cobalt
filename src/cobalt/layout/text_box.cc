@@ -367,7 +367,7 @@ void AddTextShadows(render_tree::TextNode::Builder* builder,
 
 void TextBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
-    ContainerBox* /*stacking_context*/) const {
+    ContainerBox* stacking_context) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }

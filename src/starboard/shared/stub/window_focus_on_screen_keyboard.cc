@@ -14,8 +14,8 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
 
-void SbWindowFocusOnScreenKeyboard(SbWindow /* window */, int /* ticket */) {}
+void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket) {}
 
 #endif

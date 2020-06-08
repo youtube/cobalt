@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 #include "starboard/cryptography.h"
 
@@ -27,15 +27,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     int initialization_vector_size,
     const void* key,
     int key_size) {
-  SB_UNREFERENCED_PARAMETER(algorithm);
-  SB_UNREFERENCED_PARAMETER(block_size_bits);
-  SB_UNREFERENCED_PARAMETER(direction);
-  SB_UNREFERENCED_PARAMETER(mode);
-  SB_UNREFERENCED_PARAMETER(initialization_vector);
-  SB_UNREFERENCED_PARAMETER(initialization_vector_size);
-  SB_UNREFERENCED_PARAMETER(key);
-  SB_UNREFERENCED_PARAMETER(key_size);
   return kSbCryptographyInvalidTransformer;
 }
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12

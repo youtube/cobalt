@@ -110,9 +110,6 @@
           ],
         }],
       ],
-      'defines': [
-        'COBALT_USER_ON_EXIT_STRATEGY="<(cobalt_user_on_exit_strategy)"',
-      ],
     },
 
     {

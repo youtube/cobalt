@@ -91,7 +91,6 @@ void PrintUsage(const char* executable_path_name) {
 }
 
 void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
-  SB_UNREFERENCED_PARAMETER(tracks);
 }
 
 class InitCobaltHelper {
@@ -341,8 +340,6 @@ class Application {
   }
 
   scoped_refptr<Image> FrameCB(const base::TimeDelta& time) {
-    SB_UNREFERENCED_PARAMETER(time);
-
 #if SB_HAS(GRAPHICS)
     SbDecodeTarget decode_target = player_helper_->GetCurrentDecodeTarget();
 

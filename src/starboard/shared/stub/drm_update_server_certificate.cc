@@ -18,8 +18,4 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
                                   int certificate_size) {
-  SB_UNREFERENCED_PARAMETER(drm_system);
-  SB_UNREFERENCED_PARAMETER(ticket);
-  SB_UNREFERENCED_PARAMETER(certificate);
-  SB_UNREFERENCED_PARAMETER(certificate_size);
 }

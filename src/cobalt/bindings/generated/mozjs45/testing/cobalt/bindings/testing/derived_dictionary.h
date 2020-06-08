@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,6 +65,8 @@ class DerivedDictionary : public cobalt::bindings::testing::TestDictionary {
   }
 
 
+ using is_a_generated_dict = std::true_type;
+
  private:
   bool additional_member_;
 };
@@ -73,7 +75,6 @@ class DerivedDictionary : public cobalt::bindings::testing::TestDictionary {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::DerivedDictionary& in) {
-  SB_UNREFERENCED_PARAMETER(in);
   stream << "[DerivedDictionary]";
   return stream;
 }

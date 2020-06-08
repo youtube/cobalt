@@ -107,7 +107,8 @@ class MediaCodecBridge {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
-      bool require_software_codec);
+      bool require_software_codec,
+      std::string* error_message);
 
   ~MediaCodecBridge();
 

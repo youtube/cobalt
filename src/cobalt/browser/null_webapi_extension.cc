@@ -17,6 +17,8 @@
 #include "base/compiler_specific.h"
 #include "cobalt/script/global_environment.h"
 
+#if SB_API_VERSION < 12
+
 namespace cobalt {
 namespace browser {
 
@@ -27,8 +29,6 @@ base::Optional<std::string> GetWebAPIExtensionObjectPropertyName() {
 scoped_refptr<script::Wrappable> CreateWebAPIExtensionObject(
     const scoped_refptr<dom::Window>& window,
     script::GlobalEnvironment* global_environment) {
-  SB_UNREFERENCED_PARAMETER(window);
-  SB_UNREFERENCED_PARAMETER(global_environment);
 
   // We should never get called if GetWindowExtensionObjectName() above returns
   // base::nullopt.
@@ -39,3 +39,5 @@ scoped_refptr<script::Wrappable> CreateWebAPIExtensionObject(
 
 }  // namespace browser
 }  // namespace cobalt
+
+#endif  // SB_API_VERSION < 12

@@ -16,6 +16,8 @@
 #include "jit/MacroAssembler-inl.h"
 #include "vm/Shape-inl.h"
 
+#include "cobalt/configuration/configuration.h"
+
 using mozilla::ArrayLength;
 using mozilla::DebugOnly;
 using mozilla::PodCopy;
@@ -695,13 +697,14 @@ UnboxedPlainObject::createWithProperties(ExclusiveContext* cx, HandleObjectGroup
             return NewPlainObjectWithProperties(cx, properties, layout.properties().length(), newKind);
     }
 
-#if !defined(JS_CODEGEN_NONE) && !defined(COBALT_DISABLE_JIT)
-    if (cx->isJSContext() &&
-        !layout.constructorCode() &&
-        cx->asJSContext()->runtime()->jitSupportsFloatingPoint)
-    {
+#if !defined(JS_CODEGEN_NONE)
+    if (cobalt::configuration::Configuration::GetInstance()
+            ->CobaltEnableJit()) {
+      if (cx->isJSContext() && !layout.constructorCode() &&
+          cx->asJSContext()->runtime()->jitSupportsFloatingPoint) {
         if (!UnboxedLayout::makeConstructorCode(cx->asJSContext(), group))
-            return nullptr;
+          return nullptr;
+      }
     }
 #endif
 

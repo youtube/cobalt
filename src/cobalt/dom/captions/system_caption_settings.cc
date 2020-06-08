@@ -35,7 +35,7 @@ namespace cobalt {
 namespace dom {
 namespace captions {
 
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 namespace {
 
 CaptionColor ToCobaltCaptionColor(SbAccessibilityCaptionColor color) {
@@ -173,7 +173,7 @@ CaptionState ToCobaltCaptionState(SbAccessibilityCaptionState state) {
 
 }  // namespace
 
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 void SystemCaptionSettings::OnCaptionSettingsChanged() {
   DispatchEventNameAndRunCallback(
@@ -182,7 +182,7 @@ void SystemCaptionSettings::OnCaptionSettingsChanged() {
 }
 
 base::Optional<std::string> SystemCaptionSettings::background_color() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -190,6 +190,8 @@ base::Optional<std::string> SystemCaptionSettings::background_color() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.background_color_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* color = SystemCaptionSettings::CaptionColorToString(
       ToCobaltCaptionColor(caption_settings.background_color));
@@ -200,11 +202,11 @@ base::Optional<std::string> SystemCaptionSettings::background_color() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::background_color_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -215,11 +217,11 @@ CaptionState SystemCaptionSettings::background_color_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::background_opacity() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -227,6 +229,8 @@ base::Optional<std::string> SystemCaptionSettings::background_opacity() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.background_opacity_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
       ToCobaltCaptionOpacityPercentage(caption_settings.background_opacity));
@@ -237,11 +241,11 @@ base::Optional<std::string> SystemCaptionSettings::background_opacity() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::background_opacity_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -252,11 +256,11 @@ CaptionState SystemCaptionSettings::background_opacity_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -264,6 +268,8 @@ base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.character_edge_style_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* character_edge_style =
       SystemCaptionSettings::CaptionCharacterEdgeStyleToString(
@@ -276,11 +282,11 @@ base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::character_edge_style_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -291,11 +297,11 @@ CaptionState SystemCaptionSettings::character_edge_style_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::font_color() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -303,6 +309,8 @@ base::Optional<std::string> SystemCaptionSettings::font_color() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.font_color_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* color = SystemCaptionSettings::CaptionColorToString(
       ToCobaltCaptionColor(caption_settings.font_color));
@@ -313,11 +321,11 @@ base::Optional<std::string> SystemCaptionSettings::font_color() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_color_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -328,11 +336,11 @@ CaptionState SystemCaptionSettings::font_color_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::font_family() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -340,6 +348,8 @@ base::Optional<std::string> SystemCaptionSettings::font_family() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.font_family_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* font_family = SystemCaptionSettings::CaptionFontFamilyToString(
       ToCobaltCaptionFontFamily(caption_settings.font_family));
@@ -350,11 +360,11 @@ base::Optional<std::string> SystemCaptionSettings::font_family() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_family_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -365,11 +375,11 @@ CaptionState SystemCaptionSettings::font_family_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::font_opacity() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -377,6 +387,8 @@ base::Optional<std::string> SystemCaptionSettings::font_opacity() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.font_opacity_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
       ToCobaltCaptionOpacityPercentage(caption_settings.font_opacity));
@@ -387,11 +399,11 @@ base::Optional<std::string> SystemCaptionSettings::font_opacity() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_opacity_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -402,11 +414,11 @@ CaptionState SystemCaptionSettings::font_opacity_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::font_size() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -414,6 +426,8 @@ base::Optional<std::string> SystemCaptionSettings::font_size() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.font_size_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* font_size =
       SystemCaptionSettings::CaptionFontSizePercentageToString(
@@ -425,11 +439,11 @@ base::Optional<std::string> SystemCaptionSettings::font_size() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_size_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -440,11 +454,11 @@ CaptionState SystemCaptionSettings::font_size_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::window_color() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -452,6 +466,8 @@ base::Optional<std::string> SystemCaptionSettings::window_color() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.window_color_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* color = SystemCaptionSettings::CaptionColorToString(
       ToCobaltCaptionColor(caption_settings.window_color));
@@ -462,11 +478,11 @@ base::Optional<std::string> SystemCaptionSettings::window_color() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::window_color_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -477,11 +493,11 @@ CaptionState SystemCaptionSettings::window_color_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 base::Optional<std::string> SystemCaptionSettings::window_opacity() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -489,6 +505,8 @@ base::Optional<std::string> SystemCaptionSettings::window_opacity() {
   if (!success) {
     return base::nullopt;
   }
+  DCHECK(caption_settings.window_opacity_state !=
+         kSbAccessibilityCaptionStateUnsupported);
 
   const char* opacity = SystemCaptionSettings::CaptionOpacityPercentageToString(
       ToCobaltCaptionOpacityPercentage(caption_settings.window_opacity));
@@ -499,11 +517,11 @@ base::Optional<std::string> SystemCaptionSettings::window_opacity() {
   }
 #else
   return base::nullopt;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::window_opacity_state() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -514,28 +532,34 @@ CaptionState SystemCaptionSettings::window_opacity_state() {
   }
 #else
   return CaptionState::kCaptionStateUnsupported;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::is_enabled() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  DCHECK(supports_is_enabled());
 
-  return (success) ? caption_settings.is_enabled : false;
+  return (success && caption_settings.supports_is_enabled) ?
+             caption_settings.is_enabled : false;
 
 #else
   return false;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 void SystemCaptionSettings::set_is_enabled(bool active) {
-  SB_UNREFERENCED_PARAMETER(active);
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+  DCHECK(supports_set_enabled());
+  SbAccessibilitySetCaptionsEnabled(active);
+#else
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::supports_is_enabled() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -544,11 +568,11 @@ bool SystemCaptionSettings::supports_is_enabled() {
 
 #else
   return false;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::supports_set_enabled() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -557,11 +581,11 @@ bool SystemCaptionSettings::supports_set_enabled() {
 
 #else
   return false;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::supports_override() {
-#if SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   SbAccessibilityCaptionSettings caption_settings;
   SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
@@ -570,7 +594,7 @@ bool SystemCaptionSettings::supports_override() {
 
 #else
   return false;
-#endif  // SB_API_VERSION >= SB_CAPTIONS_REQUIRED_VERSION || SB_HAS(CAPTIONS)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 }
 
 const EventTarget::EventListenerScriptValue* SystemCaptionSettings::onchanged()

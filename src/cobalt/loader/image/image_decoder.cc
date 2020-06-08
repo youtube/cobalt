@@ -102,7 +102,6 @@ ImageDecoder::ImageDecoder(
 
 LoadResponseType ImageDecoder::OnResponseStarted(
     Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  SB_UNREFERENCED_PARAMETER(fetcher);
   TRACE_EVENT0("cobalt::loader::image", "ImageDecoder::OnResponseStarted()");
 
   if (state_ == kSuspended) {
@@ -392,7 +391,7 @@ void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
 
 // static
 bool ImageDecoder::AllowDecodingToMultiPlane() {
-#if SB_API_VERSION >= SB_ALL_RENDERERS_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   // Many image formats can produce native output in multi plane images in YUV
   // 420. Allowing these images to be decoded into multi plane image not only
   // reduces the space to store the decoded image to 37.5%, but also improves

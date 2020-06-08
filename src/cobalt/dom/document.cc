@@ -218,7 +218,6 @@ scoped_refptr<Element> Document::CreateElementNS(
     const std::string& namespace_uri, const std::string& local_name) {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
-  SB_UNREFERENCED_PARAMETER(namespace_uri);
   return CreateElement(local_name);
 }
 
@@ -990,13 +989,11 @@ void Document::DisableJit() {
 }
 
 void Document::OnWindowFocusChanged(bool has_focus) {
-  SB_UNREFERENCED_PARAMETER(has_focus);
   // Ignored by this class.
 }
 
 void Document::OnVisibilityStateChanged(
     page_visibility::VisibilityState visibility_state) {
-  SB_UNREFERENCED_PARAMETER(visibility_state);
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
 }

@@ -14,4 +14,4 @@
 
 #include "starboard/decode_target.h"
 
-void SbDecodeTargetRelease(SbDecodeTarget /*decode_target*/) {}
+void SbDecodeTargetRelease(SbDecodeTarget decode_target) {}

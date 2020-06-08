@@ -47,7 +47,7 @@ typedef base::Callback<void(::media::DecoderBuffer*)> AppendBufferCB;
 const char kSourceId[] = "id";
 
 // Stub log function.
-void Log(const std::string& message) { SB_UNREFERENCED_PARAMETER(message); }
+void Log(const std::string& message) {}
 
 // Stub need key callback.
 void NeedKeyCB(const std::string& type, std::unique_ptr<uint8[]> init_data,
@@ -110,20 +110,14 @@ class Loader : public ::media::DemuxerHost {
 
  private:
   void SetTotalBytes(int64 total_bytes) override {
-    SB_UNREFERENCED_PARAMETER(total_bytes);
   }
   void AddBufferedByteRange(int64 start, int64 end) override {
-    SB_UNREFERENCED_PARAMETER(start);
-    SB_UNREFERENCED_PARAMETER(end);
   }
   void AddBufferedTimeRange(base::TimeDelta start,
                             base::TimeDelta end) override {
-    SB_UNREFERENCED_PARAMETER(start);
-    SB_UNREFERENCED_PARAMETER(end);
   }
 
   void SetDuration(base::TimeDelta duration) override {
-    SB_UNREFERENCED_PARAMETER(duration);
   }
   void OnDemuxerError(::media::PipelineStatus error) override {
     valid_ = false;

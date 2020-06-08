@@ -106,7 +106,6 @@ void InstallOnBlockingTaskRunner(
     const std::string& public_key,
 #if defined(OS_STARBOARD)
     const int installation_index,
-    const bool is_channel_changed,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -157,11 +156,6 @@ void InstallOnBlockingTaskRunner(
   CrxInstaller::Result result(install_error);
   InstallComplete(main_task_runner, std::move(callback), unpack_path, result);
 
-  // Restart the app if installation is successful after the web app sets a new
-  // channel.
-  if (install_error == InstallError::NONE && is_channel_changed) {
-    SbSystemRequestStop(0);
-  }
 #else
   installer->Install(
       unpack_path, public_key,
@@ -175,7 +169,9 @@ void UnpackCompleteOnBlockingTaskRunner(
     const base::FilePath& crx_path,
 #if defined(OS_STARBOARD)
     const int installation_index,
-    const bool is_channel_changed,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -196,12 +192,21 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
+#if defined(OS_STARBOARD)
+  // Write the version of the unpacked update package to the persisted data.
+  if (metadata != nullptr) {
+    main_task_runner->PostTask(
+        FROM_HERE, base::BindOnce(&PersistedData::SetLastUnpackedVersion,
+                                  base::Unretained(metadata), id, version));
+  }
+#endif
+
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                      result.unpack_path, result.public_key,
 #if defined(OS_STARBOARD)
-                     installation_index, is_channel_changed,
+                     installation_index,
 #endif
                      fingerprint, installer, std::move(callback)));
 }
@@ -215,7 +220,6 @@ void StartInstallOnBlockingTaskRunner(
     PersistedData* metadata,
     const std::string& id,
     const std::string& version,
-    const bool is_channel_changed,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -225,12 +229,12 @@ void StartInstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
-      crx_format, metadata, id, version);
+      crx_format);
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
                                   main_task_runner, crx_path,
 #if defined(OS_STARBOARD)
-                                  installation_index, is_channel_changed,
+                                  installation_index, metadata, id, version,
 #endif
                                   fingerprint, installer, std::move(callback)));
 }
@@ -569,14 +573,6 @@ void Component::StateChecking::DoHandle() {
   component.update_check_complete_ = base::BindOnce(
       &Component::StateChecking::UpdateCheckComplete, base::Unretained(this));
 
-#if defined(OS_STARBOARD)
-  // Set component.is_channel_changed_ here so that it's synced with the
-  // "updaterchannelchanged" attribute in the update check request sent to
-  // Omaha.
-  component.is_channel_changed_ =
-      component.update_context_.config->IsChannelChanged();
-#endif
-
   component.NotifyObservers(Events::COMPONENT_CHECKING_FOR_UPDATES);
 }
 
@@ -851,7 +847,6 @@ void Component::StateUpdatingDiff::DoHandle() {
               component.installation_index_,
               update_context.update_checker->GetPersistedData(), component.id_,
               component.next_version_.GetString(),
-              component.is_channel_changed_,
 #endif
               component.next_fp_, component.crx_component()->installer,
               update_context.config->GetUnzipperFactory()->Create(),
@@ -918,7 +913,6 @@ void Component::StateUpdating::DoHandle() {
                      component.installation_index_,
                      update_context.update_checker->GetPersistedData(),
                      component.id_, component.next_version_.GetString(),
-                     component.is_channel_changed_,
 #endif
                      component.next_fp_, component.crx_component()->installer,
                      update_context.config->GetUnzipperFactory()->Create(),

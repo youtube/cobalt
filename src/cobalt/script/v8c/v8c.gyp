@@ -102,11 +102,6 @@
           'ENGINE_SUPPORTS_INT64',
         ],
       },
-      'conditions' :[
-        ['cobalt_enable_jit == 1', {
-          'defines': ['ENGINE_SUPPORTS_JIT',],
-        }],
-      ],
     },
 
     {

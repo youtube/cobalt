@@ -110,9 +110,6 @@ std::string AudioEncoderFlac::GetAndClearAvailableEncodedData() {
 FLAC__StreamEncoderWriteStatus AudioEncoderFlac::WriteCallback(
     const FLAC__StreamEncoder* encoder, const FLAC__byte buffer[], size_t bytes,
     unsigned int samples, unsigned int current_frame, void* client_data) {
-  SB_UNREFERENCED_PARAMETER(encoder);
-  SB_UNREFERENCED_PARAMETER(samples);
-  SB_UNREFERENCED_PARAMETER(current_frame);
 
   AudioEncoderFlac* audio_encoder =
       reinterpret_cast<AudioEncoderFlac*>(client_data);

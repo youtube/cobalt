@@ -31,7 +31,7 @@
 /**
  * @unrestricted
  */
-HeapSnapshotWorker.HeapSnapshotWorkerDispatcher = class {
+export class HeapSnapshotWorkerDispatcher {
   constructor(globalObject, postMessage) {
     this._objects = [];
     this._global = globalObject;
@@ -41,8 +41,9 @@ HeapSnapshotWorker.HeapSnapshotWorkerDispatcher = class {
   _findFunction(name) {
     const path = name.split('.');
     let result = this._global;
-    for (let i = 0; i < path.length; ++i)
+    for (let i = 0; i < path.length; ++i) {
       result = result[path[i]];
+    }
     return result;
   }
 
@@ -75,8 +76,9 @@ HeapSnapshotWorker.HeapSnapshotWorkerDispatcher = class {
         case 'factory': {
           const object = this._objects[data.objectId];
           const result = object[data.methodName].apply(object, data.methodArguments);
-          if (result)
+          if (result) {
             this._objects[data.newObjectId] = result;
+          }
           response.result = !!result;
           break;
         }
@@ -96,9 +98,19 @@ HeapSnapshotWorker.HeapSnapshotWorkerDispatcher = class {
     } catch (e) {
       response.error = e.toString();
       response.errorCallStack = e.stack;
-      if (data.methodName)
+      if (data.methodName) {
         response.errorMethodName = data.methodName;
+      }
     }
     this._postMessage(response);
   }
-};
+}
+
+/* Legacy exported object */
+self.HeapSnapshotWorker = self.HeapSnapshotWorker || {};
+
+/* Legacy exported object */
+HeapSnapshotWorker = HeapSnapshotWorker || {};
+
+/** @constructor */
+HeapSnapshotWorker.HeapSnapshotWorkerDispatcher = HeapSnapshotWorkerDispatcher;

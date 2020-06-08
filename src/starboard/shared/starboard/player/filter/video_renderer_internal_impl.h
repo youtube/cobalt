@@ -100,6 +100,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
   atomic_bool end_of_stream_written_;
+  atomic_bool end_of_stream_decoded_;
   atomic_bool ended_cb_called_;
 
   atomic_bool need_more_input_;
@@ -142,7 +143,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   volatile SbTimeMonotonic last_buffering_state_update_ = 0;
   volatile SbTimeMonotonic last_output_ = 0;
   mutable volatile SbTime last_can_accept_more_data = 0;
-  atomic_bool end_of_stream_decoded_;
 
   SbTimeMonotonic time_of_last_lag_warning_;
 

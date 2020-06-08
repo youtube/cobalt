@@ -201,9 +201,6 @@ scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(drm_system);
-
   bool has_gles_support = false;
 
 #if SB_API_VERSION >= 11

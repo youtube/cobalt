@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    # Enable zealous garbage collection.
-    'cobalt_gc_zeal': 1,
-  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-gczeal_debug',
     'configurations': {

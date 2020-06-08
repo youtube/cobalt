@@ -120,7 +120,7 @@ std::string GetMockProtoResult(int index) {
 }  // namespace
 
 URLFetcherFake::URLFetcherFake(const GURL& url,
-                               net::URLFetcher::RequestType /*request_type*/,
+                               net::URLFetcher::RequestType request_type,
                                net::URLFetcherDelegate* delegate)
     : original_url_(url),
       delegate_(delegate),
@@ -129,19 +129,18 @@ URLFetcherFake::URLFetcherFake(const GURL& url,
 
 URLFetcherFake::~URLFetcherFake() {}
 
-void URLFetcherFake::SetChunkedUpload(
-    const std::string& /*upload_content_type*/) {
+void URLFetcherFake::SetChunkedUpload(const std::string& upload_content_type) {
   is_chunked_upload_ = true;
 }
 
-void URLFetcherFake::AppendChunkToUpload(const std::string& /*data*/,
-                                         bool /*is_last_chunk*/) {
+void URLFetcherFake::AppendChunkToUpload(const std::string& data,
+                                         bool is_last_chunk) {
   SB_DCHECK(is_chunked_upload_);
   // no-op.
 }
 
 void URLFetcherFake::SetRequestContext(
-    net::URLRequestContextGetter* /*request_context_getter*/) {
+    net::URLRequestContextGetter* request_context_getter) {
   // no-op.
 }
 

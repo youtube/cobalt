@@ -18,7 +18,8 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.NonNull;
@@ -40,6 +41,7 @@ public class ArtworkLoader {
   @NonNull private volatile String currentArtworkUrl = "";
   private volatile Bitmap currentArtwork = null;
 
+  private final Handler handler = new Handler(Looper.getMainLooper());
   private final Callback callback;
   private final Size displaySize;
 
@@ -64,7 +66,7 @@ public class ArtworkLoader {
     }
 
     requestedArtworkUrl = url;
-    new DownloadArtworkTask().execute(url);
+    new DownloadArtworkThread(url, handler).start();
     return null;
   }
 
@@ -115,11 +117,19 @@ public class ArtworkLoader {
     }
   }
 
-  private class DownloadArtworkTask extends AsyncTask<String, Void, Pair<String, Bitmap>> {
+  private class DownloadArtworkThread extends Thread {
+
+    private final String url;
+    private final Handler handler;
+
+    DownloadArtworkThread(String url, Handler handler) {
+      super("ArtworkLoader");
+      this.url = url;
+      this.handler = handler;
+    }
 
     @Override
-    protected Pair<String, Bitmap> doInBackground(String... params) {
-      String url = params[0];
+    public void run() {
       Bitmap bitmap = null;
       HttpURLConnection conn = null;
       InputStream is = null;
@@ -151,17 +161,13 @@ public class ArtworkLoader {
         }
       }
 
-      return Pair.create(url, bitmap);
-    }
-
-    @Override
-    protected void onPostExecute(Pair<String, Bitmap> urlBitmapPair) {
-      onDownloadFinished(urlBitmapPair);
-    }
-
-    @Override
-    protected void onCancelled(Pair<String, Bitmap> urlBitmapPair) {
-      onDownloadFinished(urlBitmapPair);
+      final Pair<String, Bitmap> urlBitmapPair = Pair.create(url, bitmap);
+      handler.post(new Runnable() {
+        @Override
+        public void run() {
+          onDownloadFinished(urlBitmapPair);
+        }
+      });
     }
   }
 }

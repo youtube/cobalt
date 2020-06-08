@@ -85,9 +85,9 @@ void AudioRendererSinkImpl::Start(
         audio_frame_storage_type, frame_buffers, frames_per_channel,
         &AudioRendererSinkImpl::UpdateSourceStatusFunc,
         &AudioRendererSinkImpl::ConsumeFramesFunc,
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#if SB_API_VERSION >= 12
         &AudioRendererSinkImpl::ErrorFunc,
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
         this);
     if (!audio_sink_type->IsValid(audio_sink_)) {
       SB_LOG(WARNING) << "Created invalid SbAudioSink from "
@@ -102,9 +102,9 @@ void AudioRendererSinkImpl::Start(
             audio_frame_storage_type, frame_buffers, frames_per_channel,
             &AudioRendererSinkImpl::UpdateSourceStatusFunc,
             &AudioRendererSinkImpl::ConsumeFramesFunc,
-#if SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#if SB_API_VERSION >= 12
             &AudioRendererSinkImpl::ErrorFunc,
-#endif  // SB_API_VERSION >= SB_AUDIO_SINK_ERROR_HANDLING_VERSION
+#endif  // SB_API_VERSION >= 12
             this);
         if (!fallback_type->IsValid(audio_sink_)) {
           SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
@@ -176,34 +176,16 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioRendererSinkImpl::ConsumeFramesFunc(
-    int frames_consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-    SbTime frames_consumed_at,
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-    void* context) {
+void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
+                                              SbTime frames_consumed_at,
+                                              void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
-    SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  audio_renderer_sink->render_callback_->ConsumeFrames(
-      frames_consumed,
-#if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION
-      kSbHasAsyncAudioFramesReporting ? frames_consumed_at
-                                      : (SbTime)kSbTimeMax);
-#else
-      frames_consumed_at);
-#endif
-#else   // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed);
-#endif  // SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION ||
-        // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
+                                                       frames_consumed_at);
 }
 
 // static

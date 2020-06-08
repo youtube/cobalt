@@ -18,6 +18,8 @@
 #include "jit/MacroAssembler.h"
 #include "vm/TraceLogging.h"
 
+#include "cobalt/configuration/configuration.h"
+
 namespace js {
 namespace jit {
 
@@ -497,10 +499,12 @@ static_assert(sizeof(BaselineScript) % sizeof(uintptr_t) == 0,
 inline bool
 IsBaselineEnabled(JSContext* cx)
 {
-#if defined(JS_CODEGEN_NONE) || defined(COBALT_DISABLE_JIT)
-    return false;
+#if defined(JS_CODEGEN_NONE)
+  return false;
 #else
-    return cx->runtime()->options().baseline();
+  return cobalt::configuration::Configuration::GetInstance()->CobaltEnableJit()
+             ? cx->runtime()->options().baseline()
+             : false;
 #endif
 }
 

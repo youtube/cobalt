@@ -162,12 +162,10 @@ class FontStub : public Font {
   }
 
   const math::RectF& GetGlyphBounds(GlyphIndex glyph) override {
-    SB_UNREFERENCED_PARAMETER(glyph);
     return glyph_bounds_;
   }
 
   float GetGlyphWidth(GlyphIndex glyph) override {
-    SB_UNREFERENCED_PARAMETER(glyph);
     return glyph_bounds_.width();
   }
 
@@ -183,7 +181,7 @@ class FontStub : public Font {
 // Roboto.
 class TypefaceStub : public Typeface {
  public:
-  explicit TypefaceStub(const void* data) { SB_UNREFERENCED_PARAMETER(data); }
+  explicit TypefaceStub(const void* data) {}
 
   TypefaceId GetId() const override { return Internal::kDefaultTypefaceId; }
 
@@ -196,7 +194,6 @@ class TypefaceStub : public Typeface {
   }
 
   GlyphIndex GetGlyphForCharacter(int32 utf32_character) override {
-    SB_UNREFERENCED_PARAMETER(utf32_character);
     return Internal::kDefaultGlyphIndex;
   }
 
@@ -261,12 +258,10 @@ class ResourceProviderStub : public ResourceProvider {
   void Finish() override {}
 
   bool PixelFormatSupported(PixelFormat pixel_format) override {
-    SB_UNREFERENCED_PARAMETER(pixel_format);
     return true;
   }
 
   bool AlphaFormatSupported(AlphaFormat alpha_format) override {
-    SB_UNREFERENCED_PARAMETER(alpha_format);
     return true;
   }
 
@@ -319,29 +314,22 @@ class ResourceProviderStub : public ResourceProvider {
   }
 
   bool HasLocalFontFamily(const char* font_family_name) const override {
-    SB_UNREFERENCED_PARAMETER(font_family_name);
     return true;
   }
 
   scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
                                            FontStyle font_style) override {
-    SB_UNREFERENCED_PARAMETER(font_family_name);
-    SB_UNREFERENCED_PARAMETER(font_style);
     return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
       const char* font_face_name) override {
-    SB_UNREFERENCED_PARAMETER(font_face_name);
     return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
   scoped_refptr<Typeface> GetCharacterFallbackTypeface(
       int32 utf32_character, FontStyle font_style,
       const std::string& language) override {
-    SB_UNREFERENCED_PARAMETER(utf32_character);
-    SB_UNREFERENCED_PARAMETER(font_style);
-    SB_UNREFERENCED_PARAMETER(language);
     return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
@@ -368,9 +356,6 @@ class ResourceProviderStub : public ResourceProvider {
                      const std::string& language, bool is_rtl,
                      FontProvider* font_provider,
                      FontVector* maybe_used_fonts) override {
-    SB_UNREFERENCED_PARAMETER(text_buffer);
-    SB_UNREFERENCED_PARAMETER(language);
-    SB_UNREFERENCED_PARAMETER(is_rtl);
     render_tree::GlyphIndex glyph_index;
     const scoped_refptr<render_tree::Font>& font =
         font_provider->GetCharacterFont(Internal::kDefaultCharacter,
@@ -387,9 +372,6 @@ class ResourceProviderStub : public ResourceProvider {
       const base::char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       FontProvider* font_provider) override {
-    SB_UNREFERENCED_PARAMETER(text_buffer);
-    SB_UNREFERENCED_PARAMETER(language);
-    SB_UNREFERENCED_PARAMETER(is_rtl);
     render_tree::GlyphIndex glyph_index;
     const scoped_refptr<render_tree::Font>& font =
         font_provider->GetCharacterFont(Internal::kDefaultCharacter,
@@ -414,8 +396,6 @@ class ResourceProviderStub : public ResourceProvider {
 
   scoped_refptr<LottieAnimation> CreateLottieAnimation(const char* data,
                                                        size_t length) override {
-    SB_UNREFERENCED_PARAMETER(data);
-    SB_UNREFERENCED_PARAMETER(length);
     return scoped_refptr<LottieAnimation>(NULL);
   }
 
@@ -428,7 +408,6 @@ class ResourceProviderStub : public ResourceProvider {
 
   scoped_refptr<Image> DrawOffscreenImage(
       const scoped_refptr<render_tree::Node>& root) override {
-    SB_UNREFERENCED_PARAMETER(root);
     return scoped_refptr<Image>(NULL);
   }
 

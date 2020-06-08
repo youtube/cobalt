@@ -62,7 +62,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION < SB_CRYPTOAPI_DEPRECATED_VERSION
+#if SB_API_VERSION < 12
 
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 
@@ -1573,4 +1573,4 @@ void AES_gcm128_tag(GCM128_CONTEXT *ctx, void *tag, size_t len) {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // SB_CRYPTOAPI_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 12

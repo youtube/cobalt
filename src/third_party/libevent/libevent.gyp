@@ -91,10 +91,6 @@
                   'include_dirs': [ 'starboard/darwin' ],
                   }
                 ],
-                [ 'target_os == "orbis"', {
-                  'include_dirs': [ 'starboard/ps4' ],
-                  }
-                ],
               ],
             }],
             # libevent has platform-specific implementation files.  Since its

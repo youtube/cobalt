@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Changes.ChangesSidebar = class extends UI.Widget {
+export default class ChangesSidebar extends UI.Widget {
   /**
    * @param {!WorkspaceDiff.WorkspaceDiff} workspaceDiff
    */
@@ -29,8 +29,9 @@ Changes.ChangesSidebar = class extends UI.Widget {
    */
   selectUISourceCode(uiSourceCode, omitFocus) {
     const treeElement = this._treeElements.get(uiSourceCode);
-    if (!treeElement)
+    if (!treeElement) {
       return;
+    }
     treeElement.select(omitFocus);
   }
 
@@ -42,17 +43,18 @@ Changes.ChangesSidebar = class extends UI.Widget {
   }
 
   _selectionChanged() {
-    this.dispatchEventToListeners(Changes.ChangesSidebar.Events.SelectedUISourceCodeChanged);
+    this.dispatchEventToListeners(Events.SelectedUISourceCodeChanged);
   }
 
   /**
    * @param {!Common.Event} event
    */
   _uiSourceCodeMofiedStatusChanged(event) {
-    if (event.data.isModified)
+    if (event.data.isModified) {
       this._addUISourceCode(event.data.uiSourceCode);
-    else
+    } else {
       this._removeUISourceCode(event.data.uiSourceCode);
+    }
   }
 
   /**
@@ -78,22 +80,23 @@ Changes.ChangesSidebar = class extends UI.Widget {
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
   _addUISourceCode(uiSourceCode) {
-    const treeElement = new Changes.ChangesSidebar.UISourceCodeTreeElement(uiSourceCode);
+    const treeElement = new UISourceCodeTreeElement(uiSourceCode);
     this._treeElements.set(uiSourceCode, treeElement);
     this._treeoutline.appendChild(treeElement);
-    if (!this._treeoutline.selectedTreeElement)
+    if (!this._treeoutline.selectedTreeElement) {
       treeElement.select(true);
+    }
   }
-};
+}
 
 /**
  * @enum {symbol}
  */
-Changes.ChangesSidebar.Events = {
+export const Events = {
   SelectedUISourceCodeChanged: Symbol('SelectedUISourceCodeChanged')
 };
 
-Changes.ChangesSidebar.UISourceCodeTreeElement = class extends UI.TreeElement {
+export class UISourceCodeTreeElement extends UI.TreeElement {
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
    */
@@ -103,8 +106,9 @@ Changes.ChangesSidebar.UISourceCodeTreeElement = class extends UI.TreeElement {
     this.listItemElement.classList.add('navigator-' + uiSourceCode.contentType().name() + '-tree-item');
 
     let iconType = 'largeicon-navigator-file';
-    if (this.uiSourceCode.contentType() === Common.resourceTypes.Snippet)
+    if (Snippets.isSnippetsUISourceCode(this.uiSourceCode)) {
       iconType = 'largeicon-navigator-snippet';
+    }
     const defaultIcon = UI.Icon.create(iconType, 'icon');
     this.setLeadingIcons([defaultIcon]);
 
@@ -119,17 +123,40 @@ Changes.ChangesSidebar.UISourceCodeTreeElement = class extends UI.TreeElement {
 
   _updateTitle() {
     let titleText = this.uiSourceCode.displayName();
-    if (this.uiSourceCode.isDirty())
+    if (this.uiSourceCode.isDirty()) {
       titleText = '*' + titleText;
+    }
     this.title = titleText;
 
     let tooltip = this.uiSourceCode.url();
-    if (this.uiSourceCode.contentType().isFromSourceMap())
+    if (this.uiSourceCode.contentType().isFromSourceMap()) {
       tooltip = Common.UIString('%s (from source map)', this.uiSourceCode.displayName());
+    }
     this.tooltip = tooltip;
   }
 
   dispose() {
     Common.EventTarget.removeEventListeners(this._eventListeners);
   }
-};
+}
+
+/* Legacy exported object */
+self.Changes = self.Changes || {};
+
+/* Legacy exported object */
+Changes = Changes || {};
+
+/**
+ * @constructor
+ */
+Changes.ChangesSidebar = ChangesSidebar;
+
+/**
+ * @enum {symbol}
+ */
+Changes.ChangesSidebar.Events = Events;
+
+/**
+ * @constructor
+ */
+Changes.ChangesSidebar.UISourceCodeTreeElement = UISourceCodeTreeElement;

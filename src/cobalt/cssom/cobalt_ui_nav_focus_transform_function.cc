@@ -36,7 +36,7 @@ std::string CobaltUiNavFocusTransformFunction::ToString() const {
 }
 
 math::Matrix3F CobaltUiNavFocusTransformFunction::ToMatrix(
-    const math::SizeF& /* used_size */,
+    const math::SizeF& used_size,
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   ui_navigation::NativeMatrix4 matrix;
   if (used_ui_nav_focus &&

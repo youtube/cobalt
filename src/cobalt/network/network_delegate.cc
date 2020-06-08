@@ -32,9 +32,9 @@ NetworkDelegate::NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
 
 NetworkDelegate::~NetworkDelegate() {}
 
-int NetworkDelegate::OnBeforeURLRequest(
-    net::URLRequest* request, net::CompletionOnceCallback /*callback*/,
-    GURL* /*new_url*/) {
+int NetworkDelegate::OnBeforeURLRequest(net::URLRequest* request,
+                                        net::CompletionOnceCallback callback,
+                                        GURL* new_url) {
   const GURL& url = request->url();
   if (url.SchemeIsCryptographic() || url.SchemeIsFileSystem() ||
       url.SchemeIs("data")) {
@@ -64,8 +64,8 @@ int NetworkDelegate::OnBeforeURLRequest(
   // This will be our host string if we are not using IPV6.
   host.append(valid_spec_cstr + parsed.host.begin,
               valid_spec_cstr + parsed.host.begin + parsed.host.len);
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION || SB_HAS(IPV6)
-#if SB_API_VERSION >= SB_IPV6_REQUIRED_VERSION
+#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
+#if SB_API_VERSION >= 12
   if (SbSocketIsIpv6Supported())
 #endif
     host = url.HostNoBrackets();
@@ -89,55 +89,55 @@ int NetworkDelegate::OnBeforeURLRequest(
 }
 
 int NetworkDelegate::OnBeforeStartTransaction(
-    net::URLRequest* /*request*/, net::CompletionOnceCallback /*callback*/,
-    net::HttpRequestHeaders* /*headers*/) {
+    net::URLRequest* request, net::CompletionOnceCallback callback,
+    net::HttpRequestHeaders* headers) {
   return net::OK;
 }
 
 void NetworkDelegate::OnBeforeSendHeaders(
-    net::URLRequest* /*request*/, const net::ProxyInfo& /*proxy_info*/,
-    const net::ProxyRetryInfoMap& /*proxy_retry_info*/,
-    net::HttpRequestHeaders* /*headers*/) {}
+    net::URLRequest* request, const net::ProxyInfo& proxy_info,
+    const net::ProxyRetryInfoMap& proxy_retry_info,
+    net::HttpRequestHeaders* headers) {}
 
 void NetworkDelegate::OnStartTransaction(
-    net::URLRequest* /*request*/, const net::HttpRequestHeaders& /*headers*/) {}
+    net::URLRequest* request, const net::HttpRequestHeaders& headers) {}
 
 int NetworkDelegate::OnHeadersReceived(
-    net::URLRequest* /*request*/, net::CompletionOnceCallback /*callback*/,
-    const net::HttpResponseHeaders* /*original_response_headers*/,
-    scoped_refptr<net::HttpResponseHeaders>* /*override_response_headers*/,
-    GURL* /*allowed_unsafe_redirect_url*/) {
+    net::URLRequest* request, net::CompletionOnceCallback callback,
+    const net::HttpResponseHeaders* original_response_headers,
+    scoped_refptr<net::HttpResponseHeaders>* override_response_headers,
+    GURL* allowed_unsafe_redirect_url) {
   return net::OK;
 }
 
-void NetworkDelegate::OnBeforeRedirect(net::URLRequest* /*request*/,
-                                       const GURL& /*new_location*/) {}
+void NetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
+                                       const GURL& new_location) {}
 
-void NetworkDelegate::OnResponseStarted(net::URLRequest* /*request*/,
-                                        int /*net_error*/) {}
+void NetworkDelegate::OnResponseStarted(net::URLRequest* request,
+                                        int net_error) {}
 
-void NetworkDelegate::OnNetworkBytesReceived(net::URLRequest* /*request*/,
-                                             int64_t /*bytes_received*/) {}
+void NetworkDelegate::OnNetworkBytesReceived(net::URLRequest* request,
+                                             int64_t bytes_received) {}
 
-void NetworkDelegate::OnNetworkBytesSent(net::URLRequest* /*request*/,
-                                         int64_t /*bytes_sent*/) {}
+void NetworkDelegate::OnNetworkBytesSent(net::URLRequest* request,
+                                         int64_t bytes_sent) {}
 
-void NetworkDelegate::OnCompleted(net::URLRequest* /*request*/,
-                                  bool /*started*/, int /*net_error*/) {}
+void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started,
+                                  int net_error) {}
 
-void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* /*request*/) {}
+void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {}
 
-void NetworkDelegate::OnPACScriptError(int /*line_number*/,
-                                       const base::string16& /*error*/) {}
+void NetworkDelegate::OnPACScriptError(int line_number,
+                                       const base::string16& error) {}
 
 net::NetworkDelegate::AuthRequiredResponse NetworkDelegate::OnAuthRequired(
-    net::URLRequest* /*request*/, const net::AuthChallengeInfo& /*auth_info*/,
-    AuthCallback /*callback*/, net::AuthCredentials* /*credentials*/) {
+    net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
+    AuthCallback callback, net::AuthCredentials* credentials) {
   return AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }
 
 bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
-                                      const net::CookieList& /*cookie_list*/,
+                                      const net::CookieList& cookie_list,
                                       bool allowed_from_caller) {
   if (!allowed_from_caller) {
     return false;
@@ -148,8 +148,8 @@ bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
 }
 
 bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
-                                     const net::CanonicalCookie& /*cookie*/,
-                                     net::CookieOptions* /*options*/,
+                                     const net::CanonicalCookie& cookie,
+                                     net::CookieOptions* options,
                                      bool allowed_from_caller) {
   if (!allowed_from_caller) {
     return false;
@@ -160,13 +160,13 @@ bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
 }
 
 bool NetworkDelegate::OnCanAccessFile(
-    const net::URLRequest& /*request*/, const base::FilePath& /*original_path*/,
-    const base::FilePath& /*absolute_path*/) const {
+    const net::URLRequest& request, const base::FilePath& original_path,
+    const base::FilePath& absolute_path) const {
   return true;
 }
 
 bool NetworkDelegate::OnCanEnablePrivacyMode(
-    const GURL& /*url*/, const GURL& /*site_for_cookies*/) const {
+    const GURL& url, const GURL& site_for_cookies) const {
   return false;
 }
 
@@ -175,13 +175,13 @@ bool NetworkDelegate::OnAreExperimentalCookieFeaturesEnabled() const {
 }
 
 bool NetworkDelegate::OnCancelURLRequestWithPolicyViolatingReferrerHeader(
-    const net::URLRequest& /*request*/, const GURL& /*target_url*/,
-    const GURL& /*referrer_url*/) const {
+    const net::URLRequest& request, const GURL& target_url,
+    const GURL& referrer_url) const {
   return true;
 }
 
 bool NetworkDelegate::OnCanQueueReportingReport(
-    const url::Origin& /*origin*/) const {
+    const url::Origin& origin) const {
   return true;
 }
 
@@ -191,13 +191,13 @@ void NetworkDelegate::OnCanSendReportingReports(
   std::move(result_callback).Run(std::move(origins));
 }
 
-bool NetworkDelegate::OnCanSetReportingClient(const url::Origin& /*origin*/,
-                                              const GURL& /*endpoint*/) const {
+bool NetworkDelegate::OnCanSetReportingClient(const url::Origin& origin,
+                                              const GURL& endpoint) const {
   return true;
 }
 
-bool NetworkDelegate::OnCanUseReportingClient(const url::Origin& /*origin*/,
-                                              const GURL& /*endpoint*/) const {
+bool NetworkDelegate::OnCanUseReportingClient(const url::Origin& origin,
+                                              const GURL& endpoint) const {
   return true;
 }
 

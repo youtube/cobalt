@@ -100,7 +100,6 @@ std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
 }
 
 void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
-  SB_UNREFERENCED_PARAMETER(tracks);
 }
 
 // Extract the value of "codecs" parameter from content type. It will return

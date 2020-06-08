@@ -37,6 +37,7 @@
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/starboard_player.h"
@@ -290,6 +291,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbTime last_time_media_time_retrieved_ = 0;
   // The maximum video playback capabilities required for the playback.
   std::string max_video_capabilities_;
+
+  base::Optional<PlaybackStatistics::Record> statistics_record_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -905,6 +908,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
+  if (video_stream_) {
+    statistics_record_.emplace(video_stream_->video_decoder_config());
+  }
+
   {
     base::AutoLock auto_lock(lock_);
     player_.reset(new StarboardPlayer(
@@ -1182,6 +1189,10 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       if (!seek_cb_.is_null()) {
         CallSeekCB(PIPELINE_OK);
       }
+      if (statistics_record_) {
+        SB_DCHECK(video_stream_);
+        statistics_record_->OnPresenting(video_stream_->video_decoder_config());
+      }
       break;
     }
     case kSbPlayerStateEndOfStream:
@@ -1217,12 +1228,17 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+  auto statistics = video_stream_ ? PlaybackStatistics::GetStatistics(
+                                        video_stream_->video_decoder_config())
+                                  : "n/a";
   switch (error) {
     case kSbPlayerErrorDecode:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE,
+                           message + ", statistics: " + statistics);
       break;
     case kSbPlayerErrorCapabilityChanged:
-      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
+      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED,
+                           message + ", statistics: " + statistics);
       break;
 #if SB_API_VERSION >= 11
     case kSbPlayerErrorMax:
@@ -1257,6 +1273,9 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
     if (natural_size_changed) {
       content_size_change_cb_.Run();
     }
+
+    DCHECK(statistics_record_);
+    statistics_record_->OnConfigChange(stream->video_decoder_config());
   }
 }
 

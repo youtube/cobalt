@@ -46,10 +46,6 @@
     'src/ports/SkTime_cobalt.cc',
   ],
 
-  'defines': [
-    'COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES=<(local_font_cache_size_in_bytes)',
-  ],
-
   'include_dirs': [
     '<(SHARED_INTERMEDIATE_DIR)',
   ],

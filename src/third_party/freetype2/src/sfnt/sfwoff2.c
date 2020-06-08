@@ -4,7 +4,7 @@
  *
  *   WOFF2 format management (base).
  *
- * Copyright (C) 2019 by
+ * Copyright (C) 2019-2020 by
  * Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -302,7 +302,7 @@
     {
       v = 0;
       for ( i = aligned_size ; i < size; ++i )
-        v |= buf[i] << ( 24 - 8 * ( i & 3 ) );
+        v |= (FT_ULong)buf[i] << ( 24 - 8 * ( i & 3 ) );
       checksum += v;
     }
 
@@ -318,7 +318,7 @@
   {
 #ifdef FT_CONFIG_OPTION_USE_BROTLI
 
-    size_t            uncompressed_size = dst_size;
+    size_t             uncompressed_size = dst_size;
     BrotliDecoderResult  result;
 
 
@@ -1268,8 +1268,11 @@
     FT_Error   error = FT_Err_Ok;
     FT_ULong   offset_size;
 
+    /* At this point of time those tables might not have been read yet. */
     const WOFF2_Table  maxp_table = find_table( tables, num_tables,
                                                 TTAG_maxp );
+    const WOFF2_Table  head_table = find_table( tables, num_tables,
+                                                TTAG_head );
 
 
     if ( !maxp_table )
@@ -1278,8 +1281,14 @@
       return FT_THROW( Invalid_Table );
     }
 
+    if ( !head_table )
+    {
+      FT_ERROR(( "`head' table is missing.\n" ));
+      return FT_THROW( Invalid_Table );
+    }
+
     /* Read `numGlyphs' field from `maxp' table. */
-    if ( FT_STREAM_SEEK( maxp_table->src_offset ) && FT_STREAM_SKIP( 8 ) )
+    if ( FT_STREAM_SEEK( maxp_table->src_offset ) || FT_STREAM_SKIP( 8 ) )
       return error;
 
     if ( FT_READ_USHORT( num_glyphs ) )
@@ -1288,8 +1297,8 @@
     info->num_glyphs = num_glyphs;
 
     /* Read `indexToLocFormat' field from `head' table. */
-    if ( FT_STREAM_SEEK( info->head_table->src_offset ) &&
-         FT_STREAM_SKIP( 50 )                           )
+    if ( FT_STREAM_SEEK( head_table->src_offset ) ||
+         FT_STREAM_SKIP( 50 )                     )
       return error;
 
     if ( FT_READ_USHORT( index_format ) )
@@ -1326,7 +1335,7 @@
 
       glyf_offset += info->glyf_table->src_offset;
 
-      if ( FT_STREAM_SEEK( glyf_offset ) && FT_STREAM_SKIP( 2 ) )
+      if ( FT_STREAM_SEEK( glyf_offset ) || FT_STREAM_SKIP( 2 ) )
         return error;
 
       if ( FT_READ_USHORT( info->x_mins[i] ) )
@@ -1465,9 +1474,17 @@
     *sfnt_bytes = sfnt;
     *out_offset = dest_offset;
 
+    FT_FREE( advance_widths );
+    FT_FREE( lsbs );
+    FT_FREE( hmtx_table );
+
     return error;
 
   Fail:
+    FT_FREE( advance_widths );
+    FT_FREE( lsbs );
+    FT_FREE( hmtx_table );
+
     if ( !error )
       error = FT_THROW( Invalid_Table );
 
@@ -1513,9 +1530,9 @@
     info->glyf_table = find_table( indices, num_tables, TTAG_glyf );
     info->loca_table = find_table( indices, num_tables, TTAG_loca );
 
-    if ( !( info->glyf_table && info->loca_table ) )
+    if ( ( info->glyf_table == NULL ) ^ ( info->loca_table == NULL ) )
     {
-      FT_ERROR(( "Both `glyph' and `loca' tables must be present.\n" ));
+      FT_ERROR(( "One of `glyf'/`loca' tables missing.\n" ));
       return FT_THROW( Invalid_Table );
     }
 
@@ -2137,7 +2154,8 @@
 
 #ifdef FT_DEBUG_LEVEL_TRACE
       if ( sfnt_size != woff2.totalSfntSize )
-        FT_TRACE4(( "adjusting estimate of uncompressed font size to %lu\n",
+        FT_TRACE4(( "adjusting estimate of uncompressed font size"
+                    " to %lu bytes\n",
                     sfnt_size ));
 #endif
     }

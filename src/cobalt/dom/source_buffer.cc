@@ -349,8 +349,6 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
 }
 
 void SourceBuffer::InitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
-  SB_UNREFERENCED_PARAMETER(tracks);
-
   if (!first_initialization_segment_received_) {
     media_source_->SetSourceBufferActive(this, true);
     first_initialization_segment_received_ = true;

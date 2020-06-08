@@ -69,7 +69,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                         backend::RenderTarget* render_target,
                         const math::Rect& content_rect);
 
-  void Visit(render_tree::animations::AnimateNode* /* animate */) override {
+  void Visit(render_tree::animations::AnimateNode* animate) override {
     NOTREACHED();
   }
   void Visit(render_tree::ClearRectNode* clear_rect_node) override;

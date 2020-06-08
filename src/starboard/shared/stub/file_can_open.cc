@@ -14,6 +14,6 @@
 
 #include "starboard/file.h"
 
-bool SbFileCanOpen(const char* /*path*/, int /*flags*/) {
+bool SbFileCanOpen(const char* path, int flags) {
   return false;
 }

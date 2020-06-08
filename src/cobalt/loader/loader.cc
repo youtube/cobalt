@@ -48,12 +48,10 @@ class Loader::FetcherHandlerToDecoderAdapter : public Fetcher::Handler {
   }
 
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnReceivedPassed(Fetcher* fetcher,
                         std::unique_ptr<std::string> data) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunkPassed(std::move(data));
   }
   void OnDone(Fetcher* fetcher) override {
@@ -61,7 +59,7 @@ class Loader::FetcherHandlerToDecoderAdapter : public Fetcher::Handler {
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
-  void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     load_complete_callback_.Run(error);
   }
 

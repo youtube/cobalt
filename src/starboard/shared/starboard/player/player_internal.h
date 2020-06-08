@@ -76,6 +76,9 @@ struct SbPlayerPrivate {
       void* context,
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
+  SbPlayerPrivate(const SbPlayerPrivate&) = delete;
+  SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
+
   void UpdateMediaInfo(SbTime media_time,
                        int dropped_video_frames,
                        int ticket,

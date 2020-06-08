@@ -14,6 +14,6 @@
 
 #include "starboard/common/string.h"
 
-const char* SbStringFindCharacter(const char* /*str*/, char /*character*/) {
+const char* SbStringFindCharacter(const char* str, char character) {
   return NULL;
 }

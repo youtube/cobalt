@@ -162,7 +162,7 @@ void WebSocketImpl::OnHandshakeComplete(
 }
 
 void WebSocketImpl::OnFlowControl(int64_t quota) {
-  DCHECK(current_quota_ >= 0);
+  DCHECK_GE(current_quota_, 0);
   current_quota_ += quota;
   ProcessSendQueue();
 }
@@ -238,7 +238,7 @@ void WebSocketImpl::OnWebSocketWriteDone(uint64_t bytes_written) {
 
 bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
                                const char *data, std::size_t length,
-                               std::string * /*error_message*/) {
+                               std::string *error_message) {
   scoped_refptr<net::IOBuffer> io_buffer(new net::IOBuffer(length));
   SbMemoryCopy(io_buffer->data(), data, length);
 

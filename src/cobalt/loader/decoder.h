@@ -41,8 +41,7 @@ class Decoder {
   // A loader may want to signal the beginning of a decode and can send
   // the HTTP headers, if this was a network request.
   virtual LoadResponseType OnResponseStarted(
-      Fetcher* /*fetcher*/,
-      const scoped_refptr<net::HttpResponseHeaders>& /*headers*/)
+      Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers)
       WARN_UNUSED_RESULT {
     return kLoadResponseContinue;
   }

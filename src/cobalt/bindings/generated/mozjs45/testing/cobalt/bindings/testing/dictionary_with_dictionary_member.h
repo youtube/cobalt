@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,6 +68,8 @@ class DictionaryWithDictionaryMember {
   }
 
 
+ using is_a_generated_dict = std::true_type;
+
  private:
   bool has_nested_dictionary_;
   TestDictionary nested_dictionary_;
@@ -77,7 +79,6 @@ class DictionaryWithDictionaryMember {
 // in idl test code
 inline std::ostream& operator<<(
     std::ostream& stream, const cobalt::bindings::testing::DictionaryWithDictionaryMember& in) {
-  SB_UNREFERENCED_PARAMETER(in);
   stream << "[DictionaryWithDictionaryMember]";
   return stream;
 }

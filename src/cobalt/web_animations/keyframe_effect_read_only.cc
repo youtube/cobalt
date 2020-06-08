@@ -280,7 +280,6 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
     double iteration_progress, double current_iteration) const {
   // Since not all steps are implemented here, this parameter is not yet
   // referenced in our implementation.
-  SB_UNREFERENCED_PARAMETER(current_iteration);
 
   // 6. If property-specific keyframes is empty, return underlying value.
   if (!IsPropertyAnimated(target_property)) {

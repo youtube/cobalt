@@ -304,7 +304,7 @@ void SbSocketWaiterPrivate::WakeUp(bool timeout) {
 }
 
 // static
-void SbSocketWaiterPrivate::LibeventSocketCallback(int /*fd*/,
+void SbSocketWaiterPrivate::LibeventSocketCallback(int fd,
                                                    int16_t event,
                                                    void* context) {
   Waitee* waitee = reinterpret_cast<Waitee*>(context);
@@ -312,15 +312,15 @@ void SbSocketWaiterPrivate::LibeventSocketCallback(int /*fd*/,
 }
 
 // static
-void SbSocketWaiterPrivate::LibeventTimeoutCallback(int /*fd*/,
-                                                    int16_t /*event*/,
+void SbSocketWaiterPrivate::LibeventTimeoutCallback(int fd,
+                                                    int16_t event,
                                                     void* context) {
   reinterpret_cast<SbSocketWaiter>(context)->WakeUp(true);
 }
 
 // static
-void SbSocketWaiterPrivate::LibeventWakeUpCallback(int /*fd*/,
-                                                   int16_t /*event*/,
+void SbSocketWaiterPrivate::LibeventWakeUpCallback(int fd,
+                                                   int16_t event,
                                                    void* context) {
   reinterpret_cast<SbSocketWaiter>(context)->HandleWakeUpRead();
 }

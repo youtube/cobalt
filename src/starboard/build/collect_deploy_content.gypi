@@ -37,6 +37,11 @@
     # should set |content_deploy_use_absolute_symlinks| to 1.
     'content_deploy_use_absolute_symlinks%': 0,
 
+    # Some platforms can only support a limited depth of directory
+    # structure, and this allows the depth of deploy content to be
+    # checked not to exceed that.
+    'content_deploy_max_depth%': 0,
+
     # Implementation detail to add conditional args.
     'collect_deploy_content_extra_args': [],
   },
@@ -66,6 +71,7 @@
       '-i', '<(input_dir)',
       '-o', '<(output_dir)',
       '-s', '<(content_deploy_stamp_file)',
+      '--max_depth', '<(content_deploy_max_depth)',
       '<@(collect_deploy_content_extra_args)',
       '>@(content_deploy_subdirs)',
     ],

@@ -14,6 +14,234 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 12
+###  Add support for platform-based UI navigation.
+
+The system can be disabled by implementing the function
+`SbUiNavGetInterface()` to return `false`.  Platform-based UI navigation
+allows the platform to receive feedback on where UI elements are located and
+also lets the platform control what is selected and what the scroll
+parameters are.
+
+NOTE: This API is not used in the production web app yet, so please use the
+stub implementation for `SbUiNavGetInterface()` for now.
+
+### Require the OpenGL and Skia renderers on all platforms.
+
+The system must implement `SbGetGlesInterface()` in `starboard/gles.h`
+or use the provided stub implementation.
+
+This change also effectively deprecates the gyp variable
+"enable_map_to_mesh" in favor of CobaltGraphicsExtensionApi function
+`IsMapToMeshEnabled()` and the command line switch --disable_map_to_mesh.
+Now, Cobalt will assume the platform supports map_to_mesh, so platforms that
+do not will have to have return |false| from `IsMapToMeshEnabled()` or use
+the provided command line switch.
+
+### Require the captions API.
+
+The system must implement the captions functions in
+`starboard/accessibility.h` or use the provided stub implementations.
+System caption can be disabled by implementing the function
+`SbAccessibilityGetCaptionSettings(SbAccessibilityCaptionSettings*
+caption_settings)` to return false as the stub implementation does.
+This change also deprecates the SB_HAS_CAPTIONS flag.
+
+### Require compilation with IPv6.
+
+Cobalt must be able to determine at runtime if the system supports IPv6.
+IPv6 can be disabled by defining SB_HAS_IPV6 to 0.
+
+### Require the microphone API.
+
+The system must implement the microphone functions in
+`starboard/microphone.h` or use the provided stub functions.
+The microphone can be disabled by having `SbMicrophoneCreate()` return
+|kSbMicrophoneInvalid|.
+This change also deprecates the SB_HAS_MICROPHONE flag.
+
+###  Require the memory mapping API.
+
+The system must implement the memory mapping functions in
+`starboard/memory.h` and `starboard/shared/dlmalloc.h` or use the provided
+stub implementations.
+This change also deprecates the SB_HAS_MMAP flag.
+
+### Require the on screen keyboard API.
+
+The system must implement the on screen keyboard functions in
+`starboard/window.h` or use the provided stub implementations.
+The on screen keyboard can be disabled by implementing the function
+`SbWindowOnScreenKeyboardIsSupported()` to return false
+as the stub implementation does.
+
+### Require speech recognizer API.
+
+The system must implement the functions in `starboard/speech_recognizer.h`
+or use the provided stub implementations.
+The speech recognizer can be disabled by implementing the function
+`SbSpeechRecognizerIsSupported()` to return `false` as the stub
+implementation does.
+
+### Require the speech synthesis API.
+
+The system must implement the speech synthesis function in
+`starboard/speech_synthesis.h` or use the provided stub implementations.
+Speech synthesis can be disabled by implementing the function
+`SbSpeechSynthesisIsSupported()` to return false as the stub
+implementation does.
+
+### Require the time thread now API.
+
+The system must implement the time thread now functions in
+`starboard/time.h` or use the provided stub implementations.
+Time thread now can be disabled by implementing the function
+`SbTimeIsTimeThreadNowSupported()` to return false as the stub
+implementation does.
+
+### Add SbFileAtomicReplace API.
+
+Introduce the Starboard function SbFileAtomicReplace() to provide the ability
+to atomically replace the content of a file.
+
+### Introduces new system property kSbSystemPathStorageDirectory.
+
+Path to directory for permanent storage. Both read and write
+access are required.
+
+### Introduce Starboard Application Binary Interface (SABI) files.
+
+SABI files are used to describe the configuration for targets such that two
+targets, built with the same SABI file and varying toolchains, have
+compatible Starboard APIs and ABIs.
+
+With this define, we have:
+1) Moved architecture specific defines and configurations from
+  configuration_public.h and *.gyp[i] files into SABI files.
+2) Included the appropriate SABI file in each platform configuration.
+3) Included the //starboard/sabi/sabi.gypi file in each platform
+  configuration which consumes SABI file fields and defines a set of
+  constants that are accessible when building.
+4) Provided a set of tests that ensure the toolchain being used produces
+  an executable or shared library that conforms to the included SABI file.
+
+For further information on what is provided by SABI files, or how these
+values are consumed, take a look at //starboard/sabi.
+
+### Updates the API guarantees of SbMutexAcquireTry.
+
+SbMutexAcquireTry now has undefined behavior when it is invoked on a mutex
+that has already been locked by the calling thread. In addition, since
+SbMutexAcquireTry was used in SbMutexDestroy, SbMutexDestroy now has
+undefined behavior when invoked on a locked mutex.
+
+### Migrate the Starboard configuration variables from macros to extern consts.
+
+The migration allows Cobalt to make platform level decisions at runtime
+instead of compile time which lets us create a more comprehensive Cobalt
+binary.
+
+This means Cobalt must remove all references to these macros that would not
+translate well to constants, i.e. in compile time references or initializing
+arrays. Therefore, we needed to change the functionality of the function
+`SbDirectoryGetNext` in "starboard/directory.h". Because we do not want to
+use variable length arrays, we pass in a c-string and length to the function
+to achieve the same result as before when passing in a `SbDirectoryEntry`.
+
+A platform will define the extern constants declared in
+"starboard/configuration_constants.h". The definitions are done in
+"starboard/<PLATFORM_PATH>/configuration_constants.cc".
+
+The exact mapping between macros and extern variables can be found in
+"starboard/shared/starboard/configuration_constants_compatibility_defines.h"
+though the naming scheme is very nearly the same: the old SB_FOO macro will
+always become the constant kSbFoo.
+
+### Improve player creation and output mode query.
+
+1. Introduce the new type SbPlayerCreationParam that holds the common
+parameters used to create an SbPlayer() and to query for the output mode
+support.
+
+2. Replace SbPlayerOutputModeSupported() by SbPlayerGetPreferredOutputMode()
+so the SbPlayer implementation can explicitly indicate its preference on
+output mode, when all output modes are supported.
+For example, Cobalt used to always query for |kSbPlayerOutputModePunchOut|
+first, without providing details about the video going to be played, and
+not query for output modes if punch out is supported.  The new interface
+allows the implementation to fine tune its output mode.  For example, it
+may decide to use |kSbPlayerOutputModeDecodeToTexture| for low resolution
+videos.
+
+### Introduce error handling into reference SbAudioSinkPrivate.
+
+The implementation is in:
+"starboard/shared/starboard/audio_sink/audio_sink_internal.*".
+
+### Change the thread types to be portable with stable ABI.
+
+The following types were updated:
+SbThread, SbMutex, SbOnce and SbConditionVariable.
+
+### Introduce support of cbcs encryption scheme into SbDrmSystem.
+
+The definition follows ISO/IEC 23001 part 7.
+
+### Add link register to SbThreadContext.
+
+### Make GYP configuration variables cobalt extensions instead.
+
+This change moves all of the GYP configuration variables to be members of
+the struct declared in "cobalt/extension/configuration.h". All members are
+function pointers that can be set for each platform, otherwise defaults
+will be used. These can be referenced through functions declared in
+"cobalt/configuration/configuration.h", which will use the extension API if
+available, but will otherwise fall back onto default values.
+
+### Add the PCLMULQDQ instruction feature.
+
+The PCLMULQDQ was added to the Starboard CPU features interface
+for x86 architectures.
+
+###  |content_type| is added to SbMediaIsVideoSupported() and
+SbMediaIsAudioSupported().
+
+### Enables a test that checks that Opus is supported.
+
+### Deprecated the Blitter API.
+
+Blitter API is no longer supported on any platform. Use the OpenGL ES
+interface instead.
+
+### Deprecated the Crypto API.
+
+Crypto API is no longer supported on any platform. BoringSSL CPU
+optimizations are used instead.
+
+### Deprecate the SB_HAS_VIRTUAL_REGIONS flag as all platforms define it to 0.
+
+### Deprecate the usage of SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER.
+
+### Deprecated unused enums |kSbPlayerDecoderStateBufferFull| and
+|kSbPlayerDecoderStateDestroyed|.
+
+### Deprecate the |SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING| macro.
+
+### Deprecated 'cobalt_minimum_frame_time_in_milliseconds'.
+
+The variable 'cobalt_minimum_frame_time_in_milliseconds' is deprecated
+in favor of the usage of
+'CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds' API.
+The declaration of 'GetMinimumFrameIntervalInMilliseconds' can be found
+in cobalt/renderer/backend/graphics_context.h
+
+### Deprecate support for GLES3 features.
+
+### Deprecate Web Extension support.
+
+The Platform Services API should be used
+instead. See cobalt/doc/platform_services.md.
+
 ## Version 11
 
 ### Add arguments to `SbMediaIsVideoSupported`.

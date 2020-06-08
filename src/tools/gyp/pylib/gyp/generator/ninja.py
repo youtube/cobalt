@@ -96,12 +96,12 @@ def GetToolchainOrNone(flavor):
   return config.GetPlatformConfig(flavor).GetToolchain()
 
 
-def GetTargetToolchain(flavor):
-  return config.GetPlatformConfig(flavor).GetTargetToolchain()
+def GetTargetToolchain(flavor, **kwargs):
+  return config.GetPlatformConfig(flavor).GetTargetToolchain(**kwargs)
 
 
-def GetHostToolchain(flavor):
-  return config.GetPlatformConfig(flavor).GetHostToolchain()
+def GetHostToolchain(flavor, **kwargs):
+  return config.GetPlatformConfig(flavor).GetHostToolchain(**kwargs)
 
 
 def FindFirstInstanceOf(type, instances):
@@ -923,9 +923,11 @@ class NinjaWriter:
       shell = GetShell(self.flavor)
 
       if self.toolset == 'target':
-        toolchain = GetTargetToolchain(self.flavor)
+        toolchain = GetTargetToolchain(self.flavor, spec=spec,
+                                       config_name=config_name)
       else:
-        toolchain = GetHostToolchain(self.flavor)
+        toolchain = GetHostToolchain(self.flavor, spec=spec,
+                                     config_name=config_name)
 
       defines = config.get('defines', [])
       include_dirs = [
@@ -940,6 +942,12 @@ class NinjaWriter:
       cflags_c = GetConfigFlags(config, self.toolset, 'cflags_c')
       cflags_cc = GetConfigFlags(config, self.toolset, 'cflags_cc')
       cflags_mm = GetConfigFlags(config, self.toolset, 'cflags_mm')
+      obj = 'obj'
+      if self.toolset != 'target':
+        obj += '.' + self.toolset
+      pdbpath = os.path.normpath(
+          os.path.join(obj, self.base_dir, self.name + '.pdb'))
+      self.WriteVariableList('pdbname', [pdbpath])
 
       c_compiler = FindFirstInstanceOf(abstract.CCompiler, toolchain)
       if c_compiler:
@@ -1202,9 +1210,25 @@ class NinjaWriter:
 
     try:
       if self.toolset == 'target':
-        toolchain = GetTargetToolchain(self.flavor)
+        toolchain = GetTargetToolchain(
+            self.flavor,
+            spec=spec,
+            config_name=config_name,
+            gyp_path_to_ninja=self.GypPathToNinja,
+            expand_special=self.ExpandSpecial,
+            gyp_path_to_unique_output=self.GypPathToUniqueOutput,
+            compute_output_file_name=self.ComputeOutputFileName
+        )
       else:
-        toolchain = GetHostToolchain(self.flavor)
+        toolchain = GetHostToolchain(
+            self.flavor,
+            spec=spec,
+            config_name=config_name,
+            gyp_path_to_ninja=self.GypPathToNinja,
+            expand_special=self.ExpandSpecial,
+            gyp_path_to_unique_output=self.GypPathToUniqueOutput,
+            compute_output_file_name=self.ComputeOutputFileName
+        )
 
       shell = GetShell(self.flavor)
       extra_bindings = []
@@ -1265,6 +1289,10 @@ class NinjaWriter:
                             shell.Join(shared_library_linker_flags))
         output = self.ComputeOutput(spec)
         extra_bindings.append(('soname', os.path.split(output)[1]))
+        extra_bindings.append(('dll', output))
+        if '/NOENTRY' not in shared_library_linker_flags:
+          extra_bindings.append(('implibflag',
+                                 '/IMPLIB:%s' % output + '.lib'))
 
       else:
         raise Exception('Target type {0} is not supported for target {1}.'
@@ -1468,10 +1496,21 @@ class NinjaWriter:
 
       try:
         if self.toolset == 'target':
-          toolchain = GetTargetToolchain(self.flavor)
+          toolchain = GetTargetToolchain(
+              self.flavor,
+              spec=spec,
+              config_name=config_name,
+              gyp_path_to_ninja=self.GypPathToNinja
+          )
         else:
-          toolchain = GetHostToolchain(self.flavor)
+          toolchain = GetHostToolchain(
+              self.flavor,
+              spec=spec,
+              config_name=config_name,
+              gyp_path_to_ninja=self.GypPathToNinja
+          )
 
+        shell = GetShell(self.flavor)
         static_linker = FindFirstInstanceOf(abstract.StaticLinker, toolchain)
         if not self.is_standalone_static_library:
           static_thin_linker = FindFirstInstanceOf(abstract.StaticThinLinker,
@@ -1483,6 +1522,10 @@ class NinjaWriter:
                                    self.target.binary, self.toolset)
 
         rule_name = GetNinjaRuleName(static_linker, self.toolset)
+
+        static_linker_flags = static_linker.GetFlags()
+        self.ninja.variable('{0}_flags'.format(rule_name),
+                            shell.Join(static_linker_flags))
       except NotImplementedError:
         # Fall back to the legacy toolchain.
 
@@ -1985,7 +2028,8 @@ def MaybeWriteRule(ninja, tool, toolset, shell):
         deps=tool.GetHeaderDependenciesFormat(),
         pool=pool,
         rspfile=tool.GetRspFilePath(),
-        rspfile_content=tool.GetRspFileContent())
+        rspfile_content=tool.GetRspFileContent(),
+        restat=tool.GetRestat())
 
 
 def GenerateOutputForConfig(target_list, target_dicts, data, params,

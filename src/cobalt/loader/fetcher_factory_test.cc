@@ -32,8 +32,6 @@ class StubFetcherHandler : public Fetcher::Handler {
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    SB_UNREFERENCED_PARAMETER(data);
-    SB_UNREFERENCED_PARAMETER(size);
     CheckSameFetcher(fetcher);
   }
   void OnDone(Fetcher* fetcher) override {

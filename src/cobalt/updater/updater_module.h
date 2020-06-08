@@ -59,6 +59,9 @@ class UpdaterModule {
   explicit UpdaterModule(network::NetworkModule* network_module);
   ~UpdaterModule();
 
+  void Suspend();
+  void Resume();
+
   std::string GetUpdaterChannel() const;
   void SetUpdaterChannel(const std::string& updater_channel);
 
@@ -81,6 +84,7 @@ class UpdaterModule {
   network::NetworkModule* network_module_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
+  bool is_updater_running_;
 
   THREAD_CHECKER(thread_checker_);
 

@@ -39,7 +39,7 @@ extern "C" {
 
 // The max number a tries per installation before it
 // is discarded if not successful.
-#define IM_MAX_NUM_TRIES 5
+#define IM_MAX_NUM_TRIES 3
 
 // The Installation Manager API is thread safe and
 // can be used from any thread. Most calls would

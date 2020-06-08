@@ -40,5 +40,9 @@
 
   'includes': [
     '<(DEPTH)/starboard/linux/x64x11/shared/gyp_configuration.gypi',
+    # Include the test_webapi_extension.gypi here to ensure that the
+    # webapi_extension facilities get built and tested on at least one build.
+    # See cobalt/doc/webapi_extension.md for more information.
+    '<(DEPTH)/starboard/shared/test_webapi_extension/test_webapi_extension.gypi',
   ],
 }

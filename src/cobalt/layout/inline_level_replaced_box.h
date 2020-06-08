@@ -42,7 +42,10 @@ class InlineLevelReplacedBox : public ReplacedBox {
       const base::Optional<float>& maybe_intrinsic_ratio,
       UsedStyleProvider* used_style_provider,
       base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
-      const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker);
+      const math::SizeF& content_size,
+      base::Optional<render_tree::LottieAnimation::LottieProperties>
+          lottie_properties,
+      LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
   Level GetLevel() const override;

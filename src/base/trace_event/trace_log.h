@@ -303,7 +303,7 @@ class BASE_EXPORT TraceLog : public MemoryDumpProvider {
 
   // Testing factory for TraceEventFilter.
   typedef std::unique_ptr<TraceEventFilter> (*FilterFactoryForTesting)(
-      const std::string& /* predicate_name */);
+      const std::string& predicate_name);
   void SetFilterFactoryForTesting(FilterFactoryForTesting factory) {
     filter_factory_for_testing_ = factory;
   }

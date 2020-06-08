@@ -152,6 +152,17 @@ class Tool(object):
     """
     pass
 
+  def GetRestat(self):
+    """Returns a boolean controlling use of restat.
+
+    See 'restat' at https://ninja-build.org/manual.html#restat for
+    details.
+
+    Returns:
+      False if restat use is not specified.
+    """
+    return False
+
 
 class CCompiler(Tool):
   """Compiles C sources."""
@@ -294,6 +305,14 @@ class StaticLinker(Tool):
     # Only applicable to C family compilers.
     return None
 
+  def GetFlags(self):
+    """Returns tool flags specific to a target.
+
+    Returns:
+      A list of flags.
+    """
+    return []
+
 
 class StaticThinLinker(Tool):
   """Creates thin archives using GNU ar."""
@@ -312,6 +331,13 @@ class StaticThinLinker(Tool):
     # Only applicable to C family compilers.
     return None
 
+  def GetFlags(self):
+    """Returns tool flags specific to a target.
+
+    Returns:
+      A list of flags.
+    """
+    return []
 
 class ExecutableLinker(Tool):
   """Links executables."""

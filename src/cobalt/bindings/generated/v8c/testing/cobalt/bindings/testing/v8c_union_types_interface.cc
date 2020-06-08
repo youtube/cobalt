@@ -1,6 +1,6 @@
 
 
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@
 #include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
+#include "cobalt/bindings/testing/derived_dictionary.h"
+#include "cobalt/bindings/testing/test_dictionary.h"
 #include "cobalt/bindings/testing/v8c_arbitrary_interface.h"
 #include "cobalt/bindings/testing/v8c_base_interface.h"
 
@@ -63,6 +65,8 @@ using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::V8cUnionTypesInterface;
 using cobalt::bindings::testing::ArbitraryInterface;
 using cobalt::bindings::testing::BaseInterface;
+using cobalt::bindings::testing::DerivedDictionary;
+using cobalt::bindings::testing::TestDictionary;
 using cobalt::bindings::testing::V8cArbitraryInterface;
 using cobalt::bindings::testing::V8cBaseInterface;
 using cobalt::script::CallbackInterfaceTraits;
@@ -281,6 +285,88 @@ result_value = v8::Undefined(isolate);
 }
 
 
+void unionWithDictionaryPropertyAttributeGetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  script::v8c::shared_bindings::AttributeGetterImpl<UnionTypesInterface,
+                                                    V8cUnionTypesInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, UnionTypesInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
+              impl->union_with_dictionary_property(),
+              &result_value);
+
+  });
+}
+
+void unionWithDictionaryPropertyAttributeSetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  script::v8c::shared_bindings::AttributeSetterImpl<UnionTypesInterface, V8cUnionTypesInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, UnionTypesInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
+  TypeTraits<::cobalt::script::UnionType3<std::string, double, TestDictionary > >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_union_with_dictionary_property(value);
+result_value = v8::Undefined(isolate);
+  return;
+});
+}
+
+
+void unionDictsObjectsPropertyAttributeGetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  script::v8c::shared_bindings::AttributeGetterImpl<UnionTypesInterface,
+                                                    V8cUnionTypesInterface>(
+                    info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, UnionTypesInterface* impl,
+                       cobalt::script::ExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value) {
+  
+      ToJSValue(isolate,
+              impl->union_dicts_objects_property(),
+              &result_value);
+
+  });
+}
+
+void unionDictsObjectsPropertyAttributeSetter(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  script::v8c::shared_bindings::AttributeSetterImpl<UnionTypesInterface, V8cUnionTypesInterface>(info,
+                    false,
+                    false,
+                    [](v8::Isolate* isolate, UnionTypesInterface* impl,
+                       V8cExceptionState& exception_state,
+                       v8::Local<v8::Value>& result_value,
+                       v8::Local<v8::Value> v8_value) {
+  TypeTraits<::cobalt::script::UnionType2<DerivedDictionary, scoped_refptr<ArbitraryInterface> > >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_union_dicts_objects_property(value);
+result_value = v8::Undefined(isolate);
+  return;
+});
+}
+
+
 
 void InitializeTemplate(v8::Isolate* isolate) {
   // https://heycam.github.io/webidl/#interface-object
@@ -416,6 +502,48 @@ void InitializeTemplate(v8::Isolate* isolate) {
                   "unionBaseProperty"
                   ,unionBasePropertyAttributeGetter
                   ,unionBasePropertyAttributeSetter
+                  );
+
+  }
+  {
+
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "unionWithDictionaryProperty"
+                  ,unionWithDictionaryPropertyAttributeGetter
+                  ,unionWithDictionaryPropertyAttributeSetter
+                  );
+
+  }
+  {
+
+    script::v8c::shared_bindings::set_property_for_nonconstructor_attribute(
+                  isolate,
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+                  true,
+                  true,
+                  false,
+                  false,
+                  function_template,
+                  instance_template,
+                  prototype_template,
+                  "unionDictsObjectsProperty"
+                  ,unionDictsObjectsPropertyAttributeGetter
+                  ,unionDictsObjectsPropertyAttributeSetter
                   );
 
   }

@@ -627,11 +627,6 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            RenderTreeNodeVisitorDrawState* draw_state,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
-  SB_UNREFERENCED_PARAMETER(multi_plane_image);
-  SB_UNREFERENCED_PARAMETER(draw_state);
-  SB_UNREFERENCED_PARAMETER(destination_rect);
-  SB_UNREFERENCED_PARAMETER(local_transform);
-
   // Multi-plane images like YUV images are not supported when using the
   // software rasterizers.
   NOTIMPLEMENTED();

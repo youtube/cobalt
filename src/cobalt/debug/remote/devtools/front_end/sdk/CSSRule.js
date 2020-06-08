@@ -1,33 +1,11 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-/**
- * @unrestricted
- */
-SDK.CSSValue = class {
-  /**
-   * @param {!Protocol.CSS.Value} payload
-   */
-  constructor(payload) {
-    this.text = payload.text;
-    if (payload.range)
-      this.range = TextUtils.TextRange.fromObject(payload.range);
-  }
-
-  /**
-   * @param {!SDK.CSSModel.Edit} edit
-   */
-  rebase(edit) {
-    if (!this.range)
-      return;
-    this.range = this.range.rebaseAfterTextEdit(edit.oldRange, edit.newRange);
-  }
-};
 
 /**
  * @unrestricted
  */
-SDK.CSSRule = class {
+export default class CSSRule {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {{style: !Protocol.CSS.CSSStyle, styleSheetId: (string|undefined), origin: !Protocol.CSS.StyleSheetOrigin}} payload
@@ -48,8 +26,9 @@ SDK.CSSRule = class {
    * @param {!SDK.CSSModel.Edit} edit
    */
   rebase(edit) {
-    if (this.styleSheetId !== edit.styleSheetId)
+    if (this.styleSheetId !== edit.styleSheetId) {
       return;
+    }
     this.style.rebase(edit);
   }
 
@@ -57,8 +36,9 @@ SDK.CSSRule = class {
    * @return {string}
    */
   resourceURL() {
-    if (!this.styleSheetId)
+    if (!this.styleSheetId) {
       return '';
+    }
     const styleSheetHeader = this._cssModel.styleSheetHeaderForId(this.styleSheetId);
     return styleSheetHeader.resourceURL();
   }
@@ -97,12 +77,37 @@ SDK.CSSRule = class {
   cssModel() {
     return this._cssModel;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.CSSStyleRule = class extends SDK.CSSRule {
+class CSSValue {
+  /**
+   * @param {!Protocol.CSS.Value} payload
+   */
+  constructor(payload) {
+    this.text = payload.text;
+    if (payload.range) {
+      this.range = TextUtils.TextRange.fromObject(payload.range);
+    }
+  }
+
+  /**
+   * @param {!SDK.CSSModel.Edit} edit
+   */
+  rebase(edit) {
+    if (!this.range) {
+      return;
+    }
+    this.range = this.range.rebaseAfterTextEdit(edit.oldRange, edit.newRange);
+  }
+}
+
+/**
+ * @unrestricted
+ */
+export class CSSStyleRule extends CSSRule {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {!Protocol.CSS.CSSRule} payload
@@ -119,7 +124,7 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {string} selectorText
-   * @return {!SDK.CSSStyleRule}
+   * @return {!CSSStyleRule}
    */
   static createDummyRule(cssModel, selectorText) {
     const dummyPayload = {
@@ -128,17 +133,18 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
       },
       style: {styleSheetId: '0', range: new TextUtils.TextRange(0, 0, 0, 0), shorthandEntries: [], cssProperties: []}
     };
-    return new SDK.CSSStyleRule(cssModel, /** @type {!Protocol.CSS.CSSRule} */ (dummyPayload));
+    return new CSSStyleRule(cssModel, /** @type {!Protocol.CSS.CSSRule} */ (dummyPayload));
   }
 
   /**
    * @param {!Protocol.CSS.SelectorList} selectorList
    */
   _reinitializeSelectors(selectorList) {
-    /** @type {!Array.<!SDK.CSSValue>} */
+    /** @type {!Array.<!CSSValue>} */
     this.selectors = [];
-    for (let i = 0; i < selectorList.selectors.length; ++i)
-      this.selectors.push(new SDK.CSSValue(selectorList.selectors[i]));
+    for (let i = 0; i < selectorList.selectors.length; ++i) {
+      this.selectors.push(new CSSValue(selectorList.selectors[i]));
+    }
   }
 
   /**
@@ -147,11 +153,13 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
    */
   setSelectorText(newSelector) {
     const styleSheetId = this.styleSheetId;
-    if (!styleSheetId)
+    if (!styleSheetId) {
       throw 'No rule stylesheet id';
+    }
     const range = this.selectorRange();
-    if (!range)
+    if (!range) {
       throw 'Rule selector is not editable';
+    }
     return this._cssModel.setSelectorText(styleSheetId, range, newSelector);
   }
 
@@ -167,8 +175,9 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
    */
   selectorRange() {
     const firstRange = this.selectors[0].range;
-    if (!firstRange)
+    if (!firstRange) {
       return null;
+    }
     const lastRange = this.selectors.peekLast().range;
     return new TextUtils.TextRange(
         firstRange.startLine, firstRange.startColumn, lastRange.endLine, lastRange.endColumn);
@@ -180,8 +189,9 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
    */
   lineNumberInSource(selectorIndex) {
     const selector = this.selectors[selectorIndex];
-    if (!selector || !selector.range || !this.styleSheetId)
+    if (!selector || !selector.range || !this.styleSheetId) {
       return 0;
+    }
     const styleSheetHeader = this._cssModel.styleSheetHeaderForId(this.styleSheetId);
     return styleSheetHeader.lineNumberInSource(selector.range.startLine);
   }
@@ -192,8 +202,9 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
    */
   columnNumberInSource(selectorIndex) {
     const selector = this.selectors[selectorIndex];
-    if (!selector || !selector.range || !this.styleSheetId)
+    if (!selector || !selector.range || !this.styleSheetId) {
       return undefined;
+    }
     const styleSheetHeader = this._cssModel.styleSheetHeaderForId(this.styleSheetId);
     console.assert(styleSheetHeader);
     return styleSheetHeader.columnNumberInSource(selector.range.startLine, selector.range.startColumn);
@@ -204,55 +215,58 @@ SDK.CSSStyleRule = class extends SDK.CSSRule {
    * @param {!SDK.CSSModel.Edit} edit
    */
   rebase(edit) {
-    if (this.styleSheetId !== edit.styleSheetId)
+    if (this.styleSheetId !== edit.styleSheetId) {
       return;
+    }
     if (this.selectorRange().equal(edit.oldRange)) {
       this._reinitializeSelectors(/** @type {!Protocol.CSS.SelectorList} */ (edit.payload));
     } else {
-      for (let i = 0; i < this.selectors.length; ++i)
+      for (let i = 0; i < this.selectors.length; ++i) {
         this.selectors[i].rebase(edit);
+      }
     }
-    for (const media of this.media)
+    for (const media of this.media) {
       media.rebase(edit);
+    }
 
     super.rebase(edit);
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-SDK.CSSKeyframesRule = class {
+export class CSSKeyframesRule {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {!Protocol.CSS.CSSKeyframesRule} payload
    */
   constructor(cssModel, payload) {
     this._cssModel = cssModel;
-    this._animationName = new SDK.CSSValue(payload.animationName);
-    this._keyframes = payload.keyframes.map(keyframeRule => new SDK.CSSKeyframeRule(cssModel, keyframeRule));
+    this._animationName = new CSSValue(payload.animationName);
+    this._keyframes = payload.keyframes.map(keyframeRule => new CSSKeyframeRule(cssModel, keyframeRule));
   }
 
   /**
-   * @return {!SDK.CSSValue}
+   * @return {!CSSValue}
    */
   name() {
     return this._animationName;
   }
 
   /**
-   * @return {!Array.<!SDK.CSSKeyframeRule>}
+   * @return {!Array.<!CSSKeyframeRule>}
    */
   keyframes() {
     return this._keyframes;
   }
-};
+}
 
 /**
  * @unrestricted
  */
-SDK.CSSKeyframeRule = class extends SDK.CSSRule {
+export class CSSKeyframeRule extends CSSRule {
   /**
    * @param {!SDK.CSSModel} cssModel
    * @param {!Protocol.CSS.CSSKeyframeRule} payload
@@ -263,7 +277,7 @@ SDK.CSSKeyframeRule = class extends SDK.CSSRule {
   }
 
   /**
-   * @return {!SDK.CSSValue}
+   * @return {!CSSValue}
    */
   key() {
     return this._keyText;
@@ -273,7 +287,7 @@ SDK.CSSKeyframeRule = class extends SDK.CSSRule {
    * @param {!Protocol.CSS.Value} payload
    */
   _reinitializeKey(payload) {
-    this._keyText = new SDK.CSSValue(payload);
+    this._keyText = new CSSValue(payload);
   }
 
   /**
@@ -281,12 +295,14 @@ SDK.CSSKeyframeRule = class extends SDK.CSSRule {
    * @param {!SDK.CSSModel.Edit} edit
    */
   rebase(edit) {
-    if (this.styleSheetId !== edit.styleSheetId || !this._keyText.range)
+    if (this.styleSheetId !== edit.styleSheetId || !this._keyText.range) {
       return;
-    if (edit.oldRange.equal(this._keyText.range))
+    }
+    if (edit.oldRange.equal(this._keyText.range)) {
       this._reinitializeKey(/** @type {!Protocol.CSS.Value} */ (edit.payload));
-    else
+    } else {
       this._keyText.rebase(edit);
+    }
 
     super.rebase(edit);
   }
@@ -297,11 +313,31 @@ SDK.CSSKeyframeRule = class extends SDK.CSSRule {
    */
   setKeyText(newKeyText) {
     const styleSheetId = this.styleSheetId;
-    if (!styleSheetId)
+    if (!styleSheetId) {
       throw 'No rule stylesheet id';
+    }
     const range = this._keyText.range;
-    if (!range)
+    if (!range) {
       throw 'Keyframe key is not editable';
+    }
     return this._cssModel.setKeyframeKey(styleSheetId, range, newKeyText);
   }
-};
+}
+
+/* Legacy exported object */
+self.SDK = self.SDK || {};
+
+/* Legacy exported object */
+SDK = SDK || {};
+
+/** @constructor */
+SDK.CSSRule = CSSRule;
+
+/** @constructor */
+SDK.CSSStyleRule = CSSStyleRule;
+
+/** @constructor */
+SDK.CSSKeyframesRule = CSSKeyframesRule;
+
+/** @constructor */
+SDK.CSSKeyframeRule = CSSKeyframeRule;

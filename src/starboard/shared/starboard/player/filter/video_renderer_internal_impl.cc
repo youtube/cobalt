@@ -140,11 +140,9 @@ void VideoRendererImpl::WriteEndOfStream() {
     return;
   }
   end_of_stream_written_.store(true);
-  if (!first_input_written_ && !ended_cb_called_.load()) {
-    ended_cb_called_.store(true);
-    Schedule(ended_cb_);
+  if (!first_input_written_) {
+    first_input_written_ = true;
   }
-  first_input_written_ = true;
   decoder_->WriteEndOfStream();
 }
 
@@ -162,6 +160,7 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
   seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
   seeking_.store(true);
   end_of_stream_written_.store(false);
+  end_of_stream_decoded_.store(false);
   ended_cb_called_.store(false);
   need_more_input_.store(true);
 
@@ -181,7 +180,6 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   buffering_state_ = kWaitForBuffer;
-  end_of_stream_decoded_.store(false);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   algorithm_->Reset();  // This is also guarded by sink_frames_mutex_.
@@ -254,9 +252,6 @@ void VideoRendererImpl::OnDecoderStatus(
   if (frame) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     last_output_ = SbTimeGetMonotonicNow();
-    if (frame->is_end_of_stream()) {
-      end_of_stream_decoded_.store(true);
-    }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
     SB_DCHECK(first_input_written_);
@@ -266,6 +261,7 @@ void VideoRendererImpl::OnDecoderStatus(
       if (seeking_.exchange(false)) {
         Schedule(prerolled_cb_);
       }
+      end_of_stream_decoded_.store(true);
     } else if (seeking_.load() && frame->timestamp() < seeking_to_time_) {
       frame_too_early = true;
     }
@@ -339,7 +335,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
   number_of_frames_.fetch_sub(
       static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
-  if (number_of_frames_.load() <= 1 && end_of_stream_written_.load() &&
+  if (number_of_frames_.load() <= 1 && end_of_stream_decoded_.load() &&
       !ended_cb_called_.load()) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);

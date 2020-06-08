@@ -157,7 +157,6 @@ class ThreadRWLockStressTest : public AbstractTestThread {
 
   void Run() override {
     SbThread current_thread = SbThreadGetCurrent();
-    SB_UNREFERENCED_PARAMETER(current_thread);
 
     for (int32_t i = begin_value_; i < end_value_; ++i) {
       DoReadAll();

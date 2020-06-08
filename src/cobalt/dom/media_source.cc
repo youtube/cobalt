@@ -89,8 +89,6 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 MediaSourceReadyState MediaSource::ready_state() const { return ready_state_; }
 
 double MediaSource::duration(script::ExceptionState* exception_state) const {
-  SB_UNREFERENCED_PARAMETER(exception_state);
-
   if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }

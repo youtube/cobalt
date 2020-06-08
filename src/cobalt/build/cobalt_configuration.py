@@ -155,6 +155,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'webdriver_test',
         'websocket_test',
         'xhr_test',
+        'zip_unittests',
     ]
 
   def GetDefaultTargetBuildFile(self):

@@ -16,7 +16,6 @@
 
 #if SB_API_VERSION >= 11
 SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
-  SB_UNREFERENCED_PARAMETER(sampler);
   return kSbThreadContextInvalid;
 }
 #endif  // SB_API_VERSION >= 11

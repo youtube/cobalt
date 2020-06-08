@@ -580,7 +580,7 @@ void XMLHttpRequest::set_response_type(
 }
 
 std::string XMLHttpRequest::response_type(
-    script::ExceptionState* /* unused */) const {
+    script::ExceptionState* unused) const {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetype-attribute
   DCHECK_LT(response_type_, arraysize(kResponseTypes));
   return kResponseTypes[response_type_];
@@ -601,8 +601,7 @@ void XMLHttpRequest::set_timeout(uint32 timeout) {
   }
 }
 
-bool XMLHttpRequest::with_credentials(
-    script::ExceptionState* /*unused*/) const {
+bool XMLHttpRequest::with_credentials(script::ExceptionState* unused) const {
   return with_credentials_;
 }
 
@@ -702,9 +701,9 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   UpdateProgress(0);
 }
 
-void XMLHttpRequest::OnURLFetchDownloadProgress(
-    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
-    int64_t /*current_network_bytes*/) {
+void XMLHttpRequest::OnURLFetchDownloadProgress(const net::URLFetcher* source,
+                                                int64_t current, int64_t total,
+                                                int64_t current_network_bytes) {
   TRACK_MEMORY_SCOPE("XHR");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(state_, kDone);
@@ -796,7 +795,7 @@ void XMLHttpRequest::PrepareForNewRequest() {
   is_redirect_ = false;
 }
 
-void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,
+void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
                                               int64 current_val,
                                               int64 total_val) {
   TRACK_MEMORY_SCOPE("XHR");
@@ -1221,7 +1220,6 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
       response_text.as_string().c_str());
   out << xhr_out;
 #else
-  SB_UNREFERENCED_PARAMETER(xhr);
 #endif
   return out;
 }

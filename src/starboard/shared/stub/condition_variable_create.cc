@@ -14,7 +14,7 @@
 
 #include "starboard/common/condition_variable.h"
 
-bool SbConditionVariableCreate(SbConditionVariable* /*out_condition*/,
-                               SbMutex* /*opt_mutex*/) {
+bool SbConditionVariableCreate(SbConditionVariable* out_condition,
+                               SbMutex* opt_mutex) {
   return false;
 }

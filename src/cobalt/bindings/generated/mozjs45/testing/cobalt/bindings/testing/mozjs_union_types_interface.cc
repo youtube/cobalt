@@ -1,6 +1,6 @@
 
 
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,10 @@
 #include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
+#include "cobalt/bindings/testing/derived_dictionary.h"
 #include "cobalt/bindings/testing/mozjs_arbitrary_interface.h"
 #include "cobalt/bindings/testing/mozjs_base_interface.h"
+#include "cobalt/bindings/testing/test_dictionary.h"
 
 #include "mozjs_gen_type_conversion.h"
 
@@ -65,8 +67,10 @@ using cobalt::bindings::testing::UnionTypesInterface;
 using cobalt::bindings::testing::MozjsUnionTypesInterface;
 using cobalt::bindings::testing::ArbitraryInterface;
 using cobalt::bindings::testing::BaseInterface;
+using cobalt::bindings::testing::DerivedDictionary;
 using cobalt::bindings::testing::MozjsArbitraryInterface;
 using cobalt::bindings::testing::MozjsBaseInterface;
+using cobalt::bindings::testing::TestDictionary;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
 using cobalt::script::ScriptValue;
@@ -609,6 +613,206 @@ bool set_unionBaseProperty(
   return !exception_state.is_exception_set();
 }
 
+bool get_unionWithDictionaryProperty(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
+  JS::RootedObject object(context, &args.thisv().toObject());
+  const JSClass* proto_class =
+      MozjsUnionTypesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<UnionTypesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->union_with_dictionary_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+bool set_unionWithDictionaryProperty(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
+  JS::RootedObject object(context, &args.thisv().toObject());
+
+  const JSClass* proto_class =
+      MozjsUnionTypesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<UnionTypesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+  TypeTraits<::cobalt::script::UnionType3<std::string, double, TestDictionary > >::ConversionType value;
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_union_with_dictionary_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
+bool get_unionDictsObjectsProperty(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
+  JS::RootedObject object(context, &args.thisv().toObject());
+  const JSClass* proto_class =
+      MozjsUnionTypesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<UnionTypesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(context,
+              impl->union_dicts_objects_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    args.rval().set(result_value);
+  }
+  return !exception_state.is_exception_set();
+}
+
+bool set_unionDictsObjectsProperty(
+    JSContext* context, unsigned argc, JS::Value* vp) {
+
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
+  JS::RootedObject object(context, &args.thisv().toObject());
+
+  const JSClass* proto_class =
+      MozjsUnionTypesInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<UnionTypesInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+  MozjsExceptionState exception_state(context);
+  JS::RootedValue result_value(context);
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromObject(context, object);
+  UnionTypesInterface* impl =
+      wrapper_private->wrappable<UnionTypesInterface>().get();
+  TypeTraits<::cobalt::script::UnionType2<DerivedDictionary, scoped_refptr<ArbitraryInterface> > >::ConversionType value;
+  if (args.length() != 1) {
+    NOTREACHED();
+    return false;
+  }
+  FromJSValue(context, args[0], kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return false;
+  }
+
+  impl->set_union_dicts_objects_property(value);
+  result_value.set(JS::UndefinedHandleValue);
+  return !exception_state.is_exception_set();
+}
+
 
 const JSPropertySpec prototype_properties[] = {
   {  // Read/Write property
@@ -634,6 +838,18 @@ const JSPropertySpec prototype_properties[] = {
     JSPROP_SHARED | JSPROP_ENUMERATE,
     { { &get_unionBaseProperty, NULL } },
     { { &set_unionBaseProperty, NULL } },
+  },
+  {  // Read/Write property
+    "unionWithDictionaryProperty",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &get_unionWithDictionaryProperty, NULL } },
+    { { &set_unionWithDictionaryProperty, NULL } },
+  },
+  {  // Read/Write property
+    "unionDictsObjectsProperty",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &get_unionDictsObjectsProperty, NULL } },
+    { { &set_unionDictsObjectsProperty, NULL } },
   },
   JS_PS_END
 };

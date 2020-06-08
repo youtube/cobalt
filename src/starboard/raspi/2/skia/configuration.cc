@@ -23,16 +23,21 @@ namespace skia {
 
 namespace {
 
+// This atlas size works better than the auto-mem setting.
 int CobaltSkiaGlyphAtlasWidth() {
   return 2048;
 }
-
 int CobaltSkiaGlyphAtlasHeight() {
   return 2048;
 }
 
 const char* CobaltRasterizerType() {
+  // Use the skia hardware rasterizer.
   return "hardware";
+}
+
+bool CobaltEnableJit() {
+  return true;
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
@@ -59,7 +64,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltReduceGpuMemoryByDefault,
     &common::CobaltGcZealDefault,
     &CobaltRasterizerType,
-    &common::CobaltEnableJitDefault,
+    &CobaltEnableJit,
 };
 
 }  // namespace

@@ -29,7 +29,6 @@ class ThreadChecker {
   enum Type { kSetThreadIdOnCreation, kSetThreadIdOnFirstCheck };
 
   explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {
-    SB_UNREFERENCED_PARAMETER(type);
   }
 
   void Detach() {}

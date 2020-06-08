@@ -13,11 +13,13 @@
 #include "cobalt/updater/prefs.h"
 #include "cobalt/updater/unzipper.h"
 #include "cobalt/updater/updater_constants.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
 #include "components/update_client/network.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzipper.h"
+#include "starboard/system.h"
 
 #include "url/gurl.h"
 
@@ -53,6 +55,18 @@ const std::set<std::string> valid_channels = {
 const std::set<std::string> valid_channels = {"prod", "dogfood"};
 #endif
 
+std::string GetDeviceProperty(SbSystemPropertyId id) {
+  const size_t kSystemPropertyMaxLength = 1024;
+  char value[kSystemPropertyMaxLength];
+  bool result;
+  result = SbSystemGetProperty(id, value, kSystemPropertyMaxLength);
+  std::string prop;
+  if (result) {
+    prop = std::string(value);
+  }
+  return prop;
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -83,12 +97,27 @@ std::vector<GURL> Configurator::PingUrl() const { return UpdateUrl(); }
 std::string Configurator::GetProdId() const { return "cobalt"; }
 
 base::Version Configurator::GetBrowserVersion() const {
-  return base::Version("1.0.0.0");  // version_info::GetVersion();
+  std::string version(COBALT_VERSION);
+  // base::Version only accepts numeric versions. Return Cobalt major version.
+  int first_dot = version.find_first_of(".");
+  if (first_dot != std::string::npos) {
+    return base::Version(version.substr(0, first_dot));
+  }
+  return base::Version("");
 }
 
 std::string Configurator::GetBrand() const { return {}; }
 
-std::string Configurator::GetLang() const { return {}; }
+std::string Configurator::GetLang() const {
+  std::string locale_id(SbSystemGetLocaleId());
+  // POSIX platforms put time zone id at the end of the locale id, like
+  // |en_US.UTF8|. We remove the time zone id.
+  int first_dot = locale_id.find_first_of(".");
+  if (first_dot != std::string::npos) {
+    return locale_id.substr(0, first_dot);
+  }
+  return locale_id;
+}
 
 std::string Configurator::GetOSLongName() const {
   return "Starboard";  // version_info::GetOSType();
@@ -103,6 +132,15 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));
   params.insert(std::make_pair("updaterchannelchanged",
                                IsChannelChanged() ? "True" : "False"));
+
+  // Brand name
+  params.insert(
+      std::make_pair("brand", GetDeviceProperty(kSbSystemPropertyBrandName)));
+
+  // Model name
+  params.insert(
+      std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
+
   return params;
 }
 

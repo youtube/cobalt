@@ -136,13 +136,11 @@ void DeleteTmpFile(const FilePath& tmp_file_path,
 bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
                                               StringPiece data,
                                               StringPiece histogram_suffix) {
-  SB_UNREFERENCED_PARAMETER(histogram_suffix);
-#if SB_API_VERSION >= SB_FILE_ATOMIC_REPLACE_VERSION
+#if SB_API_VERSION >= 12
   return SbFileAtomicReplace(path.value().c_str(), data.data(), data.size());
 #else
   SB_NOTREACHED()
-      << "SbFileAtomicReplace is not available before starboard version "
-      << SB_FILE_ATOMIC_REPLACE_VERSION;
+      << "SbFileAtomicReplace is not available before starboard version 12";
   return false;
 #endif
 }

@@ -73,4 +73,14 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # run it on Android platforms.
           'StressTest.TooManyTextures',
       ],
+      'zip_unittests': [
+          # These tests, and zipping in general, rely on the ability to iterate
+          # recursively to find all of the files that should be zipped. This is
+          # explicitly not supported for the asset directory on Android. If this
+          # functionality is needed at some point, enabling these tests should
+          # be revisited.
+          #
+          # See: starboard/android/shared/file_internal.cc.
+          'ZipTest.Zip*',
+      ],
   }

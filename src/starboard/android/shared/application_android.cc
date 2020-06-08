@@ -137,7 +137,6 @@ void ApplicationAndroid::Teardown() {
 }
 
 SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
-  SB_UNREFERENCED_PARAMETER(options);
   if (SbWindowIsValid(window_)) {
     return kSbWindowInvalid;
   }
@@ -415,7 +414,7 @@ extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
     JniEnvExt* env,
     jobject unused_this) {
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION
+#if SB_API_VERSION >= 12
   return SbWindowOnScreenKeyboardIsSupported() ? JNI_TRUE : JNI_FALSE;
 #elif SB_HAS(ON_SCREEN_KEYBOARD)
   return JNI_TRUE;
@@ -424,8 +423,7 @@ Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
 #endif
 }
 
-#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION || \
-    SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 
 void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
                                                       const char* input_text,
@@ -518,7 +516,7 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
   return;
 }
 
-#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_REQUIRED_VERSION ||
+#endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool ApplicationAndroid::OnSearchRequested() {

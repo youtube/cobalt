@@ -17,7 +17,4 @@
 void SbDrmCloseSession(SbDrmSystem drm_system,
                        const void* session_id,
                        int session_id_size) {
-  SB_UNREFERENCED_PARAMETER(drm_system);
-  SB_UNREFERENCED_PARAMETER(session_id);
-  SB_UNREFERENCED_PARAMETER(session_id_size);
 }

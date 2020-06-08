@@ -96,7 +96,6 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
-    SB_UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnDone(Fetcher* fetcher) override {
@@ -105,7 +104,7 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     decoder_->Finish();
     loader_on_thread_->SignalLoadComplete(base::nullopt);
   }
-  void OnError(Fetcher* /*fetcher*/, const std::string& error) override {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     loader_on_thread_->SignalLoadComplete(error);
   }
 

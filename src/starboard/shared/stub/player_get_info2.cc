@@ -14,5 +14,4 @@
 
 #include "starboard/player.h"
 
-void SbPlayerGetInfo2(SbPlayer /*player*/, SbPlayerInfo2* /*out_player_info*/) {
-}
+void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {}

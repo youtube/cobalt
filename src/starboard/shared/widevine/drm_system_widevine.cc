@@ -401,11 +401,11 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   input.iv_length = static_cast<uint32_t>(initialization_vector.size());
   input.is_video = (buffer->sample_type() == kSbMediaTypeVideo);
 
-#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#if SB_API_VERSION >= 12
   input.pattern.encrypted_blocks =
       drm_info->encryption_pattern.crypt_byte_block;
   input.pattern.clear_blocks = drm_info->encryption_pattern.skip_byte_block;
-#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 12
 
   std::vector<uint8_t> output_data(buffer->size());
   wv3cdm::OutputBuffer output;
@@ -447,13 +447,13 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     if (subsample.encrypted_byte_count) {
       input.last_subsample = i + 1 == buffer->drm_info()->subsample_count;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCtr;
-#if SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#if SB_API_VERSION >= 12
       if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;
       } else {
         SB_DCHECK(drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCtr);
       }
-#endif  // SB_API_VERSION >= SB_DRM_CBCS_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 12
       input.data_length = subsample.encrypted_byte_count;
 
       wv3cdm::Status status = cdm_->decrypt(input, output);
@@ -631,14 +631,11 @@ void DrmSystemWidevine::onKeyStatusesChange(
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
   SB_NOTIMPLEMENTED();
 }
 
 void DrmSystemWidevine::onDeferredComplete(const std::string& wvcdm_session_id,
                                            wv3cdm::Status result) {
-  SB_UNREFERENCED_PARAMETER(wvcdm_session_id);
-  SB_UNREFERENCED_PARAMETER(result);
   SB_NOTIMPLEMENTED();
 }
 

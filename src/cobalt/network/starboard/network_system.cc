@@ -31,7 +31,7 @@ NetworkSystemStarboard::NetworkSystemStarboard() {}
 }  // namespace
 
 std::unique_ptr<NetworkSystem> NetworkSystem::Create(
-    base::EventDispatcher* /*event_dispatcher*/) {
+    base::EventDispatcher* event_dispatcher) {
   return std::unique_ptr<NetworkSystem>(new NetworkSystemStarboard());
 }
 

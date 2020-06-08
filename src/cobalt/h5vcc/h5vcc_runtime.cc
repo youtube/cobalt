@@ -20,10 +20,8 @@
 
 namespace cobalt {
 namespace h5vcc {
-H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher,
-                           const std::string& initial_deep_link)
+H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher) {
-  initial_deep_link_ = initial_deep_link;
   on_deep_link_ = new H5vccDeepLinkEventTarget;
   on_pause_ = new H5vccRuntimeEventTarget;
   on_resume_ = new H5vccRuntimeEventTarget;
@@ -46,10 +44,6 @@ H5vccRuntime::~H5vccRuntime() {
                                          deep_link_event_callback_);
 }
 
-const std::string& H5vccRuntime::initial_deep_link() const {
-  return initial_deep_link_;
-}
-
 const scoped_refptr<H5vccDeepLinkEventTarget>& H5vccRuntime::on_deep_link()
     const {
   return on_deep_link_;
@@ -70,22 +64,14 @@ void H5vccRuntime::TraceMembers(script::Tracer* tracer) {
 }
 
 void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
-  const base::ApplicationEvent* app_event =
-      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
-  if (app_event->type() == kSbEventTypePause) {
-    on_pause()->DispatchEvent();
-  } else if (app_event->type() == kSbEventTypeUnpause) {
-    on_resume()->DispatchEvent();
-  }
+  NOTREACHED();
 }
 
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  if (!deep_link_event->IsH5vccLink()) {
-    DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
-    on_deep_link()->DispatchEvent(deep_link_event->link());
-  }
+  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
+  on_deep_link()->DispatchEvent(deep_link_event->link());
 }
 }  // namespace h5vcc
 }  // namespace cobalt

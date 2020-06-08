@@ -8,14 +8,11 @@
       '<(DEPTH)/v8/include',
     ],
     'defines': [
-      # TODO: Remove WASM module from Cobalt's V8.
       'DISABLE_GRAPHS_STARBOARD',
       'DISABLE_UNWIND_STARBOARD',
       'DISABLE_WASM_STARBOARD',
-      # TODO only enable this on some platforms
       'DISABLE_WASM_COMPILER_ISSUE_STARBOARD',
       'NO_ARRAY_MOVE_STARBOARD',
-      # 'V8_TARGET_OS_WIN', # TODO see if we need to turn on this macro for win32 build
       # Disable mitigations for executing untrusted code.
       # Disabled by default on x86 due to conflicting requirements with embedded
       # builtins. 
@@ -35,11 +32,6 @@
           'V8_ENABLE_ALLOCATION_TIMEOUT=1',
         ],
       }],
-      ['cobalt_gc_zeal == 1', {
-        'defines': [
-          'COBALT_GC_ZEAL=1',
-        ],
-      }],
       ['host_os=="win"', {
         'compiler_flags_host': ['/wd4267', '/wd4312', '/wd4351', '/wd4355', '/wd4800', '/wd4838', '/wd4715', '/EHsc'],
       }],
@@ -51,10 +43,11 @@
         'defines': [
           'V8_EMBEDDED_BUILTINS',
         ],
-      }],
-      ['v8_enable_embedded_builtins != 1 and cobalt_enable_jit != 1', {
-        # jitless mode requires embedded builtins.
-        'defines': ['<(gyp_static_assert_false)', ],
+        'direct_dependent_settings': {
+          'defines': [
+            'V8_EMBEDDED_BUILTINS',
+          ],
+        },
       }],
     ],
   },
@@ -71,7 +64,6 @@
     'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
     'v8_optimized_debug': 0,
     'v8_use_external_startup_data': 0,
-    # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
     # Embedded builtins allow V8 to share built-in codes across isolates.
     'v8_enable_embedded_builtins': '<(cobalt_v8_enable_embedded_builtins)',
@@ -111,7 +103,6 @@
     'is_asan': 0,
     'v8_use_perfetto': 0,
     'v8_use_siphash': 0,
-    # TODO: integrate the lite mode(exciting!)
     'v8_enable_lite_mode': 0,
     'want_separate_host_toolset': 1,
 

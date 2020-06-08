@@ -14,12 +14,12 @@
 
 #include "starboard/thread.h"
 
-SbThread SbThreadCreate(int64_t /*stack_size*/,
-                        SbThreadPriority /*priority*/,
-                        SbThreadAffinity /*affinity*/,
-                        bool /*joinable*/,
-                        const char* /*name*/,
-                        SbThreadEntryPoint /*entry_point*/,
-                        void* /*context*/) {
+SbThread SbThreadCreate(int64_t stack_size,
+                        SbThreadPriority priority,
+                        SbThreadAffinity affinity,
+                        bool joinable,
+                        const char* name,
+                        SbThreadEntryPoint entry_point,
+                        void* context) {
   return kSbThreadInvalid;
 }

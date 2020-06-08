@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-#if SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#if SB_API_VERSION >= 12
 
 // Max size of the SbOnceControl type.
 #define SB_ONCE_MAX_SIZE 64
@@ -53,7 +53,7 @@ typedef union SbOnceControl {
   { 0 }
 #endif
 
-#endif  // SB_API_VERSION >= SB_PORTABLE_THREAD_TYPES_VERSION
+#endif  // SB_API_VERSION >= 12
 
 // Function pointer type for methods that can be called via the SbOnce() system.
 typedef void (*SbOnceInitRoutine)(void);

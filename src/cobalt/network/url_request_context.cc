@@ -159,7 +159,6 @@ URLRequestContext::URLRequestContext(
   context.net_log = net_log;
   set_net_log(net_log);
 #else
-  SB_UNREFERENCED_PARAMETER(net_log);
 #endif
   context.socket_performance_watcher_factory = NULL;
   context.network_quality_provider = NULL;
@@ -196,7 +195,7 @@ void URLRequestContext::DisableQuic() {
 }
 
 #if defined(ENABLE_DEBUGGER)
-void URLRequestContext::OnQuicToggle(const std::string& /*message*/) {
+void URLRequestContext::OnQuicToggle(const std::string& message) {
   DCHECK(storage_.http_network_session());
   storage_.http_network_session()->ToggleQuic();
 }

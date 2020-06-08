@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-UI.DropTarget = class {
+export default class DropTarget {
   /**
    * @param {!Element} element
    * @param {!Array<{kind: string, type: !RegExp}>} transferTypes
@@ -32,8 +32,9 @@ UI.DropTarget = class {
    * @param {!Event} event
    */
   _onDragEnter(event) {
-    if (this._enabled && this._hasMatchingType(event))
+    if (this._enabled && this._hasMatchingType(event)) {
       event.consume(true);
+    }
   }
 
   /**
@@ -45,8 +46,9 @@ UI.DropTarget = class {
       const found = Array.from(event.dataTransfer.items).find(item => {
         return transferType.kind === item.kind && !!transferType.type.exec(item.type);
       });
-      if (found)
+      if (found) {
         return true;
+      }
     }
     return false;
   }
@@ -55,12 +57,14 @@ UI.DropTarget = class {
    * @param {!Event} event
    */
   _onDragOver(event) {
-    if (!this._enabled || !this._hasMatchingType(event))
+    if (!this._enabled || !this._hasMatchingType(event)) {
       return;
+    }
     event.dataTransfer.dropEffect = 'copy';
     event.consume(true);
-    if (this._dragMaskElement)
+    if (this._dragMaskElement) {
       return;
+    }
     this._dragMaskElement = this._element.createChild('div', '');
     const shadowRoot = UI.createShadowRootWithCoreStyles(this._dragMaskElement, 'ui/dropTarget.css');
     shadowRoot.createChild('div', 'drop-target-message').textContent = this._messageText;
@@ -74,8 +78,9 @@ UI.DropTarget = class {
   _onDrop(event) {
     event.consume(true);
     this._removeMask();
-    if (this._enabled)
+    if (this._enabled) {
       this._handleDrop(event.dataTransfer);
+    }
   }
 
   /**
@@ -90,12 +95,23 @@ UI.DropTarget = class {
     this._dragMaskElement.remove();
     delete this._dragMaskElement;
   }
-};
+}
 
-UI.DropTarget.Type = {
+export const Type = {
   URI: {kind: 'string', type: /text\/uri-list/},
   Folder: {kind: 'file', type: /$^/},
   File: {kind: 'file', type: /.*/},
   WebFile: {kind: 'file', type: /[\w]+/},
   ImageFile: {kind: 'file', type: /image\/.*/},
 };
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.DropTarget = DropTarget;
+
+UI.DropTarget.Type = Type;

@@ -30,9 +30,9 @@
 /**
  * @implements {UI.Searchable}
  */
-SourceFrame.JSONView = class extends UI.VBox {
+export class JSONView extends UI.VBox {
   /**
-   * @param {!SourceFrame.ParsedJSON} parsedJSON
+   * @param {!ParsedJSON} parsedJSON
    */
   constructor(parsedJSON) {
     super();
@@ -59,16 +59,16 @@ SourceFrame.JSONView = class extends UI.VBox {
    */
   static async createView(content) {
     // We support non-strict JSON parsing by parsing an AST tree which is why we offload it to a worker.
-    const parsedJSON = await SourceFrame.JSONView._parseJSON(content);
-    if (!parsedJSON || typeof parsedJSON.data !== 'object')
+    const parsedJSON = await JSONView._parseJSON(content);
+    if (!parsedJSON || typeof parsedJSON.data !== 'object') {
       return null;
+    }
 
-    const jsonView = new SourceFrame.JSONView(parsedJSON);
+    const jsonView = new JSONView(parsedJSON);
     const searchableView = new UI.SearchableView(jsonView);
     searchableView.setPlaceholder(Common.UIString('Find'));
     jsonView._searchableView = searchableView;
     jsonView.show(searchableView.element);
-    jsonView.element.setAttribute('tabIndex', 0);
     return searchableView;
   }
 
@@ -77,7 +77,7 @@ SourceFrame.JSONView = class extends UI.VBox {
    * @return {!UI.SearchableView}
    */
   static createViewSync(obj) {
-    const jsonView = new SourceFrame.JSONView(new SourceFrame.ParsedJSON(obj, '', ''));
+    const jsonView = new JSONView(new ParsedJSON(obj, '', ''));
     const searchableView = new UI.SearchableView(jsonView);
     searchableView.setPlaceholder(Common.UIString('Find'));
     jsonView._searchableView = searchableView;
@@ -88,23 +88,26 @@ SourceFrame.JSONView = class extends UI.VBox {
 
   /**
    * @param {?string} text
-   * @return {!Promise<?SourceFrame.ParsedJSON>}
+   * @return {!Promise<?ParsedJSON>}
    */
   static _parseJSON(text) {
     let returnObj = null;
-    if (text)
-      returnObj = SourceFrame.JSONView._extractJSON(/** @type {string} */ (text));
-    if (!returnObj)
-      return Promise.resolve(/** @type {?SourceFrame.ParsedJSON} */ (null));
+    if (text) {
+      returnObj = JSONView._extractJSON(/** @type {string} */ (text));
+    }
+    if (!returnObj) {
+      return Promise.resolve(/** @type {?ParsedJSON} */ (null));
+    }
     return Formatter.formatterWorkerPool().parseJSONRelaxed(returnObj.data).then(handleReturnedJSON);
 
     /**
      * @param {*} data
-     * @return {?SourceFrame.ParsedJSON}
+     * @return {?ParsedJSON}
      */
     function handleReturnedJSON(data) {
-      if (!data)
+      if (!data) {
         return null;
+      }
       returnObj.data = data;
       return returnObj;
     }
@@ -112,29 +115,32 @@ SourceFrame.JSONView = class extends UI.VBox {
 
   /**
    * @param {string} text
-   * @return {?SourceFrame.ParsedJSON}
+   * @return {?ParsedJSON}
    */
   static _extractJSON(text) {
     // Do not treat HTML as JSON.
-    if (text.startsWith('<'))
+    if (text.startsWith('<')) {
       return null;
-    let inner = SourceFrame.JSONView._findBrackets(text, '{', '}');
-    const inner2 = SourceFrame.JSONView._findBrackets(text, '[', ']');
+    }
+    let inner = JSONView._findBrackets(text, '{', '}');
+    const inner2 = JSONView._findBrackets(text, '[', ']');
     inner = inner2.length > inner.length ? inner2 : inner;
 
     // Return on blank payloads or on payloads significantly smaller than original text.
-    if (inner.length === -1 || text.length - inner.length > 80)
+    if (inner.length === -1 || text.length - inner.length > 80) {
       return null;
+    }
 
     const prefix = text.substring(0, inner.start);
     const suffix = text.substring(inner.end + 1);
     text = text.substring(inner.start, inner.end + 1);
 
     // Only process valid JSONP.
-    if (suffix.trim().length && !(suffix.trim().startsWith(')') && prefix.trim().endsWith('(')))
+    if (suffix.trim().length && !(suffix.trim().startsWith(')') && prefix.trim().endsWith('('))) {
       return null;
+    }
 
-    return new SourceFrame.ParsedJSON(text, prefix, suffix);
+    return new ParsedJSON(text, prefix, suffix);
   }
 
   /**
@@ -147,8 +153,9 @@ SourceFrame.JSONView = class extends UI.VBox {
     const start = text.indexOf(open);
     const end = text.lastIndexOf(close);
     let length = end - start - 1;
-    if (start === -1 || end === -1 || end < start)
+    if (start === -1 || end === -1 || end < start) {
       length = -1;
+    }
     return {start: start, end: end, length: length};
   }
 
@@ -160,28 +167,33 @@ SourceFrame.JSONView = class extends UI.VBox {
   }
 
   _initialize() {
-    if (this._initialized)
+    if (this._initialized) {
       return;
+    }
     this._initialized = true;
 
     const obj = SDK.RemoteObject.fromLocalObject(this._parsedJSON.data);
     const title = this._parsedJSON.prefix + obj.description + this._parsedJSON.suffix;
-    this._treeOutline = new ObjectUI.ObjectPropertiesSection(obj, title);
+    this._treeOutline = new ObjectUI.ObjectPropertiesSection(
+        obj, title, undefined, undefined, undefined, undefined, true /* showOverflow */);
     this._treeOutline.enableContextMenu();
     this._treeOutline.setEditable(false);
     this._treeOutline.expand();
     this.element.appendChild(this._treeOutline.element);
+    this._treeOutline.firstChild().select(true /* omitFocus */, false /* selectedByUser */);
   }
 
   /**
    * @param {number} index
    */
   _jumpToMatch(index) {
-    if (!this._searchRegex)
+    if (!this._searchRegex) {
       return;
+    }
     const previousFocusElement = this._currentSearchTreeElements[this._currentSearchFocusIndex];
-    if (previousFocusElement)
+    if (previousFocusElement) {
       previousFocusElement.setSearchRegex(this._searchRegex);
+    }
 
     const newFocusElement = this._currentSearchTreeElements[index];
     if (newFocusElement) {
@@ -197,8 +209,9 @@ SourceFrame.JSONView = class extends UI.VBox {
    * @param {number} count
    */
   _updateSearchCount(count) {
-    if (!this._searchableView)
+    if (!this._searchableView) {
       return;
+    }
     this._searchableView.updateSearchMatchesCount(count);
   }
 
@@ -207,8 +220,9 @@ SourceFrame.JSONView = class extends UI.VBox {
    */
   _updateSearchIndex(index) {
     this._currentSearchFocusIndex = index;
-    if (!this._searchableView)
+    if (!this._searchableView) {
       return;
+    }
     this._searchableView.updateCurrentMatchIndex(index);
   }
 
@@ -220,8 +234,9 @@ SourceFrame.JSONView = class extends UI.VBox {
     this._currentSearchTreeElements = [];
 
     for (let element = this._treeOutline.rootElement(); element; element = element.traverseNextTreeElement(false)) {
-      if (!(element instanceof ObjectUI.ObjectPropertyTreeElement))
+      if (!(element instanceof ObjectUI.ObjectPropertyTreeElement)) {
         continue;
+      }
       element.revertHighlightChanges();
     }
     this._updateSearchCount(0);
@@ -241,17 +256,20 @@ SourceFrame.JSONView = class extends UI.VBox {
     this._searchRegex = searchConfig.toSearchRegex(true);
 
     for (let element = this._treeOutline.rootElement(); element; element = element.traverseNextTreeElement(false)) {
-      if (!(element instanceof ObjectUI.ObjectPropertyTreeElement))
+      if (!(element instanceof ObjectUI.ObjectPropertyTreeElement)) {
         continue;
+      }
       const hasMatch = element.setSearchRegex(this._searchRegex);
-      if (hasMatch)
+      if (hasMatch) {
         this._currentSearchTreeElements.push(element);
+      }
       if (previousSearchFocusElement === element) {
         const currentIndex = this._currentSearchTreeElements.length - 1;
-        if (hasMatch || jumpBackwards)
+        if (hasMatch || jumpBackwards) {
           newIndex = currentIndex;
-        else
+        } else {
           newIndex = currentIndex + 1;
+        }
       }
     }
     this._updateSearchCount(this._currentSearchTreeElements.length);
@@ -269,8 +287,9 @@ SourceFrame.JSONView = class extends UI.VBox {
    * @override
    */
   jumpToNextSearchResult() {
-    if (!this._currentSearchTreeElements.length)
+    if (!this._currentSearchTreeElements.length) {
       return;
+    }
     const newIndex = mod(this._currentSearchFocusIndex + 1, this._currentSearchTreeElements.length);
     this._jumpToMatch(newIndex);
   }
@@ -279,8 +298,9 @@ SourceFrame.JSONView = class extends UI.VBox {
    * @override
    */
   jumpToPreviousSearchResult() {
-    if (!this._currentSearchTreeElements.length)
+    if (!this._currentSearchTreeElements.length) {
       return;
+    }
     const newIndex = mod(this._currentSearchFocusIndex - 1, this._currentSearchTreeElements.length);
     this._jumpToMatch(newIndex);
   }
@@ -300,13 +320,13 @@ SourceFrame.JSONView = class extends UI.VBox {
   supportsRegexSearch() {
     return true;
   }
-};
+}
 
 
 /**
  * @unrestricted
  */
-SourceFrame.ParsedJSON = class {
+export class ParsedJSON {
   /**
    * @param {*} data
    * @param {string} prefix
@@ -317,4 +337,16 @@ SourceFrame.ParsedJSON = class {
     this.prefix = prefix;
     this.suffix = suffix;
   }
-};
+}
+
+/* Legacy exported object */
+self.SourceFrame = self.SourceFrame || {};
+
+/* Legacy exported object */
+SourceFrame = SourceFrame || {};
+
+/** @constructor */
+SourceFrame.JSONView = JSONView;
+
+/** @constructor */
+SourceFrame.ParsedJSON = ParsedJSON;

@@ -136,11 +136,6 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   }
 
   void SetBounds(int z_index, int x, int y, int width, int height) override {
-    SB_UNREFERENCED_PARAMETER(z_index);
-    SB_UNREFERENCED_PARAMETER(x);
-    SB_UNREFERENCED_PARAMETER(y);
-    SB_UNREFERENCED_PARAMETER(width);
-    SB_UNREFERENCED_PARAMETER(height);
   }
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
@@ -161,7 +156,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider,
-                           const char* max_video_capabilities)
+                           const char* max_video_capabilities,
+                           std::string* error_message)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
@@ -171,6 +167,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
                               SbStringGetLength(max_video_capabilities) > 0) {
+  SB_DCHECK(error_message);
+
   if (require_software_codec_) {
     SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
   }
@@ -178,8 +176,10 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     number_of_hardware_decoders_++;
   }
 
-  if (!InitializeCodec()) {
-    SB_LOG(ERROR) << "Failed to initialize video decoder.";
+  if (!InitializeCodec(error_message)) {
+    *error_message =
+        "Failed to initialize video decoder with error: " + *error_message;
+    SB_LOG(ERROR) << *error_message;
     TeardownCodec();
   }
 }
@@ -252,14 +252,18 @@ void VideoDecoder::WriteInputBuffer(
     // Re-initialize the codec now if it was torn down either in |Reset| or
     // because we need to change the color metadata.
     if (media_decoder_ == NULL) {
-      if (!InitializeCodec()) {
-        SB_LOG(ERROR) << "Failed to reinitialize codec.";
+      std::string error_message;
+      if (!InitializeCodec(&error_message)) {
+        error_message =
+            "Failed to reinitialize codec with error: " + error_message;
+        SB_LOG(ERROR) << error_message;
         TeardownCodec();
-        error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
+        ReportError(kSbPlayerErrorDecode, error_message);
         return;
       }
     }
   }
+
   // There's a race condition when suspending the app. If surface view is
   // destroyed before video decoder stopped, |media_decoder_| could be null
   // here. And error_cb_() could be handled asynchronously. It's possible
@@ -306,8 +310,10 @@ void VideoDecoder::Reset() {
   first_buffer_received_ = false;
 }
 
-bool VideoDecoder::InitializeCodec() {
+bool VideoDecoder::InitializeCodec(std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(error_message);
+
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
@@ -329,7 +335,8 @@ bool VideoDecoder::InitializeCodec() {
           DecodeTargetCreate(decode_target_graphics_context_provider_,
                              kSbDecodeTargetFormat1PlaneRGBA, 0, 0);
       if (!SbDecodeTargetIsValid(decode_target)) {
-        SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
+        *error_message = "Could not acquire a decode target from provider.";
+        SB_LOG(ERROR) << *error_message;
         return false;
       }
       j_output_surface = decode_target->data->surface;
@@ -346,14 +353,16 @@ bool VideoDecoder::InitializeCodec() {
     } break;
   }
   if (!j_output_surface) {
-    SB_LOG(ERROR) << "Video surface does not exist.";
+    *error_message = "Video surface does not exist.";
+    SB_LOG(ERROR) << *error_message;
     return false;
   }
 
   int width, height;
   if (!GetVideoWindowSize(&width, &height)) {
-    SB_LOG(ERROR)
-        << "Can't initialize the codec since we don't have a video window.";
+    *error_message =
+        "Can't initialize the codec since we don't have a video window.";
+    SB_LOG(ERROR) << *error_message;
     return false;
   }
 
@@ -361,10 +370,12 @@ bool VideoDecoder::InitializeCodec() {
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_decoder_.reset(new MediaDecoder(
       this, video_codec_, width, height, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_));
+      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
-      media_decoder_->Initialize(error_cb_);
+      media_decoder_->Initialize(
+          std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
     return true;
   }
@@ -583,6 +594,17 @@ void VideoDecoder::OnSurfaceDestroyed() {
   TeardownCodec();
   ScopedLock lock(surface_destroy_mutex_);
   surface_condition_variable_.Signal();
+}
+
+void VideoDecoder::ReportError(SbPlayerError error,
+                               const std::string& error_message) {
+  SB_DCHECK(error_cb_);
+
+  if (!error_cb_) {
+    return;
+  }
+
+  error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
 }  // namespace shared

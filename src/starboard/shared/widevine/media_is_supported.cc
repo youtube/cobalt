@@ -20,8 +20,5 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         const char* key_system) {
   using starboard::shared::widevine::DrmSystemWidevine;
 
-  SB_UNREFERENCED_PARAMETER(video_codec);
-  SB_UNREFERENCED_PARAMETER(audio_codec);
-
   return DrmSystemWidevine::IsKeySystemSupported(key_system);
 }

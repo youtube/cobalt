@@ -18,4 +18,5 @@ interface MediaKeys {
   [RaisesException] MediaKeySession createSession(
       optional MediaKeySessionType sessionType = "temporary");
   Promise<boolean> setServerCertificate(BufferSource serverCertificate);
+  [RaisesException] Uint8Array getMetrics();
 };

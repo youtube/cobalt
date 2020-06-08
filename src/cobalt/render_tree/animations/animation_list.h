@@ -76,7 +76,6 @@ class Animation {
   static void CallTimeIndependentFunction(
       const TimeIndependentFunction& time_independent_function,
       typename T::Builder* builder, base::TimeDelta time) {
-    SB_UNREFERENCED_PARAMETER(time);
     time_independent_function.Run(builder);
   }
 };

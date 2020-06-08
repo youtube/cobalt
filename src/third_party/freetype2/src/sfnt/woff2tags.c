@@ -4,7 +4,7 @@
  *
  *   WOFF2 Font table tags (base).
  *
- * Copyright (C) 2019 by
+ * Copyright (C) 2019-2020 by
  * Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -17,7 +17,6 @@
 
 
 #include <ft2build.h>
-#include "sfwoff.h"
 #include FT_TRUETYPE_TAGS_H
 
 

@@ -69,26 +69,19 @@ class ShellDemuxerFuzzer : DemuxerHost {
  private:
   // DataSourceHost methods (parent class of DemuxerHost)
   void SetTotalBytes(int64 total_bytes) override {
-    SB_UNREFERENCED_PARAMETER(total_bytes);
   }
 
   void AddBufferedByteRange(int64 start, int64 end) override {
-    SB_UNREFERENCED_PARAMETER(start);
-    SB_UNREFERENCED_PARAMETER(end);
   }
 
   void AddBufferedTimeRange(base::TimeDelta start,
                             base::TimeDelta end) override {
-    SB_UNREFERENCED_PARAMETER(start);
-    SB_UNREFERENCED_PARAMETER(end);
   }
 
   // DemuxerHost methods
   void SetDuration(base::TimeDelta duration) override {
-    SB_UNREFERENCED_PARAMETER(duration);
   }
   void OnDemuxerError(PipelineStatus error) override {
-    SB_UNREFERENCED_PARAMETER(error);
     error_occurred_ = true;
   }
 

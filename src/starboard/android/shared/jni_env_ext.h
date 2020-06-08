@@ -179,7 +179,8 @@ struct JniEnvExt : public JNIEnv {
 #define X(_jtype, _jname)                                                      \
   _jtype Get##_jname##FieldOrAbort(jobject obj, const char* name,              \
                                    const char* sig) {                          \
-    _jtype result = Get##_jname##Field(obj, GetFieldIDOrAbort(obj, name, sig));\
+    _jtype result =                                                            \
+        Get##_jname##Field(obj, GetFieldIDOrAbort(obj, name, sig));            \
     AbortOnException();                                                        \
     return result;                                                             \
   }                                                                            \
@@ -209,7 +210,7 @@ struct JniEnvExt : public JNIEnv {
   }                                                                            \
                                                                                \
   _jtype CallStarboard##_jname##MethodOrAbort(const char* name,                \
-                                             const char* sig, ...) {           \
+                                              const char* sig, ...) {          \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
     jobject obj = GetStarboardBridge();                                        \

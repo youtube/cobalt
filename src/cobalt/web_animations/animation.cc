@@ -124,7 +124,6 @@ Animation::Data::ComputeTimelineTimeFromLocalTime(
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
 void Animation::set_current_time(const base::Optional<double>& current_time) {
-  SB_UNREFERENCED_PARAMETER(current_time);
   NOTIMPLEMENTED();
 }
 

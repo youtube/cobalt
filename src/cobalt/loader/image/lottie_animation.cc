@@ -28,7 +28,7 @@ LottieAnimation::LottieAnimation(
 }
 
 void LottieAnimation::AppendChunk(const uint8* data, size_t size) {
-  TRACE_EVENT0("cobalt::loader::image", "LottieAnimatino::AppendChunk()");
+  TRACE_EVENT0("cobalt::loader::image", "LottieAnimation::AppendChunk()");
   data_buffer_.insert(data_buffer_.end(), data, data + size);
 }
 

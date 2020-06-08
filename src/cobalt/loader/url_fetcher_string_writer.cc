@@ -17,7 +17,7 @@
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 
-namespace cobalt {
+    namespace cobalt {
 namespace loader {
 
 // URLFetcherStringWriter::URLFetcherStringWriter(OnWriteCallback
@@ -34,8 +34,7 @@ URLFetcherStringWriter::URLFetcherStringWriter() = default;
 
 URLFetcherStringWriter::~URLFetcherStringWriter() = default;
 
-int URLFetcherStringWriter::Initialize(
-    net::CompletionOnceCallback /*callback*/) {
+int URLFetcherStringWriter::Initialize(net::CompletionOnceCallback callback) {
   return net::OK;
 }
 
@@ -63,7 +62,7 @@ void URLFetcherStringWriter::GetAndResetData(std::string* data) {
 }
 
 int URLFetcherStringWriter::Write(net::IOBuffer* buffer, int num_bytes,
-                                  net::CompletionOnceCallback /*callback*/) {
+                                  net::CompletionOnceCallback callback) {
   base::AutoLock auto_lock(lock_);
 
   if (content_offset_ == 0 && num_bytes <= content_length_) {
@@ -94,8 +93,8 @@ int URLFetcherStringWriter::Write(net::IOBuffer* buffer, int num_bytes,
   return num_bytes;
 }
 
-int URLFetcherStringWriter::Finish(int /*net_error*/,
-                                   net::CompletionOnceCallback /*callback*/) {
+int URLFetcherStringWriter::Finish(int net_error,
+                                   net::CompletionOnceCallback callback) {
   return net::OK;
 }
 

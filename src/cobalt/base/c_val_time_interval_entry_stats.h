@@ -187,8 +187,6 @@ class CValTimeIntervalEntryStatsStub {
  public:
   CValTimeIntervalEntryStatsStub(const std::string& name,
                                  int64 time_interval_in_ms) {
-    SB_UNREFERENCED_PARAMETER(name);
-    SB_UNREFERENCED_PARAMETER(time_interval_in_ms);
   }
 
   void AddEntry(const EntryType& value) {}

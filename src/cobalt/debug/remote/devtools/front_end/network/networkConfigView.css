@@ -40,6 +40,11 @@
     padding-top: 0;
 }
 
+.network-config-input-validation-error {
+  color: var(--input-validation-error);
+  margin: 5px 0;
+}
+
 /* Network throttling */
 
 .network-config-throttling .chrome-select {
@@ -64,7 +69,6 @@
 .network-config-ua input {
     display: block;
     width: calc(100% - 20px);
-    max-width: 250px;
 }
 
 .network-config-ua input[readonly] {
@@ -80,14 +84,14 @@
     max-width: 250px;
 }
 
-.network-config-ua label[is="dt-radio"] {
+.network-config-ua span[is="dt-radio"] {
     display: block;
 }
 
-.network-config-ua-auto, .network-config-ua-custom {
+.network-config-ua-custom {
     opacity: 0.5;
 }
 
-.network-config-ua-auto.checked, .network-config-ua-custom.checked {
+.network-config-ua-custom.checked {
     opacity: 1;
 }

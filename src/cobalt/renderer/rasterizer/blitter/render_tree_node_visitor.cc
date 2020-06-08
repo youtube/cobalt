@@ -33,7 +33,7 @@
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "starboard/blitter.h"
 
-#if SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 // This define exists so that developers can quickly toggle it temporarily and
 // obtain trace results for the render tree visit process here.  In general
@@ -587,4 +587,4 @@ RenderTreeNodeVisitor::RenderToOffscreenSurface(render_tree::Node* node) {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION < SB_BLITTER_DEPRECATED_VERSION && SB_HAS(BLITTER)
+#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)

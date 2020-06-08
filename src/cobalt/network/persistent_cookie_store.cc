@@ -80,7 +80,7 @@ void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
 void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
     scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
-    const storage::MemoryStore& /*memory_store*/) {
+    const storage::MemoryStore& memory_store) {
   loaded_callback_task_runner->PostTask(
       FROM_HERE,
       base::Bind(
@@ -112,7 +112,6 @@ void PersistentCookieStore::Load(const LoadedCallback& loaded_callback,
 
 void PersistentCookieStore::LoadCookiesForKey(
     const std::string& key, const LoadedCallback& loaded_callback) {
-  SB_UNREFERENCED_PARAMETER(key);
   // We don't support loading of individual cookies.
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See
@@ -144,7 +143,7 @@ void PersistentCookieStore::SetForceKeepSessionState() {
 }
 
 void PersistentCookieStore::SetBeforeFlushCallback(
-    base::RepeatingClosure /*callback*/) {
+    base::RepeatingClosure callback) {
   NOTIMPLEMENTED();
 }
 

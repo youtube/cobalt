@@ -14,5 +14,4 @@
 
 #include "starboard/system.h"
 
-void SbSystemRequestStop(int /*error_level*/) {
-}
+void SbSystemRequestStop(int error_level) {}

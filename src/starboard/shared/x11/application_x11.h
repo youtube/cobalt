@@ -122,6 +122,11 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   Atom wake_up_atom_;
   Atom wm_delete_atom_;
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+  Atom wm_change_state_atom_;
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
 
   SbEventId composite_event_id_;
   Mutex frame_mutex_;

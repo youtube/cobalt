@@ -14,6 +14,6 @@
 
 #include "starboard/user.h"
 
-int SbUserGetSignedIn(SbUser* /*out_users*/, int /*users_size*/) {
+int SbUserGetSignedIn(SbUser* out_users, int users_size) {
   return 0;
 }

@@ -191,11 +191,12 @@ void MinidumpMemoryListWriter::CoalesceOwnedMemory() {
 
   // Remove any empty ranges.
   children_.erase(
-      std::remove_if(children_.begin(),
-                     children_.end(),
-                     [](const auto& snapshot) {
-                       return snapshot->UnderlyingSnapshot()->Size() == 0;
-                     }),
+      std::remove_if(
+          children_.begin(),
+          children_.end(),
+          [](const std::unique_ptr<SnapshotMinidumpMemoryWriter>& snapshot) {
+            return snapshot->UnderlyingSnapshot()->Size() == 0;
+          }),
       children_.end());
 
   std::vector<std::unique_ptr<SnapshotMinidumpMemoryWriter>> all_merged;

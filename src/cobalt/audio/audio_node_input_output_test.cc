@@ -51,8 +51,7 @@ class AudioDestinationNodeMock : public AudioNode,
 
   // From AudioNode.
   std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32, /*number_of_frames*/
-      SampleType, bool*) override {
+      int32 number_of_frames, SampleType sample_type, bool* finished) override {
     NOTREACHED();
     return std::unique_ptr<ShellAudioBus>();
   }
@@ -60,8 +59,6 @@ class AudioDestinationNodeMock : public AudioNode,
   // From AudioDevice::RenderCallback.
   void FillAudioBus(bool all_consumed, ShellAudioBus* audio_bus,
                     bool* silence) override {
-    SB_UNREFERENCED_PARAMETER(all_consumed);
-
     AudioLock::AutoLock lock(audio_lock());
 
     bool all_finished;

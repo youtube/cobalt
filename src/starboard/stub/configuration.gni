@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Use a stub rasterizer and graphical setup
-rasterizer_type = "stub"
-
 # No GL drivers available
 gl_type = "none"
 

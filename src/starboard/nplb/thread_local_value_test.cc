@@ -118,9 +118,7 @@ TEST(SbThreadLocalValueTest, NoDestructorsForNullValue) {
   struct LocalStatic {
     // Used as a fake destructor for thread-local-storage objects in this
     // test.
-    static void CountsDestructorCalls(void* /*value*/) {
-      s_num_destructor_calls++;
-    }
+    static void CountsDestructorCalls(void* value) { s_num_destructor_calls++; }
 
     // Sets a thread local non-NULL value, and then sets it back to NULL.
     static void* ThreadEntryPoint(void* ptr) {

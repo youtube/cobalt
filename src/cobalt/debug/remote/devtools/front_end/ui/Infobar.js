@@ -4,9 +4,9 @@
 /**
  * @unrestricted
  */
-UI.Infobar = class {
+export default class Infobar {
   /**
-   * @param {!UI.Infobar.Type} type
+   * @param {!Type} type
    * @param {string} text
    * @param {!Common.Setting=} disableSetting
    */
@@ -21,42 +21,45 @@ UI.Infobar = class {
     this._mainRowText.textContent = text;
     this._detailsRows = this._contentElement.createChild('div', 'infobar-details-rows hidden');
 
-    this._toggleElement = this._mainRow.createChild('div', 'infobar-toggle hidden');
-    this._toggleElement.addEventListener('click', this._onToggleDetails.bind(this), false);
-    this._toggleElement.textContent = Common.UIString('more');
+    this._toggleElement =
+        UI.createTextButton(ls`more`, this._onToggleDetails.bind(this), 'infobar-toggle link-style hidden');
+    this._mainRow.appendChild(this._toggleElement);
 
     /** @type {?Common.Setting} */
     this._disableSetting = disableSetting || null;
     if (disableSetting) {
-      const disableButton = this._mainRow.createChild('div', 'infobar-toggle');
-      disableButton.textContent = Common.UIString('never show');
-      disableButton.addEventListener('click', this._onDisable.bind(this), false);
+      const disableButton =
+          UI.createTextButton(ls`never show`, this._onDisable.bind(this), 'infobar-toggle link-style');
+      this._mainRow.appendChild(disableButton);
     }
 
     this._closeButton = this._contentElement.createChild('div', 'close-button', 'dt-close-button');
-    this._closeButton.addEventListener('click', this.dispose.bind(this), false);
+    this._closeButton.setTabbable(true);
+    self.onInvokeElement(this._closeButton, this.dispose.bind(this));
 
     /** @type {?function()} */
     this._closeCallback = null;
   }
 
   /**
-   * @param {!UI.Infobar.Type} type
+   * @param {!Type} type
    * @param {string} text
    * @param {!Common.Setting=} disableSetting
-   * @return {?UI.Infobar}
+   * @return {?Infobar}
    */
   static create(type, text, disableSetting) {
-    if (disableSetting && disableSetting.get())
+    if (disableSetting && disableSetting.get()) {
       return null;
-    return new UI.Infobar(type, text, disableSetting);
+    }
+    return new Infobar(type, text, disableSetting);
   }
 
   dispose() {
     this.element.remove();
     this._onResize();
-    if (this._closeCallback)
+    if (this._closeCallback) {
       this._closeCallback.call(null);
+    }
   }
 
   /**
@@ -82,8 +85,9 @@ UI.Infobar = class {
   }
 
   _onResize() {
-    if (this._parentView)
+    if (this._parentView) {
       this._parentView.doResize();
+    }
   }
 
   _onDisable() {
@@ -108,11 +112,22 @@ UI.Infobar = class {
     detailsRowMessage.textContent = message || '';
     return detailsRowMessage;
   }
-};
-
+}
 
 /** @enum {string} */
-UI.Infobar.Type = {
+export const Type = {
   Warning: 'warning',
   Info: 'info'
 };
+
+/* Legacy exported object*/
+self.UI = self.UI || {};
+
+/* Legacy exported object*/
+UI = UI || {};
+
+/** @constructor */
+UI.Infobar = Infobar;
+
+/** @enum {string} */
+UI.Infobar.Type = Type;
