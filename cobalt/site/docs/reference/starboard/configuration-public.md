@@ -7,7 +7,6 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_CROSS_CORE_SCHEDULER`**<br><br>Whether the current platform's thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`**<br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED`**<br><br>Some platforms do not have thread affinity support. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ`**<br><br>Some platforms the mapped GL buffer memory is slow to read from.  Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
@@ -22,8 +21,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_C_NOINLINE`**<br><br>The platform's annotation for marking a C function as forcibly not inlined.<br><br>The default value in the Stub implementation is `__attribute__((noinline))` |
 | **`SB_EXPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as exported outside of the current shared library.<br><br>The default value in the Stub implementation is <br>`__attribute__((visibility("default")))` |
 | **`SB_IMPORT_PLATFORM`**<br><br>The platform's annotation for marking a symbol as imported from outside of the current linking unit. |
-| **`SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT`**<br><br>On some platforms the &#95;&#95;GNUC&#95;&#95; is defined even though parts of the functionality are missing. Setting this to non-zero allows disabling missing functionality encountered.<br><br>By default, this property is undefined. |
-| **`SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS`**<br><br>On some compilers, the frontend has a quirk such that #ifdef cannot correctly detect &#95;&#95;has_feature is defined, and an example error you get is:<br><br>By default, this property is undefined. |
 
 
 ## Decoder-only Params
@@ -48,7 +45,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HASH_MAP_INCLUDE`**<br><br>The location to include hash_map on this platform.<br><br>The default value in the Stub implementation is `<ext/hash_map>` |
 | **`SB_HASH_NAMESPACE`**<br><br>C++'s hash_map and hash_set are often found in different namespaces depending on the compiler.<br><br>The default value in the Stub implementation is `__gnu_cxx` |
 | **`SB_HASH_SET_INCLUDE`**<br><br>The location to include hash_set on this platform.<br><br>The default value in the Stub implementation is `<ext/hash_set>` |
-| **`SB_VA_COPY(dest, source)`**<br><br>Define this to how this platform copies varargs blocks.<br><br>The default value in the Stub implementation is `va_copy(dest, source)` |
 
 
 ## Filesystem Configuration
@@ -125,7 +121,6 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_IS_WCHAR_T_UTF16`**<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UNSIGNED`**<br><br>Chrome only defines these two if ARMEL or MIPSEL are defined. Chrome has an exclusion for iOS here, we should too when we support iOS.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_SIGNED`**<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_QUIRK_MEMSET_IN_SYSTEM_HEADERS`**<br><br>Some platforms have memset predefined in system headers. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_SOCKET_BSD_HEADERS`**<br><br>This quirk is used to switch the headers included in starboard/shared/linux/socket_get_interface_address.cc for darwin system headers. It may be removed at some point in favor of a different solution.<br><br>By default, this property is undefined. |
 
 
