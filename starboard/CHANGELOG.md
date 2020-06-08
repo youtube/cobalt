@@ -242,6 +242,13 @@ in cobalt/renderer/backend/graphics_context.h
 The Platform Services API should be used
 instead. See cobalt/doc/platform_services.md.
 
+### Add event for text-to-speech settings changes.
+
+If the platform supports text-to-speech settings, it must use the new
+kSbEventTypeAccessiblityTextToSpeechSettingsChanged event to inform the app
+when those settings change. For older starboard versions, use
+kSbEventTypeAccessiblitySettingsChanged instead.
+
 ## Version 11
 
 ### Add arguments to `SbMediaIsVideoSupported`.

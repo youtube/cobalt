@@ -22,6 +22,11 @@ interface H5vccAccessibility {
   // option is enabled.
   readonly attribute boolean textToSpeech;
 
+  // This callback is invoked when text-to-speech settings have changed. It
+  // may also be invoked if other accessibility settings (ones not related to
+  // text-to-speech) have changed.
+  void addTextToSpeechListener(H5vccAccessibilityCallback callback);
+
   // True if the built-in screen reader is enabled.
   // Setting it to false disables the built-in screen reader.
   attribute boolean builtInScreenReader;

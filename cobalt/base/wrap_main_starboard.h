@@ -128,6 +128,9 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12
+    case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= 12
       event_function(event);
       break;
   }

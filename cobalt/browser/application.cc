@@ -37,6 +37,7 @@
 #include "build/build_config.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
+#include "cobalt/base/accessibility_text_to_speech_settings_changed_event.h"
 #include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
@@ -965,6 +966,13 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     }
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
+#if SB_API_VERSION < 12
+      // Also dispatch the newer text-to-speech settings changed event since
+      // the specific kSbEventTypeAccessiblityTextToSpeechSettingsChanged
+      // event is not available in this starboard version.
+      DispatchEventInternal(
+          new base::AccessibilityTextToSpeechSettingsChangedEvent());
+#endif
       break;
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
@@ -972,6 +980,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12
+    case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+      DispatchEventInternal(
+          new base::AccessibilityTextToSpeechSettingsChangedEvent());
+      break;
+#endif
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
@@ -1054,6 +1068,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= 12
+    case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
     case kSbEventTypeOnScreenKeyboardFocused:

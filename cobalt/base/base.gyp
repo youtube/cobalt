@@ -25,7 +25,9 @@
          'defines': ["COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS=1"],
       },
       'sources': [
-        'accessibility_changed_event.h',
+        'accessibility_caption_settings_changed_event.h',
+        'accessibility_settings_changed_event.h',
+        'accessibility_text_to_speech_settings_changed_event.h',
         'address_sanitizer.h',
         'camera_transform.h',
         'circular_buffer_shell.cc',
