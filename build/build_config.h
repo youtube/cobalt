@@ -139,10 +139,6 @@
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#elif defined(__LB_PS3__) || defined(__LB_WIIU__) || defined(__LB_XB360__)
-#define ARCH_CPU_32_BITS 1
-#define ARCH_CPU_BIG_ENDIAN 1
-#define ARCH_CPU_PPC_FAMILY 1
 #elif defined(_M_IX86) || defined(__i386__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86 1

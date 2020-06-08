@@ -30,12 +30,6 @@
           'use_icu_dat_file%': 0,
         },
 
-        'conditions': [
-          ['target_arch in ["ps3"]', {
-            'little_endian%': 0,
-          }],
-        ],
-
         'little_endian%': '<(little_endian)',
         'use_icu_dat_file%': '<(use_icu_dat_file)',
       },

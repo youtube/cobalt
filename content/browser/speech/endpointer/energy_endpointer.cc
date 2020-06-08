@@ -1,10 +1,6 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// To know more about the algorithm used and the original code which this is
-// based of, see
-// https://wiki.corp.google.com/twiki/bin/view/Main/ChromeGoogleCodeXRef
 
 #include "content/browser/speech/endpointer/energy_endpointer.h"
 

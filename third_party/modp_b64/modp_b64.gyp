@@ -16,13 +16,6 @@
       'include_dirs': [
         '../..',
       ],
-      'conditions': [
-        ['OS!="starboard" and (target_arch=="ps3" or target_arch=="wiiu" or target_arch=="xb360")', {
-          'defines': [
-            'WORDS_BIGENDIAN'
-          ]
-        }]
-      ]
     },
   ],
 }
