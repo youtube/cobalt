@@ -263,8 +263,6 @@ tolower(){
 source_path=${0%/*}
 enable_feature source_path_used
 if [ -z "$source_path" ] || [ "$source_path" = "." ]; then
-  # rjogrady: Hack for Cygwin / PS4 interaction.
-  # PS4 compiler doesn't understand cygdrive.
   #source_path="`pwd`"
   source_path='.'
   disable_feature source_path_used

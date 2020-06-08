@@ -131,7 +131,7 @@ TEST(Matrix3fTest, EigenvectorsNiceNotPositive) {
 
   // The below three EXPECT_NEARs are changed from
   //   EXPECT_EQ(Vector3dF(8.0f, -1.0f, -1.0f), eigenvals);
-  // because the test fails on PS3.
+  // because the test fails on some platforms.
   //   Value of: eigenvals.y()
   //   Actual: -0.99999952
   //   Expected: -1.0f

@@ -260,7 +260,7 @@ TEST(EstimateMemoryUsageTest, IsStandardContainerComplexIteratorTest) {
                     std::list<int>::const_reverse_iterator>(),
                 "");
 #ifndef STARBOARD
-  // At least PS4 compiler does not even compile with int as iterator.
+  // TODO: Non-conforming compilers do not compile with int as iterator.
   STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<int>(), "");
 #endif
   STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<abstract*>(), "");

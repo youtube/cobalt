@@ -238,13 +238,6 @@ class scoped_refptr {
     SB_DCHECK(ptr_ != NULL);
     return ptr_;
   }
-// The compiler requires an explicit * operator here.
-#if defined(__LB_PS3__)
-  T& operator*() const {
-    SB_DCHECK(ptr_ != NULL);
-    return *ptr_;
-  }
-#endif
 
   scoped_refptr<T>& operator=(T* p) {
     // AddRef first so that self assignment should work

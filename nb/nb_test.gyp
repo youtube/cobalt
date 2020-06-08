@@ -18,7 +18,7 @@
       'target_name': 'nb_test',
       'type': '<(gtest_target_type)',
       'conditions': [
-        ['OS=="starboard" or (OS=="lb_shell" and target_arch == "ps3")', {
+        ['OS=="starboard"', {
           'sources': [
             'analytics/memory_tracker_helpers_test.cc',
             'analytics/memory_tracker_impl_test.cc',

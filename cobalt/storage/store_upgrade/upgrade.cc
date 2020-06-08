@@ -179,8 +179,8 @@ bool OpenConnection(const std::vector<uint8>& raw_bytes,
     filenames.push_back(kDefaultSaveFile);
   }
 
-  // Legacy Steel save data may contain multiple files (e.g. db-journal as well
-  // as db), so use the first one that looks like a valid database file.
+  // Very old legacy save data may contain multiple files (e.g. db-journal as
+  // well as db), so use the first one that looks like a valid database file.
   const std::string& save_name = GetFirstValidDatabaseFile(filenames);
   bool ok = connection->Open(base::FilePath(save_name));
   if (!ok) {

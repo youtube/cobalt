@@ -16,13 +16,6 @@
 #include "include/vpx_mem_intrnl.h"
 #include "vpx/vpx_integer.h"
 
-#if defined(__ORBIS__)
-// TODO(rjogrady): Only for test apps.
-// Allow system malloc() to grab up to 512MB.
-//size_t sceLibcHeapSize = SCE_LIBC_HEAP_SIZE_EXTENDED_ALLOC_NO_LIMIT;
-//unsigned int sceLibcHeapExtendedAlloc = 1;
-#endif
-
 void *vpx_memalign(size_t align, size_t size) {
   void *addr,
        * x = NULL;
