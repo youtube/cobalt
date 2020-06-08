@@ -40,7 +40,6 @@
        }
     }],
     # Not yet supported:
-    # target_arch == ps3
     # target_arch == win
   ],
   'targets': [

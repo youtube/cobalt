@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # This file is meant to be included into an action to copy web data files into
-# the content directory, e.g. out/PS3_Debug/content/data/web.
+# the content directory, e.g. out/stub_debug/content/data/web.
 #
 # To use this, create a gyp target with the following form:
 # {

@@ -2239,7 +2239,7 @@ TEST_F(PixelTest, EllipticalViewportOverZoomedInImage) {
 TEST_F(PixelTest, OpacityOnRectAndEllipseMaskedImage) {
   // The opacity in this test will result in the rect and ellipse being rendered
   // to an offscreen surface.  The ellipse masking shaders may make use of
-  // |gl_FragCoord|, which can return a flipped y value for at least the PS3
+  // |gl_FragCoord|, which can return a flipped y value on some platforms
   // when rendering to a texture.  This test ensures that this is handled.
   scoped_refptr<Image> image =
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());

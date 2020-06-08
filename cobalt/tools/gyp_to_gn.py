@@ -63,24 +63,24 @@ class GYPCondToGNNodeVisitor(ast.NodeVisitor):
   true/false):
 
   >>> g = GYPCondToGNNodeVisitor()
-  >>> g.visit(ast.parse('arm_neon and target_arch=="xb1"', mode='eval'))
-  '(arm_use_neon && target_cpu == "xb1")'
-  >>> g.visit(ast.parse('use_system_libjpeg and target_arch=="xb1"',
+  >>> g.visit(ast.parse('arm_neon and target_arch=="raspi-2"', mode='eval'))
+  '(arm_use_neon && target_cpu == "raspi-2")'
+  >>> g.visit(ast.parse('use_system_libjpeg and target_arch=="raspi-2"',
   ...                   mode='eval'))
-  '(use_system_libjpeg && target_cpu == "xb1")'
+  '(use_system_libjpeg && target_cpu == "raspi-2")'
   >>> g.visit(ast.parse('arm_neon == 1', mode='eval'))
   'arm_use_neon == true'
   >>> g.visit(ast.parse('1', mode='eval'))
   'true'
   >>> g.visit(ast.parse('0', mode='eval'))
   'false'
-  >>> g.visit(ast.parse('arm_neon != 0 and target_arch != "xb1" and
+  >>> g.visit(ast.parse('arm_neon != 0 and target_arch != "raspi-2" and
   use_system_libjpeg or enable_doom_melon', mode='eval'))
-  '((arm_use_neon != false && target_cpu != "xb1" && use_system_libjpeg) ||
+  '((arm_use_neon != false && target_cpu != "raspi-2" && use_system_libjpeg) ||
   enable_doom_melon)'
-  >>> g.visit(ast.parse('arm_neon != 0 and target_arch != "xb1" or
+  >>> g.visit(ast.parse('arm_neon != 0 and target_arch != "raspi-2" or
   use_system_libjpeg and enable_doom_melon', mode='eval'))
-  '((arm_use_neon != false && target_cpu != "xb1") || (use_system_libjpeg &&
+  '((arm_use_neon != false && target_cpu != "raspi-2") || (use_system_libjpeg &&
   enable_doom_melon))'
   """
 

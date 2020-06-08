@@ -177,8 +177,8 @@ void StorageManager::FinishInit() {
     }
   }
 
-  // Legacy Steel save data may contain multiple files (e.g. db-journal as well
-  // as db), so use the first one that looks like a valid database file.
+  // Very old legacy save data may contain multiple files (e.g. db-journal as
+  // well as db), so use the first one that looks like a valid database file.
 
   if (has_upgrade_data) {
     const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);

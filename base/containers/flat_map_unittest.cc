@@ -20,7 +20,7 @@ using ::testing::ElementsAre;
 
 namespace base {
 
-// At least PS4 compiler does not allow this test at compiler time.
+// Non-conforming compilers do not allow this test at compiler time.
 #ifndef STARBOARD
 TEST(FlatMap, IncompleteType) {
   struct A {
