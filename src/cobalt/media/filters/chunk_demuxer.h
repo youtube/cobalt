@@ -48,7 +48,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // SourceBufferStream manipulation methods.
   void Seek(base::TimeDelta time);
   bool IsSeekWaitingForData() const;
-  base::TimeDelta GetSeekKeyframeTimestamp() const;
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
   // which handle ordering and overlap resolution.
@@ -116,6 +115,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   bool enabled() const override;
   void set_enabled(bool enabled, base::TimeDelta timestamp) override;
   void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) override;
+  base::TimeDelta GetSeekKeyframeTimestamp() const override;
 
   // Returns the text track configuration.  It is an error to call this method
   // if type() != TEXT.

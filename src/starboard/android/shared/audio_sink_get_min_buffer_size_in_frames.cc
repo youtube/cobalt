@@ -34,6 +34,12 @@ int SbAudioSinkGetMinBufferSizeInFrames(int channels,
     return -1;
   }
 
+  // Per AOSP design, the min buffer is the audio HAL latency. Audio track also
+  // has this latency as shared buffer between native audiotrack and
+  // audioflinger. it is too risky to limit internal frames as min frames plus 2
+  // * 1024(defined in |GetAudioRendererParams|).
   return starboard::android::shared::AudioTrackAudioSinkType::
-      GetMinBufferSizeInFrames(channels, sample_type, sampling_frequency_hz);
+             GetMinBufferSizeInFrames(channels, sample_type,
+                                      sampling_frequency_hz) *
+         2;
 }

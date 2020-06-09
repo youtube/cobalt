@@ -40,6 +40,15 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+typedef std::function<void(int)> VideoFramesDroppedCB;
+typedef enum SbPlaybackStatusUpdateAction {
+  kSbPlaybackStatusUpdateActionNone = 0x0,
+
+  kSbPlaybackStatusUpdateSeekTime = 0x1,
+  // TODO more action here, like playback rate update
+} SbPlaybackStatusUpdateAction;
+
+class VideoFrameTracker;
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
       private MediaDecoder::Host,
@@ -61,6 +70,8 @@ class VideoDecoder
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
                const char* max_video_capabilities,
+               int tunneling_audio_session_id,
+               const VideoFramesDroppedCB& frames_dropped_cb,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -85,7 +96,10 @@ class VideoDecoder
 
   bool is_valid() const { return media_decoder_ != NULL; }
 
+  void onFrameRendered(int64_t presentation_time_us,
+                       int64_t render_at_system_time_ns);
   void OnNewTextureAvailable();
+  void OnPlaybackStatus(int action, SbTime seek_to_time_us);
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
@@ -95,6 +109,8 @@ class VideoDecoder
 
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
+  void ProcessInputBuffer(MediaCodecBridge* media_codec_bridge,
+                          bool end_of_stream_reached = false);
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
@@ -102,12 +118,15 @@ class VideoDecoder
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
+  void OnPrerollTimeout();
+
   static int number_of_hardware_decoders_;
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
+  starboard::Mutex decoder_status_cb_mutex_;
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
   const SbPlayerOutputMode output_mode_;
@@ -119,6 +138,7 @@ class VideoDecoder
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
 
+  int tunneling_audio_session_id_ = -1;
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
@@ -137,12 +157,15 @@ class VideoDecoder
   optional<SbMediaColorMetadata> color_metadata_;
 
   scoped_ptr<MediaDecoder> media_decoder_;
+  scoped_refptr<VideoFrameTracker> video_frame_tracker_;
 
   atomic_int32_t number_of_frames_being_decoded_;
   scoped_refptr<Sink> sink_;
 
   bool first_buffer_received_ = false;
+  bool first_media_decoder_buffer_fill = false;
   bool first_texture_received_ = false;
+  bool input_end_of_stream_ = false;
   volatile SbTime first_buffer_timestamp_;
   atomic_bool has_new_texture_available_;
 

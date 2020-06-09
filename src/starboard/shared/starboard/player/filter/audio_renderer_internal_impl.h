@@ -135,7 +135,8 @@ class AudioRendererImpl : public AudioRenderer,
   void GetSourceStatus(int* frames_in_buffer,
                        int* offset_in_frames,
                        bool* is_playing,
-                       bool* is_eos_reached) override;
+                       bool* is_eos_reached,
+                       SbTime* seek_time_us = NULL) override;
   void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
   void OnError(bool capability_changed) override;
 

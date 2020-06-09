@@ -364,7 +364,8 @@ SbTime AudioRendererImpl::GetCurrentMediaTime(bool* is_playing,
 void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
                                         int* offset_in_frames,
                                         bool* is_playing,
-                                        bool* is_eos_reached) {
+                                        bool* is_eos_reached,
+                                        SbTime* seek_time_us) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -402,6 +403,9 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
                 silence_frames_to_write * bytes_per_frame_);
     silence_frames_written_after_eos_on_sink_thread_ += silence_frames_to_write;
     *frames_in_buffer += silence_frames_to_write;
+  }
+  if (seek_time_us != NULL) {
+    *seek_time_us = seeking_to_time_;
   }
 }
 
