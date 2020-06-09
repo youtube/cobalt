@@ -42,8 +42,6 @@ inline const char* GetSignalName(int signal_id) {
       return "SIGINT";
     case SIGPIPE:
       return "SIGPIPE";
-    case SIGPWR:
-      return "SIGPWR";
     case SIGQUIT:
       return "SIGQUIT";
     case SIGSEGV:

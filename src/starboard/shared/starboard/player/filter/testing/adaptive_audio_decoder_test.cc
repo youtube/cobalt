@@ -51,12 +51,10 @@ using video_dmp::VideoDmpReader;
 
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
-scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
+scoped_refptr<InputBuffer> GetAudioInputBuffer(const VideoDmpReader& dmp_reader,
                                                size_t index) {
-  SB_DCHECK(dmp_reader);
-
   auto player_sample_info =
-      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+      dmp_reader.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
 #if SB_API_VERSION >= 11
   return new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
                          player_sample_info);
@@ -89,6 +87,7 @@ string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
+// TODO: Avoid reading same dmp file repeatly.
 class AdaptiveAudioDecoderTest
     : public ::testing::TestWithParam<std::tuple<vector<const char*>, bool>> {
  protected:
@@ -99,8 +98,7 @@ class AdaptiveAudioDecoderTest
         using_stub_decoder_(std::get<1>(GetParam())) {
     for (auto filename : test_filenames_) {
       dmp_readers_.emplace_back(
-          new VideoDmpReader(ResolveTestFileName(filename).c_str(),
-                             VideoDmpReader::kEnableReadOnDemand));
+          new VideoDmpReader(ResolveTestFileName(filename).c_str()));
     }
 
     auto accumulate_operation = [](string accumulated, const char* str) {
@@ -134,11 +132,9 @@ class AdaptiveAudioDecoderTest
         std::bind(&AdaptiveAudioDecoderTest::OnError, this));
   }
 
-  void WriteSingleInput(VideoDmpReader* dmp_reader, size_t buffer_index) {
-    SB_DCHECK(dmp_reader);
-
+  void WriteSingleInput(const VideoDmpReader& dmp_reader, size_t buffer_index) {
     ASSERT_TRUE(can_accept_more_input_);
-    ASSERT_LT(buffer_index, dmp_reader->number_of_audio_buffers());
+    ASSERT_LT(buffer_index, dmp_reader.number_of_audio_buffers());
 
     can_accept_more_input_ = false;
     audio_decoder_->Decode(
@@ -146,13 +142,11 @@ class AdaptiveAudioDecoderTest
         std::bind(&AdaptiveAudioDecoderTest::OnConsumed, this));
   }
 
-  void WriteMultipleInputs(VideoDmpReader* dmp_reader,
+  void WriteMultipleInputs(const VideoDmpReader& dmp_reader,
                            size_t buffer_start_index,
                            size_t number_of_inputs_to_write) {
-    SB_DCHECK(dmp_reader);
-
     ASSERT_LT(buffer_start_index + number_of_inputs_to_write,
-              dmp_reader->number_of_audio_buffers());
+              dmp_reader.number_of_audio_buffers());
 
     while (number_of_inputs_to_write > 0) {
       ASSERT_NO_FATAL_FAILURE(WaitAndProcessUntilAcceptInput());
@@ -306,14 +300,13 @@ TEST_P(AdaptiveAudioDecoderTest, SingleInput) {
   for (auto& dmp_reader : dmp_readers_) {
     SB_DCHECK(dmp_reader);
     ASSERT_NO_FATAL_FAILURE(
-        WriteMultipleInputs(dmp_reader.get(), buffer_index, kBuffersToWrite));
-    auto input_buffer = GetAudioInputBuffer(dmp_reader.get(), buffer_index);
+        WriteMultipleInputs(*dmp_reader, buffer_index, kBuffersToWrite));
+    auto input_buffer = GetAudioInputBuffer(*dmp_reader, buffer_index);
     SbTime input_timestamp = input_buffer->timestamp();
     buffer_index += kBuffersToWrite;
     // Use next buffer here, need to make sure dmp file has enough buffers.
     SB_DCHECK(dmp_reader->number_of_audio_buffers() > buffer_index);
-    auto next_input_buffer =
-        GetAudioInputBuffer(dmp_reader.get(), buffer_index);
+    auto next_input_buffer = GetAudioInputBuffer(*dmp_reader, buffer_index);
     SbTime next_timestamp = next_input_buffer->timestamp();
     playing_duration += next_timestamp - input_timestamp;
   }
@@ -340,14 +333,13 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
   for (auto& dmp_reader : dmp_readers_) {
     SB_DCHECK(dmp_reader);
     ASSERT_NO_FATAL_FAILURE(
-        WriteMultipleInputs(dmp_reader.get(), buffer_index, kBuffersToWrite));
-    auto input_buffer = GetAudioInputBuffer(dmp_reader.get(), buffer_index);
+        WriteMultipleInputs(*dmp_reader, buffer_index, kBuffersToWrite));
+    auto input_buffer = GetAudioInputBuffer(*dmp_reader, buffer_index);
     SbTime input_timestamp = input_buffer->timestamp();
     buffer_index += kBuffersToWrite;
     // Use next buffer here, need to make sure dmp file has enough buffers.
     SB_DCHECK(dmp_reader->number_of_audio_buffers() > buffer_index);
-    auto next_input_buffer =
-        GetAudioInputBuffer(dmp_reader.get(), buffer_index);
+    auto next_input_buffer = GetAudioInputBuffer(*dmp_reader, buffer_index);
     SbTime next_timestamp = next_input_buffer->timestamp();
     playing_duration += next_timestamp - input_timestamp;
   }

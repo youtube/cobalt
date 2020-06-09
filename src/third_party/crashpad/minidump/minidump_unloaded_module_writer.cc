@@ -18,7 +18,6 @@
 #include <utility>
 
 #include "minidump/minidump_writer_util.h"
-#include "nb/cpp14oncpp11.h"
 #include "util/file/file_writer.h"
 #include "util/numeric/in_range_cast.h"
 #include "util/numeric/safe_assignment.h"

@@ -933,13 +933,8 @@ void BrowserModule::OnWindowMinimize() {
     return;
   }
 #endif
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-  SbSystemRequestConceal();
-#else
+
   SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
 }
 
 #if SB_API_VERSION >= 8
@@ -1336,14 +1331,8 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
   } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
     if (type == base::Tokens::keydown()) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-      SbSystemRequestConceal();
-#else
       // Ctrl+S suspends Cobalt.
       SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
     }
     return false;
   }
@@ -1506,17 +1495,6 @@ void BrowserModule::Suspend() {
 void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-  // This is temporary for Cobalt black box tests, will be removed
-  // with Cobalt Concealed mode changes.
-  if (application_state_ == base::kApplicationStatePreloading) {
-    Start();
-    Pause();
-    return;
-  }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
   StartOrResumeInternalPreStateUpdate(false /*is_start*/);

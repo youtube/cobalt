@@ -414,7 +414,7 @@
             ],
           },
         }],
-        ['host_os=="linux" or host_os=="android"', {
+        ['OS=="linux" or OS=="android"', {
           'sources': [
             'net/http_transport_socket.cc',
             'process/process_memory_sanitized.cc',
@@ -425,7 +425,7 @@
             'misc/capture_context_linux.S',
           ],
         }],
-        ['host_os!="linux" and host_os!="android"', {
+        ['OS!="linux" and OS!="android"', {
           'sources/': [
             ['exclude', '^process/'],
           ],
@@ -442,6 +442,11 @@
             ['include', '^process/process_memory_linux\\.cc$'],
             ['include', '^process/process_memory_linux\\.h$'],
           ],
+        }, { # else: OS!="android"
+          'sources!': [
+            'stream/log_output_stream.cc',
+            'stream/log_output_stream.h',
+          ]
         }],
       ],
     },

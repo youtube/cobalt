@@ -186,7 +186,7 @@
             ],
           },
         }],
-        ['host_os=="linux" or host_os=="android"', {
+        ['OS=="linux" or OS=="android"', {
           'sources!': [
             'capture_memory.cc',
             'capture_memory.h',

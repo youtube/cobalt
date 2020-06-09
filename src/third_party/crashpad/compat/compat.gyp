@@ -19,7 +19,6 @@
   'targets': [
     {
       'target_name': 'crashpad_compat',
-      'type': 'none',
       'sources': [
         'android/android/api-level.cc',
         'android/android/api-level.h',
@@ -125,7 +124,7 @@
             ],
           },
         }],
-        ['host_os=="linux"', {
+        ['OS=="linux"', {
           'type': 'none',
           'include_dirs': [
             'linux',

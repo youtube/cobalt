@@ -32,9 +32,6 @@ namespace filter {
 namespace testing {
 namespace {
 
-using ::testing::AssertionFailure;
-using ::testing::AssertionResult;
-using ::testing::AssertionSuccess;
 using video_dmp::VideoDmpReader;
 
 std::string GetTestInputDirectory() {
@@ -101,8 +98,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac) {
   }
 
   for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
-                              VideoDmpReader::kEnableReadOnDemand);
+    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
 #if SB_API_VERSION >= 12
@@ -141,8 +137,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   }
 
   for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
-                              VideoDmpReader::kEnableReadOnDemand);
+    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str());
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
 
     for (auto output_mode : kOutputModes) {
@@ -210,36 +205,6 @@ bool CreateAudioComponents(bool using_stub_decoder,
   audio_decoder->reset();
   return false;
 }
-
-AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
-  const SbTime kEpsilon = kSbTimeSecond / 1000;
-  SbTime diff = time1 - time2;
-  if (-kEpsilon <= diff && diff <= kEpsilon) {
-    return AssertionSuccess();
-  }
-  return AssertionFailure()
-         << "time " << time1 << " doesn't match with time " << time2;
-}
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
-  shared::starboard::media::VideoSampleInfo video_sample_info = {};
-
-  video_sample_info.codec = codec;
-  video_sample_info.mime = "";
-  video_sample_info.max_video_capabilities = "";
-
-  video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
-  video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
-  video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
-  video_sample_info.color_metadata.range = kSbMediaRangeIdLimited;
-
-  video_sample_info.frame_width = 1920;
-  video_sample_info.frame_height = 1080;
-
-  return video_sample_info;
-}
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter
