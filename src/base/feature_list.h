@@ -38,7 +38,7 @@ struct BASE_EXPORT Feature {
   // It is strongly recommended to use CamelCase style for feature names, e.g.
   // "MyGreatFeature".
 #ifdef STARBOARD
-  // At least PS4 compiler does not allow copy assignment operator on Feature
+  // Non-conforming compilers do not allow copy assignment operator on Feature
   // because of const variables.
   const char* name;
 

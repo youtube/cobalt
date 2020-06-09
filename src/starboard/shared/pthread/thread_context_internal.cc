@@ -34,8 +34,6 @@
 SbThreadContextPrivate::SbThreadContextPrivate(ucontext_t* ucontext) {
   mcontext_t& mcontext = ucontext->uc_mcontext;
 
-// TODO: Remove redundant #if checks when
-//       SB_MINIMUM_API_VERSION >= 12.
 #if SB_IS_ARCH_X64
   // 64-bit X86 (aka X64)
   ip_ = reinterpret_cast<void*>(mcontext.gregs[REG_RIP]);

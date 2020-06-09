@@ -1,5 +1,3 @@
-# Format: google3/devtools/metadata/metadata.proto (go/google3metadata)
-
 name: "net"
 description:
   "Subtree at net."

@@ -349,7 +349,7 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #endif  // defined(__clang_analyzer__)
 
 #ifdef STARBOARD
-// Roku defined some macros that have the same names.
+// Some platforms define macros that have the same names.
 #undef LOG_INFO
 #undef LOG_WARNING
 #endif
