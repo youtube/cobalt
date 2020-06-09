@@ -13,8 +13,16 @@
 // limitations under the License.
 
 #include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/audio_renderer_sink_android.h"
+#include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_agency.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/android/shared/video_render_algorithm_tunneled.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
@@ -23,7 +31,6 @@
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -38,6 +45,12 @@ namespace filter {
 
 namespace {
 
+using ::starboard::android::shared::DrmSystem;
+using ::starboard::android::shared::JniEnvExt;
+using ::starboard::android::shared::MediaAgency;
+using ::starboard::android::shared::ScopedLocalJavaRef;
+using ::starboard::android::shared::SupportedVideoCodecToMimeType;
+
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
@@ -49,6 +62,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
+    AudioRendererSinkAndroid* audio_renderer_sink_android = nullptr;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
@@ -77,14 +91,31 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       audio_decoder->reset(new AdaptiveAudioDecoder(
           creation_parameters.audio_sample_info(),
           creation_parameters.drm_system(), decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+      audio_renderer_sink_android = new AudioRendererSinkAndroid;
+      audio_renderer_sink->reset(audio_renderer_sink_android);
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      // Try to enable tunneled playback, |tunneling_audio_session_id| will be
+      // -1 if tunnel mode is not supported for this particular playback.
+      int tunneling_audio_session_id = CreateAudioSessionId(creation_parameters);
+
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
+
+      android::shared::VideoFramesDroppedCB video_frames_dropped_cb = nullptr;
+      if (tunneling_audio_session_id == -1) {
+        video_render_algorithm->reset(
+            new android::shared::VideoRenderAlgorithm);
+      } else {
+        auto video_render_algorithm_impl =
+            new android::shared::VideoRenderAlgorithmTunneled;
+        video_frames_dropped_cb =
+            video_render_algorithm_impl->GetVideoFramesDroppedCB();
+        video_render_algorithm->reset(video_render_algorithm_impl);
+      }
 
       scoped_ptr<android::shared::VideoDecoder> video_decoder_impl(
           new android::shared::VideoDecoder(
@@ -92,7 +123,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               creation_parameters.drm_system(),
               creation_parameters.output_mode(),
               creation_parameters.decode_target_graphics_context_provider(),
-              creation_parameters.max_video_capabilities(), error_message));
+              creation_parameters.max_video_capabilities(),
+              tunneling_audio_session_id, video_frames_dropped_cb,
+              error_message));
       if (video_decoder_impl->is_valid()) {
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
@@ -104,10 +137,93 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return false;
       }
 
-      video_render_algorithm->reset(new android::shared::VideoRenderAlgorithm);
+      if (audio_renderer_sink_android) {
+        MediaAgency::GetInstance()->UpdatePlayerClient(
+            tunneling_audio_session_id, audio_renderer_sink_android);
+      }
     }
 
     return true;
+  }
+
+  bool IsVideoTunneledSupported(const CreationParameters& creation_parameters) {
+    const char* mime =
+        SupportedVideoCodecToMimeType(creation_parameters.video_codec());
+    if (!mime) {
+      return false;
+    }
+    JniEnvExt* env = JniEnvExt::Get();
+    ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
+    DrmSystem* drm_system_ptr =
+        static_cast<DrmSystem*>(creation_parameters.drm_system());
+    jobject j_media_crypto =
+        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
+
+    return env->CallStaticBooleanMethodOrAbort(
+               "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
+               "(Ljava/lang/String;Z)Z", j_mime.Get(),
+               !!j_media_crypto) == JNI_TRUE;
+  }
+
+  int CreateAudioSessionId(const CreationParameters& creation_parameters) {
+    if (creation_parameters.output_mode() != kSbPlayerOutputModePunchOut ||
+        creation_parameters.audio_codec() == kSbMediaAudioCodecNone ||
+        creation_parameters.video_codec() == kSbMediaVideoCodecNone) {
+      return -1;
+    }
+
+    if (!IsVideoTunneledSupported(creation_parameters)) {
+      return -1;
+    }
+
+    JniEnvExt* env = JniEnvExt::Get();
+    ScopedLocalJavaRef<jobject> j_audio_output_manager(
+        env->CallStarboardObjectMethodOrAbort(
+            "getAudioOutputManager",
+            "()Ldev/cobalt/media/AudioOutputManager;"));
+    int tunneling_audio_session_id = env->CallIntMethodOrAbort(
+          j_audio_output_manager.Get(), "generateAudioSessionId", "()I");
+    if (tunneling_audio_session_id == -1) {
+      // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
+      // failure, please see the following url for more details:
+      // https://developer.android.com/reference/android/media/AudioManager#generateAudioSessionId()
+      return -1;
+    }
+
+    // Check if tunneled mode is supported by the AudioTrack.
+    using ::starboard::android::shared::AudioTrackAudioSinkType;
+    int audio_track_buffer_frames =
+        creation_parameters.audio_sample_info().number_of_channels * 2 *
+        AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
+            creation_parameters.audio_sample_info().number_of_channels,
+            kSbMediaAudioSampleTypeInt16Deprecated,
+            creation_parameters.audio_sample_info().samples_per_second);
+    jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
+        j_audio_output_manager.Get(), "createAudioTrackBridge",
+        "(IIIII)Ldev/cobalt/media/AudioTrackBridge;",
+        2,  // 2 is Android AudioFormat.ENCODING_PCM_16BIT
+            // equivalently kSbMediaAudioSampleTypeInt16Deprecated
+            // Tunneled mode only support ENCODING_PCM_16BIT
+        creation_parameters.audio_sample_info().samples_per_second,
+        creation_parameters.audio_sample_info().number_of_channels,
+        audio_track_buffer_frames, tunneling_audio_session_id);
+
+    if (j_audio_track_bridge) {
+      env->CallVoidMethodOrAbort(
+          j_audio_output_manager.Get(), "destroyAudioTrackBridge",
+          "(Ldev/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge);
+    } else {
+      SB_LOG(WARNING)
+          << "AudioTrack does not support tunnel mode with sample rate:"
+          << creation_parameters.audio_sample_info().samples_per_second
+          << ", channels:"
+          << creation_parameters.audio_sample_info().number_of_channels
+          << ", audio format:" << creation_parameters.audio_codec()
+          << ", and share buffer frames:" << audio_track_buffer_frames;
+      tunneling_audio_session_id = -1;
+    }
+
+    return tunneling_audio_session_id;
   }
 };
 

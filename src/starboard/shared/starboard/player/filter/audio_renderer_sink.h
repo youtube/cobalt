@@ -33,7 +33,8 @@ class AudioRendererSink {
     virtual void GetSourceStatus(int* frames_in_buffer,
                                  int* offset_in_frames,
                                  bool* is_playing,
-                                 bool* is_eos_reached) = 0;
+                                 bool* is_eos_reached,
+                                 SbTime* seek_time = NULL) = 0;
     virtual void ConsumeFrames(int frames_consumed,
                                SbTime frames_consumed_at) = 0;
 

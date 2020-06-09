@@ -102,6 +102,9 @@ float GetFlat(jobject input_device, int axis) {
       input_device, "getMotionRange",
       "(I)Landroid/view/InputDevice$MotionRange;", axis));
 
+  // TODO: Remove the following line before final merge.
+  return 0.5;
+
   float flat = env->CallFloatMethodOrAbort(
       motion_range.Get(), "getFlat", "()F");
 
