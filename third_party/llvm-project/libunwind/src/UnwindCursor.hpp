@@ -765,11 +765,23 @@ struct EHABISectionIterator {
 
   size_t operator-(const _Self& other) { return _i - other._i; }
 
+#if defined(STARBOARD)
+  size_t operator-(const _Self& other) const { return _i - other._i; }
+#endif
+
   bool operator==(const _Self& other) const {
     assert(_addressSpace == other._addressSpace);
     assert(_sects == other._sects);
     return _i == other._i;
   }
+
+#if defined(STARBOARD)
+  bool operator!=(const _Self& other) const {
+    assert(_addressSpace == other._addressSpace);
+    assert(_sects == other._sects);
+    return _i != other._i;
+  }
+#endif
 
   typename A::pint_t operator*() const { return functionAddress(); }
 
