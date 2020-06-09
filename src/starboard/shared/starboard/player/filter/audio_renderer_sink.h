@@ -33,7 +33,8 @@ class AudioRendererSink {
     virtual void GetSourceStatus(int* frames_in_buffer,
                                  int* offset_in_frames,
                                  bool* is_playing,
-                                 bool* is_eos_reached) = 0;
+                                 bool* is_eos_reached,
+                                 SbTime* seek_time_us = NULL) = 0;
 #if SB_API_VERSION >= SB_FEATURE_RUNTIME_CONFIGS_VERSION || \
     SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
     virtual void ConsumeFrames(int frames_consumed,

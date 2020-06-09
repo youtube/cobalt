@@ -1010,6 +1010,31 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (status == PIPELINE_OK && player_) {
+#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+    {
+      base::AutoLock auto_lock(lock_);
+      if (video_stream_ && audio_stream_) {
+        TimeDelta video_seek_keyframe_timestamp =
+            video_stream_->GetSeekKeyframeTimestamp();
+        TimeDelta audio_seek_keyframe_timestamp =
+            audio_stream_->GetSeekKeyframeTimestamp();
+        // At present only ChunkDemuxerStream support SEEK_TO_KEYFRAME. Other
+        // DemuxerStream would report kNoTimestamp
+        if (video_seek_keyframe_timestamp != kNoTimestamp &&
+            audio_seek_keyframe_timestamp != kNoTimestamp) {
+          // Note that video key frame timestamp should be less than audio's. If
+          // not, using larger timestamp avoid video freeze or slience issue
+          LOG(INFO) << "Video keyframe timestamp "
+                    << video_seek_keyframe_timestamp
+                    << " , audio keyframe timestamp "
+                    << audio_seek_keyframe_timestamp << ", original seek time "
+                    << seek_time_;
+          seek_time_ = std::max(video_seek_keyframe_timestamp,
+                                audio_seek_keyframe_timestamp);
+        }
+      }
+    }
+#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
     player_->Seek(seek_time_);
   }
 }
