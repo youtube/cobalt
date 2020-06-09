@@ -580,7 +580,16 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
 
   const char kData[] = "this file is sparse.";
   const int kDataLen = sizeof(kData) - 1;
+#if defined(STARBOARD)
+#if SB_IS(32_BIT)
+  // Maximum off_t for lseek() on 32-bit builds is just below 2^31.
+  const int64_t kLargeFileOffset = (1LL << 31) - 2;
+#else  // SB_IS(32_BIT)
   const int64_t kLargeFileOffset = (1LL << 31);
+#endif  // SB_IS(32_BIT)
+#else  // defined(STARBOARD)
+  const int64_t kLargeFileOffset = (1LL << 31);
+#endif  // defined(STARBOARD)
 
   // If the file fails to write, it is probably we are running out of disk space
   // and the file system doesn't support sparse file.
