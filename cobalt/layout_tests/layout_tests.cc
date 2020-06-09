@@ -355,7 +355,13 @@ INSTANTIATE_TEST_CASE_P(
 // cases
 INSTANTIATE_TEST_CASE_P(
     IntersectionObserverLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")));
+    ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")),
+    GetTestName());
+
+// Lottie (https://github.com/LottieFiles/lottie-player) test cases
+INSTANTIATE_TEST_CASE_P(
+    LottiePlayerLayoutTests, Layout,
+    ::testing::ValuesIn(EnumerateLayoutTests("lottie-player")), GetTestName());
 
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)
