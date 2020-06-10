@@ -38,7 +38,7 @@ _CMAKE_VERSION = '3.10.2.4988404'
 # We download ndk-bundle separately, so it's not in this list.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;30.0.0-rc4',  # TODO: Change to the stable released SDK
+    'build-tools;30.0.0',
     'cmake;' + _CMAKE_VERSION,
     'cmdline-tools;1.0',
     'emulator',
