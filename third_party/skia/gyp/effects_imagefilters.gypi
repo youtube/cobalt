@@ -37,7 +37,6 @@
     'skia_effects_imagefilter_sources' : [
       "<(skia_src_path)/effects/imagefilters/SkAlphaThresholdFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkArithmeticImageFilter.cpp",
-      "<(skia_src_path)/effects/imagefilters/SkBlurImageFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkColorFilterImageFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkComposeImageFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkDisplacementMapEffect.cpp",
@@ -54,6 +53,10 @@
       "<(skia_src_path)/effects/imagefilters/SkPictureImageFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkTileImageFilter.cpp",
       "<(skia_src_path)/effects/imagefilters/SkXfermodeImageFilter.cpp",
+    ],
+
+    'skia_effects_imagefilter_sources_no_asan' : [
+      "<(skia_src_path)/effects/imagefilters/SkBlurImageFilter.cpp",
     ],
   },
 }
