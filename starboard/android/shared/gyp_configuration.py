@@ -322,7 +322,7 @@ class AndroidConfiguration(PlatformConfiguration):
           # This test is failing because localhost is not defined for IPv6 in
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
-          # SbDirectory has problems with empty Asset dirs. See b/154881065.
+          # SbDirectory has problems with empty Asset dirs.
           'SbDirectoryCanOpenTest.SunnyDayStaticContent',
           'SbDirectoryGetNextTest.SunnyDayStaticContent',
           'SbDirectoryOpenTest.SunnyDayStaticContent',
