@@ -358,10 +358,13 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")),
     GetTestName());
 
+// Blitter does not support Skottie.
+#if !SB_HAS(BLITTER)
 // Lottie (https://github.com/LottieFiles/lottie-player) test cases
 INSTANTIATE_TEST_CASE_P(
     LottiePlayerLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("lottie-player")), GetTestName());
+#endif  // !SB_HAS(BLITTER)
 
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)
