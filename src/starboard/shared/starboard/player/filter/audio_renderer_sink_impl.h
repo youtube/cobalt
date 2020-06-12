@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_
 
+#include <functional>
+
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -28,7 +30,24 @@ namespace filter {
 
 class AudioRendererSinkImpl : public AudioRendererSink {
  public:
-  AudioRendererSinkImpl();
+   typedef std::function<SbAudioSink (
+       SbTime start_media_time,
+       int channels,
+       int sampling_frequency_hz,
+       SbMediaAudioSampleType audio_sample_type,
+       SbMediaAudioFrameStorageType audio_frame_storage_type,
+       SbAudioSinkFrameBuffers frame_buffers,
+       int frame_buffers_size_in_frames,
+       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+#if SB_API_VERSION >= 12
+       SbAudioSinkPrivate::ErrorFunc error_func,
+#endif  // SB_API_VERSION >= 12
+       void* context)> CreateFunc;
+
+  explicit AudioRendererSinkImpl(CreateFunc create_func)
+      : create_func_(create_func) {}
+  AudioRendererSinkImpl() {}
   ~AudioRendererSinkImpl() override;
 
  private:
@@ -41,7 +60,8 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       override;
 
   bool HasStarted() const override;
-  void Start(int channels,
+  void Start(SbTime start_media_time,
+             int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
              SbMediaAudioFrameStorageType audio_frame_storage_type,
@@ -65,10 +85,12 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   static void ErrorFunc(bool capability_changed, void* context);
 
   ThreadChecker thread_checker_;
-  SbAudioSinkPrivate* audio_sink_;
-  RenderCallback* render_callback_;
-  double playback_rate_;
-  double volume_;
+  const CreateFunc create_func_;
+
+  SbAudioSinkPrivate* audio_sink_ = kSbAudioSinkInvalid;
+  RenderCallback* render_callback_ = nullptr;
+  double playback_rate_ = 1.0;
+  double volume_ = 1.0;
 };
 
 }  // namespace filter

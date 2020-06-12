@@ -57,6 +57,8 @@ class VideoDecoder {
       DecoderStatusCB;
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
 
+  static constexpr SbTime kInvalidResetTime = -1;
+
   virtual ~VideoDecoder() {}
 
   // This function has to be called before any other functions to setup the
@@ -101,7 +103,7 @@ class VideoDecoder {
   // over data from previous buffers.  |decoder_status_cb| won't be called
   // after this function returns unless WriteInputFrame() or WriteEndOfStream()
   // is called again.
-  virtual void Reset() = 0;
+  virtual void Reset(SbTime seek_to_time) = 0;
 
   // This function can only be called when the current SbPlayerOutputMode is
   // |kSbPlayerOutputModeDecodeToTexture|.  It has to return valid value after

@@ -46,7 +46,7 @@ class StubVideoDecoder : public VideoDecoder {
 
   void WriteEndOfStream() override;
 
-  void Reset() override;
+  void Reset(SbTime seek_to_time) override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
