@@ -65,7 +65,6 @@
         '<(DEPTH)/cobalt/media_stream/media_stream_test.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:*',
-        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',

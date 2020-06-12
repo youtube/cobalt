@@ -273,6 +273,7 @@
         '../dom/source_buffer_append_mode.idl',
         '../dom/track_default_type.idl',
         '../dom/ui_event_init.idl',
+        '../dom/visibility_state.idl',
         '../dom/wheel_event_init.idl',
         '../media_capture/blob_event_init.idl',
         '../media_capture/media_device_kind.idl',
@@ -286,7 +287,6 @@
         '../media_session/media_session_playback_state.idl',
         '../media_stream/media_stream_constraints.idl',
         '../media_stream/media_track_settings.idl',
-        '../page_visibility/visibility_state.idl',
         '../speech/speech_recognition_error_code.idl',
         '../speech/speech_synthesis_error_code.idl',
         '../subtlecrypto/aes_ctr_params.idl',
@@ -314,6 +314,7 @@
         '../dom/document_cobalt.idl',
         '../dom/document_cssom.idl',
         '../dom/document_html5.idl',
+        '../dom/document_page_visibility.idl',
         '../dom/element_css_inline_style.idl',
         '../dom/element_cssom_view.idl',
         '../dom/element_dom_parsing_and_serialization.idl',
@@ -347,7 +348,6 @@
         '../dom/window_timers.idl',
         '../media_capture/navigator.idl',
         '../media_session/navigator_media_session.idl',
-        '../page_visibility/document.idl',
     ],
 
     'conditions': [

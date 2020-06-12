@@ -144,7 +144,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'nb_test',
         'net_unittests',
         'network_test',
-        'page_visibility_test',
         'poem_unittests',
         'render_tree_test',
         'renderer_test',

@@ -992,8 +992,7 @@ void Document::OnWindowFocusChanged(bool has_focus) {
   // Ignored by this class.
 }
 
-void Document::OnVisibilityStateChanged(
-    page_visibility::VisibilityState visibility_state) {
+void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
 }
