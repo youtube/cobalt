@@ -290,7 +290,6 @@ class WebModule : public LifecycleObserver {
             media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
             const cssom::ViewportSize& window_dimensions,
-            float video_pixel_ratio,
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options);
   ~WebModule();
@@ -361,11 +360,10 @@ class WebModule : public LifecycleObserver {
   std::unique_ptr<debug::backend::DebuggerState> FreezeDebugger();
 #endif  // ENABLE_DEBUGGER
 
-  // Sets the size and pixel ratio of this web module, possibly causing relayout
-  // and re-render with the new parameters. Does nothing if the parameters are
-  // not different from the current parameters.
-  void SetSize(const cssom::ViewportSize& view_port_size,
-               float video_pixel_ratio);
+  // Sets the size of this web module, possibly causing relayout and re-render
+  // with the new parameters. Does nothing if the parameters are not different
+  // from the current parameters.
+  void SetSize(const cssom::ViewportSize& viewport_size);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
@@ -413,7 +411,7 @@ class WebModule : public LifecycleObserver {
         media::CanPlayTypeHandler* can_play_type_handler,
         media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
-        const cssom::ViewportSize& window_dimensions, float video_pixel_ratio,
+        const cssom::ViewportSize& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
         int dom_max_element_depth, float layout_refresh_rate,
         const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
@@ -428,7 +426,6 @@ class WebModule : public LifecycleObserver {
           web_media_player_factory(web_media_player_factory),
           network_module(network_module),
           window_dimensions(window_dimensions),
-          video_pixel_ratio(video_pixel_ratio),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
@@ -445,7 +442,6 @@ class WebModule : public LifecycleObserver {
     media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;
     cssom::ViewportSize window_dimensions;
-    float video_pixel_ratio;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
     float layout_refresh_rate;

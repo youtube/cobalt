@@ -55,12 +55,6 @@ static const int kMonochromeMediaFeatureValue = 0;
 //   https://www.w3.org/TR/css3-mediaqueries/#grid
 static const int kGridMediaFeatureValue = 0;
 
-// The 'resolution' media feature describes the resolution of the output device,
-// i.e. the density of the pixels.
-//   https://www.w3.org/TR/css3-mediaqueries/#resolution
-// We calculate the pixel density from the length of the screen diagonal.
-static const float kScreenDefaultDiagonalInInches = 55.0f;
-
 // The 'scan' media feature describes the scanning process of "tv" output
 // devices.
 //   https://www.w3.org/TR/css3-mediaqueries/#scan
@@ -170,16 +164,7 @@ bool MediaFeature::CompareOrientation(
 bool MediaFeature::CompareResolution(const cssom::ViewportSize& viewport_size) {
   ResolutionValue* specified_value =
       base::polymorphic_downcast<ResolutionValue*>(value_.get());
-
-  float diagonal_pixels = sqrtf(
-      static_cast<float>(viewport_size.width() * viewport_size.width() +
-                         viewport_size.height() * viewport_size.height()));
-
-  float viewport_diagonal = viewport_size.diagonal_inches() > 0
-                                ? viewport_size.diagonal_inches()
-                                : kScreenDefaultDiagonalInInches;
-
-  float media_dpi = diagonal_pixels / viewport_diagonal;
+  float media_dpi = viewport_size.device_pixel_ratio() * 96;
 
   switch (operator_) {
     case kNonZero:

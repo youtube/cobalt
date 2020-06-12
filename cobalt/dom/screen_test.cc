@@ -23,7 +23,7 @@ namespace cobalt {
 namespace dom {
 
 TEST(ScreenTest, Size) {
-  ViewportSize view_size(ViewportSize(1280, 720, 55.f));
+  ViewportSize view_size(ViewportSize(1280, 720, 55.f, 2.f));
   scoped_refptr<Screen> screen = new Screen(view_size);
 
   EXPECT_FLOAT_EQ(screen->width(), 1280.0f);
@@ -33,6 +33,7 @@ TEST(ScreenTest, Size) {
   EXPECT_EQ(screen->color_depth(), 24);
   EXPECT_EQ(screen->pixel_depth(), 24);
   EXPECT_EQ(screen->diagonal_inches(), 55.f);
+  EXPECT_EQ(screen->device_pixel_ratio(), 2.f);
 }
 
 }  // namespace dom

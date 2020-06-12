@@ -606,11 +606,6 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     options.camera_3d = input_device_manager_->camera_3d();
   }
 
-  float video_pixel_ratio = 1.0f;
-  if (system_window_) {
-    video_pixel_ratio = system_window_->GetVideoPixelRatio();
-  }
-
   // Make sure that automem has been run before creating the WebModule, so that
   // we use properly configured options for all parameters.
   DCHECK(auto_mem_);
@@ -642,8 +637,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), network_module_,
-      viewport_size, video_pixel_ratio, GetResourceProvider(),
-      kLayoutMaxRefreshFrequencyInHz, options));
+      viewport_size, GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
+      options));
   lifecycle_observers_.AddObserver(web_module_.get());
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -938,18 +933,17 @@ void BrowserModule::OnWindowMinimize() {
 }
 
 #if SB_API_VERSION >= 8
-void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
-                                        float video_pixel_ratio) {
+void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size) {
   if (web_module_) {
-    web_module_->SetSize(viewport_size, video_pixel_ratio);
+    web_module_->SetSize(viewport_size);
   }
 #if defined(ENABLE_DEBUGGER)
   if (debug_console_) {
-    debug_console_->web_module().SetSize(viewport_size, video_pixel_ratio);
+    debug_console_->web_module().SetSize(viewport_size);
   }
 #endif  // defined(ENABLE_DEBUGGER)
   if (splash_screen_) {
-    splash_screen_->web_module().SetSize(viewport_size, video_pixel_ratio);
+    splash_screen_->web_module().SetSize(viewport_size);
   }
 
   return;
@@ -1669,19 +1663,18 @@ void BrowserModule::DestroyRendererModule() {
 
 void BrowserModule::UpdateScreenSize() {
   ViewportSize size = GetViewportSize();
-  float video_pixel_ratio = system_window_->GetVideoPixelRatio();
 #if defined(ENABLE_DEBUGGER)
   if (debug_console_) {
-    debug_console_->SetSize(size, video_pixel_ratio);
+    debug_console_->SetSize(size);
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
   if (splash_screen_) {
-    splash_screen_->SetSize(size, video_pixel_ratio);
+    splash_screen_->SetSize(size);
   }
 
   if (web_module_) {
-    web_module_->SetSize(size, video_pixel_ratio);
+    web_module_->SetSize(size);
   }
 
   if (qr_code_overlay_) {
@@ -1772,8 +1765,11 @@ ViewportSize BrowserModule::GetViewportSize() {
     math::Size target_size = renderer_module_->render_target_size();
     // ...but get the diagonal from one of the other modules.
     float diagonal_inches = 0;
+    float device_pixel_ratio = 1.0f;
     if (system_window_) {
       diagonal_inches = system_window_->GetDiagonalSizeInches();
+      device_pixel_ratio = system_window_->GetDevicePixelRatio();
+
       // For those platforms that can have a main window size smaller than the
       // render target size, the system_window_ size (if exists) should be
       // trusted over the renderer_module_ render target size.
@@ -1784,9 +1780,12 @@ ViewportSize BrowserModule::GetViewportSize() {
       }
     } else if (options_.requested_viewport_size) {
       diagonal_inches = options_.requested_viewport_size->diagonal_inches();
+      device_pixel_ratio =
+          options_.requested_viewport_size->device_pixel_ratio();
     }
 
-    ViewportSize v(target_size.width(), target_size.height(), diagonal_inches);
+    ViewportSize v(target_size.width(), target_size.height(), diagonal_inches,
+                   device_pixel_ratio);
     return v;
   }
 
@@ -1794,7 +1793,8 @@ ViewportSize BrowserModule::GetViewportSize() {
   if (system_window_) {
     math::Size size = system_window_->GetWindowSize();
     ViewportSize v(size.width(), size.height(),
-                   system_window_->GetDiagonalSizeInches());
+                   system_window_->GetDiagonalSizeInches(),
+                   system_window_->GetDevicePixelRatio());
     return v;
   }
 
@@ -1808,7 +1808,7 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  ViewportSize view_size(1280, 720, 0);
+  ViewportSize view_size(1280, 720);
   return view_size;
 }
 

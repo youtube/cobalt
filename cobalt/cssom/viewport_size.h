@@ -28,21 +28,33 @@ class ViewportSize {
   ViewportSize() = default;
   ViewportSize(const ViewportSize& other) = default;
   ViewportSize(int w, int h) : width_height_(w, h) {}
-  ViewportSize(int w, int h, float diag)
-      : width_height_(w, h), diagonal_inches_(diag) {}
+  ViewportSize(int w, int h, float diagonal_inches, float device_pixel_ratio)
+      : width_height_(w, h),
+        diagonal_inches_(diagonal_inches),
+        device_pixel_ratio_(device_pixel_ratio) {}
   int height() const { return width_height_.height(); }
   int width() const { return width_height_.width(); }
+  float device_pixel_ratio() const { return device_pixel_ratio_; }
   float diagonal_inches() const { return diagonal_inches_; }
   cobalt::math::Size width_height() const { return width_height_; }
   bool operator==(const ViewportSize& s) const {
     return width_height_ == s.width_height_ &&
-           diagonal_inches_ == s.diagonal_inches_;
+           diagonal_inches_ == s.diagonal_inches_ &&
+           device_pixel_ratio_ == s.device_pixel_ratio_;
   }
   bool operator!=(const ViewportSize& s) const { return !(*this == s); }
 
  private:
   cobalt::math::Size width_height_;
-  float diagonal_inches_ = 0;  // Note that 0 means "use a default".
+
+  // Size of the diagonal between two opposing screen corners in inches.
+  // A value of 0 means the size of the display is not known.
+  float diagonal_inches_ = 0;
+
+  // Ratio of CSS pixels per device pixel, matching the devicePixelRatio
+  // attribute.
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
+  float device_pixel_ratio_ = 1.0f;
 };
 
 }  // namespace cssom
