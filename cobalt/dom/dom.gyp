@@ -252,6 +252,8 @@
         'on_screen_keyboard.cc',
         'on_screen_keyboard.h',
         'on_screen_keyboard_bridge.h',
+        'page_visibility_state.cc',
+        'page_visibility_state.h',
         'performance.cc',
         'performance.h',
         'performance_timing.cc',
@@ -337,7 +339,6 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
-        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
