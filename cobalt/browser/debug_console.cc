@@ -141,8 +141,8 @@ DebugConsole::DebugConsole(
       WebModule::CloseCallback(), /* window_close_callback */
       base::Closure(),            /* window_minimize_callback */
       NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-      network_module, window_dimensions, 1.f /*video_pixel_ratio*/,
-      resource_provider, layout_refresh_rate, web_module_options));
+      network_module, window_dimensions, resource_provider, layout_refresh_rate,
+      web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

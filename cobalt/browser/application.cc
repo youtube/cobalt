@@ -343,9 +343,9 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
     // width. This calculates the height at 4:3 aspect ratio for smaller
     // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
     if (width >= 1280) {
-      return ViewportSize(width, 9 * width / 16, 0);
+      return ViewportSize(width, 9 * width / 16);
     }
-    return ViewportSize(width, 3 * width / 4, 0);
+    return ViewportSize(width, 3 * width / 4);
   }
 
   int height = 0;
@@ -358,13 +358,25 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
     return ViewportSize(width, height);
   }
 
-  double screen_diagonal_inches = 0.0;
-  if (!base::StringToDouble(lengths[2], &screen_diagonal_inches)) {
-    DLOG(ERROR) << "Viewport " << switch_value
-                << " has invalid screen_diagonal_inches.";
-    return base::nullopt;
+  double screen_diagonal_inches = 0.0f;
+  if (lengths.size() >= 3) {
+    if (!base::StringToDouble(lengths[2], &screen_diagonal_inches)) {
+      DLOG(ERROR) << "Viewport " << switch_value
+                  << " has invalid screen_diagonal_inches.";
+      return base::nullopt;
+    }
   }
-  return ViewportSize(width, height,
+
+  double video_pixel_ratio = 1.0f;
+  if (lengths.size() >= 4) {
+    if (!base::StringToDouble(lengths[3], &video_pixel_ratio)) {
+      DLOG(ERROR) << "Viewport " << switch_value
+                  << " has invalid video_pixel_ratio.";
+      return base::nullopt;
+    }
+  }
+
+  return ViewportSize(width, height, static_cast<float>(video_pixel_ratio),
                       static_cast<float>(screen_diagonal_inches));
 }
 
@@ -1190,8 +1202,14 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
 #endif
 
-  cssom::ViewportSize viewport_size(size.width, size.height, diagonal);
-  browser_module_->OnWindowSizeChanged(viewport_size, size.video_pixel_ratio);
+  // A value of 0.0 for the video pixel ratio means that the ratio could not be
+  // determined. In that case it should be assumed to be the same as the
+  // graphics resolution, which corresponds to a device pixel ratio of 1.0.
+  float device_pixel_ratio =
+      (size.video_pixel_ratio == 0) ? 1.0f : size.video_pixel_ratio;
+  cssom::ViewportSize viewport_size(size.width, size.height, diagonal,
+                                    device_pixel_ratio);
+  browser_module_->OnWindowSizeChanged(viewport_size);
 }
 #endif  // SB_API_VERSION >= 8
 

@@ -48,9 +48,8 @@ class SplashScreen : public LifecycleObserver {
                    on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
-  void SetSize(const cssom::ViewportSize& window_dimensions,
-               float video_pixel_ratio) {
-    web_module_->SetSize(window_dimensions, video_pixel_ratio);
+  void SetSize(const cssom::ViewportSize& viewport_size) {
+    web_module_->SetSize(viewport_size);
   }
 
   // LifecycleObserver implementation.

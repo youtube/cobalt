@@ -213,7 +213,7 @@ class WebModule::Impl {
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
-  void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
+  void SetSize(cssom::ViewportSize viewport_size);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
       media::WebMediaPlayerFactory* web_media_player_factory);
@@ -633,9 +633,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   window_ = new dom::Window(
       environment_settings_.get(), data.window_dimensions,
-      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
-      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
+      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
+      fetcher_factory_.get(), loader_factory_.get(), &resource_provider_,
+      animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -1058,14 +1058,8 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
 }
 
-void WebModule::Impl::SetSize(cssom::ViewportSize window_dimensions,
-                              float video_pixel_ratio) {
-  // A value of 0.0 for the video pixel ratio means that the ratio could not be
-  // determined. In that case it should be assumed to be the same as the
-  // graphics resolution, which corresponds to a device pixel ratio of 1.0.
-  float device_pixel_ratio =
-      video_pixel_ratio == 0.0f ? 1.0f : video_pixel_ratio;
-  window_->SetSize(window_dimensions, device_pixel_ratio);
+void WebModule::Impl::SetSize(cssom::ViewportSize viewport_size) {
+  window_->SetSize(viewport_size);
 }
 
 void WebModule::Impl::SetCamera3D(
@@ -1314,7 +1308,7 @@ WebModule::WebModule(
     media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     network::NetworkModule* network_module,
-    const ViewportSize& window_dimensions, float video_pixel_ratio,
+    const ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()),
@@ -1326,8 +1320,8 @@ WebModule::WebModule(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
       can_play_type_handler, web_media_player_factory, network_module,
-      window_dimensions, video_pixel_ratio, resource_provider,
-      kDOMMaxElementDepth, layout_refresh_rate, ui_nav_root_, options);
+      window_dimensions, resource_provider, kDOMMaxElementDepth,
+      layout_refresh_rate, ui_nav_root_, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1575,12 +1569,10 @@ std::unique_ptr<debug::backend::DebuggerState> WebModule::FreezeDebugger() {
 }
 #endif  // defined(ENABLE_DEBUGGER)
 
-void WebModule::SetSize(const ViewportSize& viewport_size,
-                        float video_pixel_ratio) {
+void WebModule::SetSize(const ViewportSize& viewport_size) {
   message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::SetSize, base::Unretained(impl_.get()),
-                 viewport_size, video_pixel_ratio));
+      FROM_HERE, base::Bind(&WebModule::Impl::SetSize,
+                            base::Unretained(impl_.get()), viewport_size));
 }
 
 void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
