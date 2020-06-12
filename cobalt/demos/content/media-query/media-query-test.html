@@ -1,47 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <script type="text/javascript">
+  <script type='text/javascript'>
     // Demonstrates how media query can be used to get the value of the
-    // window resolution.
-    function PrintWindowWidth() {
-      for (var i = 0; i < 16000; ++i) {
-        query_str = "(max-width: " + i + "px)"
-        if (window.matchMedia(query_str).matches) {
-          console.log("Found window width: " + query_str);
-          return;
-        }
-      }
-      console.log("Error: Could not find window width.");
+    // window resolution, width, and height.
+
+    function log_info(message) {
+      console.log(message);
+      document.getElementById('info').innerHTML += message + '.\n';
+    }
+    function log_error(message) {
+      console.log('Error: ' + message);
+      document.getElementById('error').innerHTML += message + '.\n';
     }
 
-    function PrintWindowHeight() {
-      for (var i = 0; i < 16000; ++i) {
-        query_str = "(max-height: " + i + "px)";
+    function search(low, high, query, units) {
+      var precision = 1/32;
+      while (low < high - precision) {
+        var mid = Math.floor((low + high) / 2 / precision) * precision;
+        query_str = '(max-' + query + ':' + mid + units + ')'
         if (window.matchMedia(query_str).matches) {
-          console.log("Found window height: " + query_str);
-          return;
+          // The window value is less than or equal to result.
+          high = mid;
+        } else {
+          // The window value is greater than result.
+          low = mid;
         }
       }
-      console.log("Error: Could not find window height.");
+      return high;
+    }
+
+    function PrintWindowSize() {
+      var width = search(0, 16000, 'width', 'px');
+      var height = search(0, 16000, 'height', 'px');
+      log_info('media size: ' + width + 'x' + height);
+      if (Math.abs(width - window.innerWidth) >= 1) {
+        log_error('width does not match window.innerWidth');
+      }
+      if (Math.abs(height - window.innerHeight) >= 1) {
+        log_error('height does not match window.innerHeight');
+      }
     }
 
     function PrintDpi() {
-      for (var i = 1; i < 16000; ++i) {
-        query_str = "(max-resolution:" + i + "dpi)"
-        if (window.matchMedia(query_str).matches) {
-          console.log("Found dpi: " + query_str);
-          return;
-        }
+      var dpi = search(0, 16000, 'resolution', 'dpi');
+      log_info('resolution dpi: ' + dpi +
+               ', window.devicePixelRatio: ' + window.devicePixelRatio);
+      if (Math.abs(dpi - 96 * window.devicePixelRatio) > 1) {
+        log_error('resolution does not match devicePixelRatio');
       }
-      console.log("Error: Could not find window dpi.");
     }
 
 
     function intervalCallback() {
       PrintDpi();
-      PrintWindowHeight();
-      PrintWindowWidth();
+      PrintWindowSize();
     }
 
     window.setInterval(intervalCallback, 500);
@@ -49,5 +62,7 @@
 </head>
 
 <body>
+  <span id='error' style='white-space: pre; background-color:#FF0000'></span>
+  <span id='info' style='white-space: pre; background-color:#00FF00'></span>
 </body>
 </html>
