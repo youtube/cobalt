@@ -630,7 +630,7 @@ void Window::SetSize(ViewportSize size, float device_pixel_ratio) {
   document_->SetViewport(viewport_size_);
 
   if (html_element_context_->page_visibility_state()->GetVisibilityState() ==
-      page_visibility::kVisibilityStateVisible) {
+      kVisibilityStateVisible) {
     DispatchEvent(new Event(base::Tokens::resize()));
   } else {
     is_resize_event_pending_ = true;
@@ -647,10 +647,8 @@ void Window::OnWindowFocusChanged(bool has_focus) {
       new Event(has_focus ? base::Tokens::focus() : base::Tokens::blur()));
 }
 
-void Window::OnVisibilityStateChanged(
-    page_visibility::VisibilityState visibility_state) {
-  if (is_resize_event_pending_ &&
-      visibility_state == page_visibility::kVisibilityStateVisible) {
+void Window::OnVisibilityStateChanged(VisibilityState visibility_state) {
+  if (is_resize_event_pending_ && visibility_state == kVisibilityStateVisible) {
     is_resize_event_pending_ = false;
     DispatchEvent(new Event(base::Tokens::resize()));
   }
@@ -663,7 +661,7 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   // pending resize event, so that the resize will occur once layouts are again
   // available.
   if (html_element_context_->page_visibility_state()->GetVisibilityState() !=
-      page_visibility::kVisibilityStateVisible) {
+      kVisibilityStateVisible) {
     is_resize_event_pending_ = true;
   }
 }
