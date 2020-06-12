@@ -45,12 +45,12 @@
 #include "cobalt/dom/intersection_observer_task_manager.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/pointer_state.h"
+#include "cobalt/dom/visibility_state.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
-#include "cobalt/page_visibility/page_visibility_state.h"
-#include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 #include "url/gurl.h"
@@ -95,7 +95,7 @@ class DocumentObserver : public base::CheckedObserver {
 //   https://www.w3.org/TR/dom/#document
 class Document : public Node,
                  public cssom::MutationObserver,
-                 public page_visibility::PageVisibilityState::Observer {
+                 public PageVisibilityState::Observer {
  public:
   struct Options {
     Options()
@@ -400,10 +400,8 @@ class Document : public Node,
   void DisableJit();
 
   // Page Visibility fields.
-  bool hidden() const {
-    return visibility_state() == page_visibility::kVisibilityStateHidden;
-  }
-  page_visibility::VisibilityState visibility_state() const {
+  bool hidden() const { return visibility_state() == kVisibilityStateHidden; }
+  VisibilityState visibility_state() const {
     return page_visibility_state()->GetVisibilityState();
   }
   const EventListenerScriptValue* onvisibilitychange() const {
@@ -413,10 +411,9 @@ class Document : public Node,
     SetAttributeEventListener(base::Tokens::visibilitychange(), event_listener);
   }
 
-  // page_visibility::PageVisibilityState::Observer implementation.
+  // PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
-  void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) override;
+  void OnVisibilityStateChanged(VisibilityState visibility_state) override;
 
   PointerState* pointer_state() { return &pointer_state_; }
 
@@ -439,11 +436,11 @@ class Document : public Node,
  protected:
   ~Document() override;
 
-  page_visibility::PageVisibilityState* page_visibility_state() {
+  PageVisibilityState* page_visibility_state() {
     return html_element_context_->page_visibility_state().get();
   }
 
-  const page_visibility::PageVisibilityState* page_visibility_state() const {
+  const PageVisibilityState* page_visibility_state() const {
     return html_element_context_->page_visibility_state().get();
   }
 
@@ -472,7 +469,7 @@ class Document : public Node,
   // It is possible that we destroy the page visibility state object before
   // Document, during shutdown, so this allows us to handle that situation
   // more gracefully than crashing.
-  base::WeakPtr<page_visibility::PageVisibilityState> page_visibility_state_;
+  base::WeakPtr<PageVisibilityState> page_visibility_state_;
 
   // Reference to the associated window object.
   Window* window_;

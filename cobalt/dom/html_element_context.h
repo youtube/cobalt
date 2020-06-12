@@ -23,6 +23,7 @@
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
+#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -32,7 +33,6 @@
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
-#include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
@@ -156,7 +156,7 @@ class HTMLElementContext {
     return reduced_image_cache_capacity_manager_;
   }
 
-  base::WeakPtr<page_visibility::PageVisibilityState> page_visibility_state() {
+  base::WeakPtr<PageVisibilityState> page_visibility_state() {
     return page_visibility_state_weak_ptr_factory_.GetWeakPtr();
   }
 
@@ -185,8 +185,8 @@ class HTMLElementContext {
   loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string font_language_script_;
-  page_visibility::PageVisibilityState page_visibility_state_;
-  base::WeakPtrFactory<page_visibility::PageVisibilityState>
+  PageVisibilityState page_visibility_state_;
+  base::WeakPtrFactory<PageVisibilityState>
       page_visibility_state_weak_ptr_factory_;
   const float video_playback_rate_multiplier_;
   base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;

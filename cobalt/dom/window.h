@@ -41,6 +41,7 @@
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/on_screen_keyboard.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
+#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/screenshot_manager.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -63,7 +64,6 @@
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
-#include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/error_report.h"
@@ -106,8 +106,7 @@ class WindowTimers;
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public EventTarget,
-               public page_visibility::PageVisibilityState::Observer {
+class Window : public EventTarget, public PageVisibilityState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
@@ -367,10 +366,9 @@ class Window : public EventTarget,
   // Returns whether or not the script was handled.
   bool ReportScriptError(const script::ErrorReport& error_report);
 
-  // page_visibility::PageVisibilityState::Observer implementation.
+  // PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
-  void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) override;
+  void OnVisibilityStateChanged(VisibilityState visibility_state) override;
 
   // Called when the document's root element has its offset dimensions requested
   // and is unable to provide them.
