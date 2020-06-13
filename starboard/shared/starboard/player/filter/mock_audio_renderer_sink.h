@@ -37,8 +37,9 @@ class MockAudioRendererSink : public AudioRendererSink {
   MOCK_CONST_METHOD1(GetNearestSupportedSampleFrequency,
                      int(int sampling_frequency_hz));
   MOCK_CONST_METHOD0(HasStarted, bool());
-  MOCK_METHOD7(Start,
-               void(int channels,
+  MOCK_METHOD8(Start,
+               void(SbTime media_start_time,
+                    int channels,
                     int sampling_frequency_hz,
                     SbMediaAudioSampleType audio_sample_type,
                     SbMediaAudioFrameStorageType audio_frame_storage_type,
