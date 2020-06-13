@@ -27,85 +27,12 @@ SbAudioSink SbAudioSinkCreate(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
-  if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
-    SB_LOG(WARNING) << "Invalid audio channels " << channels;
-    return kSbAudioSinkInvalid;
-  }
-
-  if (sampling_frequency_hz <= 0) {
-    SB_LOG(WARNING) << "Invalid audio sampling frequency "
-                    << sampling_frequency_hz;
-    return kSbAudioSinkInvalid;
-  }
-
-  if (!SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type)) {
-    SB_LOG(WARNING) << "Invalid audio sample type " << audio_sample_type;
-    return kSbAudioSinkInvalid;
-  }
-
-  if (!SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type)) {
-    SB_LOG(WARNING) << "Invalid audio frame storage type "
-                    << audio_frame_storage_type;
-    return kSbAudioSinkInvalid;
-  }
-
-  if (frame_buffers == NULL) {
-    SB_LOG(WARNING) << "Pointer to frame buffers cannot be NULL";
-    return kSbAudioSinkInvalid;
-  }
-
-  if (frame_buffers_size_in_frames <= 0) {
-    SB_LOG(WARNING) << "Invalid frame buffer size "
-                    << frame_buffers_size_in_frames;
-    return kSbAudioSinkInvalid;
-  }
-
-  if (update_source_status_func == NULL) {
-    SB_LOG(WARNING) << "update_source_status_func cannot be NULL";
-    return kSbAudioSinkInvalid;
-  }
-
-  if (consume_frames_func == NULL) {
-    SB_LOG(WARNING) << "consume_frames_func cannot be NULL";
-    return kSbAudioSinkInvalid;
-  }
-
-  auto audio_sink_type = SbAudioSinkPrivate::GetPreferredType();
-  if (!audio_sink_type) {
-    SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
-    return kSbAudioSinkInvalid;
-  }
-
-  SbAudioSink audio_sink = audio_sink_type->Create(
+  return SbAudioSinkPrivate::Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func,
-      SbAudioSinkPrivate::GetConsumeFramesFunc(consume_frames_func),
+      update_source_status_func, consume_frames_func,
 #if SB_API_VERSION >= 12
       NULL /*error_func*/,
 #endif  // SB_API_VERSION >= 12
       context);
-  if (audio_sink_type->IsValid(audio_sink)) {
-    return audio_sink;
-  }
-  audio_sink_type->Destroy(audio_sink);
-  auto fallback_audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
-  if (!fallback_audio_sink_type) {
-    SB_LOG(WARNING) << "Fallback Sink Type is invalid.";
-    return kSbAudioSinkInvalid;
-  }
-  audio_sink = fallback_audio_sink_type->Create(
-      channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func,
-      SbAudioSinkPrivate::GetConsumeFramesFunc(consume_frames_func),
-#if SB_API_VERSION >= 12
-      NULL /*error_func*/,
-#endif  // SB_API_VERSION >= 12
-      context);
-  if (fallback_audio_sink_type->IsValid(audio_sink)) {
-    return audio_sink;
-  }
-  fallback_audio_sink_type->Destroy(audio_sink);
-  return kSbAudioSinkInvalid;
 }
