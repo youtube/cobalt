@@ -14,9 +14,7 @@
 
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 
-#if SB_API_VERSION >= 11
-#include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= 11
+#include "starboard/common/format_string.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libvpx/vpx_library_loader.h"
