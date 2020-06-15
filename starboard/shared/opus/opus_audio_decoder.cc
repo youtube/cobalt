@@ -14,9 +14,7 @@
 
 #include "starboard/shared/opus/opus_audio_decoder.h"
 
-#if SB_API_VERSION >= 11
-#include "starboard/format_string.h"
-#endif  // SB_API_VERSION >= 11
+#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
