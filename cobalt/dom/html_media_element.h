@@ -54,6 +54,11 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Error state
   scoped_refptr<MediaError> error() const;
 
+  // Custom, not in any spec
+  //
+  // From HTMLElement
+  scoped_refptr<HTMLVideoElement> AsHTMLMediaElement() override { return this; }
+
   // Network state
   std::string src() const;
   void set_src(const std::string& src);
