@@ -26,6 +26,7 @@
 #include "starboard/configuration.h"
 
 // The C library used must provide these headers to be standard conforming.
+
 #include <float.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -54,12 +55,12 @@ typedef int64_t ssize_t;
 #endif
 #endif  // !SB_HAS(SSIZE_T)
 
-// Simulate needed portions of limits.h for platforms that don't provide it.
-
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4310)  // Cast truncates constant value.
 #endif
+
+// Simulate needed portions of limits.h for platforms that don't provide it.
 
 static const int8_t kSbInt8Min = ((int8_t)0x80);
 static const int8_t kSbInt8Max = ((int8_t)0x7F);
