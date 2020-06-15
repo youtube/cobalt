@@ -220,6 +220,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLImageElement> AsHTMLImageElement();
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
   virtual scoped_refptr<HTMLMetaElement> AsHTMLMetaElement();
+  virtual scoped_refptr<HTMLMetaElement> AsHTMLMediaElement();
   virtual scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
