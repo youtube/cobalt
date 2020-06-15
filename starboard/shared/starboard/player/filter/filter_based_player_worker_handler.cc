@@ -15,9 +15,9 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
-#include "starboard/format_string.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
