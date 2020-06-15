@@ -45,7 +45,7 @@ _ANDROID_SDK_PACKAGES = [
     'extras;google;m2repository',
     'ndk;' + _NDK_VERSION,
     'patcher;v4',
-    'platforms;android-29',
+    'platforms;android-30',
     'platform-tools',
 ]
 
