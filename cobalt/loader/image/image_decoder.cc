@@ -258,7 +258,7 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 }
 
 namespace {
-#if SB_HAS(GRAPHICS) && !SB_IS(EVERGREEN)
+#if !SB_IS(EVERGREEN)
 const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
   switch (image_type) {
     case ImageDecoder::kImageTypeJPEG:
@@ -319,7 +319,7 @@ std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
   }
   return std::unique_ptr<ImageDataDecoder>();
 }
-#endif  // SB_HAS(GRAPHICS) && !SB_IS(EVERGREEN)
+#endif  // !SB_IS(EVERGREEN)
 
 std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
@@ -369,10 +369,10 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
   }
 
 // TODO: Remove the EVERGREEN check once the EGL wiring is ready.
-#if SB_HAS(GRAPHICS) && !SB_IS(EVERGREEN)
+#if !SB_IS(EVERGREEN)
   decoder_ =
       MaybeCreateStarboardDecoder(mime_type_, image_type_, resource_provider_);
-#endif  // SB_HAS(GRAPHICS) && !SB_IS(EVERGREEN)
+#endif  // !SB_IS(EVERGREEN)
 
   if (!decoder_) {
     decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_);

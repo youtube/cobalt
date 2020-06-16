@@ -340,7 +340,6 @@ class Application {
   }
 
   scoped_refptr<Image> FrameCB(const base::TimeDelta& time) {
-#if SB_HAS(GRAPHICS)
     SbDecodeTarget decode_target = player_helper_->GetCurrentDecodeTarget();
 
     if (SbDecodeTargetIsValid(decode_target)) {
@@ -348,9 +347,6 @@ class Application {
           decode_target);
     }
     return NULL;
-#else   // SB_HAS(GRAPHICS)
-    return NULL;
-#endif  // SB_HAS(GRAPHICS)
   }
 
   const std::string kAudioId = "audio";

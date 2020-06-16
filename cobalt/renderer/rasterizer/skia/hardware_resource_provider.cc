@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
+
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
@@ -64,7 +65,6 @@ HardwareResourceProvider::HardwareResourceProvider(
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
   SkFontMgr::RefDefault();
-#if SB_HAS(GRAPHICS)
   decode_target_graphics_context_provider_.egl_display =
       cobalt_context_->system_egl()->GetDisplay();
   decode_target_graphics_context_provider_.egl_context =
@@ -72,7 +72,6 @@ HardwareResourceProvider::HardwareResourceProvider(
   decode_target_graphics_context_provider_.gles_context_runner =
       &HardwareResourceProvider::GraphicsContextRunner;
   decode_target_graphics_context_provider_.gles_context_runner_context = this;
-#endif  // SB_HAS(GRAPHICS)
 }
 
 HardwareResourceProvider::~HardwareResourceProvider() {
@@ -162,7 +161,6 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
       self_message_loop_));
 }
 
-#if SB_HAS(GRAPHICS)
 namespace {
 
 uint32_t DecodeTargetFormatToGLFormat(
@@ -376,8 +374,6 @@ void HardwareResourceProvider::GraphicsContextRunner(
     target_function(target_function_context);
   }
 }
-
-#endif  // SB_HAS(GRAPHICS)
 
 std::unique_ptr<RawImageMemory>
 HardwareResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,
