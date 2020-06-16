@@ -7,8 +7,7 @@ Hardware-accelerated cryptography. Platforms should **only** only implement this
 when there are **hardware-accelerated** hardware-accelerated cryptography
 facilities. Applications must fall back to platform-independent CPU-based
 algorithms if the cipher algorithm isn't supported in hardware.
-
-## Tips for Porters ##
+Tips for Porters
 
 You should implement cipher algorithms in this descending order of priority to
 maximize usage for SSL.
@@ -136,6 +135,8 @@ block cipher modes that don't use it, or don't set it at init time.
 `initialization_vector_size`: The size, in bytes, of the IV. `key`: The key to
 use for this transformation. `key_size`: The size, in bytes, of the key.
 
+presubmit: allow sb_export mismatch
+
 #### Declaration ####
 
 ```
@@ -145,6 +146,8 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(const char *algorithm,
 ### SbCryptographyDestroyTransformer ###
 
 Destroys the given `transformer` instance.
+
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
@@ -158,6 +161,8 @@ Calculates the authenticator tag for a transformer and places up to
 `out_tag_size` bytes of it in `out_tag`. Returns whether it was able to get the
 tag, which mainly has to do with whether it is compatible with the current block
 cipher mode.
+
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
@@ -182,6 +187,8 @@ that support it (GCM). Returns whether the data was successfully set. This can
 fail if the chaining mode doesn't support AAD, if the parameters are invalid, or
 if the internal state is invalid for setting AAD.
 
+presubmit: allow sb_export mismatch
+
 #### Declaration ####
 
 ```
@@ -194,6 +201,8 @@ Sets the initialization vector (IV) for a transformer, replacing the internally-
 set IV. The block cipher mode algorithm will update the IV appropriately after
 every block, so this is not necessary unless the stream is discontiguous in some
 way. This happens with AES-GCM in TLS.
+
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
@@ -214,6 +223,8 @@ data to be transformed, in bytes. Must be a multiple of the transformer's
 `block-size_bits`, or an error will be returned. `out_data`: A buffer where the
 transformed data should be placed. Must have at least capacity for
 `in_data_size` bytes. May point to the same memory as `in_data`.
+
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
