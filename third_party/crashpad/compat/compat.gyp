@@ -125,7 +125,7 @@
             ],
           },
         }],
-        ['host_os=="linux"', {
+        ['target_os=="linux"', {
           'type': 'none',
           'include_dirs': [
             'linux',

@@ -64,7 +64,7 @@
             ],
           },
         }],
-        ['host_os=="linux" or host_os=="android"', {
+        ['target_os=="linux" or target_os=="android"', {
           'sources': [
             'client_argv_handling.cc',
             'client_argv_handling.h',
