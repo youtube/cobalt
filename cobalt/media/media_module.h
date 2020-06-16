@@ -88,11 +88,7 @@ class MediaModule : public WebMediaPlayerFactory,
 
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
-#if SB_HAS(GRAPHICS)
     return resource_provider_->GetSbDecodeTargetGraphicsContextProvider();
-#else   // SB_HAS(GRAPHICS)
-    return NULL;
-#endif  // SB_HAS(GRAPHICS)
   }
 
   // When the value of a particular player is true, it means the player is

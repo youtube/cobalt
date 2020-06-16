@@ -998,15 +998,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
 #endif
 
-// Specifies whether this platform has any kind of supported graphics system.
-#if !defined(SB_HAS_GRAPHICS)
-#if SB_HAS(GLES2) || SB_API_VERSION >= 12
-#define SB_HAS_GRAPHICS 1
-#else
-#define SB_HAS_GRAPHICS 0
-#endif
-#endif
-
 // --- Deprecated Feature Macros -----------------------------------------------
 
 // Deprecated feature macros are no longer referenced by application code, and

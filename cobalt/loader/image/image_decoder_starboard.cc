@@ -23,8 +23,6 @@
 #include "starboard/decode_target.h"
 #include "starboard/image.h"
 
-#if SB_HAS(GRAPHICS)
-
 namespace cobalt {
 namespace loader {
 namespace image {
@@ -73,6 +71,4 @@ scoped_refptr<Image> ImageDecoderStarboard::FinishInternal() {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // SB_HAS(GRAPHICS)
-
-#endif  // #if defined(STARBOARD)
+#endif  // defined(STARBOARD)
