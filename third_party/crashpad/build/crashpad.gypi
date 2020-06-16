@@ -26,7 +26,7 @@
       4324,  # structure was padded due to __declspec(align()).
     ],
     'conditions': [
-      ['host_os=="linux" or host_os=="android"', {
+      ['target_os=="linux" or target_os=="android"', {
         'conditions': [
           ['clang==0', {
             'cflags': [
