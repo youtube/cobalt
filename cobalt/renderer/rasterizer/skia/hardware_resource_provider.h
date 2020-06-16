@@ -60,8 +60,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       std::unique_ptr<render_tree::ImageData> pixel_data) override;
 
-#if SB_HAS(GRAPHICS)
-
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) override;
 
@@ -74,8 +72,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() override { return true; }
-
-#endif  // SB_HAS(GRAPHICS)
 
   std::unique_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) override;
@@ -137,7 +133,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   TextShaper text_shaper_;
   int max_texture_size_;
 
-#if SB_HAS(GRAPHICS)
   static void GraphicsContextRunner(
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
@@ -145,7 +140,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

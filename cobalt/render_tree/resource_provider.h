@@ -79,7 +79,6 @@ class ResourceProvider {
   virtual scoped_refptr<Image> CreateImage(
       std::unique_ptr<ImageData> pixel_data) = 0;
 
-#if SB_HAS(GRAPHICS)
   // This function will consume an SbDecodeTarget object produced by
   // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
   // in a render tree, and return it to the caller.
@@ -94,7 +93,6 @@ class ResourceProvider {
   // supported.
   virtual SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() = 0;
-#endif  // SB_HAS(GRAPHICS)
 
   // Returns a raw chunk of memory that can later be passed into a function like
   // CreateMultiPlaneImageFromRawMemory() in order to create a texture.

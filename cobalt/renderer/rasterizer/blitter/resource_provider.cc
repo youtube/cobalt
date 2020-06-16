@@ -84,8 +84,6 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
       new SinglePlaneImage(std::move(blitter_source_data)));
 }
 
-#if SB_HAS(GRAPHICS)
-
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
@@ -113,8 +111,6 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
   SbDecodeTargetRelease(decode_target);
   return NULL;
 }
-
-#endif  // SB_HAS(GRAPHICS)
 
 std::unique_ptr<render_tree::RawImageMemory>
 ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,

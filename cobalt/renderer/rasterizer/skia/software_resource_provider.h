@@ -51,7 +51,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   scoped_refptr<render_tree::Image> CreateImage(
       std::unique_ptr<render_tree::ImageData> pixel_data) override;
 
-#if SB_HAS(GRAPHICS)
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) override {
     NOTREACHED();
@@ -65,7 +64,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   }
 
   bool SupportsSbDecodeTarget() override { return false; }
-#endif  // SB_HAS(GRAPHICS)
 
   std::unique_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
       size_t size_in_bytes, size_t alignment) override;
