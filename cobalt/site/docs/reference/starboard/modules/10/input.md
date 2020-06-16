@@ -163,6 +163,9 @@ Event data for `kSbEventTypeInput` events.
 *   `const char * input_text`
 
     The text to input for events of type `Input`.
+*   `bool is_composing`
+
+    Set to true if the input event is part of a composition event.
 
 ### SbInputVector ###
 

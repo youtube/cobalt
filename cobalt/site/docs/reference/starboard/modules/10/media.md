@@ -27,6 +27,7 @@ Types of audio elementary streams that can be supported.
 *   `kSbMediaAudioCodecNone`
 *   `kSbMediaAudioCodecAac`
 *   `kSbMediaAudioCodecAc3`
+*   `kSbMediaAudioCodecEac3`
 *   `kSbMediaAudioCodecOpus`
 *   `kSbMediaAudioCodecVorbis`
 
@@ -156,9 +157,21 @@ Types of video elementary streams that could be supported.
 *   `kSbMediaVideoCodecMpeg2`
 *   `kSbMediaVideoCodecTheora`
 *   `kSbMediaVideoCodecVc1`
-*   `kSbMediaVideoCodecAv1`
+*   `kSbMediaVideoCodecVp10`
 *   `kSbMediaVideoCodecVp8`
 *   `kSbMediaVideoCodecVp9`
+
+## Typedefs ##
+
+### SbMediaAudioHeader ###
+
+SbMediaAudioHeader is same as SbMediaAudioSampleInfo in old starboard version.
+
+#### Definition ####
+
+```
+typedef SbMediaAudioSampleInfo SbMediaAudioHeader
+```
 
 ## Structs ##
 
@@ -189,17 +202,22 @@ output.
     `0` if this device cannot provide this information, in which case the caller
     can probably assume stereo output.
 
-### SbMediaAudioHeader ###
+### SbMediaAudioSampleInfo ###
 
-An audio sequence header, which is a description of a given audio stream. This,
-in hexadecimal string form, acts as a set of instructions to the audio decoder.
+An audio sample info, which is a description of a given audio sample. This, in
+hexadecimal string form, acts as a set of instructions to the audio decoder.
 
-The Sequence Header consists of a little-endian hexadecimal encoded
+The audio sample info consists of a little-endian hexadecimal encoded
 `WAVEFORMATEX` structure followed by an Audio-specific configuration field. The
 `WAVEFORMATEX` structure is specified at: [http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)
 
 #### Members ####
 
+*   `const char * mime`
+
+    The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
+    may point to an empty string if the mime is not available, and it can only
+    be set to NULL when `codec` is kSbMediaAudioCodecNone.
 *   `uint16_t format_tag`
 
     The waveform-audio format type code.
@@ -363,6 +381,23 @@ The set of information required by the decoder or player for each video sample.
 
 #### Members ####
 
+*   `const char * mime`
+
+    The mime of the video stream when `codec` isn't kSbMediaVideoCodecNone. It
+    may point to an empty string if the mime is not available, and it can only
+    be set to NULL when `codec` is kSbMediaVideoCodecNone.
+*   `const char * max_video_capabilities`
+
+    Indicates the max video capabilities required. The web app will not provide
+    a video stream exceeding the maximums described by this parameter. Allows
+    the platform to optimize playback pipeline for low quality video streams if
+    it knows that it will never adapt to higher quality streams. The string uses
+    the same format as the string passed in to SbMediaCanPlayMimeAndKeySystem(),
+    for example, when it is set to "width=1920; height=1080; framerate=15;", the
+    video will never adapt to resolution higher than 1920x1080 or frame per
+    second higher than 15 fps. When the maximums are unknown, this will be set
+    to an empty string. It can only be set to NULL when `codec` is
+    kSbMediaVideoCodecNone.
 *   `bool is_key_frame`
 
     Indicates whether the associated sample is a key frame (I-frame). Video key

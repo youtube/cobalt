@@ -156,13 +156,6 @@ string generation.
 
 #### Values ####
 
-*   `kSbSystemPropertyCertificationScope`
-
-    The certification scope that identifies a group of devices.
-*   `kSbSystemPropertyBase64EncodedCertificationSecret`
-
-    The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
-    query parameters from the application startup URL.
 *   `kSbSystemPropertyChipsetModelNumber`
 
     The full model number of the main platform chipset, including any vendor-
@@ -306,11 +299,7 @@ void SbSystemClearLastError()
 
 ### SbSystemClearPlatformError ###
 
-Clears a platform error that was previously raised by a call to
-`SbSystemRaisePlatformError`. The platform may use this, for example, to close a
-dialog that was opened in response to the error.
-
-`handle`: The platform error to be cleared.
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
@@ -398,32 +387,6 @@ that sandboxed limit.
 
 ```
 int SbSystemGetNumberOfProcessors()
-```
-
-### SbSystemGetPath ###
-
-Retrieves the platform-defined system path specified by `path_id` and places it
-as a zero-terminated string into the user-allocated `out_path` unless it is
-longer than `path_length` - 1. This implementation must be thread-safe.
-
-This function returns `true` if the path is retrieved successfully. It returns
-`false` under any of the following conditions and, in any such case, `out_path`
-is not changed:
-
-*   `path_id` is invalid for this platform
-
-*   `path_length` is too short for the given result
-
-*   `out_path` is NULL
-
-`path_id`: The system path to be retrieved. `out_path`: The platform-defined
-system path specified by `path_id`. `path_length`: The length of the system
-path.
-
-#### Declaration ####
-
-```
-bool SbSystemGetPath(SbSystemPathId path_id, char *out_path, int path_length)
 ```
 
 ### SbSystemGetProperty ###

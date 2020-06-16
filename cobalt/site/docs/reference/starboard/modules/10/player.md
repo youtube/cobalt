@@ -114,19 +114,6 @@ status again after such call to notify its user to continue writing more frames.
 typedef void(* SbPlayerDecoderStatusFunc) (SbPlayer player, void *context, SbMediaType type, SbPlayerDecoderState state, int ticket)
 ```
 
-### SbPlayerEncryptedMediaInitDataEncounteredCB ###
-
-Callback to queue an encrypted event for initialization data encountered in
-media data. `init_data_type` should be a string matching one of the EME
-initialization data types : "cenc", "fairplay", "keyids", or "webm", `init_data`
-is the initialization data, and `init_data_length` is the length of the data.
-
-#### Definition ####
-
-```
-typedef void(* SbPlayerEncryptedMediaInitDataEncounteredCB) (SbPlayer player, void *context, const char *init_data_type, const unsigned char *init_data, unsigned int init_data_length)
-```
-
 ### SbPlayerErrorFunc ###
 
 Callback for player errors, that may set a `message`. `error`: indicates the
@@ -153,6 +140,37 @@ typedef void(* SbPlayerStatusFunc) (SbPlayer player, void *context, SbPlayerStat
 ```
 
 ## Structs ##
+
+### SbPlayerCreationParam ###
+
+The playback related parameters to pass into SbPlayerCreate() and
+SbPlayerGetPreferredOutputMode().
+
+#### Members ####
+
+*   `SbDrmSystem drm_system`
+
+    Provides an appropriate DRM system if the media stream has encrypted
+    portions. It will be `kSbDrmSystemInvalid` if the stream does not have
+    encrypted portions.
+*   `SbMediaAudioSampleInfo audio_sample_info`
+
+    Contains a populated SbMediaAudioSampleInfo if `audio_sample_info.codec`
+    isn't `kSbMediaAudioCodecNone`. When `audio_sample_info.codec` is
+    `kSbMediaAudioCodecNone`, the video doesn't have an audio track.
+*   `SbMediaVideoSampleInfo video_sample_info`
+
+    Contains a populated SbMediaVideoSampleInfo if `video_sample_info.codec`
+    isn't `kSbMediaVideoCodecNone`. When `video_sample_info.codec` is
+    `kSbMediaVideoCodecNone`, the video is audio only.
+*   `SbPlayerOutputMode output_mode`
+
+    Selects how the decoded video frames will be output. For example,
+    `kSbPlayerOutputModePunchOut` indicates that the decoded video frames will
+    be output to a background video layer by the platform, and
+    `kSbPlayerOutputDecodeToTexture` indicates that the decoded video frames
+    should be made available for the application to pull via calls to
+    SbPlayerGetCurrentFrame().
 
 ### SbPlayerInfo2 ###
 
@@ -204,12 +222,6 @@ Information about the current media playback state.
     is at normal speed. When it is greater than one, the video is played in a
     faster than normal speed. When it is less than one, the video is played in a
     slower than normal speed. Negative speeds are not supported.
-*   `SbTime buffer_start_timestamp`
-
-    The position of the buffer head, as precisely as possible, in microseconds.
-*   `SbTime buffer_duration`
-
-    The known duration of the currently playing media buffer, in microseconds.
 
 ### SbPlayerSampleInfo ###
 
@@ -237,39 +249,71 @@ Information about the samples to be written into SbPlayerWriteSample2.
 
 ## Functions ##
 
-### SbPlayerCreateWithUrl ###
+### SbPlayerCreate ###
 
-Creates a URL-based SbPlayer that will be displayed on `window` for the
-specified URL `url`, acquiring all resources needed to operate it, and returning
-an opaque handle to it. The expectation is that a new player will be created and
-destroyed for every playback.
+Creates a player that will be displayed on `window` for the specified
+`video_codec` and `audio_codec`, acquiring all resources needed to operate it,
+and returning an opaque handle to it. The expectation is that a new player will
+be created and destroyed for every playback.
 
-In many ways this function is similar to SbPlayerCreate, but it is missing the
-input arguments related to the configuration and format of the audio and video
-stream, as well as the DRM system. The DRM system for a player created with
-SbPlayerCreateWithUrl can be set after creation using SbPlayerSetDrmSystem.
-Because the DRM system is not available at the time of SbPlayerCreateWithUrl, it
-takes in a callback, `encrypted_media_init_data_encountered_cb`, which is run
-when encrypted media initial data is encountered.If the callback is `NULL`, then
-`kSbPlayerInvalid` must be returned.
+This function returns the created player. Note the following:
+
+*   The associated decoder of the returned player should be assumed to not be in
+    `kSbPlayerDecoderStateNeedsData` until SbPlayerSeek() has been called on it.
+
+*   It is expected either that the thread that calls SbPlayerCreate is the same
+    thread that calls the other `SbPlayer` functions for that player, or that
+    there is a mutex guarding calls into each `SbPlayer` instance.
+
+*   If there is a platform limitation on how many players can coexist
+    simultaneously, then calls made to this function that attempt to exceed that
+    limit must return `kSbPlayerInvalid`. Multiple calls to SbPlayerCreate must
+    not cause a crash.
+
+`window`: The window that will display the player. `window` can be
+`kSbWindowInvalid` for platforms where video is only displayed on a particular
+window that the underlying implementation already has access to.
+
+`video_codec`: The video codec used for the player. If `video_codec` is
+`kSbMediaVideoCodecNone`, the player is an audio-only player. If `video_codec`
+is any other value, the player is an audio/video decoder. This can be set to
+`kSbMediaVideoCodecNone` to play a video with only an audio track.
+
+`audio_codec`: The audio codec used for the player. The caller must provide a
+populated `audio_sample_info` if audio codec is `kSbMediaAudioCodecAac`. Can be
+set to `kSbMediaAudioCodecNone` to play a video without any audio track. In such
+case `audio_sample_info` must be NULL.
+
+`drm_system`: If the media stream has encrypted portions, then this parameter
+provides an appropriate DRM system, created with `SbDrmCreateSystem()`. If the
+stream does not have encrypted portions, then `drm_system` may be
+`kSbDrmSystemInvalid`. `audio_header`: `audio_header` is same as
+`audio_sample_info` in old starboard version. When `audio_codec` is
+`kSbMediaAudioCodecNone`, this must be set to NULL. Note that
+`audio_specific_config` is a pointer and the content it points to is no longer
+valid after this function returns. The implementation has to make a copy of the
+content if it is needed after the function returns.
 
 #### Declaration ####
 
 ```
-SbPlayer SbPlayerCreateWithUrl(const char *url, SbWindow window, SbPlayerStatusFunc player_status_func, SbPlayerEncryptedMediaInitDataEncounteredCB encrypted_media_init_data_encountered_cb, SbPlayerErrorFunc player_error_func, void *context)
+SbPlayer SbPlayerCreate(SbWindow window, const SbPlayerCreationParam *creation_param, SbPlayerDeallocateSampleFunc sample_deallocate_func, SbPlayerDecoderStatusFunc decoder_status_func, SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func, void *context, SbDecodeTargetGraphicsContextProvider *context_provider)
 ```
 
 ### SbPlayerDestroy ###
 
-Destroys `player`, freeing all associated resources. Each callback must receive
-one more callback to say that the player was destroyed. Callbacks may be in-
-flight when SbPlayerDestroy is called, and should be ignored once this function
-is called.
+Destroys `player`, freeing all associated resources.
 
-It is not allowed to pass `player` into any other `SbPlayer` function once
-SbPlayerDestroy has been called on that player.
+*   Upon calling this method, there should be one call to the player status
+    callback (i.e. `player_status_func` used in the creation of the player)
+    which indicates the player is destroyed. Note, the callback has to be in-
+    flight when SbPlayerDestroyed is called.
 
-`player`: The player to be destroyed.
+*   No more other callbacks should be issued after this function returns.
+
+*   It is not allowed to pass `player` into any other `SbPlayer` function once
+    SbPlayerDestroy has been called on that player. `player`: The player to be
+    destroyed.
 
 #### Declaration ####
 
@@ -327,6 +371,30 @@ media.h.
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player, SbMediaType sample_type)
 ```
 
+### SbPlayerGetPreferredOutputMode ###
+
+Returns the preferred output mode of the implementation when a video described
+by `creation_param` is played. It is assumed that it is okay to call
+SbPlayerCreate() with the same video described by `creation_param`, with its
+`output_mode` member replaced by the returned output mode. When the caller has
+no preference on the output mode, it will set `creation_param->output_mode` to
+`kSbPlayerOutputModeInvalid`, and the implementation can return its preferred
+output mode based on the information contained in `creation_param`. The caller
+can also set `creation_param->output_mode` to its preferred output mode, and the
+implementation should return the same output mode if it is supported, otherwise
+the implementation should return an output mode that it is supported, as if
+`creation_param->output_mode` is set to `kSbPlayerOutputModeInvalid` prior to
+the call. Note that it is not the responsibility of this function to verify
+whether the video described by `creation_param` can be played on the platform,
+and the implementation should try its best effort to return a valid output mode.
+`creation_param` will never be NULL.
+
+#### Declaration ####
+
+```
+SbPlayerOutputMode SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam *creation_param)
+```
+
 ### SbPlayerIsValid ###
 
 Returns whether the given player handle is valid.
@@ -335,18 +403,6 @@ Returns whether the given player handle is valid.
 
 ```
 static bool SbPlayerIsValid(SbPlayer player)
-```
-
-### SbPlayerOutputModeSupportedWithUrl ###
-
-Returns true if the given URL player output mode is supported by the platform.
-If this function returns true, it is okay to call SbPlayerCreate() with the
-given `output_mode`.
-
-#### Declaration ####
-
-```
-bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode)
 ```
 
 ### SbPlayerSetBounds ###
@@ -374,17 +430,6 @@ pixels. `height`: The height of the player, in pixels.
 
 ```
 void SbPlayerSetBounds(SbPlayer player, int z_index, int x, int y, int width, int height)
-```
-
-### SbPlayerSetDrmSystem ###
-
-Sets the DRM system of a running URL-based SbPlayer created with
-SbPlayerCreateWithUrl. This may only be run once for a given SbPlayer.
-
-#### Declaration ####
-
-```
-void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system)
 ```
 
 ### SbPlayerSetPlaybackRate ###
@@ -439,41 +484,14 @@ void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type)
 
 ### SbPlayerWriteSample2 ###
 
-Writes a single sample of the given media type to `player`'s input stream. Its
-data may be passed in via more than one buffers. The lifetime of
-`sample_buffers`, `sample_buffer_sizes`, `video_sample_info`, and
-`sample_drm_info` (as well as member `subsample_mapping` contained inside it)
-are not guaranteed past the call to SbPlayerWriteSample. That means that before
-returning, the implementation must synchronously copy any information it wants
-to retain from those structures.
-
-`player`: The player to which the sample is written. `sample_type`: The type of
-sample being written. See the `SbMediaType` enum in media.h. `sample_buffers`: A
-pointer to an array of buffers with `number_of_sample_buffers` elements that
-hold the data for this sample. The buffers are expected to be a portion of a
-bytestream of the codec type that the player was created with. The buffers
-should contain a sequence of whole NAL Units for video, or a complete audio
-frame. `sample_buffers` cannot be assumed to live past the call into
-SbPlayerWriteSample(), so it must be copied if its content will be used after
-SbPlayerWriteSample() returns. `sample_buffer_sizes`: A pointer to an array of
-sizes with `number_of_sample_buffers` elements. Each of them specify the number
-of bytes in the corresponding buffer contained in `sample_buffers`. None of them
-can be 0. `sample_buffer_sizes` cannot be assumed to live past the call into
-SbPlayerWriteSample(), so it must be copied if its content will be used after
-SbPlayerWriteSample() returns. `number_of_sample_buffers`: Specify the number of
-elements contained inside `sample_buffers` and `sample_buffer_sizes`. It has to
-be at least one, or the call will be ignored. `sample_pts`: The timestamp of the
-sample in 90KHz ticks (PTS). Note that samples MAY be written "slightly" out of
-order. `video_sample_info`: Information about a video sample. This value is
-required if `sample_type` is `kSbMediaTypeVideo`. Otherwise, it must be `NULL`.
-`sample_drm_info`: The DRM system related info for the media sample. This value
-is required for encrypted samples. Otherwise, it must be `NULL`.Writes samples
-of the given media type to `player`'s input stream. The lifetime of
-`sample_infos`, and the members of its elements like `buffer`,
+Writes samples of the given media type to `player`'s input stream. The lifetime
+of `sample_infos`, and the members of its elements like `buffer`,
 `video_sample_info`, and `drm_info` (as well as member `subsample_mapping`
 contained inside it) are not guaranteed past the call to SbPlayerWriteSample2.
 That means that before returning, the implementation must synchronously copy any
 information it wants to retain from those structures.
+
+SbPlayerWriteSample2 allows writing of multiple samples in one call.
 
 `player`: The player to which the sample is written. `sample_type`: The type of
 sample being written. See the `SbMediaType` enum in media.h. `sample_infos`: A
