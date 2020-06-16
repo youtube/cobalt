@@ -9,6 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_rotation.h"
 
 namespace cobalt {
@@ -109,6 +110,9 @@ class MEDIA_EXPORT DemuxerStream {
   // The second parameter is the playback position when the change occured.
   typedef base::Callback<void(bool, base::TimeDelta)> StreamStatusChangeCB;
   virtual void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) = 0;
+  virtual base::TimeDelta GetSeekKeyframeTimestamp() const {
+    return kNoTimestamp;
+  };
 
  protected:
   // Only allow concrete implementations to get deleted.

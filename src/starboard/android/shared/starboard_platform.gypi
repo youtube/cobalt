@@ -166,6 +166,7 @@
         'video_decoder.h',
         'video_render_algorithm.cc',
         'video_render_algorithm.h',
+        'video_render_algorithm_tunneled.h',
         'video_window.cc',
         'video_window.h',
         'window_create.cc',

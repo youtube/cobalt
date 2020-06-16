@@ -25,12 +25,6 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-AudioRendererSinkImpl::AudioRendererSinkImpl()
-    : audio_sink_(kSbAudioSinkInvalid),
-      render_callback_(NULL),
-      playback_rate_(1.0),
-      volume_(1.0) {}
-
 AudioRendererSinkImpl::~AudioRendererSinkImpl() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -57,6 +51,7 @@ bool AudioRendererSinkImpl::HasStarted() const {
 }
 
 void AudioRendererSinkImpl::Start(
+    SbTime start_media_time,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -77,11 +72,10 @@ void AudioRendererSinkImpl::Start(
   Stop();
   render_callback_ = render_callback;
   audio_sink_ = kSbAudioSinkInvalid;
-  SbAudioSinkPrivate::Type* audio_sink_type =
-      SbAudioSinkPrivate::GetPreferredType();
-  if (audio_sink_type) {
-    audio_sink_ = audio_sink_type->Create(
-        channels, sampling_frequency_hz, audio_sample_type,
+
+  if (create_func_) {
+    audio_sink_ = create_func_(
+        start_media_time, channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frames_per_channel,
         &AudioRendererSinkImpl::UpdateSourceStatusFunc,
         &AudioRendererSinkImpl::ConsumeFramesFunc,
@@ -89,27 +83,41 @@ void AudioRendererSinkImpl::Start(
         &AudioRendererSinkImpl::ErrorFunc,
 #endif  // SB_API_VERSION >= 12
         this);
-    if (!audio_sink_type->IsValid(audio_sink_)) {
-      SB_LOG(WARNING) << "Created invalid SbAudioSink from "
-                         "SbAudioSinkPrivate::Type. Destroying and "
-                         "resetting.";
-      audio_sink_type->Destroy(audio_sink_);
-      audio_sink_ = kSbAudioSinkInvalid;
-      auto fallback_type = SbAudioSinkPrivate::GetFallbackType();
-      if (fallback_type) {
-        audio_sink_ = fallback_type->Create(
-            channels, sampling_frequency_hz, audio_sample_type,
-            audio_frame_storage_type, frame_buffers, frames_per_channel,
-            &AudioRendererSinkImpl::UpdateSourceStatusFunc,
-            &AudioRendererSinkImpl::ConsumeFramesFunc,
+  } else {
+    SbAudioSinkPrivate::Type* audio_sink_type =
+        SbAudioSinkPrivate::GetPreferredType();
+    if (audio_sink_type) {
+      audio_sink_ = audio_sink_type->Create(
+          channels, sampling_frequency_hz, audio_sample_type,
+          audio_frame_storage_type, frame_buffers, frames_per_channel,
+          &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+          &AudioRendererSinkImpl::ConsumeFramesFunc,
 #if SB_API_VERSION >= 12
-            &AudioRendererSinkImpl::ErrorFunc,
+          &AudioRendererSinkImpl::ErrorFunc,
 #endif  // SB_API_VERSION >= 12
-            this);
-        if (!fallback_type->IsValid(audio_sink_)) {
-          SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
-          fallback_type->Destroy(audio_sink_);
-          audio_sink_ = kSbAudioSinkInvalid;
+          this);
+      if (!audio_sink_type->IsValid(audio_sink_)) {
+        SB_LOG(WARNING) << "Created invalid SbAudioSink from "
+                          "SbAudioSinkPrivate::Type. Destroying and "
+                          "resetting.";
+        audio_sink_type->Destroy(audio_sink_);
+        audio_sink_ = kSbAudioSinkInvalid;
+        auto fallback_type = SbAudioSinkPrivate::GetFallbackType();
+        if (fallback_type) {
+          audio_sink_ = fallback_type->Create(
+              channels, sampling_frequency_hz, audio_sample_type,
+              audio_frame_storage_type, frame_buffers, frames_per_channel,
+              &AudioRendererSinkImpl::UpdateSourceStatusFunc,
+              &AudioRendererSinkImpl::ConsumeFramesFunc,
+#if SB_API_VERSION >= 12
+              &AudioRendererSinkImpl::ErrorFunc,
+#endif  // SB_API_VERSION >= 12
+              this);
+          if (!fallback_type->IsValid(audio_sink_)) {
+            SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
+            fallback_type->Destroy(audio_sink_);
+            audio_sink_ = kSbAudioSinkInvalid;
+          }
         }
       }
     }
