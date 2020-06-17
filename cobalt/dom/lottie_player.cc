@@ -62,6 +62,14 @@ void LottiePlayer::set_autoplay(bool autoplay) {
   }
 }
 
+std::string LottiePlayer::background() const {
+  return GetAttribute("background").value_or("");
+}
+
+void LottiePlayer::set_background(std::string background) {
+  SetAttribute("background", background);
+}
+
 int LottiePlayer::count() const { return properties_.count; }
 
 void LottiePlayer::set_count(int count) {
@@ -197,6 +205,8 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
                                   const std::string& value) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "background") {
+    SetStyleAttribute("background:" + value);
   } else if (name == "count") {
     int count;
     base::StringToInt32(value, &count);
@@ -221,6 +231,8 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
 void LottiePlayer::OnRemoveAttribute(const std::string& name) {
   if (name == "src") {
     UpdateAnimationData();
+  } else if (name == "background") {
+    SetStyleAttribute("background:transparent");
   } else if (name == "count") {
     SetCount(LottieAnimation::LottieProperties::kDefaultCount);
   } else if (name == "direction") {
