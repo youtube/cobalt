@@ -63,6 +63,7 @@ class CompilerBase(object):
             '/Fd$pdbname'.format(path=path))
 
   def GetFlags(self, defines, include_dirs, cflags):
+    del cflags  # Not used.
     defines = defines + self._gyp_defines
     quoted_defines = QuoteArguments(defines)
     define_flags = [
@@ -73,9 +74,7 @@ class CompilerBase(object):
     include_dir_flags = [
         '/I{0}'.format(include_dir) for include_dir in quoted_include_dirs
     ]
-    if self._gyp_cflags:
-      cflags = self._gyp_cflags
-    return define_flags + include_dir_flags + cflags
+    return define_flags + include_dir_flags + self._gyp_cflags
 
 
 class CCompiler(CompilerBase, abstract.CCompiler):
@@ -225,8 +224,7 @@ class DynamicLinkerBase(object):
     return self._max_concurrent_processes
 
   def GetFlags(self, ldflags):
-    del ldflags  # Not used.
-    return self._gyp_ldflags
+    return ldflags + self._gyp_ldflags
 
 
 class ExecutableLinker(DynamicLinkerBase, abstract.ExecutableLinker):
