@@ -142,6 +142,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       autoplaying_(true),
       muted_(false),
       paused_(true),
+      resume_frozen_flag_(false),
       seeking_(false),
       controls_(false),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
@@ -395,6 +396,10 @@ bool HTMLMediaElement::paused() const {
   return paused_;
 }
 
+bool HTMLMediaElement::resume_frozen_flag() const {
+  return resume_frozen_flag_;
+}
+
 float HTMLMediaElement::default_playback_rate() const {
   MLOG() << default_playback_rate_;
   return default_playback_rate_;
@@ -537,6 +542,10 @@ void HTMLMediaElement::Pause() {
   }
 
   UpdatePlayState();
+}
+
+void HTMLMediaElement::Set_resume_frozen_flag(bool resume_frozen_flag) {
+  resume_frozen_flag_ = resume_frozen_flag;
 }
 
 bool HTMLMediaElement::controls() const {

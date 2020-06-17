@@ -15,7 +15,6 @@
 #include "cobalt/dom/document.h"
 
 #include <memory>
-#include <vector>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -49,6 +48,7 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/initial_computed_style.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -101,6 +101,7 @@ Document::Document(HTMLElementContext* html_element_context,
       ready_state_(kDocumentReadyStateComplete),
       dom_max_element_depth_(options.dom_max_element_depth),
       render_postponed_(false),
+      frozenness(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(intersection_observer_task_manager_(
           new IntersectionObserverTaskManager())) {
   DCHECK(html_element_context_);
@@ -995,6 +996,95 @@ void Document::OnWindowFocusChanged(bool has_focus) {
 void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
+}
+
+// Algorithm for 'change the frozenness of a document'
+//   https://wicg.github.io/page-lifecycle/#change-the-frozenness-of-a-document
+void Document::OnFrozennessChanged(bool is_frozen) {
+  // 1. If frozenness is true, run the freeze steps for doc given auto
+  // resume frozen media.
+  // 2. Otherwise, run the resume steps given doc.
+  if (is_frozen) {
+    FreezeSteps();
+  } else {
+    ResumeSteps();
+  }
+}
+
+void Document::CollectHTMLMediaElements(
+    std::vector<HTMLMediaElement*>* html_media_elements) {
+  scoped_refptr<HTMLElement> root = html();
+    if (root) {
+      DCHECK_EQ(this, root->parent_node());
+      root->CollectHTMLMediaElementsRecursively(html_media_elements, 0);
+    }
+}
+
+// Algorithm for 'freeze steps'
+//   https://wicg.github.io/page-lifecycle/#freeze-steps
+void Document::FreezeSteps() {
+  if (frozenness) {
+    return;
+  }
+
+  // 1. Set doc's frozeness state to true.
+  frozenness = true;
+
+  // 2. Fire an event named freeze at doc.
+  DispatchEvent(new Event(base::Tokens::freeze(), Event::kBubbles,
+                          Event::kNotCancelable));
+
+  // 3. Let elements be all media elements that are shadow-including
+  //    documents of doc, in shadow-including tree order.
+  //    Note: Cobalt currently only supports one document.
+  std::unique_ptr<std::vector<HTMLMediaElement*>>
+      html_media_elements(new_std::vector<HTMLMediaElement*>());
+  CollectHTMLMediaElements(html_media_elements.get());
+
+  // 4. For each element in elements:
+  //    1. If element's paused is false, then:
+  //       1. Set element's resume frozen flag to auto resume frozen
+  //       media.
+  //       2. Execute media pause on element.
+  for (const auto& element : *html_media_elements) {
+    if (!element->paused()) {
+      element->set_resume_frozen_flag(true);
+      element->Pause();
+    }
+  }
+}
+
+// Algorithm for 'resume steps'
+//   https://wicg.github.io/page-lifecycle/#resume-steps
+void Document::ResumeSteps() {
+  if (!frozenness) {
+    return;
+  }
+
+  // 1. Let elements be all media elements that are shadow-including
+  //    documents of doc, in shadow-including tree order.
+  //    Note: Cobalt currently only supports one document.
+  scoped_refptr<std::vector<HTMLMediaElement*>>
+      html_media_elements(new_std::vector<HTMLMediaElement*>());
+  CollectHTMLMediaElements(html_media_elements.get());
+
+  // 2. For each element in elements:
+  //    1. If elements's resume frozen flag is true.
+  //       1. Set elements's resume frozen flag to false.
+  //       2. Execute media play on element.
+  for (const auto& element : *html_media_elements) {
+    if (element->resume_frozen_flag()) {
+      element->set_resume_frozen_flag(false);
+      element->Play();
+    }
+  }
+
+  // 3. Fire an event named resume at doc.
+  DispatchEvent(new Event(base::Tokens::resume(), Event::kBubbles,
+                          Event::kNotCancelable));
+
+  // 4. Set doc's frozeness state to false.
+  frozenness = false;
 }
 
 void Document::TraceMembers(script::Tracer* tracer) {

@@ -20,6 +20,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -411,9 +412,26 @@ class Document : public Node,
     SetAttributeEventListener(base::Tokens::visibilitychange(), event_listener);
   }
 
+  // Page Lifecycle fields.
+  const EventListenerScriptValue* onfreeze() const {
+    return GetAttributeEventListener(base::Tokens::freeze());
+  }
+  const EventListenerScriptValue* onresume() const {
+    return GetAttributeEventListener(base::Tokens::resume());
+  }
+  void set_onfreeze(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::freeze(), event_listener);
+  }
+  void set_onresume(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::resume(), event_listener);
+  }
+
   // PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
+  void OnFrozennessChanged(bool is_frozen) override;
+
+  bool wasDiscarded() const { return false; }
 
   PointerState* pointer_state() { return &pointer_state_; }
 
@@ -461,6 +479,14 @@ class Document : public Node,
   void UpdateKeyframes();
 
   bool IsCookieAverseDocument() const;
+
+  void CollectHTMLMediaElements(
+      std::vector<HTMLMediaElement*>* html_media_elements);
+
+  // https://wicg.github.io/page-lifecycle/#changing-frozenness
+  void FreezeSteps();
+
+  void ResumeSteps();
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
@@ -559,6 +585,10 @@ class Document : public Node,
 
   scoped_refptr<IntersectionObserverTaskManager>
       intersection_observer_task_manager_;
+
+  // Whether or not page lifecycle is currently frozen.
+  //   https://wicg.github.io/page-lifecycle/#page-lifecycle
+  bool frozenness;
 };
 
 }  // namespace dom

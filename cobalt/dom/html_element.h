@@ -302,6 +302,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const base::TimeDelta& style_change_event_time,
       AncestorsAreDisplayed ancestor_is_displayed);
 
+  // Collecting HTML media element.
+  void CollectHTMLMediaElementsRecursively(
+      std::vector<HTMLMediaElement*>* html_media_elements,
+      int current_element_depth);
+
   void MarkNotDisplayedOnNodeAndDescendants() override;
   void PurgeCachedBackgroundImagesOfNodeAndDescendants() override;
   void InvalidateComputedStylesOfNodeAndDescendants() override;
