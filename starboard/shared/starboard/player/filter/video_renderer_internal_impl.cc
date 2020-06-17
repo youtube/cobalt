@@ -182,7 +182,8 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
   buffering_state_ = kWaitForBuffer;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-  algorithm_->Reset();  // This is also guarded by sink_frames_mutex_.
+  // This is also guarded by |sink_frames_mutex_|.
+  algorithm_->Seek(seek_to_time);
 }
 
 bool VideoRendererImpl::CanAcceptMoreData() const {

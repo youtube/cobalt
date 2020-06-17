@@ -46,7 +46,7 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
-  void Reset() override;
+  void Seek(SbTime seek_to_time) override;
   int GetDroppedFrames() override { return dropped_frames_; }
 
  private:
