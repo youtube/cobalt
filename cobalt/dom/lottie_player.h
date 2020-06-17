@@ -53,6 +53,8 @@ class LottiePlayer : public HTMLElement {
   void set_src(const std::string& src);
   bool autoplay() const;
   void set_autoplay(bool loop);
+  std::string background() const;
+  void set_background(std::string background);
   int count() const;
   void set_count(int count);
   int direction() const;
