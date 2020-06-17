@@ -2090,10 +2090,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
     # Copy the gyp-win-tool to the toplevel_build.
     # Also write python to the master_ninja.
-    if flavor in microsoft_flavors:
+    if is_windows:
       gyp.common.CopyTool(flavor, toplevel_build)
-      GetToolchainOrNone(flavor).GenerateEnvironmentFiles(
-          toplevel_build, generator_flags, OpenOutput)
+      if GetToolchainOrNone(flavor):
+        GetToolchainOrNone(flavor).GenerateEnvironmentFiles(
+            toplevel_build, generator_flags, OpenOutput)
+      else:
+        gyp.msvs_emulation.GenerateEnvironmentFiles(toplevel_build,
+            generator_flags, OpenOutput)
       master_ninja.variable('python', sys.executable)
       master_ninja.newline()
 
