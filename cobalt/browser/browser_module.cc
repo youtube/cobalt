@@ -1468,12 +1468,11 @@ void BrowserModule::Start() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Start()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
 
-  SuspendInternal(true /*is_start*/);
-  StartOrResumeInternalPreStateUpdate(true /*is_start*/);
+  StartInternal();
 
   application_state_ = base::kApplicationStateStarted;
 
-  StartOrResumeInternalPostStateUpdate();
+  NavigatePendingURL();
 }
 
 void BrowserModule::Blur() {
@@ -1490,15 +1489,7 @@ void BrowserModule::Conceal() {
   DCHECK(application_state_ == base::kApplicationStateBlurred);
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Conceal());
 
-  if (renderer_module_) {
-    // Destroy the renderer module into so that it releases all its graphical
-    // resources.
-    DestroyRendererModule();
-  }
-  DCHECK(system_window_);
-  window_size_ = system_window_->GetWindowSize();
-  system_window_.reset();
-  input_device_manager_.reset();
+  ConcealInternal();
 
   application_state_ = base::kApplicationStateConcealed;
 }
@@ -1516,7 +1507,7 @@ void BrowserModule::Freeze() {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
 
-  SuspendInternal(false /*is_start*/);
+  FreezeInternalAtFreeze();
 
   application_state_ = base::kApplicationStateFrozen;
 }
@@ -1527,21 +1518,7 @@ void BrowserModule::Reveal() {
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Reveal());
 
-  DCHECK(!system_window_);
-  system_window_.reset(
-      new system_window::SystemWindow(event_dispatcher_, window_size_));
-  DCHECK(!input_device_manager_);
-  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
-      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
-      base::Bind(&BrowserModule::OnPointerEventProduced,
-                 base::Unretained(this)),
-      base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-      base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
-                 base::Unretained(this)),
-#endif  // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-      system_window_.get());
-  InstantiateRendererModule();
+  RevealInternal();
 
   application_state_ = base::kApplicationStateBlurred;
 }
@@ -1551,11 +1528,11 @@ void BrowserModule::Unfreeze() {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateFrozen);
 
-  StartOrResumeInternalPreStateUpdate(false /*is_start*/);
+  UnfreezeInternal();
 
   application_state_ = base::kApplicationStateConcealed;
 
-  StartOrResumeInternalPostStateUpdate();
+  NavigatePendingURL();
 }
 
 void BrowserModule::ReduceMemory() {
@@ -1721,6 +1698,44 @@ void BrowserModule::DestroyRendererModule() {
   renderer_module_.reset();
 }
 
+void BrowserModule::FreezeMediaModule() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeMediaModule()");
+  if (media_module_) {
+    media_module_->Suspend();
+  }
+}
+
+void BrowserModule::NavigatePendingURL() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::NavigatePendingURL()");
+  // If there's a navigation that's pending, then attempt to navigate to its
+  // specified URL now, unless we're still waiting for an error retry.
+  if (pending_navigate_url_.is_valid() && !waiting_for_error_retry_) {
+    Navigate(pending_navigate_url_);
+  }
+}
+
+void BrowserModule::ResetResources() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::ResetResources()");
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetResourceProvider(NULL);
+  }
+
+  // Flush out any submitted render trees pushed since we started shutting down
+  // the web modules above.
+  render_tree_submission_queue_.ProcessAll();
+
+  // Clear out the render tree combiner so that it doesn't hold on to any
+  // render tree resources either.
+  main_web_module_layer_->Reset();
+  splash_screen_layer_->Reset();
+#if defined(ENABLE_DEBUGGER)
+  debug_console_layer_->Reset();
+#endif  // defined(ENABLE_DEBUGGER)
+  if (qr_overlay_info_layer_) {
+    qr_overlay_info_layer_->Reset();
+  }
+}
+
 void BrowserModule::UpdateScreenSize() {
   ViewportSize size = GetViewportSize();
   float video_pixel_ratio = system_window_->GetVideoPixelRatio();
@@ -1743,51 +1758,65 @@ void BrowserModule::UpdateScreenSize() {
   }
 }
 
-void BrowserModule::SuspendInternal(bool is_start) {
-  TRACE_EVENT1("cobalt::browser", "BrowserModule::SuspendInternal", "is_start",
-               is_start ? "true" : "false");
-  // First suspend all our web modules which implies that they will release
+void BrowserModule::ConcealInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
+  if (renderer_module_) {
+    // Destroy the renderer module into so that it releases all its graphical
+    // resources.
+    DestroyRendererModule();
+  }
+  DCHECK(system_window_);
+  window_size_ = system_window_->GetWindowSize();
+  system_window_.reset();
+  input_device_manager_.reset();
+}
+
+void BrowserModule::FreezeInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeInternal()");
+  // First freeze all our web modules which implies that they will release
   // their resource provider and all resources created through it.
-  if (is_start) {
-    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Prestart());
-  } else {
-    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Suspend());
-  }
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Freeze());
 
-  if (qr_code_overlay_) {
-    qr_code_overlay_->SetResourceProvider(NULL);
-  }
+  ResetResources();
+  FreezeMediaModule();
+}
 
-  // Flush out any submitted render trees pushed since we started shutting down
-  // the web modules above.
-  render_tree_submission_queue_.ProcessAll();
+void BrowserModule::RevealInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
+  DCHECK(!system_window_);
+  system_window_.reset(
+      new system_window::SystemWindow(event_dispatcher_, window_size_));
+  DCHECK(!input_device_manager_);
+  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnPointerEventProduced,
+                 base::Unretained(this)),
+      base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
+#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
+      base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
+                 base::Unretained(this)),
+#endif  // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
+      system_window_.get());
+  InstantiateRendererModule();
 
-  // Clear out the render tree combiner so that it doesn't hold on to any
-  // render tree resources either.
-  main_web_module_layer_->Reset();
-  splash_screen_layer_->Reset();
-#if defined(ENABLE_DEBUGGER)
-  debug_console_layer_->Reset();
-#endif  // defined(ENABLE_DEBUGGER)
-  if (qr_overlay_info_layer_) {
-    qr_overlay_info_layer_->Reset();
-  }
+  // Update system window size.
+  window_size_ = system_window_->GetWindowSize();
 
-  if (media_module_) {
-    media_module_->Suspend();
-  }
+  // Propagate the current screen size.
+  UpdateScreenSize();
+}
+
+void BrowserModule::StartInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::StartInternal()");
+  ResetResources();
+  FreezeMediaModule();
 
   if (renderer_module_) {
     // Destroy the renderer module into so that it releases all its graphical
     // resources.
     DestroyRendererModule();
   }
-}
 
-void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
-  TRACE_EVENT1("cobalt::browser",
-               "BrowserModule::StartOrResumeInternalPreStateUpdate", "is_start",
-               is_start ? "true" : "false");
   if (!system_window_) {
     InitializeSystemWindow();
   } else {
@@ -1798,25 +1827,23 @@ void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
   // Propagate the current screen size.
   UpdateScreenSize();
 
-  if (is_start) {
-    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                      Start(GetResourceProvider()));
-  } else {
-    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                      Resume(GetResourceProvider()));
-  }
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+                    Start(GetResourceProvider()));
+
   if (qr_code_overlay_) {
     qr_code_overlay_->SetResourceProvider(GetResourceProvider());
   }
 }
 
-void BrowserModule::StartOrResumeInternalPostStateUpdate() {
-  TRACE_EVENT0("cobalt::browser",
-               "BrowserModule::StartOrResumeInternalPostStateUpdate");
-  // If there's a navigation that's pending, then attempt to navigate to its
-  // specified URL now, unless we're still waiting for an error retry.
-  if (pending_navigate_url_.is_valid() && !waiting_for_error_retry_) {
-    Navigate(pending_navigate_url_);
+void BrowserModule::UnfreezeInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
+  media_module_->Resume(GetResourceProvide());
+
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+                    Unfreeze(GetResourceProvider()));
+
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetResourceProvider(GetResourceProvider());
   }
 }
 

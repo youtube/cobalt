@@ -396,18 +396,38 @@ class BrowserModule {
   // Destroys the renderer module and dependent objects.
   void DestroyRendererModule();
 
+  // Freeze Media module and dependent objects.
+  void FreezeMediaModule();
+
+  // Attempt to navigate to its specified URL.
+  void NavigatePendingURL();
+
+  // Reset qr_code_overlay, main_web_module_layer, splash_screen_layer
+  // and qr_overlay_info_layer etc resources.
+  void ResetResources();
+
   // Update web modules with the current viewport size.
   void UpdateScreenSize();
 
-  // Does all the steps for either a Suspend or the first half of a Start.
-  void SuspendInternal(bool is_start);
+  // Does all the steps for half of a Conceal that happen prior to
+  // the app state update.
+  void ConcealInternal();
 
-  // Does all the steps for either a Resume or the second half of a Start that
-  // happen prior to the app state update.
-  void StartOrResumeInternalPreStateUpdate(bool is_start);
-  // Does all the steps for either a Resume or the second half of a Start that
-  // happen after the app state update.
-  void StartOrResumeInternalPostStateUpdate();
+  // Does all the steps for half of a Freeze that happen prior to
+  // the app state update.
+  void FreezeInternal();
+
+  // Does all the steps for half of a Reveal that happen prior to
+  // the app state update.
+  void RevealInternal();
+
+  // Does all the steps for half of a Start that happen prior to
+  // the app state update.
+  void StartInternal();
+
+  // Does all the steps for half of a Unfreeze that happen prior to
+  // the app state update.
+  void UnfreezeInternal();
 
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While concealed, this returns the requested
