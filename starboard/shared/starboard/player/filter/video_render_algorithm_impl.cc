@@ -134,7 +134,7 @@ void VideoRenderAlgorithmImpl::Render(
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-void VideoRenderAlgorithmImpl::Reset() {
+void VideoRenderAlgorithmImpl::Seek(SbTime seek_to_time) {
   if (get_refresh_rate_fn_) {
     last_frame_timestamp_ = -1;
     current_frame_rendered_times_ = -1;
