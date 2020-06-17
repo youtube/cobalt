@@ -369,6 +369,7 @@ class Window : public EventTarget, public PageVisibilityState::Observer {
   // PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
+  void OnFrozennessChanged(bool is_frozen) override;
 
   // Called when the document's root element has its offset dimensions requested
   // and is unable to provide them.

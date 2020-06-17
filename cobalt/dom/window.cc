@@ -654,6 +654,10 @@ void Window::OnVisibilityStateChanged(VisibilityState visibility_state) {
   }
 }
 
+void Window::OnFrozennessChanged(bool is_frozen) {
+  // Ignored by this class.
+}
+
 void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   DLOG(WARNING) << "Document root element unable to provide offset dimensions!";
   // If the root element was unable to provide its dimensions as a result of
