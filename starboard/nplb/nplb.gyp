@@ -316,14 +316,19 @@
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
-        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
         '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
+        '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'copy_nplb_file_tests_data',
       ],
       'conditions': [
+        ['sb_disable_cpp14_audit != 1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/nplb/compiler_compliance/compiler_compliance.gyp:cpp14_supported',
+          ],
+        }],
         ['sb_evergreen != 1', {
           'sources': [
             # Segfaults or causes unresolved symbols for Cobalt Evergreen.
