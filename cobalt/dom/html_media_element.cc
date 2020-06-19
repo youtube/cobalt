@@ -544,7 +544,7 @@ void HTMLMediaElement::Pause() {
   UpdatePlayState();
 }
 
-void HTMLMediaElement::Set_resume_frozen_flag(bool resume_frozen_flag) {
+void HTMLMediaElement::set_resume_frozen_flag(bool resume_frozen_flag) {
   resume_frozen_flag_ = resume_frozen_flag;
 }
 

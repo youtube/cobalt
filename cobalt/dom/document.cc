@@ -74,7 +74,7 @@ Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(html_element_context, this)),
       html_element_context_(html_element_context),
-      application_lifecycle_state(
+      application_lifecycle_state_(
           html_element_context_->application_lifecycle_state()),
       window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
@@ -102,12 +102,12 @@ Document::Document(HTMLElementContext* html_element_context,
       ready_state_(kDocumentReadyStateComplete),
       dom_max_element_depth_(options.dom_max_element_depth),
       render_postponed_(false),
-      frozenness(false),
+      frozenness_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(intersection_observer_task_manager_(
           new IntersectionObserverTaskManager())) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
-  application_lifecycle_state->AddObserver(this);
+  application_lifecycle_state_->AddObserver(this);
 
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
@@ -896,8 +896,8 @@ void Document::SetViewport(const ViewportSize& viewport_size) {
 }
 
 Document::~Document() {
-  if (application_lifecycle_state) {
-    application_lifecycle_state->RemoveObserver(this);
+  if (application_lifecycle_state_) {
+    application_lifecycle_state_->RemoveObserver(this);
   }
   // Ensure that all outstanding weak ptrs become invalid.
   // Some objects that will be released while this destructor runs may
@@ -1024,12 +1024,12 @@ void Document::CollectHTMLMediaElements(
 // Algorithm for 'freeze steps'
 //   https://wicg.github.io/page-lifecycle/#freeze-steps
 void Document::FreezeSteps() {
-  if (frozenness) {
+  if (frozenness_) {
     return;
   }
 
   // 1. Set doc's frozeness state to true.
-  frozenness = true;
+  frozenness_ = true;
 
   // 2. Fire an event named freeze at doc.
   DispatchEvent(new Event(base::Tokens::freeze(), Event::kBubbles,
@@ -1039,7 +1039,7 @@ void Document::FreezeSteps() {
   //    documents of doc, in shadow-including tree order.
   //    Note: Cobalt currently only supports one document.
   std::unique_ptr<std::vector<HTMLMediaElement*>>
-      html_media_elements(new_std::vector<HTMLMediaElement*>());
+      html_media_elements(new std::vector<HTMLMediaElement*>());
   CollectHTMLMediaElements(html_media_elements.get());
 
   // 4. For each element in elements:
@@ -1058,15 +1058,15 @@ void Document::FreezeSteps() {
 // Algorithm for 'resume steps'
 //   https://wicg.github.io/page-lifecycle/#resume-steps
 void Document::ResumeSteps() {
-  if (!frozenness) {
+  if (!frozenness_) {
     return;
   }
 
   // 1. Let elements be all media elements that are shadow-including
   //    documents of doc, in shadow-including tree order.
   //    Note: Cobalt currently only supports one document.
-  scoped_refptr<std::vector<HTMLMediaElement*>>
-      html_media_elements(new_std::vector<HTMLMediaElement*>());
+  std::unique_ptr<std::vector<HTMLMediaElement*>>
+      html_media_elements(new std::vector<HTMLMediaElement*>());
   CollectHTMLMediaElements(html_media_elements.get());
 
   // 2. For each element in elements:
@@ -1085,7 +1085,7 @@ void Document::ResumeSteps() {
                           Event::kNotCancelable));
 
   // 4. Set doc's frozeness state to false.
-  frozenness = false;
+  frozenness_ = false;
 }
 
 void Document::TraceMembers(script::Tracer* tracer) {

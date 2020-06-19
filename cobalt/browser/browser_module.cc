@@ -1091,7 +1091,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  if (application_state_ == base::kApplicationStatePreloading) {
+  if (application_state_ == base::kApplicationStateConcealed) {
     return;
   }
 
@@ -1497,7 +1497,7 @@ void BrowserModule::Conceal() {
 void BrowserModule::Focus() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStatePaused);
+  DCHECK(application_state_ == base::kApplicationStateBlurred);
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus());
   application_state_ = base::kApplicationStateStarted;
 }
@@ -1507,7 +1507,7 @@ void BrowserModule::Freeze() {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
 
-  FreezeInternalAtFreeze();
+  FreezeInternal();
 
   application_state_ = base::kApplicationStateFrozen;
 }
@@ -1516,7 +1516,8 @@ void BrowserModule::Reveal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Reveal());
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+    Reveal(GetResourceProvider()));
 
   RevealInternal();
 
@@ -1628,7 +1629,7 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
 render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
   if (!renderer_module_) {
     if (resource_provider_stub_) {
-      DCHECK(application_state_ == base::kApplicationStatePreloading);
+      DCHECK(application_state_ == base::kApplicationStateConcealed);
       return &(resource_provider_stub_.value());
     }
 
@@ -1837,10 +1838,10 @@ void BrowserModule::StartInternal() {
 
 void BrowserModule::UnfreezeInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
-  media_module_->Resume(GetResourceProvide());
+  media_module_->Resume(GetResourceProvider());
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Unfreeze(GetResourceProvider()));
+                    Unfreeze());
 
   if (qr_code_overlay_) {
     qr_code_overlay_->SetResourceProvider(GetResourceProvider());

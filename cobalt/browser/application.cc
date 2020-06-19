@@ -579,7 +579,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   if (command_line->HasSwitch(
           browser::switches::kRetainRemoteTypefaceCacheDuringSuspend)) {
-    options.web_module_options.should_retain_remote_typeface_cache_on_suspend =
+    options.web_module_options.should_retain_remote_typeface_cache_on_freeze =
         true;
   }
 

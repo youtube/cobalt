@@ -854,7 +854,7 @@ scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 
 scoped_refptr<HTMLMetaElement> HTMLElement::AsHTMLMetaElement() { return NULL; }
 
-scoped_refptr<HTMLMetaElement> HTMLElement::AsHTMLMediaElement() {
+scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
   return NULL;
 }
 
