@@ -106,10 +106,13 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                       value_length, kUnknownValue);
     case kSbSystemPropertyModelYear:
        return false;
+#if SB_API_VERSION >= 12
+    case kSbSystemPropertySystemIntegratorName:
+#else
     case kSbSystemPropertyOriginalDesignManufacturerName:
+#endif
       return GetAndroidSystemProperty("ro.product.manufacturer", out_value,
                                       value_length, kUnknownValue);
-
 
     case kSbSystemPropertyFriendlyName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);

@@ -109,7 +109,11 @@ typedef enum SbSystemPropertyId {
   // The year the device was launched, e.g. "2016".
   kSbSystemPropertyModelYear,
 
-#if SB_API_VERSION >= 11
+#if SB_API_VERSION >= 12
+  // The corporate entity responsible for submitting the device to YouTube
+  // certification and for the device maintenance/updates.
+  kSbSystemPropertySystemIntegratorName,
+#elif SB_API_VERSION == 11
   // The corporate entity responsible for the manufacturing/assembly of the
   // device on behalf of the business entity owning the brand.  This is often
   // abbreviated as ODM.

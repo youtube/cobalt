@@ -118,8 +118,12 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   // Fill platform info if it is a hardware TV device.
   SbSystemDeviceType device_type = SbSystemGetDeviceType();
 
+#if SB_API_VERSION >= 12
+  // System Integrator
+  result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName, value,
+                               kSystemPropertyMaxLength);
+#elif SB_API_VERSION == 11
   // Original Design Manufacturer (ODM)
-#if SB_API_VERSION >= 11
   result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
                                value, kSystemPropertyMaxLength);
 #else
