@@ -74,7 +74,8 @@ Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(html_element_context, this)),
       html_element_context_(html_element_context),
-      page_visibility_state_(html_element_context_->page_visibility_state()),
+      application_lifecycle_state(
+          html_element_context_->application_lifecycle_state()),
       window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
       style_sheets_(new cssom::StyleSheetList()),
@@ -106,7 +107,7 @@ Document::Document(HTMLElementContext* html_element_context,
           new IntersectionObserverTaskManager())) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
-  page_visibility_state_->AddObserver(this);
+  application_lifecycle_state->AddObserver(this);
 
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
@@ -393,7 +394,7 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
 }
 
 bool Document::HasFocus() const {
-  return page_visibility_state()->HasWindowFocus();
+  return application_lifecycle_state()->HasWindowFocus();
 }
 
 // https://www.w3.org/TR/html50/editing.html#dom-document-activeelement
@@ -895,8 +896,8 @@ void Document::SetViewport(const ViewportSize& viewport_size) {
 }
 
 Document::~Document() {
-  if (page_visibility_state_) {
-    page_visibility_state_->RemoveObserver(this);
+  if (application_lifecycle_state) {
+    application_lifecycle_state->RemoveObserver(this);
   }
   // Ensure that all outstanding weak ptrs become invalid.
   // Some objects that will be released while this destructor runs may

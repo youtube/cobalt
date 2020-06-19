@@ -38,6 +38,7 @@
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/viewport_size.h"
+#include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/document_ready_state.h"
 #include "cobalt/dom/document_timeline.h"
@@ -46,7 +47,6 @@
 #include "cobalt/dom/intersection_observer_task_manager.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
-#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/visibility_state.h"
 #include "cobalt/math/size.h"
@@ -403,7 +403,7 @@ class Document : public Node,
   // Page Visibility fields.
   bool hidden() const { return visibility_state() == kVisibilityStateHidden; }
   VisibilityState visibility_state() const {
-    return page_visibility_state()->GetVisibilityState();
+    return application_lifecycle_state()->GetVisibilityState();
   }
   const EventListenerScriptValue* onvisibilitychange() const {
     return GetAttributeEventListener(base::Tokens::visibilitychange());
@@ -454,12 +454,12 @@ class Document : public Node,
  protected:
   ~Document() override;
 
-  PageVisibilityState* page_visibility_state() {
-    return html_element_context_->page_visibility_state().get();
+  ApplicationLifecycleState* application_lifecycle_state() {
+    return html_element_context_->application_lifecycle_state().get();
   }
 
-  const PageVisibilityState* page_visibility_state() const {
-    return html_element_context_->page_visibility_state().get();
+  const ApplicationLifecycleState* application_lifecycle_state() const {
+    return html_element_context_->application_lifecycle_state().get();
   }
 
  private:

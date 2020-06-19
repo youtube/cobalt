@@ -22,8 +22,8 @@
 #include "base/threading/thread.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -185,9 +185,9 @@ class HTMLElementContext {
   loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string font_language_script_;
-  PageVisibilityState page_visibility_state_;
-  base::WeakPtrFactory<PageVisibilityState>
-      page_visibility_state_weak_ptr_factory_;
+  ApplicationLifecycleState application_lifecycle_state_;
+  base::WeakPtrFactory<ApplicationLifecycleState>
+      application_lifecycle_state_weak_ptr_factory_;
   const float video_playback_rate_multiplier_;
   base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;
   bool enable_inline_script_warnings_;

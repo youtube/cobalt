@@ -57,7 +57,7 @@
         'node_list_test.cc',
         'node_test.cc',
         'on_screen_keyboard_test.cc',
-        'page_visibility_state_test.cc',
+        'application_lifecycle_state_test.cc',
         'performance_test.cc',
         'rule_matching_test.cc',
         'screen_test.cc',
