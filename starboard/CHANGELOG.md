@@ -208,6 +208,13 @@ SbMediaIsAudioSupported().
 
 ### Enables a test that checks that Opus is supported.
 
+### Add `kSbSystemPropertySystemIntegratorName`
+
+This change also deprecates `kSbSystemPropertyOriginalDesignManufacturerName`.
+The `kSbSystemPropertySystemIntegratorName` value will represent the corporate
+entity responsible for submitting the device to YouTube certification and for
+the device maintenance/updates.
+
 ### Deprecated the Blitter API.
 
 Blitter API is no longer supported on any platform. Use the OpenGL ES
