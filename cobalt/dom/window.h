@@ -31,6 +31,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
+#include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
@@ -41,7 +42,6 @@
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/on_screen_keyboard.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
-#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/screenshot_manager.h"
 #if defined(ENABLE_TEST_RUNNER)
