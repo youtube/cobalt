@@ -73,13 +73,13 @@ bool IsFrozen(base::ApplicationState state) {
 
 }  // namespace
 
-PageVisibilityState::PageVisibilityState()
+ApplicationLifecycleState::ApplicationLifecycleState()
     : application_state_(base::kApplicationStateStarted) {
   DLOG(INFO) << __FUNCTION__
              << ": app_state=" << STATE_STRING(application_state_);
 }
 
-PageVisibilityState::PageVisibilityState(
+ApplicationLifecycleState::ApplicationLifecycleState(
     base::ApplicationState initial_application_state)
     : application_state_(initial_application_state) {
   DLOG(INFO) << __FUNCTION__
@@ -89,16 +89,17 @@ PageVisibilityState::PageVisibilityState(
       << "application_state_=" << STATE_STRING(application_state_);
 }
 
-bool PageVisibilityState::HasWindowFocus() const {
+bool ApplicationLifecycleState::HasWindowFocus() const {
   return HasFocus(application_state());
 }
 
-VisibilityState PageVisibilityState::GetVisibilityState() const {
+VisibilityState ApplicationLifecycleState::GetVisibilityState() const {
   return ToVisibilityState(application_state());
 }
 
-void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
-  TRACE_EVENT1("cobalt::dom", "PageVisibilityState::SetApplicationState",
+void ApplicationLifecycleState::SetApplicationState(
+    base::ApplicationState state) {
+  TRACE_EVENT1("cobalt::dom", "ApplicationLifecycleState::SetApplicationState",
                "state", STATE_STRING(state));
   if (application_state_ == state) {
     DLOG(WARNING) << __FUNCTION__ << ": Attempt to re-enter "
@@ -182,17 +183,17 @@ void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
   }
 }
 
-void PageVisibilityState::DispatchWindowFocusChanged(bool has_focus) {
+void ApplicationLifecycleState::DispatchWindowFocusChanged(bool has_focus) {
   FOR_EACH_OBSERVER(Observer, observer_list_, OnWindowFocusChanged(has_focus));
 }
 
-void PageVisibilityState::DispatchVisibilityStateChanged(
+void ApplicationLifecycleState::DispatchVisibilityStateChanged(
     VisibilityState visibility_state) {
   FOR_EACH_OBSERVER(Observer, observer_list_,
                     OnVisibilityStateChanged(visibility_state));
 }
 
-void PageVisibilityState::DispatchFrozennessChanged(bool is_frozen) {
+void ApplicationLifecycleState::DispatchFrozennessChanged(bool is_frozen) {
   FOR_EACH_OBSERVER(Observer, observer_list_, OnFrozennessChanged(is_frozen));
 }
 

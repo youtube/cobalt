@@ -24,7 +24,7 @@ namespace dom {
 
 // The visibility state of the Window and Document as controlled by the current
 // application state.
-class PageVisibilityState {
+class ApplicationLifecycleState {
  public:
   // Pure virtual interface for classes that want to observe page visibility
   // state changes.
@@ -41,8 +41,8 @@ class PageVisibilityState {
     virtual ~Observer() {}
   };
 
-  PageVisibilityState();
-  explicit PageVisibilityState(
+  ApplicationLifecycleState();
+  explicit ApplicationLifecycleState(
       base::ApplicationState initial_application_state);
 
   base::ApplicationState application_state() const {
@@ -61,22 +61,23 @@ class PageVisibilityState {
   // events.
   void SetApplicationState(base::ApplicationState state);
 
-  // Adds a PageVisibiltyState::Observer to this PageVisibilityState.
+  // Adds a ApplicationLifecycleState::Observer to this
+  // ApplicationLifecycleState.
   void AddObserver(Observer* observer) { observer_list_.AddObserver(observer); }
 
-  // Removes a PageVisibiltyState::Observer from this PageVisibilityState, if it
-  // is registered.
+  // Removes a ApplicationLifecycleState::Observer from this
+  // ApplicationLifecycleState, if it is registered.
   void RemoveObserver(Observer* observer) {
     observer_list_.RemoveObserver(observer);
   }
 
-  // Returns whether a PageVisibiltyState::Observer is registered on this
-  // PageVisibilityState.
+  // Returns whether a ApplicationLifecycleState::Observer is registered on this
+  // ApplicationLifecycleState.
   bool HasObserver(Observer* observer) const {
     return observer_list_.HasObserver(observer);
   }
 
-  // Clears all registered PageVisibiltyState::Observers, if any.
+  // Clears all registered ApplicationLifecycleState::Observers, if any.
   void ClearObservers() { observer_list_.Clear(); }
 
  private:
@@ -87,7 +88,7 @@ class PageVisibilityState {
   // The current application state.
   base::ApplicationState application_state_;
 
-  // The list of registered PageVisibiltyState::Observers;
+  // The list of registered ApplicationLifecycleState::Observers;
   base::ObserverList<Observer> observer_list_;
 };
 

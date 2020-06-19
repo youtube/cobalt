@@ -156,8 +156,8 @@ class HTMLElementContext {
     return reduced_image_cache_capacity_manager_;
   }
 
-  base::WeakPtr<PageVisibilityState> page_visibility_state() {
-    return page_visibility_state_weak_ptr_factory_.GetWeakPtr();
+  base::WeakPtr<ApplicationLifecycleState> application_lifecycle_state() {
+    return application_lifecycle_state_weak_ptr_factory_.GetWeakPtr();
   }
 
  private:
