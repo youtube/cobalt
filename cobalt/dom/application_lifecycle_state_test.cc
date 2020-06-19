@@ -33,9 +33,9 @@ using ::testing::_;
 class MockApplicationLifecycleStateObserver
     : public ApplicationLifecycleState::Observer {
  public:
-  static std::unique_ptr<MockPageVisibilityStateObserver> Create() {
-    return std::unique_ptr<MockPageVisibilityStateObserver>(
-        new ::testing::StrictMock<MockPageVisibilityStateObserver>());
+  static std::unique_ptr<MockApplicationLifecycleStateObserver> Create() {
+    return std::unique_ptr<MockApplicationLifecycleStateObserver>(
+        new ::testing::StrictMock<MockApplicationLifecycleStateObserver>());
   }
 
   MOCK_METHOD1(OnWindowFocusChanged, void(bool has_focus));
@@ -43,25 +43,25 @@ class MockApplicationLifecycleStateObserver
                void(VisibilityState visibility_state));
 
  protected:
-  MockPageVisibilityStateObserver() {}
+  MockApplicationLifecycleStateObserver() {}
 };
 
-TEST(PageVisibilityStateTest, DefaultConstructor) {
-  PageVisibilityState state;
+TEST(ApplicationLifecycleStateTest, DefaultConstructor) {
+  ApplicationLifecycleState state;
   EXPECT_TRUE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
 }
 
-TEST(PageVisibilityStateTest, InitialStateConstructorStarted) {
-  PageVisibilityState state(base::kApplicationStateStarted);
+TEST(ApplicationLifecycleStateTest, InitialStateConstructorStarted) {
+  ApplicationLifecycleState state(base::kApplicationStateStarted);
   EXPECT_TRUE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
 }
 
-TEST(PageVisibilityStateTest, TransitionsAndObservations) {
-  PageVisibilityState state(base::kApplicationStateStarted);
-  std::unique_ptr<MockPageVisibilityStateObserver> observer =
-      MockPageVisibilityStateObserver::Create();
+TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
+  ApplicationLifecycleState state(base::kApplicationStateStarted);
+  std::unique_ptr<MockApplicationLifecycleStateObserver> observer =
+      MockApplicationLifecycleStateObserver::Create();
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);

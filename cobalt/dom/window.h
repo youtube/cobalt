@@ -106,7 +106,7 @@ class WindowTimers;
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public EventTarget, public PageVisibilityState::Observer {
+class Window : public EventTarget, public ApplicationLifecycleState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
@@ -357,7 +357,7 @@ class Window : public EventTarget, public PageVisibilityState::Observer {
   }
 
   // Sets the current application state, forwarding on to the
-  // PageVisibilityState associated with it and its document, causing
+  // ApplicationLifecycleState associated with it and its document, causing
   // precipitate events to be dispatched.
   void SetApplicationState(base::ApplicationState state);
 
@@ -366,7 +366,7 @@ class Window : public EventTarget, public PageVisibilityState::Observer {
   // Returns whether or not the script was handled.
   bool ReportScriptError(const script::ErrorReport& error_report);
 
-  // PageVisibilityState::Observer implementation.
+  // ApplicationLifecycleState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
   void OnFrozennessChanged(bool is_frozen) override;

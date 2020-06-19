@@ -96,7 +96,7 @@ class DocumentObserver : public base::CheckedObserver {
 //   https://www.w3.org/TR/dom/#document
 class Document : public Node,
                  public cssom::MutationObserver,
-                 public PageVisibilityState::Observer {
+                 public ApplicationLifecycleState::Observer {
  public:
   struct Options {
     Options()
@@ -426,7 +426,7 @@ class Document : public Node,
     SetAttributeEventListener(base::Tokens::resume(), event_listener);
   }
 
-  // PageVisibilityState::Observer implementation.
+  // ApplicationLifecycleState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
   void OnFrozennessChanged(bool is_frozen) override;
@@ -491,11 +491,11 @@ class Document : public Node,
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
 
-  // Explicitly store a weak pointer to the page visibility state object.
-  // It is possible that we destroy the page visibility state object before
-  // Document, during shutdown, so this allows us to handle that situation
-  // more gracefully than crashing.
-  base::WeakPtr<PageVisibilityState> page_visibility_state_;
+  // Explicitly store a weak pointer to the application lifecycle state object.
+  // It is possible that we destroy the application lifecycle state object
+  // before Document, during shutdown, so this allows us to handle that
+  // situation more gracefully than crashing.
+  base::WeakPtr<ApplicationLifecycleState> application_lifecycle_state_;
 
   // Reference to the associated window object.
   Window* window_;
