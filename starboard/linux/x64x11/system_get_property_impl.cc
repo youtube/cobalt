@@ -21,7 +21,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/linux/x64x11/system_properties.h"
+#include "starboard/keyboxes/linux/system_properties.h"
 
 namespace {
 
