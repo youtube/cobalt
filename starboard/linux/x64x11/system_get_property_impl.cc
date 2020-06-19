@@ -56,7 +56,9 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyFirmwareVersion:
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
-#if SB_API_VERSION >= 11
+#if SB_API_VERSION >= 12
+    case kSbSystemPropertySystemIntegratorName:
+#elif SB_API_VERSION == 11
     case kSbSystemPropertyOriginalDesignManufacturerName:
 #else
     case kSbSystemPropertyNetworkOperatorName:
