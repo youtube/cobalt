@@ -57,7 +57,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Custom, not in any spec
   //
   // From HTMLElement
-  scoped_refptr<HTMLVideoElement> AsHTMLMediaElement() override { return this; }
+  scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() override { return this; }
 
   // Network state
   std::string src() const;

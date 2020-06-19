@@ -70,6 +70,7 @@ class HTMLElement;
 class HTMLElementContext;
 class HTMLHeadElement;
 class HTMLHtmlElement;
+class HTMLMediaElement;
 class HTMLScriptElement;
 class Location;
 class Text;
@@ -583,12 +584,12 @@ class Document : public Node,
   // Whether or not rendering is currently postponed.
   bool render_postponed_;
 
-  scoped_refptr<IntersectionObserverTaskManager>
-      intersection_observer_task_manager_;
-
   // Whether or not page lifecycle is currently frozen.
   //   https://wicg.github.io/page-lifecycle/#page-lifecycle
-  bool frozenness;
+  bool frozenness_;
+
+  scoped_refptr<IntersectionObserverTaskManager>
+      intersection_observer_task_manager_;
 };
 
 }  // namespace dom

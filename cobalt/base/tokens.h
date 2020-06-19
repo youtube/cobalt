@@ -54,6 +54,7 @@ namespace base {
     MacroOpWithNameOnly(ended)                                       \
     MacroOpWithNameOnly(error)                                       \
     MacroOpWithNameOnly(focus)                                       \
+    MacroOpWithNameOnly(freeze)                                      \
     MacroOpWithNameOnly(focusin)                                     \
     MacroOpWithNameOnly(focusout)                                    \
     MacroOpWithNameOnly(gotpointercapture)                           \
