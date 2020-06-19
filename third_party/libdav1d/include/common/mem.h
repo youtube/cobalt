@@ -43,14 +43,14 @@ static inline void *dav1d_alloc_aligned(size_t sz, size_t align) {
   return SbMemoryAllocateAligned(align, sz);
 #else  // defined(STARBOARD)
 #ifdef HAVE_POSIX_MEMALIGN
-    void *ptr;
-    assert(!(align & (align - 1)));
-    if (posix_memalign(&ptr, align, sz)) return NULL;
-    return ptr;
+  void *ptr;
+  assert(!(align & (align - 1)));
+  if (posix_memalign(&ptr, align, sz)) return NULL;
+  return ptr;
 #elif defined(HAVE_ALIGNED_MALLOC)
-    return _aligned_malloc(sz, align);
+  return _aligned_malloc(sz, align);
 #elif defined(HAVE_MEMALIGN)
-    return memalign(align, sz);
+  return memalign(align, sz);
 #else
 #error Missing aligned alloc implementation
 #endif
@@ -62,11 +62,11 @@ static inline void dav1d_free_aligned(void* ptr) {
   SbMemoryDeallocateAligned(ptr);
 #else  // defined(STARBOARD)
 #ifdef HAVE_POSIX_MEMALIGN
-    free(ptr);
+  free(ptr);
 #elif defined(HAVE_ALIGNED_MALLOC)
-    _aligned_free(ptr);
+  _aligned_free(ptr);
 #elif defined(HAVE_MEMALIGN)
-    free(ptr);
+  free(ptr);
 #endif
 #endif  // defined(STARBOARD)
 }
@@ -82,8 +82,12 @@ static inline void dav1d_freep_aligned(void* ptr) {
 static inline void freep(void *ptr) {
     void **mem = (void **) ptr;
     if (*mem) {
-        free(*mem);
-        *mem = NULL;
+#if defined(STARBOARD)
+      SbMemoryDeallocate(*mem);
+#else   // defined(STARBOARD)
+      free(*mem);
+#endif  // defined(STARBOARD)
+      *mem = NULL;
     }
 }
 
