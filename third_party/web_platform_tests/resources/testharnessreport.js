@@ -404,6 +404,7 @@ function dump_test_results(tests, status) {
     document.documentElement.lastChild.appendChild(results_element);
     if (window.testRunner) {
         window.testRunner.notifyDone();
+        window.close();
     }
 }
 
