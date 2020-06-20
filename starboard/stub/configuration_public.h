@@ -35,10 +35,6 @@
 // following quirk.
 #undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
 
-// Some platforms the mapped GL buffer memory is slow to read from.  Platforms
-// where this is the case should define the following quirk.
-#undef SB_HAS_QUIRK_GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ
-
 // Some platforms do not have thread affinity support. Platforms where this is
 // the case should define the following quirk.
 #undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
