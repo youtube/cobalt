@@ -183,13 +183,7 @@ bool WEBPImageDecoder::CreateInternalDecoder() {
   config_.output.u.RGBA.stride = image_data_descriptor.pitch_in_bytes;
   config_.output.u.RGBA.size = image_data_descriptor.pitch_in_bytes *
                                image_data_descriptor.size.height();
-#if SB_HAS_QUIRK(GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ)
-  // The webp decoder will allocate a main memory output buffer if it has to
-  // read from the output buffer.
-  config_.output.is_external_memory = 2;
-#else   // SB_HAS_QUIRK(GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ)
   config_.output.is_external_memory = 1;
-#endif  // SB_HAS_QUIRK(GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ)
   // Instantiate a new incremental decoder object with the requested
   // configuration.
   internal_decoder_ = WebPIDecode(NULL, 0, &config_);
