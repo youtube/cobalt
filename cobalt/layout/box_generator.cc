@@ -451,6 +451,12 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
     // This behavior cannot be overridden by setting the "display" property on
     // the descendants.
     //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
+
+    // A LottiePlayer element with "display: none" should potentially trigger
+    // a freeze event.
+    if (!lottie_player->GetProperties().onfreeze_callback.is_null()) {
+      lottie_player->GetProperties().onfreeze_callback.Run();
+    }
     return;
   }
 

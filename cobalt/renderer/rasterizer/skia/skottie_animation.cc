@@ -30,11 +30,8 @@ SkottieAnimation::SkottieAnimation(const char* data, size_t length)
   json_size_in_bytes_ = builder.getStats().fJsonSize;
 }
 
-void SkottieAnimation::SetProperties(LottieProperties properties) {
-  properties_ = properties;
-}
-
-void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
+void SkottieAnimation::SetAnimationTimeInternal(
+    base::TimeDelta animate_function_time) {
   // Seeking to a particular frame takes precedence over normal playback.
   // Check whether "seek()" has been called but has yet to occur.
   if (seek_counter_ != properties_.seek_counter) {
@@ -75,7 +72,6 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
     return;
   }
 
-  DCHECK(properties_.state == LottieState::kPlaying);
   base::TimeDelta current_animation_time = last_updated_animation_time_;
   base::TimeDelta time_elapsed =
       animate_function_time - last_updated_animate_function_time_;
