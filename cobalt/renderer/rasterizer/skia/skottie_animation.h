@@ -37,9 +37,7 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   bool IsOpaque() const override { return false; }
 
-  void SetProperties(LottieProperties properties) override;
-
-  void SetAnimationTime(base::TimeDelta animate_function_time) override;
+  void SetAnimationTimeInternal(base::TimeDelta animate_function_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
@@ -52,7 +50,6 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   math::Size animation_size_;
   uint32 json_size_in_bytes_;
 
-  LottieProperties properties_;
   // |seek_counter_| is used to indicate whether a particular seek has already
   // been processed. When |LottieProperties::seek_counter| is different, then
   // the requested seek should be performed and |seek_counter_| updated to match
