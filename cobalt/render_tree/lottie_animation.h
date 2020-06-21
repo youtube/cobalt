@@ -30,7 +30,7 @@ namespace render_tree {
 // LottieAnimation object.
 class LottieAnimation : public Image {
  public:
-  enum class LottieState { kPlaying, kPaused, kStopped };
+  enum class LottieState { kPlaying, kPaused, kStopped, kFrozen };
 
   enum class LottieMode { kNormal, kBounce };
 
@@ -67,6 +67,26 @@ class LottieAnimation : public Image {
       }
       state = new_state;
       return true;
+    }
+
+    // Return true if we can freeze the animation, i.e. the animation is
+    // currently playing.
+    bool FreezeAnimationState() {
+      if (state == LottieState::kPlaying) {
+        state = LottieState::kFrozen;
+        return true;
+      }
+      return false;
+    }
+
+    // Return true if we can unfreeze the animation, i.e. the animation is
+    // currently frozen.
+    bool UnfreezeAnimationState() {
+      if (state == LottieState::kFrozen) {
+        state = LottieState::kPlaying;
+        return true;
+      }
+      return false;
     }
 
     // Return true if |count| is updated to a new & valid number.
@@ -199,17 +219,44 @@ class LottieAnimation : public Image {
     base::Closure oncomplete_callback;
     base::Closure onloop_callback;
     base::Callback<void(double, double)> onenterframe_callback;
+    base::Closure onfreeze_callback;
+    base::Closure onunfreeze_callback;
   };
 
-  virtual void SetProperties(LottieProperties properties) = 0;
+  void BeginRenderFrame(const LottieProperties& properties) {
+    // Trigger callback if playback state changed.
+    if (played_this_frame_ && properties.state == LottieState::kFrozen &&
+        !properties_.onunfreeze_callback.is_null()) {
+      properties_.onunfreeze_callback.Run();
+    }
+    if (!played_this_frame_ && properties.state == LottieState::kPlaying &&
+        !properties_.onfreeze_callback.is_null()) {
+      properties_.onfreeze_callback.Run();
+    }
+    played_this_frame_ = false;
+    properties_ = properties;
+  }
 
-  virtual void SetAnimationTime(base::TimeDelta animate_function_time) = 0;
+  void SetAnimationTime(base::TimeDelta animate_function_time) {
+    played_this_frame_ = true;
+    SetAnimationTimeInternal(animate_function_time);
+  }
 
  protected:
   virtual ~LottieAnimation() {}
 
   // Allow the reference counting system access to our destructor.
   friend class base::RefCountedThreadSafe<LottieAnimation>;
+
+  virtual void SetAnimationTimeInternal(
+      base::TimeDelta animate_function_time) = 0;
+
+  LottieProperties properties_;
+
+ private:
+  // A flag that will be set to true only if the animation is visible onscreen
+  // and is rendered.
+  bool played_this_frame_ = false;
 };
 
 }  // namespace render_tree

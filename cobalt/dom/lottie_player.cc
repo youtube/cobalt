@@ -435,6 +435,14 @@ void LottiePlayer::SetAnimationEventCallbacks() {
   properties_.onenterframe_callback = base::Bind(
       &LottiePlayer::CallOnEnterFrame, callback_task_runner_,
       base::Bind(&LottiePlayer::OnEnterFrame, base::AsWeakPtr(this)));
+  properties_.onfreeze_callback =
+      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+                 callback_task_runner_, FROM_HERE,
+                 base::Bind(&LottiePlayer::OnFreeze, base::AsWeakPtr(this)));
+  properties_.onunfreeze_callback =
+      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+                 callback_task_runner_, FROM_HERE,
+                 base::Bind(&LottiePlayer::OnUnfreeze, base::AsWeakPtr(this)));
 }
 
 void LottiePlayer::OnPlay() { ScheduleEvent(base::Tokens::play()); }
@@ -465,6 +473,20 @@ void LottiePlayer::CallOnEnterFrame(
     double seeker) {
   callback_task_runner->PostTask(
       FROM_HERE, base::Bind(enter_frame_callback, frame, seeker));
+}
+
+void LottiePlayer::OnFreeze() {
+  if (properties_.FreezeAnimationState()) {
+    ScheduleEvent(base::Tokens::freeze());
+    UpdateLottieObjects();
+  }
+}
+
+void LottiePlayer::OnUnfreeze() {
+  if (properties_.UnfreezeAnimationState()) {
+    ScheduleEvent(base::Tokens::play());
+    UpdateLottieObjects();
+  }
 }
 
 }  // namespace dom

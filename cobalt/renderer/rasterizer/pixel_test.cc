@@ -4137,7 +4137,7 @@ TEST_F(PixelTest, BeginningOfPlayingLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4154,7 +4154,7 @@ TEST_F(PixelTest, MiddleOfPlayingLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4171,7 +4171,7 @@ TEST_F(PixelTest, EndOfPlayingLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4190,7 +4190,7 @@ TEST_F(PixelTest, PausedLottieAnimationTest) {
   // An animation must start playing before it can be paused.
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPaused);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4207,7 +4207,7 @@ TEST_F(PixelTest, StoppedLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kStopped);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4224,7 +4224,7 @@ TEST_F(PixelTest, SeekFrameLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.SeekFrame(10);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4241,7 +4241,7 @@ TEST_F(PixelTest, SeekPercentStringLottieAnimationTest) {
           reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.SeekPercent(50);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4259,7 +4259,7 @@ TEST_F(PixelTest, ReverseDirectionLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateDirection(-1);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4277,7 +4277,7 @@ TEST_F(PixelTest, LoopingLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4297,7 +4297,7 @@ TEST_F(PixelTest, NotLoopingLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(false);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4318,7 +4318,7 @@ TEST_F(PixelTest, UnderLoopLimitCountLottieAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
   lottie_properties.UpdateCount(2);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4339,7 +4339,7 @@ TEST_F(PixelTest, OverLoopLimitCountLottieAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
   lottie_properties.UpdateCount(2);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4360,7 +4360,7 @@ TEST_F(PixelTest, BounceModeLottieAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
   lottie_properties.UpdateMode(LottieAnimation::LottieMode::kBounce);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4380,7 +4380,7 @@ TEST_F(PixelTest, 2xSpeedLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateSpeed(2);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4399,7 +4399,7 @@ TEST_F(PixelTest, ToggleLoopingOnLottieAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(false);
   lottie_properties.ToggleLooping();
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4420,7 +4420,7 @@ TEST_F(PixelTest, ToggleLoopingOffLottieAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
   lottie_properties.ToggleLooping();
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4440,7 +4440,7 @@ TEST_F(PixelTest, TogglePlayFromStoppedLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kStopped);
   lottie_properties.TogglePlay();
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4459,7 +4459,7 @@ TEST_F(PixelTest, TogglePlayFromPausedLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPaused);
   lottie_properties.TogglePlay();
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4478,7 +4478,7 @@ TEST_F(PixelTest, TogglePlayFromPlayingLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.TogglePlay();
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4497,7 +4497,7 @@ TEST_F(PixelTest, TransparencyLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
@@ -4515,7 +4515,7 @@ TEST_F(PixelTest, ConcurrentTrimPathsLottieAnimationTest) {
   LottieAnimation::LottieProperties lottie_properties;
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   lottie_properties.UpdateLoop(true);
-  animation->SetProperties(lottie_properties);
+  animation->BeginRenderFrame(lottie_properties);
 
   LottieNode::Builder node_builder =
       LottieNode::Builder(animation, RectF(output_surface_size()));
