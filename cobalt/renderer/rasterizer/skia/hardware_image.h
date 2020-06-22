@@ -93,28 +93,29 @@ class HardwareRawImageMemory : public render_tree::RawImageMemory {
 class HardwareFrontendImage : public SinglePlaneImage {
  public:
   HardwareFrontendImage(std::unique_ptr<HardwareImageData> image_data,
-                        backend::GraphicsContextEGL* cobalt_context,
-                        GrContext* gr_context,
-                        base::MessageLoop* rasterizer_message_loop);
-  HardwareFrontendImage(const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-                            raw_texture_memory,
-                        intptr_t offset,
-                        const render_tree::ImageDataDescriptor& descriptor,
-                        backend::GraphicsContextEGL* cobalt_context,
-                        GrContext* gr_context,
-                        base::MessageLoop* rasterizer_message_loop);
+      backend::GraphicsContextEGL* cobalt_context,
+      GrContext* gr_context,
+      scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner);
+  HardwareFrontendImage(
+      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
+          raw_texture_memory,
+      intptr_t offset,
+      const render_tree::ImageDataDescriptor& descriptor,
+      backend::GraphicsContextEGL* cobalt_context,
+      GrContext* gr_context,
+      scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner);
   HardwareFrontendImage(
       std::unique_ptr<backend::TextureEGL> texture,
       render_tree::AlphaFormat alpha_format,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       std::unique_ptr<math::RectF> content_region,
-      base::MessageLoop* rasterizer_message_loop,
+      scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
       base::Optional<AlternateRgbaFormat> alternate_rgba_format);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      base::MessageLoop* rasterizer_message_loop);
+      scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner);
 
   const math::Size& GetSize() const override { return size_; }
 
@@ -171,7 +172,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // can issue graphics commands.  Specifically, this is the message loop
   // where all HardwareBackendImage (described below) logic is executed
   // on.
-  base::MessageLoop* rasterizer_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner_;
 
   // The HardwareBackendImage object is where all our rasterizer thread
   // specific objects live, such as the backend Skia graphics reference to
@@ -198,7 +199,7 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
       std::unique_ptr<HardwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-      base::MessageLoop* rasterizer_message_loop);
+      scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner);
 
   HardwareMultiPlaneImage(
       render_tree::MultiPlaneImageFormat format,
