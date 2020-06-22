@@ -2178,6 +2178,7 @@
         'test/embedded_test_server/embedded_test_server_unittest.cc',
         'test/embedded_test_server/http_request_unittest.cc',
         'test/embedded_test_server/http_response_unittest.cc',
+        'test/run_all_unittests.cc',
         'test/tcp_socket_proxy_unittest.cc',
 
         'third_party/nist-pkits/pkits_testcases-inl.h',
@@ -2722,7 +2723,6 @@
         'test/net_test_suite.h',
         'test/quic_simple_test_server.cc',
         'test/quic_simple_test_server.h',
-        'test/run_all_unittests.cc',
         'test/scoped_disable_exit_on_dfatal.cc',
         'test/scoped_disable_exit_on_dfatal.h',
         'test/tcp_socket_proxy.cc',

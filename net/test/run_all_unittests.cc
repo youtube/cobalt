@@ -20,12 +20,26 @@
 
 using net::internal::ClientSocketPoolBaseHelper;
 
+#if defined(STARBOARD)
+
+int TestSuiteRun(int argc, char** argv) {
+  // set_connect_backup_jobs_enabled(false) below disables backup transport
+  // layer connection which is turned on by default. The backup transport layer
+  // connection sends new connection if certain amount of time has passed
+  // without ACK being received. Some net_unittests have assumption for the
+  // lack of this feature.
+  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
+  base::AtExitManager exit_manager;
+  return NetTestSuite(argc, argv).Run();
+}
+
+STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
+
+#else
+
 namespace {
 
 bool VerifyBuildIsTimely() {
-#ifdef STARBOARD
-  return true;
-#else
   // This lines up with various //net security features, like Certificate
   // Transparency or HPKP, in that they require the build time be less than 70
   // days old. Moreover, operating on the assumption that tests are run against
@@ -51,25 +65,10 @@ bool VerifyBuildIsTimely() {
       << build_time.ToInternalValue() << ")\n";
 
   return false;
-#endif
 }
 
 }  // namespace
 
-#if defined(STARBOARD)
-int TestSuiteRun(int argc, char** argv) {
-  // set_connect_backup_jobs_enabled(false) below disables backup transport
-  // layer connection which is turned on by default. The backup transport layer
-  // connection sends new connection if certain amount of time has passed
-  // without ACK being received. Some net_unittests have assumption for the
-  // lack of this feature.
-  ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-  base::AtExitManager exit_manager;
-  return NetTestSuite(argc, argv).Run();
-}
-
-STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
-#else
 int main(int argc, char** argv) {
   if (!VerifyBuildIsTimely())
     return 1;
@@ -81,4 +80,5 @@ int main(int argc, char** argv) {
       argc, argv, base::Bind(&NetTestSuite::Run,
                              base::Unretained(&test_suite)));
 }
+
 #endif
