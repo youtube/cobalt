@@ -78,24 +78,12 @@ header available.
 
 Whether the current platform has 64-bit atomic operations.
 
-### SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER ###
-
-Deprecated feature macros These feature macros are deprecated in Starboard
-version 6 and later, and are no longer referenced by application code. They will
-be removed in a future version. Any Starboard implementation that supports
-Starboard version 6 or later should be modified to no longer depend on these
-macros, with the assumption that their values are always 1.
-
 ### SB_HAS_GLES2 ###
 
 Specifies whether this platform has a performant OpenGL ES 2 implementation,
 which allows client applications to use GL rendering paths. Derived from the gyp
 variable `gl_type` gl_type which indicates what kind of GL implementation is
 available.
-
-### SB_HAS_GRAPHICS ###
-
-Specifies whether this platform has any kind of supported graphics system.
 
 ### SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT ###
 
