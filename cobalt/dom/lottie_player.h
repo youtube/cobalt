@@ -65,6 +65,7 @@ class LottiePlayer : public HTMLElement {
   void set_mode(std::string mode);
   double speed() const;
   void set_speed(double speed);
+  std::string preserve_aspect_ratio() const;
   std::string renderer() const;
   void Load(std::string src);
   void Play();
