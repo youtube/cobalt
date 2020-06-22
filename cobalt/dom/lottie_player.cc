@@ -104,6 +104,13 @@ void LottiePlayer::set_speed(double speed) {
   SetAttribute("speed", base::NumberToString(speed));
 }
 
+std::string LottiePlayer::preserve_aspect_ratio() const {
+  // Skottie animations default to "xMidYMid meet", meaning that the animation
+  // will be uniformly scaled and centered relative to the element's width and
+  // height.
+  return "xMidYMid meet";
+}
+
 std::string LottiePlayer::renderer() const {
   // Cobalt uses a custom compiled-in renderer.
   return "skottie-m79";
