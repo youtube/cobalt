@@ -206,7 +206,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
         global_environment_(engine_->CreateGlobalEnvironment()),
         on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()),
         window_(new Window(
-            environment_settings_.get(), ViewportSize(1920, 1080), 1.f,
+            environment_settings_.get(), ViewportSize(1920, 1080),
             base::kApplicationStateStarted, css_parser_.get(),
             dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
             NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,

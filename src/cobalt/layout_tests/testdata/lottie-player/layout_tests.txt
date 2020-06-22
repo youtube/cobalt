@@ -1,0 +1,2 @@
+lottie-background-attribute
+lottie-playback-events

@@ -92,7 +92,7 @@ const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 
 Window::Window(
     script::EnvironmentSettings* settings, const ViewportSize& view_size,
-    float device_pixel_ratio, base::ApplicationState initial_application_state,
+    base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
     loader::LoaderFactory* loader_factory,
@@ -141,7 +141,6 @@ Window::Window(
     // see EventTarget constructor for more details.
     : EventTarget(settings, kUnpackOnErrorEvents),
       viewport_size_(view_size),
-      device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
 #if defined(ENABLE_TEST_RUNNER)
@@ -618,19 +617,18 @@ void Window::SetSynchronousLayoutAndProduceRenderTreeCallback(
   document_->set_synchronous_layout_and_produce_render_tree_callback(callback);
 }
 
-void Window::SetSize(ViewportSize size, float device_pixel_ratio) {
-  if (size == viewport_size_ && device_pixel_ratio == device_pixel_ratio_) {
+void Window::SetSize(ViewportSize size) {
+  if (size == viewport_size_) {
     return;
   }
 
   viewport_size_ = size;
-  device_pixel_ratio_ = device_pixel_ratio;
   screen_->SetSize(viewport_size_);
   // This will cause layout invalidation.
   document_->SetViewport(viewport_size_);
 
   if (html_element_context_->page_visibility_state()->GetVisibilityState() ==
-      page_visibility::kVisibilityStateVisible) {
+      kVisibilityStateVisible) {
     DispatchEvent(new Event(base::Tokens::resize()));
   } else {
     is_resize_event_pending_ = true;
@@ -647,10 +645,8 @@ void Window::OnWindowFocusChanged(bool has_focus) {
       new Event(has_focus ? base::Tokens::focus() : base::Tokens::blur()));
 }
 
-void Window::OnVisibilityStateChanged(
-    page_visibility::VisibilityState visibility_state) {
-  if (is_resize_event_pending_ &&
-      visibility_state == page_visibility::kVisibilityStateVisible) {
+void Window::OnVisibilityStateChanged(VisibilityState visibility_state) {
+  if (is_resize_event_pending_ && visibility_state == kVisibilityStateVisible) {
     is_resize_event_pending_ = false;
     DispatchEvent(new Event(base::Tokens::resize()));
   }
@@ -663,7 +659,7 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   // pending resize event, so that the resize will occur once layouts are again
   // available.
   if (html_element_context_->page_visibility_state()->GetVisibilityState() !=
-      page_visibility::kVisibilityStateVisible) {
+      kVisibilityStateVisible) {
     is_resize_event_pending_ = true;
   }
 }

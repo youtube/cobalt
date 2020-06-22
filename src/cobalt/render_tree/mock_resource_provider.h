@@ -103,8 +103,6 @@ class MockResourceProvider : public ResourceProvider {
     return scoped_refptr<Image>(CreateImageMock(pixel_data.get()));
   }
 
-#if SB_HAS(GRAPHICS)
-
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
     return NULL;
   }
@@ -115,8 +113,6 @@ class MockResourceProvider : public ResourceProvider {
   GetSbDecodeTargetGraphicsContextProvider() {
     return NULL;
   }
-
-#endif  // SB_HAS(GRAPHICS)
 
   std::unique_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                          size_t alignment) {

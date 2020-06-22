@@ -161,7 +161,10 @@ public abstract class CobaltActivity extends NativeActivity {
     List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
     if (argsExtra != null) {
       for (int i = 0; i < argsExtra.length; i++) {
-        args.add(argsExtra[i].toString());
+        // Replace escaped commas with commas. In order to have a comma in the arg string, it has
+        // to be escaped when forming the Intent with "am start --esa". However, "am" doesn't remove
+        // the escape after splitting on unescaped commas, so it's still in the string we get.
+        args.add(argsExtra[i].toString().replace("\\,", ","));
       }
     }
 

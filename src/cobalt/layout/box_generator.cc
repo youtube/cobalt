@@ -61,11 +61,7 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
   TRACE_EVENT0("cobalt::layout", "GetVideoFrame()");
   SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
   if (SbDecodeTargetIsValid(decode_target)) {
-#if SB_HAS(GRAPHICS)
     return resource_provider->CreateImageFromSbDecodeTarget(decode_target);
-#else   // SB_HAS(GRAPHICS)
-    return NULL;
-#endif  // SB_HAS(GRAPHICS)
   } else {
     DCHECK(frame_provider);
     return NULL;

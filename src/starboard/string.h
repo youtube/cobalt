@@ -223,7 +223,7 @@ static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
                                              ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = SbStringFormat(out_buffer, UINT_MAX, format, arguments);
+  int result = SbStringFormat(out_buffer, SSIZE_MAX, format, arguments);
   va_end(arguments);
   return result;
 }

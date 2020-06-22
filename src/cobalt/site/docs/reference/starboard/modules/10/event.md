@@ -4,8 +4,7 @@ title: "Starboard Module Reference: event.h"
 ---
 
 Defines the event system that wraps the Starboard main loop and entry point.
-
-## The Starboard Application Lifecycle ##
+The Starboard Application Lifecycle
 
 ```
     ---------- *
@@ -184,7 +183,11 @@ the type of the value pointed to by that data argument, if any.
     The platform's accessibility settings have changed. The application should
     query the accessibility settings using the appropriate APIs to get the new
     settings. Note this excludes captions settings changes, which causes
-    kSbEventTypeAccessibilityCaptionSettingsChanged to fire.
+    kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the starboard
+    version has kSbEventTypeAccessiblityTextToSpeechSettingsChanged, then that
+    event should be used to signal text-to-speech settings changes instead;
+    platforms using older starboard versions should use
+    kSbEventTypeAccessiblitySettingsChanged for text-to-speech settings changes.
 *   `kSbEventTypeLowMemory`
 
     An optional event that platforms may send to indicate that the application
@@ -234,8 +237,8 @@ the type of the value pointed to by that data argument, if any.
     kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
-    One or more of the fields returned by SbAccessibilityGetCaptionSettings has
-    changed.
+    SB_HAS(ON_SCREEN_KEYBOARD) One or more of the fields returned by
+    SbAccessibilityGetCaptionSettings has changed.
 
 ## Typedefs ##
 

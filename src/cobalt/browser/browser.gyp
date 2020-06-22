@@ -124,7 +124,6 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:overlay_info',
-        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',

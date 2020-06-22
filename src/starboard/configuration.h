@@ -682,13 +682,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 
 #if SB_API_VERSION >= 11
-#if defined(SB_HAS_AC3_AUDIO)
-#if !SB_HAS(AC3_AUDIO)
-#error "SB_HAS_AC3_AUDIO is required in this API version."
-#endif  // !SB_HAS(AC3_AUDIO)
-#else   // defined(SB_HAS_AC3_AUDIO)
+#if !defined(SB_HAS_AC3_AUDIO)
 #define SB_HAS_AC3_AUDIO 1
-#endif  // defined(SB_HAS_AC3_AUDIO)
+#elif !SB_HAS(AC3_AUDIO)
+#error "SB_HAS_AC3_AUDIO is required in this API version."
+#endif
 #endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 12
@@ -895,15 +893,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
 #if SB_API_VERSION >= 11
-#if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#if !defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
+#elif !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
     "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API " \
         "version."
-#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#else   // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
-#endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#endif
 #endif  // SB_API_VERSION >= 11
 
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
@@ -939,15 +935,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
 #if SB_API_VERSION >= 12
-#if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#if !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#if !defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
+#elif !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
     "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT is required in" \
     " this API version."
-#endif  // !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#else   // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
-#endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#endif
 #endif  // SB_API_VERSION >= 12
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
@@ -1001,37 +995,12 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
 #endif
 
-// Specifies whether this platform has any kind of supported graphics system.
-#if !defined(SB_HAS_GRAPHICS)
-#if SB_HAS(GLES2) || SB_API_VERSION >= 12 || SB_HAS(BLITTER)
-#define SB_HAS_GRAPHICS 1
-#else
-#define SB_HAS_GRAPHICS 0
-#endif
-#endif
+// --- Deprecated Feature Macros -----------------------------------------------
 
-// Deprecated feature macros
-// These feature macros are deprecated in Starboard version 6 and later, and are
-// no longer referenced by application code.  They will be removed in a future
-// version.  Any Starboard implementation that supports Starboard version 6 or
-// later should be modified to no longer depend on these macros, with the
-// assumption that their values are always 1.
-#if defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#if !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#error \
-    "SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER is required for Starboard 6 " \
-       "or later."
-#endif  // !SB_HAS(AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#else   // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-#define SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER 1
-#endif  // defined(SB_HAS_AUDIO_SPECIFIC_CONFIG_AS_POINTER)
-
-#if defined(SB_HAS_DRM_KEY_STATUSES)
-#if !SB_HAS(DRM_KEY_STATUSES)
-#error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
-#else   // defined(SB_HAS_DRM_KEY_STATUSES)
-#define SB_HAS_DRM_KEY_STATUSES 1
-#endif  // defined(SB_HAS_DRM_KEY_STATUSES)
+// Deprecated feature macros are no longer referenced by application code, and
+// will be removed in a later Starboard API version. Any Starboard
+// implementation that supports any of these macros should be modified to no
+// longer rely on them, and operate with the assumption that their values are
+// always 1.
 
 #endif  // STARBOARD_CONFIGURATION_H_

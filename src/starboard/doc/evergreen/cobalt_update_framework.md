@@ -36,7 +36,7 @@ Google Update is an update service that manages updates for Google products
 serving billions of users worldwide. We set up Cobalt updates on Google Update
 in a way that each type of device gets a unique update link (URL). The device
 type is identified by [Starboard
-ABI](https://drive.google.com/a/google.com/open?id=1r1vS_FFMV9F-YlNaudxFwhAVG7delVleKfYgLLRUn3o)
+ABI](../starboard_abi.md)
 (SABI) string. For instance, Raspberry Pi 2 and Linux desktop are two different
 types of devices. They are identified by two different SABI strings, and get two
 different update URLs on Google Update. The request sent by the Cobalt updater

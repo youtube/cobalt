@@ -54,24 +54,17 @@ The recommended naming convention for a platform configuration is:
     <family-name>-<binary-variant>
 
 For example, suppose a company named BobCo produces a variety of BobBox
-devices. Some of the devices use big-endian MIPS chips, while others use
-little-endian MIPS chips. BobCo might define two platform configurations:
+devices. Some of the devices use big-endian ARM chips, while others use
+little-endian ARM chips. BobCo might define two platform configurations:
 
-*   `bobbox-mipseb`
-*   `bobbox-mipsel`
+*   `bobbox-armeb`
+*   `bobbox-armel`
 
 In this example, `bobbox` is the family name and is used in both (all)
 of BobCo's platform configurations. The `binary-variant` for devices with
-big-endian MIPS chips is `mipseb`. For devices with little-endian MIPS chips,
-the `binary-variant` is `mipsel`.
+big-endian ARM chips is `armeb`. For devices with little-endian ARM chips,
+the `binary-variant` is `armel`.
 
-Starboard also supports sub-variant configurations to maximize your ability
-to share code between configurations. For example, if some of BobCo's devices
-that use little-endian chips use DirectFB, but other devices use OpenGL ES,
-BobCo could create two different configurations for little-endian chips:
-
-*   `bobbox-mipsel-dfb`
-*   `bobbox-mipsel-gles`
 
 ### 2. Add Source Tree Directories for your Starboard Port
 
@@ -95,16 +88,14 @@ that you selected in step 1:
     example, BobCo could create the following directories:
 
     *   `src/third_party/starboard/bobbox/shared/`
-    *   `src/third_party/starboard/bobbox/mipseb/`
-    *   `src/third_party/starboard/bobbox/mipsel/`
-    *   `src/third_party/starboard/bobbox/mipsel/dfb/`
-    *   `src/third_party/starboard/bobbox/mipsel/gles/`
+    *   `src/third_party/starboard/bobbox/armeb/`
+    *   `src/third_party/starboard/bobbox/armel/`
+    *   `src/third_party/starboard/bobbox/armel/gles/`
 
 Again, functions that work for all of the configurations would go in the
 `shared` directory. Functions that work for all little-endian devices would go
-in the `mipsel` directory. And functions specific to little-endian devices
-that use DirectFB or that use OpenGL ES would go in the `mipsel/dfb` or
-`mipsel/gles` directory.
+in the `armel` directory. And functions specific to little-endian devices
+that use OpenGL ES would go in the `armel/gles` directory.
 
 ### 3. Add required `binary-variant` files
 
@@ -279,7 +270,7 @@ that you copied in step 3:
 
     1.  Update the following properties in the `variables` dictionary:
         *   `target_arch` - Identifies your architecture. Supported values
-            are `arm`, `mips`, `ppc`, `x64`, and `x86`.
+            are `arm`, `x64`, and `x86`.
         *   `target_os` - Set to `linux` if your platform is Linux-based.
             Otherwise, remove this variable.
         *   `gl_type` - Set to `system_gles2` if you are using the system EGL

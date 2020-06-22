@@ -46,6 +46,8 @@
         'h5vcc_runtime.h',
         'h5vcc_runtime_event_target.cc',
         'h5vcc_runtime_event_target.h',
+        'h5vcc_screen.cc',
+        'h5vcc_screen.h',
         'h5vcc_settings.cc',
         'h5vcc_settings.h',
         'h5vcc_storage.cc',

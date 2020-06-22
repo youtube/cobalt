@@ -50,7 +50,8 @@ class VideoRenderAlgorithm {
                       std::list<scoped_refptr<VideoFrame>>* frames,
                       VideoRendererSink::DrawFrameCB draw_frame_cb) = 0;
   // Called during seek to reset the internal states of VideoRenderAlgorithm.
-  virtual void Reset() = 0;
+  // |seek_to_time| will be set to the seek target.
+  virtual void Seek(SbTime seek_to_time) = 0;
   virtual int GetDroppedFrames() = 0;
 };
 

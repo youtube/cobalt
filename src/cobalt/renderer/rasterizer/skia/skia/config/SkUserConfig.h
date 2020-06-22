@@ -260,12 +260,6 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 
 // GrGLConfig.h settings customization for Cobalt.
 
-#if defined(STARBOARD)
-#if SB_HAS_QUIRK(GL_NO_CONSTANT_ATTRIBUTE_SUPPORT)
-#define GR_GL_NO_CONSTANT_ATTRIBUTES 1
-#endif // SB_HAS_QUIRK(GL_NO_CONSTANT_ATTRIBUTE_SUPPORT)
-#endif // defined(STARBOARD)
-
 // Avoid calling glGetError() after glTexImage, glBufferData,
 // glRenderbufferStorage, etc...  It can be potentially expensive to call on
 // some platforms, and Cobalt is designed for devices where we can ensure we

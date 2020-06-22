@@ -24,8 +24,6 @@
 // On X86/X86_64, we read CPU version strings from /proc/cpuinfo. We get other
 // CPU version information and feature flags by CPUID instruction, which gives
 // more precise and complete information than reading from /proc/cpuinfo.
-//
-// TODO: Mips/Mips64 and Ppc/Ppc64
 
 #include "starboard/cpu_features.h"
 

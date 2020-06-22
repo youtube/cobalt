@@ -41,6 +41,7 @@
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/on_screen_keyboard.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
+#include "cobalt/dom/page_visibility_state.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/screenshot_manager.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -63,7 +64,6 @@
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
-#include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/error_report.h"
@@ -106,8 +106,7 @@ class WindowTimers;
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public EventTarget,
-               public page_visibility::PageVisibilityState::Observer {
+class Window : public EventTarget, public PageVisibilityState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
@@ -132,7 +131,7 @@ class Window : public EventTarget,
 
   Window(
       script::EnvironmentSettings* settings,
-      const cssom::ViewportSize& view_size, float device_pixel_ratio,
+      const cssom::ViewportSize& view_size,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
@@ -266,7 +265,9 @@ class Window : public EventTarget,
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
-  float device_pixel_ratio() const { return device_pixel_ratio_; }
+  float device_pixel_ratio() const {
+    return viewport_size_.device_pixel_ratio();
+  }
 
   // Web API: GlobalCrypto (implements)
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
@@ -347,7 +348,7 @@ class Window : public EventTarget,
       const SynchronousLayoutAndProduceRenderTreeCallback&
           synchronous_layout_callback);
 
-  void SetSize(cssom::ViewportSize size, float device_pixel_ratio);
+  void SetSize(cssom::ViewportSize size);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
@@ -367,10 +368,9 @@ class Window : public EventTarget,
   // Returns whether or not the script was handled.
   bool ReportScriptError(const script::ErrorReport& error_report);
 
-  // page_visibility::PageVisibilityState::Observer implementation.
+  // PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
-  void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) override;
+  void OnVisibilityStateChanged(VisibilityState visibility_state) override;
 
   // Called when the document's root element has its offset dimensions requested
   // and is unable to provide them.
@@ -424,8 +424,6 @@ class Window : public EventTarget,
   void FireHashChangeEvent();
 
   cssom::ViewportSize viewport_size_;
-
-  float device_pixel_ratio_;
 
   // A resize event can be pending if a resize occurs and the current visibility
   // state is not visible. In this case, the resize event will run when the

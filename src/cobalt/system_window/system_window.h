@@ -42,14 +42,14 @@ class SystemWindow {
   // screen. This is queried from the window_.
   float GetDiagonalSizeInches() const;
 
-  // video pixel ratio = resolution of video output / resolution of window.  Its
+  // device pixel ratio = resolution of video output / resolution of window. Its
   // value is usually 1.0.  Set it to a value greater than 1.0 allows the video
   // to be played in higher resolution than the window.
-  float GetVideoPixelRatio() const;
+  float GetDevicePixelRatio() const;
 
   // Returns the resolution of the video output size, which may be different
   // from the window size. This will generally be GetWindowSize() multiplied by
-  // GetVideoPixelRatio().
+  // GetDevicePixelRatio().
   math::Size GetVideoOutputResolution() const;
 
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }

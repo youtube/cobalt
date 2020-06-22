@@ -198,6 +198,7 @@ class LottieAnimation : public Image {
     base::Closure onstop_callback;
     base::Closure oncomplete_callback;
     base::Closure onloop_callback;
+    base::Callback<void(double, double)> onenterframe_callback;
   };
 
   virtual void SetProperties(LottieProperties properties) = 0;

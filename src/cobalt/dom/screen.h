@@ -28,8 +28,10 @@ class Screen : public script::Wrappable {
  public:
   explicit Screen(const cssom::ViewportSize& view_size) { SetSize(view_size); }
 
-  void SetSize(int width, int height, float diagonal_inches) {
-    view_size_ = cssom::ViewportSize(width, height, diagonal_inches);
+  void SetSize(int width, int height, float video_pixel_ratio,
+               float diagonal_inches) {
+    view_size_ =
+        cssom::ViewportSize(width, height, video_pixel_ratio, diagonal_inches);
   }
 
   void SetSize(const cssom::ViewportSize& view_size) { view_size_ = view_size; }
@@ -59,8 +61,14 @@ class Screen : public script::Wrappable {
   // The pixelDepth attribute must return 24.
   unsigned int pixel_depth() const { return 24; }
 
+  // Custom, not in any spec.
+  //
+
   // The length of the display screen as measured from opposing corners.
   float diagonal_inches() const { return view_size_.diagonal_inches(); }
+
+  // The ratio of video pixels to graphics pixels.
+  float device_pixel_ratio() const { return view_size_.device_pixel_ratio(); }
 
   DEFINE_WRAPPABLE_TYPE(Screen);
 

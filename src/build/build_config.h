@@ -10,8 +10,6 @@
 //    COMPILER_MSVC / COMPILER_GCC
 //  Processor:
 //    ARCH_CPU_X86 / ARCH_CPU_X86_64 / ARCH_CPU_X86_FAMILY (X86 or X86_64)
-//    ARCH_CPU_PPC_FAMILY
-//    ARCH_CPU_MIPS / ARCH_CPU_MIPSEL / ARCH_CPU_MIPS_FAMILY
 //    ARCH_CPU_ARM / ARCH_CPU_ARMEL / ARCH_CPU_ARM_FAMILY
 //    ARCH_CPU_32_BITS / ARCH_CPU_64_BITS
 //    ARCH_CPU_BIG_ENDIAN / ARCH_CPU_LITTLE_ENDIAN
@@ -151,11 +149,6 @@
 #define ARCH_CPU_LITTLE_ENDIAN 1
 #elif defined(__pnacl__)
 #define ARCH_CPU_32_BITS 1
-#elif defined(__MIPSEL__)
-#define ARCH_CPU_MIPS_FAMILY 1
-#define ARCH_CPU_MIPSEL 1
-#define ARCH_CPU_32_BITS 1
-#define ARCH_CPU_LITTLE_ENDIAN 1
 #else
 #error Please add support for your architecture in build/build_config.h
 #endif
@@ -195,8 +188,6 @@
 #  endif
 #elif defined(__ARMEL__) && !defined(OS_IOS)
 #define WCHAR_T_IS_UNSIGNED 1
-#elif defined(__MIPSEL__)
-#define WCHAR_T_IS_UNSIGNED 0
 #endif
 
 // TODO: Worry about these defines if/when we need to support Android.

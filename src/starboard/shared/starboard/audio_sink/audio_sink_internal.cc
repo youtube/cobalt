@@ -16,6 +16,7 @@
 
 #include <functional>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 #include "starboard/shared/starboard/command_line.h"
@@ -107,9 +108,124 @@ SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPreferredType() {
   return audio_sink_type;
 }
 
+SbAudioSink SbAudioSinkPrivate::Create(
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType audio_sample_type,
+    SbMediaAudioFrameStorageType audio_frame_storage_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frame_buffers_size_in_frames,
+    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+    ConsumeFramesFunc consume_frames_func,
+#if SB_API_VERSION >= 12
+    ErrorFunc error_func,
+#endif  // SB_API_VERSION >= 12
+    void* context) {
+  if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
+    SB_LOG(WARNING) << "Invalid audio channels " << channels;
+    return kSbAudioSinkInvalid;
+  }
+
+  if (sampling_frequency_hz <= 0) {
+    SB_LOG(WARNING) << "Invalid audio sampling frequency "
+                    << sampling_frequency_hz;
+    return kSbAudioSinkInvalid;
+  }
+
+  if (!SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type)) {
+    SB_LOG(WARNING) << "Invalid audio sample type " << audio_sample_type;
+    return kSbAudioSinkInvalid;
+  }
+
+  if (!SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type)) {
+    SB_LOG(WARNING) << "Invalid audio frame storage type "
+                    << audio_frame_storage_type;
+    return kSbAudioSinkInvalid;
+  }
+
+  if (frame_buffers == NULL) {
+    SB_LOG(WARNING) << "Pointer to frame buffers cannot be NULL";
+    return kSbAudioSinkInvalid;
+  }
+
+  if (frame_buffers_size_in_frames <= 0) {
+    SB_LOG(WARNING) << "Invalid frame buffer size "
+                    << frame_buffers_size_in_frames;
+    return kSbAudioSinkInvalid;
+  }
+
+  if (update_source_status_func == NULL) {
+    SB_LOG(WARNING) << "update_source_status_func cannot be NULL";
+    return kSbAudioSinkInvalid;
+  }
+
+  if (!consume_frames_func) {
+    SB_LOG(WARNING) << "consume_frames_func cannot be NULL";
+    return kSbAudioSinkInvalid;
+  }
+
+  if (auto audio_sink_type = GetPreferredType()) {
+    auto audio_sink = audio_sink_type->Create(
+        channels, sampling_frequency_hz, audio_sample_type,
+        audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
+        update_source_status_func, consume_frames_func,
+#if SB_API_VERSION >= 12
+        error_func,
+#endif  // SB_API_VERSION >= 12
+        context);
+    if (audio_sink_type->IsValid(audio_sink)) {
+      return audio_sink;
+    }
+    SB_LOG(ERROR) << "Failed to create SbAudioSink from preferred type.";
+    audio_sink_type->Destroy(audio_sink);
+  } else {
+    SB_LOG(WARNING) << "Preferred Sink Type is invalid.";
+  }
+
+  SB_LOG(WARNING) << "Try to create AudioSink using fallback type.";
+  if (auto fallback_type = SbAudioSinkPrivate::GetFallbackType()) {
+    auto audio_sink = fallback_type->Create(
+        channels, sampling_frequency_hz, audio_sample_type,
+        audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
+        update_source_status_func, consume_frames_func,
+#if SB_API_VERSION >= 12
+        error_func,
+#endif  // SB_API_VERSION >= 12
+        context);
+    if (fallback_type->IsValid(audio_sink)) {
+      return audio_sink;
+    }
+    SB_LOG(ERROR) << "Failed to create SbAudioSink from Fallback type.";
+    fallback_type->Destroy(audio_sink);
+  } else {
+    SB_LOG(WARNING) << "Fallback Sink Type is invalid.";
+  }
+  return kSbAudioSinkInvalid;
+}
+
 // static
-SbAudioSinkPrivate::ConsumeFramesFunc SbAudioSinkPrivate::GetConsumeFramesFunc(
-    SbAudioSinkConsumeFramesFunc sb_consume_frames_func) {
-  return std::bind(&::WrapConsumeFramesFunc, sb_consume_frames_func, _1, _2,
-                   _3);
+SbAudioSink SbAudioSinkPrivate::Create(
+    int channels,
+    int sampling_frequency_hz,
+    SbMediaAudioSampleType audio_sample_type,
+    SbMediaAudioFrameStorageType audio_frame_storage_type,
+    SbAudioSinkFrameBuffers frame_buffers,
+    int frame_buffers_size_in_frames,
+    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+    SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
+#if SB_API_VERSION >= 12
+    ErrorFunc error_func,
+#endif  // SB_API_VERSION >= 12
+    void* context) {
+  return Create(channels, sampling_frequency_hz, audio_sample_type,
+                audio_frame_storage_type, frame_buffers,
+                frame_buffers_size_in_frames, update_source_status_func,
+                sb_consume_frames_func
+                    ? std::bind(&::WrapConsumeFramesFunc,
+                                sb_consume_frames_func, _1, _2, _3)
+                    : ConsumeFramesFunc(),
+#if SB_API_VERSION >= 12
+                error_func,
+#endif  // SB_API_VERSION >= 12
+                context);
 }

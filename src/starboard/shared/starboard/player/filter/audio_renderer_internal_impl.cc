@@ -521,7 +521,7 @@ void AudioRendererImpl::OnFirstOutput(
 
   // TODO: Support planar only audio sink.
   audio_renderer_sink_->Start(
-      channels_, destination_sample_rate, sink_sample_type_,
+      seeking_to_time_, channels_, destination_sample_rate, sink_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved,
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
       max_cached_frames_, this);

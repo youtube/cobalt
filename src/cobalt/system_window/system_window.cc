@@ -83,17 +83,22 @@ float SystemWindow::GetDiagonalSizeInches() const {
 #endif
 }
 
-float SystemWindow::GetVideoPixelRatio() const {
-  SbWindowSize window_size;
-  if (!SbWindowGetSize(window_, &window_size)) {
+float SystemWindow::GetDevicePixelRatio() const {
+  SbWindowSize size;
+  if (!SbWindowGetSize(window_, &size)) {
     DLOG(WARNING) << "SbWindowGetSize() failed.";
     return 1.0;
   }
-  return window_size.video_pixel_ratio;
+  // A value of 0.0 for the video pixel ratio means that the ratio could not be
+  // determined. In that case it should be assumed to be the same as the
+  // graphics resolution, which corresponds to a device pixel ratio of 1.0.
+  float device_pixel_ratio =
+      (size.video_pixel_ratio == 0) ? 1.0f : size.video_pixel_ratio;
+  return device_pixel_ratio;
 }
 
 math::Size SystemWindow::GetVideoOutputResolution() const {
-  float ratio = GetVideoPixelRatio();
+  float ratio = GetDevicePixelRatio();
   math::Size size = GetWindowSize();
   return math::Size(Round(size.width() * ratio), Round(size.height() * ratio));
 }

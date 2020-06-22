@@ -102,7 +102,7 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
 std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
-  DLOG(INFO) << "Fetching: " << ClipUrl(url, 80);
+  LOG(INFO) << "Fetching: " << ClipUrl(url, 200);
 
   if (!url.is_valid()) {
     std::stringstream error_message;

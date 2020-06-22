@@ -1496,6 +1496,23 @@ TEST_F(PixelTest, YUV422UYVYImageScaledUpSupport) {
 
   TestTree(new ImageNode(image, math::Rect(output_surface_size())));
 }
+
+TEST_F(PixelTest, YUV422UYVYImageScaledAndTranslated) {
+  if (!GetResourceProvider()->PixelFormatSupported(
+          render_tree::kPixelFormatUYVY)) {
+    return;
+  }
+
+  // Use a particular image format to force textured mesh renderer path
+  // (i.e. Image::CanRenderInSkia() == false).
+  scoped_refptr<Image> image =
+      MakeAlternatingYUYVYImage(GetResourceProvider(), output_surface_size());
+
+  TestTree(new ImageNode(image, RectF(image->GetSize()),
+                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f,
+                                              0.0f, 2.0f, -1.0f,
+                                              0.0f, 0.0f, 1.0f)));
+}
 #endif  // !SB_HAS(BLITTER)
 
 // The software rasterizer does not support NV12 images.
@@ -1544,6 +1561,16 @@ TEST_F(PixelTest, ImageNodeLocalTransformTranslation) {
 
   TestTree(new ImageNode(image, RectF(image->GetSize()),
                          TranslateMatrix(0.5f, 0.5f)));
+}
+
+TEST_F(PixelTest, ImageNodeLocalTransformScaleAndTranslation) {
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
+
+  TestTree(new ImageNode(image, RectF(image->GetSize()),
+                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f,
+                                              0.0f, 2.0f, -1.0f,
+                                              0.0f, 0.0f, 1.0f)));
 }
 
 TEST_F(PixelTest, ImageNodeLocalTransformOfImageSmallerThanSurface) {

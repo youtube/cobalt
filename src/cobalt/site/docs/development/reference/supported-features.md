@@ -5,20 +5,27 @@ title: "Cobalt Support Quick Reference"
 
 ## HTML elements
 
+*   `<a>`
+*   `<audio>`
 *   `<body>`
 *   `<br>`
 *   `<div>`
 *   `<head>`
 *   `<html>`
 *   `<link>` (with `type="text/css"`)
+*   `<lottie-player>`
 *   `<meta>`
 *   `<script>`
 *   `<span>`
 *   `<style>`
+*   `<title>`
 *   `<video>`
 
 ## CSS properties
 
+*   [align-content](https://www.w3.org/TR/css-flexbox-1/#propdef-align-content)
+*   [align-items](https://www.w3.org/TR/css-flexbox-1/#propdef-align-items)
+*   [align-self](https://www.w3.org/TR/css-flexbox-1/#propdef-align-self)
 *   [animation](
     https://www.w3.org/TR/css3-animations/#animation-shorthand-property)
 *   [background](https://www.w3.org/TR/css3-background/#the-background),
@@ -42,12 +49,23 @@ title: "Cobalt Support Quick Reference"
 *   [color](https://www.w3.org/TR/css3-color/#foreground)
 *   [content](https://www.w3.org/TR/CSS21/generate.html#content)
 *   [display](https://www.w3.org/TR/CSS21/visuren.html#propdef-display)
+*   [dpi](https://www.w3.org/TR/css-values-3/#resolution)
+*   [flex](https://www.w3.org/TR/css-flexbox-1/#propdef-flex)
+*   [flex-basis](https://www.w3.org/TR/css-flexbox-1/#propdef-flex-basis)
+*   [flex-direction](
+    https://www.w3.org/TR/css-flexbox-1/#flex-direction-property)
+*   [flex-flow](https://www.w3.org/TR/css-flexbox-1/#flex-flow-property)
+*   [flex-grow](https://www.w3.org/TR/css-flexbox-1/#propdef-flex-grow)
+*   [flex-shrink](https://www.w3.org/TR/css-flexbox-1/#propdef-flex-shrink)
+*   [flex-wrap](https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property)
 *   [font](https://www.w3.org/TR/css-fonts-3/#font-prop)
 *   [@font-face](https://www.w3.org/TR/css-fonts-3/#font-face-rule)
 *   [font-family](https://www.w3.org/TR/css-fonts-3/#propdef-font-family)
 *   [font-size](https://www.w3.org/TR/css-fonts-3/#font-size-prop)
 *   [font-style](https://www.w3.org/TR/css-fonts-3/#font-style-prop)
 *   [font-weight](https://www.w3.org/TR/css-fonts-3/#font-weight-prop)
+*   [justify-content](
+    https://www.w3.org/TR/css-flexbox-1/#propdef-justify-content)
 *   [line-height](https://www.w3.org/TR/CSS2/visudet.html#propdef-line-height)
 *   [margin](https://www.w3.org/TR/CSS21/box.html#margin-properties),
     [margin-top](https://www.w3.org/TR/CSS21/box.html#margin-properties),
@@ -58,6 +76,7 @@ title: "Cobalt Support Quick Reference"
     [max-width](https://www.w3.org/TR/CSS2/visudet.html#min-max-widths)
 *   [@media](https://www.w3.org/TR/css3-mediaqueries/)
 *   [opacity](https://www.w3.org/TR/css3-color/#transparency)
+*   [order](https://www.w3.org/TR/css-flexbox-1/#order-property)
 *   [overflow](https://www.w3.org/TR/CSS2/visufx.html#overflow)
 *   [padding](https://www.w3.org/TR/CSS21/box.html#padding-properties),
     [padding-top](https://www.w3.org/TR/CSS21/box.html#padding-properties),
@@ -123,17 +142,28 @@ title: "Cobalt Support Quick Reference"
 *   [CSSOM View](https://www.w3.org/TR/cssom-view-1/)
     (no scrolling, moving, resizing)
 *   `Console.log`
+*   [CORS](https://www.w3.org/TR/2020/SPSD-cors-20200602/)
 *   [DOM4](http://www.w3.org/TR/dom/) (partial)
 *   [EncryptedMedia Extensions v0.1b](
     https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html) (unprefixed)
+*   [Fetch](
+    https://www.w3.org/TR/cors/) (supports text(), JSON(), arrayBuffer(), types)
 *   `Image` (for preloading and caching only)
+*   [Intersection Observer](https://www.w3.org/TR/intersection-observer/)
+*   [Media Session](https://www.w3.org/TR/mediasession/)
 *   [Media Source Extensions, Editor's Draft 09 August 2012](
     https://rawgit.com/w3c/media-source/6747ed7a3206f646963d760100b0f37e2fc7e47e/media-source.html)
+*   [Streams API](https://www.w3.org/TR/streams-api/)
+*   [SubtleCrypto](https://www.w3.org/TR/WebCryptoAPI/#subtlecrypto-interface)
 *   [Typed Arrays](
     https://www.khronos.org/registry/typedarray/specs/latest/) (partial)
 *   [URL](https://url.spec.whatwg.org/#api) (partial)
 *   [Web Audio API](https://www.w3.org/TR/webaudio/) (partial)
 *   [Web Storage API](https://www.w3.org/TR/webstorage/)
+*   [WebIDL Level 2](http://dev.w3.org/2006/webapi/WebIDL/)
+*   [WebSocket API](https://www.w3.org/TR/websockets/)
+*   [`window.atob()` and `window.btoa()`](
+    https://html.spec.whatwg.org/multipage/webappapis.html#dom-windowbase64-btoa)
 *   [XMLHttpRequest Level 1](http://www.w3.org/TR/XMLHttpRequest/)
 
 ## Protocols
@@ -142,6 +172,8 @@ title: "Cobalt Support Quick Reference"
 *   h5vcc-embedded: (for embedded resources)
 *   [Content Security Policy Level 2](https://www.w3.org/TR/CSP2/)
     in HTTP headers is _required_, and report-only is disabled.
+*   QUIC
+*   SPDY
 
 ## Media formats
 
@@ -154,12 +186,16 @@ title: "Cobalt Support Quick Reference"
 
 ### Encodings (depending on platform support)
 
+*   16-bit stereo PCM audio (for sound effects)
 *   AAC
+*   AV1
 *   AVC (H.264) at 1080p/60fps ([Level
     4.2](https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels))
+*   Dolby Digital (AC-3)
+*   Dolby Digital Plus (Enhanced AC-3, or EAC-3)
+*   HEVC (H.265)
 *   VP8/Vorbis
 *   VP9/Opus
-*   16-bit stereo PCM audio (for sound effects)
 
 ### Images
 

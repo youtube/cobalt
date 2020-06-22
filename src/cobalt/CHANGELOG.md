@@ -86,6 +86,17 @@ This document records all notable changes made to Cobalt since the last release.
    version from 2.6.2 to 2.10.2. For a full list of FreeType updates included in
    this change, visit www.freetype.org.
 
+ - **Added support for Lottie animations.**
+
+   Cobalt can now embed and play Lottie animations
+   (https://airbnb.design/lottie/), i.e. animations created in Adobe After
+   Effects and exported to JSON via the Bodymovin plugin. These animations
+   improve the user experience and can readily be incorporated into apps as if
+   they were static images. Cobalt implements a "lottie-player" custom element
+   with a playback API modeled after the Lottie Web Player
+   (https://lottiefiles.com/web-player). In order to support Lottie, Cobalt
+   updated its Skia port from m61 to m79.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
