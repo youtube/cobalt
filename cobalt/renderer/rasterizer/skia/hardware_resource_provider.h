@@ -146,7 +146,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // commands, such as during the creation of an image.  If the message loop
   // is NULL, we will try to issue the graphics commands from the current
   // thread.
-  base::MessageLoop* self_message_loop_;
+  scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner_;
 };
 
 }  // namespace skia
