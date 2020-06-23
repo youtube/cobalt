@@ -26,6 +26,7 @@ class BASE_EXPORT RefCountedBase {
  public:
   bool HasOneRef() const { return ref_count_ == 1; }
   bool HasAtLeastOneRef() const { return ref_count_ >= 1; }
+  int RefCounts() const { return ref_count_; }
 
  protected:
   explicit RefCountedBase(StartRefCountFromZeroTag) {

@@ -132,6 +132,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
     explicit DestructionHelper(v8::Isolate* isolate) : isolate_(isolate) {}
     ~DestructionHelper();
 
+    script::Wrappable* global_wrappable_;
+    WrapperFactory* wrapper_factory_;
+
    private:
     v8::Isolate* isolate_;
   };
@@ -162,10 +165,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   // destruct.  Were we to not do this, finalizers can run in the order (e.g.)
   // document window, which the Cobalt DOM does not support.
   scoped_refptr<Wrappable> global_wrappable_;
+  std::unique_ptr<WrapperFactory> wrapper_factory_;
   DestructionHelper destruction_helper_;
   v8::Global<v8::Context> context_;
 
-  std::unique_ptr<WrapperFactory> wrapper_factory_;
   std::unique_ptr<V8cScriptValueFactory> script_value_factory_;
 
   // Data that is cached on a per-interface basis. Note that we can get to
