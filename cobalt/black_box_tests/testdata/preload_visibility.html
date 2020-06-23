@@ -19,6 +19,7 @@
     function handleVisibilityChange() {
       assertEqual("visible", document.visibilityState);
       assertTrue(document.hasFocus());
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       onEndTest();
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
