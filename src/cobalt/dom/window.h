@@ -132,7 +132,7 @@ class Window : public EventTarget,
 
   Window(
       script::EnvironmentSettings* settings,
-      const cssom::ViewportSize& view_size, float device_pixel_ratio,
+      const cssom::ViewportSize& view_size,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
@@ -266,7 +266,9 @@ class Window : public EventTarget,
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
-  float device_pixel_ratio() const { return device_pixel_ratio_; }
+  float device_pixel_ratio() const {
+    return viewport_size_.device_pixel_ratio();
+  }
 
   // Web API: GlobalCrypto (implements)
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
@@ -347,7 +349,7 @@ class Window : public EventTarget,
       const SynchronousLayoutAndProduceRenderTreeCallback&
           synchronous_layout_callback);
 
-  void SetSize(cssom::ViewportSize size, float device_pixel_ratio);
+  void SetSize(cssom::ViewportSize size);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
@@ -424,8 +426,6 @@ class Window : public EventTarget,
   void FireHashChangeEvent();
 
   cssom::ViewportSize viewport_size_;
-
-  float device_pixel_ratio_;
 
   // A resize event can be pending if a resize occurs and the current visibility
   // state is not visible. In this case, the resize event will run when the

@@ -21,27 +21,34 @@
 
 #include "starboard/configuration.h"
 
-// SB_EXPORT: Specification for a symbol that should be exported when building
-// the DLL and imported when building code that uses the DLL.
-
-// SB_EXPORT_PRIVATE: Specification for a symbol that should be exported or
-// imported for testing purposes only.
-
-// SB_IMPORT: Specification for a symbol that is expected to be defined
-// externally to this module.
-
-#if defined(COMPONENT_BUILD) || SB_IS(EVERGREEN)
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
+//
+// SB_IS_EVERGREEN is defined when the binaries generated will be composed
+// entirely of the Starboard implementation and will provide the Starboard API,
+// with all client applications being built separately.
 
-#if defined(STARBOARD_IMPLEMENTATION)
+#if defined(COMPONENT_BUILD) || SB_IS(EVERGREEN)
+
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
 // Starboard.
+
+#if defined(STARBOARD_IMPLEMENTATION)
+
+// Specification for a symbol that should be exported when building the DLL and
+// imported when building code that uses the DLL.
 #define SB_EXPORT SB_EXPORT_PLATFORM
+
+// Specification for a symbol that should be exported or imported for testing
+// purposes only.
 #define SB_EXPORT_PRIVATE SB_EXPORT_PLATFORM
+
+// Specification for a symbol that is expected to be defined externally to this
+// module.
 #define SB_IMPORT SB_IMPORT_PLATFORM
+
 #else  // defined(STARBOARD_IMPLEMENTATION)
 #define SB_EXPORT SB_IMPORT_PLATFORM
 #define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM

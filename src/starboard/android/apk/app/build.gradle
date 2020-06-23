@@ -40,8 +40,8 @@ ext {
 println "TARGET: ${cobaltTarget}"
 
 android {
-    compileSdkVersion 'android-R'
-    buildToolsVersion '30.0.0-rc4'  // TODO: Update with release version.
+    compileSdkVersion 'android-30'
+    buildToolsVersion '30.0.0'
     ndkVersion NDK_VERSION
 
     aaptOptions {

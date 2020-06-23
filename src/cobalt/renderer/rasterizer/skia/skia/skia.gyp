@@ -27,10 +27,35 @@
       # Skia's core code from the Skia repository.
       'target_name': 'skia_library',
       'type': 'static_library',
+      'dependencies': [
+        'skia_library_no_asan',
+      ],
       'includes': [
         'skia_common.gypi',
         'skia_library.gypi',
         'skia_sksl.gypi',
+      ],
+    },
+
+    {
+      # Skia's core code from the Skia repository that should be compiled
+      # without ASAN. This is done to avoid drastic slowdown in debug unit
+      # tests.
+      'target_name': 'skia_library_no_asan',
+      'type': 'static_library',
+      'includes': [
+        'skia_common.gypi',
+        '<(DEPTH)/third_party/skia/gyp/effects_imagefilters.gypi',
+      ],
+      'sources': [
+        '<@(skia_effects_imagefilter_sources_no_asan)',
+      ],
+      'target_conditions': [
+        ['use_asan==1 and cobalt_config=="debug"', {
+          'cflags!': [
+            '-fsanitize=address',
+          ],
+        }],
       ],
     },
 

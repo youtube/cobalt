@@ -44,6 +44,10 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
 
  private:
+  void UpdateAnimationFrameAndAnimateFunctionTimes(
+      base::TimeDelta current_animation_time,
+      base::TimeDelta current_animate_function_time);
+
   sk_sp<skottie::Animation> skottie_animation_;
   math::Size animation_size_;
   uint32 json_size_in_bytes_;
@@ -77,7 +81,7 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   base::TimeDelta last_updated_animate_function_time_;
 
   // The most recently updated frame time for |skottie_animation_|.
-  base::TimeDelta current_animation_time_;
+  base::TimeDelta last_updated_animation_time_;
 };
 
 }  // namespace skia

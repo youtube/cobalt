@@ -109,14 +109,18 @@ base::Version Configurator::GetBrowserVersion() const {
 std::string Configurator::GetBrand() const { return {}; }
 
 std::string Configurator::GetLang() const {
-  std::string locale_id(SbSystemGetLocaleId());
+  const char* locale_id = SbSystemGetLocaleId();
+  if (!locale_id) {
+    return "";
+  }
+  std::string locale_string(locale_id);
   // POSIX platforms put time zone id at the end of the locale id, like
   // |en_US.UTF8|. We remove the time zone id.
-  int first_dot = locale_id.find_first_of(".");
+  int first_dot = locale_string.find_first_of(".");
   if (first_dot != std::string::npos) {
-    return locale_id.substr(0, first_dot);
+    return locale_string.substr(0, first_dot);
   }
-  return locale_id;
+  return locale_string;
 }
 
 std::string Configurator::GetOSLongName() const {

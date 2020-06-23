@@ -17,8 +17,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "starboard/shared/starboard/player/file_cache_reader.h"
-
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -93,19 +91,59 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-VideoDmpReader::VideoDmpReader(const char* filename)
-    : reverse_byte_order_(false) {
-  FileCacheReader reader(filename, 1024 * 1024);
-  int64_t file_size = reader.GetSize();
-  SB_CHECK(file_size >= 0);
-  read_cb_ = std::bind(&FileCacheReader::Read, &reader, _1, _2);
+bool VideoDmpReader::Registry::GetDmpInfo(const char* filename,
+                                          DmpInfo* dmp_info) const {
+  SB_DCHECK(filename);
+  SB_DCHECK(dmp_info);
+
+  ScopedLock scoped_lock(mutex_);
+  auto iter = dmp_infos_.find(filename);
+  if (iter == dmp_infos_.end()) {
+    return false;
+  }
+  *dmp_info = iter->second;
+  return true;
+}
+
+void VideoDmpReader::Registry::Register(const char* filename,
+                                        const DmpInfo& dmp_info) {
+  SB_DCHECK(filename);
+
+  ScopedLock scoped_lock(mutex_);
+  SB_DCHECK(dmp_infos_.find(filename) == dmp_infos_.end());
+  dmp_infos_[filename] = dmp_info;
+}
+
+VideoDmpReader::VideoDmpReader(
+    const char* filename,
+    ReadOnDemandOptions read_on_demand_options /*= kDisableReadOnDemand*/)
+    : file_reader_(filename, 1024 * 1024),
+      read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
+      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
+  bool already_cached = GetRegistry()->GetDmpInfo(filename, &dmp_info_);
+
+  if (already_cached && allow_read_on_demand_) {
+    // This is necessary as the current implementation assumes that the address
+    // of any access units are never changed during the life time of the object,
+    // and keep using it without explicit reference.
+    audio_access_units_.reserve(dmp_info_.audio_access_units_size);
+    video_access_units_.reserve(dmp_info_.video_access_units_size);
+    return;
+  }
+
   Parse();
+
+  if (!already_cached) {
+    GetRegistry()->Register(filename, dmp_info_);
+  }
 }
 
 VideoDmpReader::~VideoDmpReader() {}
 
 SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
-                                                       size_t index) const {
+                                                       size_t index) {
+  EnsureSampleLoaded(type, index);
+
   switch (type) {
     case kSbMediaTypeAudio: {
       SB_DCHECK(index < audio_access_units_.size());
@@ -122,71 +160,91 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   return SbPlayerSampleInfo();
 }
 
-const SbMediaAudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(
-    size_t index) const {
+const SbMediaAudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
+  EnsureSampleLoaded(kSbMediaTypeAudio, index);
+
   SB_DCHECK(index < audio_access_units_.size());
   const AudioAccessUnit& au = audio_access_units_[index];
   return au.audio_sample_info();
 }
 
-void VideoDmpReader::Parse() {
+void VideoDmpReader::ParseHeader(uint32_t* dmp_writer_version) {
+  SB_DCHECK(dmp_writer_version);
+  SB_DCHECK(!reverse_byte_order_.has_engaged());
+
+  int64_t file_size = file_reader_.GetSize();
+  SB_CHECK(file_size >= 0);
+
   reverse_byte_order_ = false;
   uint32_t byte_order_mark;
-  Read(read_cb_, reverse_byte_order_, &byte_order_mark);
+  Read(read_cb_, reverse_byte_order_.value(), &byte_order_mark);
   if (byte_order_mark != kByteOrderMark) {
     std::reverse(reinterpret_cast<uint8_t*>(&byte_order_mark),
                  reinterpret_cast<uint8_t*>(&byte_order_mark + 1));
-    SB_DCHECK(byte_order_mark == kByteOrderMark);
-    if (byte_order_mark != kByteOrderMark) {
-      SB_LOG(ERROR) << "Invalid BOM" << byte_order_mark;
-      return;
-    }
+    SB_CHECK(byte_order_mark == kByteOrderMark);
     reverse_byte_order_ = true;
   }
-  uint32_t dmp_writer_version;
-  Read(read_cb_, reverse_byte_order_, &dmp_writer_version);
-  if (dmp_writer_version != kSupportWriterVersion) {
+
+  Read(read_cb_, reverse_byte_order_.value(), dmp_writer_version);
+}
+
+bool VideoDmpReader::ParseOneRecord() {
+  uint32_t type;
+  int bytes_read = read_cb_(&type, sizeof(type));
+  if (bytes_read != sizeof(type)) {
+    // Read an invalid number of bytes (corrupt file), or we read zero bytes
+    // (end of file).  Return false to signal the end of reading.
+    return false;
+  }
+  if (reverse_byte_order_.value()) {
+    std::reverse(reinterpret_cast<uint8_t*>(&type),
+                 reinterpret_cast<uint8_t*>(&type + 1));
+  }
+  switch (type) {
+    case kRecordTypeAudioConfig:
+      Read(read_cb_, reverse_byte_order_.value(), &dmp_info_.audio_codec);
+      if (dmp_info_.audio_codec != kSbMediaAudioCodecNone) {
+        Read(read_cb_, reverse_byte_order_.value(),
+             &dmp_info_.audio_sample_info);
+      }
+      break;
+    case kRecordTypeVideoConfig:
+      Read(read_cb_, reverse_byte_order_.value(), &dmp_info_.video_codec);
+      break;
+    case kRecordTypeAudioAccessUnit:
+      audio_access_units_.push_back(ReadAudioAccessUnit());
+      break;
+    case kRecordTypeVideoAccessUnit:
+      video_access_units_.push_back(ReadVideoAccessUnit());
+      break;
+    default:
+      SB_NOTREACHED() << type;
+      return false;
+  }
+
+  return true;
+}
+
+void VideoDmpReader::Parse() {
+  SB_DCHECK(!reverse_byte_order_.has_engaged());
+
+  uint32_t dmp_writer_version = 0;
+  ParseHeader(&dmp_writer_version);
+  if (dmp_writer_version != kSupportedWriterVersion) {
     SB_LOG(ERROR) << "Unsupported input dmp file(" << dmp_writer_version
                   << "). Please regenerate dmp files with"
                   << " right dmp writer. Currently support version "
-                  << kSupportWriterVersion << ".";
+                  << kSupportedWriterVersion << ".";
     return;
   }
-  for (;;) {
-    uint32_t type;
-    int bytes_read = read_cb_(&type, sizeof(type));
-    if (bytes_read != sizeof(type)) {
-      // Read an invalid number of bytes (corrupt file), or we read zero bytes
-      // (end of file).
-      break;
-    }
-    if (reverse_byte_order_) {
-      std::reverse(reinterpret_cast<uint8_t*>(&type),
-                   reinterpret_cast<uint8_t*>(&type + 1));
-    }
-    switch (type) {
-      case kRecordTypeAudioConfig:
-        Read(read_cb_, reverse_byte_order_, &audio_codec_);
-        if (audio_codec_ != kSbMediaAudioCodecNone) {
-          Read(read_cb_, reverse_byte_order_, &audio_sample_info_);
-        }
-        break;
-      case kRecordTypeVideoConfig:
-        Read(read_cb_, reverse_byte_order_, &video_codec_);
-        break;
-      case kRecordTypeAudioAccessUnit:
-        audio_access_units_.push_back(ReadAudioAccessUnit());
-        break;
-      case kRecordTypeVideoAccessUnit:
-        video_access_units_.push_back(ReadVideoAccessUnit());
-        break;
-      default:
-        SB_NOTREACHED() << type;
-        break;
-    }
+
+  while (ParseOneRecord()) {
   }
-  audio_bitrate_ = CalculateAverageBitrate(audio_access_units_);
-  video_bitrate_ = CalculateAverageBitrate(video_access_units_);
+
+  dmp_info_.audio_access_units_size = audio_access_units_.size();
+  dmp_info_.audio_bitrate = CalculateAverageBitrate(audio_access_units_);
+  dmp_info_.video_access_units_size = video_access_units_.size();
+  dmp_info_.video_bitrate = CalculateAverageBitrate(video_access_units_);
 
   // Guestimate the video fps.
   if (video_access_units_.size() > 1) {
@@ -199,29 +257,48 @@ void VideoDmpReader::Parse() {
       }
     }
     SB_DCHECK(first_timestamp < second_timestamp);
-    video_fps_ = kSbTimeSecond / (second_timestamp - first_timestamp);
+    dmp_info_.video_fps = kSbTimeSecond / (second_timestamp - first_timestamp);
+  }
+}
+
+void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
+  if (!reverse_byte_order_.has_engaged()) {
+    uint32_t dmp_writer_version = 0;
+    ParseHeader(&dmp_writer_version);
+    SB_DCHECK(dmp_writer_version == kSupportedWriterVersion);
+  }
+
+  if (type == kSbMediaTypeAudio) {
+    while (index >= audio_access_units_.size() && ParseOneRecord()) {
+    }
+    SB_CHECK(index < audio_access_units_.size());
+  } else {
+    SB_DCHECK(type == kSbMediaTypeVideo);
+    while (index >= video_access_units_.size() && ParseOneRecord()) {
+    }
+    SB_CHECK(index < video_access_units_.size());
   }
 }
 
 VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
   SbTime timestamp;
-  Read(read_cb_, reverse_byte_order_, &timestamp);
+  Read(read_cb_, reverse_byte_order_.value(), &timestamp);
 
   bool drm_sample_info_present;
-  Read(read_cb_, reverse_byte_order_, &drm_sample_info_present);
+  Read(read_cb_, reverse_byte_order_.value(), &drm_sample_info_present);
 
   SbDrmSampleInfoWithSubSampleMapping drm_sample_info;
   if (drm_sample_info_present) {
-    Read(read_cb_, reverse_byte_order_, &drm_sample_info);
+    Read(read_cb_, reverse_byte_order_.value(), &drm_sample_info);
   }
 
   uint32_t size;
-  Read(read_cb_, reverse_byte_order_, &size);
+  Read(read_cb_, reverse_byte_order_.value(), &size);
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
   SbMediaAudioSampleInfoWithConfig audio_sample_info;
-  Read(read_cb_, reverse_byte_order_, &audio_sample_info);
+  Read(read_cb_, reverse_byte_order_.value(), &audio_sample_info);
 
   return AudioAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
@@ -230,27 +307,33 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
 
 VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   SbTime timestamp;
-  Read(read_cb_, reverse_byte_order_, &timestamp);
+  Read(read_cb_, reverse_byte_order_.value(), &timestamp);
 
   bool drm_sample_info_present;
-  Read(read_cb_, reverse_byte_order_, &drm_sample_info_present);
+  Read(read_cb_, reverse_byte_order_.value(), &drm_sample_info_present);
 
   SbDrmSampleInfoWithSubSampleMapping drm_sample_info;
   if (drm_sample_info_present) {
-    Read(read_cb_, reverse_byte_order_, &drm_sample_info);
+    Read(read_cb_, reverse_byte_order_.value(), &drm_sample_info);
   }
 
   uint32_t size;
-  Read(read_cb_, reverse_byte_order_, &size);
+  Read(read_cb_, reverse_byte_order_.value(), &size);
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
   SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info;
-  Read(read_cb_, reverse_byte_order_, &video_sample_info);
+  Read(read_cb_, reverse_byte_order_.value(), &video_sample_info);
 
   return VideoAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data), video_sample_info);
+}
+
+// static
+VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
+  static Registry s_registry;
+  return &s_registry;
 }
 
 }  // namespace video_dmp

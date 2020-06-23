@@ -40,13 +40,11 @@ Chromium, FireFox, and IE:
     on even a budget desktop computer. Minor performance concerns can be greatly
     exaggerated, which seriously affects priorities.
   * **Fewer cores.** CE System-on-a-Chip (SoC) processors often do not have as
-    many processor cores as we are used to in modern computers. Many deployed
-    devices still only have a single core.
-  * **Sometimes No GPU.** Not all CE devices have a monster GPU to throw shaders
-    at to offload CPU work. A different strategy is required to maximize
-    leverage of an accelerated blitter, which is all some older devices
-    have. Some newer CE devices have a GPU, but it's not nearly as powerful as
-    what one would even see on a laptop.
+    many processor cores as we are used to in modern computers.
+  * **Minimal GPU.** Not all CE devices have a monster GPU to throw shaders at
+    to offload CPU work. As CE devices now have a standard GPU (though not
+    nearly as powerful as even a laptop), OpenGL ES 2.0 is now required
+    by Cobalt.
   * **Sometimes No JIT.** Many CE devices are dealing with "High-Value Content,"
     and, as such, are very sensitive to security concerns. Ensuring that
     writable pages are not executable is a strong security protocol that can
@@ -55,8 +53,8 @@ Chromium, FireFox, and IE:
   * **Heterogenous Development Environments.** This is slowly evening out, but
     all CE devices run on custom hardware, often with proprietary methods of
     building, packaging, deploying, and running programs. Almost all CE devices
-    have ARM or MIPS processors instead of the more familiar x86. Sometimes the
-    toolchain doesn't support contemporary C++11 features. Sometimes the OS
+    have ARM processors instead of the more familiar x86. Sometimes the
+    toolchain doesn't support contemporary C++11/14 features. Sometimes the OS
     isn't POSIX, or it tries to be, but it is only partially implemented.
     Sometimes the program entry point is in another language or architecture
     that requires a "trampoline" over to native binary code.
@@ -97,13 +95,11 @@ application to a low-level platform order:
     incremental layouts can be sped up.
   * **Renderer/Skia** - The Renderer walks a Render Tree produced by the Layout
     Engine, rasterizes it using the third-party graphics library Skia, and swaps
-    it to the front buffer. There are two major paths here, one using Hardware
-    Skia on OpenGL ES 2.0, and one using Software Skia combined with the
-    hardware-accelerated Starboard Blitter. Note that the renderer runs in a
-    different thread from the Layout Engine, and can interpolate animations that
-    do not require re-layout. This decouples rendering from Layout and
-    JavaScript, allowing for smooth, consistent animations on platforms with a
-    variety of capabilities.
+    it to the front buffer. This is accomplished using Hardware Skia on OpenGL
+    ES 2.0. Note that the renderer runs in a different thread from the Layout
+    Engine, and can interpolate animations that do not require re-layout. This
+    decouples rendering from Layout and JavaScript, allowing for smooth,
+    consistent animations on platforms with a variety of capabilities.
   * **Net / Media** - These are Chromium's Network and Media engines. We are
     using them directly, as they don't cause any particular problems with the
     extra constraints listed above.
@@ -129,22 +125,16 @@ application to a low-level platform order:
     to GLES2. **ANGLE** Is a third-party library that adapts DirectX to GLES2,
     similar to Glimp, but only for DirectX.
 
-Cobalt is like a flaky layered pastry - perhaps Baklava. It shouldn't be too
-difficult to rip the Web Implementation and Layout off the top, and just use the
-Renderer, or even to just use Base + Starboard + GLES2 as the basis of a new
-project.
-
-
 ## The Cobalt Subset
 
 > Oh, we got both kinds of HTML tags,\
-> we got `<span>` and `<div>`!
+> we got `<span>` and `<div>`! \
+> We even have CSS Flexbox now, hooray!
 
-See the [Cobalt Subset specification](TODO) for more details on which tags,
-properties, and Web APIs are supported in Cobalt.
-
-*More to come.*
-
+See the [Cobalt Subset
+specification](https://cobalt.dev/development/reference/supported-features.html)
+for more details on which tags, properties, and Web APIs are supported in
+Cobalt.
 
 ## Interesting Source Locations
 
@@ -162,6 +152,9 @@ All source locations are specified relative to `src/` (this directory).
       * `cobalt/build/` - The core build generation system, `gyp_cobalt`, and
         configurations for supported platforms. (NOTE: This should eventually be
         mostly moved into `starboard/`.)
+      * `cobalt/doc/` - Contains a wide range of detailed information and guides
+        on Cobalt features, functionality and best practices for Cobalt
+        development.
       * `cobalt/media/` - Chromium's Media library. Contains all the code that
         parses, processes, and manages buffers of video and audio data. It
         send the buffers to the SbPlayer implementation for playback.
@@ -178,63 +171,11 @@ All source locations are specified relative to `src/` (this directory).
 
 ## Building and Running the Code
 
-Here's a quick and dirty guide to get to build the code on Linux.
+  See the below reference port setup guides for more details:
 
-  1. Pull `depot_tools` into your favorite directory. It has been slightly
-     modified from Chromium's `depot_tools`.
-
-         git clone https://cobalt.googlesource.com/depot_tools
-
-  2. Add that directory to the end of your `$PATH`.
-  3. Ensure you have these packages installed:
-
-         sudo apt-get install libgles2-mesa-dev libpulse-dev libavformat-dev \
-         libavresample-dev libasound2-dev libxrender-dev libxcomposite-dev
-
-  4. Ensure you have the standard C++ header files installed
-     (e.g. `libstdc++-4.8-dev`).
-  5. For now, we also require ruby:
-
-         sudo apt-get install ruby
-
-  6. Remove bison-3 and install bison-2.7. (NOTE: We plan on moving to bison-3
-     in the future.)
-
-         $ sudo apt-get remove bison
-         $ sudo apt-get install m4
-         $ wget http://ftp.gnu.org/gnu/bison/bison-2.7.1.tar.gz
-         $ tar zxf bison-2.7.1.tar.gz
-         $ cd bison-2.7.1
-         $ sh configure && make && sudo make install
-         $ which bison
-         /usr/local/bin/bison
-         $ bison --version
-         bison (GNU Bison) 2.7.12-4996
-
-  7. (From this directory) run GYP:
-
-         cobalt/build/gyp_cobalt -C debug linux-x64x11
-
-  8. Run Ninja:
-
-         ninja -C out/linux-x64x11_debug cobalt
-
-  9. Run Cobalt:
-
-         out/linux-x64x11_debug/cobalt [--url=<url>]
-
-      * If you want to connect to an `https` host that doesn't have a
-        certificate validatable by our set of root CAs, you must pass the
-        `--ignore_certificate_errors` flag to the Cobalt command-line.
-      * Cobalt requires that the HTML5 content be fetched over HTTPS and
-        enforces CSP when compiled in the "gold" configuration. However, if
-        CSP is served in other builds, Cobalt still respects it. Currently
-        Cobalt is at CSP level 2.
-      * When the HTML5 content is served with a special "h5vcc-location-src"
-        CSP directive, a navigation jail is enabled in Cobalt that cannot be
-        disabled via Cobalt options.
-      * See [`cobalt/browser/switches.cc`](cobalt/browser/switches.cc) for more
-        command-line options.
+  * [Linux](cobalt/site/docs/development/setup-linux.md)
+  * [Raspi](cobalt/site/docs/development/setup-raspi.md)
+  * [Android](cobalt/site/docs/development/setup-android.md)
 
 
 ## Build Types
@@ -253,12 +194,6 @@ most optimized, and with the least debug information at the bottom (gold):
 When building for release, you should always use a gold build for the final
 product.
 
-    $ cobalt/build/gyp_cobalt -C gold linux-x64x11
-    $ ninja -C out/linux-x64x11_gold cobalt
-    $ out/linux-x64x11_gold/cobalt
-
-
 ## Origin of this Repository
 
 This is a fork of the chromium repository at http://git.chromium.org/git/chromium.git
-

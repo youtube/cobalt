@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/message_loop/message_loop.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
@@ -52,6 +53,8 @@ class LottiePlayer : public HTMLElement {
   void set_src(const std::string& src);
   bool autoplay() const;
   void set_autoplay(bool loop);
+  std::string background() const;
+  void set_background(std::string background);
   int count() const;
   void set_count(int count);
   int direction() const;
@@ -122,11 +125,17 @@ class LottiePlayer : public HTMLElement {
   void ScheduleEvent(base::Token event_name);
   void SetAnimationEventCallbacks();
 
+  // These are callbacks triggered during animation playback.
   void OnPlay();
   void OnPause();
   void OnStop();
   void OnComplete();
   void OnLoop();
+  void OnEnterFrame(double frame, double seeker);
+  static void CallOnEnterFrame(
+      scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+      base::Callback<void(double, double)> enter_frame_callback, double frame,
+      double seeker);
 
   scoped_refptr<loader::image::CachedImage> cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
@@ -141,6 +150,7 @@ class LottiePlayer : public HTMLElement {
   LottieAnimation::LottieProperties properties_;
 
   EventQueue event_queue_;
+  scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner_;
 };
 
 }  // namespace dom

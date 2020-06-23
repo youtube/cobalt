@@ -23,44 +23,18 @@
 "Starboard API version."
 #endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
 
-// Configuration parameters that allow the application to make some general
-// compile-time decisions with respect to the the number of cores likely to be
-// available on this platform. For a definitive measure, the application should
-// still call SbSystemGetNumberOfProcessors at runtime.
-
-// Whether the current platform's thread scheduler will automatically balance
-// threads between cores, as opposed to systems where threads will only ever run
-// on the specifically pinned core.
-#define SB_HAS_CROSS_CORE_SCHEDULER 1
+// --- Architecture Configuration --------------------------------------------
 
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
 // emulated in starboard/types.h.
 
-// Whether the current platform provides the standard header stdarg.h.
-#define SB_HAS_STDARG_H 1
-
-// Whether the current platform provides the standard header stdbool.h.
-#define SB_HAS_STDBOOL_H 1
-
-// Whether the current platform provides the standard header stddef.h.
-#define SB_HAS_STDDEF_H 1
-
-// Whether the current platform provides the standard header stdint.h.
-#define SB_HAS_STDINT_H 1
-
-// Whether the current platform provides the standard header inttypes.h.
-#define SB_HAS_INTTYPES_H 1
-
 // Whether the current platform provides the standard header sys/types.h.
 #define SB_HAS_SYS_TYPES_H 1
 
-// Whether the current platform provides the standard header limits.h.
-#define SB_HAS_LIMITS_H 1
-
-// Whether the current platform provides the standard header float.h.
-#define SB_HAS_FLOAT_H 1
+// Whether the current platform provides ssize_t.
+#define SB_HAS_SSIZE_T 1
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
@@ -71,12 +45,10 @@
 #define SB_IS_WCHAR_T_UTF16 1
 #endif
 
-// Chrome only defines these two if ARMEL or MIPSEL are defined.
+// Chrome only defines this for ARMEL.
 #if defined(__ARMEL__)
 // Chrome has an exclusion for iOS here, we should too when we support iOS.
 #define SB_IS_WCHAR_T_UNSIGNED 1
-#elif defined(__MIPSEL__)
-#define SB_IS_WCHAR_T_SIGNED 1
 #endif
 
 // --- Attribute Configuration -----------------------------------------------
@@ -133,9 +105,6 @@
 
 // The location to include hash_set on this platform.
 #define SB_HASH_SET_INCLUDE <ext/hash_set>
-
-// Define this to how this platform copies varargs blocks.
-#define SB_VA_COPY(dest, source) va_copy(dest, source)
 
 // --- Graphics Configuration ------------------------------------------------
 

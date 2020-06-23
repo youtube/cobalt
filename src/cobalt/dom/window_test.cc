@@ -63,12 +63,11 @@ class WindowTest : public ::testing::Test {
 
     ViewportSize view_size(1920, 1080);
     window_ = new Window(
-        environment_settings_.get(), view_size, 1.f,
-        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        &local_storage_database_, NULL, NULL, NULL, NULL,
-        global_environment_->script_value_factory(), NULL, NULL, url_, "",
-        "en-US", "en", base::Callback<void(const GURL &)>(),
+        environment_settings_.get(), view_size, base::kApplicationStateStarted,
+        css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(), NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
+        NULL, NULL, NULL, global_environment_->script_value_factory(), NULL,
+        NULL, url_, "", "en-US", "en", base::Callback<void(const GURL &)>(),
         base::Bind(&MockErrorCallback::Run,
                    base::Unretained(&mock_error_callback_)),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,

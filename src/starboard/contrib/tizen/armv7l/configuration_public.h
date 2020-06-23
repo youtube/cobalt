@@ -34,12 +34,6 @@
 // Whether the current platform is an ARM architecture.
 #define SB_IS_ARCH_ARM 1
 
-// Whether the current platform is a MIPS architecture.
-#define SB_IS_ARCH_MIPS 0
-
-// Whether the current platform is a PPC architecture.
-#define SB_IS_ARCH_PPC 0
-
 // Whether the current platform is an x86 architecture.
 #define SB_IS_ARCH_X86 0
 

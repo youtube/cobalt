@@ -103,7 +103,7 @@ browser::WebModule::LayoutResults SnapshotURL(
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
       NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-      &network_module, viewport_size, 1.f, resource_provider, 60.0f,
+      &network_module, viewport_size, resource_provider, 60.0f,
       web_module_options);
 
   run_loop.Run();

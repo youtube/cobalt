@@ -14,12 +14,15 @@
 
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 
+#include "base/bind.h"
+
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkottieAnimation::SkottieAnimation(const char* data, size_t length) {
+SkottieAnimation::SkottieAnimation(const char* data, size_t length)
+    : last_updated_animation_time_(base::TimeDelta()) {
   skottie::Animation::Builder builder;
   skottie_animation_ = builder.make(data, length);
   animation_size_ = math::Size(skottie_animation_->size().width(),
@@ -35,53 +38,62 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
   // Seeking to a particular frame takes precedence over normal playback.
   // Check whether "seek()" has been called but has yet to occur.
   if (seek_counter_ != properties_.seek_counter) {
+    base::TimeDelta current_animation_time;
     if (properties_.seek_value_is_frame) {
       skottie_animation_->seekFrame(properties_.seek_value);
-      current_animation_time_ = base::TimeDelta::FromSecondsD(
-          properties_.seek_value * skottie_animation_->fps() *
-          skottie_animation_->duration());
+      current_animation_time = base::TimeDelta::FromSecondsD(
+          properties_.seek_value / skottie_animation_->fps());
     } else {
       skottie_animation_->seekFrameTime(properties_.seek_value *
                                         skottie_animation_->duration());
-      current_animation_time_ = base::TimeDelta::FromSecondsD(
+      current_animation_time = base::TimeDelta::FromSecondsD(
           properties_.seek_value * skottie_animation_->duration());
     }
-    last_updated_animate_function_time_ = animate_function_time;
     seek_counter_ = properties_.seek_counter;
     is_complete_ = false;
+    UpdateAnimationFrameAndAnimateFunctionTimes(current_animation_time,
+                                                animate_function_time);
     return;
   }
 
-  // Reset |current_animation_time| to the start of the animation if the
-  // animation is stopped.
+  // Reset the animation time to the start of the animation if the animation is
+  // stopped.
   if (properties_.state == LottieState::kStopped) {
     skottie_animation_->seekFrameTime(0);
-    current_animation_time_ = base::TimeDelta();
-    last_updated_animate_function_time_ = animate_function_time;
     is_complete_ = false;
+    UpdateAnimationFrameAndAnimateFunctionTimes(base::TimeDelta(),
+                                                animate_function_time);
     return;
   }
 
-  // Update |current_animation_time_| if the animation is playing.
-  if (properties_.state == LottieState::kPlaying) {
-    base::TimeDelta time_elapsed =
-        animate_function_time - last_updated_animate_function_time_;
-    current_animation_time_ += time_elapsed * properties_.speed;
+  // Do not update the animation time is the animation is paused.
+  if (properties_.state == LottieState::kPaused) {
+    skottie_animation_->seekFrameTime(
+        last_updated_animation_time_.InSecondsF());
+    UpdateAnimationFrameAndAnimateFunctionTimes(last_updated_animation_time_,
+                                                animate_function_time);
+    return;
   }
 
-  double current_frame_time = current_animation_time_.InSecondsF();
+  DCHECK(properties_.state == LottieState::kPlaying);
+  base::TimeDelta current_animation_time = last_updated_animation_time_;
+  base::TimeDelta time_elapsed =
+      animate_function_time - last_updated_animate_function_time_;
+  current_animation_time += time_elapsed * properties_.speed;
+  base::TimeDelta animation_duration =
+      base::TimeDelta::FromSecondsD(skottie_animation_->duration());
+
   if (properties_.loop) {
     // If the animation mode is "bounce", then the animation should change
     // the direction in which it plays after each loop.
-    int new_loop_count =
-        floor(current_frame_time / skottie_animation_->duration());
+    int new_loop_count = floor(current_animation_time / animation_duration);
 
     // Check whether the number of loops exceeds the limits set by
     // LottieProperties::count.
     // (Note: LottieProperties::count refers to the number of loops after the
     // animation plays once through.)
     if (properties_.count > 0 && new_loop_count > properties_.count) {
-      current_frame_time = skottie_animation_->duration();
+      current_animation_time = animation_duration;
     } else {
       // If the animation should continue playing, check whether the animation
       // has completed and needs to trigger a "loop" and potentially reverse
@@ -94,21 +106,47 @@ void SkottieAnimation::SetAnimationTime(base::TimeDelta animate_function_time) {
           direction_ *= -1;
         }
       }
-      current_frame_time =
-          std::fmod(current_frame_time, skottie_animation_->duration());
+      current_animation_time = base::TimeDelta::FromSecondsD(
+          std::fmod(current_animation_time.InSecondsF(),
+                    animation_duration.InSecondsF()));
     }
     total_loops_ = new_loop_count;
   }
+
   if (direction_ * properties_.direction == -1) {
-    current_frame_time = skottie_animation_->duration() - current_frame_time;
+    current_animation_time = animation_duration - current_animation_time;
   }
-  if (!is_complete_ && current_frame_time > skottie_animation_->duration() &&
+
+  if (!is_complete_ && current_animation_time > animation_duration &&
       !properties_.oncomplete_callback.is_null()) {
     is_complete_ = true;
     properties_.oncomplete_callback.Run();
   }
-  skottie_animation_->seekFrameTime(current_frame_time);
-  last_updated_animate_function_time_ = animate_function_time;
+
+  skottie_animation_->seekFrameTime(current_animation_time.InSecondsF());
+  UpdateAnimationFrameAndAnimateFunctionTimes(current_animation_time,
+                                              animate_function_time);
+}
+
+void SkottieAnimation::UpdateAnimationFrameAndAnimateFunctionTimes(
+    base::TimeDelta current_animation_time,
+    base::TimeDelta current_animate_function_time) {
+  if (current_animation_time == last_updated_animation_time_) {
+    return;
+  }
+
+  // Dispatch a frame event every time a new frame is entered, and if the
+  // animation is not complete.
+  double frame =
+      current_animation_time.InSecondsF() * skottie_animation_->fps();
+  double seeker = current_animation_time.InSecondsF() /
+                  skottie_animation_->duration() * 100;
+  if (!properties_.onenterframe_callback.is_null() && !is_complete_) {
+    properties_.onenterframe_callback.Run(frame, seeker);
+  }
+
+  last_updated_animation_time_ = current_animation_time;
+  last_updated_animate_function_time_ = current_animate_function_time;
 }
 
 }  // namespace skia

@@ -69,6 +69,17 @@
       ],
     },
     {
+      'target_name': 'updater_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'updater_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'updater_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
       'target_name': 'crash_sandbox',
       'type': '<(final_executable_type)',
       'dependencies': [
@@ -79,6 +90,17 @@
       ],
     },
     {
+      'target_name': 'crash_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'crash_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'crash_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
       'target_name': 'noop_sandbox',
       'type': '<(final_executable_type)',
       'dependencies': [
@@ -87,6 +109,17 @@
       'sources': [
         'noop_sandbox.cc',
       ],
+    },
+    {
+      'target_name': 'noop_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'noop_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'noop_sandbox',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ]
 }

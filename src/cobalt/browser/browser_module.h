@@ -192,8 +192,7 @@ class BrowserModule {
 
 #if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
-  void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size,
-                           float video_pixel_ratio);
+  void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size);
 #endif  // SB_API_VERSION >= 8
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
