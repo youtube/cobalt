@@ -42,6 +42,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'cancel_sync_loads_when_suspended',
     'preload_font',
     'preload_visibility',
+    'preload_launch_parameter',
     'signal_handler_doesnt_crash',
     'suspend_visibility',
     'timer_hit_after_preload',
