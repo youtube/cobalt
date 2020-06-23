@@ -28,3 +28,19 @@ THIRD_PARTY_ROOT = os.path.join(REPOSITORY_ROOT, 'third_party')
 
 # The absolute path to the build output directory.
 BUILD_OUTPUT_ROOT = os.path.join(REPOSITORY_ROOT, 'out')
+
+
+def BuildOutputDirectory(platform, config):
+  """Gets the build output directory for the given platform and config."""
+  return os.path.join(BUILD_OUTPUT_ROOT, '%s_%s' % (platform, config))
+
+
+if __name__ == '__main__':
+  # All functionality stored in TestRunPaths() to avoid py-lint from warning'
+  # about shadowing global variables in local functions.
+  def TestRunPaths():
+    print('STARBOARD_ROOT: ' + STARBOARD_ROOT)
+    assert(os.path.isdir(STARBOARD_ROOT))
+
+  TestRunPaths()
+
