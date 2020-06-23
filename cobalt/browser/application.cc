@@ -196,7 +196,7 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
-GURL GetInitialURL() {
+GURL GetInitialURL(bool should_preload) {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -218,6 +218,17 @@ GURL GetInitialURL() {
                  << "\" from parameter is not valid, using default URL "
                  << initial_url;
     }
+  }
+
+  if (should_preload) {
+    std::string query = initial_url.query();
+    if (!query.empty()) {
+      query += "&";
+    }
+    query += "launch=preload";
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(query);
+    initial_url = initial_url.ReplaceComponents(replacements);
   }
 
 #if SB_API_VERSION >= 11
@@ -525,7 +536,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
 
   // Get the initial URL.
-  GURL initial_url = GetInitialURL();
+  GURL initial_url = GetInitialURL(should_preload);
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the fallback splash screen URL.
