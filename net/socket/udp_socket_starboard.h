@@ -98,7 +98,8 @@ class NET_EXPORT UDPSocketStarboardSender
   UDPSocketStarboardSender& operator=(const UDPSocketStarboardSender&) = delete;
 };
 
-class NET_EXPORT UDPSocketStarboard {
+class NET_EXPORT UDPSocketStarboard
+    : public base::MessageLoopCurrentForIO::Watcher {
  public:
   UDPSocketStarboard(DatagramSocket::BindType bind_type,
                      net::NetLog* net_log,
@@ -349,35 +350,9 @@ class NET_EXPORT UDPSocketStarboard {
   DatagramBuffers pending_writes_;
 
  private:
-  class ReadWatcher : public base::MessageLoopCurrentForIO::Watcher {
-   public:
-    explicit ReadWatcher(UDPSocketStarboard* socket) : socket_(socket) {}
-
-    // MessageLoopCurrentForIO::Watcher methods
-
-    void OnSocketReadyToRead(SbSocket socket) override;
-    void OnSocketReadyToWrite(SbSocket socket) override{};
-
-   private:
-    UDPSocketStarboard* const socket_;
-
-    DISALLOW_COPY_AND_ASSIGN(ReadWatcher);
-  };
-
-  class WriteWatcher : public base::MessageLoopCurrentForIO::Watcher {
-   public:
-    explicit WriteWatcher(UDPSocketStarboard* socket) : socket_(socket) {}
-
-    // MessageLoopCurrentForIO::Watcher methods
-
-    void OnSocketReadyToRead(SbSocket socket) override{};
-    void OnSocketReadyToWrite(SbSocket socket) override;
-
-   private:
-    UDPSocketStarboard* const socket_;
-
-    DISALLOW_COPY_AND_ASSIGN(WriteWatcher);
-  };
+  // MessageLoopCurrentForIO::Watcher implementation.
+  void OnSocketReadyToRead(SbSocket socket) override;
+  void OnSocketReadyToWrite(SbSocket socket) override;
 
   int InternalWriteAsync(CompletionOnceCallback callback,
                          const NetworkTrafficAnnotationTag& traffic_annotation);
@@ -442,12 +417,7 @@ class NET_EXPORT UDPSocketStarboard {
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's SbSocketWaiter wrappers
-  base::MessageLoopCurrentForIO::SocketWatcher read_socket_watcher_;
-  base::MessageLoopCurrentForIO::SocketWatcher write_socket_watcher_;
-
-  // The corresponding watchers for reads and writes.
-  ReadWatcher read_watcher_;
-  WriteWatcher write_watcher_;
+  base::MessageLoopCurrentForIO::SocketWatcher socket_watcher_;
 
   // Various bits to support |WriteAsync()|.
   bool write_async_enabled_ = false;
