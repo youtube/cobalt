@@ -35,6 +35,7 @@ namespace filter {
 
 namespace {
 
+const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
 const int kDefaultAudioSinkMaxCachedFrames =
     8 * kDefaultAudioSinkMinFramesPerAppend;
@@ -74,6 +75,10 @@ class PlayerComponentsImpl : public PlayerComponents {
   scoped_ptr<AudioRendererImpl> audio_renderer_;
   scoped_ptr<VideoRendererImpl> video_renderer_;
 };
+
+int AlignUp(int value, int alignment) {
+  return (value + alignment - 1) / alignment * alignment;
+}
 
 }  // namespace
 
@@ -309,6 +314,8 @@ void PlayerComponents::Factory::GetAudioRendererParams(
     int* min_frames_per_append) const {
   SB_DCHECK(max_cached_frames);
   SB_DCHECK(min_frames_per_append);
+  SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
+            0);
   *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
 #if SB_API_VERSION >= 11
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
@@ -325,6 +332,7 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   // need to be larger than |min_frames_required| * 4/3.
   *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
                        kDefaultAudioSinkMinFramesPerAppend;
+  *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 #else   // SB_API_VERSION >= 11
   *max_cached_frames = kDefaultAudioSinkMaxCachedFrames;
 #endif  // SB_API_VERSION >= 11
