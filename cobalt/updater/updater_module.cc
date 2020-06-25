@@ -38,7 +38,6 @@
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/loader_app/installation_manager.h"
 
 namespace {
 
