@@ -45,8 +45,6 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       socket_(kSbSocketInvalid),
       socket_options_(0),
       bind_type_(bind_type),
-      read_watcher_(this),
-      write_watcher_(this),
       read_buf_len_(0),
       recv_from_address_(NULL),
       write_buf_len_(0),
@@ -93,9 +91,7 @@ void UDPSocketStarboard::Close() {
   write_callback_.Reset();
   send_to_address_.reset();
 
-  bool ok = read_socket_watcher_.StopWatchingSocket();
-  DCHECK(ok);
-  ok = write_socket_watcher_.StopWatchingSocket();
+  bool ok = socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 
   is_connected_ = false;
@@ -160,7 +156,7 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
 
   if (!base::MessageLoopForIO::current()->Watch(
           socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
-          &read_socket_watcher_, &read_watcher_)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
     if (result == ERR_IO_PENDING) {
@@ -212,7 +208,7 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
 
   if (!base::MessageLoopForIO::current()->Watch(
           socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
-          &write_socket_watcher_, &write_watcher_)) {
+          &socket_watcher_, this)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
     Error result = MapLastSocketError(socket_);
@@ -324,15 +320,19 @@ int UDPSocketStarboard::SetBroadcast(bool broadcast) {
   return SbSocketSetBroadcast(socket_, broadcast) ? OK : ERR_FAILED;
 }
 
-void UDPSocketStarboard::ReadWatcher::OnSocketReadyToRead(SbSocket /*socket*/) {
-  if (!socket_->read_callback_.is_null())
-    socket_->DidCompleteRead();
+void UDPSocketStarboard::OnSocketReadyToRead(SbSocket /*socket*/) {
+  if (!read_callback_.is_null())
+    DidCompleteRead();
 }
 
-void UDPSocketStarboard::WriteWatcher::OnSocketReadyToWrite(
-    SbSocket /*socket*/) {
-  if (!socket_->write_callback_.is_null())
-    socket_->DidCompleteWrite();
+void UDPSocketStarboard::OnSocketReadyToWrite(SbSocket socket) {
+  if (write_async_watcher_->watching()) {
+    write_async_watcher_->OnSocketReadyToWrite(socket);
+    return;
+  }
+
+  if (!write_callback_.is_null())
+    DidCompleteWrite();
 }
 
 void UDPSocketStarboard::WriteAsyncWatcher::OnSocketReadyToWrite(
@@ -367,8 +367,7 @@ void UDPSocketStarboard::DidCompleteRead() {
     read_buf_ = NULL;
     read_buf_len_ = 0;
     recv_from_address_ = NULL;
-    bool ok = read_socket_watcher_.StopWatchingSocket();
-    DCHECK(ok);
+    InternalStopWatchingSocket();
     DoReadCallback(result);
   }
 }
@@ -399,7 +398,7 @@ void UDPSocketStarboard::DidCompleteWrite() {
     write_buf_ = NULL;
     write_buf_len_ = 0;
     send_to_address_.reset();
-    write_socket_watcher_.StopWatchingSocket();
+    InternalStopWatchingSocket();
     DoWriteCallback(result);
   }
 }
@@ -828,7 +827,7 @@ bool UDPSocketStarboard::WatchSocket() {
 }
 
 void UDPSocketStarboard::StopWatchingSocket() {
-  if (!write_async_watcher_->watching())
+  if (!read_buf_ && !write_buf_ && !write_async_watcher_->watching())
     return;
   InternalStopWatchingSocket();
   write_async_watcher_->set_watching(false);
@@ -837,11 +836,11 @@ void UDPSocketStarboard::StopWatchingSocket() {
 bool UDPSocketStarboard::InternalWatchSocket() {
   return base::MessageLoopForIO::current()->Watch(
       socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
-      &write_socket_watcher_, write_async_watcher_.get());
+      &socket_watcher_, this);
 }
 
 void UDPSocketStarboard::InternalStopWatchingSocket() {
-  bool ok = write_socket_watcher_.StopWatchingSocket();
+  bool ok = socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 }
 

@@ -414,7 +414,7 @@
             ],
           },
         }],
-        ['host_os=="linux" or host_os=="android"', {
+        ['target_os=="linux" or target_os=="android"', {
           'sources': [
             'net/http_transport_socket.cc',
             'process/process_memory_sanitized.cc',
@@ -425,7 +425,7 @@
             'misc/capture_context_linux.S',
           ],
         }],
-        ['host_os!="linux" and host_os!="android"', {
+        ['target_os!="linux" and target_os!="android"', {
           'sources/': [
             ['exclude', '^process/'],
           ],

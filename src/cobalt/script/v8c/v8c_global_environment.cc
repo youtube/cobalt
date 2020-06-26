@@ -105,6 +105,8 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
                "V8cGlobalEnvironment::~V8cGlobalEnvironment()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   InvalidateWeakPtrs();
+  destruction_helper_.global_wrappable_ = global_wrappable_.get();
+  destruction_helper_.wrapper_factory_ = wrapper_factory_.get();
 }
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
@@ -320,6 +322,13 @@ V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
   // Another GC to make sure global object is collected.
   isolate_->LowMemoryNotification();
   isolate_->SetEmbedderHeapTracer(nullptr);
+  if (global_wrappable_ && global_wrappable_->RefCounts() != 1) {
+    // At this point only environment should hold the last reference.
+    DLOG(INFO) << "[Temporary debugging] more than one ref alive, ref_count: "
+               << global_wrappable_->RefCounts();
+    DLOG(INFO) << "[Temporary debugging] window's v8 wrapper alive?"
+               << wrapper_factory_->HasWrapper(global_wrappable_);
+  }
 }
 
 // static

@@ -16,7 +16,6 @@
 #include "cobalt/extension/installation_manager.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/loader_app/installation_manager.h"
 #include "starboard/system.h"
 
 #define PRODUCT_FULLNAME_STRING "cobalt_updater"
@@ -83,8 +82,8 @@ const std::string GetEvergreenVersion() {
     return "";
   }
   std::vector<char> installation_path(kSbFileMaxPath);
-  if (installation_manager->GetInstallationPath(index, installation_path.data(),
-                                                kSbFileMaxPath) == IM_ERROR) {
+  if (installation_manager->GetInstallationPath(
+          index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
     SB_LOG(ERROR) << "Failed to get installation path.";
     return "";
   }

@@ -958,6 +958,12 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "'starboard/blitter.h' are deprecated."
 #endif  // Deprecate Blitter API
 
+#if SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+#error \
+    "SB_HAS_QUIRK_SEEK_TO_KEYFRAME is deprecated in Starboard 12 or later." \
+         " Please see configuration-public.md for more details."
+#endif  // SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+
 // --- Derived Configuration -------------------------------------------------
 
 #if SB_API_VERSION < 12

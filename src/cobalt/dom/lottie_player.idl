@@ -25,6 +25,9 @@ interface LottiePlayer : HTMLElement {
   attribute DOMString mode;
   attribute boolean loop;
   attribute double speed;
+  // Custom behavior: preserveAspectRatio and renderer should also be writeable
+  // according to the spec.
+  readonly attribute DOMString preserveAspectRatio;
   readonly attribute DOMString renderer;
   void load(DOMString src);
   void play();

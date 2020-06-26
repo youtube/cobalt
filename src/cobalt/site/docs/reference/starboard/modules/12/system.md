@@ -187,11 +187,10 @@ string generation.
 *   `kSbSystemPropertyModelYear`
 
     The year the device was launched, e.g. "2016".
-*   `kSbSystemPropertyOriginalDesignManufacturerName`
+*   `kSbSystemPropertySystemIntegratorName`
 
-    The corporate entity responsible for the manufacturing/assembly of the
-    device on behalf of the business entity owning the brand. This is often
-    abbreviated as ODM.
+    The corporate entity responsible for submitting the device to YouTube
+    certification and for the device maintenance/updates.
 *   `kSbSystemPropertyPlatformName`
 
     The name of the operating system and platform, suitable for inclusion in a
