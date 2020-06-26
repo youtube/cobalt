@@ -47,8 +47,16 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltARMConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    filters.extend([
+        test_filter.TestFilter('bindings_test', 'DateBindingsTest.PosixEpoch'),
+        # TODO: Remove this filter once the layout_tests slowdown in the debug
+        # configuration is resolved.
+        test_filter.TestFilter('layout_tests', test_filter.FILTER_ALL, 'debug'),
+        test_filter.TestFilter('renderer_test',
+                               'PixelTest.CircularSubPixelBorder'),
+        test_filter.TestFilter('renderer_test',
+                               'PixelTest.FilterBlurred100PxText'),
+    ])
     return filters
 
   def GetWebPlatformTestFilters(self):
@@ -72,12 +80,3 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
             'ASAN_OPTIONS': 'detect_leaks=0'
         }
     }
-
-  __FILTERED_TESTS = {
-      'base_unittests': [test_filter.FILTER_ALL],
-      'bindings_test': ['DateBindingsTest.PosixEpoch'],
-      'net_unittests': [test_filter.FILTER_ALL],
-      'renderer_test': [
-          'PixelTest.CircularSubPixelBorder', 'PixelTest.FilterBlurred100PxText'
-      ],
-  }

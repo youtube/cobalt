@@ -478,6 +478,15 @@ void GL_APIENTRY glFrontFace(GLenum face) {
   return context->FrontFace(face);
 }
 
+void GL_APIENTRY glGenBuffersForVideoFrame(GLsizei n, GLuint* buffers) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GenBuffersForVideoFrame(n, buffers);
+}
+
 void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {
   gles::Context* context = GetCurrentContext();
   if (!context) {

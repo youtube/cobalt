@@ -60,8 +60,11 @@ HardwareResourceProvider::HardwareResourceProvider(
       submit_offscreen_callback_(submit_offscreen_callback),
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
-      max_texture_size_(gr_context->maxTextureSize()),
-      self_message_loop_(base::MessageLoop::current()) {
+      max_texture_size_(gr_context->maxTextureSize()) {
+  if (base::MessageLoop::current()) {
+    rasterizer_task_runner_ = base::MessageLoop::current()->task_runner();
+  }
+
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
   SkFontMgr::RefDefault();
@@ -88,8 +91,9 @@ HardwareResourceProvider::~HardwareResourceProvider() {
 void HardwareResourceProvider::Finish() {
   // Wait for any resource-related to complete (by waiting for all tasks to
   // complete).
-  if (base::MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->task_runner()->WaitForFence();
+  if (rasterizer_task_runner_ &&
+      !rasterizer_task_runner_->BelongsToCurrentThread()) {
+    rasterizer_task_runner_->WaitForFence();
   }
 }
 
@@ -158,7 +162,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   // any subsequently submitted render trees referencing the frontend image.
   return base::WrapRefCounted(new HardwareFrontendImage(
       std::move(skia_hardware_source_data), cobalt_context_, gr_context_,
-      self_message_loop_));
+      rasterizer_task_runner_));
 }
 
 namespace {
@@ -321,7 +325,8 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
 
     planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
         std::move(texture), alpha_format, cobalt_context_, gr_context_,
-        std::move(content_region), self_message_loop_, alternate_rgba_format)));
+        std::move(content_region), rasterizer_task_runner_,
+        alternate_rgba_format)));
   }
 
   if (planes_per_format == 1) {
@@ -355,13 +360,14 @@ void HardwareResourceProvider::GraphicsContextRunner(
       reinterpret_cast<HardwareResourceProvider*>(
           graphics_context_provider->gles_context_runner_context);
 
-  if (base::MessageLoop::current() != provider->self_message_loop_) {
+  if (provider->rasterizer_task_runner_ &&
+      !provider->rasterizer_task_runner_->BelongsToCurrentThread()) {
     // Post a task to the rasterizer thread to have it run the requested
     // function, and wait for it to complete before returning.
     base::WaitableEvent done_event(
         base::WaitableEvent::ResetPolicy::MANUAL,
         base::WaitableEvent::InitialState::NOT_SIGNALED);
-    provider->self_message_loop_->task_runner()->PostTask(
+    provider->rasterizer_task_runner_->PostTask(
         FROM_HERE, base::Bind(&RunGraphicsContextRunnerOnRasterizerThread,
                               target_function, target_function_context,
                               provider->cobalt_context_, &done_event));
@@ -409,7 +415,7 @@ HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
 
   return base::WrapRefCounted(new HardwareMultiPlaneImage(
       std::move(skia_hardware_raw_image_memory), descriptor, cobalt_context_,
-      gr_context_, self_message_loop_));
+      gr_context_, rasterizer_task_runner_));
 }
 
 bool HardwareResourceProvider::HasLocalFontFamily(
@@ -557,7 +563,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
   return base::WrapRefCounted(new HardwareFrontendImage(
       root, submit_offscreen_callback_, cobalt_context_, gr_context_,
-      self_message_loop_));
+      rasterizer_task_runner_));
 }
 
 }  // namespace skia

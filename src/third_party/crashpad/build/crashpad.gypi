@@ -18,7 +18,7 @@
     # treat Crashpad as Chromium code. This enables warnings at an appropriate
     # level and applies Chromium’s build/filename_rules.gypi. In a standalone
     # build, this variable has no effect.
-    'chromium_code': 1,
+    'crashpad_code': 1,
   },
   'target_defaults': {
     'msvs_disabled_warnings': [
@@ -26,7 +26,7 @@
       4324,  # structure was padded due to __declspec(align()).
     ],
     'conditions': [
-      ['host_os=="linux" or host_os=="android"', {
+      ['target_os=="linux" or target_os=="android"', {
         'conditions': [
           ['clang==0', {
             'cflags': [

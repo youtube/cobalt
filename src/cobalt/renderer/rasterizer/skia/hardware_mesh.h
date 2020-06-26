@@ -96,7 +96,7 @@ class HardwareMesh : public render_tree::Mesh {
   // object, so that we can ensure that regardless of which thread destroys
   // this HardwareMesh instance, we will always ensure that the owned VBO is
   // destroyed on the thread it was created from.
-  mutable base::MessageLoop* rasterizer_message_loop_ = nullptr;
+  mutable scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner_;
 };
 
 }  // namespace skia
