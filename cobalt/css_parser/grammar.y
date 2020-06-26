@@ -27,15 +27,15 @@
 %{
 // Specify how the location of an action should be calculated in terms
 // of its children.
-#define YYLLOC_DEFAULT(Current, Rhs, N)          \
-  if (N) {                                       \
-    Current.first_line   = Rhs[1].first_line;    \
-    Current.first_column = Rhs[1].first_column;  \
-    Current.line_start   = Rhs[1].line_start;    \
-  } else {                                       \
-    Current.first_line   = Rhs[0].first_line;    \
-    Current.first_column = Rhs[0].first_column;  \
-    Current.line_start   = Rhs[0].line_start;    \
+#define YYLLOC_DEFAULT(Current, Rhs, N)            \
+  if (N) {                                         \
+    (Current).first_line   = Rhs[1].first_line;    \
+    (Current).first_column = Rhs[1].first_column;  \
+    (Current).line_start   = Rhs[1].line_start;    \
+  } else {                                         \
+    (Current).first_line   = Rhs[0].first_line;    \
+    (Current).first_column = Rhs[0].first_column;  \
+    (Current).line_start   = Rhs[0].line_start;    \
   }
 %}
 
