@@ -1314,8 +1314,7 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 
 bool BrowserModule::FilterKeyEventForHotkeys(
     base::Token type, const dom::KeyboardEventInit& event) {
-#if !defined(ENABLE_DEBUGGER)
-#else
+#if defined(ENABLE_DEBUGGER)
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
     if (type == base::Tokens::keydown()) {
