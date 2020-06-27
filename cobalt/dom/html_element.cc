@@ -2044,7 +2044,7 @@ void HTMLElement::CollectHTMLMediaElementsRecursively(
       if (media_html_element) {
         html_media_elements->push_back(media_html_element);
       }
-      CollectHTMLMediaElementsRecursively(
+      html_element->CollectHTMLMediaElementsRecursively(
           html_media_elements, current_element_depth + 1);
     }
   }
