@@ -50,6 +50,9 @@
             entry.target.style.backgroundColor = "green";
           }
         });
+        if (window.testRunner) {
+          window.testRunner.DoNonMeasuredLayout();
+        }
       }
 
       var options = {
@@ -65,15 +68,25 @@
         window.testRunner.DoNonMeasuredLayout();
       }
 
-      // Move the target element so that the intersection ratio now crosses
-      // the threshold value. An intersection observer update should be
-      // triggered and the callback should run.
-      targetElement.style.top = "-30px";
+      // Without waiting for requestAnimationFrame, only the movement is observed.
+      requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          // Move the target element so that the intersection ratio now crosses
+          // the threshold value. An intersection observer update should be
+          // triggered and the callback should run.
+          targetElement.style.top = "-30px";
 
-      if (window.testRunner) {
-        window.testRunner.DoNonMeasuredLayout();
-        window.setTimeout(function() { window.testRunner.notifyDone(); }, 0);
-      }
+          if (window.testRunner) {
+            window.testRunner.DoNonMeasuredLayout();
+            window.setTimeout(function() { window.testRunner.notifyDone(); }, 0);
+          }
+        }, 0);
+      });
+
+      // Fail after 3 seconds if requestAnimationFrame never triggered.
+      window.setTimeout(function() {
+        window.testRunner.notifyDone();
+      }, 3000);
     });
   </script>
 
