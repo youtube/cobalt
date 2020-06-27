@@ -69,17 +69,17 @@ void IntersectionObserverTarget::UpdateIntersectionObservationsForTarget(
   // Let intersectionArea be intersectionRect's area.
   float intersection_area = intersection_rect.size().GetArea();
 
+  // Let isIntersecting be true if targetRect and rootBounds intersect or are
+  // edge-adjacent, even if the intersection has zero area (because rootBounds
+  // or targetRect have zero area); otherwise, let isIntersecting be false.
+  bool is_intersecting =
+      intersection_rect.width() != 0 || intersection_rect.height() != 0;
+
   // If targetArea is non-zero, let intersectionRatio be intersectionArea
   // divided by targetArea. Otherwise, let intersectionRatio be 1 if
-  // targetRect and rootBounds are edge-adjacent (in the case that targetRect or
-  // rootbounds have zero area), and 0 otherwise.
-  float intersection_ratio =
-      (intersection_rect.width() != 0 || intersection_rect.height() != 0)
-          ? 1.0f
-          : 0.0f;
-  if (target_area != 0) {
-    intersection_ratio = intersection_area / target_area;
-  }
+  // isIntersecting is true, or 0 if isIntersecting is false.
+  float intersection_ratio = target_area > 0 ? intersection_area / target_area
+                                             : is_intersecting ? 1.0f : 0.0f;
 
   // Let thresholdIndex be the index of the first entry in observer.thresholds
   // whose value is greater than intersectionRatio, or the length of
@@ -91,12 +91,14 @@ void IntersectionObserverTarget::UpdateIntersectionObservationsForTarget(
   for (threshold_index = 0; threshold_index < thresholds.size();
        ++threshold_index) {
     if (thresholds.at(threshold_index) > intersection_ratio) {
+      // isIntersecting is false if intersectionRatio is less than all
+      // thresholds, sorted ascending. Not in spec but follows Chrome behavior.
+      if (threshold_index == 0) {
+        is_intersecting = false;
+      }
       break;
     }
   }
-
-  // Set isIntersecting to true if |threshold_index| > 0, and false otherwise.
-  bool is_intersecting = threshold_index > 0;
 
   // If thresholdIndex does not equal previousThresholdIndex or if
   // isIntersecting does not equal previousIsIntersecting, queue an
