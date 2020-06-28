@@ -126,7 +126,6 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
                     << "\"" << top_level << "\"";
       return std::vector<WebPlatformTestInfo>();
     }
-    DLOG(INFO) << "[Temporary debugging] javascript engine for parser exiting";
   }
 
   base::FilePath test_dir(GetTestInputRootDirectory()

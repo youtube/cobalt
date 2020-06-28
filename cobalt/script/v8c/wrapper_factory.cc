@@ -38,17 +38,6 @@ void WrapperFactory::RegisterWrappableType(
       << "RegisterWrappableType registered for type more than once.";
 }
 
-bool WrapperFactory::HasWrapper(Wrappable* wrappable) {
-  v8::Local<v8::Object> wrapper;
-  v8::MaybeLocal<v8::Object> maybe_wrapper =
-      V8cWrapperHandle::MaybeGetObject(isolate_, GetCachedWrapper(wrappable));
-  if (!maybe_wrapper.ToLocal(&wrapper)) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
 v8::Local<v8::Object> WrapperFactory::GetWrapper(
     const scoped_refptr<Wrappable>& wrappable) {
   v8::Local<v8::Object> wrapper;
