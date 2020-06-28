@@ -20,6 +20,7 @@
 #include <wrl.h>
 #include <wrl/client.h>
 
+#include <functional>
 #include <map>
 #include <string>
 
@@ -35,6 +36,8 @@ namespace win32 {
 // Adapts PlayReady decryption module to Starboard's |SbDrmSystem|.
 class DrmSystemPlayready : public SbDrmSystemPrivate {
  public:
+  typedef std::function<bool()> EnableOutputProtectionFunc;
+
   class License : public RefCountedThreadSafe<License> {
    public:
     static scoped_refptr<License> Create(const void* initialization_data,
@@ -52,6 +55,7 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
 
   DrmSystemPlayready(
       void* context,
+      EnableOutputProtectionFunc enable_output_protection_func,
       SbDrmSessionUpdateRequestFunc session_update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
@@ -97,11 +101,12 @@ class DrmSystemPlayready : public SbDrmSystemPrivate {
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   void* context_;
-  SbDrmSessionUpdateRequestFunc session_update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
-  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
-  SbDrmSessionClosedFunc session_closed_callback_;
-  int current_session_id_;
+  const EnableOutputProtectionFunc enable_output_protection_func_;
+  const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
+  const SbDrmSessionUpdatedFunc session_updated_callback_;
+  const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const SbDrmSessionClosedFunc session_closed_callback_;
+  int current_session_id_ = 1;
 
   std::map<std::string, scoped_refptr<License> > pending_requests_;
 

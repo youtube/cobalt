@@ -92,16 +92,18 @@ void DrmSystemOnUwpResume() {
 
 DrmSystemPlayready::DrmSystemPlayready(
     void* context,
+    EnableOutputProtectionFunc enable_output_protection_func,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmSessionClosedFunc session_closed_callback)
     : context_(context),
+      enable_output_protection_func_(enable_output_protection_func),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
-      session_closed_callback_(session_closed_callback),
-      current_session_id_(1) {
+      session_closed_callback_(session_closed_callback) {
+  SB_DCHECK(enable_output_protection_func);
   SB_DCHECK(session_update_request_callback);
   SB_DCHECK(session_updated_callback);
   SB_DCHECK(key_statuses_changed_callback);
@@ -276,7 +278,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemPlayready::Decrypt(
       }
 
       if (item.second.license_->IsHDCPRequired()) {
-        if (!SbMediaSetOutputProtection(true)) {
+        if (!enable_output_protection_func_()) {
           SB_LOG(INFO) << "HDCP required but not available";
           item.second.status_ = kSbDrmKeyStatusRestricted;
           ReportKeyStatusChanged_Locked(item.first);

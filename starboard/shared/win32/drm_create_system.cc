@@ -38,7 +38,8 @@ SbDrmSystem SbDrmCreateSystem(
 
   if (DrmSystemPlayready::IsKeySystemSupported(key_system)) {
     return new DrmSystemPlayready(
-        context, update_request_callback, session_updated_callback,
+        context, []() { return false; },  // Output protection not supported
+        update_request_callback, session_updated_callback,
         key_statuses_changed_callback, session_closed_callback);
   }
 
