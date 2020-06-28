@@ -104,7 +104,7 @@ public class StarboardBridge {
     this.args = args;
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
-    this.ttsHelper = new CobaltTextToSpeechHelper(appContext, stopRequester);
+    this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.userAuthorizer = userAuthorizer;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
@@ -510,8 +510,7 @@ public class StarboardBridge {
       return false;
     }
 
-    int[] supportedHdrTypes =
-        defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
+    int[] supportedHdrTypes = defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
     for (int supportedType : supportedHdrTypes) {
       if (supportedType == hdrType) {
         return true;
