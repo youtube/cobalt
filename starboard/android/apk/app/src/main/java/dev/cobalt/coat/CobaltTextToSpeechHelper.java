@@ -38,7 +38,6 @@ class CobaltTextToSpeechHelper
         AccessibilityManager.AccessibilityStateChangeListener,
         AccessibilityManager.TouchExplorationStateChangeListener {
   private final Context context;
-  private final Runnable stopRequester;
   private final HandlerThread thread;
   private final Handler handler;
 
@@ -58,9 +57,8 @@ class CobaltTextToSpeechHelper
   private long nextUtteranceId;
   private final List<String> pendingUtterances = new ArrayList<>();
 
-  CobaltTextToSpeechHelper(Context context, Runnable stopRequester) {
+  CobaltTextToSpeechHelper(Context context) {
     this.context = context;
-    this.stopRequester = stopRequester;
 
     thread = new HandlerThread("CobaltTextToSpeechHelper");
     thread.start();
@@ -200,7 +198,10 @@ class CobaltTextToSpeechHelper
    */
   private void finishIfScreenReaderChanged() {
     if (wasScreenReaderEnabled != isScreenReaderEnabled()) {
-      stopRequester.run();
+      wasScreenReaderEnabled = isScreenReaderEnabled();
+      nativeSendTTSChangedEvent();
     }
   }
+
+  private native void nativeSendTTSChangedEvent();
 }

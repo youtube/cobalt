@@ -142,6 +142,7 @@
         'sanitizer_options.cc',
         'speech_recognizer_impl.cc',
         'speech_synthesis_cancel.cc',
+        'speech_synthesis_internal.cc',
         'speech_synthesis_is_supported.cc',
         'speech_synthesis_speak.cc',
         'system_get_connection_type.cc',
