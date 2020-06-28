@@ -125,9 +125,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-  REGISTER_SYMBOL(SbMediaIsOutputProtected);
   REGISTER_SYMBOL(SbMediaIsSupported);
-  REGISTER_SYMBOL(SbMediaSetOutputProtection);
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);
