@@ -282,7 +282,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_transfer_characteristics_supported.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_set_output_protection.cc',
       '<(DEPTH)/starboard/shared/starboard/media/mime_type.cc',
       '<(DEPTH)/starboard/shared/starboard/media/mime_type.h',
       '<(DEPTH)/starboard/shared/starboard/memory.cc',
@@ -337,7 +336,9 @@
       '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
       '<(DEPTH)/starboard/shared/stub/image_decode.cc',
       '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
       '<(DEPTH)/starboard/shared/stub/media_set_audio_write_duration.cc',
+      '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_close.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_create.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_destroy.cc',
@@ -414,7 +415,6 @@
         ],
         'starboard_platform_sources': [
           '<(DEPTH)/starboard/linux/shared/drm_create_system.cc',
-          '<(DEPTH)/starboard/linux/shared/media_is_output_protected.cc',
           '<(DEPTH)/starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc',
 
           '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
@@ -436,7 +436,6 @@
         ],
       }, {
         'starboard_platform_sources': [
-          '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
           '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
           '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
           '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',

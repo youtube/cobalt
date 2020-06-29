@@ -18,6 +18,9 @@
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.
     'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
 
+    # The Raspberry Pi compiler does not have support for C++14.
+    'sb_disable_cpp14_audit': 1,
+
     'target_os': 'linux',
 
     'sysroot%': '/',
