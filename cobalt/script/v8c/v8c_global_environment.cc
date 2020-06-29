@@ -319,6 +319,8 @@ V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
   V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->DisableForShutdown();
   isolate_->SetData(kIsolateDataIndex, nullptr);
   isolate_->LowMemoryNotification();
+  // Another GC to make sure global object is collected.
+  isolate_->LowMemoryNotification();
   isolate_->SetEmbedderHeapTracer(nullptr);
   if (global_wrappable_ && global_wrappable_->RefCounts() != 1) {
     // At this point only environment should hold the last reference.
