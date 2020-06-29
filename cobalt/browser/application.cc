@@ -1026,7 +1026,8 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeStart:
       DLOG(INFO) << "Got start event.";
       app_status_ = kRunningAppStatus;
-      browser_module_->Start();
+      browser_module_->Reveal();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
@@ -1091,9 +1092,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      app_status_ = kFrozenAppStatus;
+      app_status_ = kConcealedAppStatus;
       ++app_suspend_count_;
       browser_module_->Conceal();
+      app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       updater_module_->Suspend();
@@ -1103,9 +1105,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      app_status_ = kBlurredAppStatus;
+      app_status_ = kConcealedAppStatus;
       ++app_resume_count_;
       browser_module_->Unfreeze();
+      app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
       updater_module_->Resume();

@@ -432,7 +432,7 @@ class Document : public Node,
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
   void OnFrozennessChanged(bool is_frozen) override;
 
-  bool wasDiscarded() const { return false; }
+  bool was_discarded() const { return false; }
 
   PointerState* pointer_state() { return &pointer_state_; }
 
