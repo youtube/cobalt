@@ -232,10 +232,12 @@ optimizations are used instead.
 ### Deprecated unused enums |kSbPlayerDecoderStateBufferFull| and
 |kSbPlayerDecoderStateDestroyed|.
 
-### Deprecated unused enums |SbMediaIsOutputProtected()| and
+### Deprecated the usage of |SbMediaIsOutputProtected()| and
 |SbMediaSetOutputProtection()|.
 
-### Deprecate the |SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING| macro.
+### Deprecated the |SB_HAS_QUIRK_SEEK_TO_KEYFRAME| macro.
+
+### Deprecated the |SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING| macro.
 
 ### Deprecated 'cobalt_minimum_frame_time_in_milliseconds'.
 
