@@ -16,7 +16,6 @@
 
 #include <string>
 
-#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"

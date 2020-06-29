@@ -15,7 +15,7 @@
 #include "cobalt/media/base/playback_statistics.h"
 
 #include "starboard/atomic.h"
-#include "starboard/common/format_string.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace media {

@@ -18,7 +18,6 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 
 #include "starboard/audio_sink.h"
-#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
