@@ -237,8 +237,9 @@ class WebModule::Impl {
   // have the same basic function.
   void Start(render_tree::ResourceProvider* resource_provider);
   void Blur();
-  void Conceal();
-  void Unfreeze();
+  void Conceal(render_tree::ResourceProvider* resource_provider);
+  void Freeze();
+  void Unfreeze(render_tree::ResourceProvider* resource_provider);
   void Reveal(render_tree::ResourceProvider* resource_provider);
   void Focus();
 
@@ -1099,9 +1100,6 @@ void WebModule::Impl::SetResourceProvider(
 
     loader_factory_->Resume(resource_provider_);
 
-    // Permit render trees to be generated again.  Layout will have been
-    // invalidated with the call to Suspend(), so the layout manager's first
-    // task will be to perform a full re-layout.
     layout_manager_->Resume();
   }
 }
@@ -1122,12 +1120,14 @@ void WebModule::Impl::FreezeLoaders(bool update_application_state) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::FreezeLoaders()");
 
   if (update_application_state) {
-    SetApplicationState(base::kApplicationStateFrozen);
+    SetApplicationState(base::kApplicationStateConcealed);
   }
 
   // Purge the resource caches before running any freeze logic. This will force
   // any pending callbacks that the caches are batching to run.
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
+
+  layout_manager_->Suspend();
 
   // Purge the cached resources prior to the freeze. That may cancel pending
   // loads, allowing the freeze to occur faster and preventing unnecessary
@@ -1179,22 +1179,62 @@ void WebModule::Impl::Blur() {
   SetApplicationState(base::kApplicationStateBlurred);
 }
 
-void WebModule::Impl::Conceal() {
+void WebModule::Impl::Conceal(
+    render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Conceal()");
   SetApplicationState(base::kApplicationStateConcealed);
 
-  // Stop the generation of render trees.
+  // Purge the resource caches before running any freeze logic. This will force
+  // any pending callbacks that the caches are batching to run.
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
+
   layout_manager_->Suspend();
+
+  // Purge the cached resources prior to the freeze. That may cancel pending
+  // loads, allowing the freeze to occur faster and preventing unnecessary
+  // callbacks.
+  window_->document()->PurgeCachedResources();
+
+  // Clear out any currently tracked animating images.
+  animated_image_tracker_->Reset();
+
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
+
+#if defined(ENABLE_DEBUGGER)
+  // The debug overlay may be holding onto a render tree, clear that out.
+  debug_overlay_->ClearInput();
+#endif
+
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
 }
 
-void WebModule::Impl::Unfreeze() {
+void WebModule::Impl::Freeze() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Freeze()");
+  SetApplicationState(base::kApplicationStateFrozen);
+
+  // Clear out the loader factory's resource provider, possibly aborting any
+  // in-progress loads.
+  loader_factory_->Suspend();
+}
+
+void WebModule::Impl::Unfreeze(
+    render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unfreeze()");
   synchronous_loader_interrupt_.Reset();
   SetApplicationState(base::kApplicationStateConcealed);
+  DCHECK(resource_provider);
+
+  // TODO: Investigate the loader_factory and resource_provider issues.
+  loader_factory_->Resume(resource_provider);
 }
 
 void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Reveal()");
+  synchronous_loader_interrupt_.Reset();
+  DCHECK(resource_provider);
   SetResourceProvider(resource_provider);
   SetApplicationState(base::kApplicationStateBlurred);
 }
@@ -1657,43 +1697,37 @@ void WebModule::Blur() {
   message_loop()->task_runner()->PostBlockingTask(FROM_HERE, impl_blur);
 }
 
-void WebModule::Conceal() {
+void WebModule::Conceal(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  message_loop()->task_runner()->PostTask(
+  impl_->CancelSynchronousLoads();
+
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
+  message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Conceal,
-                            base::Unretained(impl_.get())));
+                            base::Unretained(impl_.get()), resource_provider));
 }
 
 void WebModule::Freeze() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
-  impl_->CancelSynchronousLoads();
-
-  // We must block here so that we don't queue the finish until after
-  // FreezeLoaders has run to completion, and therefore has already queued any
-  // precipitate tasks.
-  message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::FreezeLoaders,
-                            base::Unretained(impl_.get()),
-                            true /*update_application_state*/));
-
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::FinishFreeze,
-                            base::Unretained(impl_.get())));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Freeze, base::Unretained(impl_.get())));
 }
 
-void WebModule::Unfreeze() {
+void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Unfreeze,
-                            base::Unretained(impl_.get())));
+                            base::Unretained(impl_.get()), resource_provider));
 }
 
 void WebModule::Reveal(render_tree::ResourceProvider* resource_provider) {

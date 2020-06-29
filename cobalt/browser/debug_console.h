@@ -99,9 +99,13 @@ class DebugConsole : public LifecycleObserver {
     web_module_->Start(resource_provider);
   }
   void Blur() override { web_module_->Blur(); }
-  void Conceal() override { web_module_->Conceal(); }
+  void Conceal(render_tree::ResourceProvider* resource_provider) override {
+    web_module_->Conceal(resource_provider);
+  }
   void Freeze() override { web_module_->Freeze(); }
-  void Unfreeze() override { web_module_->Unfreeze(); }
+  void Unfreeze(render_tree::ResourceProvider* resource_provider) override {
+    web_module_->Unfreeze(resource_provider);
+  }
   void Reveal(render_tree::ResourceProvider* resource_provider) override {
     web_module_->Reveal(resource_provider);
   }

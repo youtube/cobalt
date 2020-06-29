@@ -34,7 +34,7 @@ class LifecycleObserver : public base::CheckedObserver {
 
   // Conceals from Blurred, transitioning to invisible but background tasks can
   // still be running.
-  virtual void Conceal() = 0;
+  virtual void Conceal(render_tree::ResourceProvider* resource_provider) = 0;
 
   // Freezes from Concealed, and releases its reference to the ResourceProvider,
   // additionally releasing all references to any resources created from
@@ -44,7 +44,7 @@ class LifecycleObserver : public base::CheckedObserver {
 
   // Unfreezes from Frozen, with a new ResourceProvider. This method must only
   // be called if the object has previously been Freezed.
-  virtual void Unfreeze() = 0;
+  virtual void Unfreeze(render_tree::ResourceProvider* resource_provider) = 0;
 
   // Reveals from Concealed, going back into partially-obscured state. This
   // method must only be called if the object has previously been Concealed.

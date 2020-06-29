@@ -82,6 +82,10 @@ class MediaModule : public WebMediaPlayerFactory,
   void RegisterPlayer(WebMediaPlayer* player) override;
   void UnregisterPlayer(WebMediaPlayer* player) override;
 
+  void set_system_window(system_window::SystemWindow* system_window) {
+    system_window_ = system_window;
+  }
+
  private:
   void RegisterDebugState(WebMediaPlayer* player);
   void DeregisterDebugState();
