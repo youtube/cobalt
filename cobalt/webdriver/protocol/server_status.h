@@ -27,7 +27,7 @@ namespace protocol {
 
 // Represents the JSON object that describes the WebDriver server's current
 // status in response to the /status command:
-// https://code.google.com/p/selenium/wiki/JsonWireProtocol#/status
+// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#status
 class ServerStatus {
  public:
   ServerStatus();

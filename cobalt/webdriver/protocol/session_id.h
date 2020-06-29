@@ -25,7 +25,7 @@ namespace webdriver {
 namespace protocol {
 
 // sessionId is mentioned in the spec describing WebDriver responses:
-// https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
+// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Responses
 //
 class SessionId {
  public:
