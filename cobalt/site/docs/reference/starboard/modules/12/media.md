@@ -653,18 +653,6 @@ pools should be allocated on demand, as opposed to using SbMemory* functions.
 bool SbMediaIsBufferUsingMemoryPool()
 ```
 
-### SbMediaIsOutputProtected ###
-
-Indicates whether output copy protection is currently enabled on all capable
-outputs. If `true`, then non-protection-capable outputs are expected to be
-blanked.
-
-#### Declaration ####
-
-```
-bool SbMediaIsOutputProtected()
-```
-
 ### SbMediaIsSupported ###
 
 Indicates whether this platform supports decoding `video_codec` and
@@ -699,22 +687,5 @@ seconds.
 
 ```
 void SbMediaSetAudioWriteDuration(SbTime duration)
-```
-
-### SbMediaSetOutputProtection ###
-
-Enables or disables output copy protection on all capable outputs. If enabled,
-then non-protection-capable outputs are expected to be blanked.
-
-The return value indicates whether the operation was successful, and the
-function returns a success even if the call is redundant in that it doesn't
-change the current value.
-
-`enabled`: Indicates whether output protection is enabled (`true`) or disabled.
-
-#### Declaration ####
-
-```
-bool SbMediaSetOutputProtection(bool enabled)
 ```
 
