@@ -14,7 +14,7 @@
 
 #include "starboard/shared/libde265/de265_video_decoder.h"
 
-#include "starboard/common/format_string.h"
+#include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/string.h"

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/string.h"
 #include "starboard/gles.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"

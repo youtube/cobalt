@@ -14,7 +14,7 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
-#include "starboard/common/format_string.h"
+#include "starboard/common/string.h"
 
 namespace starboard {
 namespace android {
