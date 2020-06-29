@@ -14,8 +14,8 @@
 
 #include "starboard/shared/starboard/media/video_capabilities.h"
 
-#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
