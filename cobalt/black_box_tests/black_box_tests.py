@@ -40,6 +40,7 @@ _SERVER_EXIT_TIMEOUT_SECONDS = 30
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'cancel_sync_loads_when_suspended',
+    'pointer_test',
     'preload_font',
     'preload_visibility',
     'preload_launch_parameter',
@@ -194,7 +195,8 @@ class BlackBoxTests(object):
     logging.info('Using proxy port: %s', self.proxy_port)
 
     with ProxyServer(
-        port=self.proxy_port, host_resolve_map=self.host_resolve_map,
+        port=self.proxy_port,
+        host_resolve_map=self.host_resolve_map,
         client_ips=self.device_ips):
       if self.test_name:
         suite = unittest.TestLoader().loadTestsFromModule(
