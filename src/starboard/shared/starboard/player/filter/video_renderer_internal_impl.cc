@@ -71,7 +71,7 @@ VideoRendererImpl::~VideoRendererImpl() {
   // Be sure to release anything created by the decoder_ before releasing the
   // decoder_ itself.
   if (first_input_written_) {
-    decoder_->Reset();
+    decoder_->Reset(VideoDecoder::kInvalidResetTime);
   }
 
   // Now both the decoder thread and the sink thread should have been shutdown.
@@ -150,8 +150,12 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
+  // TODO: We need to revisit this, currently we would have to call
+  // VideoDecoder::Reset() so the Android decoder gets a chance to set up the
+  // frame tracker.
+  decoder_->Reset(seek_to_time);
   if (first_input_written_) {
-    decoder_->Reset();
+    //decoder_->Reset(seek_to_time);
     first_input_written_ = false;
   }
 

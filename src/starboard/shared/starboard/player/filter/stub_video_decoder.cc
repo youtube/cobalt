@@ -76,7 +76,7 @@ void StubVideoDecoder::WriteEndOfStream() {
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
 }
 
-void StubVideoDecoder::Reset() {
+void StubVideoDecoder::Reset(SbTime seek_to_time) {
   output_event_frame_times_.clear();
   video_sample_info_ = media::VideoSampleInfo();
 }
