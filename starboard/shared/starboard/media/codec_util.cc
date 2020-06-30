@@ -582,8 +582,7 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
                          const uint8_t* data,
                          size_t size)
     : width_(width), height_(height) {
-  if (video_codec == kSbMediaVideoCodecAv1 ||
-      video_codec == kSbMediaVideoCodecVp9) {
+  if (video_codec == kSbMediaVideoCodecVp9) {
     video_codec_ = video_codec;
   } else if (video_codec == kSbMediaVideoCodecH264) {
     avc_parameter_sets_ =
