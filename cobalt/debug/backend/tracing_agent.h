@@ -16,6 +16,7 @@
 #define COBALT_DEBUG_BACKEND_TRACING_AGENT_H_
 
 #include <string>
+#include <vector>
 
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -56,6 +57,7 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate  {
   THREAD_CHECKER(thread_checker_);
 
   bool tracing_started_;
+  std::vector<std::string> categories_;
   size_t collected_size_;
   JSONList collected_events_;
 
