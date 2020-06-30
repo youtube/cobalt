@@ -48,7 +48,7 @@ class LottieAnimation : public Image {
     LottieProperties() = default;
 
     // Return true if |state| is updated to a new & valid LottieState.
-    bool UpdateState(LottieState new_state) {
+    bool UpdateState(const LottieState& new_state) {
       // Regardless of whether the state actually changes, per the web spec, we
       // need to dispatch an event signaling that a particular playback state
       // was requested.

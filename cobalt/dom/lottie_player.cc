@@ -82,6 +82,18 @@ void LottiePlayer::set_direction(int direction) {
   SetAttribute("direction", base::Int32ToString(direction));
 }
 
+bool LottiePlayer::hover() const { return GetBooleanAttribute("hover"); }
+
+void LottiePlayer::set_hover(bool hover) {
+  // The value of 'hover' is true when the 'hover' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (hover) {
+    SetBooleanAttribute("hover", true);
+  } else {
+    SetBooleanAttribute("hover", false);
+  }
+}
+
 bool LottiePlayer::loop() const { return properties_.loop; }
 
 void LottiePlayer::set_loop(bool loop) {
@@ -197,6 +209,18 @@ void LottiePlayer::TogglePlay() {
 
 LottieAnimation::LottieProperties LottiePlayer::GetProperties() const {
   return properties_;
+}
+
+void LottiePlayer::OnHover() {
+  if (hover()) {
+    UpdateState(LottieAnimation::LottieState::kPlaying);
+  }
+}
+
+void LottiePlayer::OnUnHover() {
+  if (hover()) {
+    UpdateState(LottieAnimation::LottieState::kStopped);
+  }
 }
 
 void LottiePlayer::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
