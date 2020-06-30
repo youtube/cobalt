@@ -107,7 +107,15 @@ void DebugDispatcher::DispatchCommand(Command command) {
   }
 
   DomainRegistry::iterator iter = domain_registry_.find(command.GetDomain());
-  if (iter != domain_registry_.end()) {
+  if (iter == domain_registry_.end()) {
+    // If the domain isn't even registered, return an error without even trying
+    // to run a C++ or JS command implementation. This helps avoid problems when
+    // commands are received during navigation before agents are ready.
+    std::string err = command.GetDomain() + " domain not supported";
+    DLOG(WARNING) << err << " (" << command.GetMethod() << ")";
+    command.SendErrorResponse(Command::kMethodNotFound, err);
+    return;
+  } else {
     auto opt_command = iter->second.Run(std::move(command));
     // The agent command implementation kept the command to send the response.
     if (!opt_command) return;
