@@ -65,6 +65,11 @@ SbThreadContextPrivate::SbThreadContextPrivate(ucontext_t* ucontext) {
   sp_ = reinterpret_cast<void*>(mcontext.arm_sp);
   fp_ = reinterpret_cast<void*>(mcontext.arm_fp);
 #endif
+#elif SB_IS_ARCH_MIPS
+  // MIPS
+  ip_ = reinterpret_cast<void*>(mcontext.pc);
+  sp_ = reinterpret_cast<void*>(mcontext.gregs[29]);
+  fp_ = reinterpret_cast<void*>(mcontext.gregs[30]);
 #else  // SB_IS_ARCH_XXX
 #error "SbThreadContext isn't implemented for this CPU architecture"
 #endif  // SB_IS_ARCH_XXX
