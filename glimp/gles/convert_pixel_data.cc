@@ -83,7 +83,7 @@ ConvertRowFunction SelectConvertRowFunction(PixelFormat destination_format,
   if (destination_format == source_format) {
     return &RemapPixelChannels<0, 1, 2, 3>;
   } else if (destination_format == kPixelFormatRGBA8 &&
-      source_format == kPixelFormatARGB8) {
+             source_format == kPixelFormatARGB8) {
     return &RemapPixelChannels<1, 2, 3, 0>;
   } else if (destination_format == kPixelFormatRGBA8 &&
              source_format == kPixelFormatBGRA8) {
