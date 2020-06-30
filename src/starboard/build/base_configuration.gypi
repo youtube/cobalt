@@ -56,6 +56,9 @@
     # requires a 'lib' starboard implementation for the corresponding platform.
     'sb_enable_lib%': '<(sb_enable_lib)',
 
+    # Disables an NPLB audit of C++14 support.
+    'sb_disable_cpp14_audit': 0,
+
     # When this is set to true, the web bindings for the microphone
     # are disabled
     'sb_disable_microphone_idl%': 0,

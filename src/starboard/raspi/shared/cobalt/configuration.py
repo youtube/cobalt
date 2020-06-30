@@ -24,8 +24,9 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def __init__(self, platform_configuration, application_name,
                application_directory):
-    super(CobaltRaspiConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
+    super(CobaltRaspiConfiguration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
 
   def GetPostIncludes(self):
     # If there isn't a configuration.gypi found in the usual place, we'll
@@ -47,6 +48,9 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetTestFilters(self):
     filters = super(CobaltRaspiConfiguration, self).GetTestFilters()
     filters.extend([
+        # TODO: Remove this filter once the layout_tests slowdown in the debug
+        # configuration is resolved.
+        test_filter.TestFilter('layout_tests', test_filter.FILTER_ALL, 'debug'),
         # These tests are currently producing slightly different images on the
         # RasPi.
         test_filter.TestFilter('renderer_test',

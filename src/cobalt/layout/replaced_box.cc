@@ -297,7 +297,7 @@ void AnimateLottie(
   render_tree::LottieAnimation* lottie =
       base::polymorphic_downcast<render_tree::LottieAnimation*>(
           animation.get());
-  lottie->SetProperties(lottie_properties);
+  lottie->BeginRenderFrame(lottie_properties);
   node_builder->animation = lottie;
   node_builder->destination_rect = destination_rect;
   node_builder->animation_time = time_elapsed;

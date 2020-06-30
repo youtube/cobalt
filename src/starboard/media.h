@@ -571,6 +571,7 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration);
 
+#if SB_API_VERSION < 12
 // Indicates whether output copy protection is currently enabled on all capable
 // outputs. If |true|, then non-protection-capable outputs are expected to be
 // blanked.
@@ -586,6 +587,7 @@ SB_EXPORT bool SbMediaIsOutputProtected();
 // |enabled|: Indicates whether output protection is enabled (|true|) or
 //   disabled.
 SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
+#endif  // SB_API_VERSION < 12
 
 // Value used when a video's resolution is not known.
 #define kSbMediaVideoResolutionDimensionInvalid 0

@@ -613,6 +613,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
+  if (!IsVisible(lottie_node->GetBounds())) {
+    return;
+  }
+
   // Use Skottie to render Lottie animations.
   FallbackRasterize(lottie_node);
 }
