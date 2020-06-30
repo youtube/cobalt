@@ -127,6 +127,8 @@ void SkottieAnimation::SetAnimationTimeInternal(
 void SkottieAnimation::UpdateAnimationFrameAndAnimateFunctionTimes(
     base::TimeDelta current_animation_time,
     base::TimeDelta current_animate_function_time) {
+  last_updated_animate_function_time_ = current_animate_function_time;
+
   if (current_animation_time == last_updated_animation_time_) {
     return;
   }
@@ -142,7 +144,6 @@ void SkottieAnimation::UpdateAnimationFrameAndAnimateFunctionTimes(
   }
 
   last_updated_animation_time_ = current_animation_time;
-  last_updated_animate_function_time_ = current_animate_function_time;
 }
 
 }  // namespace skia

@@ -22,6 +22,7 @@ interface LottiePlayer : HTMLElement {
   attribute DOMString background;
   attribute long count;
   attribute long direction;
+  attribute boolean hover;
   attribute DOMString mode;
   attribute boolean loop;
   attribute double speed;
