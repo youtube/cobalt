@@ -161,6 +161,14 @@ class Context {
                      GLenum format,
                      GLenum type,
                      const GLvoid* pixels);
+  void CopyTexSubImage2D(GLenum target,
+                         GLint level,
+                         GLint xoffset,
+                         GLint yoffset,
+                         GLint x,
+                         GLint y,
+                         GLsizei width,
+                         GLsizei height);
 
   void GenFramebuffers(GLsizei n, GLuint* framebuffers);
   void DeleteFramebuffers(GLsizei n, const GLuint* framebuffers);

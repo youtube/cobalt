@@ -16,6 +16,7 @@
 
 #include "glimp/gles/context.h"
 
+#include <algorithm>
 #include <string>
 
 #include "glimp/egl/error.h"
@@ -1599,6 +1600,78 @@ void Context::TexSubImage2D(GLenum target,
                                     pitch_in_bytes, pixels)) {
       SetError(GL_OUT_OF_MEMORY);
     }
+  }
+}
+
+void Context::CopyTexSubImage2D(GLenum target,
+                                GLint level,
+                                GLint xoffset,
+                                GLint yoffset,
+                                GLint x,
+                                GLint y,
+                                GLsizei width,
+                                GLsizei height) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
+  if (target != GL_TEXTURE_2D) {
+    SB_NOTREACHED() << "Only target=GL_TEXTURE_2D is supported in glimp.";
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (width < 0 || height < 0 || level < 0 || xoffset < 0 || yoffset < 0) {
+    SetError(GL_INVALID_VALUE);
+  }
+
+  nb::scoped_refptr<Texture> texture_object =
+      *GetBoundTextureForTarget(target, active_texture_);
+  if (!texture_object) {
+    // According to the specification, no error is generated if no texture
+    // is bound.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCopyTexSubImage2D.xml
+    return;
+  }
+
+  if (!texture_object->texture_allocated()) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  if (xoffset + width > texture_object->width() ||
+      yoffset + height > texture_object->height()) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (read_framebuffer_->CheckFramebufferStatus() != GL_FRAMEBUFFER_COMPLETE) {
+    SetError(GL_INVALID_FRAMEBUFFER_OPERATION);
+    return;
+  }
+
+  // The pixels in the rectangle are processed exactly as if glReadPixels had
+  // been called with format set to GL_RGBA, but the process stops just after
+  // conversion of RGBA values. Subsequent processing is identical to that
+  // described for glTexSubImage2D.
+  uint8_t pixels[read_framebuffer_->GetWidth() *
+                 read_framebuffer_->GetHeight() *
+                 BytesPerPixel(kPixelFormatRGBA8)];
+  ReadPixels(0, 0, read_framebuffer_->GetWidth(),
+             read_framebuffer_->GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE,
+             &pixels);
+
+  // If any of the pixels within the specified rectangle are outside the
+  // framebuffer associated with the current rendering context, then the values
+  // obtained for those pixels are undefined. Make sure that we only access
+  // pixels within a valid range.
+  x = std::max(0, x);
+  y = std::max(0, y);
+  width = std::min(read_framebuffer_->GetWidth() - x, width);
+  height = std::min(read_framebuffer_->GetHeight() - y, height);
+  int pitch_in_bytes =
+      read_framebuffer_->GetWidth() * BytesPerPixel(kPixelFormatRGBA8);
+  if (!texture_object->UpdateData(
+          level, xoffset, yoffset, width, height, pitch_in_bytes,
+          &pixels[y * pitch_in_bytes + x * BytesPerPixel(kPixelFormatRGBA8)])) {
+    SetError(GL_OUT_OF_MEMORY);
   }
 }
 

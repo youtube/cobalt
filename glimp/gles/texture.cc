@@ -23,9 +23,7 @@ namespace glimp {
 namespace gles {
 
 Texture::Texture(nb::scoped_ptr<TextureImpl> impl)
-    : impl_(impl.Pass()),
-      texture_allocated_(false),
-      bound_to_surface_(NULL) {}
+    : impl_(impl.Pass()), texture_allocated_(false), bound_to_surface_(NULL) {}
 
 void Texture::Initialize(GLint level,
                          PixelFormat pixel_format,
