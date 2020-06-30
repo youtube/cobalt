@@ -5,8 +5,8 @@ x-common-definitions: &common-definitions
   tty: true
   volumes:
     - ${COBALT_SRC:-.}:/code/
-    - ./docker/linux/scripts:/scripts
-    - ${COBALT_SRC:-.}/out/ccache:/root/ccache
+    - ${CCACHE_DIR:-~/ccache}:/root/ccache
+    - ${STARBOARD_TOOLCHAINS_DIR:-~/starboard-toolchains}:/root/starboard-toolchains
   depends_on:
     - base
 
