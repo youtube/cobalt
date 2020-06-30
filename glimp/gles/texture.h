@@ -39,7 +39,7 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                   GLsizei width,
                   GLsizei height);
 
-  // Implements support for glTexSubImage2D().
+  // Implements support for glTexSubImage2D() and glCopyTexSubImage2D().
   // This function will return true if successful, false if memory allocation
   // failed.
   bool UpdateData(GLint level,
@@ -50,7 +50,7 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                   int pitch_in_bytes,
                   const GLvoid* pixels);
 
-  // Implementes support for glTexSubImage2D() when data is supplied by a
+  // Implements support for glTexSubImage2D() when data is supplied by a
   // GL_PIXEL_UNPACK_BUFFER.
   void UpdateDataFromBuffer(
       GLint level,
