@@ -1464,6 +1464,14 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   network_module_->SetProxy(proxy_rules);
 }
 
+void BrowserModule::Start() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Start()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  application_state_ = base::kApplicationStateStarted;
+  StartInternal();
+  NavigatePendingURL();
+}
+
 void BrowserModule::Blur() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -1799,6 +1807,35 @@ void BrowserModule::RevealInternal() {
   // Set resource provider right after render module initialized.
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Reveal(GetResourceProvider()));
+
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetResourceProvider(GetResourceProvider());
+  }
+}
+
+void BrowserModule::StartInternal() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::StartInternal()");
+  ResetResources();
+  FreezeMediaModule();
+
+  if (renderer_module_) {
+    // Destroy the renderer module into so that it releases all its graphical
+    // resources.
+    DestroyRendererModule();
+  }
+
+  if (!system_window_) {
+    InitializeSystemWindow();
+  } else {
+    InstantiateRendererModule();
+    media_module_->Resume(GetResourceProvider());
+  }
+
+  // Propagate the current screen size.
+  UpdateScreenSize();
+
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+                    Start(GetResourceProvider()));
 
   if (qr_code_overlay_) {
     qr_code_overlay_->SetResourceProvider(GetResourceProvider());

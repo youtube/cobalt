@@ -880,6 +880,21 @@ Application::~Application() {
   app_status_ = kShutDownAppStatus;
 }
 
+void Application::Start() {
+  if (base::MessageLoop::current() != message_loop_) {
+    message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
+    return;
+  }
+
+  if (app_status_ != kConcealedAppStatus) {
+    NOTREACHED() << __FUNCTION__ << ": Redundant call.";
+    return;
+  }
+
+  OnApplicationEvent(kSbEventTypeStart);
+}
+
 void Application::Quit() {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(

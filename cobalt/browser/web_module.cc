@@ -235,6 +235,7 @@ class WebModule::Impl {
 
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
+  void Start(render_tree::ResourceProvider* resource_provider);
   void Blur();
   void Conceal(render_tree::ResourceProvider* resource_provider);
   void Freeze();
@@ -1167,6 +1168,12 @@ void WebModule::Impl::FinishFreeze() {
   }
 }
 
+void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Start()");
+  SetResourceProvider(resource_provider);
+  SetApplicationState(base::kApplicationStateStarted);
+}
+
 void WebModule::Impl::Blur() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Blur()");
   SetApplicationState(base::kApplicationStateBlurred);
@@ -1652,6 +1659,15 @@ void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SetRemoteTypefaceCacheCapacity,
                             base::Unretained(impl_.get()), bytes));
+}
+
+void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
+
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::Start,
+                            base::Unretained(impl_.get()), resource_provider));
 }
 
 void WebModule::Blur() {

@@ -54,6 +54,8 @@ class Application {
   Application(const base::Closure& quit_closure, bool should_preload);
   virtual ~Application();
 
+  // Start from a preloaded state.
+  void Start();
   void Quit();
   void HandleStarboardEvent(const SbEvent* event);
 
