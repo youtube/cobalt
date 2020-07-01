@@ -173,6 +173,7 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
   // LifecycleObserver-similar interface.
+  void Start();
   void Blur();
   void Conceal();
   void Freeze();
