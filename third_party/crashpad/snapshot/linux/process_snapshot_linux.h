@@ -42,6 +42,11 @@
 #include "util/process/process_id.h"
 #include "util/process/process_memory_range.h"
 
+#if defined(STARBOARD)
+#include "snapshot/module_snapshot_evergreen.h"
+#include "starboard/elf_loader/evergreen_info.h"
+#endif
+
 namespace crashpad {
 
 //! \brief A ProcessSnapshot of a running (or crashed) process running on a
@@ -58,6 +63,19 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //! \return `true` if the snapshot could be created, `false` otherwise with
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connection);
+
+#if defined(STARBOARD)
+  //! \brief Initializes the object with Evergreen information.
+  //!
+  //! \param[in] connection A connection to the process to snapshot.
+  //! \param[in] evergreen_information_address An address sent to the handler
+  //!     server that points to a populated EvergreenInfo struct.
+  //!
+  //! \return `true` if the snapshot could be created, `false` otherwise with
+  //!     an appropriate message logged.
+  bool Initialize(PtraceConnection* connnection,
+                  VMAddress evergreen_information_address);
+#endif
 
   //! \brief Finds the thread whose stack contains \a stack_address.
   //!
@@ -134,6 +152,9 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
  private:
   void InitializeThreads();
   void InitializeModules();
+#if defined(STARBOARD)
+  void InitializeModules(VMAddress evergreen_information_address);
+#endif
   void InitializeAnnotations();
 
   std::map<std::string, std::string> annotations_simple_map_;
@@ -142,6 +163,9 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   UUID client_id_;
   std::vector<std::unique_ptr<internal::ThreadSnapshotLinux>> threads_;
   std::vector<std::unique_ptr<internal::ModuleSnapshotElf>> modules_;
+#if defined(STARBOARD)
+  std::unique_ptr<internal::ModuleSnapshotEvergreen> evergreen_module_;
+#endif
   std::unique_ptr<internal::ExceptionSnapshotLinux> exception_;
   internal::SystemSnapshotLinux system_;
   ProcessReaderLinux process_reader_;
