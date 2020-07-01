@@ -34,6 +34,10 @@
 #include "util/stream/log_output_stream.h"
 #include "util/stream/zlib_output_stream.h"
 
+#if defined(STARBOARD)
+#include "starboard/elf_loader/evergreen_info.h"
+#endif
+
 namespace crashpad {
 
 namespace {
@@ -75,6 +79,16 @@ CrashReportExceptionHandler::CrashReportExceptionHandler(
 }
 
 CrashReportExceptionHandler::~CrashReportExceptionHandler() = default;
+
+#if defined(STARBOARD)
+bool CrashReportExceptionHandler::AddEvergreenInfo(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  // TODO: Get EvergreenInfo from info.evergreen_information_address and add
+  //       to modules.
+  LOG(ERROR) << "Not yet implemented.";
+  return false;
+}
+#endif
 
 bool CrashReportExceptionHandler::HandleException(
     pid_t client_process_id,

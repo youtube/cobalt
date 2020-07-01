@@ -80,6 +80,11 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
                        pid_t* requesting_thread_id = nullptr,
                        UUID* local_report_id = nullptr) override;
 
+#if defined(STARBOARD)
+  bool AddEvergreenInfo(
+      const ExceptionHandlerProtocol::ClientInformation& info) override;
+#endif
+
   bool HandleExceptionWithBroker(
       pid_t client_process_id,
       uid_t client_uid,
