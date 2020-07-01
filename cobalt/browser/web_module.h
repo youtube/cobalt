@@ -380,7 +380,6 @@ class WebModule : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation
-  void Start(render_tree::ResourceProvider* resource_provider) override;
   void Blur() override;
   void Conceal(render_tree::ResourceProvider* resource_provider) override;
   void Freeze() override;
