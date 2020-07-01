@@ -84,6 +84,13 @@ bool ExceptionHandlerClient::GetHandlerCredentials(ucred* creds) {
       server_sock_, &response, sizeof(response), creds);
 }
 
+#if defined(STARBOARD)
+bool ExceptionHandlerClient::SendEvergreenInfo(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  return SendEvergreenInfoRequest(info);
+}
+#endif
+
 int ExceptionHandlerClient::RequestCrashDump(
     const ExceptionHandlerProtocol::ClientInformation& info) {
   VMAddress sp = FromPointerCast<VMAddress>(&sp);
@@ -142,6 +149,19 @@ int ExceptionHandlerClient::SignalCrashDump(
 
   return 0;
 }
+
+#if defined(STARBOARD)
+bool ExceptionHandlerClient::SendEvergreenInfoRequest(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  ExceptionHandlerProtocol::ClientToServerMessage message;
+  message.type =
+      ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo;
+  message.client_info = info;
+
+  UnixCredentialSocket::SendMsg(server_sock_, &message, sizeof(message));
+  return true;
+}
+#endif
 
 int ExceptionHandlerClient::SendCrashDumpRequest(
     const ExceptionHandlerProtocol::ClientInformation& info,

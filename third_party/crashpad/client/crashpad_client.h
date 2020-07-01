@@ -38,6 +38,10 @@
 #include <ucontext.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/elf_loader/evergreen_info.h"
+#endif
+
 namespace crashpad {
 
 //! \brief The primary interface for an application to have Crashpad monitor
@@ -374,6 +378,15 @@ class CrashpadClient {
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       int socket);
+
+#if defined(STARBOARD)
+  //! \brief Sends mapping info to the handler
+  //!
+  //! A handler must have already been installed before calling this method.
+  //! \param[in] evergreen_info A EvergreenInfo struct, whose information was
+  //!     created on Evergreen startup.
+  static void SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
+#endif
 
   //! \brief Requests that the handler capture a dump even though there hasn't
   //!     been a crash.
