@@ -31,10 +31,20 @@ bool CaptureSnapshot(
     VMAddress requesting_thread_stack_address,
     pid_t* requesting_thread_id,
     std::unique_ptr<ProcessSnapshotLinux>* snapshot,
-    std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot) {
+    std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot
+#if defined(STARBOARD)
+    ,
+    VMAddress evergreen_information_address
+#endif
+    ) {
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
+#if defined(STARBOARD)
+  if (!process_snapshot->Initialize(connection,
+                                    evergreen_information_address)) {
+#else
   if (!process_snapshot->Initialize(connection)) {
+#endif
     Metrics::ExceptionCaptureResult(Metrics::CaptureResult::kSnapshotFailed);
     return false;
   }

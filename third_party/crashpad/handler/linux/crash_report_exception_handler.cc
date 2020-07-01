@@ -83,10 +83,8 @@ CrashReportExceptionHandler::~CrashReportExceptionHandler() = default;
 #if defined(STARBOARD)
 bool CrashReportExceptionHandler::AddEvergreenInfo(
     const ExceptionHandlerProtocol::ClientInformation& info) {
-  // TODO: Get EvergreenInfo from info.evergreen_information_address and add
-  //       to modules.
-  LOG(ERROR) << "Not yet implemented.";
-  return false;
+  evergreen_info_ = info.evergreen_information_address;
+  return true;
 }
 #endif
 
@@ -149,7 +147,12 @@ bool CrashReportExceptionHandler::HandleExceptionWithConnection(
                        requesting_thread_stack_address,
                        requesting_thread_id,
                        &process_snapshot,
-                       &sanitized_snapshot)) {
+                       &sanitized_snapshot
+#if defined(STARBOARD)
+                       ,
+                       evergreen_info_
+#endif
+                       )) {
     return false;
   }
 
