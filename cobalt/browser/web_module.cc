@@ -224,15 +224,6 @@ class WebModule::Impl {
   // state, and dispatches any precipitate web events.
   void SetApplicationState(base::ApplicationState state);
 
-  // Suspension of the WebModule is a two-part process since a message loop
-  // gap is needed in order to give a chance to handle loader callbacks
-  // that were initiated from a loader thread.
-  //
-  // If |update_application_state| is false, then SetApplicationState will not
-  // be called, and no state transition events will be generated.
-  void FreezeLoaders(bool update_application_state);
-  void FinishFreeze();
-
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
   void Start(render_tree::ResourceProvider* resource_provider);
@@ -1114,58 +1105,6 @@ void WebModule::Impl::OnStopDispatchEvent(
   web_module_stat_tracker_->OnStopDispatchEvent(
       event, window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsRenderTreePending());
-}
-
-void WebModule::Impl::FreezeLoaders(bool update_application_state) {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::FreezeLoaders()");
-
-  if (update_application_state) {
-    SetApplicationState(base::kApplicationStateConcealed);
-  }
-
-  // Purge the resource caches before running any freeze logic. This will force
-  // any pending callbacks that the caches are batching to run.
-  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
-
-  layout_manager_->Suspend();
-
-  // Purge the cached resources prior to the freeze. That may cancel pending
-  // loads, allowing the freeze to occur faster and preventing unnecessary
-  // callbacks.
-  window_->document()->PurgeCachedResources();
-
-  // Clear out the loader factory's resource provider, possibly aborting any
-  // in-progress loads.
-  loader_factory_->Suspend();
-
-  // Clear out any currently tracked animating images.
-  animated_image_tracker_->Reset();
-}
-
-void WebModule::Impl::FinishFreeze() {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::FinishFreeze()");
-  DCHECK(resource_provider_);
-
-  // Ensure the document is not holding onto any more image cached resources so
-  // that they are eligible to be purged.
-  window_->document()->PurgeCachedResources();
-
-  // Clear out all resource caches. We need to do this after we abort all
-  // in-progress loads, and after we clear all document references, or they will
-  // still be referenced and won't be cleared from the cache.
-  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
-
-#if defined(ENABLE_DEBUGGER)
-  // The debug overlay may be holding onto a render tree, clear that out.
-  debug_overlay_->ClearInput();
-#endif
-
-  resource_provider_ = NULL;
-
-  // Force garbage collection in |javascript_engine_|.
-  if (javascript_engine_) {
-    javascript_engine_->CollectGarbage();
-  }
 }
 
 void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
