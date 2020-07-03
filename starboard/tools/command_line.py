@@ -27,6 +27,42 @@ import starboard.tools.config
 import starboard.tools.platform
 
 
+def AddPlatformConfigArguments(arg_parser):
+  """Adds the platform configuration arguments required for building."""
+  default_config, default_platform = build.GetDefaultConfigAndPlatform()
+  arg_parser.add_argument(
+      '-p',
+      '--platform',
+      choices=starboard.tools.platform.GetAll(),
+      default=default_platform,
+      required=not default_platform,
+      help="Device platform, eg 'linux-x64x11'. Requires that you have "
+      'already run gyp_cobalt for the desired platform.')
+  arg_parser.add_argument(
+      '-c',
+      '--config',
+      choices=starboard.tools.config.GetAll(),
+      default=default_config,
+      required=not default_config,
+      help="Build config (eg, 'qa' or 'devel')")
+  arg_parser.add_argument(
+      '-P',
+      '--loader_platform',
+      default=None,
+      help='Specifies the platform to build the loader with. This flag is only '
+      'relevant for Evergreen builds, and should be the platform you intend to '
+      "run your tests on (eg 'linux-x64x11', or 'raspi-2'). Requires that "
+      '--loader_config be given, and that you have already run gyp_cobalt for '
+      'the desired loader platform.')
+  arg_parser.add_argument(
+      '-C',
+      '--loader_config',
+      default=None,
+      help="Specifies the config to build the loader with (eg 'qa' or 'devel')."
+      'This flag is only relevant for Evergreen builds, and requires that '
+      '--loader_platform be given.')
+
+
 def CreateParser():
   """Returns an argparse.ArgumentParser object set up for Starboard tools."""
   arg_parser = argparse.ArgumentParser(
