@@ -25,10 +25,6 @@ namespace browser {
 // A pure virtual interface for observers of the application lifecycle.
 class LifecycleObserver : public base::CheckedObserver {
  public:
-  // Start running visibly with the given graphics ResourceProvider, loading if
-  // necessary.
-  virtual void Start(render_tree::ResourceProvider* resource_provider) = 0;
-
   // Blurs from Started, staying visible and retaining graphics resources.
   virtual void Blur() = 0;
 

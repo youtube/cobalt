@@ -95,9 +95,6 @@ class DebugConsole : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  void Start(render_tree::ResourceProvider* resource_provider) override {
-    web_module_->Start(resource_provider);
-  }
   void Blur() override { web_module_->Blur(); }
   void Conceal(render_tree::ResourceProvider* resource_provider) override {
     web_module_->Conceal(resource_provider);
