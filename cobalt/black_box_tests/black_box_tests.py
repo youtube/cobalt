@@ -193,10 +193,10 @@ class BlackBoxTests(object):
 
     # Temporary means to determine if we are running on CI
     # TODO: Update to IS_CI environment variable or similar
-    out_dir = _launcher_params.out_directory
+    out_dir = _device_params.out_directory
     is_ci = out_dir and 'mh_lab' in out_dir
 
-    target = (_launcher_params.platform, _launcher_params.config)
+    target = (_device_params.platform, _device_params.config)
     if is_ci and '{}/{}'.format(*target) in _DISABLED_BLACKBOXTEST_CONFIGS:
       logging.warning(
           'Blackbox tests disabled for platform:{} config:{}'.format(*target))
