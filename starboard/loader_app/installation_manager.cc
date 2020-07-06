@@ -428,9 +428,8 @@ int InstallationManager::SelectNewInstallationIndex() {
   int priority = highest_priority_;
   int new_installation_index = -1;
 
-  // If we have more than 2 slots the 0 index slot is always the system image.
-  // We would ignore the 0 slot in that case.
-  int start = max_num_installations_ > 2 ? 1 : 0;
+  // The 0 index slot is always the system image.
+  int start = 1;
 
   // Find the lowest priority installation that we can use.
   for (int i = start; i < installation_store_.installations().size(); i++) {
@@ -524,14 +523,12 @@ bool InstallationManager::InitInstallationStorePath() {
   store_path_ += kSbFileSepString;
   store_path_ += IM_STORE_FILE_NAME;
 
-  if (max_num_installations_ > 2) {
-    std::vector<char> content_dir(kSbFileMaxPath);
-    if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir.data(),
-                         kSbFileMaxPath)) {
-      return false;
-    }
-    content_dir_ = content_dir.data();
+  std::vector<char> content_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir.data(),
+                       kSbFileMaxPath)) {
+    return false;
   }
+  content_dir_ = content_dir.data();
   return true;
 }
 
@@ -586,9 +583,8 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
     SB_LOG(ERROR) << "GetInstallationPath: path is null";
     return false;
   }
-  // When more than 2 slots are availabe the installation 0 slot is
-  // located under the content directory.
-  if (installation_index == 0 && max_num_installations_ > 2) {
+  // The installation 0 slot is located under the content directory.
+  if (installation_index == 0) {
     SbStringFormatF(path, path_length, "%s%s%s%s%s", content_dir_.c_str(),
                     kSbFileSepString, "app", kSbFileSepString, "cobalt");
   } else {
@@ -602,9 +598,8 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
 bool InstallationManager::CreateInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
   for (int i = 0; i < max_num_installations_; i++) {
-    // The index 0 slot when more than 2 slots are available is
-    // under the content directory.
-    if (i == 0 && max_num_installations_ > 2) {
+    // The index 0 slot is under the content directory.
+    if (i == 0) {
       continue;
     }
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
