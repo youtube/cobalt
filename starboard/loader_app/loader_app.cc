@@ -20,12 +20,12 @@
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/installation_manager.h"
+#include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/mutex.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "starboard/thread_types.h"
-
-// TODO: Try to merge with the implementation in starboard/elf_loader/sandbox.cc
 
 namespace {
 // The max number of installations slots.
@@ -41,6 +41,15 @@ const char kCobaltLibraryName[] = "libcobalt.so";
 // the Cobalt installation.
 const char kCobaltContentPath[] = "content";
 
+// Relative path to the Cobalt's system image content path.
+const char kSystemImageContentPath[] = "app/cobalt/content";
+
+// Relative path to the Cobalt's system image library.
+const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
+
+// Cobalt default URL.
+const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
+
 // Portable ELF loader.
 starboard::elf_loader::ElfLoader g_elf_loader;
 
@@ -48,7 +57,58 @@ starboard::elf_loader::ElfLoader g_elf_loader;
 // Cobalt binary.
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
-void LoadLibraryAndInitialize() {
+bool GetContentDir(std::string* content) {
+  std::vector<char> content_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir.data(),
+                       kSbFileMaxPath)) {
+    return false;
+  }
+  *content = content_dir.data();
+  return true;
+}
+
+void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
+  std::string content_dir;
+  if (!GetContentDir(&content_dir)) {
+    SB_LOG(ERROR) << "Failed to get the content dir";
+    return;
+  }
+  std::string content_path;
+  if (alternative_content_path.empty()) {
+    content_path = content_dir;
+    content_path += kSbFileSepString;
+    content_path += kSystemImageContentPath;
+  } else {
+    content_path = alternative_content_path.c_str();
+  }
+  std::string library_path = content_dir;
+  library_path += kSbFileSepString;
+  library_path += kSystemImageLibraryPath;
+
+  if (!g_elf_loader.Load(library_path, content_path, false)) {
+    SB_NOTREACHED() << "Failed to load library at '"
+                    << g_elf_loader.GetLibraryPath() << "'.";
+    return;
+  }
+
+  SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
+               << "'.";
+
+  g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
+      g_elf_loader.LookupSymbol("SbEventHandle"));
+
+  if (!g_sb_event_func) {
+    SB_LOG(ERROR) << "Failed to find SbEventHandle.";
+    return;
+  }
+
+  SB_LOG(INFO) << "Found SbEventHandle at address: "
+               << reinterpret_cast<void*>(g_sb_event_func);
+}
+
+void LoadUpdatableLibraryAndInitialize(
+    const std::string& app_key,
+    const std::string& alternative_content_path) {
   // Initialize the Installation Manager.
   SB_CHECK(ImInitialize(kMaxNumInstallations) == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
@@ -106,14 +166,21 @@ void LoadLibraryAndInitialize() {
                     kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
-    // installation_n/content
-    std::vector<char> content_path(kSbFileMaxPath);
-    SbStringFormatF(content_path.data(), kSbFileMaxPath, "%s%s%s",
-                    installation_path.data(), kSbFileSepString,
-                    kCobaltContentPath);
-    SB_LOG(INFO) << "content_path=" << content_path.data();
+    const char* content = NULL;
+    if (alternative_content_path.empty()) {
+      // installation_n/content
+      std::vector<char> content_path(kSbFileMaxPath);
+      SbStringFormatF(content_path.data(), kSbFileMaxPath, "%s%s%s",
+                      installation_path.data(), kSbFileSepString,
+                      kCobaltContentPath);
+      content = content_path.data();
+    } else {
+      content = alternative_content_path.c_str();
+    }
 
-    if (!g_elf_loader.Load(lib_path.data(), content_path.data(), false,
+    SB_LOG(INFO) << "content=" << content;
+
+    if (!g_elf_loader.Load(lib_path.data(), content, false,
                            &starboard::loader_app::SbSystemGetExtensionShim)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
@@ -156,12 +223,37 @@ void SbEventHandle(const SbEvent* event) {
 
   SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
 
-  if (!g_sb_event_func) {
-    LoadLibraryAndInitialize();
+  if (!g_sb_event_func && event->type == kSbEventTypeStart) {
+    const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+    const starboard::shared::starboard::CommandLine command_line(
+        data->argument_count, const_cast<const char**>(data->argument_values));
+
+    bool disable_updates =
+        command_line.HasSwitch(starboard::loader_app::kDisableUpdates);
+    SB_LOG(INFO) << "disable_updates=" << disable_updates;
+
+    std::string alternative_content =
+        command_line.GetSwitchValue(starboard::loader_app::kContent);
+    SB_LOG(INFO) << "alternative_content=" << alternative_content;
+
+    if (disable_updates) {
+      LoadLibraryAndInitialize(alternative_content);
+    } else {
+      std::string url =
+          command_line.GetSwitchValue(starboard::loader_app::kURL);
+      if (url.empty()) {
+        url = "https://www.youtube.com/tv";
+      }
+      // TODO: Call GetAppkey(url, &app_key) to get proper application key;
+      std::string app_key = "cobalt";
+      LoadUpdatableLibraryAndInitialize(app_key, alternative_content);
+    }
     SB_CHECK(g_sb_event_func);
   }
 
-  g_sb_event_func(event);
+  if (g_sb_event_func != NULL) {
+    g_sb_event_func(event);
+  }
 
   SB_CHECK(SbMutexRelease(&mutex) == true);
 }
