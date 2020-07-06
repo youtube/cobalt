@@ -18,6 +18,8 @@
   'variables': {
     'common_loader_app_sources': [
         'loader_app.cc',
+        'loader_app_switches.h',
+        'loader_app_switches.cc',
         'system_get_extension_shim.h',
         'system_get_extension_shim.cc',
     ],
