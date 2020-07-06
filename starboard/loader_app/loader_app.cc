@@ -110,7 +110,8 @@ void LoadUpdatableLibraryAndInitialize(
     const std::string& app_key,
     const std::string& alternative_content_path) {
   // Initialize the Installation Manager.
-  SB_CHECK(ImInitialize(kMaxNumInstallations) == IM_SUCCESS)
+  // TODO: Pass real app_key to initialize.
+  SB_CHECK(ImInitialize(kMaxNumInstallations, "cobalt") == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
 
   // Roll forward if needed.
