@@ -156,6 +156,8 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
+          'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
+          'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
           'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
       ],
       'player_filter_tests': [
