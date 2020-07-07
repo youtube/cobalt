@@ -167,7 +167,7 @@ void LoadUpdatableLibraryAndInitialize(
                     kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
-    const char* content = NULL;
+    std::string content;
     if (alternative_content_path.empty()) {
       // installation_n/content
       std::vector<char> content_path(kSbFileMaxPath);
