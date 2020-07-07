@@ -102,6 +102,7 @@ v8.log
 /chrome/tools/test/reference_build
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
+/cobalt/black_box_tests/_certs
 /content/test/data/layout_tests/
 /content/test/data/plugin/
 /data
