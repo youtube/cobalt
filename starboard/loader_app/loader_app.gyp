@@ -25,6 +25,7 @@
     ],
     'common_loader_app_dependencies': [
         '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
+        '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
     ],
   },
