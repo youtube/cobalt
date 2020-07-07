@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #include "cobalt/dom/mime_type_array.h"
@@ -26,6 +27,7 @@
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -84,6 +86,33 @@ class Navigator : public script::Wrappable {
  private:
   ~Navigator() override {}
 
+  base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+  TryGetSupportedCapabilities(
+      const media::CanPlayTypeHandler& can_play_type_handler,
+      const std::string& key_system,
+      const script::Sequence<MediaKeySystemMediaCapability>&
+          requested_media_capabilities);
+
+  base::Optional<eme::MediaKeySystemConfiguration> TryGetSupportedConfiguration(
+      const media::CanPlayTypeHandler& can_play_type_handler,
+      const std::string& key_system,
+      const eme::MediaKeySystemConfiguration& candidate_configuration);
+
+  bool CanPlayWithCapability(
+      const media::CanPlayTypeHandler& can_play_type_handler,
+      const std::string& key_system,
+      const MediaKeySystemMediaCapability& media_capability);
+
+  bool CanPlayWithoutAttributes(
+      const media::CanPlayTypeHandler& can_play_type_handler,
+      const std::string& content_type, const std::string& key_system,
+      const std::string& encryption_scheme);
+
+  bool CanPlayWithAttributes(
+      const media::CanPlayTypeHandler& can_play_type_handler,
+      const std::string& content_type, const std::string& key_system,
+      const std::string& encryption_scheme);
+
   std::string user_agent_;
   std::string language_;
   scoped_refptr<MimeTypeArray> mime_types_;
@@ -93,6 +122,7 @@ class Navigator : public script::Wrappable {
   scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
       system_caption_settings_;
   script::ScriptValueFactory* script_value_factory_;
+  base::Optional<bool> key_system_with_attributes_supported_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
 };

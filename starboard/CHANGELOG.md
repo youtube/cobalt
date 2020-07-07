@@ -261,6 +261,23 @@ kSbEventTypeAccessiblityTextToSpeechSettingsChanged event to inform the app
 when those settings change. For older starboard versions, use
 kSbEventTypeAccessiblitySettingsChanged instead.
 
+### Add extension to SbMediaCanPlayMimeAndKeySystem() for encryptionScheme.
+
+Now the Starboard implementation may choose to support |key_system| with extra
+attributes, in order to selectively support encryption schemes on particular
+containers or codecs.
+The Starboard implementation needn't support |key_system| with extra attributes
+if it meets the requirements for the default implementation of
+`Navigator.requestMediaKeySystemAccess()`, which assumes that:
+1. When the Widevine DRM system is used, all the encryption schemes ('cenc',
+   'cbcs', 'cbcs-1-9') should be supported across all containers and codecs
+   supported by the platform.
+2. When the PlayReady DRM system is used, only 'cenc' is supported across all
+   containers and codecs supported by the platform.
+
+Please see the comment of `SbMediaCanPlayMimeAndKeySystem()` in `media.h` for
+more details.
+
 ## Version 11
 
 ### Add arguments to `SbMediaIsVideoSupported`.

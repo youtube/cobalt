@@ -102,6 +102,23 @@ This document records all notable changes made to Cobalt since the last release.
    (https://lottiefiles.com/web-player). In order to support Lottie, Cobalt
    updated its Skia port from m61 to m79.
 
+ - **Added support for MediaKeySystemMediaCapability.encryptionScheme.**
+
+   Cobalt now supports `MediaKeySystemMediaCapability.encryptionScheme` for
+   `Navigator.requestMediaKeySystemAccess()`. `encryptionScheme` can be 'cenc',
+   'cbcs', or 'cbcs-1-9'.
+   The default implementation assumes that:
+   1. When the Widevine DRM system is used, all the above encryption schemes
+      should be supported across all containers and codecs supported by the
+      platform.
+   2. When the PlayReady DRM system is used, only 'cenc' is supported across all
+      containers and codecs supported by the platform.
+
+   It is possible to customize this behavior via an extension to
+  `SbMediaCanPlayMimeAndKeySystem()`.  Please see the Starboard change log and
+   the comment of `SbMediaCanPlayMimeAndKeySystem()` in `media.h` for more
+   details.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
