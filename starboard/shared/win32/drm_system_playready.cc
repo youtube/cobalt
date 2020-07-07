@@ -26,6 +26,7 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 
 namespace {
 
@@ -127,7 +128,31 @@ DrmSystemPlayready::~DrmSystemPlayready() {
 }
 
 bool DrmSystemPlayready::IsKeySystemSupported(const char* key_system) {
-  return SbStringCompareAll(key_system, kPlayReadyKeySystem) == 0;
+  SB_DCHECK(key_system);
+
+  // It is possible that the |key_system| comes with extra attributes, like
+  // `com.youtube.playready; encryptionscheme="cenc"`.  We prepend "key_system/"
+  // to it, so it can be parsed by MimeType.
+  starboard::media::MimeType mime_type(std::string("key_system/") + key_system);
+
+  if (!mime_type.is_valid()) {
+    return false;
+  }
+  SB_DCHECK(mime_type.type() == "key_system");
+  if (mime_type.subtype() != kPlayReadyKeySystem) {
+    return false;
+  }
+
+  for (int i = 0; i < mime_type.GetParamCount(); ++i) {
+    if (mime_type.GetParamName(i) == "encryptionscheme") {
+      auto value = mime_type.GetParamStringValue(i);
+      if (value != "cenc") {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 void DrmSystemPlayready::GenerateSessionUpdateRequest(
