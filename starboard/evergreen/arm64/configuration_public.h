@@ -36,7 +36,7 @@
 #define SB_HAS_SYS_TYPES_H 0
 
 // Whether the current platform provides ssize_t.
-#define SB_HAS_SSIZE_T 0
+#define SB_HAS_SSIZE_T 1
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
