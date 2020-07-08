@@ -1778,15 +1778,7 @@ void BrowserModule::FreezeInternal() {
 
 void BrowserModule::RevealInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
-
-  // TODO: We need to add the same logic into constrtuctors for
-  // handling the Concealed state issues.
-  if (!media_module_) {
-    FOR_EACH_OBSERVER(
-      LifecycleObserver, lifecycle_observers_, Conceal(GetResourceProvider()));
-    ConcealInternal();
-  }
-
+  DCHECK(!renderer_module_);
   DCHECK(!system_window_);
   InitializeSystemWindow();
 
