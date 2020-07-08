@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/strings/stringprintf.h"
+#include "cobalt/base/console_log.h"
 
 namespace cobalt {
 namespace loader {
@@ -145,7 +146,8 @@ void CachedResourceBase::OnLoadingComplete(
     }
     // Error
   } else {
-    LOG(WARNING) << " Error while loading '" << url_ << "': " << *error;
+    CLOG(WARNING, owner_->debugger_hooks())
+        << " Error while loading '" << url_ << "': " << *error;
 
     if (has_resource_func_.Run()) {
       LOG(WARNING) << "A resource was produced but there was still an error.";
@@ -215,10 +217,11 @@ void ResourceCacheBase::DisableCallbacks() {
 }
 
 ResourceCacheBase::ResourceCacheBase(
-    const std::string& name, uint32 cache_capacity,
-    bool are_loading_retries_enabled,
+    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    uint32 cache_capacity, bool are_loading_retries_enabled,
     const ReclaimMemoryFunc& reclaim_memory_func)
     : name_(name),
+      debugger_hooks_(debugger_hooks),
       are_loading_retries_enabled_(are_loading_retries_enabled),
       cache_capacity_(cache_capacity),
       reclaim_memory_func_(reclaim_memory_func),
