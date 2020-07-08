@@ -37,6 +37,7 @@ class DOMParserTest : public ::testing::Test {
   ~DOMParserTest() override {}
 
   testing::StubEnvironmentSettings environment_settings_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   testing::StubCSSParser stub_css_parser_;
@@ -48,9 +49,10 @@ class DOMParserTest : public ::testing::Test {
 
 DOMParserTest::DOMParserTest()
     : fetcher_factory_(NULL /* network_module */),
-      loader_factory_(
-          "Test" /* name */, &fetcher_factory_, NULL /* resource provider */,
-          0 /* encoded_image_cache_capacity */, base::ThreadPriority::DEFAULT),
+      loader_factory_("Test" /* name */, &fetcher_factory_,
+                      NULL /* resource provider */, null_debugger_hooks_,
+                      0 /* encoded_image_cache_capacity */,
+                      base::ThreadPriority::DEFAULT),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(
           &environment_settings_, &fetcher_factory_, &loader_factory_,

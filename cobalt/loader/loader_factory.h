@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/threading/thread.h"
+#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/fetcher_cache.h"
@@ -42,6 +43,7 @@ class LoaderFactory {
  public:
   LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                 render_tree::ResourceProvider* resource_provider,
+                const base::DebuggerHooks& debugger_hooks,
                 size_t encoded_image_cache_capacity,
                 base::ThreadPriority loader_thread_priority);
 
@@ -120,6 +122,9 @@ class LoaderFactory {
 
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;
+
+  // Used with CLOG to report errors with the image source.
+  const base::DebuggerHooks& debugger_hooks_;
 
   // Keeps track of all active loaders so that if a suspend event occurs they
   // can be aborted.

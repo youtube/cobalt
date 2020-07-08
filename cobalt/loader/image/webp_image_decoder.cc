@@ -26,8 +26,10 @@ namespace loader {
 namespace image {
 
 WEBPImageDecoder::WEBPImageDecoder(
-    render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks)
+    : ImageDataDecoder(resource_provider, debugger_hooks),
+      internal_decoder_(NULL) {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
@@ -59,7 +61,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
     if (config_.input.has_animation) {
       animated_webp_image_ = new AnimatedWebPImage(
           math::Size(config_.input.width, config_.input.height),
-          !!config_.input.has_alpha, resource_provider());
+          !!config_.input.has_alpha, resource_provider(), debugger_hooks());
     } else {
       decoded_image_data_ = AllocateImageData(
           math::Size(config_.input.width, config_.input.height),

@@ -27,7 +27,8 @@ namespace image {
 class LottieAnimationDecoder : public ImageDataDecoder {
  public:
   explicit LottieAnimationDecoder(
-      render_tree::ResourceProvider* resource_provider);
+      render_tree::ResourceProvider* resource_provider,
+      const base::DebuggerHooks& debugger_hooks);
 
   // From ImageDataDecoder
   std::string GetTypeString() const override {
