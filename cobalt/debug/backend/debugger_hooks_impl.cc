@@ -37,6 +37,9 @@ static_assert(::logging::LOG_NUM_SEVERITIES == arraysize(kConsoleMethodName),
 
 }  // namespace
 
+DebuggerHooksImpl::DebuggerHooksImpl()
+    : message_loop_(base::MessageLoop::current()) {}
+
 void DebuggerHooksImpl::AttachDebugger(
     script::ScriptDebugger* script_debugger) {
   script_debugger_ = script_debugger;
@@ -51,6 +54,13 @@ void DebuggerHooksImpl::DetachDebugger() {
 
 void DebuggerHooksImpl::ConsoleLog(::logging::LogSeverity severity,
                                    std::string message) const {
+  if (base::MessageLoop::current() != message_loop_) {
+    message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&DebuggerHooksImpl::ConsoleLog,
+                              base::Unretained(this), severity, message));
+    return;
+  }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!script_debugger_) return;
   std::ostringstream js_code;
   js_code << "console." << kConsoleMethodName[severity] << '('
@@ -61,6 +71,7 @@ void DebuggerHooksImpl::ConsoleLog(::logging::LogSeverity severity,
 void DebuggerHooksImpl::AsyncTaskScheduled(const void* task,
                                            const std::string& name,
                                            AsyncTaskFrequency frequency) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (script_debugger_) {
     script_debugger_->AsyncTaskScheduled(
         task, name, (frequency == AsyncTaskFrequency::kRecurring));
@@ -68,18 +79,21 @@ void DebuggerHooksImpl::AsyncTaskScheduled(const void* task,
 }
 
 void DebuggerHooksImpl::AsyncTaskStarted(const void* task) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (script_debugger_) {
     script_debugger_->AsyncTaskStarted(task);
   }
 }
 
 void DebuggerHooksImpl::AsyncTaskFinished(const void* task) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (script_debugger_) {
     script_debugger_->AsyncTaskFinished(task);
   }
 }
 
 void DebuggerHooksImpl::AsyncTaskCanceled(const void* task) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (script_debugger_) {
     script_debugger_->AsyncTaskCanceled(task);
   }
