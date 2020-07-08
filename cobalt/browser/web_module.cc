@@ -682,8 +682,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
   error_callback_ = data.error_callback;
   DCHECK(!error_callback_.is_null());
 
+  bool is_concealed =
+      (data.initial_application_state == base::kApplicationStateConcealed);
   layout_manager_.reset(new layout::LayoutManager(
-      name_, window_.get(),
+      is_concealed, name_, window_.get(),
       base::Bind(&WebModule::Impl::OnRenderTreeProduced,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::HandlePointerEvents, base::Unretained(this)),
@@ -1084,13 +1086,9 @@ void WebModule::Impl::SetResourceProvider(
     // Check for if the resource provider type id has changed. If it has, then
     // anything contained within the caches is invalid and must be purged.
     if (resource_provider_type_id_ != resource_provider_type_id) {
-      PurgeResourceCaches(false);
+      PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
     }
     resource_provider_type_id_ = resource_provider_type_id;
-
-    loader_factory_->Resume(resource_provider_);
-
-    layout_manager_->Resume();
   }
 }
 
@@ -1114,11 +1112,7 @@ void WebModule::Impl::Blur() {
 void WebModule::Impl::Conceal(
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Conceal()");
-  SetApplicationState(base::kApplicationStateConcealed);
-
-  // Purge the resource caches before running any freeze logic. This will force
-  // any pending callbacks that the caches are batching to run.
-  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
+  SetResourceProvider(resource_provider);
 
   layout_manager_->Suspend();
 
@@ -1130,6 +1124,8 @@ void WebModule::Impl::Conceal(
   // Clear out any currently tracked animating images.
   animated_image_tracker_->Reset();
 
+  // Purge the resource caches before running any freeze logic. This will force
+  // any pending callbacks that the caches are batching to run.
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
 
 #if defined(ENABLE_DEBUGGER)
@@ -1141,26 +1137,27 @@ void WebModule::Impl::Conceal(
   if (javascript_engine_) {
     javascript_engine_->CollectGarbage();
   }
+  SetApplicationState(base::kApplicationStateConcealed);
 }
 
 void WebModule::Impl::Freeze() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Freeze()");
-  SetApplicationState(base::kApplicationStateFrozen);
 
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+  SetApplicationState(base::kApplicationStateFrozen);
 }
 
 void WebModule::Impl::Unfreeze(
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unfreeze()");
   synchronous_loader_interrupt_.Reset();
-  SetApplicationState(base::kApplicationStateConcealed);
   DCHECK(resource_provider);
 
   // TODO: Investigate the loader_factory and resource_provider issues.
   loader_factory_->Resume(resource_provider);
+  SetApplicationState(base::kApplicationStateConcealed);
 }
 
 void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
@@ -1168,6 +1165,13 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
   SetResourceProvider(resource_provider);
+
+  window_->document()->PurgeCachedResources();
+
+  loader_factory_->Resume(resource_provider_);
+  layout_manager_->Resume();
+
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
   SetApplicationState(base::kApplicationStateBlurred);
 }
 
