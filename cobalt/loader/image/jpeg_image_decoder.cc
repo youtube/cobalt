@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/console_log.h"
 #include "nb/memory_scope.h"
 #include "third_party/libjpeg/jpegint.h"
 
@@ -125,8 +126,9 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
 
 JPEGImageDecoder::JPEGImageDecoder(
     render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks,
     bool allow_image_decoding_to_multi_plane)
-    : ImageDataDecoder(resource_provider),
+    : ImageDataDecoder(resource_provider, debugger_hooks),
       allow_image_decoding_to_multi_plane_(
           allow_image_decoding_to_multi_plane) {
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::JPEGImageDecoder()");

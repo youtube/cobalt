@@ -69,13 +69,14 @@ class MockImageDecoder : public Decoder {
 
  protected:
   render_tree::ResourceProviderStub resource_provider_;
+  base::NullDebuggerHooks debugger_hooks_;
   ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
   std::unique_ptr<Decoder> image_decoder_;
 };
 
 MockImageDecoder::MockImageDecoder() {
   image_decoder_.reset(new ImageDecoder(
-      &resource_provider_,
+      &resource_provider_, debugger_hooks_,
       base::Bind(&MockImageDecoderCallback::SuccessCallback,
                  base::Unretained(&image_decoder_callback_)),
       base::Bind(&MockImageDecoderCallback::LoadCompleteCallback,
@@ -651,8 +652,9 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
 // output to be single plane.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
   render_tree::ResourceProviderStub resource_provider;
+  base::NullDebuggerHooks debugger_hooks;
   const bool kAllowImageDecodingToMultiPlane = false;
-  JPEGImageDecoder jpeg_image_decoder(&resource_provider,
+  JPEGImageDecoder jpeg_image_decoder(&resource_provider, debugger_hooks,
                                       kAllowImageDecodingToMultiPlane);
 
   std::vector<uint8> image_data =
@@ -683,8 +685,9 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
 TEST(ImageDecoderTest,
      DecodeProgressiveJPEGImageWithMultipleChunksToSinglePlane) {
   render_tree::ResourceProviderStub resource_provider;
+  base::NullDebuggerHooks debugger_hooks;
   const bool kAllowImageDecodingToMultiPlane = false;
-  JPEGImageDecoder jpeg_image_decoder(&resource_provider,
+  JPEGImageDecoder jpeg_image_decoder(&resource_provider, debugger_hooks,
                                       kAllowImageDecodingToMultiPlane);
 
   std::vector<uint8> image_data =

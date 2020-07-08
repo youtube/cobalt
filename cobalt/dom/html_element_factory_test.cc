@@ -57,7 +57,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
   HTMLElementFactoryTest()
       : fetcher_factory_(NULL /* network_module */),
         loader_factory_("Test" /* name */, &fetcher_factory_,
-                        NULL /* resource loader */,
+                        NULL /* resource loader */, null_debugger_hooks_,
                         0 /* encoded_image_cache_capacity */,
                         base::ThreadPriority::DEFAULT),
         dom_parser_(new dom_parser::Parser()),
@@ -79,6 +79,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
   ~HTMLElementFactoryTest() override {}
 
   testing::StubEnvironmentSettings environment_settings_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;

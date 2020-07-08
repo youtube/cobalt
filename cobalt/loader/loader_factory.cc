@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/loader/loader_factory.h"
+
+#include <memory>
 
 #include "base/threading/platform_thread.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
@@ -32,10 +32,12 @@ const size_t kLoadThreadStackSize = 0;
 
 LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                              render_tree::ResourceProvider* resource_provider,
+                             const base::DebuggerHooks& debugger_hooks,
                              size_t encoded_image_cache_capacity,
                              base::ThreadPriority loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
       resource_provider_(resource_provider),
+      debugger_hooks_(debugger_hooks),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
   if (encoded_image_cache_capacity > 0) {
@@ -61,7 +63,8 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
       base::Bind(&image::ThreadedImageDecoderProxy::Create, resource_provider_,
-                 image_available_callback, load_thread_.message_loop()),
+                 &debugger_hooks_, image_available_callback,
+                 load_thread_.message_loop()),
       load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
