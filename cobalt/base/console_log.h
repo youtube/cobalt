@@ -18,6 +18,7 @@
 #include <sstream>
 
 #include "base/logging.h"
+#include "cobalt/base/debugger_hooks.h"
 
 namespace base {
 
