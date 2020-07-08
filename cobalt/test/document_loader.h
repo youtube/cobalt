@@ -57,7 +57,8 @@ class DocumentLoader : public dom::DocumentObserver {
             debugger_hooks_, 0 /* encoded_image_cache_capacity */,
             base::ThreadPriority::BACKGROUND)),
         image_cache_(loader::image::CreateImageCache(
-            "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),
+            "Test.ImageCache", debugger_hooks_, 32U * 1024 * 1024,
+            loader_factory_.get())),
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
         resource_provider_(resource_provider_stub_.get()),
         html_element_context_(
