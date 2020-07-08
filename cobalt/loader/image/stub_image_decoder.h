@@ -30,8 +30,9 @@ namespace image {
 // during tests or benchmarks to minimize the impact of image decoding.
 class StubImageDecoder : public ImageDataDecoder {
  public:
-  explicit StubImageDecoder(render_tree::ResourceProvider* resource_provider)
-      : ImageDataDecoder(resource_provider) {}
+  explicit StubImageDecoder(render_tree::ResourceProvider* resource_provider,
+                            const base::DebuggerHooks& debugger_hooks)
+      : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "StubImageDecoder"; }

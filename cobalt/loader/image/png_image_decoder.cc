@@ -66,8 +66,9 @@ void DecodingWarning(png_structp png, png_const_charp warning_msg) {
 }  // namespace
 
 PNGImageDecoder::PNGImageDecoder(
-    render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider),
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks)
+    : ImageDataDecoder(resource_provider, debugger_hooks),
       png_(NULL),
       info_(NULL),
       has_alpha_(false),

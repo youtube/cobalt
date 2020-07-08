@@ -54,7 +54,7 @@ class DocumentLoader : public dom::DocumentObserver {
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
         loader_factory_(new loader::LoaderFactory(
             "Test" /* name */, &fetcher_factory_, resource_provider_stub_.get(),
-            0 /* encoded_image_cache_capacity */,
+            debugger_hooks_, 0 /* encoded_image_cache_capacity */,
             base::ThreadPriority::BACKGROUND)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", 32U * 1024 * 1024, loader_factory_.get())),
@@ -108,6 +108,7 @@ class DocumentLoader : public dom::DocumentObserver {
   base::RunLoop nested_loop_;
 
   dom::testing::StubEnvironmentSettings environment_settings_;
+  base::NullDebuggerHooks debugger_hooks_;
   script::FakeScriptRunner script_runner_;
   loader::FetcherFactory fetcher_factory_;
   std::unique_ptr<css_parser::Parser> css_parser_;

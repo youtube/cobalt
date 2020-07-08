@@ -36,10 +36,10 @@ namespace {
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
 
-using renderer::RendererModule;
-using render_tree::ResourceProvider;
-using system_window::SystemWindow;
 using base::FileEnumerator;
+using render_tree::ResourceProvider;
+using renderer::RendererModule;
+using system_window::SystemWindow;
 
 struct ImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<loader::image::Image>& value) {
@@ -86,8 +86,8 @@ std::vector<uint8> GetFileContent(const base::FilePath& file_path) {
   int num_of_bytes = base::ReadFile(
       file_path, reinterpret_cast<char*>(&data[0]), static_cast<int>(size));
 
-  CHECK_EQ(num_of_bytes, data.size()) << "Could not read '" << file_path.value()
-                                      << "'.";
+  CHECK_EQ(num_of_bytes, data.size())
+      << "Could not read '" << file_path.value() << "'.";
   return data;
 }
 
@@ -97,12 +97,13 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
   size_t total_size = 0;
 
   for (size_t i = 0; i < paths.size(); ++i) {
+    base::NullDebuggerHooks debugger_hooks;
     ImageDecoderCallback image_decoder_result;
     std::vector<uint8> image_data = GetFileContent(paths[i]);
 
     base::Time start = base::Time::Now();
     std::unique_ptr<Decoder> image_decoder(
-        new ImageDecoder(resource_provider,
+        new ImageDecoder(resource_provider, debugger_hooks,
                          base::Bind(&ImageDecoderCallback::SuccessCallback,
                                     base::Unretained(&image_decoder_result)),
                          base::Bind(&ImageDecoderCallback::LoadCompleteCallback,

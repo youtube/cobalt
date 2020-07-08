@@ -197,9 +197,9 @@ class OnScreenKeyboardTest : public ::testing::Test {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
-        loader_factory_(
-            new loader::LoaderFactory("Test", fetcher_factory_.get(), NULL, 0,
-                                      base::ThreadPriority::DEFAULT)),
+        loader_factory_(new loader::LoaderFactory(
+            "Test", fetcher_factory_.get(), NULL, null_debugger_hooks_, 0,
+            base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank"),
         engine_(script::JavaScriptEngine::CreateEngine()),
@@ -263,6 +263,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
 
  private:
   const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
   std::unique_ptr<css_parser::Parser> css_parser_;
@@ -708,8 +709,7 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
   )";
   EXPECT_TRUE(EvaluateScript(script, NULL));
 }
-#else   // SB_API_VERSION >= 12 ||
-   // SB_HAS(ON_SCREEN_KEYBOARD)
+#else   // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   std::string result;
 
@@ -738,8 +738,7 @@ TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
   EXPECT_TRUE(EvaluateScript(object_script, &result));
   EXPECT_EQ("true", result);
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+#endif  // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 
 }  // namespace dom
 }  // namespace cobalt

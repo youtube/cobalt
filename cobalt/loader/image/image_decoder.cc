@@ -75,9 +75,11 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
 
 ImageDecoder::ImageDecoder(
     render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
+      debugger_hooks_(debugger_hooks),
       image_available_callback_(image_available_callback),
       image_type_(kImageTypeInvalid),
       load_complete_callback_(load_complete_callback),
@@ -88,10 +90,12 @@ ImageDecoder::ImageDecoder(
 
 ImageDecoder::ImageDecoder(
     render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
     ImageType image_type,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
+      debugger_hooks_(debugger_hooks),
       image_available_callback_(image_available_callback),
       image_type_(image_type),
       load_complete_callback_(load_complete_callback),
@@ -281,7 +285,8 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
 // If |mime_type| is empty, |image_type| will be used to deduce the mime type.
 std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
     const std::string& mime_type, ImageDecoder::ImageType image_type,
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks) {
   // clang-format off
   const SbDecodeTargetFormat kPreferredFormats[] = {
       kSbDecodeTargetFormat1PlaneRGBA,
@@ -314,7 +319,7 @@ std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
     if (SbDecodeTargetIsFormatValid(format) &&
         resource_provider->SupportsSbDecodeTarget()) {
       return std::unique_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
-          resource_provider, mime_type_c_string, format));
+          resource_provider, debugger_hooks, mime_type_c_string, format));
     }
   }
   return std::unique_ptr<ImageDataDecoder>();
@@ -322,26 +327,28 @@ std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
 
 std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks) {
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     return std::unique_ptr<ImageDataDecoder>(
-        new StubImageDecoder(resource_provider));
+        new StubImageDecoder(resource_provider, debugger_hooks));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-    return std::unique_ptr<ImageDataDecoder>(new JPEGImageDecoder(
-        resource_provider, ImageDecoder::AllowDecodingToMultiPlane()));
+    return std::unique_ptr<ImageDataDecoder>(
+        new JPEGImageDecoder(resource_provider, debugger_hooks,
+                             ImageDecoder::AllowDecodingToMultiPlane()));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
     return std::unique_ptr<ImageDataDecoder>(
-        new PNGImageDecoder(resource_provider));
+        new PNGImageDecoder(resource_provider, debugger_hooks));
   } else if (image_type == ImageDecoder::kImageTypeWebP) {
     return std::unique_ptr<ImageDataDecoder>(
-        new WEBPImageDecoder(resource_provider));
+        new WEBPImageDecoder(resource_provider, debugger_hooks));
   } else if (image_type == ImageDecoder::kImageTypeGIF) {
     return std::unique_ptr<ImageDataDecoder>(
-        new DummyGIFImageDecoder(resource_provider));
+        new DummyGIFImageDecoder(resource_provider, debugger_hooks));
   } else if (image_type == ImageDecoder::kImageTypeJSON) {
     return std::unique_ptr<ImageDataDecoder>(
-        new LottieAnimationDecoder(resource_provider));
+        new LottieAnimationDecoder(resource_provider, debugger_hooks));
   } else {
     return std::unique_ptr<ImageDataDecoder>();
   }
@@ -367,11 +374,12 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
     image_type_ = DetermineImageType(signature_cache_.data);
   }
 
-  decoder_ =
-      MaybeCreateStarboardDecoder(mime_type_, image_type_, resource_provider_);
+  decoder_ = MaybeCreateStarboardDecoder(mime_type_, image_type_,
+                                         resource_provider_, debugger_hooks_);
 
   if (!decoder_) {
-    decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_);
+    decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_,
+                                               debugger_hooks_);
   }
 
   if (!decoder_) {

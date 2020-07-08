@@ -64,9 +64,9 @@ class ErrorEventTest : public ::testing::Test {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_load_complete_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
-        loader_factory_(
-            new loader::LoaderFactory("Test", fetcher_factory_.get(), NULL, 0,
-                                      base::ThreadPriority::DEFAULT)),
+        loader_factory_(new loader::LoaderFactory(
+            "Test", fetcher_factory_.get(), NULL, null_debugger_hooks_, 0,
+            base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank") {
     engine_ = script::JavaScriptEngine::CreateEngine();
@@ -99,6 +99,7 @@ class ErrorEventTest : public ::testing::Test {
 
  private:
   base::MessageLoop message_loop_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   std::unique_ptr<script::JavaScriptEngine> engine_;
   const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;

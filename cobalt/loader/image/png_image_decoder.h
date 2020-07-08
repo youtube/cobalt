@@ -29,7 +29,8 @@ namespace image {
 
 class PNGImageDecoder : public ImageDataDecoder {
  public:
-  explicit PNGImageDecoder(render_tree::ResourceProvider* resource_provider);
+  explicit PNGImageDecoder(render_tree::ResourceProvider* resource_provider,
+                           const base::DebuggerHooks& debugger_hooks);
   ~PNGImageDecoder() override;
 
   // From ImageDataDecoder

@@ -26,8 +26,9 @@ const char kDummyAdsGif[] = {
     '\x00', '\x02', '\x01', '\x44', '\x00', '\x3B'};
 
 DummyGIFImageDecoder::DummyGIFImageDecoder(
-    render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider) {}
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks)
+    : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
 size_t DummyGIFImageDecoder::DecodeChunkInternal(const uint8* data,
                                                  size_t input_byte) {
