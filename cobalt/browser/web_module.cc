@@ -1115,7 +1115,6 @@ void WebModule::Impl::Conceal(
   SetResourceProvider(resource_provider);
 
   layout_manager_->Suspend();
-
   // Purge the cached resources prior to the freeze. That may cancel pending
   // loads, allowing the freeze to occur faster and preventing unnecessary
   // callbacks.
@@ -1137,6 +1136,8 @@ void WebModule::Impl::Conceal(
   if (javascript_engine_) {
     javascript_engine_->CollectGarbage();
   }
+
+  loader_factory_->UpdateResourceProvider(resource_provider_);
   SetApplicationState(base::kApplicationStateConcealed);
 }
 
@@ -1168,7 +1169,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
 
   window_->document()->PurgeCachedResources();
 
-  loader_factory_->Resume(resource_provider_);
+  loader_factory_->UpdateResourceProvider(resource_provider_);
   layout_manager_->Resume();
 
   PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
