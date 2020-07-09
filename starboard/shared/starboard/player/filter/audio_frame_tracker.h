@@ -42,7 +42,8 @@ class AudioFrameTracker {
   void AddFrames(int number_of_frames, double playback_rate);
   void RecordPlayedFrames(int number_of_frames);
   int64_t GetFutureFramesPlayedAdjustedToPlaybackRate(
-      int number_of_frames) const;
+      int number_of_frames,
+      double* playback_rate) const;
 
  private:
   struct FrameRecord {
@@ -53,6 +54,7 @@ class AudioFrameTracker {
   // Usually there are very few elements, so std::vector<> is efficient enough.
   std::vector<FrameRecord> frame_records_;
   int64_t frames_played_adjusted_to_playback_rate_ = 0;
+  double last_playback_rate_ = 1.0;
 };
 
 }  // namespace filter
