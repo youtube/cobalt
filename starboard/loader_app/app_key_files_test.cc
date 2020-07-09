@@ -22,7 +22,7 @@
 
 namespace starboard {
 namespace loader_app {
-namespace app_key_files {
+namespace {
 
 const char kTestAppKey[] = "test_app_key";
 const char kTestAppKeyDir[] = "test_app_key_dir";
@@ -82,6 +82,6 @@ TEST_F(AppKeyFilesTest, TestBadKeyFileInvalidInput) {
   ASSERT_TRUE(file_path.empty());
 }
 
-}  // namespace app_key_files
+}  // namespace
 }  // namespace loader_app
 }  // namespace starboard
