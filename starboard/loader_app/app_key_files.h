@@ -19,7 +19,6 @@
 
 namespace starboard {
 namespace loader_app {
-namespace app_key_files {
 
 // Gets the file path for a good app key file in the |dir| directory.
 // The file is used to mark an installation slot as good for the app.
@@ -36,7 +35,6 @@ std::string GetBadAppKeyFilePath(const std::string& dir,
 // Helper function to create a file with the specified full path name.
 bool CreateAppKeyFile(const std::string& file_name_path);
 
-}  // namespace app_key_files
 }  // namespace loader_app
 }  // namespace starboard
 
