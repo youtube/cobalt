@@ -20,11 +20,12 @@
 
 namespace starboard {
 namespace loader_app {
-namespace app_key_files {
 
+namespace {
 const char kFilePrefix[] = "app_key_";
 const char kGoodFileSuffix[] = ".good";
 const char kBadFileSuffix[] = ".bad";
+}
 
 std::string GetAppKeyFilePathWithSuffix(const std::string& dir,
                                         const std::string& app_key,
@@ -67,6 +68,5 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
   return true;
 }
 
-}  // namespace app_key_files
 }  // namespace loader_app
 }  // namespace starboard

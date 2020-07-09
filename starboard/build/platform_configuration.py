@@ -365,6 +365,7 @@ class PlatformConfiguration(object):
       A list of strings of test target names.
     """
     tests = [
+        'app_key_files_test',
         'elf_loader_test',
         'installation_manager_test',
         'nplb',

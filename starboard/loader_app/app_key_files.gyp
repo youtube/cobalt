@@ -39,7 +39,7 @@
       ],
     },
     {
-      'target_name': 'app_key_files_deploy',
+      'target_name': 'app_key_files_test_deploy',
       'type': 'none',
       'dependencies': [
         'app_key_files_test',
