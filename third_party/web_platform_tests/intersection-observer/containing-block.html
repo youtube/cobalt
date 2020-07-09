@@ -5,6 +5,10 @@
 <script src="./resources/intersection-observer-test-utils.js"></script>
 
 <style>
+/* Cobalt does not implement HTML5 spec for body margin. */
+body {
+  margin: 8px;
+}
 pre, #log {
   position: absolute;
   top: 0;
@@ -13,7 +17,7 @@ pre, #log {
 #root {
   width: 170px;
   height: 200px;
-  overflow-y: scroll;
+  overflow: scroll;
 }
 #target {
   width: 100px;
@@ -38,6 +42,7 @@ runTestCycle(function() {
   assert_true(!!target, "target element exists.");
   var observer = new IntersectionObserver(function(changes) {
     entries = entries.concat(changes);
+    window.testRunner.DoNonMeasuredLayout();
   }, { root: root });
   observer.observe(target);
   entries = entries.concat(observer.takeRecords());
@@ -45,6 +50,8 @@ runTestCycle(function() {
   target.style.top = "10px";
   runTestCycle(test1, "In containing block and intersecting.");
 }, "IntersectionObserver should only report intersections if root is a containing block ancestor of target.");
+window.testRunner.DoNonMeasuredLayout();
+window.testRunner.DoNonMeasuredLayout();
 
 function test1() {
   runTestCycle(test2, "In containing block and not intersecting.");
@@ -59,12 +66,14 @@ function test2() {
   checkLastEntry(entries, 1, [58, 158, 258, 358, 0, 0, 0, 0].concat(rootBounds));
   root.style.position = "static";
   target.style.top = "10px";
+  window.testRunner.DoNonMeasuredLayout();
 }
 
 function test3() {
   runTestCycle(test4, "Not in containing block and not intersecting.");
   checkLastEntry(entries, 1);
   target.style.top = "250px";
+  window.testRunner.DoNonMeasuredLayout();
 }
 
 function test4() {

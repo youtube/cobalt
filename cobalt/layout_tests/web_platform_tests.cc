@@ -419,6 +419,11 @@ INSTANTIATE_TEST_CASE_P(html, WebPlatformTest,
                         GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
+    intersection_observer, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("intersection-observer")),
+    GetTestName());
+
+INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")),
     GetTestName());
