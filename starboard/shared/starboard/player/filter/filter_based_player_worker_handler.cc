@@ -503,8 +503,9 @@ void FilterBasedPlayerWorkerHandler::Update() {
     bool is_playing;
     bool is_eos_played;
     bool is_underflow;
+    double playback_rate;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow);
+        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
     update_media_info_cb_(media_time, dropped_frames, is_underflow);
   }
 
