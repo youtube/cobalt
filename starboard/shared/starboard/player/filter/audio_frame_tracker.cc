@@ -36,6 +36,8 @@ void AudioFrameTracker::Reset() {
 void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
   SB_DCHECK(playback_rate > 0);
 
+  last_playback_rate_ = playback_rate;
+
   if (number_of_frames == 0) {
     return;
   }
@@ -69,9 +71,18 @@ void AudioFrameTracker::RecordPlayedFrames(int number_of_frames) {
 }
 
 int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
-    int number_of_frames) const {
+    int number_of_frames,
+    double* playback_rate) const {
+  SB_DCHECK(playback_rate);
+
+  if (frame_records_.empty()) {
+    *playback_rate = last_playback_rate_;
+  }
+
   auto frames_played = frames_played_adjusted_to_playback_rate_;
   for (auto& record : frame_records_) {
+    *playback_rate = record.playback_rate;
+
     if (number_of_frames == 0) {
       break;
     }
