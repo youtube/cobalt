@@ -30,6 +30,8 @@
       'target_name': 'drain_file_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'drain_file_helper.cc',
+        'drain_file_helper.h',
         'drain_file_test.cc',
         '<(DEPTH)/starboard/common/test_main.cc',
       ],
