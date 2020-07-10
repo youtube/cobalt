@@ -62,6 +62,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -733,7 +734,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       network_module_options));
 
 #if SB_IS(EVERGREEN)
-  updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+    updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+  }
 #endif
   browser_module_.reset(new BrowserModule(
       initial_url,
