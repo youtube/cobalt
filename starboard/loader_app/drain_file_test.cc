@@ -21,6 +21,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
+#include "starboard/loader_app/drain_file_helper.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,51 +33,6 @@ namespace {
 const char kAppKeyOne[] = "b25lDQo=";
 const char kAppKeyTwo[] = "dHdvDQo=";
 const char kAppKeyThree[] = "dGhyZWUNCg==";
-
-// This class is used to create and remove a file within its own lifetime. The
-// main differences between this class and starboard::ScopedFile are that the
-// file is closed immediately upon creation, and potentially deleted in the
-// destructor.
-class ScopedDrainFile {
- public:
-  ScopedDrainFile(const std::string& dir,
-                  const std::string& app_key,
-                  SbTime timestamp) {
-    app_key_.assign(app_key);
-
-    path_.assign(dir);
-    path_.append(kSbFileSepString);
-    path_.append(kDrainFilePrefix);
-    path_.append(app_key);
-    path_.append("_");
-    path_.append(std::to_string(timestamp));
-
-    CreateFile();
-  }
-
-  ~ScopedDrainFile() {
-    if (!Exists())
-      return;
-    EXPECT_TRUE(SbFileDelete(path_.c_str()));
-  }
-
-  bool Exists() const { return SbFileExists(path_.c_str()); }
-
-  const std::string& app_key() const { return app_key_; }
-
-  const std::string& path() const { return path_; }
-
- private:
-  void CreateFile() {
-    SbFileError error = kSbFileOk;
-    starboard::ScopedFile file(path_.c_str(), kSbFileCreateOnly, NULL, &error);
-
-    EXPECT_TRUE(file.IsValid());
-  }
-
-  std::string app_key_;
-  std::string path_;
-};
 
 class DrainFileTest : public ::testing::Test {
  protected:
