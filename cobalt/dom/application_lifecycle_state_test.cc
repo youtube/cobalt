@@ -41,7 +41,7 @@ class MockApplicationLifecycleStateObserver
   MOCK_METHOD1(OnWindowFocusChanged, void(bool has_focus));
   MOCK_METHOD1(OnVisibilityStateChanged,
                void(VisibilityState visibility_state));
-
+  MOCK_METHOD1(OnFrozennessChanged, void(bool is_frozen));
  protected:
   MockApplicationLifecycleStateObserver() {}
 };
