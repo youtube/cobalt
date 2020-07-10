@@ -86,6 +86,11 @@ class MediaModule : public WebMediaPlayerFactory,
     system_window_ = system_window;
   }
 
+  void set_resource_provider(
+      render_tree::ResourceProvider* resource_provider) {
+    resource_provider_ = resource_provider;
+  }
+
  private:
   void RegisterDebugState(WebMediaPlayer* player);
   void DeregisterDebugState();
