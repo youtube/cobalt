@@ -1650,6 +1650,7 @@ void BrowserModule::InitializeSystemWindow() {
 
   if (media_module_) {
     media_module_->set_system_window(system_window_.get());
+    media_module_->set_resource_provider(GetResourceProvider());
   } else {
     options_.media_module_options.allow_resume_after_suspend =
         SbSystemSupportsResume();
@@ -1765,6 +1766,7 @@ void BrowserModule::ConcealInternal() {
     input_device_manager_.reset();
     system_window_.reset();
     media_module_->set_system_window(NULL);
+    media_module_->set_resource_provider(GetResourceProvider());
   }
 }
 
