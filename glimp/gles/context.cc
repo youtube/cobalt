@@ -2419,12 +2419,7 @@ void Context::CompressDrawStateForDrawCall() {
 
 void Context::MarkUsedProgramDirty() {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
-  draw_state_dirty_flags_.used_program_dirty = true;
-  // Switching programs marks all uniforms, samplers and vertex attributes
-  // as being dirty as well, since they are all properties of the program.
-  draw_state_dirty_flags_.vertex_attributes_dirty = true;
-  draw_state_dirty_flags_.textures_dirty = true;
-  draw_state_dirty_flags_.uniforms_dirty.MarkAll();
+  draw_state_dirty_flags_.MarkUsedProgram();
 }
 
 void Context::SetBoundDrawFramebufferToDefault() {
