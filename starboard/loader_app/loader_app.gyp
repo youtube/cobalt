@@ -17,17 +17,16 @@
 {
   'variables': {
     'common_loader_app_sources': [
-      'loader_app.cc',
-      'loader_app_switches.h',
-      'loader_app_switches.cc',
-      'system_get_extension_shim.h',
-      'system_get_extension_shim.cc',
+        'loader_app.cc',
+        'loader_app_switches.h',
+        'loader_app_switches.cc',
+        'system_get_extension_shim.h',
+        'system_get_extension_shim.cc',
     ],
     'common_loader_app_dependencies': [
-      '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
-      '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
-      '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
-      '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
+        '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
     ],
   },
   'targets': [
