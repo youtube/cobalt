@@ -24,8 +24,10 @@
         'system_get_extension_shim.cc',
     ],
     'common_loader_app_dependencies': [
-        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
+        '<(DEPTH)/starboard/loader_app/app_key.gyp:app_key',
         '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
+        '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
+        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
     ],
   },

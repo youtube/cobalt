@@ -56,7 +56,8 @@ const std::string& ScopedDrainFile::path() const {
 
 void ScopedDrainFile::CreateFile() {
   SbFileError error = kSbFileOk;
-  starboard::ScopedFile file(path_.c_str(), kSbFileCreateOnly, NULL, &error);
+  starboard::ScopedFile file(path_.c_str(), kSbFileCreateOnly | kSbFileWrite,
+                             NULL, &error);
 
   EXPECT_TRUE(file.IsValid());
 }
