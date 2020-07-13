@@ -1091,7 +1091,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       // test the former.
       browser_module_->Suspend();
 #if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
+      if (update_module_) updater_module_->Suspend();
 #endif
       DLOG(INFO) << "Finished concealing.";
       break;
@@ -1105,7 +1105,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       // test the former.
       browser_module_->Resume();
 #if SB_IS(EVERGREEN)
-      updater_module_->Resume();
+      if (update_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished revealing.";
       break;
@@ -1133,7 +1133,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kSuspendedAppStatus;
       browser_module_->Suspend();
 #if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
+      if (update_module_) updater_module_->Suspend();
 #endif
       DLOG(INFO) << "Finished suspending.";
       break;
@@ -1143,7 +1143,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       app_status_ = kPausedAppStatus;
       browser_module_->Resume();
 #if SB_IS(EVERGREEN)
-      updater_module_->Resume();
+      if (update_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;
