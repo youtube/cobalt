@@ -30,6 +30,8 @@
         'condition_variable.h',
         'configuration_defaults.cc',
         'configuration_defaults.h',
+        'file.cc',
+        'file.h',
         'flat_map.h',
         'locked_ptr.h',
         'log.cc',
