@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SbFileDelete is otherwise tested in all the other unit tests.
-
 #include <string>
 
 #include "starboard/file.h"
@@ -24,12 +22,29 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbFileDeleteTest, NonExistentFileErrors) {
-  std::string filename = starboard::nplb::GetRandomFilename();
-  EXPECT_FALSE(SbFileExists(filename.c_str()));
+TEST(SbFileDeleteTest, SunnyDayDeleteExistingFile) {
+  ScopedRandomFile file;
 
-  bool result = SbFileDelete(filename.c_str());
-  EXPECT_FALSE(result);
+  EXPECT_TRUE(SbFileExists(file.filename().c_str()));
+  EXPECT_TRUE(SbFileDelete(file.filename().c_str()));
+}
+
+TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
+  ScopedRandomFile file(ScopedRandomFile::kDontCreate);
+
+  const std::string& path = file.filename();
+
+  EXPECT_FALSE(SbFileExists(path.c_str()));
+  EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+  EXPECT_TRUE(SbFileDelete(path.c_str()));
+}
+
+TEST(SbFileDeleteTest, RainyDayNonExistentFileErrors) {
+  ScopedRandomFile file(ScopedRandomFile::kDontCreate);
+
+  EXPECT_FALSE(SbFileExists(file.filename().c_str()));
+  EXPECT_TRUE(SbFileDelete(file.filename().c_str()));
 }
 
 }  // namespace
