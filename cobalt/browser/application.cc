@@ -1066,7 +1066,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       ++app_suspend_count_;
       browser_module_->Suspend();
 #if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
+      if (updater_module_) updater_module_->Suspend();
 #endif
       DLOG(INFO) << "Finished suspending.";
       break;
@@ -1077,7 +1077,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       ++app_resume_count_;
       browser_module_->Resume();
 #if SB_IS(EVERGREEN)
-      updater_module_->Resume();
+      if (updater_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;
