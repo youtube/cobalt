@@ -70,6 +70,10 @@ int ImGetMaxNumberInstallations();
 // Uninitialize the Installation Manager.
 void ImUninitialize();
 
+// Resets the Installation Manager and clear all state.
+// Returns IM_SUCCESS on success and IM_ERROR on error.
+int ImReset();
+
 // Gets the status of the |installation_index| installation.
 // Returns |IM_INSTALLATION_STATUS_SUCCESS| if the installation is successful.
 // Returns |IM_INSTALLATION_STATUS_NOT_SUCCESS| if the installation is not
