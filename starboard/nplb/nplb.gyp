@@ -128,6 +128,7 @@
         'file_atomic_replace_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
+        'file_delete_recursive_test.cc',
         'file_get_info_test.cc',
         'file_get_path_info_test.cc',
         'file_helpers.cc',
