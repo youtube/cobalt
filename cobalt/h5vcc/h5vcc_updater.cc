@@ -18,7 +18,7 @@ namespace cobalt {
 namespace h5vcc {
 
 std::string H5vccUpdater::GetUpdaterChannel() const {
-  if (!updated_module_) {
+  if (!updater_module_) {
     return "";
   }
 
@@ -26,7 +26,7 @@ std::string H5vccUpdater::GetUpdaterChannel() const {
 }
 
 void H5vccUpdater::SetUpdaterChannel(const std::string& channel) {
-  if (!updated_module_) {
+  if (!updater_module_) {
     return;
   }
 
@@ -39,7 +39,7 @@ void H5vccUpdater::SetUpdaterChannel(const std::string& channel) {
 }
 
 std::string H5vccUpdater::GetUpdateStatus() const {
-  if (!updated_module_) {
+  if (!updater_module_) {
     return "";
   }
 
