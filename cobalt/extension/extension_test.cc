@@ -106,7 +106,10 @@ TEST(ExtensionTest, InstallationManager) {
   EXPECT_TRUE(extension_api->RequestRollForwardToInstallation != NULL);
   EXPECT_TRUE(extension_api->GetInstallationPath != NULL);
   EXPECT_TRUE(extension_api->SelectNewInstallationIndex != NULL);
-
+  EXPECT_TRUE(extension_api->GetAppKey != NULL);
+  EXPECT_TRUE(extension_api->GetMaxNumberInstallations != NULL);
+  EXPECT_TRUE(extension_api->ResetInstallation != NULL);
+  EXPECT_TRUE(extension_api->Reset != NULL);
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
