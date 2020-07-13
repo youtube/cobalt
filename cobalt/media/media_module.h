@@ -82,13 +82,12 @@ class MediaModule : public WebMediaPlayerFactory,
   void RegisterPlayer(WebMediaPlayer* player) override;
   void UnregisterPlayer(WebMediaPlayer* player) override;
 
-  void set_system_window(system_window::SystemWindow* system_window) {
-    system_window_ = system_window;
-  }
-
-  void set_resource_provider(
+  void UpdateSystemWindowAndResourceProvider(
+      system_window::SystemWindow* system_window,
       render_tree::ResourceProvider* resource_provider) {
-    resource_provider_ = resource_provider;
+    Suspend();
+    system_window_ = system_window;
+    Resume(resource_provider);
   }
 
  private:

@@ -1649,8 +1649,8 @@ void BrowserModule::InitializeSystemWindow() {
   InstantiateRendererModule();
 
   if (media_module_) {
-    media_module_->set_system_window(system_window_.get());
-    media_module_->set_resource_provider(GetResourceProvider());
+    media_module_->UpdateSystemWindowAndResourceProvider(
+        system_window_.get(), GetResourceProvider());
   } else {
     options_.media_module_options.allow_resume_after_suspend =
         SbSystemSupportsResume();
@@ -1765,8 +1765,8 @@ void BrowserModule::ConcealInternal() {
     window_size_ = system_window_->GetWindowSize();
     input_device_manager_.reset();
     system_window_.reset();
-    media_module_->set_system_window(NULL);
-    media_module_->set_resource_provider(GetResourceProvider());
+    media_module_->UpdateSystemWindowAndResourceProvider(
+        NULL, GetResourceProvider());
   }
 }
 
