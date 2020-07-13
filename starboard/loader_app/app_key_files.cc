@@ -58,7 +58,7 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
   }
   SbFileError file_error = kSbFileOk;
   starboard::ScopedFile file(file_name_path.c_str(),
-                             kSbFileCreateOnly | kSbFileWrite, NULL,
+                             kSbFileCreateAlways | kSbFileWrite, NULL,
                              &file_error);
   if (!file.IsValid()) {
     SB_LOG(ERROR) << "Failed to open file: " << file_name_path
