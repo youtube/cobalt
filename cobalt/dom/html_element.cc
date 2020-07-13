@@ -21,6 +21,7 @@
 #include "base/lazy_instance.h"
 #include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
+#include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
@@ -526,6 +527,9 @@ void HTMLElement::set_scroll_left(float x) {
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    CLOG(WARNING, debugger_hooks())
+        << "scrollLeft only works on HTML elements with 'overflow' set to "
+        << "'scroll' or 'auto'";
     return;
   }
 
@@ -575,6 +579,9 @@ void HTMLElement::set_scroll_top(float y) {
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    CLOG(WARNING, debugger_hooks())
+        << "scrollTop only works on HTML elements with 'overflow' set to "
+        << "'scroll' or 'auto'";
     return;
   }
 
