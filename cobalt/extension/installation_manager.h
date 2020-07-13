@@ -52,6 +52,7 @@ typedef struct CobaltExtensionInstallationManagerApi {
   int (*GetAppKey)(char* app_key, int app_key_length);
   int (*GetMaxNumberInstallations)();
   int (*ResetInstallation)(int installation_index);
+  int (*Reset)();
 } CobaltExtensionInstallationManagerApi;
 
 #ifdef __cplusplus

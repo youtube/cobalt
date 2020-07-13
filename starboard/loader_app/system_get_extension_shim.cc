@@ -34,6 +34,7 @@ const CobaltExtensionInstallationManagerApi kInstallationManagerApi = {
     &ImGetAppKey,
     &ImGetMaxNumberInstallations,
     &ImResetInstallation,
+    &ImReset,
 };
 }  // namespace
 namespace starboard {

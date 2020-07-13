@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
@@ -40,6 +41,7 @@ class InstallationManager {
   int Initialize();
   int GetAppKey(char* app_key, int app_key_length);
   int GetMaxNumberInstallations();
+  int Reset();
   int GetInstallationStatus(int installation_index);
   int GetInstallationNumTriesLeft(int installation_index);
   int RollForwardIfNeeded();
@@ -70,6 +72,7 @@ class InstallationManager {
   bool LoadInstallationStore();
   bool SaveInstallationStore();
   bool CreateInstallationDirs();
+  bool CleanInstallationDirs();
   bool GetInstallationPathInternal(int installation_index,
                                    char* path,
                                    int path_length);
@@ -155,7 +158,27 @@ int InstallationManager::GetMaxNumberInstallations() {
   }
   return max_num_installations_;
 }
+
+int InstallationManager::Reset() {
+  CreateInstallationStore();
+  current_installation_ = FindCurrentInstallationIndex();
+  if (!IsValidIndex(current_installation_)) {
+    SB_LOG(ERROR) << "Reset: Unable to find current installation"
+                  << current_installation_;
+    return IM_ERROR;
+  }
+  if (!CleanInstallationDirs()) {
+    SB_LOG(ERROR) << "Reset: Unable to clean installations dirs";
+    return IM_ERROR;
+  }
+  if (!SaveInstallationStore()) {
+    return IM_ERROR;
+  }
+  return IM_SUCCESS;
+}
+
 void InstallationManager::CreateInstallationStore() {
+  installation_store_ = cobalt::loader::InstallationStore();
   int priority = highest_priority_;
   for (int i = 0; i < max_num_installations_; i++) {
     installation_store_.add_installations();
@@ -165,6 +188,8 @@ void InstallationManager::CreateInstallationStore() {
     installation_store_.mutable_installations(i)->set_priority(priority++);
   }
   installation_store_.set_roll_forward_to_installation(-1);
+  // Mark the system image as successful.
+  installation_store_.mutable_installations(0)->set_is_successful(true);
 }
 
 std::string InstallationManager::DumpInstallationSlots() {
@@ -372,7 +397,7 @@ int InstallationManager::RollForwardInternal(int installation_index) {
   int new_installation_old_prority =
       installation_store_.installations(installation_index).priority();
 
-  SB_DLOG(INFO) << "RollForwardIfNeeded: new_installation_old_priority="
+  SB_DLOG(INFO) << "RollForwardInternal: new_installation_old_priority="
                 << new_installation_old_prority;
 
   // Lower priorities of all jumped over installations.
@@ -387,7 +412,7 @@ int InstallationManager::RollForwardInternal(int installation_index) {
   installation_store_.set_roll_forward_to_installation(-1);
   current_installation_ = installation_index;
 
-  SB_DLOG(INFO) << "RollForwardIfNeeded: " << DumpInstallationSlots();
+  SB_DLOG(INFO) << "RollForwardInternal: " << DumpInstallationSlots();
   return SaveInstallationStore() ? IM_SUCCESS : IM_ERROR;
 }
 
@@ -401,8 +426,8 @@ void InstallationManager::ShiftPrioritiesInRange(int high_priority,
     if (priority >= high_priority && priority <= low_priority) {
       installation_store_.mutable_installations(i)->set_priority(priority +
                                                                  shift_amount);
-      SB_DLOG(INFO) << "ShiftPrioritiesInRange i=" << i << " priority_new"
-                    << priority;
+      SB_DLOG(INFO) << "ShiftPrioritiesInRange i=" << i
+                    << " priority_new=" << priority;
     }
   }
 }
@@ -511,7 +536,8 @@ int InstallationManager::ResetInstallation(int installation_index) {
     return IM_ERROR;
   }
 
-  if (installation_index == -1) {
+  // invalid index or the system image.
+  if (installation_index == -1 || installation_index == 0) {
     return IM_ERROR;
   }
 
@@ -679,7 +705,22 @@ bool InstallationManager::CreateInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
+
     if (!SbDirectoryCreate(path.data())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool InstallationManager::CleanInstallationDirs() {
+  std::vector<char> path(kSbFileMaxPath);
+  // The index 0 slot is under the content directory.
+  for (int i = 1; i < max_num_installations_; i++) {
+    if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
+      return false;
+    }
+    if (!SbFileDeleteRecursive(path.data(), true)) {
       return false;
     }
   }
@@ -724,6 +765,11 @@ int ImGetMaxNumberInstallations() {
 void ImUninitialize() {
   starboard::ScopedLock lock(*GetImMutex());
   g_installation_manager_.reset(NULL);
+}
+
+int ImReset() {
+  starboard::ScopedLock lock(*GetImMutex());
+  return g_installation_manager_->Reset();
 }
 
 int ImGetInstallationStatus(int installation_index) {

@@ -211,6 +211,46 @@ TEST_P(InstallationManagerTest, InitializeMultiple) {
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
 }
 
+TEST_P(InstallationManagerTest, Reset) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  int max_num_installations = GetParam();
+  ASSERT_EQ(IM_SUCCESS, ImInitialize(max_num_installations, kAppKey));
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ASSERT_EQ(IM_SUCCESS, ImRollForward(1));
+  ASSERT_EQ(1, ImGetCurrentInstallationIndex());
+  std::vector<std::string> created_files;
+  for (int i = 1; i < max_num_installations - 1; i++) {
+    std::vector<char> buf(kSbFileMaxPath);
+    ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(i, buf.data(), kSbFileMaxPath));
+    ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(i));
+    std::string slot_path = buf.data();
+    slot_path += kSbFileSepString;
+    slot_path += "test_dir";
+    SbDirectoryCreate(slot_path.c_str());
+    slot_path += kSbFileSepString;
+    slot_path += "test_file";
+    created_files.push_back(slot_path);
+    SbFileError file_error = kSbFileOk;
+    starboard::ScopedFile file(slot_path.c_str(),
+                               kSbFileCreateAlways | kSbFileWrite, NULL,
+                               &file_error);
+    ASSERT_TRUE(file.IsValid());
+  }
+  ASSERT_EQ(IM_SUCCESS, ImReset());
+  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  for (auto& f : created_files) {
+    ASSERT_TRUE(!SbFileExists(f.c_str()));
+  }
+  for (int i = 1; i < max_num_installations - 1; i++) {
+    std::vector<char> buf(kSbFileMaxPath);
+    ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(i));
+    ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(i, buf.data(), kSbFileMaxPath));
+    ASSERT_TRUE(SbFileExists(buf.data()));
+  }
+}
+
 TEST_P(InstallationManagerTest, GetAppKey) {
   if (!storage_path_implemented_) {
     return;
@@ -236,7 +276,7 @@ TEST_P(InstallationManagerTest, DefaultInstallationSuccessful) {
     return;
   }
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
-  ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(0));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
 }
 
 TEST_P(InstallationManagerTest, MarkInstallationSuccessful) {
@@ -244,9 +284,9 @@ TEST_P(InstallationManagerTest, MarkInstallationSuccessful) {
     return;
   }
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
-  ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(0));
-  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(0));
-  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(1));
+  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(1));
 }
 
 TEST_P(InstallationManagerTest, DecrementInstallationNumTries) {
@@ -327,7 +367,7 @@ TEST_P(InstallationManagerTest, RollForward) {
   for (int i = 1; i < max_num_installations - 1; i++) {
     ASSERT_EQ(IM_SUCCESS, ImRollForward(i));
     ASSERT_EQ(i, ImGetCurrentInstallationIndex());
-   }
+  }
   for (int i = 0; i < 10; i++) {
     int new_index = i % max_num_installations;
     ASSERT_EQ(IM_SUCCESS, ImRollForward(new_index));
@@ -340,11 +380,10 @@ TEST_P(InstallationManagerTest, ResetInstallation) {
     return;
   }
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
-  ASSERT_EQ(0, ImGetCurrentInstallationIndex());
-  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(0));
-  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
-  ASSERT_EQ(IM_SUCCESS, ImResetInstallation(0));
-  ASSERT_NE(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(0));
+  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_SUCCESS, ImGetInstallationStatus(1));
+  ASSERT_EQ(IM_SUCCESS, ImResetInstallation(1));
+  ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(1));
 }
 
 TEST_P(InstallationManagerTest, RevertToSuccessfulInstallation) {
