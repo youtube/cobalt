@@ -366,6 +366,8 @@ class PlatformConfiguration(object):
     """
     tests = [
         'app_key_files_test',
+        'app_key_test',
+        'drain_file_test',
         'elf_loader_test',
         'installation_manager_test',
         'nplb',
