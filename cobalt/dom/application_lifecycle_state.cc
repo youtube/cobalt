@@ -159,17 +159,9 @@ void ApplicationLifecycleState::SetApplicationState(
   bool page_lifecycle_changed = is_frozen != old_is_frozen;
   bool visibility_state_changed = visibility_state != old_visibility_state;
 
-  if (focus_changed && has_focus) {
-    // If going to a focused state, dispatch the visibility state first.
-    if (visibility_state_changed) {
-      DispatchVisibilityStateChanged(visibility_state);
-    }
+  DCHECK(!focus_changed || !visibility_state_changed);
 
-    DispatchWindowFocusChanged(has_focus);
-    return;
-  }
-
-  // Otherwise, we should dispatch the focus state first.
+  // We should dispatch the focus state first.
   if (focus_changed) {
     DispatchWindowFocusChanged(has_focus);
   }
