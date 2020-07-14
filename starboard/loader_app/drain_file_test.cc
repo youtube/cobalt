@@ -45,32 +45,19 @@ class DrainFileTest : public ::testing::Test {
         SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size()));
 
     dir_.assign(path.data());
-
-    subdir_.assign(dir_);
-    subdir_.append(kSbFileSepString);
-    subdir_.append("test");
-
-    if (!SbFileExists(subdir_.c_str()))
-      EXPECT_TRUE(SbDirectoryCreate(subdir_.c_str()));
   }
-
-  static void TearDownTestCase() { EXPECT_TRUE(SbFileDelete(subdir_.c_str())); }
 
   void TearDown() override {
     DrainFileClear(GetTempDir(), NULL, false);
-    DrainFileClear(GetTempSubdir(), NULL, false);
   }
 
   const char* GetTempDir() const { return dir_.c_str(); }
-  const char* GetTempSubdir() const { return subdir_.c_str(); }
 
  private:
   static std::string dir_;
-  static std::string subdir_;
 };
 
 std::string DrainFileTest::dir_ = "";
-std::string DrainFileTest::subdir_ = "";
 
 // Typical drain file usage.
 TEST_F(DrainFileTest, SunnyDay) {
@@ -78,12 +65,15 @@ TEST_F(DrainFileTest, SunnyDay) {
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), kAppKeyOne));
 }
 
-// Drain file creation should ignore expired files.
+// Drain file creation should ignore expired files, even if it has a matching
+// app key.
 TEST_F(DrainFileTest, SunnyDayIgnoreExpired) {
   ScopedDrainFile stale(GetTempDir(), kAppKeyOne,
                         SbTimeGetNow() - kDrainFileMaximumAge);
 
-  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyTwo));
+  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
 }
 
 // Previously created drain file should be reused if it has not expired.
@@ -102,6 +92,20 @@ TEST_F(DrainFileTest, SunnyDayDraining) {
   DrainFileClear(GetTempDir(), NULL, false);
 
   EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+}
+
+// Remove an existing drain file.
+TEST_F(DrainFileTest, SunnyDayRemove) {
+  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileRemove(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+}
+
+// Try to remove a drain file that does not exist.
+TEST_F(DrainFileTest, SunnyDayRemoveNonexistentDrainFile) {
+  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileRemove(GetTempDir(), kAppKeyOne));
 }
 
 // When clearing drain files it should be possible to provide a file to ignore,

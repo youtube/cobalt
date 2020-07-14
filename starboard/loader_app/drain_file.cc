@@ -187,6 +187,23 @@ bool RankAndCheck(const char* dir, const char* app_key) {
   return !SbStringCompareAll(ranking_app_key.data(), app_key);
 }
 
+bool Remove(const char* dir, const char* app_key) {
+  SB_DCHECK(dir);
+  SB_DCHECK(app_key);
+
+  const std::string prefix = std::string(kDrainFilePrefix) + app_key;
+  const std::vector<std::string> filenames =
+      FindAllWithPrefix(dir, prefix.c_str());
+
+  for (const auto& filename : filenames) {
+    const std::string path = dir + std::string(kSbFileSepString) + filename;
+
+    if (!SbFileDelete(path.c_str()))
+      return false;
+  }
+  return true;
+}
+
 void Clear(const char* dir, const char* app_key, bool expired) {
   SB_DCHECK(dir);
 
@@ -238,6 +255,10 @@ bool DrainFileTryDrain(const char* dir, const char* app_key) {
 
 bool DrainFileRankAndCheck(const char* dir, const char* app_key) {
   return starboard::loader_app::drain_file::RankAndCheck(dir, app_key);
+}
+
+bool DrainFileRemove(const char* dir, const char* app_key) {
+  return starboard::loader_app::drain_file::Remove(dir, app_key);
 }
 
 void DrainFileClear(const char* dir, const char* app_key, bool expired) {
