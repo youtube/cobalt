@@ -12,13 +12,13 @@
   <script>
     // In preload mode, visibility should be "prerender" and window/document
     // should not have focus.
-    assertEqual("prerender", document.visibilityState);
+    assertEqual("hidden", document.visibilityState);
     assertFalse(document.hasFocus());
 
     // Wait for visibility change to verify visibilityState and having focus.
     function handleVisibilityChange() {
       assertEqual("visible", document.visibilityState);
-      assertTrue(document.hasFocus());
+      assertFalse(document.hasFocus());
       onEndTest();
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
