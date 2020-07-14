@@ -62,6 +62,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       unpack_alignment_(4),
       unpack_row_length_(0),
       error_(GL_NO_ERROR) {
+  SbAtomicNoBarrier_Store(&has_swapped_buffers_, 0);
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
   } else {
@@ -2317,6 +2318,9 @@ void Context::SwapBuffers() {
   if (surface->impl()->IsWindowSurface()) {
     Flush();
     impl_->SwapBuffers(surface);
+    if (!has_swapped_buffers()) {
+      SbAtomicNoBarrier_Increment(&has_swapped_buffers_, 1);
+    }
   }
 }
 
@@ -2462,6 +2466,8 @@ int Context::GetPitchForTextureData(int width, PixelFormat pixel_format) const {
     return nb::AlignUp(s * n * len, a) / s;
   }
 }
+
+SbAtomic32 Context::has_swapped_buffers_ = 0;
 
 }  // namespace gles
 }  // namespace glimp
