@@ -36,6 +36,11 @@ bool DrainFileTryDrain(const char* dir, const char* app_key);
 // match, otherwise |false|.
 bool DrainFileRankAndCheck(const char* dir, const char* app_key);
 
+// Removed the drain files in |dir| whose app key matches |app_key|. Returns
+// |true| if no files were found, or they were removed, otherwise returns
+// |false|.
+bool DrainFileRemove(const char* dir, const char* app_key);
+
 // Clears the drain files in |dir|. If |app_key| is provided, all drain files
 // with matching app keys are ignored. If |expired| is |true|, all non-expired
 // drain files are ignored.
