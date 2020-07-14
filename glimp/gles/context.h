@@ -33,6 +33,7 @@
 #include "glimp/gles/vertex_attribute.h"
 #include "nb/ref_counted.h"
 #include "nb/scoped_ptr.h"
+#include "starboard/atomic.h"
 #include "starboard/thread.h"
 
 namespace glimp {
@@ -41,6 +42,8 @@ namespace gles {
 class Context {
  public:
   Context(nb::scoped_ptr<ContextImpl> context_impl, Context* share_context);
+
+  ~Context() { SbAtomicNoBarrier_Store(&has_swapped_buffers_, 0); }
 
   // Returns current thread's current context, or NULL if nothing is current.
   static Context* GetTLSCurrentContext();
@@ -244,6 +247,10 @@ class Context {
     return &draw_state_dirty_flags_;
   }
 
+  static bool has_swapped_buffers() {
+    return SbAtomicNoBarrier_Load(&has_swapped_buffers_) != 0;
+  }
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
@@ -378,6 +385,10 @@ class Context {
 
   // The last GL ES error raised.
   GLenum error_;
+
+  // Track if SwapBuffers() has been called. Stores 0 if SwapBuffers() has not
+  // been called, and 1 if SwapBuffers() has been called.
+  static SbAtomic32 has_swapped_buffers_;
 };
 
 }  // namespace gles
