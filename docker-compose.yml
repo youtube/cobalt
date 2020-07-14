@@ -40,6 +40,16 @@ services:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
 
+  android:
+    <<: *common-definitions
+    build:
+      context: ./docker/android
+      dockerfile: ./Dockerfile
+    image: cobalt-build-android
+    environment:
+      - PLATFORM
+      - CONFIG=${CONFIG:-debug}
+
   # Define common build container for Evergreen
   build-evergreen:
     <<: *common-definitions
