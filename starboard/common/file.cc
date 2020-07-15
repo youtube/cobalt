@@ -36,7 +36,7 @@ bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
 
 }  // namespace
 
-bool SbFileDeleteRecursive(const char* path) {
+bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   if (!SbFileExists(path)) {
     SB_LOG(ERROR) << "Path does not exist: '" << path << "'";
     return false;
@@ -80,15 +80,15 @@ bool SbFileDeleteRecursive(const char* path) {
     abspath.append(entry.name);
 #endif
 
-    if (!SbFileDeleteRecursive(abspath.data())) {
+    if (!SbFileDeleteRecursive(abspath.data(), false)) {
       DirectoryCloseLogFailure(path, dir);
       return false;
     }
   }
 
-  // Don't forget to remove the directory before returning!
+  // Don't forget to close and remove the directory before returning!
   if (DirectoryCloseLogFailure(path, dir)) {
-    return SbFileDelete(path);
+    return preserve_root ? true : SbFileDelete(path);
   }
   return false;
 }
