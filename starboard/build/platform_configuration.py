@@ -373,6 +373,7 @@ class PlatformConfiguration(object):
         'nplb',
         'nplb_blitter_pixel_tests',
         'player_filter_tests',
+        'slot_management_test',
         'starboard_platform_tests',
     ]
     tests.extend(get_optional_tests.GetOptionalTestTargets())

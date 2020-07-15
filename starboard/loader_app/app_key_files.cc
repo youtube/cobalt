@@ -14,9 +14,13 @@
 
 #include "starboard/loader_app/app_key_files.h"
 
+#include <vector>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/file.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace loader_app {
@@ -66,6 +70,50 @@ bool CreateAppKeyFile(const std::string& file_name_path) {
     return false;
   }
   return true;
+}
+
+namespace {
+bool EndsWith(const std::string& s, const std::string& suffix) {
+  if (s.size() < suffix.size()) {
+    return false;
+  }
+  return SbStringCompareAll(s.c_str() + (s.size() - suffix.size()),
+                            suffix.c_str()) == 0;
+}
+}  // namespace
+
+bool AnyGoodAppKeyFile(const std::string& dir) {
+  SbDirectory directory = SbDirectoryOpen(dir.c_str(), NULL);
+
+  if (!SbDirectoryIsValid(directory)) {
+    SB_LOG(ERROR) << "Failed to open dir='" << dir << "'";
+    return false;
+  }
+
+  bool found = false;
+#if SB_API_VERSION >= 12
+  std::vector<char> filename(kSbFileMaxName);
+  while (SbDirectoryGetNext(directory, filename.data(), filename.size())) {
+    if (!SbStringCompare(kFilePrefix, filename.data(),
+                         sizeof(kFilePrefix) - 1) &&
+        EndsWith(filename.data(), kGoodFileSuffix)) {
+      found = true;
+      break;
+    }
+  }
+#else
+  SbDirectoryEntry entry;
+  while (SbDirectoryGetNext(directory, &entry)) {
+    if (!SbStringCompare(kFilePrefix, entry.name, sizeof(kFilePrefix) - 1) &&
+        EndsWith(entry.name, kGoodFileSuffix)) {
+      found = true;
+      break;
+    }
+  }
+#endif
+
+  SbDirectoryClose(directory);
+  return found;
 }
 
 }  // namespace loader_app
