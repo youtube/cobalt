@@ -231,6 +231,16 @@ public abstract class CobaltActivity extends NativeActivity {
     getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
+  public void resetVideoSurface() {
+    runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            createNewSurfaceView();
+          }
+        });
+  }
+
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     runOnUiThread(
         new Runnable() {

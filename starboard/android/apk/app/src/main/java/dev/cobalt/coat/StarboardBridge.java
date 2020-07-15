@@ -492,6 +492,15 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  public void resetVideoSurface() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).resetVideoSurface();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
