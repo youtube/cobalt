@@ -547,6 +547,21 @@ public class MediaCodecUtil {
                   "Rejecting %s, reason: want secure decoder and !FEATURE_SecurePlayback", name));
           continue;
         }
+        if (codecCapabilities.isFeatureRequired(
+            MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback)) {
+          Log.v(
+              TAG,
+              String.format("Rejecting %s, reason: codec requires FEATURE_TunneledPlayback", name));
+          continue;
+        }
+        if (!secure
+            && codecCapabilities.isFeatureRequired(
+                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)) {
+          Log.v(
+              TAG,
+              String.format("Rejecting %s, reason: code requires FEATURE_SecurePlayback", name));
+          continue;
+        }
 
         // VideoCapabilties is not implemented correctly on this device.
         if (Build.VERSION.SDK_INT < 23
