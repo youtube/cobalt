@@ -25,8 +25,8 @@ namespace loader_app {
 // Creates and removes a file within its own lifetime. This class maintains the
 // path to the file, and the app key that it was created with, to provide a
 // convenient way of bundling the information and state of the file. This class
-// differs from starboard::ScopedFile by closing the created file immediately
-// upon construction, and deleting it if it exists on destruction.
+// is very similar in concept to the starboard::nplb::ScopedRandomFile, except
+// that it allows you to choose where to create the file.
 class ScopedDrainFile {
  public:
   ScopedDrainFile(const std::string& dir, const std::string& app_key,
