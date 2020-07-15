@@ -224,7 +224,8 @@ void SbEventHandle(const SbEvent* event) {
 
   SB_CHECK(SbMutexAcquire(&mutex) == kSbMutexAcquired);
 
-  if (!g_sb_event_func && event->type == kSbEventTypeStart) {
+  if (!g_sb_event_func && (event->type == kSbEventTypeStart ||
+                           event->type == kSbEventTypePreload)) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::shared::starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
