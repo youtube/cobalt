@@ -65,6 +65,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   EXPECT_TRUE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
   ::testing::Mock::VerifyAndClearExpectations(observer.get());
@@ -73,6 +74,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(false));
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateBlurred);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -80,6 +82,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(true));
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateStarted);
   EXPECT_TRUE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -87,6 +90,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(false));
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateBlurred);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -94,20 +98,31 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnVisibilityStateChanged(kVisibilityStateHidden));
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateConcealed);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateHidden, state.GetVisibilityState());
   ::testing::Mock::VerifyAndClearExpectations(observer.get());
 
-  EXPECT_CALL(*observer, OnVisibilityStateChanged(kVisibilityStateHidden));
+  EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(true));
   state.SetApplicationState(base::kApplicationStateFrozen);
+  EXPECT_FALSE(state.HasWindowFocus());
+  EXPECT_EQ(kVisibilityStateHidden, state.GetVisibilityState());
+  ::testing::Mock::VerifyAndClearExpectations(observer.get());
+
+  EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(false));
+  state.SetApplicationState(base::kApplicationStateConcealed);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateHidden, state.GetVisibilityState());
   ::testing::Mock::VerifyAndClearExpectations(observer.get());
 
   EXPECT_CALL(*observer, OnVisibilityStateChanged(kVisibilityStateVisible));
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateBlurred);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -115,6 +130,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(true));
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateStarted);
   EXPECT_TRUE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -124,6 +140,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateBlurred);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateVisible, state.GetVisibilityState());
@@ -131,6 +148,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(_)).Times(0);
   state.SetApplicationState(base::kApplicationStateConcealed);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateHidden, state.GetVisibilityState());
@@ -138,6 +156,7 @@ TEST(ApplicationLifecycleStateTest, TransitionsAndObservations) {
 
   EXPECT_CALL(*observer, OnWindowFocusChanged(_)).Times(0);
   EXPECT_CALL(*observer, OnVisibilityStateChanged(_)).Times(0);
+  EXPECT_CALL(*observer, OnFrozennessChanged(true)).Times(0);
   state.SetApplicationState(base::kApplicationStateFrozen);
   EXPECT_FALSE(state.HasWindowFocus());
   EXPECT_EQ(kVisibilityStateHidden, state.GetVisibilityState());
