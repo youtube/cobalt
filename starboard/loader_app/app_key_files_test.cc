@@ -82,6 +82,16 @@ TEST_F(AppKeyFilesTest, TestBadKeyFileInvalidInput) {
   ASSERT_TRUE(file_path.empty());
 }
 
+TEST_F(AppKeyFilesTest, TestAnyGoodKeyFile) {
+  ASSERT_FALSE(AnyGoodAppKeyFile(dir_));
+  std::string file_path = GetGoodAppKeyFilePath(dir_, kTestAppKey);
+  ASSERT_FALSE(file_path.empty());
+  ASSERT_TRUE(CreateAppKeyFile(file_path));
+  ASSERT_TRUE(SbFileExists(file_path.c_str()));
+  ASSERT_TRUE(AnyGoodAppKeyFile(dir_));
+  SbFileDelete(file_path.c_str());
+}
+
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard

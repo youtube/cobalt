@@ -35,6 +35,10 @@ std::string GetBadAppKeyFilePath(const std::string& dir,
 // Helper function to create a file with the specified full path name.
 bool CreateAppKeyFile(const std::string& file_name_path);
 
+// Returns true if there is any good app key file.
+// Used for adopting an installation slot updated by different app.
+bool AnyGoodAppKeyFile(const std::string& dir);
+
 }  // namespace loader_app
 }  // namespace starboard
 
