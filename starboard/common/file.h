@@ -25,14 +25,16 @@
 namespace starboard {
 
 // Deletes the file, symlink or directory at |path|. When |path| is a directory,
-// the function will recursively delete the entire tree. On some platforms, this
-// function fails if a file to be deleted is being held open.
+// the function will recursively delete the entire tree; however, when
+// |preserve_root| is |true| the root directory is not removed. On some
+// platforms, this function fails if a file to be deleted is being held open.
 //
 // Returns |true| if the file, symlink, or directory was able to be deleted, and
 // |false| if there was an error at any point.
 //
 // |path|: The absolute path of the file, symlink, or directory to be deleted.
-bool SbFileDeleteRecursive(const char* path);
+// |preserve_root|: Whether or not the root directory should be preserved.
+bool SbFileDeleteRecursive(const char* path, bool preserve_root);
 
 }  // namespace starboard
 

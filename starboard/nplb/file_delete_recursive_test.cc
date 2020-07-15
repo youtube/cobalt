@@ -69,15 +69,28 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
 
   path = tmp + kSbFileSepString + kRoot;
 
-  EXPECT_TRUE(SbFileDeleteRecursive(path.c_str()));
+  EXPECT_TRUE(SbFileDeleteRecursive(path.c_str(), false));
   EXPECT_FALSE(SbFileExists(path.c_str()));
+}
+
+TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
+  const std::string root = GetTempDir() + kSbFileSepString + kRoot;
+
+  EXPECT_FALSE(SbFileExists(root.c_str()));
+  EXPECT_TRUE(SbDirectoryCreate(root.c_str()));
+  EXPECT_TRUE(SbDirectoryCanOpen(root.c_str()));
+
+  EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), true));
+  EXPECT_TRUE(SbFileExists(root.c_str()));
+  EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), false));
+  EXPECT_FALSE(SbFileExists(root.c_str()));
 }
 
 TEST(SbFileDeleteRecursiveTest, RainyDayNonExistentPathErrors) {
   ScopedRandomFile file(ScopedRandomFile::kDontCreate);
 
   EXPECT_FALSE(SbFileExists(file.filename().c_str()));
-  EXPECT_FALSE(SbFileDeleteRecursive(file.filename().c_str()));
+  EXPECT_FALSE(SbFileDeleteRecursive(file.filename().c_str(), false));
 }
 
 }  // namespace
