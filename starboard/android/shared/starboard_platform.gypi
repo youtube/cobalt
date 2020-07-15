@@ -169,6 +169,7 @@
         'video_window.h',
         'window_create.cc',
         'window_destroy.cc',
+        'window_get_diagonal_size_in_inches.cc',
         'window_get_platform_handle.cc',
         'window_get_size.cc',
         'window_internal.h',
@@ -464,7 +465,6 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

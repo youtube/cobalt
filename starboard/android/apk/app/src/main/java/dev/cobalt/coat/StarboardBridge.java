@@ -29,6 +29,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Size;
+import android.util.SizeF;
 import android.view.Display;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
@@ -294,6 +295,12 @@ public class StarboardBridge {
   @UsedByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  SizeF getDisplayDpi() {
+    return DisplayUtil.getDisplayDpi(appContext);
   }
 
   @SuppressWarnings("unused")
