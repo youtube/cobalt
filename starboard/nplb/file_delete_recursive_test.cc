@@ -43,6 +43,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   std::string path;
   const std::string& tmp = GetTempDir();
 
+  // Create the directory tree.
   for (size_t i = 0; i < kDirectoryCount; ++i) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kDirectories[i];
 
@@ -54,6 +55,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   SbFileError err = kSbFileOk;
   SbFile file = kSbFileInvalid;
 
+  // Create files in our directory tree.
   for (size_t i = 0; i < kFileCount; ++i) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kFiles[i];
 
@@ -84,6 +86,24 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
   EXPECT_TRUE(SbFileExists(root.c_str()));
   EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), false));
   EXPECT_FALSE(SbFileExists(root.c_str()));
+}
+
+TEST(SbFileDeleteRecursiveTest, RainyDayDeleteFileIgnoresPreserveRoot) {
+  const std::string& path = GetTempDir() + kSbFileSepString + "file1";
+
+  EXPECT_FALSE(SbFileExists(path.c_str()));
+
+  SbFileError err = kSbFileOk;
+  SbFile file = kSbFileInvalid;
+
+  file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL,
+                    &err);
+
+  EXPECT_EQ(kSbFileOk, err);
+  EXPECT_TRUE(SbFileClose(file));
+  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_TRUE(SbFileDeleteRecursive(path.c_str(), true));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
 }
 
 TEST(SbFileDeleteRecursiveTest, RainyDayNonExistentPathErrors) {
