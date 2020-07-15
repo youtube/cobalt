@@ -372,7 +372,6 @@ class PlatformConfiguration(object):
         'installation_manager_test',
         'nplb',
         'nplb_blitter_pixel_tests',
-        'nplb_evergreen_compat_tests',
         'player_filter_tests',
         'starboard_platform_tests',
     ]
