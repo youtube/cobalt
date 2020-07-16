@@ -1,5 +1,8 @@
 version: '2.4'
 
+volumes:
+  android-debug-keystore:
+
 x-common-definitions: &common-definitions
   stdin_open: true
   tty: true
@@ -7,6 +10,7 @@ x-common-definitions: &common-definitions
     - ${COBALT_SRC:-.}:/code/
     - ${CCACHE_DIR:-~/ccache}:/root/ccache
     - ${STARBOARD_TOOLCHAINS_DIR:-~/starboard-toolchains}:/root/starboard-toolchains
+    - android-debug-keystore:/root/.android/
   depends_on:
     - base
 
