@@ -2,15 +2,17 @@ version: '2.4'
 
 volumes:
   android-debug-keystore:
+  container-ccache:
+  container-starboard-toolchains:
 
 x-common-definitions: &common-definitions
   stdin_open: true
   tty: true
   volumes:
     - ${COBALT_SRC:-.}:/code/
-    - ${CCACHE_DIR:-~/ccache}:/root/ccache
-    - ${STARBOARD_TOOLCHAINS_DIR:-~/starboard-toolchains}:/root/starboard-toolchains
     - android-debug-keystore:/root/.android/
+    - container-ccache:/root/ccache
+    - container-starboard-toolchains:/root/starboard-toolchains
   depends_on:
     - base
 
