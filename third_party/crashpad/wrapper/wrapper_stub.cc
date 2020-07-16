@@ -20,6 +20,10 @@ namespace wrapper {
 
 void InstallCrashpadHandler() {}
 
+bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
+  return false;
+}
+
 }  // namespace wrapper
 }  // namespace crashpad
 }  // namespace third_party

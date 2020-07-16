@@ -568,13 +568,13 @@ bool CrashpadClient::StartHandlerForClient(
 
 #if defined(STARBOARD)
 // static
-void CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
+bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
   if (!SignalHandler::Get()) {
     DLOG(ERROR) << "Crashpad isn't enabled";
-    return;
+    return false;
   }
 
-  SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
+  return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
 }
 #endif
 

@@ -385,7 +385,9 @@ class CrashpadClient {
   //! A handler must have already been installed before calling this method.
   //! \param[in] evergreen_info A EvergreenInfo struct, whose information was
   //!     created on Evergreen startup.
-  static void SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  static bool SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
 #endif
 
   //! \brief Requests that the handler capture a dump even though there hasn't

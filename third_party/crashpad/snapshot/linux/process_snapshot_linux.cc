@@ -254,7 +254,9 @@ std::vector<const ModuleSnapshot*> ProcessSnapshotLinux::Modules() const {
     modules.push_back(module.get());
   }
 #if defined(STARBOARD)
-  modules.push_back(evergreen_module_.get());
+  if (evergreen_module_) {
+    modules.push_back(evergreen_module_.get());
+  }
 #endif
   return modules;
 }
