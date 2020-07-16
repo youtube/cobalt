@@ -15,11 +15,15 @@
 #ifndef THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
+#include "starboard/elf_loader/evergreen_info.h"
+
 namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
 void InstallCrashpadHandler();
+
+bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
 }  // namespace wrapper
 }  // namespace crashpad

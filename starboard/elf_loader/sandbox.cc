@@ -17,10 +17,12 @@
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_switches.h"
+#include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/event.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread_types.h"
+#include "third_party/crashpad/wrapper/wrapper.h"
 
 starboard::elf_loader::ElfLoader g_elf_loader;
 
@@ -48,6 +50,15 @@ void LoadLibraryAndInitialize(const std::string& library_path,
 
   SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
                << "'.";
+
+  EvergreenInfo evergreen_info;
+  GetEvergreenInfo(&evergreen_info);
+  if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
+          evergreen_info)) {
+    SB_LOG(ERROR) << "Could not send Cobalt library information into Crashapd.";
+  } else {
+    SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
+  }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
       g_elf_loader.LookupSymbol("SbEventHandle"));

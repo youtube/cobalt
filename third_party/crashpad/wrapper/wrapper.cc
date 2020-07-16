@@ -39,6 +39,11 @@ const std::string kUploadUrl("https://clients2.google.com/cr/report");
 const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
 #endif
 
+::crashpad::CrashpadClient* GetCrashpadClient() {
+  static auto* crashpad_client = new ::crashpad::CrashpadClient();
+  return crashpad_client;
+}
+
 base::FilePath GetPathToCrashpadHandlerBinary() {
   std::vector<char> exe_path(kSbFileMaxPath);
   if (!SbSystemGetPath(
@@ -91,7 +96,7 @@ std::string GetProductName() {
 }  // namespace
 
 void InstallCrashpadHandler() {
-  ::crashpad::CrashpadClient* client = new ::crashpad::CrashpadClient();
+  ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
   const base::FilePath database_directory_path = GetDatabasePath();
@@ -111,6 +116,11 @@ void InstallCrashpadHandler() {
                        default_arguments,
                        false,
                        false);
+}
+
+bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
+  ::crashpad::CrashpadClient* client = GetCrashpadClient();
+  return client->SendEvergreenInfoToHandler(evergreen_info);
 }
 
 }  // namespace wrapper
