@@ -39,6 +39,11 @@ class UrlFetcherDownloader : public CrxDownloader {
 
   void CreateDownloadDir();
   void StartURLFetch(const GURL& url);
+
+#if defined(OS_STARBOARD)
+  void SelectSlot(const GURL& url);
+  void ConfirmSlot(const GURL& url);
+#endif
   void OnNetworkFetcherComplete(base::FilePath file_path,
                                 int net_error,
                                 int64_t content_size);
@@ -46,6 +51,7 @@ class UrlFetcherDownloader : public CrxDownloader {
                          int response_code,
                          int64_t content_length);
   void OnDownloadProgress(int64_t content_length);
+  void ReportDownloadFailure(const GURL& url);
 
   THREAD_CHECKER(thread_checker_);
 
@@ -63,6 +69,8 @@ class UrlFetcherDownloader : public CrxDownloader {
 
 #if defined(OS_STARBOARD)
   int installation_index_ = IM_EXT_INVALID_INDEX;
+  const CobaltExtensionInstallationManagerApi* installation_api_;
+  std::string app_key_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(UrlFetcherDownloader);
