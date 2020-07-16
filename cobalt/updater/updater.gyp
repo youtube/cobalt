@@ -49,6 +49,8 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/components/update_client/update_client.gyp:update_client',
+        '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
+        '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
         '<(DEPTH)/third_party/zlib/zlib.gyp:zip',
         '<(DEPTH)/url/url.gyp:url',
       ],
