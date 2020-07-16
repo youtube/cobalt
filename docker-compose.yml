@@ -47,7 +47,7 @@ services:
   android:
     <<: *common-definitions
     build:
-      context: ./docker/android
+      context: ./docker/linux/android
       dockerfile: ./Dockerfile
     image: cobalt-build-android
     environment:
