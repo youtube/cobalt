@@ -10,6 +10,11 @@ This document records all notable changes made to Cobalt since the last release.
    `cobalt_enable_jit` environment variable in `gyp_configuration.py` will
    switch V8 to use JIT-less mode. V8 requires at least Starboard version 10.
 
+ - **Runtime V8 snapshot is no longer supported**
+   V8 has deprecated runtime snapshot and mandated build-time snapshot, Cobalt
+   adopts this change as well. Build-time snapshot greatly improves first
+   startup speed after install and is required for JIT-less mode.
+
  - **scratch_surface_cache_size_in_bytes is removed.**
 
    Because it never ended up being used, `scratch_suface_cache_size_in_bytes`
