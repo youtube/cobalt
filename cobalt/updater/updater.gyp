@@ -37,8 +37,8 @@
         'updater_module.h',
         'updater_constants.cc',
         'updater_constants.h',
-        'util.cc',
-        'util.h',
+        'utils.cc',
+        'utils.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',

@@ -19,7 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/updater/updater_constants.h"
 // #include "cobalt/updater/updater_version.h"
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 // #include "third_party/crashpad/crashpad/client/crashpad_client.h"
 // #include "third_party/crashpad/crashpad/handler/handler_main.h"
 
