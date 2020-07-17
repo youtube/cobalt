@@ -37,6 +37,10 @@ int CobaltEglSwapInterval() {
   return 0;
 }
 
+bool CobaltEnableQuic() {
+  return 0;
+}
+
 bool CobaltEnableJit() {
   return true;
 }
@@ -48,7 +52,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
     &common::CobaltFallbackSplashScreenUrlDefault,
-    &common::CobaltEnableQuicDefault,
+    &CobaltEnableQuic,
     &common::CobaltSkiaCacheSizeInBytesDefault,
     &common::CobaltOffscreenTargetCacheSizeInBytesDefault,
     &common::CobaltEncodedImageCacheSizeInBytesDefault,
