@@ -34,7 +34,7 @@
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
@@ -204,7 +204,7 @@ void UpdaterModule::Update() {
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
 
-  const base::Version manifest_version(GetEvergreenVersion());
+  const base::Version manifest_version(GetCurrentEvergreenVersion());
   if (!manifest_version.IsValid()) {
     SB_LOG(ERROR) << "Updater failed to get the current update version.";
     return;

@@ -23,6 +23,7 @@
 #include "components/update_client/utils.h"
 
 #if defined(OS_STARBOARD)
+#include "cobalt/updater/utils.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/drain_file.h"
 #endif
@@ -51,19 +52,6 @@ void CleanupDirectory(base::FilePath& dir) {
     SbFileDelete(directories.top().c_str());
     directories.pop();
   }
-}
-
-base::Version ReadVersion(base::FilePath installation_dir) {
-  auto manifest = update_client::ReadManifest(installation_dir);
-  if (!manifest) {
-    return base::Version();
-  }
-
-  auto version = manifest->FindKey("version");
-  if (version) {
-    return base::Version(version->GetString());
-  }
-  return base::Version();
 }
 
 #endif
@@ -155,7 +143,8 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
 
     // Cleanup all drain files from the current app.
     DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
-    base::Version version = ReadVersion(installation_dir);
+    base::Version version =
+        cobalt::updater::ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
       SB_LOG(INFO)
           << "UrlFetcherDownloader::SelectSlot installed version invalid";

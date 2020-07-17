@@ -13,7 +13,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 #include "third_party/crashpad/crashpad/client/crashpad_client.h"
 #include "third_party/crashpad/crashpad/client/prune_crash_reports.h"
