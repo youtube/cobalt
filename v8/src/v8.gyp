@@ -61,7 +61,7 @@
     'generate_bytecode_output_root': '<(SHARED_INTERMEDIATE_DIR)/generate-bytecode-output-root',
     'generate_bytecode_builtins_list_output': '<(generate_bytecode_output_root)/builtins-generated/bytecodes-builtins-list.h',
 
-    'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
+    'v8_use_snapshot': 1,
     'v8_optimized_debug': 0,
     'v8_use_external_startup_data': 0,
     'v8_enable_i18n_support': 0,
