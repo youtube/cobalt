@@ -34,7 +34,6 @@
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
-      'cobalt_v8_buildtime_snapshot%': 1,
       'cobalt_v8_enable_embedded_builtins%': 1,
     },
 
@@ -241,9 +240,6 @@
     # accessed via a file URL starting with
     # "file:///cobalt/browser/splash_screen/". If '', no file is copied.
     'cobalt_splash_screen_file%': '',
-
-    # Set to "true" to enable v8 snapshot generation at Cobalt build time.
-    'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
     # Some compiler can not compile with raw assembly(.S files) and v8
     # converts asm to inline assembly for these platforms.
@@ -685,11 +681,6 @@
       ['enable_debugger == 1', {
         'defines': [
           'ENABLE_DEBUGGER',
-        ],
-      }],
-      ['cobalt_v8_buildtime_snapshot == 1', {
-        'defines': [
-          'COBALT_V8_BUILDTIME_SNAPSHOT=1',
         ],
       }],
       ['host_os=="win"', {
