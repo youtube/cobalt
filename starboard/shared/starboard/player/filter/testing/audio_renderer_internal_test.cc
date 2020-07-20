@@ -434,7 +434,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
-  EXPECT_EQ(playback_rate, 1.0);
+  EXPECT_EQ(playback_rate, kPlaybackRate);
   EXPECT_TRUE(prerolled_);
 
   audio_renderer_->Play();
