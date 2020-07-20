@@ -170,6 +170,30 @@ typedef struct {
   Elf64_Half e_shstrndx;
 } Elf64_Ehdr;
 
+// 32 bit Note header.
+typedef struct {
+  // Length of the note's name
+  Elf32_Word n_namesz;
+
+  // Length of the note's descriptor.
+  Elf32_Word n_descsz;
+
+  // Type of the note.
+  Elf32_Word n_type;
+} Elf32_Nhdr;
+
+// 64 bit Note header.
+typedef struct {
+  // Length of the note's name
+  Elf64_Word n_namesz;
+
+  // Length of the note's descriptor.
+  Elf64_Word n_descsz;
+
+  // Type of the note.
+  Elf64_Word n_type;
+} Elf64_Nhdr;
+
 // 32 bit Program header.
 typedef struct {
   // The kind of segment this array element describes.
@@ -381,6 +405,7 @@ typedef struct {
 
 #if SB_SIZE_OF(POINTER) == 4
 typedef Elf32_Ehdr Ehdr;
+typedef Elf32_Nhdr Nhdr;
 typedef Elf32_Phdr Phdr;
 typedef Elf32_Addr Addr;
 typedef Elf32_Dyn Dyn;
@@ -396,6 +421,7 @@ typedef Elf32_Sword Sword;
 #define ELF_CLASS_VALUE ELFCLASS32
 #elif SB_SIZE_OF(POINTER) == 8
 typedef Elf64_Ehdr Ehdr;
+typedef Elf64_Nhdr Nhdr;
 typedef Elf64_Phdr Phdr;
 typedef Elf64_Addr Addr;
 typedef Elf64_Dyn Dyn;
@@ -632,6 +658,10 @@ typedef enum RelocationTypes {
 #else
 #error "Unsupported architecture for relocations."
 #endif
+
+// Note types
+#define NT_GNU_BUILD_ID 3
+#define NOTE_PADDING(a) ((a + 3) & ~3)
 
 // Helper macros for memory page computations.
 #ifndef PAGE_SIZE

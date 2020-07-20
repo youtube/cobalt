@@ -111,10 +111,45 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   return true;
 }
 
+static bool ElfClassBuildIDNoteIdentifier(const void* section,
+                                          size_t length,
+                                          std::vector<uint8_t>& identifier) {
+  const void* section_end = reinterpret_cast<const char*>(section) + length;
+  const Nhdr* note_header = reinterpret_cast<const Nhdr*>(section);
+  while (reinterpret_cast<const void*>(note_header) < section_end) {
+    if (note_header->n_type == NT_GNU_BUILD_ID)
+      break;
+    note_header = reinterpret_cast<const Nhdr*>(
+        reinterpret_cast<const char*>(note_header) + sizeof(Nhdr) +
+        NOTE_PADDING(note_header->n_namesz) +
+        NOTE_PADDING(note_header->n_descsz));
+  }
+  if (reinterpret_cast<const void*>(note_header) >= section_end ||
+      note_header->n_descsz == 0) {
+    return false;
+  }
+
+  const uint8_t* build_id = reinterpret_cast<const uint8_t*>(note_header) +
+                            sizeof(Nhdr) + NOTE_PADDING(note_header->n_namesz);
+  identifier.insert(identifier.end(), build_id,
+                    build_id + note_header->n_descsz);
+
+  return true;
+}
+
 bool ProgramTable::LoadSegments(File* elf_file) {
   for (size_t i = 0; i < phdr_num_; ++i) {
     const Phdr* phdr = &phdr_table_[i];
 
+    if (phdr->p_type == PT_NOTE) {
+      if (!ElfClassBuildIDNoteIdentifier(
+              reinterpret_cast<const void*>(phdr->p_vaddr +
+                                            base_memory_address_),
+              phdr->p_memsz, build_id_)) {
+        SB_LOG(INFO) << "Could not get build id";
+      }
+      continue;
+    }
     if (phdr->p_type != PT_LOAD) {
       continue;
     }
@@ -351,6 +386,13 @@ void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   evergreen_info.load_size = load_size_;
   evergreen_info.phdr_table = (uint64_t)phdr_table_;
   evergreen_info.phdr_table_num = phdr_num_;
+
+  std::vector<char> tmp(build_id_.begin(), build_id_.end());
+  tmp.push_back('\0');
+  SbStringCopy(evergreen_info.build_id, tmp.data(),
+               EVERGREEN_BUILD_ID_MAX_SIZE);
+  evergreen_info.build_id_length = build_id_.size();
+
   SetEvergreenInfo(&evergreen_info);
 }
 

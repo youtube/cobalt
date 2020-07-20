@@ -17,6 +17,7 @@
 #include <endian.h>
 
 #include <algorithm>
+#include <utility>
 
 #include "base/files/file_path.h"
 #include "snapshot/crashpad_types/image_annotation_reader.h"
@@ -30,7 +31,8 @@ ModuleSnapshotEvergreen::ModuleSnapshotEvergreen(
     const std::string& name,
     ModuleSnapshot::ModuleType type,
     uint64_t address,
-    uint64_t size)
+    uint64_t size,
+    std::vector<uint8_t> build_id)
     : ModuleSnapshot(),
       name_(name),
       crashpad_info_(),
@@ -38,7 +40,8 @@ ModuleSnapshotEvergreen::ModuleSnapshotEvergreen(
       initialized_(),
       streams_(),
       address_(address),
-      size_(size) {
+      size_(size),
+      build_id_(std::move(build_id)) {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
   INITIALIZATION_STATE_SET_VALID(initialized_);
 }
@@ -139,10 +142,9 @@ std::string ModuleSnapshotEvergreen::DebugFileName() const {
   return base::FilePath(Name()).BaseName().value();
 }
 
-// TODO: Add build id
 std::vector<uint8_t> ModuleSnapshotEvergreen::BuildID() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
-  return std::vector<uint8_t>();
+  return build_id_;
 }
 
 std::vector<std::string> ModuleSnapshotEvergreen::AnnotationsVector() const {

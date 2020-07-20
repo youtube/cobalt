@@ -20,10 +20,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 // This is duplicate constant for use from signal-safe code in
 // the starboard implementation.
 #define EVERGREEN_FILE_PATH_MAX_SIZE 4096
+#define EVERGREEN_BUILD_ID_MAX_SIZE 128
 
 #define IS_EVERGREEN_ADDRESS(address, evergreen_info)                    \
   (evergreen_info.base_address != 0 &&                                   \
@@ -52,6 +54,12 @@ typedef struct EvergreenInfo {
 
   // Number of items in the Program Header Table.
   size_t phdr_table_num;
+
+  // Contents of the build id.
+  char build_id[EVERGREEN_BUILD_ID_MAX_SIZE];
+
+  // Length of the build id.
+  size_t build_id_length;
 } EvergreenInfo;
 
 // Set the Evergreen information. Should be called only from the
