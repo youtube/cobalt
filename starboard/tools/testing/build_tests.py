@@ -14,7 +14,6 @@
 """Common code for building various types of targets, typically tests."""
 
 import logging
-import os
 import subprocess
 
 APP_LAUNCHER_TARGET = 'app_launcher_zip'
@@ -44,9 +43,6 @@ def BuildTargets(targets, out_directory, dry_run=False, extra_build_flags=None):
   args_list.extend(['{}_deploy'.format(test_name) for test_name in targets])
   if extra_build_flags:
     args_list.extend(extra_build_flags)
-
-  if 'TEST_RUNNER_BUILD_FLAGS' in os.environ:
-    args_list.append(os.environ['TEST_RUNNER_BUILD_FLAGS'])
 
   logging.info('Building targets with command: %s', str(args_list))
 
