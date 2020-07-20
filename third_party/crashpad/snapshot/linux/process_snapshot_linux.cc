@@ -345,11 +345,17 @@ void ProcessSnapshotLinux::InitializeModules(
     return;
   }
 
+  std::vector<uint8_t> build_id(evergreen_info.build_id_length);
+  for (int i = 0; i < build_id.size(); i++) {
+    build_id[i] = reinterpret_cast<uint8_t*>(evergreen_info.build_id)[i];
+  }
+
   evergreen_module_ = std::make_unique<internal::ModuleSnapshotEvergreen>(
       std::string(evergreen_info.file_path_buf),
       ModuleSnapshot::ModuleType::kModuleTypeLoadableModule,
       evergreen_info.base_address,
-      evergreen_info.load_size);
+      evergreen_info.load_size,
+      build_id);
 }
 #endif
 

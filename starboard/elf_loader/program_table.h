@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ELF_LOADER_PROGRAM_TABLE_H_
 #define STARBOARD_ELF_LOADER_PROGRAM_TABLE_H_
 
+#include <vector>
+
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file.h"
 
@@ -75,6 +77,8 @@ class ProgramTable {
   void* phdr_mmap_;
   Phdr* phdr_table_;
   Addr phdr_size_;
+
+  std::vector<uint8_t> build_id_;
 
   // First page of reserved address space.
   void* load_start_;
