@@ -29,13 +29,18 @@ enum ApplicationState {
   // The application is still visible, and therefore still requires graphics
   // resources, but the web application may wish to take actions such as pause
   // video. The application is expected to be able to move back into the Started
-  // state very quickly
-  kApplicationStatePaused,
+  // state very quickly.
+  kApplicationStateBlurred,
 
-  // A possible initial state where the web application can be running, loading
-  // data, and so on, but is not visible to the user, and has not ever been
-  // given any graphics resources.
-  kApplicationStatePreloading,
+  // The state where the application is running on the background, but the
+  // background tasks are still running, such as audio playback, or updating
+  // of recommandations. The application is expected to be able to move back
+  // into the Blurred state very quickly.
+  kApplicationStateConcealed,
+
+  // The application was stopped to the point where graphics and video resources
+  // are invalid and execution should be halted until resumption.
+  kApplicationStateFrozen,
 
   // The state where the application is running in the foreground, fully
   // visible, with all necessary graphics resources available. A possible
@@ -44,26 +49,21 @@ enum ApplicationState {
 
   // Representation of a idle/terminal/shutdown state with no resources.
   kApplicationStateStopped,
-
-  // The application was running at some point, but has been backgrounded to the
-  // point where graphics resources are invalid and execution should be halted
-  // until resumption.
-  kApplicationStateSuspended,
 };
 
 // Returns a human-readable string for the given |state|.
 static inline const char *GetApplicationStateString(ApplicationState state) {
   switch (state) {
-    case kApplicationStatePaused:
-      return "kApplicationStatePaused";
-    case kApplicationStatePreloading:
-      return "kApplicationStatePreloading";
+    case kApplicationStateBlurred:
+      return "kApplicationStateBlurred";
+    case kApplicationStateConcealed:
+      return "kApplicationStateConcealed";
+    case kApplicationStateFrozen:
+      return "kApplicationStateFrozen";
     case kApplicationStateStarted:
       return "kApplicationStateStarted";
     case kApplicationStateStopped:
       return "kApplicationStateStopped";
-    case kApplicationStateSuspended:
-      return "kApplicationStateSuspended";
   }
 
   NOTREACHED() << "state = " << state;
