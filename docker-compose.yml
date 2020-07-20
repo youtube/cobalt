@@ -11,8 +11,8 @@ x-common-definitions: &common-definitions
   volumes:
     - ${COBALT_SRC:-.}:/code/
     - android-debug-keystore:/root/.android/
-    - container-ccache:/root/ccache
-    - container-starboard-toolchains:/root/starboard-toolchains
+    - ${CCACHE_DIR:-container-ccache}:/root/ccache
+    - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
   depends_on:
     - base
 
