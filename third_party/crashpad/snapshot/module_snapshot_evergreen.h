@@ -48,7 +48,8 @@ class ModuleSnapshotEvergreen final : public ModuleSnapshot {
   ModuleSnapshotEvergreen(const std::string& name,
                           ModuleSnapshot::ModuleType type,
                           uint64_t address,
-                          uint64_t size);
+                          uint64_t size,
+                          std::vector<uint8_t> build_id);
   ~ModuleSnapshotEvergreen() override;
 
   //! \brief Initializes the object.
@@ -91,7 +92,7 @@ class ModuleSnapshotEvergreen final : public ModuleSnapshot {
   std::string name_;
   uint64_t address_;
   uint64_t size_;
-  // std::vector<uint8_t> buildId_;
+  std::vector<uint8_t> build_id_;
   ModuleType type_;
   InitializationStateDcheck initialized_;
 
