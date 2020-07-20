@@ -206,7 +206,7 @@ Window::Window(
 #if !defined(ENABLE_TEST_RUNNER)
 #endif
   document_->AddObserver(relay_on_load_event_.get());
-  html_element_context_->page_visibility_state()->AddObserver(this);
+  html_element_context_->application_lifecycle_state()->AddObserver(this);
   SetCamera3D(camera_3d);
 
   // Document load start is deferred from this constructor so that we can be
@@ -546,7 +546,8 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
 }
 
 void Window::SetApplicationState(base::ApplicationState state) {
-  html_element_context_->page_visibility_state()->SetApplicationState(state);
+  html_element_context_->application_lifecycle_state()->SetApplicationState(
+      state);
 }
 
 bool Window::ReportScriptError(const script::ErrorReport& error_report) {
@@ -627,8 +628,8 @@ void Window::SetSize(ViewportSize size) {
   // This will cause layout invalidation.
   document_->SetViewport(viewport_size_);
 
-  if (html_element_context_->page_visibility_state()->GetVisibilityState() ==
-      kVisibilityStateVisible) {
+  if (html_element_context_->application_lifecycle_state()
+          ->GetVisibilityState() == kVisibilityStateVisible) {
     DispatchEvent(new Event(base::Tokens::resize()));
   } else {
     is_resize_event_pending_ = true;
@@ -652,14 +653,18 @@ void Window::OnVisibilityStateChanged(VisibilityState visibility_state) {
   }
 }
 
+void Window::OnFrozennessChanged(bool is_frozen) {
+  // Ignored by this class.
+}
+
 void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   DLOG(WARNING) << "Document root element unable to provide offset dimensions!";
   // If the root element was unable to provide its dimensions as a result of
   // the app being in a visibility state that disables layout, then prepare a
   // pending resize event, so that the resize will occur once layouts are again
   // available.
-  if (html_element_context_->page_visibility_state()->GetVisibilityState() !=
-      kVisibilityStateVisible) {
+  if (html_element_context_->application_lifecycle_state()
+          ->GetVisibilityState() != kVisibilityStateVisible) {
     is_resize_event_pending_ = true;
   }
 }
@@ -718,7 +723,7 @@ Window::~Window() {
   if (ui_nav_root_) {
     ui_nav_root_->SetEnabled(false);
   }
-  html_element_context_->page_visibility_state()->RemoveObserver(this);
+  html_element_context_->application_lifecycle_state()->RemoveObserver(this);
 }
 
 void Window::FireHashChangeEvent() {
