@@ -300,77 +300,124 @@ take a look here.
 
 ### Installation Slots
 
-Cobalt Evergreen provides support for maintaining multiple separate versions of
+Cobalt Evergreen provides support for maintaining multiple, separate versions of
 the Cobalt binary on a platform. These versions are stored in installation
 slots(i.e. known locations on disk), and are used to significantly improve the
 resilience and reliability of Cobalt updates.
 
-The number of installation slots available will be determined by the platform
-owner. A minimum of 2 must be available with the limit being the storage
-available on the platform.
+All slot configurations assume the following:
+* 1 System Image Installation Slot (read-only)
+* 1+ Additional Installation Slot(s) (writable)
 
-It is worth noting that adding a third installation slot allows a factory image
-to be permanently installed as a fail-safe option.
+The number of installation slots available will be determined by the platform
+owner. **3 slots is the default and recommended configuration for Evergreen**. A
+minimum of 2 slots must be available with the limit being the storage available
+on the platform. In contrast, there can be `N` installation slots configured
+with the only limitation being available storage.
+
+#### Slot Configuration
+NOTE: 3 slots are the DEFAULT and RECOMMENDED configuration.
 
 The number of installation slots is directly controlled using
 `kMaxNumInstallations`, defined in
 [loader\_app.cc](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/loader_app/loader_app.cc).
 
-There are subtle differences between using 2 installation slots and using 3 or
-more installation slots outlined below.
+It is worth noting that all slot configurations specify that the first
+installation slot (`SLOT_0`) will always be the read-only factory system image.
+This is permanently installed on the platform and is used as a fail-safe option.
+This is stored in the directory specified by `kSbSystemPathContentDirectory`
+under the `app/cobalt` subdirectory.
 
-#### 2 Slot Configuration
+All of the other installation slots are located within the storage directory
+specified by `kSbSystemPathStorageDirectory`. This will vary depending on the
+platform.
 
-Both of the installation slots are located in the directory specified by
-`kSbSystemPathStorageDirectory`. This will vary depending on the platform.
-
-On the Raspberry Pi this value will be `/home/pi/.cobalt_storage`. The paths to
-the installation slots will be as follows:
-
-`/home/pi/.cobalt_storage/installation_0` (initial installation slot)
-
-```
-/home/pi/.cobalt_storage/installation_1
-```
-
-Where the most recent update is stored will alternate between the two available
-slots. No factory image is maintained with this configuration so only the two
-most recent updates will be stored on the machine.
-
-Finally, the installation slot that will be used when Cobalt Evergreen is run
-would be stored in
-
-`/home/pi/.cobalt_storage/installation_store.pb` on the Raspberry Pi.
-
-#### 3+ Slot Configuration
-
-The 3+ slot configuration is very similar to the 2 slot configuration, but has
-one major difference: the original installation is maintained, and is stored in
-a read-only installation slot within the content directory.
-
-On the Raspberry Pi, the installation slots will be as follows:
-
-`/home/pi/path-to-cobalt/content/app/cobalt` (initial installation slot)
-(read-only)
+For example, on the Raspberry Pi the `kSbSystemPathStorageDirectory` directory
+is `/home/pi/.cobalt_storage`, and the paths to all existing installation slots
+will be as follows:
 
 ```
-/home/pi/.cobalt_storage/installation_1
-/home/pi/.cobalt_storage/installation_2
+/home/pi/<kSbSystemPathContentDirectory>/app/cobalt (system image installation SLOT_0) (read-only)
+/home/pi/.cobalt_storage/installation_1 (SLOT_1)
+/home/pi/.cobalt_storage/installation_2 (SLOT_2)
+...
+/home/pi/.cobalt_storage/installation_N (SLOT_N)
 ```
 
-Similar to the 2 slot configuration, where the most recent update is stored will
-alternate between the two available slots (not the read-only installation slot).
+Where the most recent update is stored will alternate between the available
+writable slots. In the above example, this would be `SLOT_1`...`SLOT_N`. When
+using the 2-slot configuration there will only be a single available slot
+(`SLOT_1`), so each update will overwrite the previous version and the read-only
+system image version (`SLOT_0`) remains untouched.
 
-The installation slot that will be used when Cobalt Evergreen is run is
-determined, and stored, exactly the same as it is for the 2 slot configuration.
+#### Understanding Slot Structure
+Slots are used to manage Cobalt Evergreen binaries with associated app metadata
+to select the appropriate Cobalt Evergreen binaries.
+
+See the below structures for an example 3-slot configuration.
+
+Structure for `kSbSystemPathContentDirectory` used for the read-only System
+Image required for all slot configurations:
+
+```
+.
+├── content <--(kSbSystemPathContentDirectory)
+│   └── app
+│       └── cobalt <--(SLOT_0)
+│           ├── content <--(relative path defined in kSystemImageContentPath)
+│           │   ├── fonts
+│           │   ├── icu
+│           │   ├── licenses
+│           │   ├── ssl
+│           ├── lib
+│           │   └── libcobalt.so <--(System image version of libcobalt.so)
+│           └── manifest.json
+└── loader_app <--(Cobalt launcher binary)
+```
+
+Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen
+updates in an example 3-slot configuration:
+
+```
+.cobalt_storage <--(kSbSystemPathStorageDirectory)
+├── cobalt_updater
+│   └── prefs_<APP_KEY>.json
+├── installation_1 <--(SLOT_1 - currently unused)
+├── installation_2 <--(SLOT_2 - contains new Cobalt version)
+│   ├── content
+│   │   ├── fonts
+│   │   ├── icu
+│   │   ├── licenses
+│   │   ├── ssl
+│   ├── lib
+│   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+│   ├── manifest.fingerprint
+│   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+└── installation_store_<APP_KEY>.pb
+```
+
+#### App metadata
+Each Cobalt Evergreen application has a set of unique metadata to track slot
+selection. The following set of files are unique per application via a
+differentiating <APP_KEY> identifier, which is a Base64 hash appended to the
+filename.
+
+```
+<SLOT_#>/installation_store_<APP_KEY>.pb
+<SLOT_#>/cobalt_updater/prefs_<APP_KEY>.json
+```
+
+You should NOT change any of these files and they are highlighted here just for
+reference.
+
 
 ### Fonts
-The system font directory `kSbSystemPathStorageDirectory` should be configured to
+The system font directory `kSbSystemPathFontDirectory` should be configured to
 point to the `standard` (23MB) or the `limited` (3.1MB) cobalt font packages. An
 easy way to do that is to use the `loader_app/content` directory and setting the
 `cobalt_font_package` to `standard` or `limited` in your port.
 
-Cobalt Evergreen, built by Google, will by default use the `minimal` cobalt
+Cobalt Evergreen (built by Google), will by default use the `minimal` font
 package which is around 16KB to minimize storage requirements. A separate
 `cobalt_font_package` variable is set to `minimal` in the Evergreen platform.
 
@@ -378,7 +425,7 @@ On Raspberry Pi this is:
 
 `minimal` set of fonts under:
 ```
-~/.cobalt_storage/installation_0/content/fonts/
+/home/pi/<kSbSystemPathContentDirectory>/content/fonts/
 ```
 
 `standard` or `limited` set of fonts under:
@@ -387,9 +434,9 @@ loader_app/content/fonts
 ```
 
 ### ICU Tables
-The ICU table should be deployed under the kSbSystemPathStorageDirectory.
-This way all Cobalt Evergreen installations would be able to share the same
-tables. The current storage size for the ICU tables is 7MB.
+The ICU table should be deployed under the `kSbSystemPathStorageDirectory`. This
+way all Cobalt Evergreen installations would be able to share the same tables.
+The current storage size for the ICU tables is 7MB.
 
 On Raspberry Pi this is:
 
@@ -398,7 +445,103 @@ On Raspberry Pi this is:
 ```
 The Cobalt Evergreen package will not carry ICU tables by default but may add
 them in the future if needed. When the package has ICU tables they would be
-stored under the content location for the installation.
+stored under the content location for the installation:
+
+```
+<SLOT_#>/content/icu
+```
+
+### Multi-App Support
+Evergreen can support multiple apps that share a Cobalt binary. This is a very
+common way to save space and keep all your Cobalt apps using the latest version
+of Cobalt. We understand that there are situations where updates are only needed
+for certain apps, so we have provided a way where Cobalt Updater behavior can be
+easily configured on a per-app basis with simple loader_app command-line flags.
+
+Currently, the only configurable option for Cobalt Updater configuration is:
+* --disable_updates *Turns off updates for the specified application. Note that
+  apps disabling updates will use the Cobalt version available in the System
+  Image.*
+
+Each app’s Cobalt Updater will perform an independent, regular check for new
+Cobalt Evergreen updates. Note that all apps will share the same set of slots,
+but each app will maintain metadata about which slots are “good” (working) or
+“bad” (error detected) and use the appropriate slot. Sharing slots allows
+Evergreen to download Cobalt updates a single time and be able to use it across
+all Evergreen-enabled apps.
+
+To illustrate, a simple example:
+
+* Cobalt v5 - latest Cobalt Evergreen version
+
+#### BEFORE COBALT UPDATE
+```
+[APP_1] (currently using SLOT_1, using Cobalt v4)
+[APP_2] (currently using SLOT_0, using Cobalt v3)
+[APP_3] (currently using SLOT_0, using Cobalt v3)
+```
+
+Now remember, apps could share the same Cobalt binary. Let’s say `APP_1` has
+detected an update available and downloads the latest update (Cobalt v5) into
+SLOT_2. The next time `APP_2` runs, it may detect Cobalt v5 as well. It would
+then simply do a `request_roll_forward` operation to switch to SLOT_2 and does
+not have to download a new update since the latest is already available in an
+existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
+binaries in SLOT_2.
+
+If `APP_3` has not been launched, not run through a regular Cobalt Updater
+check, or launched with the `--disable_updates` flag, it stays with its current
+configuration.
+
+#### AFTER COBALT UPDATE
+```
+[APP_1] (currently using SLOT_2, using Cobalt v5)
+[APP_2] (currently using SLOT_2, using Cobalt v5)
+[APP_3] (currently using SLOT_0, using Cobalt v3)
+```
+
+Now that we have gone through an example scenario, we can cover some examples of
+how to configure Cobalt Updater behavior and `loader_app` configuration.
+
+
+Some example configurations include:
+```
+
+# All Cobalt-based apps get Evergreen Updates
+[APP_1] (Cobalt Updater ENABLED)
+[APP_2] (Cobalt Updater ENABLED)
+[APP_3] (Cobalt Updater ENABLED)
+
+loader_app --url="<YOUR_APP_1_URL>"
+loader_app --url="<YOUR_APP_2_URL>"
+loader_app --url="<YOUR_APP_3_URL>"
+
+
+# Only APP_1 gets Evergreen Updates, APP_2 wants to use an alternate splash screen
+[APP_1] (Cobalt Updater ENABLED)
+[APP_2] (Cobalt Updater DISABLED)
+[APP_3] (Cobalt Updater DISABLED)
+
+loader_app --url="<YOUR_APP_1_URL>"
+loader_app --url="<YOUR_APP_2_URL>" --disable_updates \
+--fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
+loader_app --url="<YOUR_APP_3_URL>" --disable_updates
+
+
+# APP_3 is a local app, wants Cobalt Updater disabled, and uses an alternate content directory
+# (This configuration is common for System UI apps. APP_3 in this example.)
+[APP_1] (Cobalt Updater ENABLED)
+[APP_2] (Cobalt Updater ENABLED)
+[APP_3] (Cobalt Updater DISABLED)
+
+loader_app --url="<YOUR_APP_1_URL>"
+loader_app --url="<YOUR_APP_2_URL>"
+loader_app --csp_mode=disable --allow_http --url="file:///<PATH_TO_APP_3>/index.html" --content="/<PATH_TO_APP_3>/content"
+```
+
+Please see
+[`loader_app_switches.cc`](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/loader_app/loader_app.cc)
+for full list of available command-line flags.
 
 ### Platform Security
 
