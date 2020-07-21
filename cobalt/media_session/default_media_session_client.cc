@@ -26,10 +26,6 @@ class DefaultMediaSessionClient : public MediaSessionClient {
  public:
   DefaultMediaSessionClient() {}
   ~DefaultMediaSessionClient() override {}
-
- private:
-  void OnMediaSessionStateChanged(
-      const MediaSessionState& session_state) override {}
 };
 
 // static

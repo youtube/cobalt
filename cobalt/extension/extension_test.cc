@@ -17,6 +17,7 @@
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/extension/installation_manager.h"
+#include "cobalt/extension/media_session.h"
 #include "cobalt/extension/platform_service.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -148,6 +149,26 @@ TEST(ExtensionTest, Configuration) {
   EXPECT_TRUE(extension_api->CobaltReduceCpuMemoryBy != NULL);
   EXPECT_TRUE(extension_api->CobaltReduceGpuMemoryBy != NULL);
   EXPECT_TRUE(extension_api->CobaltGcZeal != NULL);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, MediaSession) {
+  typedef CobaltExtensionMediaSessionApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionMediaSessionName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_TRUE(extension_api->version == 1);
+  EXPECT_TRUE(extension_api->OnMediaSessionStateChanged != NULL);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
