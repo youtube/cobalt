@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "base/threading/thread_checker.h"
+#include "cobalt/extension/media_session.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
@@ -37,9 +38,7 @@ class MediaSessionClient {
   MediaSessionClient() : MediaSessionClient(new MediaSession(this)) {}
 
   // Injectable MediaSession for tests.
-  explicit MediaSessionClient(scoped_refptr<MediaSession> media_session)
-      : media_session_(media_session),
-        platform_playback_state_(kMediaSessionPlaybackStateNone) {}
+  explicit MediaSessionClient(scoped_refptr<MediaSession> media_session);
 
   virtual ~MediaSessionClient();
 
@@ -79,7 +78,7 @@ class MediaSessionClient {
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
   virtual void OnMediaSessionStateChanged(
-      const MediaSessionState& session_state) = 0;
+      const MediaSessionState& session_state);
 
  private:
   THREAD_CHECKER(thread_checker_);
@@ -87,10 +86,16 @@ class MediaSessionClient {
   MediaSessionState session_state_;
   MediaSessionPlaybackState platform_playback_state_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
+  const CobaltExtensionMediaSessionApi* extension_;
 
   void UpdateMediaSessionState();
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
   MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
+  CobaltExtensionPlaybackState ConvertPlaybackState(
+      MediaSessionPlaybackState in_state);
+  void ConvertMediaSessionActions(
+      const MediaSessionState::AvailableActionsSet& actions,
+      bool result[kCobaltExtensionMediaSessionActionNumActions]);
 
   void InvokeActionInternal(std::unique_ptr<MediaSessionActionDetails> details);
 
