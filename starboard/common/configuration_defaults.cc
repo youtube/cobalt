@@ -102,7 +102,7 @@ const char* CobaltRasterizerTypeDefault() {
 }
 
 bool CobaltEnableJitDefault() {
-  return false;
+  return true;
 }
 
 }  // namespace common
