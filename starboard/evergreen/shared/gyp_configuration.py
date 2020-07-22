@@ -102,9 +102,9 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetTestTargets(self):
     tests = super(EvergreenConfiguration, self).GetTestTargets()
-    return [test for test in tests if test not in self.__BLACKLISTED_TESTS]
+    return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
 
-  __BLACKLISTED_TESTS = [  # pylint: disable=invalid-name
+  __FORBIDDEN_TESTS = [  # pylint: disable=invalid-name
       # elf_loader_test and installation_manager_test are explicitly tests that
       # validate the correctness of the underlying platform. We should not be
       # running these tests in Evergreen mode, and instead will rely on the
