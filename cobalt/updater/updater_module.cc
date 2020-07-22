@@ -136,19 +136,6 @@ void UpdaterModule::Resume() {
 
 void UpdaterModule::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: enable crash report with dependency on CrashPad
-  // updater::crash_reporter::InitializeCrashKeys();
-
-  // static crash_reporter::CrashKeyString<16> crash_key_process_type(
-  //     "process_type");
-  // crash_key_process_type.Set("updater");
-
-  // if (CrashClient::GetInstance()->InitializeCrashReporting())
-  //   VLOG(1) << "Crash reporting initialized.";
-  // else
-  //   VLOG(1) << "Crash reporting is not available.";
-
-  // StartCrashReporter(UPDATER_VERSION_STRING);
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(network_module_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);

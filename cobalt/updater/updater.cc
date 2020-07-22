@@ -38,8 +38,6 @@
 #include "base/time/time.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"
-#include "cobalt/updater/crash_client.h"
-#include "cobalt/updater/crash_reporter.h"
 #include "cobalt/updater/updater_module.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/prefs/pref_service.h"
