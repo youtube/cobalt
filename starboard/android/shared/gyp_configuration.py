@@ -146,7 +146,7 @@ class AndroidConfiguration(PlatformConfiguration):
     if not self._target_toolchain:
       tool_prefix = os.path.join(sdk_utils.GetNdkPath(), 'toolchains', 'llvm',
                                  'prebuilt', 'linux-x86_64', 'bin', '')
-      cc_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][0]
+      cc_path = self.build_accelerator + ' ' + tool_prefix + _ABI_TOOL_NAMES[self.android_abi][0]
       cxx_path = cc_path + '++'
       ar_path = tool_prefix + _ABI_TOOL_NAMES[self.android_abi][1]
       clang_flags = [
@@ -243,7 +243,7 @@ class AndroidConfiguration(PlatformConfiguration):
     if not self._host_toolchain:
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
-            clang_build.GetClangSpecification(), False)
+            clang_build.GetClangSpecification(), self.build_accelerator)
       cc_path = self.host_compiler_environment['CC_host'],
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [

@@ -17,7 +17,6 @@ import os.path
 
 from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
-from starboard.tools import build
 from starboard.tools import paths
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
@@ -32,33 +31,28 @@ class EvergreenX86Configuration(shared_configuration.EvergreenConfiguration):
   """Starboard Evergreen x86 platform configuration."""
 
   def __init__(self,
-               platform_name='evergreen-x86',
+               platform='evergreen-x86',
                asan_enabled_by_default=False,
-               goma_supports_compiler=True,
                sabi_json_path='starboard/sabi/default/sabi.json'):
     # pylint: disable=useless-super-delegation
-    super(EvergreenX86Configuration,
-          self).__init__(platform_name, asan_enabled_by_default,
-                         goma_supports_compiler, sabi_json_path)
-    self._host_toolchain = None
+    super(EvergreenX86Configuration, self).__init__(platform,
+                                                    asan_enabled_by_default,
+                                                    sabi_json_path)
 
   def GetTargetToolchain(self, **kwargs):
     return self.GetHostToolchain(**kwargs)
 
   def GetHostToolchain(self, **kwargs):
-    if not self._host_toolchain:
-      if not hasattr(self, 'host_compiler_environment'):
-        self.host_compiler_environment = build.GetHostCompilerEnvironment(
-            clang_build.GetClangSpecification(), False)
-      cc_path = self.host_compiler_environment['CC_host']
-      cxx_path = self.host_compiler_environment['CXX_host']
+    if not hasattr(self, '_host_toolchain'):
+      env_variables = self.GetEnvironmentVariables()
+      cc_path = env_variables['CC_host']
+      cxx_path = env_variables['CXX_host']
 
-      # Takes the provided value of CXX_HOST with a prepended 'gomacc' and an
+      # Takes the provided value of CXX_HOST with a prepended 'ccache' and an
       # appended 'bin/clang++' and strips them off, leaving us with an absolute
       # path to the root directory of our toolchain.
       begin_path_index = cxx_path.find('/')
       end_path_index = cxx_path.rfind('/', 0, cxx_path.rfind('/')) + 1
-
       cxx_path_root = cxx_path[begin_path_index:end_path_index]
 
       self._host_toolchain = [

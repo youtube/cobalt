@@ -28,12 +28,11 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
   def __init__(self,
                platform,
                asan_enabled_by_default=True,
-               goma_supports_compiler=True,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    self.goma_supports_compiler = goma_supports_compiler
-    self.sabi_json_path = sabi_json_path
     super(EvergreenConfiguration, self).__init__(platform,
                                                  asan_enabled_by_default)
+
+    self.sabi_json_path = sabi_json_path
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -67,14 +66,14 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     return generator_variables
 
   def GetEnvironmentVariables(self):
-    if not hasattr(self, 'host_compiler_environment'):
-      self.host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang.GetClangSpecification(), self.goma_supports_compiler)
+    if not hasattr(self, '_host_compiler_environment'):
+      self._host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang.GetClangSpecification(), self.build_accelerator)
 
-    env_variables = self.host_compiler_environment
+    env_variables = self._host_compiler_environment
     env_variables.update({
-        'CC': self.host_compiler_environment['CC_host'],
-        'CXX': self.host_compiler_environment['CXX_host'],
+        'CC': self._host_compiler_environment['CC_host'],
+        'CXX': self._host_compiler_environment['CXX_host'],
     })
     return env_variables
 

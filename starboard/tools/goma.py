@@ -30,6 +30,18 @@ import subprocess
 import sys
 import util
 
+from starboard.tools import build_accelerator
+
+
+class Goma(build_accelerator.BuildAccelerator):
+  """Goma is a distributed build accelerator."""
+
+  def GetName(self):
+    return 'gomacc'
+
+  def Use(self):
+    return FindAndStartGoma()
+
 
 def _GomaEnabledFromEnv():
   """Enable goma if USE_GOMA is defined.
