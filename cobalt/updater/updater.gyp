@@ -22,11 +22,6 @@
         'configurator.h',
         'network_fetcher.cc',
         'network_fetcher.h',
-        # TODO: enable crash report later with crashpad dependency
-        #'crash_client.cc',
-        #'crash_client.h',
-        #'crash_reporter.cc',
-        #'crash_reporter.h',
         'patcher.cc',
         'patcher.h',
         'prefs.cc',
