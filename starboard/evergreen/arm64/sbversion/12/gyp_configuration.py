@@ -18,5 +18,5 @@ from starboard.evergreen.arm64 import gyp_configuration as parent_configuration
 
 def CreatePlatformConfig():
   return parent_configuration.EvergreenArm64Configuration(
-      platform_name='evergreen-arm64-sbversion-12',
+      'evergreen-arm64-sbversion-12',
       sabi_json_path='starboard/sabi/arm64/sabi-v12.json')

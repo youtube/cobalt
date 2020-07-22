@@ -22,5 +22,5 @@ _PARENT_CONFIGURATION = importlib.import_module(
 
 def CreatePlatformConfig():
   return _PARENT_CONFIGURATION.Raspi2PlatformConfig(
-      platform='raspi-2-sbversion-12',
+      'raspi-2-sbversion-12',
       sabi_json_path='starboard/sabi/arm/hardfp/sabi-v12.json')

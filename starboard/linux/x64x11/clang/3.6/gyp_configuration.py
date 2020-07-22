@@ -31,14 +31,13 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux X64 X11 Clang 3.6 platform configuration."""
 
   def __init__(self,
-               platform,
+               platform='linux-x64x11-clang-3-6',
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
     super(LinuxX64X11Clang36Configuration, self).__init__(
         platform,
         asan_enabled_by_default,
-        goma_supports_compiler=False,
-        sabi_json_path=sabi_json_path)
+        sabi_json_path)
 
     self.toolchain_top_dir = os.path.join(build.GetToolchainsDir(),
                                           'x86_64-linux-gnu-clang-3.6')
@@ -52,12 +51,15 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
         os.path.join(script_path, 'download_clang.sh'), cwd=script_path)
 
   def GetEnvironmentVariables(self):
+    toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
+
     env_variables = super(LinuxX64X11Clang36Configuration,
                           self).GetEnvironmentVariables()
-    toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
     env_variables.update({
-        'CC': os.path.join(toolchain_bin_dir, 'clang'),
-        'CXX': os.path.join(toolchain_bin_dir, 'clang++'),
+        'CC': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
+                                                          'clang'),
+        'CXX': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
+                                                           'clang++'),
     })
     return env_variables
 
@@ -112,7 +114,6 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
 def CreatePlatformConfig():
   try:
     return LinuxX64X11Clang36Configuration(
-        'linux-x64x11-clang-3-6',
         sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')
   except RuntimeError as e:
     logging.critical(e)
