@@ -1,4 +1,5 @@
-# Copyright 2019 The Cobalt Authors. All Rights Reserved.
+#
+# Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard evergreen-x86 platform configuration for gyp_cobalt."""
+#
+"""Defines abstract build accelerators."""
 
-from starboard.evergreen.x86 import gyp_configuration as parent_configuration
+import abc
 
 
-def CreatePlatformConfig():
-  return parent_configuration.EvergreenX86Configuration(
-      'evergreen-x86-sbversion-12',
-      sabi_json_path='starboard/sabi/x86/sabi-v12.json')
+class BuildAccelerator(object):
+  """A base class for all build accelerators."""
+
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def GetName(self):
+    """Returns name of build accelerator to be called."""
+    pass
+
+  @abc.abstractmethod
+  def Use(self):
+    """Returns boolean of whether the build accelerator should be used."""
+    pass

@@ -26,7 +26,6 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import config
 from starboard.tools import paths
 from starboard.tools import platform
-import starboard.tools.goma
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
@@ -190,27 +189,20 @@ def EnsureClangAvailable(clang_spec):
   return _GetClangBasePath(clang_spec)
 
 
-def GetHostCompilerEnvironment(clang_spec, goma_supports_compiler):
+def GetHostCompilerEnvironment(clang_spec, build_accelerator):
   """Return the host compiler toolchain environment."""
-
   toolchain_dir = EnsureClangAvailable(clang_spec)
   toolchain_bin_dir = os.path.join(toolchain_dir, 'bin')
 
   cc_clang = os.path.join(toolchain_bin_dir, 'clang')
   cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
   host_clang_environment = {
-      'CC_host': cc_clang,
-      'CXX_host': cxx_clang,
+      'CC_host': build_accelerator + ' ' + cc_clang,
+      'CXX_host': build_accelerator + ' ' + cxx_clang,
       'LD_host': cxx_clang,
       'ARFLAGS_host': 'rcs',
       'ARTHINFLAGS_host': 'rcsT',
   }
-  # Check if goma is installed. Initialize if needed and use if possible.
-  if goma_supports_compiler and starboard.tools.goma.FindAndStartGoma():
-    host_clang_environment.update({
-        'CC_host': 'gomacc ' + cc_clang,
-        'CXX_host': 'gomacc ' + cxx_clang,
-    })
   return host_clang_environment
 
 
