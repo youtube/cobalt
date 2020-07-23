@@ -141,16 +141,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
   thread_options.stack_size = 256 * 1024;
-  // Thread priority is set to LOW (background) due to the following
-  // constraints:
-  // (1) Setting to high could result in an increase in unresponsiveness
-  //     and input latency on single-core devices.
-  // (2) Setting to normal results in choppy video playback performance
-  //     on lower-end devices.
-  // It was found with some testing that BACKGROUND priority gives the
-  // desired performance on low-end devices without impacting the more
-  // capable devices.
-  thread_options.priority = base::ThreadPriority::BACKGROUND;
+  thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
 
   base::WaitableEvent creation_event(
