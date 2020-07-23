@@ -63,6 +63,10 @@
           'dependencies': [
             '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
           ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+          ],
         }],
       ],
       'sources': [
@@ -86,6 +90,17 @@
       'sources': [
         '<@(common_elf_loader_sources)',
         '<@(elf_loader_sys_sources)',
+      ],
+      'conditions': [
+        ['sb_evergreen_compatible == 1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+          ],
+        }],
       ],
     },
     {
