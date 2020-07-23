@@ -500,7 +500,8 @@ int InstallationManager::SelectNewInstallationIndex() {
   int priority = highest_priority_;
   int new_installation_index = -1;
 
-  // The 0 index slot is always the system image.
+  // SLOT_0 is placed in |kSbSystemPathContentDirectory|, under the subdirectory
+  // 'app/cobalt', and is always the system image.
   int start = 1;
 
   // Find the lowest priority installation that we can use.
@@ -683,7 +684,8 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
     SB_LOG(ERROR) << "GetInstallationPath: path is null";
     return false;
   }
-  // The installation 0 slot is located under the content directory.
+  // SLOT_0 is placed in |kSbSystemPathContentDirectory|, under the subdirectory
+  // 'app/cobalt'.
   if (installation_index == 0) {
     SbStringFormatF(path, path_length, "%s%s%s%s%s", content_dir_.c_str(),
                     kSbFileSepString, "app", kSbFileSepString, "cobalt");
@@ -698,7 +700,8 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
 bool InstallationManager::CreateInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
   for (int i = 0; i < max_num_installations_; i++) {
-    // The index 0 slot is under the content directory.
+    // SLOT_0 is placed in |kSbSystemPathContentDirectory|, under the
+    // subdirectory 'app/cobalt'.
     if (i == 0) {
       continue;
     }
