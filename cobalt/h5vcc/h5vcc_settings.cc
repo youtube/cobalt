@@ -33,10 +33,10 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   }
 
   if (SbStringCompare(name.c_str(), kQUIC, sizeof(kQUIC) - 1) == 0) {
-    if (value != 0 || !network_module_) {
+    if (!network_module_) {
       return false;
     } else {
-      network_module_->DisableQuic();
+      network_module_->SetEnableQuic(value != 0);
       return true;
     }
   }
