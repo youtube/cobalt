@@ -90,10 +90,11 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
                             custom_proxy_rules));
 }
 
-void NetworkModule::DisableQuic() {
+void NetworkModule::SetEnableQuic(bool enable_quic) {
   task_runner()->PostTask(
-      FROM_HERE, base::Bind(&URLRequestContext::DisableQuic,
-                            base::Unretained(url_request_context_.get())));
+      FROM_HERE, base::Bind(&URLRequestContext::SetEnableQuic,
+                            base::Unretained(url_request_context_.get()),
+                            enable_quic));
 }
 
 void NetworkModule::Initialize(const std::string& user_agent_string,

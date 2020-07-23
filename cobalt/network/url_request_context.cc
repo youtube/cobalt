@@ -189,9 +189,9 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
       std::make_unique<ProxyConfigService>(proxy_config));
 }
 
-void URLRequestContext::DisableQuic() {
+void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  storage_.http_network_session()->DisableQuic();
+  storage_.http_network_session()->SetEnableQuic(enable_quic);
 }
 
 #if defined(ENABLE_DEBUGGER)

@@ -406,6 +406,8 @@ class NET_EXPORT HttpNetworkSession {
   // Toggle QUIC support for new streams.
   void ToggleQuic();
 
+  void SetEnableQuic(bool enable_quic);
+
   // Whether to try QUIC connection for origins without alt-svc on record.
   bool UseQuicForUnknownOrigin() const;
 #endif  // defined(STARBOARD)
