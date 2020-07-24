@@ -112,6 +112,11 @@
             '<(DEPTH)/starboard/loader_app/installation_manager.gyp:*',
           ],
         }],
+        ['sb_evergreen_compatible==1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/handler/handler.gyp:crashpad_handler',
+          ],
+        }],
       ],
     },
   ],
