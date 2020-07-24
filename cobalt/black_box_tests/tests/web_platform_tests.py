@@ -76,15 +76,6 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       if self.launcher_params.target_params:
         target_params += self.launcher_params.target_params
 
-      if self.launcher_params.IsEvergreen():
-        # TODO: Remove this once the memory leaks when running executables in
-        # Evergreen mode have been resolved.
-        env_variables_config = {
-            'ASAN_OPTIONS': 'detect_leaks=0:intercept_tls_get_addr=0'
-        }
-      else:
-        env_variables_config = {'ASAN_OPTIONS': 'intercept_tls_get_addr=0'}
-
       launcher = abstract_launcher.LauncherFactory(
           self.launcher_params.platform,
           'web_platform_tests',
@@ -93,7 +84,7 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
           target_params=target_params,
           output_file=None,
           out_directory=self.launcher_params.out_directory,
-          env_variables=env_variables_config,
+          env_variables={'ASAN_OPTIONS': 'intercept_tls_get_addr=0'},
           loader_platform=self.launcher_params.loader_platform,
           loader_config=self.launcher_params.loader_config,
           loader_out_directory=self.launcher_params.loader_out_directory)
