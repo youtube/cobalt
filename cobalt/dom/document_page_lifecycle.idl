@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Part of Page Visibility Level 2
-// https://www.w3.org/TR/page-visibility-2/#visibility-states-and-the-visibilitystate-enum
+// Page Lifecyle API
+// https://wicg.github.io/page-lifecycle/#sec-api
 
-enum VisibilityState {
-  "hidden",
-  "visible",
+partial interface Document {
+  attribute EventHandler onfreeze;
+  attribute EventHandler onresume;
+  readonly attribute boolean wasDiscarded;
 };

@@ -54,6 +54,11 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Error state
   scoped_refptr<MediaError> error() const;
 
+  // Custom, not in any spec
+  //
+  // From HTMLElement
+  scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() override { return this; }
+
   // Network state
   std::string src() const;
   void set_src(const std::string& src);
@@ -104,6 +109,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   float duration() const;
   base::Time GetStartDate() const;
   bool paused() const;
+  bool resume_frozen_flag() const;
   float default_playback_rate() const;
   void set_default_playback_rate(float rate);
   float playback_rate() const;
@@ -117,6 +123,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void set_loop(bool loop);
   void Play();
   void Pause();
+  void set_resume_frozen_flag(bool resume_frozen_flag);
 
   // Controls
   bool controls() const;
@@ -267,6 +274,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   bool autoplaying_;
   bool muted_;
   bool paused_;
+  //  https://wicg.github.io/page-lifecycle/#htmlmediaelement-resume-frozen-flag
+  bool resume_frozen_flag_;
   bool seeking_;
   bool controls_;
 

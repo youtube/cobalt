@@ -136,11 +136,11 @@ class WebModule : public LifecycleObserver {
 
     // If true, Cobalt will log a warning each time it parses a non-async
     // <script> tag inlined in HTML.  Cobalt has a known issue where if it is
-    // paused or suspended while loading inlined <script> tags, it will abort
+    // blurred or frozen while loading inlined <script> tags, it will abort
     // the script fetch and silently fail without any follow up actions.  It is
     // recommended that production code always avoid non-async <script> tags
     // inlined in HTML.  This is likely not an issue for tests, however, where
-    // we control the suspend/resume activities, so this flag can be used in
+    // we control the freeze/unfreeze activities, so this flag can be used in
     // these cases to disable the warning.
     bool enable_inline_script_warnings = true;
 
@@ -207,8 +207,8 @@ class WebModule : public LifecycleObserver {
     bool enable_image_animations = true;
 
     // Whether or not to retain the remote typeface cache when the app enters
-    // the suspend state.
-    bool should_retain_remote_typeface_cache_on_suspend = false;
+    // the frozen state.
+    bool should_retain_remote_typeface_cache_on_freeze = false;
 
     // The language and script to use with fonts. If left empty, then the
     // language-script combination provided by base::GetSystemLanguageScript()
@@ -378,12 +378,12 @@ class WebModule : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation
-  void Prestart() override;
-  void Start(render_tree::ResourceProvider* resource_provider) override;
-  void Pause() override;
-  void Unpause() override;
-  void Suspend() override;
-  void Resume(render_tree::ResourceProvider* resource_provider) override;
+  void Blur() override;
+  void Conceal(render_tree::ResourceProvider* resource_provider) override;
+  void Freeze() override;
+  void Unfreeze(render_tree::ResourceProvider* resource_provider) override;
+  void Reveal(render_tree::ResourceProvider* resource_provider) override;
+  void Focus() override;
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.

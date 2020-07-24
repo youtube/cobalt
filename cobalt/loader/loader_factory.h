@@ -97,9 +97,16 @@ class LoaderFactory {
   // called.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  // Resets a new resource provider for this loader factory to use.  The
+  // previous resource provider must have been cleared before this method is
+  // called.
+  void UpdateResourceProvider(render_tree::ResourceProvider* resource_provider);
+
  private:
   void OnLoaderCreated(Loader* loader);
   void OnLoaderDestroyed(Loader* loader);
+  void SuspendActiveLoaders();
+  void ResumeActiveLoaders(render_tree::ResourceProvider* resource_provider);
 
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,

@@ -43,7 +43,8 @@ HTMLElementContext::HTMLElementContext()
       remote_typeface_cache_(NULL),
       mesh_cache_(NULL),
       dom_stat_tracker_(NULL),
-      page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
+      application_lifecycle_state_weak_ptr_factory_(
+          &application_lifecycle_state_),
       video_playback_rate_multiplier_(1.f),
       sync_load_thread_("SynchronousLoad"),
       html_element_factory_(new HTMLElementFactory()) {
@@ -90,8 +91,9 @@ HTMLElementContext::HTMLElementContext(
       mesh_cache_(mesh_cache),
       dom_stat_tracker_(dom_stat_tracker),
       font_language_script_(font_language_script),
-      page_visibility_state_(initial_application_state),
-      page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
+      application_lifecycle_state_(initial_application_state),
+      application_lifecycle_state_weak_ptr_factory_(
+          &application_lifecycle_state_),
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
       synchronous_loader_interrupt_(synchronous_loader_interrupt),
       enable_inline_script_warnings_(enable_inline_script_warnings),
