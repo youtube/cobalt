@@ -861,6 +861,10 @@ scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 
 scoped_refptr<HTMLMetaElement> HTMLElement::AsHTMLMetaElement() { return NULL; }
 
+scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
+  return NULL;
+}
+
 scoped_refptr<HTMLParagraphElement> HTMLElement::AsHTMLParagraphElement() {
   return NULL;
 }
@@ -2028,6 +2032,29 @@ void HTMLElement::UpdateComputedStyle(
 
   computed_style_valid_ = true;
   pseudo_elements_computed_styles_valid_ = true;
+}
+
+void HTMLElement::CollectHTMLMediaElementsRecursively(
+    std::vector<HTMLMediaElement*>* html_media_elements,
+    int current_element_depth) {
+  int max_depth = node_document()->dom_max_element_depth();
+  if (max_depth > 0 && current_element_depth >= max_depth) {
+    return;
+  }
+
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      HTMLMediaElement* media_html_element =
+          html_element->AsHTMLMediaElement();
+      if (media_html_element) {
+        html_media_elements->push_back(media_html_element);
+      }
+      html_element->CollectHTMLMediaElementsRecursively(
+          html_media_elements, current_element_depth + 1);
+    }
+  }
 }
 
 void HTMLElement::SetPseudoElement(

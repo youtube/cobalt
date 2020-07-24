@@ -318,6 +318,7 @@
         '../dom/document_cobalt.idl',
         '../dom/document_cssom.idl',
         '../dom/document_html5.idl',
+        '../dom/document_page_lifecycle.idl',
         '../dom/document_page_visibility.idl',
         '../dom/element_css_inline_style.idl',
         '../dom/element_cssom_view.idl',
