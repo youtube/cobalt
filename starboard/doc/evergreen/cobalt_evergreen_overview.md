@@ -425,7 +425,7 @@ On Raspberry Pi this is:
 
 `minimal` set of fonts under:
 ```
-/home/pi/<kSbSystemPathContentDirectory>/content/fonts/
+<kSbSystemPathContentDirectory>/fonts/
 ```
 
 `standard` or `limited` set of fonts under:
