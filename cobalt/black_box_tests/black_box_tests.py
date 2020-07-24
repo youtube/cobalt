@@ -46,7 +46,9 @@ _SERVER_EXIT_TIMEOUT_SECONDS = 30
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'cancel_sync_loads_when_suspended',
-    'pointer_test',
+    # TODO: Re-enable once mouseenter, mouseleave, and moveto webdriver
+    #       functionality is available.
+    #   'pointer_test',
     'preload_font',
     'preload_visibility',
     'preload_launch_parameter',
