@@ -148,8 +148,7 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
     if (!version.IsValid()) {
       SB_LOG(INFO)
           << "UrlFetcherDownloader::SelectSlot installed version invalid";
-      if (!DrainFileDraining(installation_dir.value().c_str(),
-                             app_key_.c_str())) {
+      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
         SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot not draining";
         // found empty slot
         slot_candidate = i;
@@ -158,8 +157,7 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
       }
     } else if ((!slot_candidate_version.IsValid() ||
                 slot_candidate_version > version) &&
-               !DrainFileDraining(installation_dir.value().c_str(),
-                                  app_key_.c_str())) {
+               !DrainFileDraining(installation_dir.value().c_str(), "")) {
       // found a slot with older version that's not draining.
       SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot slot candidate: " << i;
       slot_candidate_version = version;
