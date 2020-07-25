@@ -481,12 +481,15 @@ class Document : public Node,
 
   bool IsCookieAverseDocument() const;
 
+  // Collect HTML media elements for the preparation of changing the
+  // frozeness of documents.
   void CollectHTMLMediaElements(
       std::vector<HTMLMediaElement*>* html_media_elements);
 
   // https://wicg.github.io/page-lifecycle/#changing-frozenness
   void FreezeSteps();
 
+  // https://wicg.github.io/page-lifecycle/#changing-frozenness
   void ResumeSteps();
 
   // Reference to HTML element context.
