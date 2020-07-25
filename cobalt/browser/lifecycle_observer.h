@@ -39,7 +39,7 @@ class LifecycleObserver : public base::CheckedObserver {
   virtual void Freeze() = 0;
 
   // Unfreezes from Frozen, with a new ResourceProvider. This method must only
-  // be called if the object has previously been Freezed.
+  // be called if the object has previously been Frozen.
   virtual void Unfreeze(render_tree::ResourceProvider* resource_provider) = 0;
 
   // Reveals from Concealed, going back into partially-obscured state. This
