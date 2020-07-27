@@ -28,8 +28,9 @@
 extern "C" {
 #endif
 
+const SbTime kDrainFileAgeUnit = kSbTimeSecond;
 const SbTime kDrainFileMaximumAge = kSbTimeHour;
-const char kDrainFilePrefix[] = "drain_";
+const char kDrainFilePrefix[] = "d_";
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -58,7 +59,8 @@ SbTime ExtractTimestamp(const std::string& str) {
 
   const std::string timestamp = str.substr(index, str.size() - index);
 
-  return SbTime(SbStringParseUInt64(timestamp.c_str(), NULL, 10));
+  return SbTime(SbStringParseUInt64(timestamp.c_str(), NULL, 10)) *
+         kDrainFileAgeUnit;
 }
 
 bool IsExpired(const std::string& filename) {
@@ -157,12 +159,16 @@ bool TryDrain(const char* dir, const char* app_key) {
     return true;
   }
 
+  std::string filename(kDrainFilePrefix);
+  filename.append(app_key);
+  filename.append("_");
+  filename.append(std::to_string(SbTimeGetNow() / kDrainFileAgeUnit));
+
+  SB_DCHECK(filename.size() <= kSbFileMaxName);
+
   std::string path(dir);
   path.append(kSbFileSepString);
-  path.append(kDrainFilePrefix);
-  path.append(app_key);
-  path.append("_");
-  path.append(std::to_string(SbTimeGetNow()));
+  path.append(filename);
 
   SbFileError error = kSbFileOk;
   SbFile file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite,
