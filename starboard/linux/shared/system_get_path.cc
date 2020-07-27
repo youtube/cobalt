@@ -241,9 +241,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (!GetEvergreenContentPathOverride(path.data(), kPathSize)) {
-        return false;
-      }
       if (SbStringConcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
         return false;
       }
