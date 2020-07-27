@@ -31,7 +31,7 @@ ScopedDrainFile::ScopedDrainFile(const std::string& dir,
   path_.append(kDrainFilePrefix);
   path_.append(app_key);
   path_.append("_");
-  path_.append(std::to_string(timestamp));
+  path_.append(std::to_string(timestamp / kDrainFileAgeUnit));
 
   CreateFile();
 }

@@ -22,6 +22,7 @@
         'executable_memory_test.cc',
         'fonts_test.cc',
         'icu_test.cc',
+        'max_file_name_test.cc',
         'sabi_test.cc',
         'storage_test.cc',
         '<(DEPTH)/starboard/common/test_main.cc',
