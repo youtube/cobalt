@@ -144,7 +144,8 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyRanksFiles) {
 
   ScopedDrainFile early_and_least(GetTempDir(), "a", timestamp);
   ScopedDrainFile later_and_least(GetTempDir(), "c", timestamp);
-  ScopedDrainFile later_and_greatest(GetTempDir(), "b", timestamp + 1);
+  ScopedDrainFile later_and_greatest(GetTempDir(), "b",
+                                     timestamp + kDrainFileAgeUnit);
 
   std::vector<char> result(kSbFileMaxName);
 

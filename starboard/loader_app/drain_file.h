@@ -22,7 +22,13 @@
 extern "C" {
 #endif
 
+// The units of time that the drain file age is represented in.
+extern const SbTime kDrainFileAgeUnit;
+
+// The amount of time of which a drain file is valid.
 extern const SbTime kDrainFileMaximumAge;
+
+// The prefix that all drain file names will have.
 extern const char kDrainFilePrefix[];
 
 // Attempts to create a drain file in |dir| with the provided |app_key|. If
