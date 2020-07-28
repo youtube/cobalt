@@ -97,8 +97,8 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
     ReportDownloadFailure(url);
     return;
   }
-  // Remove all drain files except the current one.
-  DrainFileClear(download_dir_.value().c_str(), app_key_.c_str(), false);
+  // Remove all files and directories except for our ranking drain file.
+  DrainFilePrepareDirectory(download_dir_.value().c_str(), app_key_.c_str());
 
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::StartURLFetch,

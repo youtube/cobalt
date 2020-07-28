@@ -18,10 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
-#include "starboard/file.h"
 #include "starboard/string.h"
 
 #ifdef __cplusplus
@@ -70,9 +70,6 @@ bool IsExpired(const std::string& filename) {
 
 std::vector<std::string> FindAllWithPrefix(const std::string& dir,
                                            const std::string& prefix) {
-  if (prefix.empty())
-    return std::vector<std::string>();
-
   SbDirectory slot = SbDirectoryOpen(dir.c_str(), NULL);
 
   if (!SbDirectoryIsValid(slot)) {
@@ -86,6 +83,9 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
   std::vector<char> filename(kSbFileMaxName);
 
   while (SbDirectoryGetNext(slot, filename.data(), filename.size())) {
+    if (!SbStringCompareAll(filename.data(), ".") ||
+        !SbStringCompareAll(filename.data(), ".."))
+      continue;
     if (!SbStringCompare(prefix.data(), filename.data(), prefix.size()))
       filenames.push_back(std::string(filename.data()));
   }
@@ -93,6 +93,9 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
   SbDirectoryEntry entry;
 
   while (SbDirectoryGetNext(slot, &entry)) {
+    if (!SbStringCompareAll(filename.data(), ".") ||
+        !SbStringCompareAll(filename.data(), ".."))
+      continue;
     if (!SbStringCompare(prefix.data(), entry.name, prefix.size()))
       filenames.push_back(std::string(entry.name));
   }
@@ -229,6 +232,25 @@ void Clear(const char* dir, const char* app_key, bool expired) {
   }
 }
 
+void PrepareDirectory(const char* dir, const char* app_key) {
+  SB_DCHECK(dir);
+  SB_DCHECK(app_key);
+
+  const std::string prefix = std::string(kDrainFilePrefix) + app_key;
+  const std::vector<std::string> entries = FindAllWithPrefix(dir, "");
+
+  for (const auto& entry : entries) {
+    if (!SbStringCompare(entry.c_str(), prefix.c_str(), prefix.size()))
+      continue;
+
+    std::string path(dir);
+    path.append(kSbFileSepString);
+    path.append(entry);
+
+    SbFileDeleteRecursive(path.c_str(), false);
+  }
+}
+
 bool Draining(const char* dir, const char* app_key) {
   SB_DCHECK(dir);
 
@@ -269,6 +291,10 @@ bool DrainFileRemove(const char* dir, const char* app_key) {
 
 void DrainFileClear(const char* dir, const char* app_key, bool expired) {
   starboard::loader_app::drain_file::Clear(dir, app_key, expired);
+}
+
+void DrainFilePrepareDirectory(const char* dir, const char* app_key) {
+  starboard::loader_app::drain_file::PrepareDirectory(dir, app_key);
 }
 
 bool DrainFileDraining(const char* dir, const char* app_key) {
