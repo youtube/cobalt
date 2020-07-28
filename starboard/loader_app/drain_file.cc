@@ -93,8 +93,8 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
   SbDirectoryEntry entry;
 
   while (SbDirectoryGetNext(slot, &entry)) {
-    if (!SbStringCompareAll(filename.data(), ".") ||
-        !SbStringCompareAll(filename.data(), ".."))
+    if (!SbStringCompareAll(entry.name, ".") ||
+        !SbStringCompareAll(entry.name, ".."))
       continue;
     if (!SbStringCompare(prefix.data(), entry.name, prefix.size()))
       filenames.push_back(std::string(entry.name));
