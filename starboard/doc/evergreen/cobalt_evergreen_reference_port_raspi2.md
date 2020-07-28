@@ -15,7 +15,7 @@ $ git clone https://cobalt.googlesource.com/cobalt
 ## Build the loader app (new entry point)
 $ cd cobalt/src
 $ cobalt/build/gyp_cobalt -v raspi-2-sbversion-12 -C qa
-$ ninja -C out/raspi-2-sbversion-12_qa loader_app
+$ ninja -C out/raspi-2-sbversion-12_qa loader_app crashpad_handler
 
 ## Create package directory for Cobalt Evergreen
 $ export COEG_PATH=coeg

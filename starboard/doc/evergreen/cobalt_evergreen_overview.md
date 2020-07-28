@@ -52,7 +52,7 @@ Starboard changes may be necessary.
 *   Longer device lifetime due to more Cobalt updates
 *   Less engineering work/accelerated timeline for Cobalt integration/deployment
     as Google builds the Cobalt components and partners are only responsible for
-    the Starboard and `loader_app` portion
+    the Starboard, `loader_app`, and `crashpad_handler` portion
 
 ### New in Evergreen
 
@@ -60,7 +60,8 @@ Starboard changes may be necessary.
     store multiple Cobalt binaries
 *   Access permissions to download binaries onto a device platform from Google
     servers
-*   New `loader_app` component required to be built on platform toolchains
+*   New `loader_app` and `crashpad_handler` components required to be built on
+    platform toolchains
 *   Additional testing/verification required to ensure new Cobalt releases work
     properly
 
@@ -101,11 +102,11 @@ The gyp variable `sb_evergreen` is set to 1 when building `libcobalt.so`.
 
 The partner port of Starboard is built with the partner’s toolchain and is
 linked into the **`loader_app` which knows how to dynamically load
-`libcobalt.so`.
+`libcobalt.so`, and the `crashpad_handler` which handles crashes.
 
 ```
 cobalt/build/gyp_cobalt <partner_port_name>
-ninja -C out/<partner_port_name>_qa loader_app
+ninja -C out/<partner_port_name>_qa loader_app crashpad_handler
 ```
 
 Partners should set `sb_evergreen_compatible` to 1 in their gyp platform config.
@@ -373,6 +374,7 @@ Image required for all slot configurations:
 │           │   └── libcobalt.so <--(System image version of libcobalt.so)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
+└── crashpad_handler <--(Cobalt crash handler)
 ```
 
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen
