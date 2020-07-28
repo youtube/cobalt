@@ -52,6 +52,10 @@ bool DrainFileRemove(const char* dir, const char* app_key);
 // drain files are ignored.
 void DrainFileClear(const char* dir, const char* app_key, bool expired);
 
+// Clears all files and directories in |dir| except for the drain file with an
+// app key matching |app_key|.
+void DrainFilePrepareDirectory(const char* dir, const char* app_key);
+
 // Checks whether a non-expired drain file exists in |dir|. If |app_key| is
 // provided, only drain files with a matching |app_key| are considered. Returns
 // |true| if there is, otherwise |false|.

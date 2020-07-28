@@ -159,6 +159,41 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyRanksFiles) {
   EXPECT_TRUE(SbFileDelete(later_and_greatest.path().c_str()));
 }
 
+// All files in the directory should be cleared except for drain files with an
+// app key matching the provided app key.
+TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
+  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
+
+  // Create a directory to delete.
+  std::string dir(GetTempDir());
+  dir.append(kSbFileSepString);
+  dir.append("to_delete");
+
+  EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
+  EXPECT_TRUE(SbFileExists(dir.c_str()));
+
+  // Create a file with the app key in the name.
+  std::string path(GetTempDir());
+  path.append(kSbFileSepString);
+  path.append(kAppKeyOne);
+
+  {
+    ScopedFile file(path.c_str(), kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+  }
+
+  EXPECT_TRUE(SbFileExists(path.c_str()));
+
+  DrainFilePrepareDirectory(GetTempDir(), kAppKeyOne);
+
+  EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(SbFileExists(dir.c_str()));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
+
+  DrainFilePrepareDirectory(GetTempDir(), "nonexistent");
+
+  EXPECT_FALSE(DrainFileRankAndCheck(GetTempDir(), kAppKeyOne));
+}
+
 // Creating a new drain file in the same directory as an existing, valid drain
 // file should fail.
 TEST_F(DrainFileTest, RainyDayDrainFileAlreadyExists) {
