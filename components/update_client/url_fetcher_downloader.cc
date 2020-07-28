@@ -22,11 +22,6 @@
 #include "components/update_client/network.h"
 #include "components/update_client/utils.h"
 
-#if defined(OS_STARBOARD)
-#include "cobalt/updater/utils.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/loader_app/drain_file.h"
-#endif
 
 #include "url/gurl.h"
 
@@ -69,10 +64,6 @@ UrlFetcherDownloader::UrlFetcherDownloader(
     scoped_refptr<NetworkFetcherFactory> network_fetcher_factory)
     : CrxDownloader(std::move(successor)),
       network_fetcher_factory_(network_fetcher_factory) {
-#if defined(OS_STARBOARD)
-  installation_api_ = static_cast<const CobaltExtensionInstallationManagerApi*>(
-      SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-#endif
 }
 
 UrlFetcherDownloader::~UrlFetcherDownloader() {
@@ -81,24 +72,11 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
 
 #if defined(OS_STARBOARD)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot " << url;
-  if (!DrainFileRankAndCheck(download_dir_.value().c_str(), app_key_.c_str())) {
-    SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: failed to lock slot ";
+  SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
+  if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
     ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
     return;
   }
-
-  // TODO: Double check the installed_version.
-
-  // Use the installation slot
-  if (installation_api_->ResetInstallation(installation_index_) ==
-      IM_EXT_ERROR) {
-    SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: failed to reset slot ";
-    ReportDownloadFailure(url);
-    return;
-  }
-  // Remove all files and directories except for our ranking drain file.
-  DrainFilePrepareDirectory(download_dir_.value().c_str(), app_key_.c_str());
 
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::StartURLFetch,
@@ -106,96 +84,18 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
 }
 
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot url=" << url;
-  int max_slots = installation_api_->GetMaxNumberInstallations();
-  if (max_slots == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get max number of slots";
-    ReportDownloadFailure(url);
+  SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
+  if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
+    ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
     return;
   }
 
-  // default invalid version
-  base::Version slot_candidate_version;
-  int slot_candidate = -1;
-  base::FilePath slot_candidate_path;
-
-  // Iterate over all writeable slots - index >= 1.
-  for (int i = 1; i < max_slots; i++) {
-    SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot iterating slot=" << i;
-    std::vector<char> installation_path(kSbFileMaxPath);
-    if (installation_api_->GetInstallationPath(i, installation_path.data(),
-                                               installation_path.size()) ==
-        IM_EXT_ERROR) {
-      SB_LOG(ERROR) << "UrlFetcherDownloader::SelectSlot: Failed to get "
-                       "installation path for slot="
-                    << i;
-      continue;
-    }
-
-    SB_DLOG(INFO) << "UrlFetcherDownloader::SelectSlot: installation_path = "
-                  << installation_path.data();
-
-    base::FilePath installation_dir(
-        std::string(installation_path.begin(), installation_path.end()));
-
-    // Cleanup expired drain files.
-    DrainFileClear(installation_dir.value().c_str(), app_key_.c_str(), true);
-
-    // Cleanup all drain files from the current app.
-    DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
-    base::Version version =
-        cobalt::updater::ReadEvergreenVersion(installation_dir);
-    if (!version.IsValid()) {
-      SB_LOG(INFO)
-          << "UrlFetcherDownloader::SelectSlot installed version invalid";
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
-        SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot not draining";
-        // found empty slot
-        slot_candidate = i;
-        slot_candidate_path = installation_dir;
-        break;
-      } else {
-        // There is active draining from another updater so bail out.
-        SB_LOG(ERROR) << "UrlFetcherDownloader::SelectSlot bailing out";
-        ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
-        return;
-      }
-    } else if ((!slot_candidate_version.IsValid() ||
-                slot_candidate_version > version)) {
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
-        // found a slot with older version that's not draining.
-        SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot slot candidate: "
-                     << i;
-        slot_candidate_version = version;
-        slot_candidate = i;
-        slot_candidate_path = installation_dir;
-      } else {
-        SB_LOG(ERROR) << "UrlFetcherDownloader::SelectSlot bailing out";
-        // There is active draining from another updater so bail out.
-        ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
-        return;
-      }
-    }
-  }
-
-  installation_index_ = slot_candidate;
-  download_dir_ = slot_candidate_path;
-
-  if (installation_index_ == -1 ||
-      !DrainFileTryDrain(download_dir_.value().c_str(), app_key_.c_str())) {
-    SB_LOG(ERROR)
-        << "UrlFetcherDownloader::SelectSlot unable to find a slot, candidate="
-        << installation_index_;
-    ReportDownloadFailure(url);
-    return;
-  } else {
-    // Use 15 sec delay to allow for other updaters/loaders to settle down.
-    base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&UrlFetcherDownloader::ConfirmSlot,
-                       base::Unretained(this), url),
-        base::TimeDelta::FromSeconds(15));
-  }
+  // Use 15 sec delay to allow for other updaters/loaders to settle down.
+  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&UrlFetcherDownloader::ConfirmSlot, base::Unretained(this),
+                     url),
+      base::TimeDelta::FromSeconds(15));
 }
 #endif
 
@@ -203,27 +103,21 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(OS_STARBOARD)
-  SB_LOG(INFO) << "UrlFetcherDownloader::DoStartDownload url=" << url;
-  // Make sure the index is reset
-  installation_index_ = IM_EXT_INVALID_INDEX;
-  if (!installation_api_) {
+  const CobaltExtensionInstallationManagerApi* installation_api =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_api) {
     SB_LOG(ERROR) << "Failed to get installation manager";
     ReportDownloadFailure(url);
     return;
   }
-
-  char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
-  if (installation_api_->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
-      IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get app key.";
+  if (!cobalt_slot_management_.Init(installation_api)) {
     ReportDownloadFailure(url);
     return;
   }
-  app_key_ = app_key;
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UrlFetcherDownloader::SelectSlot,
                                 base::Unretained(this), url));
-
 #else
   base::PostTaskWithTraitsAndReply(
       FROM_HERE, kTaskTraits,
@@ -251,10 +145,7 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 #endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if defined(OS_STARBOARD)
-  if (!download_dir_.empty() && !app_key_.empty()) {
-    // Cleanup all drain files of the current app.
-    DrainFileRemove(download_dir_.value().c_str(), app_key_.c_str());
-  }
+  cobalt_slot_management_.CleanupAllDrainFiles(download_dir_);
 #endif
   Result result;
 #if defined(OS_STARBOARD)
@@ -339,7 +230,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
   if (!error) {
     result.response = file_path;
 #if defined(OS_STARBOARD)
-    result.installation_index = installation_index_;
+    result.installation_index = cobalt_slot_management_.GetInstallationIndex();
 #endif
   }
 

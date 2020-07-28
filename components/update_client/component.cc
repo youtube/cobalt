@@ -18,6 +18,11 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
+
+#if defined(OS_STARBOARD)
+#include "components/update_client/cobalt_slot_management.h"
+#endif
+
 #include "components/update_client/component_unpacker.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/network.h"
@@ -31,11 +36,6 @@
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
-
-#if defined(OS_STARBOARD)
-#include "starboard/loader_app/app_key_files.h"
-#include "starboard/loader_app/drain_file.h"
-#endif
 
 // The state machine representing how a CRX component changes during an update.
 //
@@ -155,18 +155,8 @@ void InstallOnBlockingTaskRunner(
       // TODO: add correct error code.
       install_error = InstallError::GENERIC_ERROR;
     } else {
-      std::string good_app_key_file_path =
-          starboard::loader_app::GetGoodAppKeyFilePath(unpack_path.value(),
-                                                       app_key);
-      SB_CHECK(!good_app_key_file_path.empty());
-      if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
-        SB_LOG(WARNING) << "Failed to create good app key file";
-      }
-      DrainFileRemove(unpack_path.value().c_str(), app_key);
-      int ret = installation_api->RequestRollForwardToInstallation(
-          installation_index);
-      if (ret == IM_EXT_ERROR) {
-        SB_LOG(ERROR) << "Failed to request roll forward.";
+      if (!CobaltFinishInstallation(installation_api, installation_index,
+                                    unpack_path.value(), app_key)) {
         // TODO: add correct error code.
         install_error = InstallError::GENERIC_ERROR;
       }
