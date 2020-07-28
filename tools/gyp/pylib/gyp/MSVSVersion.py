@@ -397,10 +397,11 @@ def SelectVisualStudioVersion(version='auto'):
   vs_install_dir = os.environ.get('VS_INSTALL_DIR')
   versions = _DetectVisualStudioVersions(version_map[version], 'e' in version,
                                          vs_install_dir)
+
   if not versions:
     if version == 'auto':
       # Default to 2005 if we couldn't find anything
       return _CreateVersion('2005', None)
     else:
-      return _CreateVersion(version, None)
+      return _CreateVersion(version, path=vs_install_dir)
   return versions[0]

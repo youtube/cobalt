@@ -31,7 +31,10 @@ def _GetWinSdkVersionForPlatform(platform_name):
 
 
 def _GetMsvcToolVersionForPlatform(platform_name):
-  return _DEFAULT_MSVC_TOOLS_VERSION
+  if 'MSVC_TOOLS_VERSION' in os.environ:
+    return os.environ['MSVC_TOOLS_VERSION']
+  else:
+    return _DEFAULT_MSVC_TOOLS_VERSION
 
 
 def _SelectBestPath(os_var_name, path):
