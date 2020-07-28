@@ -113,7 +113,10 @@ def main(argv):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR
 
-  options.build_number = gyp_utils.GetBuildNumber()
+  if os.environ.get('BUILD_IN_DOCKER'):
+    options.build_number= 0
+  else:
+    options.build_number = gyp_utils.GetBuildNumber()
 
   try:
     gyp_runner = GypRunner(options)
