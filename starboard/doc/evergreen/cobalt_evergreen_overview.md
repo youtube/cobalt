@@ -308,16 +308,14 @@ resilience and reliability of Cobalt updates.
 
 All slot configurations assume the following:
 * 1 System Image Installation Slot (read-only)
-* 1+ Additional Installation Slot(s) (writable)
+* 2+ Additional Installation Slot(s) (writable)
 
 The number of installation slots available will be determined by the platform
-owner. **3 slots is the default and recommended configuration for Evergreen**. A
-minimum of 2 slots must be available with the limit being the storage available
-on the platform. In contrast, there can be `N` installation slots configured
-with the only limitation being available storage.
+owner. **3 slots is the default configuration for Evergreen**. There can be `N`
+installation slots configured with the only limitation being available storage.
 
 #### Slot Configuration
-NOTE: 3 slots are the DEFAULT and RECOMMENDED configuration.
+NOTE: 3-slots is the DEFAULT configuration.
 
 The number of installation slots is directly controlled using
 `kMaxNumInstallations`, defined in
@@ -346,10 +344,7 @@ will be as follows:
 ```
 
 Where the most recent update is stored will alternate between the available
-writable slots. In the above example, this would be `SLOT_1`...`SLOT_N`. When
-using the 2-slot configuration there will only be a single available slot
-(`SLOT_1`), so each update will overwrite the previous version and the read-only
-system image version (`SLOT_0`) remains untouched.
+writable slots. In the above example, this would be `SLOT_1`...`SLOT_N`.
 
 #### Understanding Slot Structure
 Slots are used to manage Cobalt Evergreen binaries with associated app metadata
@@ -381,21 +376,22 @@ Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen
 updates in an example 3-slot configuration:
 
 ```
-.cobalt_storage <--(kSbSystemPathStorageDirectory)
-├── cobalt_updater
-│   └── prefs_<APP_KEY>.json
-├── installation_1 <--(SLOT_1 - currently unused)
-├── installation_2 <--(SLOT_2 - contains new Cobalt version)
-│   ├── content
-│   │   ├── fonts
-│   │   ├── icu
-│   │   ├── licenses
-│   │   ├── ssl
-│   ├── lib
-│   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
-│   ├── manifest.fingerprint
-│   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
-└── installation_store_<APP_KEY>.pb
+├── .cobalt_storage <--(kSbSystemPathStorageDirectory)
+    ├── cobalt_updater
+    │   └── prefs_<APP_KEY>.json
+    ├── installation_1 <--(SLOT_1 - currently unused)
+    ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
+    │   ├── content
+    │   │   ├── fonts
+    │   │   ├── icu
+    │   │   ├── licenses
+    │   │   ├── ssl
+    │   ├── lib
+    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+    │   ├── manifest.fingerprint
+    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+    ├── installation_store_<APP_KEY>.pb
+    └── icu (To be explained below)
 ```
 
 #### App metadata
