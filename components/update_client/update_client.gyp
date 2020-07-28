@@ -21,6 +21,8 @@
         'action_runner.cc',
         'action_runner.h',
         'activity_data_service.h',
+        'cobalt_slot_management.cc',
+        'cobalt_slot_management.h',
         'command_line_config_policy.cc',
         'command_line_config_policy.h',
         'component.cc',
@@ -83,11 +85,13 @@
         'utils.h',
       ],
       'dependencies': [
-        '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
         '<(DEPTH)/components/crx_file/crx_file.gyp:crx_file',
         '<(DEPTH)/components/client_update_protocol/client_update_protocol.gyp:client_update_protocol',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/crypto/crypto.gyp:crypto',
+        '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
+        '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
+        '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
         '<(DEPTH)/url/url.gyp:url',
       ],
       'defines': [
@@ -178,6 +182,38 @@
       ],
       'variables': {
         'executable_name': 'update_client_test',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
+      'target_name': 'cobalt_slot_management_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'cobalt_slot_management_test.cc',
+        '<(DEPTH)/cobalt/updater/utils.cc',
+        '<(DEPTH)/starboard/common/test_main.cc',
+        '<(DEPTH)/starboard/loader_app/system_get_extension_shim.cc',
+      ],
+      'dependencies': [
+        ':update_client',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/components/prefs/prefs.gyp:prefs',
+        '<(DEPTH)/components/prefs/prefs.gyp:test_support',
+        '<(DEPTH)/components/crx_file/crx_file.gyp:crx_file',
+        '<(DEPTH)/net/net.gyp:test_support',
+        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+    {
+      'target_name': 'cobalt_slot_management_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'cobalt_slot_management_test',
+      ],
+      'variables': {
+        'executable_name': 'cobalt_slot_management_test',
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },

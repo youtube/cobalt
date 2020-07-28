@@ -17,7 +17,7 @@
 #include "components/update_client/crx_downloader.h"
 
 #if defined(OS_STARBOARD)
-#include "cobalt/extension/installation_manager.h"
+#include "components/update_client/cobalt_slot_management.h"
 #endif
 
 namespace update_client {
@@ -71,9 +71,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   int64_t total_bytes_ = -1;
 
 #if defined(OS_STARBOARD)
-  int installation_index_ = IM_EXT_INVALID_INDEX;
-  const CobaltExtensionInstallationManagerApi* installation_api_;
-  std::string app_key_;
+  CobaltSlotManagement cobalt_slot_management_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(UrlFetcherDownloader);
