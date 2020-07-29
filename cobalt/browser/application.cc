@@ -1070,9 +1070,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DLOG(INFO) << "Got conceal event.";
       app_status_ = kConcealedAppStatus;
       browser_module_->Conceal();
-#if SB_IS(EVERGREEN)
-      if (updater_module_) updater_module_->Suspend();
-#endif
       DLOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
@@ -1080,21 +1077,24 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DLOG(INFO) << "Got reveal event.";
       app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
-#if SB_IS(EVERGREEN)
-      if (updater_module_) updater_module_->Resume();
-#endif
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       DLOG(INFO) << "Got freeze event.";
       app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
+#if SB_IS(EVERGREEN)
+      if (updater_module_) updater_module_->Suspend();
+#endif
       DLOG(INFO) << "Finished freezing.";
       break;
     case kSbEventTypeUnfreeze:
       DLOG(INFO) << "Got unfreeze event.";
       app_status_ = kConcealedAppStatus;
       browser_module_->Unfreeze();
+#if SB_IS(EVERGREEN)
+      if (updater_module_) updater_module_->Resume();
+#endif
       DLOG(INFO) << "Finished unfreezing.";
       break;
 #else
