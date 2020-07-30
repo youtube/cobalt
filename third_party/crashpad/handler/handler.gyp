@@ -100,6 +100,17 @@
         }],
       ],
     },
+    {
+      'target_name': 'crashpad_handler_deploy',
+      'type': 'none',
+      'dependencies': [
+        'crashpad_handler',
+      ],
+      'variables': {
+        'executable_name': 'crashpad_handler',
+      },
+      'includes': ['<(DEPTH)/starboard/build/deploy.gypi'],
+    },
   ],
   'conditions': [
     ['OS=="win"', {
