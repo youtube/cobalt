@@ -43,6 +43,7 @@ _TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
 _TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
 _SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
 
+_CRASHPAD_TARGET = "crashpad_handler"
 _LOADER_TARGET = "elf_loader_sandbox"
 
 
@@ -706,7 +707,7 @@ class TestRunner(object):
       # tests so we need to build it separately.
       if self.loader_platform:
         build_tests.BuildTargets(
-            [_LOADER_TARGET], self.loader_out_directory, self.dry_run,
+            [_LOADER_TARGET, _CRASHPAD_TARGET], self.loader_out_directory, self.dry_run,
             extra_flags + [os.getenv('TEST_RUNNER_PLATFORM_BUILD_FLAGS', '')])
       build_tests.BuildTargets(
           self.test_targets, self.out_directory, self.dry_run,
