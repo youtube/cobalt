@@ -23,6 +23,7 @@ from starboard.tools import paths
 from starboard.tools import port_symlink
 
 _BASE_STAGING_DIRECTORY = 'evergreen_staging'
+_CRASHPAD_TARGET = 'crashpad_handler'
 _LOADER_TARGET = 'elf_loader_sandbox'
 
 
@@ -162,6 +163,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     shutil.copytree(
         os.path.join(self.loader_out_directory, 'deploy', _LOADER_TARGET),
         staging_directory_loader)
+    shutil.copy(
+        os.path.join(self.loader_out_directory, 'deploy', _CRASHPAD_TARGET,
+                     _CRASHPAD_TARGET), staging_directory_loader)
 
     port_symlink.MakeSymLink(
         os.path.join(self.out_directory, 'deploy', self.target_name),
@@ -172,6 +176,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     port_symlink.MakeSymLink(
         os.path.join(staging_directory_loader, _LOADER_TARGET),
         os.path.join(self.staging_directory, _LOADER_TARGET))
+    port_symlink.MakeSymLink(
+        os.path.join(staging_directory_loader, _CRASHPAD_TARGET),
+        os.path.join(self.staging_directory, _CRASHPAD_TARGET))
     port_symlink.MakeSymLink(
         os.path.join(staging_directory_loader, 'content'),
         os.path.join(self.staging_directory, 'content'))
