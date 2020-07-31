@@ -84,7 +84,7 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
   SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot " << url;
   if (!DrainFileRankAndCheck(download_dir_.value().c_str(), app_key_.c_str())) {
     SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: failed to lock slot ";
-    ReportDownloadFailure(url);
+    ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
     return;
   }
 
@@ -227,7 +227,16 @@ void UrlFetcherDownloader::CreateDownloadDir() {
                                &download_dir_);
 }
 
+#if defined(OS_STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
+  ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_RETRY);
+}
+
+void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url,
+                                                 CrxDownloader::Error error) {
+#else
+void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
+#endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if defined(OS_STARBOARD)
   if (!download_dir_.empty() && !app_key_.empty()) {
@@ -236,7 +245,11 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
   }
 #endif
   Result result;
+#if defined(OS_STARBOARD)
+  result.error = error;
+#else
   result.error = -1;
+#endif
 
   DownloadMetrics download_metrics;
   download_metrics.url = url;
