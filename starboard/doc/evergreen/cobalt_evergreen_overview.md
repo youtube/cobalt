@@ -113,6 +113,25 @@ Partners should set `sb_evergreen_compatible` to 1 in their gyp platform config.
 DO NOT set the `sb_evergreen` to 1 in your platform-specific configuration as it
 is used only by Cobalt when building with the Google toolchain.
 
+Partners should additionally ensure they install Crashpad's crash handlers by
+calling the `third_party::crashpad::wrapper::InstallCrashpadHandler()` hook
+directly after installing system crash handler. On linux, for example, this
+could look like:
+```
+#include "third_party/crashpad/wrapper/wrapper.h"
+
+int main(int argc, char** argv) {
+  ...
+  starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallSuspendSignalHandlers();
+
+  third_party::crashpad::wrapper::InstallCrashpadHandler();
+
+  int result = application.Run(argc, argv);
+  ...
+}
+```
+
 The following additional Starboard interfaces are necessary to implement for
 Evergreen:
 
