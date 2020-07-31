@@ -25,30 +25,30 @@ namespace browser {
 // A pure virtual interface for observers of the application lifecycle.
 class LifecycleObserver : public base::CheckedObserver {
  public:
-  // Sent before sending Start when transitioning from Preloading to Started.
-  virtual void Prestart() = 0;
+  // Blurs from Started, staying visible and retaining graphics resources.
+  virtual void Blur() = 0;
 
-  // Start running visibly with the given graphics ResourceProvider, loading if
-  // necessary. This represents a transition from Preloading to Started, so it
-  // only makes sense if the object is in the Preloading state.
-  virtual void Start(render_tree::ResourceProvider* resource_provider) = 0;
+  // Conceals from Blurred, transitioning to invisible but background tasks can
+  // still be running.
+  virtual void Conceal(render_tree::ResourceProvider* resource_provider) = 0;
 
-  // Pauses from Started, staying visible and retaining graphics resources.
-  virtual void Pause() = 0;
-
-  // Unpauses, going back to to the Started state, and continuing to
-  // use the same ResourceProvider and graphics resources.
-  virtual void Unpause() = 0;
-
-  // Suspends from Paused, and releases its reference to the ResourceProvider,
+  // Freezes from Concealed, and releases its reference to the ResourceProvider,
   // additionally releasing all references to any resources created from
   // it. This method must only be called if the object has previously been
-  // Paused.
-  virtual void Suspend() = 0;
+  // Concealed.
+  virtual void Freeze() = 0;
 
-  // Resumes to Paused from Suspended, with a new ResourceProvider. This method
-  // must only be called if the object has previously been Suspended.
-  virtual void Resume(render_tree::ResourceProvider* resource_provider) = 0;
+  // Unfreezes from Frozen, with a new ResourceProvider. This method must only
+  // be called if the object has previously been Frozen.
+  virtual void Unfreeze(render_tree::ResourceProvider* resource_provider) = 0;
+
+  // Reveals from Concealed, going back into partially-obscured state. This
+  // method must only be called if the object has previously been Concealed.
+  virtual void Reveal(render_tree::ResourceProvider* resource_provider) = 0;
+
+  // Focuses, going back to the Started state, and continuing to use the same
+  // ResourceProvider and graphics resources.
+  virtual void Focus() = 0;
 
  protected:
   virtual ~LifecycleObserver() {}

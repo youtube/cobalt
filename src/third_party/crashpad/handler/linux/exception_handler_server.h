@@ -95,6 +95,15 @@ class ExceptionHandlerServer {
         pid_t* requesting_thread_id = nullptr,
         UUID* local_report_id = nullptr) = 0;
 
+#if defined(STARBOARD)
+    //! \brief Called on receipt of a request to add Evergreen mapping info.
+    //!
+    //! \param[in] info Information on the client.
+    //! \return `true` on success. `false` on failure with a message logged.
+    virtual bool AddEvergreenInfo(
+        const ExceptionHandlerProtocol::ClientInformation& info) = 0;
+#endif
+
     //! \brief Called on the receipt of a crash dump request from a client for a
     //!     crash that should be mediated by a PtraceBroker.
     //!
@@ -179,6 +188,12 @@ class ExceptionHandlerServer {
       VMAddress requesting_thread_stack_address,
       int client_sock,
       bool multiple_clients);
+
+#if defined(STARBOARD)
+  bool HandleAddEvergreenInfoRequest(
+      const ucred& creds,
+      const ExceptionHandlerProtocol::ClientInformation& client_info);
+#endif
 
   std::unordered_map<int, std::unique_ptr<Event>> clients_;
   std::unique_ptr<Event> shutdown_event_;

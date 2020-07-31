@@ -23,7 +23,7 @@
       'variables': {
         'variables': {
           'host_arch%':
-            '<!(uname -m | sed -e "s/i.86/x86/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/x86/")',
+            'x64', # Building on any other arch is not supported
         },
 
         # Copy conditionally-set variables out one scope.
@@ -165,7 +165,7 @@
         'variables': {
           'variables': {
             'variables': {
-              'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
+              'android_ndk_root%': '<!pymod_do_main(starboard.build.gyp_functions getenv ANDROID_NDK_ROOT)',
             },
             'android_ndk_root%': '<(android_ndk_root)',
             'conditions': [

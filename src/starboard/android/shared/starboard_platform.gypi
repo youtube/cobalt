@@ -13,8 +13,8 @@
 # limitations under the License.
 {
   'variables': {
-    'has_input_events_filter' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
-    'has_drm_system_extension%': '<!(test -e <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp && echo 1 || echo 0)',
+    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_drm_system_extension%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp)',
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
@@ -142,6 +142,7 @@
         'sanitizer_options.cc',
         'speech_recognizer_impl.cc',
         'speech_synthesis_cancel.cc',
+        'speech_synthesis_internal.cc',
         'speech_synthesis_is_supported.cc',
         'speech_synthesis_speak.cc',
         'system_get_connection_type.cc',
@@ -168,6 +169,7 @@
         'video_window.h',
         'window_create.cc',
         'window_destroy.cc',
+        'window_get_diagonal_size_in_inches.cc',
         'window_get_platform_handle.cc',
         'window_get_size.cc',
         'window_internal.h',
@@ -463,7 +465,6 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
-        '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

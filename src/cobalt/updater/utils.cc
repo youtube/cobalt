@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 
 #include <vector>
 
@@ -65,7 +65,20 @@ bool GetProductDirectory(base::FilePath* path) {
   return true;
 }
 
-const std::string GetEvergreenVersion() {
+base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
+  auto manifest = update_client::ReadManifest(installation_dir);
+  if (!manifest) {
+    return base::Version();
+  }
+
+  auto version = manifest->FindKey("version");
+  if (version) {
+    return base::Version(version->GetString());
+  }
+  return base::Version();
+}
+
+const std::string GetCurrentEvergreenVersion() {
   auto installation_manager =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
@@ -87,19 +100,14 @@ const std::string GetEvergreenVersion() {
     SB_LOG(ERROR) << "Failed to get installation path.";
     return "";
   }
-  auto manifest = update_client::ReadManifest(base::FilePath(
+  base::Version version = ReadEvergreenVersion(base::FilePath(
       std::string(installation_path.begin(), installation_path.end())));
-  if (!manifest) {
-    SB_LOG(ERROR) << "Failed to read the manifest file of the current "
-                     "installation.";
+
+  if (!version.IsValid()) {
+    SB_LOG(ERROR) << "Failed to get the Everegreen version.";
     return "";
   }
-  auto* version_path = manifest->FindKey("version");
-  if (!version_path) {
-    SB_LOG(ERROR) << "Failed to find the version in the manifest.";
-    return "";
-  }
-  return version_path->GetString();
+  return version.GetString();
 }
 
 }  // namespace updater

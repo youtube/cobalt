@@ -19,6 +19,7 @@
 
 #include "starboard/configuration.h"
 
+#define IM_EXT_MAX_APP_KEY_LENGTH 1024
 #define IM_EXT_INVALID_INDEX -1
 #define IM_EXT_ERROR -1
 #define IM_EXT_SUCCESS 0
@@ -41,12 +42,17 @@ typedef struct CobaltExtensionInstallationManagerApi {
   // Installation Manager API wrapper.
   // For more details, check:
   //  starboard/loader_app/installation_manager.h
+
   int (*GetCurrentInstallationIndex)();
   int (*MarkInstallationSuccessful)(int installation_index);
   int (*RequestRollForwardToInstallation)(int installation_index);
   int (*GetInstallationPath)(int installation_index, char* path,
                              int path_length);
   int (*SelectNewInstallationIndex)();
+  int (*GetAppKey)(char* app_key, int app_key_length);
+  int (*GetMaxNumberInstallations)();
+  int (*ResetInstallation)(int installation_index);
+  int (*Reset)();
 } CobaltExtensionInstallationManagerApi;
 
 #ifdef __cplusplus

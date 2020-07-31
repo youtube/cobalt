@@ -47,14 +47,15 @@ typedef ResourceCache<ImageResourceCacheType> ImageCache;
 
 // CreateImageCache() provides a mechanism for creating an |ImageCache|.
 inline static std::unique_ptr<ImageCache> CreateImageCache(
-    const std::string& name, uint32 cache_capacity,
-    loader::LoaderFactory* loader_factory) {
-  return std::unique_ptr<ImageCache>(new ImageCache(
-      name, cache_capacity, false /*are_loading_retries_enabled*/,
-      base::Bind(&loader::LoaderFactory::CreateImageLoader,
-                 base::Unretained(loader_factory)),
-      base::Bind(&loader::LoaderFactory::NotifyResourceRequested,
-                 base::Unretained(loader_factory))));
+    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    uint32 cache_capacity, loader::LoaderFactory* loader_factory) {
+  return std::unique_ptr<ImageCache>(
+      new ImageCache(name, debugger_hooks, cache_capacity,
+                     false /*are_loading_retries_enabled*/,
+                     base::Bind(&loader::LoaderFactory::CreateImageLoader,
+                                base::Unretained(loader_factory)),
+                     base::Bind(&loader::LoaderFactory::NotifyResourceRequested,
+                                base::Unretained(loader_factory))));
 }
 
 // The ReducedCacheCapacityManager is a helper class that manages state which

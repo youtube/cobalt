@@ -29,8 +29,11 @@ uint32 kMaxBufferSizeBytes = 4 * 1024 * 1024L;
 }  // namespace
 
 ImageDataDecoder::ImageDataDecoder(
-    render_tree::ResourceProvider* resource_provider)
-    : resource_provider_(resource_provider), state_(kWaitingForHeader) {
+    render_tree::ResourceProvider* resource_provider,
+    const base::DebuggerHooks& debugger_hooks)
+    : resource_provider_(resource_provider),
+      debugger_hooks_(debugger_hooks),
+      state_(kWaitingForHeader) {
   CalculatePixelFormat();
 }
 

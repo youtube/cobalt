@@ -49,17 +49,16 @@
     ],
 
     'variables': {
-      'has_private_system_properties%': '<!(test -e <(DEPTH)/starboard/keyboxes/linux/private_system_properties.cc && echo 1 || echo 0)',
+      'has_private_system_properties%': '<!(test -e <(DEPTH)/starboard/keyboxes/linux/system_properties.cc && echo 1 || echo 0)',
     },
     # This has_private_system_properties gets exported to gyp files that include this one.
     'has_private_system_properties%': '<(has_private_system_properties)',
     'conditions': [
       ['has_private_system_properties==1', {
         'starboard_platform_sources': [
-          '<(DEPTH)/starboard/keyboxes/linux/private_system_properties.cc',
+          '<(DEPTH)/starboard/keyboxes/linux/system_properties.cc',
         ],
-      }],
-      ['has_private_system_properties==0', {
+      }, {
         'starboard_platform_sources': [
           '<(DEPTH)/starboard/linux/x64x11/public_system_properties.cc',
         ],

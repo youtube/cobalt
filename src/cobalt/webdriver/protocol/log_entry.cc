@@ -48,7 +48,7 @@ std::unique_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
   std::unique_ptr<base::DictionaryValue> log_entry_value(
       new base::DictionaryValue());
   // Format of the Log Entry object can be found here:
-  // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Log_Entry_JSON_Object
+  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Log-Entry-JSON-Object
   // timestamp is in milliseconds since the Unix Epoch.
   log_entry_value->SetInteger("timestamp",
                               log_entry.timestamp_.InMilliseconds());

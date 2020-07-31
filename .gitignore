@@ -1,0 +1,3 @@
+src/out/
+src/.vscode/
+*.pyc

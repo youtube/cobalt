@@ -31,8 +31,13 @@ extern "C" {
 #define IM_SUCCESS 0
 #define IM_ERROR -1
 
-// The filename for the Installation Manager store file.
-#define IM_STORE_FILE_NAME "installation_store.pb"
+#define MAX_APP_KEY_LENGTH 1024
+
+// The filename prefix for the Installation Manager store file.
+#define IM_STORE_FILE_NAME_PREFIX "installation_store_"
+
+// The filename suffix for the Installation Manager store file.
+#define IM_STORE_FILE_NAME_SUFFIX ".pb"
 
 // The max size in bytes of the store file.
 #define IM_MAX_INSTALLATION_STORE_SIZE 1024 * 1024
@@ -47,15 +52,27 @@ extern "C" {
 // already cached in memory.
 
 // Initializes the Installation Manager with the
-// max number of installations.
+// max number of installations and with an app specific key.
 // If the store doesn't exist an initial store would be
 // created. A subsequent call to |ImUninitialize| without
 // corresponding |ImUninitialize| will fail.
 // Returns IM_SUCCESS on success and IM_ERROR on error.
-int ImInitialize(int max_num_installations);
+int ImInitialize(int max_num_installations, const char* app_key);
+
+// Retrieves the application key.
+// Returns IM_SUCCESS on success and IM_ERROR on error.
+int ImGetAppKey(char* app_key, int app_key_length);
+
+// Retrieves the max number of installation slots.
+// Returns IM_SUCCESS on success and IM_ERROR on error.
+int ImGetMaxNumberInstallations();
 
 // Uninitialize the Installation Manager.
 void ImUninitialize();
+
+// Resets the Installation Manager and clear all state.
+// Returns IM_SUCCESS on success and IM_ERROR on error.
+int ImReset();
 
 // Gets the status of the |installation_index| installation.
 // Returns |IM_INSTALLATION_STATUS_SUCCESS| if the installation is successful.
@@ -75,6 +92,10 @@ int ImDecrementInstallationNumTries(int installation_index);
 // Returns |IM_ERROR| on error.
 int ImGetCurrentInstallationIndex();
 
+// Resets the slot for index |installation_index|.
+// Returns |IM_ERROR| on error.
+int ImResetInstallation(int installation_index);
+
 // Selects a new installation index and prepares the installation
 // slot for new installation use.
 // Returns |IM_ERROR| on error.
@@ -93,6 +114,10 @@ int ImMarkInstallationSuccessful(int installation_index);
 // The operation makes it current installation.
 // Returns IM_SUCCESS on success and IM_ERROR on error.
 int ImRollForwardIfNeeded();
+
+// Rolls forward to the slot at |installation_index|.
+// Returns IM_SUCCESS on success and IM_ERROR on error.
+int ImRollForward(int installation_index);
 
 // Revert to a previous successful installation.
 // Returns the installation to which it was reverted.

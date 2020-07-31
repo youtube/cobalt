@@ -18,6 +18,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Size;
+import android.util.SizeF;
 import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
@@ -54,6 +55,15 @@ public class DisplayUtil {
   @RequiresApi(30)
   private static Display getDefaultDisplayV30(Context context) {
     return context.getDisplay();
+  }
+
+  /**
+   * Returns the physical pixels per inch of the screen in the X and Y
+   * dimensions.
+   */
+  public static SizeF getDisplayDpi(Context context) {
+    DisplayMetrics metrics = getDisplayMetrics(context);
+    return new SizeF(metrics.xdpi, metrics.ydpi);
   }
 
   /**

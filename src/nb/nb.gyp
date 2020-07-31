@@ -15,7 +15,7 @@
 {
   'variables': {
     'variables': {
-      'has_nb_platform': '<!(test -e <(sb_target_platform)/nb_platform.gyp && echo 1 || echo 0)',
+      'has_nb_platform': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(sb_target_platform)/nb_platform.gyp)'
     },
     'nb_dependencies': [],
     'conditions': [

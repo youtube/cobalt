@@ -21,6 +21,7 @@
 #include "base/lazy_instance.h"
 #include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
+#include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
@@ -526,6 +527,9 @@ void HTMLElement::set_scroll_left(float x) {
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    CLOG(WARNING, debugger_hooks())
+        << "scrollLeft only works on HTML elements with 'overflow' set to "
+        << "'scroll' or 'auto'";
     return;
   }
 
@@ -575,6 +579,9 @@ void HTMLElement::set_scroll_top(float y) {
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
+    CLOG(WARNING, debugger_hooks())
+        << "scrollTop only works on HTML elements with 'overflow' set to "
+        << "'scroll' or 'auto'";
     return;
   }
 
@@ -853,6 +860,10 @@ scoped_refptr<HTMLImageElement> HTMLElement::AsHTMLImageElement() {
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 
 scoped_refptr<HTMLMetaElement> HTMLElement::AsHTMLMetaElement() { return NULL; }
+
+scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
+  return NULL;
+}
 
 scoped_refptr<HTMLParagraphElement> HTMLElement::AsHTMLParagraphElement() {
   return NULL;
@@ -2021,6 +2032,29 @@ void HTMLElement::UpdateComputedStyle(
 
   computed_style_valid_ = true;
   pseudo_elements_computed_styles_valid_ = true;
+}
+
+void HTMLElement::CollectHTMLMediaElementsRecursively(
+    std::vector<HTMLMediaElement*>* html_media_elements,
+    int current_element_depth) {
+  int max_depth = node_document()->dom_max_element_depth();
+  if (max_depth > 0 && current_element_depth >= max_depth) {
+    return;
+  }
+
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      HTMLMediaElement* media_html_element =
+          html_element->AsHTMLMediaElement();
+      if (media_html_element) {
+        html_media_elements->push_back(media_html_element);
+      }
+      html_element->CollectHTMLMediaElementsRecursively(
+          html_media_elements, current_element_depth + 1);
+    }
+  }
 }
 
 void HTMLElement::SetPseudoElement(

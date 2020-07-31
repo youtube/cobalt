@@ -14,9 +14,8 @@
 
 #include "cobalt/debug/backend/tracing_agent.h"
 
-#include <vector>
-
 #include "base/bind.h"
+#include "base/values.h"
 #include "cobalt/script/script_debugger.h"
 
 namespace cobalt {
@@ -27,6 +26,10 @@ namespace {
 // Definitions from the set specified here:
 // https://chromedevtools.github.io/devtools-protocol/tot/Tracing
 constexpr char kInspectorDomain[] = "Tracing";
+
+// State parameters
+constexpr char kStarted[] = "started";
+constexpr char kCategories[] = "categories";
 
 // Size in characters of JSON to batch dataCollected events.
 constexpr size_t kDataCollectedSize = 24 * 1024;
@@ -47,11 +50,36 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
 
 void TracingAgent::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
+  if (!agent_state) return;
+
+  // Restore state
+  categories_.clear();
+  for (const auto& category : agent_state->FindKey(kCategories)->GetList()) {
+    categories_.emplace_back(category.GetString());
+  }
+  tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
+  if (tracing_started_) {
+    script_debugger_->StartTracing(categories_, this);
+  }
 }
 
 JSONObject TracingAgent::Freeze() {
+  if (tracing_started_) {
+    script_debugger_->StopTracing();
+  }
+
   dispatcher_->RemoveDomain(kInspectorDomain);
-  return JSONObject();
+
+  // Save state
+  JSONObject agent_state(new base::DictionaryValue());
+  agent_state->SetKey(kStarted, base::Value(tracing_started_));
+  base::Value::ListStorage categories_list;
+  for (const auto& category : categories_) {
+    categories_list.emplace_back(category);
+  }
+  agent_state->SetKey(kCategories, base::Value(std::move(categories_list)));
+
+  return agent_state;
 }
 
 void TracingAgent::End(Command command) {
@@ -61,6 +89,7 @@ void TracingAgent::End(Command command) {
     return;
   }
   tracing_started_ = false;
+  categories_.clear();
   command.SendResponse();
 
   script_debugger_->StopTracing();
@@ -73,23 +102,23 @@ void TracingAgent::Start(Command command) {
                               "Tracing already started");
     return;
   }
-  tracing_started_ = true;
 
   JSONObject params = JSONParse(command.GetParams());
 
   // Parse comma-separated tracing categories parameter.
-  std::vector<std::string> categories;
+  categories_.clear();
   std::string category_param;
   if (params->GetString("categories", &category_param)) {
     for (size_t pos = 0, comma; pos < category_param.size(); pos = comma + 1) {
       comma = category_param.find(',', pos);
       if (comma == std::string::npos) comma = category_param.size();
       std::string category = category_param.substr(pos, comma - pos);
-      categories.push_back(category);
+      categories_.push_back(category);
     }
   }
 
-  script_debugger_->StartTracing(categories, this);
+  tracing_started_ = true;
+  script_debugger_->StartTracing(categories_, this);
 
   command.SendResponse();
 }

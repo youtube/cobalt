@@ -60,7 +60,7 @@ void PreloadApplication(int argc, char** argv, const char* link,
     SbSystemRequestStop(0);
     return;
   }
-  LOG(INFO) << "Preloading application.";
+  LOG(INFO) << "Concealing application.";
   DCHECK(!g_application);
   g_application =
       new cobalt::browser::Application(quit_closure, true /*should_preload*/);

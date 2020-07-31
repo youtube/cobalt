@@ -180,6 +180,10 @@ class UpdateClientTest : public testing::Test {
   base::test::ScopedTaskEnvironment scoped_task_environment_;
   base::RunLoop runloop_;
 
+#if defined(STARBOARD)
+  std::unique_ptr<cobalt::network::NetworkModule> network_module_;
+#endif
+
   scoped_refptr<update_client::TestConfigurator> config_ =
       base::MakeRefCounted<TestConfigurator>();
   std::unique_ptr<TestingPrefServiceSimple> pref_ =
@@ -244,6 +248,9 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
     static std::unique_ptr<UpdateChecker> Create(
         scoped_refptr<Configurator> config,
         PersistedData* metadata) {
+#if defined(STARBOARD)
+      metadata_ = metadata;
+#endif
       return std::make_unique<MockUpdateChecker>();
     }
 
@@ -276,6 +283,12 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
           FROM_HERE, base::BindOnce(std::move(update_check_callback), results,
                                     ErrorCategory::kNone, 0, 0));
     }
+#if defined(STARBOARD)
+    PersistedData* GetPersistedData() override { return metadata_; }
+
+   private:
+    PersistedData* metadata_ = nullptr;
+#endif
   };
 
   class MockCrxDownloader : public CrxDownloader {

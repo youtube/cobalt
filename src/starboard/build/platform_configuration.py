@@ -365,12 +365,15 @@ class PlatformConfiguration(object):
       A list of strings of test target names.
     """
     tests = [
+        'app_key_files_test',
+        'app_key_test',
+        'drain_file_test',
         'elf_loader_test',
         'installation_manager_test',
         'nplb',
         'nplb_blitter_pixel_tests',
-        'nplb_evergreen_compat_tests',
         'player_filter_tests',
+        'slot_management_test',
         'starboard_platform_tests',
     ]
     tests.extend(get_optional_tests.GetOptionalTestTargets())

@@ -5,17 +5,21 @@
 <script src="./resources/intersection-observer-test-utils.js"></script>
 
 <style>
+/* Cobalt does not implement HTML5 spec for body margin. */
+body {
+  margin: 8px;
+}
 pre, #log {
   position: absolute;
   top: 0;
   left: 200px;
 }
 .spacer {
-  height: calc(100vh + 100px);
+  height: 100vh;
 }
 #root {
   display: inline-block;
-  overflow-y: scroll;
+  overflow: scroll;
   height: 240px;
   border: 3px solid black;
 }
@@ -41,16 +45,20 @@ runTestCycle(function() {
   root = document.getElementById("root");
   assert_true(!!root, "root exists");
   var observer = new IntersectionObserver(function(changes) {
-    entries = entries.concat(changes)
+    entries = entries.concat(changes);
+    window.testRunner.DoNonMeasuredLayout();
   }, { root: root, threshold: [0.5] });
   observer.observe(target);
   entries = entries.concat(observer.takeRecords());
   assert_equals(entries.length, 0, "No initial notifications.");
   runTestCycle(step0, "First rAF");
 }, "First observation with a threshold.");
+window.testRunner.DoNonMeasuredLayout();
+window.testRunner.DoNonMeasuredLayout();
 
 function step0() {
-  root.scrollTop = 20;
+  //root.scrollTop = 20;
+  target.style.marginTop = "180px";
   runTestCycle(step1, "root.scrollTop = 20");
   checkLastEntry(entries, 0, [ 11, 111, 211, 311, 11, 111, 211, 251, 11, 111, 11, 251, false]);
 }

@@ -11,7 +11,7 @@ pre, #log {
   left: 200px;
 }
 .spacer {
-  height: calc(100vh + 100px);
+  height: 100vh;
 }
 #target {
   width: 100px;
@@ -33,19 +33,23 @@ runTestCycle(function() {
   target = document.getElementById("target");
   assert_true(!!target, "target exists");
   observer = new IntersectionObserver(function(changes) {
-    entries = entries.concat(changes)
+    entries = entries.concat(changes);
+    window.testRunner.DoNonMeasuredLayout();
   });
   observer.observe(target);
   entries = entries.concat(observer.takeRecords());
   assert_equals(entries.length, 0, "No initial notifications.");
   runTestCycle(step0, "First rAF.");
 }, "IntersectionObserver should not deliver pending notifications after disconnect().");
+window.testRunner.DoNonMeasuredLayout();
+window.testRunner.DoNonMeasuredLayout();
 
 function step0() {
   runTestCycle(step1, "observer.disconnect()");
-  document.scrollingElement.scrollTop = 300;
+  document.documentElement.scrollTop = 300;
   observer.disconnect();
   assert_equals(entries.length, 1, "Initial notification.");
+  window.testRunner.DoNonMeasuredLayout();
 }
 
 function step1() {

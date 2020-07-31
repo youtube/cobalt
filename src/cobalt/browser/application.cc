@@ -62,6 +62,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/extension/installation_manager.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
@@ -585,7 +586,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   if (command_line->HasSwitch(
           browser::switches::kRetainRemoteTypefaceCacheDuringSuspend)) {
-    options.web_module_options.should_retain_remote_typeface_cache_on_suspend =
+    options.web_module_options.should_retain_remote_typeface_cache_on_freeze =
         true;
   }
 
@@ -733,11 +734,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       network_module_options));
 
 #if SB_IS(EVERGREEN)
-  updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+    updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+  }
 #endif
   browser_module_.reset(new BrowserModule(
       initial_url,
-      (should_preload ? base::kApplicationStatePreloading
+      (should_preload ? base::kApplicationStateConcealed
                       : base::kApplicationStateStarted),
       &event_dispatcher_, account_manager_.get(), network_module_.get(),
 #if SB_IS(EVERGREEN)
@@ -747,13 +750,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   UpdateUserAgent();
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
   app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
-#else
-  app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+
   // Register event callbacks.
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
@@ -898,14 +896,10 @@ void Application::Start() {
     return;
   }
 
-#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
-    !SB_HAS(CONCEALED_STATE)
-  if (app_status_ != kPreloadingAppStatus) {
+  if (app_status_ != kConcealedAppStatus) {
     NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
-#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
-        // !SB_HAS(CONCEALED_STATE)
 
   OnApplicationEvent(kSbEventTypeStart);
 }
@@ -1054,7 +1048,8 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeStart:
       DLOG(INFO) << "Got start event.";
       app_status_ = kRunningAppStatus;
-      browser_module_->Start();
+      browser_module_->Reveal();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
@@ -1062,33 +1057,21 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
       app_status_ = kBlurredAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Pause();
+      browser_module_->Blur();
       DLOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       DLOG(INFO) << "Got focus event.";
       app_status_ = kRunningAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Unpause();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       DLOG(INFO) << "Got conceal event.";
       app_status_ = kConcealedAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Suspend();
+      browser_module_->Conceal();
 #if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
+      if (updater_module_) updater_module_->Suspend();
 #endif
       DLOG(INFO) << "Finished concealing.";
       break;
@@ -1096,51 +1079,57 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got reveal event.";
       app_status_ = kBlurredAppStatus;
-      // This is temporary that will be changed in later CLs,
-      // for mapping Starboard Concealed state support onto
-      // Cobalt without Concealed state support to be able to
-      // test the former.
-      browser_module_->Resume();
+      browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
-      updater_module_->Resume();
+      if (updater_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
-      DLOG(INFO) << "Got freeze event, but no action was taken.";
+      DLOG(INFO) << "Got freeze event.";
+      app_status_ = kFrozenAppStatus;
+      browser_module_->Freeze();
+      DLOG(INFO) << "Finished freezing.";
       break;
     case kSbEventTypeUnfreeze:
-      DLOG(INFO) << "Got unfreeze event, but no action was taken.";
+      DLOG(INFO) << "Got unfreeze event.";
+      app_status_ = kConcealedAppStatus;
+      browser_module_->Unfreeze();
+      DLOG(INFO) << "Finished unfreezing.";
       break;
 #else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
-      app_status_ = kPausedAppStatus;
-      browser_module_->Pause();
+      app_status_ = kBlurredAppStatus;
+      browser_module_->Blur();
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
       app_status_ = kRunningAppStatus;
-      browser_module_->Unpause();
+      browser_module_->Focus();
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      app_status_ = kSuspendedAppStatus;
-      browser_module_->Suspend();
+      app_status_ = kConcealedAppStatus;
+      browser_module_->Conceal();
+      app_status_ = kFrozenAppStatus;
+      browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
-      updater_module_->Suspend();
+      if (updater_module_) updater_module_->Suspend();
 #endif
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      app_status_ = kPausedAppStatus;
-      browser_module_->Resume();
+      app_status_ = kConcealedAppStatus;
+      browser_module_->Unfreeze();
+      app_status_ = kBlurredAppStatus;
+      browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
-      updater_module_->Resume();
+      if (updater_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;

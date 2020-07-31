@@ -17,7 +17,6 @@
 """Cross-platform unit test runner."""
 
 import argparse
-import cStringIO
 import logging
 import os
 import re
@@ -28,6 +27,7 @@ import threading
 import traceback
 
 import _env  # pylint: disable=unused-import, relative-import
+import cStringIO
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -705,10 +705,12 @@ class TestRunner(object):
       # The loader is not built with the same platform configuration as our
       # tests so we need to build it separately.
       if self.loader_platform:
-        build_tests.BuildTargets([_LOADER_TARGET], self.loader_out_directory,
-                                 self.dry_run, extra_flags)
-      build_tests.BuildTargets(self.test_targets, self.out_directory,
-                               self.dry_run, extra_flags)
+        build_tests.BuildTargets(
+            [_LOADER_TARGET], self.loader_out_directory, self.dry_run,
+            extra_flags + [os.getenv('TEST_RUNNER_PLATFORM_BUILD_FLAGS', '')])
+      build_tests.BuildTargets(
+          self.test_targets, self.out_directory, self.dry_run,
+          extra_flags + [os.getenv('TEST_RUNNER_BUILD_FLAGS', '')])
 
     except subprocess.CalledProcessError as e:
       result = False

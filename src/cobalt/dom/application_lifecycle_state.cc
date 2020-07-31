@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/page_visibility_state.h"
+#include "cobalt/dom/application_lifecycle_state.h"
 
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
@@ -28,12 +28,11 @@ namespace {
 // Converts an ApplicationState to a VisibilityState.
 VisibilityState ToVisibilityState(base::ApplicationState state) {
   switch (state) {
-    case base::kApplicationStatePreloading:
-      return kVisibilityStatePrerender;
     case base::kApplicationStateStarted:
-    case base::kApplicationStatePaused:
+    case base::kApplicationStateBlurred:
       return kVisibilityStateVisible;
-    case base::kApplicationStateSuspended:
+    case base::kApplicationStateConcealed:
+    case base::kApplicationStateFrozen:
     case base::kApplicationStateStopped:
       return kVisibilityStateHidden;
     default:
@@ -46,9 +45,9 @@ bool HasFocus(base::ApplicationState state) {
   switch (state) {
     case base::kApplicationStateStarted:
       return true;
-    case base::kApplicationStatePreloading:
-    case base::kApplicationStatePaused:
-    case base::kApplicationStateSuspended:
+    case base::kApplicationStateBlurred:
+    case base::kApplicationStateConcealed:
+    case base::kApplicationStateFrozen:
     case base::kApplicationStateStopped:
       return false;
     default:
@@ -56,35 +55,51 @@ bool HasFocus(base::ApplicationState state) {
       return false;
   }
 }
+
+bool IsFrozen(base::ApplicationState state) {
+  switch (state) {
+    case base::kApplicationStateStarted:
+    case base::kApplicationStateBlurred:
+    case base::kApplicationStateConcealed:
+      return false;
+    case base::kApplicationStateFrozen:
+    case base::kApplicationStateStopped:
+      return true;
+    default:
+      NOTREACHED() << "Invalid Application State: " << STATE_STRING(state);
+      return false;
+  }
+}
+
 }  // namespace
 
-PageVisibilityState::PageVisibilityState()
+ApplicationLifecycleState::ApplicationLifecycleState()
     : application_state_(base::kApplicationStateStarted) {
   DLOG(INFO) << __FUNCTION__
              << ": app_state=" << STATE_STRING(application_state_);
 }
 
-PageVisibilityState::PageVisibilityState(
+ApplicationLifecycleState::ApplicationLifecycleState(
     base::ApplicationState initial_application_state)
     : application_state_(initial_application_state) {
   DLOG(INFO) << __FUNCTION__
              << ": app_state=" << STATE_STRING(application_state_);
   DCHECK((application_state_ == base::kApplicationStateStarted) ||
-         (application_state_ == base::kApplicationStatePreloading) ||
-         (application_state_ == base::kApplicationStatePaused))
+         (application_state_ == base::kApplicationStateConcealed))
       << "application_state_=" << STATE_STRING(application_state_);
 }
 
-bool PageVisibilityState::HasWindowFocus() const {
+bool ApplicationLifecycleState::HasWindowFocus() const {
   return HasFocus(application_state());
 }
 
-VisibilityState PageVisibilityState::GetVisibilityState() const {
+VisibilityState ApplicationLifecycleState::GetVisibilityState() const {
   return ToVisibilityState(application_state());
 }
 
-void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
-  TRACE_EVENT1("cobalt::dom", "PageVisibilityState::SetApplicationState",
+void ApplicationLifecycleState::SetApplicationState(
+    base::ApplicationState state) {
+  TRACE_EVENT1("cobalt::dom", "ApplicationLifecycleState::SetApplicationState",
                "state", STATE_STRING(state));
   if (application_state_ == state) {
     DLOG(WARNING) << __FUNCTION__ << ": Attempt to re-enter "
@@ -95,33 +110,30 @@ void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
   // Audit that the transitions are correct.
   if (DLOG_IS_ON(FATAL)) {
     switch (application_state_) {
-      case base::kApplicationStatePaused:
-        DCHECK(state == base::kApplicationStateSuspended ||
-               state == base::kApplicationStateStarted)
-            << ": application_state_=" << STATE_STRING(application_state_)
-            << ", state=" << STATE_STRING(state);
-
-        break;
-      case base::kApplicationStatePreloading:
-        DCHECK(state == base::kApplicationStateSuspended ||
-               state == base::kApplicationStateStarted)
-            << ": application_state_=" << STATE_STRING(application_state_)
-            << ", state=" << STATE_STRING(state);
-        break;
       case base::kApplicationStateStarted:
-        DCHECK(state == base::kApplicationStatePaused)
+        DCHECK(state == base::kApplicationStateBlurred)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
+        break;
+      case base::kApplicationStateBlurred:
+        DCHECK(state == base::kApplicationStateConcealed ||
+               state == base::kApplicationStateStarted)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
+        break;
+      case base::kApplicationStateConcealed:
+        DCHECK(state == base::kApplicationStateBlurred ||
+               state == base::kApplicationStateFrozen)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
+        break;
+      case base::kApplicationStateFrozen:
+        DCHECK(state == base::kApplicationStateConcealed)
             << ": application_state_=" << STATE_STRING(application_state_)
             << ", state=" << STATE_STRING(state);
         break;
       case base::kApplicationStateStopped:
-        DCHECK(state == base::kApplicationStatePreloading ||
-               state == base::kApplicationStateStarted)
-            << ": application_state_=" << STATE_STRING(application_state_)
-            << ", state=" << STATE_STRING(state);
-        break;
-      case base::kApplicationStateSuspended:
-        DCHECK(state == base::kApplicationStatePaused ||
-               state == base::kApplicationStateStopped)
+        DCHECK(state == base::kApplicationStateFrozen)
             << ": application_state_=" << STATE_STRING(application_state_)
             << ", state=" << STATE_STRING(state);
         break;
@@ -135,26 +147,21 @@ void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
   }
 
   bool old_has_focus = HasFocus(application_state_);
+  bool old_is_frozen = IsFrozen(application_state_);
   VisibilityState old_visibility_state = ToVisibilityState(application_state_);
   DLOG(INFO) << __FUNCTION__ << ": " << STATE_STRING(application_state_)
              << " -> " << STATE_STRING(state);
   application_state_ = state;
   bool has_focus = HasFocus(application_state_);
+  bool is_frozen = IsFrozen(application_state_);
   VisibilityState visibility_state = ToVisibilityState(application_state_);
   bool focus_changed = has_focus != old_has_focus;
+  bool page_lifecycle_changed = is_frozen != old_is_frozen;
   bool visibility_state_changed = visibility_state != old_visibility_state;
 
-  if (focus_changed && has_focus) {
-    // If going to a focused state, dispatch the visibility state first.
-    if (visibility_state_changed) {
-      DispatchVisibilityStateChanged(visibility_state);
-    }
+  DCHECK(!focus_changed || !visibility_state_changed);
 
-    DispatchWindowFocusChanged(has_focus);
-    return;
-  }
-
-  // Otherwise, we should dispatch the focus state first.
+  // We should dispatch the focus state first.
   if (focus_changed) {
     DispatchWindowFocusChanged(has_focus);
   }
@@ -162,16 +169,24 @@ void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
   if (visibility_state_changed) {
     DispatchVisibilityStateChanged(visibility_state);
   }
+
+  if (page_lifecycle_changed) {
+    DispatchFrozennessChanged(is_frozen);
+  }
 }
 
-void PageVisibilityState::DispatchWindowFocusChanged(bool has_focus) {
+void ApplicationLifecycleState::DispatchWindowFocusChanged(bool has_focus) {
   FOR_EACH_OBSERVER(Observer, observer_list_, OnWindowFocusChanged(has_focus));
 }
 
-void PageVisibilityState::DispatchVisibilityStateChanged(
+void ApplicationLifecycleState::DispatchVisibilityStateChanged(
     VisibilityState visibility_state) {
   FOR_EACH_OBSERVER(Observer, observer_list_,
                     OnVisibilityStateChanged(visibility_state));
+}
+
+void ApplicationLifecycleState::DispatchFrozennessChanged(bool is_frozen) {
+  FOR_EACH_OBSERVER(Observer, observer_list_, OnFrozennessChanged(is_frozen));
 }
 
 }  // namespace dom

@@ -34,7 +34,7 @@
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
@@ -136,19 +136,6 @@ void UpdaterModule::Resume() {
 
 void UpdaterModule::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: enable crash report with dependency on CrashPad
-  // updater::crash_reporter::InitializeCrashKeys();
-
-  // static crash_reporter::CrashKeyString<16> crash_key_process_type(
-  //     "process_type");
-  // crash_key_process_type.Set("updater");
-
-  // if (CrashClient::GetInstance()->InitializeCrashReporting())
-  //   VLOG(1) << "Crash reporting initialized.";
-  // else
-  //   VLOG(1) << "Crash reporting is not available.";
-
-  // StartCrashReporter(UPDATER_VERSION_STRING);
 
   updater_configurator_ = base::MakeRefCounted<Configurator>(network_module_);
   update_client_ = update_client::UpdateClientFactory(updater_configurator_);
@@ -204,7 +191,7 @@ void UpdaterModule::Update() {
   const std::vector<std::string> app_ids = {
       updater_configurator_->GetAppGuid()};
 
-  const base::Version manifest_version(GetEvergreenVersion());
+  const base::Version manifest_version(GetCurrentEvergreenVersion());
   if (!manifest_version.IsValid()) {
     SB_LOG(ERROR) << "Updater failed to get the current update version.";
     return;

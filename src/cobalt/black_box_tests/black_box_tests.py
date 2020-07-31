@@ -31,6 +31,12 @@ from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
 
+_DISABLED_BLACKBOXTEST_CONFIGS = [
+    'android-arm/devel',
+    'android-arm64/devel',
+    'raspi-0/devel',
+]
+
 _PORT_SELECTION_RETRY_LIMIT = 10
 _PORT_SELECTION_RANGE = [5000, 7000]
 # List of blocked ports.
@@ -40,6 +46,7 @@ _SERVER_EXIT_TIMEOUT_SECONDS = 30
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'cancel_sync_loads_when_suspended',
+    'pointer_test',
     'preload_font',
     'preload_visibility',
     'preload_launch_parameter',
@@ -191,10 +198,23 @@ class BlackBoxTests(object):
   def Run(self):
     if self.proxy_port == '-1':
       return 1
+
+    # Temporary means to determine if we are running on CI
+    # TODO: Update to IS_CI environment variable or similar
+    out_dir = _launcher_params.out_directory
+    is_ci = out_dir and 'mh_lab' in out_dir
+
+    target = (_launcher_params.platform, _launcher_params.config)
+    if is_ci and '{}/{}'.format(*target) in _DISABLED_BLACKBOXTEST_CONFIGS:
+      logging.warning(
+          'Blackbox tests disabled for platform:{} config:{}'.format(*target))
+      return 0
+
     logging.info('Using proxy port: %s', self.proxy_port)
 
     with ProxyServer(
-        port=self.proxy_port, host_resolve_map=self.host_resolve_map,
+        port=self.proxy_port,
+        host_resolve_map=self.host_resolve_map,
         client_ips=self.device_ips):
       if self.test_name:
         suite = unittest.TestLoader().loadTestsFromModule(

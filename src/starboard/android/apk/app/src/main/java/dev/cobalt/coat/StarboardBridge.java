@@ -29,6 +29,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Size;
+import android.util.SizeF;
 import android.view.Display;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
@@ -104,7 +105,7 @@ public class StarboardBridge {
     this.args = args;
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
-    this.ttsHelper = new CobaltTextToSpeechHelper(appContext, stopRequester);
+    this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.userAuthorizer = userAuthorizer;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
@@ -298,6 +299,12 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  SizeF getDisplayDpi() {
+    return DisplayUtil.getDisplayDpi(appContext);
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize(appContext);
   }
@@ -485,6 +492,15 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  public void resetVideoSurface() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).resetVideoSurface();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -510,8 +526,7 @@ public class StarboardBridge {
       return false;
     }
 
-    int[] supportedHdrTypes =
-        defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
+    int[] supportedHdrTypes = defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
     for (int supportedType : supportedHdrTypes) {
       if (supportedType == hdrType) {
         return true;

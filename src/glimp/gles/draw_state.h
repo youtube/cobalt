@@ -202,6 +202,15 @@ struct DrawStateDirtyFlags {
     uniforms_dirty.MarkAll();
   }
 
+  void MarkUsedProgram() {
+    used_program_dirty = true;
+    // Switching programs marks all uniforms, samplers and vertex attributes
+    // as being dirty as well, since they are all properties of the program.
+    vertex_attributes_dirty = true;
+    textures_dirty = true;
+    uniforms_dirty.MarkAll();
+  }
+
   bool clear_color_dirty;
   bool color_mask_dirty;
   bool draw_surface_dirty;

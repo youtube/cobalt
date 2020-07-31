@@ -30,7 +30,8 @@ namespace image {
 class DummyGIFImageDecoder : public ImageDataDecoder {
  public:
   explicit DummyGIFImageDecoder(
-      render_tree::ResourceProvider* resource_provider);
+      render_tree::ResourceProvider* resource_provider,
+      const base::DebuggerHooks& debugger_hooks);
   ~DummyGIFImageDecoder() override {}
 
   // From ImageDataDecoder

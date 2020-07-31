@@ -238,6 +238,21 @@ DrmSystemWidevine::DrmSystemWidevine(
   cdm_.reset(wv3cdm::create(this, NULL, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 
+#if SB_API_VERSION >= 11
+  // Get cert scope and pass to widevine.
+  const size_t kCertificationScopeLength = 1023;
+  char cert_scope_property[kCertificationScopeLength + 1] = {0};
+  bool result =
+      SbSystemGetProperty(kSbSystemPropertyCertificationScope,
+                          cert_scope_property, kCertificationScopeLength);
+  if (result) {
+    SB_LOG(INFO) << "Succeeded to get platform cert scope.";
+    cdm_->setAppParameter("youtube_cert_scope", cert_scope_property);
+  } else {
+    SB_LOG(INFO) << "Unable to get platform cert scope.";
+  }
+#endif  // SB_API_VERSION >= 11
+
   GetRegistry()->Register(this);
 }
 

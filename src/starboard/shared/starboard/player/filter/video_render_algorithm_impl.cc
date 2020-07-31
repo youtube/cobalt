@@ -51,8 +51,9 @@ void VideoRenderAlgorithmImpl::Render(
   bool is_audio_playing;
   bool is_audio_eos_played;
   bool is_underflow;
+  double playback_rate;
   SbTime media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow);
+      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
   // Video frames are synced to the audio timestamp. However, the audio
   // timestamp is not queried at a consistent interval. For example, if the
@@ -165,8 +166,9 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   bool is_audio_playing;
   bool is_audio_eos_played;
   bool is_underflow;
+  double playback_rate;
   SbTime media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow);
+      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() < media_time) {
@@ -181,7 +183,10 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     auto frame_rate = frame_rate_estimate_.frame_rate();
     SB_DCHECK(frame_rate != VideoFrameRateEstimator::kInvalidFrameRate);
     cadence_pattern_generator_.UpdateRefreshRateAndMaybeReset(refresh_rate);
-    cadence_pattern_generator_.UpdateFrameRate(frame_rate);
+    if (playback_rate == 0) {
+      playback_rate = 1.0;
+    }
+    cadence_pattern_generator_.UpdateFrameRate(frame_rate * playback_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
     auto frame_duration =

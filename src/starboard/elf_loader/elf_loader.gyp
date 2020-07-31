@@ -56,7 +56,18 @@
       'dependencies': [
         '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
         '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/starboard.gyp:starboard_base',
+      ],
+      'conditions': [
+        ['sb_evergreen_compatible == 1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+          ],
+        }],
       ],
       'sources': [
         '<@(common_elf_loader_sources)',
@@ -79,6 +90,17 @@
       'sources': [
         '<@(common_elf_loader_sources)',
         '<@(elf_loader_sys_sources)',
+      ],
+      'conditions': [
+        ['sb_evergreen_compatible == 1', {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+          ],
+        }],
       ],
     },
     {

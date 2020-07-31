@@ -54,18 +54,18 @@ class WebDriverServer : public net::HttpServer::Delegate {
   class ResponseHandler {
    public:
     // Called after a successful WebDriver command.
-    // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
+    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Responses
     virtual void Success(std::unique_ptr<base::Value>) = 0;
     // |content_type| specifies the type of the data using HTTP mime types.
     virtual void SuccessData(const std::string& content_type, const char* data,
                              int len) = 0;
 
     // Called after a failed WebDriver command
-    // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands
+    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Failed-Commands
     virtual void FailedCommand(std::unique_ptr<base::Value>) = 0;
 
     // Called after an invalid request.
-    // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Invalid_Requests
+    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Invalid-Requests
     virtual void UnknownCommand(const std::string& path) = 0;
     virtual void UnimplementedCommand(const std::string& path) = 0;
     virtual void VariableResourceNotFound(const std::string& variable_name) = 0;

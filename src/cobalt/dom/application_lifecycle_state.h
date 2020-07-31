@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_PAGE_VISIBILITY_STATE_H_
-#define COBALT_DOM_PAGE_VISIBILITY_STATE_H_
+#ifndef COBALT_DOM_APPLICATION_LIFECYCLE_STATE_H_
+#define COBALT_DOM_APPLICATION_LIFECYCLE_STATE_H_
 
 #include "base/observer_list.h"
 #include "cobalt/base/application_state.h"
@@ -24,7 +24,7 @@ namespace dom {
 
 // The visibility state of the Window and Document as controlled by the current
 // application state.
-class PageVisibilityState {
+class ApplicationLifecycleState {
  public:
   // Pure virtual interface for classes that want to observe page visibility
   // state changes.
@@ -34,13 +34,15 @@ class PageVisibilityState {
     virtual void OnWindowFocusChanged(bool has_focus) = 0;
     // Called when the VisibilityState changes.
     virtual void OnVisibilityStateChanged(VisibilityState visibility_state) = 0;
+    // Called when the Page Lifecycle state changes.
+    virtual void OnFrozennessChanged(bool is_frozen) = 0;
 
    protected:
     virtual ~Observer() {}
   };
 
-  PageVisibilityState();
-  explicit PageVisibilityState(
+  ApplicationLifecycleState();
+  explicit ApplicationLifecycleState(
       base::ApplicationState initial_application_state);
 
   base::ApplicationState application_state() const {
@@ -59,36 +61,38 @@ class PageVisibilityState {
   // events.
   void SetApplicationState(base::ApplicationState state);
 
-  // Adds a PageVisibiltyState::Observer to this PageVisibilityState.
+  // Adds a ApplicationLifecycleState::Observer to this
+  // ApplicationLifecycleState.
   void AddObserver(Observer* observer) { observer_list_.AddObserver(observer); }
 
-  // Removes a PageVisibiltyState::Observer from this PageVisibilityState, if it
-  // is registered.
+  // Removes a ApplicationLifecycleState::Observer from this
+  // ApplicationLifecycleState, if it is registered.
   void RemoveObserver(Observer* observer) {
     observer_list_.RemoveObserver(observer);
   }
 
-  // Returns whether a PageVisibiltyState::Observer is registered on this
-  // PageVisibilityState.
+  // Returns whether a ApplicationLifecycleState::Observer is registered on this
+  // ApplicationLifecycleState.
   bool HasObserver(Observer* observer) const {
     return observer_list_.HasObserver(observer);
   }
 
-  // Clears all registered PageVisibiltyState::Observers, if any.
+  // Clears all registered ApplicationLifecycleState::Observers, if any.
   void ClearObservers() { observer_list_.Clear(); }
 
  private:
   void DispatchWindowFocusChanged(bool has_focus);
   void DispatchVisibilityStateChanged(VisibilityState visibility_state);
+  void DispatchFrozennessChanged(bool is_frozen);
 
   // The current application state.
   base::ApplicationState application_state_;
 
-  // The list of registered PageVisibiltyState::Observers;
+  // The list of registered ApplicationLifecycleState::Observers;
   base::ObserverList<Observer> observer_list_;
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_PAGE_VISIBILITY_STATE_H_
+#endif  // COBALT_DOM_APPLICATION_LIFECYCLE_STATE_H_

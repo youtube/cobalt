@@ -28,7 +28,7 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/utils.h"
 #endif
 
 namespace cobalt {
@@ -255,7 +255,7 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
 
 // Evergreen version
 #if SB_IS(EVERGREEN)
-  const std::string evergreen_version = updater::GetEvergreenVersion();
+  const std::string evergreen_version = updater::GetCurrentEvergreenVersion();
   if (!evergreen_version.empty()) {
     base::StringAppendF(&user_agent, " Evergreen/%s",
                         evergreen_version.c_str());

@@ -46,10 +46,11 @@ typedef ResourceCache<MeshResourceCacheType> MeshCache;
 
 // CreateMeshCache() provides a mechanism for creating an |MeshCache|.
 inline static std::unique_ptr<MeshCache> CreateMeshCache(
-    const std::string& name, uint32 cache_capacity,
-    loader::LoaderFactory* loader_factory) {
+    const std::string& name, const base::DebuggerHooks& debugger_hooks,
+    uint32 cache_capacity, loader::LoaderFactory* loader_factory) {
   return std::unique_ptr<MeshCache>(
-      new MeshCache(name, cache_capacity, false /*are_loading_retries_enabled*/,
+      new MeshCache(name, debugger_hooks, cache_capacity,
+                    false /*are_loading_retries_enabled*/,
                     base::Bind(&loader::LoaderFactory::CreateMeshLoader,
                                base::Unretained(loader_factory))));
 }

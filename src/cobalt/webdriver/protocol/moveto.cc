@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <string>
 
 #include "cobalt/webdriver/protocol/moveto.h"
 
@@ -48,9 +49,10 @@ base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
   }
 
   base::Optional<ElementId> element;
-  const base::Value* element_value = NULL;
-  if (dictionary_value->Get(kElementKey, &element_value) && element_value) {
-    element = ElementId::FromValue(element_value);
+  std::string element_id;
+  if (dictionary_value->GetString(kElementKey, &element_id) &&
+      !element_id.empty()) {
+    element = ElementId(element_id);
   }
 
   int xoffset_value = 0;

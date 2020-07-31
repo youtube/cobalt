@@ -251,7 +251,7 @@ SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
 // function is used primarily to clean up after unit tests. On some platforms,
 // this function fails if the file in question is being held open.
 //
-// |path|: The absolute path fo the file, symlink, or directory to be deleted.
+// |path|: The absolute path of the file, symlink, or directory to be deleted.
 SB_EXPORT bool SbFileDelete(const char* path);
 
 // Indicates whether a file or directory exists at |path|.

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COBALT_UPDATER_UTIL_H_
-#define COBALT_UPDATER_UTIL_H_
+#ifndef COBALT_UPDATER_UTILS_H_
+#define COBALT_UPDATER_UTILS_H_
 
 #include <string>
+
+#include "base/version.h"
 
 namespace base {
 class FilePath;
@@ -17,10 +19,13 @@ namespace updater {
 // Returns a directory where updater files or its data is stored.
 bool GetProductDirectory(base::FilePath* path);
 
-// Returns the Evergreen version of the running installation.
-const std::string GetEvergreenVersion();
+// Returns the Evergreen version of the current installation.
+const std::string GetCurrentEvergreenVersion();
+
+// Read the Evergreen version of the installation dir.
+base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 
 }  // namespace updater
 }  // namespace cobalt
 
-#endif  // COBALT_UPDATER_UTIL_H_
+#endif  // COBALT_UPDATER_UTILS_H_

@@ -10,16 +10,15 @@
     <span>ID element</span>
   </h1>
   <script>
-    // In preload mode, visibility should be "prerender" and window/document
+    // In preload mode, visibility should be "hidden" and window/document
     // should not have focus.
-    assertEqual("prerender", document.visibilityState);
+    assertEqual("hidden", document.visibilityState);
     assertFalse(document.hasFocus());
 
     // Wait for visibility change to verify visibilityState and having focus.
     function handleVisibilityChange() {
       assertEqual("visible", document.visibilityState);
-      assertTrue(document.hasFocus());
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      assertFalse(document.hasFocus());
       onEndTest();
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);

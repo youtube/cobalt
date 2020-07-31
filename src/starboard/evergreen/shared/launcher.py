@@ -43,8 +43,20 @@ class Launcher(abstract_launcher.AbstractLauncher):
   """
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
+    # TODO: Remove this injection of 'detect_leaks=0' once the memory leaks when
+    #       running executables in Evergreen mode have been resolved.
+    env_variables = kwargs.get('env_variables') or {}
+    asan_options = env_variables.get('ASAN_OPTIONS', '')
+    asan_options = [
+        opt for opt in asan_options.split(':') if 'detect_leaks' not in opt
+    ]
+    asan_options.append('detect_leaks=0')
+    env_variables['ASAN_OPTIONS'] = ':'.join(asan_options)
+    kwargs['env_variables'] = env_variables
+
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
+
     self.loader_platform = kwargs.get('loader_platform')
     if not self.loader_platform:
       raise ValueError('|loader_platform| cannot be |None|.')

@@ -17,7 +17,7 @@
 
 {
   'variables': {
-    'has_zzuf': '<!(python ../../../build/dir_exists.py ../../../third_party/zzuf)',
+    'has_zzuf': '<!pymod_do_main(starboard.build.gyp_functions dir_exists ../../../third_party/zzuf)',
   },
   'targets': [
     # This target will build a sandbox application that allows for easy

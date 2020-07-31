@@ -136,6 +136,13 @@ class SignalHandler {
     first_chance_handler_ = handler;
   }
 
+#if defined(STARBOARD)
+  bool SendEvergreenInfo(EvergreenInfo evergreen_info) {
+    evergreen_info_ = evergreen_info;
+    return SendEvergreenInfoImpl();
+  }
+#endif
+
   // The base implementation for all signal handlers, suitable for calling
   // directly to simulate signal delivery.
   bool HandleCrash(int signo, siginfo_t* siginfo, void* context) {
@@ -172,9 +179,17 @@ class SignalHandler {
         HandleOrReraiseSignal, 0, &old_actions_, unhandled_signals);
   }
 
+#if defined(STARBOARD)
+  const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
+#endif
+
   const ExceptionInformation& GetExceptionInfo() {
     return exception_information_;
   }
+
+#if defined(STARBOARD)
+  virtual bool SendEvergreenInfoImpl() = 0;
+#endif
 
   virtual void HandleCrashImpl() = 0;
 
@@ -193,6 +208,10 @@ class SignalHandler {
   Signals::OldActions old_actions_ = {};
   ExceptionInformation exception_information_ = {};
   CrashpadClient::FirstChanceHandler first_chance_handler_ = nullptr;
+
+#if defined(STARBOARD)
+  EvergreenInfo evergreen_info_;
+#endif
 
   static SignalHandler* handler_;
 
@@ -228,6 +247,10 @@ class LaunchAtCrashHandler : public SignalHandler {
     StringVectorToCStringVector(argv_strings_, &argv_);
     return Install(unhandled_signals);
   }
+
+#if defined(STARBOARD)
+  bool SendEvergreenInfoImpl() override { return false; }
+#endif
 
   void HandleCrashImpl() override {
     ScopedPrSetPtracer set_ptracer(sys_getpid(), /* may_log= */ false);
@@ -320,6 +343,17 @@ class RequestCrashDumpHandler : public SignalHandler {
     }
     return true;
   }
+
+#if defined(STARBOARD)
+  bool SendEvergreenInfoImpl() override {
+    ExceptionHandlerClient client(sock_to_handler_.get(), true);
+    ExceptionHandlerProtocol::ClientInformation info = {};
+    info.evergreen_information_address =
+        FromPointerCast<VMAddress>(&GetEvergreenInfo());
+    client.SendEvergreenInfo(info);
+    return true;
+  }
+#endif
 
   void HandleCrashImpl() override {
     ExceptionHandlerProtocol::ClientInformation info = {};
@@ -531,6 +565,18 @@ bool CrashpadClient::StartHandlerForClient(
 
   return DoubleForkAndExec(argv, nullptr, socket, true, nullptr);
 }
+
+#if defined(STARBOARD)
+// static
+bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+
+  return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
+}
+#endif
 
 // static
 void CrashpadClient::DumpWithoutCrash(NativeCPUContext* context) {

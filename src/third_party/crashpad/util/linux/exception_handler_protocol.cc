@@ -20,9 +20,15 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
     : exception_information_address(0),
       sanitization_information_address(0)
 #if defined(OS_LINUX)
-      , crash_loop_before_time(0)
+      ,
+      crash_loop_before_time(0)
 #endif  // OS_LINUX
-{}
+#if defined(STARBOARD)
+      ,
+      evergreen_information_address(0)
+#endif
+{
+}
 
 ExceptionHandlerProtocol::ClientToServerMessage::ClientToServerMessage()
     : version(kVersion),

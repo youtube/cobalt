@@ -15,9 +15,9 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include "starboard/audio_sink.h"
-#include "starboard/common/format_string.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -503,8 +503,9 @@ void FilterBasedPlayerWorkerHandler::Update() {
     bool is_playing;
     bool is_eos_played;
     bool is_underflow;
+    double playback_rate;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow);
+        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
     update_media_info_cb_(media_time, dropped_frames, is_underflow);
   }
 

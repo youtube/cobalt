@@ -22,6 +22,13 @@
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
+#if defined(OS_STARBOARD)
+#include "cobalt/extension/installation_manager.h"
+#include "cobalt/updater/utils.h"
+#include "starboard/file.h"
+#include "starboard/loader_app/app_key_files.h"
+#include "starboard/loader_app/drain_file.h"
+#endif
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/persisted_data.h"
@@ -62,6 +69,20 @@ bool IsEncryptionRequired(const IdToComponentPtrMap& components) {
   }
   return false;
 }
+
+#if defined(OS_STARBOARD)
+
+bool CheckBadFileExists(const char* installation_path, const char* app_key) {
+  std::string bad_app_key_file_path =
+      starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
+  SB_DCHECK(!bad_app_key_file_path.empty());
+  SB_LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
+  SB_LOG(INFO) << "bad_app_key_file_path SbFileExists: "
+               << SbFileExists(bad_app_key_file_path.c_str());
+  return !bad_app_key_file_path.empty() &&
+         SbFileExists(bad_app_key_file_path.c_str());
+}
+#endif
 
 // Filters invalid attributes from |installer_attributes|.
 using InstallerAttributesFlatMap = base::flat_map<std::string, std::string>;
@@ -205,7 +226,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         crx_component->supports_group_policy_enable_component_updates &&
         !enabled_component_updates;
 
-    base::Version version = crx_component->version;
+    base::Version current_version = crx_component->version;
 #if defined(OS_STARBOARD)
     std::string unpacked_version =
         GetPersistedData()->GetLastUnpackedVersion(app_id);
@@ -213,13 +234,100 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     // version of the running binary, use the former to indicate the current
     // update version in the update check request.
     if (!unpacked_version.empty() &&
-        base::Version(unpacked_version).CompareTo(version) > 0) {
-      version = base::Version(unpacked_version);
+        base::Version(unpacked_version).CompareTo(current_version) > 0) {
+      current_version = base::Version(unpacked_version);
     }
+
+    // Check if there is an available update already for quick roll-forward
+    auto installation_api =
+        static_cast<const CobaltExtensionInstallationManagerApi*>(
+            SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+    if (!installation_api) {
+      SB_LOG(ERROR) << "Failed to get installation manager extension.";
+      return;
+    }
+
+    char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
+    if (installation_api->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
+        IM_EXT_ERROR) {
+      SB_LOG(ERROR) << "Failed to get app key.";
+      return;
+    }
+
+    int max_slots = installation_api->GetMaxNumberInstallations();
+    if (max_slots == IM_EXT_ERROR) {
+      SB_LOG(ERROR) << "Failed to get max number of slots.";
+      return;
+    }
+
+    // We'll find the newest version of the installation that satisfies the
+    // requirements as the final candidate slot.
+    base::Version slot_candidate_version("1.0.1");
+    int slot_candidate = -1;
+
+    // Iterate over all writeable slots - index >= 1.
+    for (int i = 1; i < max_slots; i++) {
+      SB_LOG(INFO) << "UpdateCheckerImpl::CheckForUpdatesHelper iterating slot="
+                   << i;
+      // Get the path to new installation.
+      std::vector<char> installation_path(kSbFileMaxPath);
+      if (installation_api->GetInstallationPath(i, installation_path.data(),
+                                                installation_path.size()) ==
+          IM_EXT_ERROR) {
+        SB_LOG(ERROR)
+            << "UpdateCheckerImpl::CheckForUpdatesHelper: Failed to get "
+               "installation path for slot="
+            << i;
+        continue;
+      }
+
+      SB_DLOG(INFO)
+          << "UpdateCheckerImpl::CheckForUpdatesHelper installation_path = "
+          << installation_path.data();
+
+      base::FilePath installation_dir = base::FilePath(
+          std::string(installation_path.begin(), installation_path.end()));
+
+      base::Version installed_version =
+          cobalt::updater::ReadEvergreenVersion(installation_dir);
+
+      if (!installed_version.IsValid()) {
+        continue;
+      } else if (slot_candidate_version < installed_version &&
+                 current_version < installed_version &&
+                 !DrainFileDraining(installation_dir.value().c_str(), "") &&
+                 !CheckBadFileExists(installation_dir.value().c_str(),
+                                     app_key) &&
+                 starboard::loader_app::AnyGoodAppKeyFile(
+                     installation_dir.value().c_str())) {
+        // Found a slot with newer version than the current version that's not
+        // draining, and no bad file of current app exists, and a good file
+        // exists. The final candidate is the newest version of the valid
+        // candidates.
+        SB_LOG(INFO)
+            << "UpdateCheckerImpl::CheckForUpdatesHelper slot candidate: " << i;
+        slot_candidate_version = installed_version;
+        slot_candidate = i;
+      }
+    }
+
+    if (slot_candidate != -1) {
+      if (installation_api->RequestRollForwardToInstallation(slot_candidate) !=
+          IM_EXT_ERROR) {
+        SB_LOG(INFO) << "UpdateCheckerImpl::CheckForUpdatesHelper: quick "
+                        "update succeeded.";
+        return;
+      }
+      SB_LOG(WARNING)
+          << "UpdateCheckerImpl::CheckForUpdatesHelper: quick update failed.";
+    }
+// If the quick roll forward update slot candidate doesn't exist, continue
+// with update check.
 #endif
     apps.push_back(MakeProtocolApp(
-        app_id, version, SanitizeBrand(config_->GetBrand()), install_source,
-        crx_component->install_location, crx_component->fingerprint,
+        app_id, current_version, SanitizeBrand(config_->GetBrand()),
+        install_source, crx_component->install_location,
+        crx_component->fingerprint,
         SanitizeInstallerAttributes(crx_component->installer_attributes),
         metadata_->GetCohort(app_id), metadata_->GetCohortName(app_id),
         metadata_->GetCohortHint(app_id), crx_component->disabled_reasons,

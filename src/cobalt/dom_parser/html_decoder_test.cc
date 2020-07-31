@@ -54,6 +54,7 @@ class HTMLDecoderTest : public ::testing::Test {
   ~HTMLDecoderTest() override {}
 
   dom::testing::StubEnvironmentSettings environment_settings_;
+  base::NullDebuggerHooks null_debugger_hooks_;
   loader::FetcherFactory fetcher_factory_;
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;
@@ -71,9 +72,10 @@ class HTMLDecoderTest : public ::testing::Test {
 
 HTMLDecoderTest::HTMLDecoderTest()
     : fetcher_factory_(NULL /* network_module */),
-      loader_factory_(
-          "Test" /* name */, &fetcher_factory_, NULL /* ResourceProvider */,
-          0 /* encoded_image_cache_capacity */, base::ThreadPriority::DEFAULT),
+      loader_factory_("Test" /* name */, &fetcher_factory_,
+                      NULL /* ResourceProvider */, null_debugger_hooks_,
+                      0 /* encoded_image_cache_capacity */,
+                      base::ThreadPriority::DEFAULT),
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(

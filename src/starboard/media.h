@@ -575,6 +575,8 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 // Indicates whether output copy protection is currently enabled on all capable
 // outputs. If |true|, then non-protection-capable outputs are expected to be
 // blanked.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbMediaIsOutputProtected();
 
 // Enables or disables output copy protection on all capable outputs. If
@@ -586,6 +588,8 @@ SB_EXPORT bool SbMediaIsOutputProtected();
 //
 // |enabled|: Indicates whether output protection is enabled (|true|) or
 //   disabled.
+//
+// presubmit: allow sb_export mismatch
 SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
 #endif  // SB_API_VERSION < 12
 

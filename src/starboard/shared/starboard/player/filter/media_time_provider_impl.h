@@ -49,7 +49,8 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   void Seek(SbTime seek_to_time) override;
   SbTime GetCurrentMediaTime(bool* is_playing,
                              bool* is_eos_played,
-                             bool* is_underflow) override;
+                             bool* is_underflow,
+                             double* playback_rate) override;
 
  private:
   // When not NULL, |current_time| will be set to the current monotonic time

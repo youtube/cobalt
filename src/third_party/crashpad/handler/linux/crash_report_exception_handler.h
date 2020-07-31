@@ -28,6 +28,10 @@
 #include "util/misc/address_types.h"
 #include "util/misc/uuid.h"
 
+#if defined(STARBOARD)
+#include "starboard/elf_loader/evergreen_info.h"
+#endif
+
 namespace crashpad {
 
 class ProcessSnapshotLinux;
@@ -80,6 +84,11 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
                        pid_t* requesting_thread_id = nullptr,
                        UUID* local_report_id = nullptr) override;
 
+#if defined(STARBOARD)
+  bool AddEvergreenInfo(
+      const ExceptionHandlerProtocol::ClientInformation& info) override;
+#endif
+
   bool HandleExceptionWithBroker(
       pid_t client_process_id,
       uid_t client_uid,
@@ -109,6 +118,9 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
   bool write_minidump_to_database_;
   bool write_minidump_to_log_;
   const UserStreamDataSources* user_stream_data_sources_;  // weak
+#if defined(STARBOARD)
+  VMAddress evergreen_info_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(CrashReportExceptionHandler);
 };

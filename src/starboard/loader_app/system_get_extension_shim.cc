@@ -31,6 +31,10 @@ const CobaltExtensionInstallationManagerApi kInstallationManagerApi = {
     &ImRequestRollForwardToInstallation,
     &ImGetInstallationPath,
     &ImSelectNewInstallationIndex,
+    &ImGetAppKey,
+    &ImGetMaxNumberInstallations,
+    &ImResetInstallation,
+    &ImReset,
 };
 }  // namespace
 namespace starboard {
