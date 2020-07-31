@@ -184,29 +184,37 @@ void CrxDownloader::HandleDownloadError(
 
   download_metrics_.push_back(download_metrics);
 
-  // If an error has occured, try the next url if there is any,
-  // or try the successor in the chain if there is any successor.
-  // If this downloader has received a 5xx error for the current url,
-  // as indicated by the |is_handled| flag, remove that url from the list of
-  // urls so the url is never tried again down the chain.
-  if (is_handled) {
-    current_url_ = urls_.erase(current_url_);
-  } else {
-    ++current_url_;
-  }
+#if defined(OS_STARBOARD)
+  if (result.error != Error::CRX_DOWNLOADER_ABORT) {
+#endif
 
-  // Try downloading from another url from the list.
-  if (current_url_ != urls_.end()) {
-    DoStartDownload(*current_url_);
-    return;
-  }
+    // If an error has occured, try the next url if there is any,
+    // or try the successor in the chain if there is any successor.
+    // If this downloader has received a 5xx error for the current url,
+    // as indicated by the |is_handled| flag, remove that url from the list of
+    // urls so the url is never tried again down the chain.
+    if (is_handled) {
+      current_url_ = urls_.erase(current_url_);
+    } else {
+      ++current_url_;
+    }
 
-  // Try downloading using the next downloader.
-  if (successor_ && !urls_.empty()) {
-    successor_->StartDownload(urls_, expected_hash_,
-                              std::move(download_callback_));
-    return;
+    // Try downloading from another url from the list.
+    if (current_url_ != urls_.end()) {
+      DoStartDownload(*current_url_);
+      return;
+    }
+
+    // Try downloading using the next downloader.
+    if (successor_ && !urls_.empty()) {
+      successor_->StartDownload(urls_, expected_hash_,
+                                std::move(download_callback_));
+      return;
+    }
+
+#if defined(OS_STARBOARD)
   }
+#endif
 
   // The download ends here since there is no url nor downloader to handle this
   // download request further.
