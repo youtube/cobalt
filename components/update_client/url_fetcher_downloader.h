@@ -52,6 +52,9 @@ class UrlFetcherDownloader : public CrxDownloader {
                          int64_t content_length);
   void OnDownloadProgress(int64_t content_length);
   void ReportDownloadFailure(const GURL& url);
+#if defined(OS_STARBOARD)
+  void ReportDownloadFailure(const GURL& url, CrxDownloader::Error error);
+#endif
 
   THREAD_CHECKER(thread_checker_);
 
