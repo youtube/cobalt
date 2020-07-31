@@ -154,15 +154,27 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
         slot_candidate = i;
         slot_candidate_path = installation_dir;
         break;
+      } else {
+        // There is active draining from another updater so bail out.
+        SB_LOG(ERROR) << "UrlFetcherDownloader::SelectSlot bailing out";
+        ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
+        return;
       }
     } else if ((!slot_candidate_version.IsValid() ||
-                slot_candidate_version > version) &&
-               !DrainFileDraining(installation_dir.value().c_str(), "")) {
-      // found a slot with older version that's not draining.
-      SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot slot candidate: " << i;
-      slot_candidate_version = version;
-      slot_candidate = i;
-      slot_candidate_path = installation_dir;
+                slot_candidate_version > version)) {
+      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
+        // found a slot with older version that's not draining.
+        SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot slot candidate: "
+                     << i;
+        slot_candidate_version = version;
+        slot_candidate = i;
+        slot_candidate_path = installation_dir;
+      } else {
+        SB_LOG(ERROR) << "UrlFetcherDownloader::SelectSlot bailing out";
+        // There is active draining from another updater so bail out.
+        ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
+        return;
+      }
     }
   }
 
