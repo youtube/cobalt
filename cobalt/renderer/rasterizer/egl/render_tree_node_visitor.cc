@@ -391,6 +391,58 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         draw_state_.rounded_scissor_rect = old_scissor_rect;
         draw_state_.rounded_scissor_corners = old_scissor_corners;
         return;
+      } else {
+        // The source is too complex and must be rendered to a texture, then
+        // that texture will be rendered using the rounded viewport.
+        DrawObject::BaseState old_draw_state = draw_state_;
+
+        // Render the source into an offscreen target at 100% opacity in its
+        // own local space. To avoid magnification artifacts, scale up the
+        // local space to match the source's size when rendered in world space.
+        math::Matrix3F texcoord_transform(math::Matrix3F::Identity());
+        math::RectF content_rect = data.source->GetBounds();
+        const backend::TextureEGL* texture = nullptr;
+        if (!IsVisible(content_rect)) {
+          return;
+        }
+        draw_state_.opacity = 1.0f;
+
+        math::PointF mapped_x = draw_state_.transform * math::PointF(1, 0);
+        math::PointF mapped_y = draw_state_.transform * math::PointF(0, 1);
+        float scale_x = std::sqrt(mapped_x.x() * mapped_x.x() +
+                                  mapped_x.y() * mapped_x.y());
+        float scale_y = std::sqrt(mapped_y.x() * mapped_y.x() +
+                                  mapped_y.y() * mapped_y.y());
+        draw_state_.transform = math::ScaleMatrix(std::max(1.0f, scale_x),
+                                                  std::max(1.0f, scale_y));
+
+        // Don't clip the source since it is in its own local space.
+        bool limit_to_screen_size = false;
+        math::RectF mapped_content_rect =
+            draw_state_.transform.MapRect(content_rect);
+        draw_state_.scissor = math::Rect::RoundFromRectF(
+            RoundOut(mapped_content_rect, 0.0f));
+        draw_state_.rounded_scissor_corners.reset();
+
+        OffscreenRasterize(data.source, limit_to_screen_size, &texture,
+                           &texcoord_transform, &mapped_content_rect);
+        if (mapped_content_rect.IsEmpty()) {
+          return;
+        }
+
+        // Then render that offscreen target with the rounded filter.
+        draw_state_ = old_draw_state;
+        draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
+        draw_state_.rounded_scissor_corners =
+            data.viewport_filter->rounded_corners();
+        std::unique_ptr<DrawObject> draw(new DrawRRectColorTexture(
+            graphics_state_, draw_state_, content_rect, kOpaqueWhite, texture,
+            texcoord_transform, true /* clamp_texcoords */));
+        AddDraw(std::move(draw), content_rect,
+                DrawObjectManager::kBlendSrcAlpha);
+
+        draw_state_ = old_draw_state;
+        return;
       }
     } else if (cobalt::math::IsOnlyScaleAndTranslate(transform)) {
       // Orthogonal viewport filters without rounded corners can be collapsed
@@ -451,17 +503,21 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
       // Render source at 100% opacity to an offscreen target, then render
       // that result with the specified filter opacity.
-      OffscreenRasterize(data.source, &texture, &texcoord_transform,
-                         &content_rect);
+      float old_opacity = draw_state_.opacity;
+      draw_state_.opacity = 1.0f;
+      // Since the offscreen target is mapped to world space, limit the target
+      // to the screen size to avoid unnecessarily large offscreen targets.
+      bool limit_to_screen_size = true;
+      OffscreenRasterize(data.source, limit_to_screen_size, &texture,
+                         &texcoord_transform, &content_rect);
       if (content_rect.IsEmpty()) {
         return;
       }
 
       // The content rect is already in screen space, so reset the transform.
       math::Matrix3F old_transform = draw_state_.transform;
-      float old_opacity = draw_state_.opacity;
       draw_state_.transform = math::Matrix3F::Identity();
-      draw_state_.opacity *= filter_opacity;
+      draw_state_.opacity = old_opacity * filter_opacity;
       std::unique_ptr<DrawObject> draw(new DrawRectColorTexture(
           graphics_state_, draw_state_, content_rect, kOpaqueWhite, texture,
           texcoord_transform, true /* clamp_texcoords */));
@@ -1006,8 +1062,9 @@ void RenderTreeNodeVisitor::FallbackRasterize(
       target_info.region);
 }
 
-// Add draw objects to render |node| to an offscreen render target at
-//   100% opacity.
+// Add draw objects to render |node| to an offscreen render target.
+// |limit_to_screen_size| specifies whether the allocated render target should
+//   be limited to the onscreen render target size.
 // |out_texture| and |out_texcoord_transform| describe the texture subregion
 //   that will contain the result of rendering |node|.
 // |out_content_rect| describes the onscreen rect (in screen space) which
@@ -1015,9 +1072,10 @@ void RenderTreeNodeVisitor::FallbackRasterize(
 //   nothing needs to be rendered.
 void RenderTreeNodeVisitor::OffscreenRasterize(
     scoped_refptr<render_tree::Node> node,
-    const backend::TextureEGL** out_texture,
+    bool limit_to_screen_size, const backend::TextureEGL** out_texture,
     math::Matrix3F* out_texcoord_transform, math::RectF* out_content_rect) {
-  // Check whether the node is visible.
+  // Map the target to world space. This avoids scaling artifacts if the target
+  // is magnified.
   math::RectF mapped_bounds = draw_state_.transform.MapRect(node->GetBounds());
 
   if (!mapped_bounds.IsExpressibleAsRect()) {
@@ -1026,6 +1084,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
     return;
   }
 
+  // Check whether the node is visible.
   math::RectF rounded_out_bounds = RoundOut(mapped_bounds, 0.0f);
   math::RectF clipped_bounds =
       math::IntersectRects(rounded_out_bounds, draw_state_.scissor);
@@ -1041,7 +1100,9 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   // the chance that the render target can be recycled in the next frame.
   OffscreenTargetManager::TargetInfo target_info;
   math::SizeF target_size(rounded_out_bounds.size());
-  target_size.SetToMin(onscreen_render_target_->GetSize());
+  if (limit_to_screen_size) {
+    target_size.SetToMin(onscreen_render_target_->GetSize());
+  }
   offscreen_target_manager_->AllocateUncachedTarget(target_size, &target_info);
 
   if (!target_info.framebuffer) {
@@ -1071,13 +1132,9 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   draw_object_manager_->AddRenderTargetDependency(old_render_target,
                                                   render_target_);
 
-  // Draw the contents at 100% opacity. The caller will then draw the results
-  // onto the main render target at the desired opacity.
-  draw_state_.opacity = 1.0f;
-  draw_state_.scissor = math::Rect::RoundFromRectF(target_info.region);
-
   // Clear the new render target. (Set the transform to the identity matrix so
   // the bounds for the DrawClear comes out as the entire target region.)
+  draw_state_.scissor = math::Rect::RoundFromRectF(target_info.region);
   draw_state_.transform = math::Matrix3F::Identity();
   std::unique_ptr<DrawObject> draw_clear(
       new DrawClear(graphics_state_, draw_state_, kTransparentBlack));
