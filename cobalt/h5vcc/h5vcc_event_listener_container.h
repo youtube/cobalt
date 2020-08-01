@@ -73,11 +73,33 @@ class H5vccEventListenerContainer {
     }
   }
 
+  // Returns true if there is no listener.
+  bool empty() {
+    base::AutoLock auto_lock(lock_);
+    return listeners_.empty();
+  }
+
   // Called from JavaScript to register an event listener. May be called from
   // any thread, and event notification will be called on the same thread.
   void AddListener(const CallbackHolderType& callback_holder) {
     base::AutoLock auto_lock(lock_);
     listeners_.push_back(new Listener(owner_, callback_holder));
+  }
+
+  // Called from JavaScript to register an event listener. May be called from
+  // any thread, and event notification will be called on the same thread.
+  // Call the first listener if the callback does not return empty.
+  void AddListenerAndCallIfFirst(const CallbackHolderType& callback_holder,
+                                 GetArgumentCallback arg_callback) {
+    base::AutoLock auto_lock(lock_);
+    bool was_empty = listeners_.empty();
+    listeners_.push_back(new Listener(owner_, callback_holder));
+    if (was_empty) {
+      CallbackArgType arg = arg_callback.Run();
+      if (!arg.empty()) {
+        listeners_.back()->callback.value().Run(arg);
+      }
+    }
   }
 
   // Dispatches an event to the registered listeners. May be called from any
