@@ -83,6 +83,8 @@ class VideoDecoder
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
+  void SetPlaybackRate(double playback_rate);
+
   bool is_valid() const { return media_decoder_ != NULL; }
 
   void OnNewTextureAvailable();
@@ -132,6 +134,8 @@ class VideoDecoder
   // The width and height of the latest decoded frame.
   int32_t frame_width_ = 0;
   int32_t frame_height_ = 0;
+
+  double playback_rate_ = 1.0;
 
   // The last enqueued |SbMediaColorMetadata|.
   optional<SbMediaColorMetadata> color_metadata_;

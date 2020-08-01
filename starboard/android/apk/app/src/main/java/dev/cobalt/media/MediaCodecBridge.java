@@ -69,7 +69,6 @@ class MediaCodecBridge {
   private static final String KEY_CROP_TOP = "crop-top";
 
   private static final int BITRATE_ADJUSTMENT_FPS = 30;
-  private static final int MAXIMUM_INITIAL_FPS = 30;
 
   private long mNativeMediaCodecBridge;
   private MediaCodec mMediaCodec;
@@ -78,6 +77,8 @@ class MediaCodecBridge {
   private long mLastPresentationTimeUs;
   private final String mMime;
   private boolean mAdaptivePlaybackSupported;
+  private double mPlaybackRate = 1.0;
+  private int mFps = 30;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -104,6 +105,45 @@ class MediaCodecBridge {
     public static final String VIDEO_AV1 = "video/av01";
   }
 
+  private class FrameRateEstimator {
+    private static final int INVALID_FRAME_RATE = -1;
+    private static final long INVALID_FRAME_TIMESTAMP = -1;
+    private static final int MINIMUN_REQUIRED_FRAMES = 4;
+    private long mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
+    private long mNumberOfFrames = 0;
+    private long mTotalDurationUs = 0;
+
+    public int getEstimatedFrameRate() {
+      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUN_REQUIRED_FRAMES) {
+        return INVALID_FRAME_RATE;
+      }
+      return Math.round((mNumberOfFrames - 1) * 1000000.0f / mTotalDurationUs);
+    }
+
+    public void reset() {
+      mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
+      mNumberOfFrames = 0;
+      mTotalDurationUs = 0;
+    }
+
+    public void onNewFrame(long presentationTimeUs) {
+      mNumberOfFrames++;
+
+      if (mLastFrameTimestampUs == INVALID_FRAME_TIMESTAMP) {
+        mLastFrameTimestampUs = presentationTimeUs;
+        return;
+      }
+      if (presentationTimeUs <= mLastFrameTimestampUs) {
+        Log.v(TAG, String.format("Invalid output presentation timestamp."));
+        return;
+      }
+
+      mTotalDurationUs += presentationTimeUs - mLastFrameTimestampUs;
+      mLastFrameTimestampUs = presentationTimeUs;
+    }
+  }
+
+  private FrameRateEstimator mFrameRateEstimator = null;
   private BitrateAdjustmentTypes mBitrateAdjustmentType = BitrateAdjustmentTypes.NO_ADJUSTMENT;
 
   @SuppressWarnings("unused")
@@ -415,6 +455,14 @@ class MediaCodecBridge {
                   info.offset,
                   info.presentationTimeUs,
                   info.size);
+              if (mFrameRateEstimator != null) {
+                mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
+                int fps = mFrameRateEstimator.getEstimatedFrameRate();
+                if (fps != FrameRateEstimator.INVALID_FRAME_RATE && mFps != fps) {
+                  mFps = fps;
+                  updateOperatingRate();
+                }
+              }
             }
           }
 
@@ -595,6 +643,40 @@ class MediaCodecBridge {
       return false;
     }
     return true;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private void setPlaybackRate(double playbackRate) {
+    if (mPlaybackRate == playbackRate) {
+      return;
+    }
+    mPlaybackRate = playbackRate;
+    if (mFrameRateEstimator != null) {
+      updateOperatingRate();
+    }
+  }
+
+  private void updateOperatingRate() {
+    // We needn't set operation rate if playback rate is 0 or less.
+    if (Double.compare(mPlaybackRate, 0.0) <= 0) {
+      return;
+    }
+    if (mFps == FrameRateEstimator.INVALID_FRAME_RATE) {
+      return;
+    }
+    if (mFps <= 0) {
+      Log.e(TAG, "Failed to set operating rate with invalid fps " + mFps);
+      return;
+    }
+    double operatingRate = mPlaybackRate * mFps;
+    Bundle b = new Bundle();
+    b.putFloat(MediaFormat.KEY_OPERATING_RATE, (float) operatingRate);
+    try {
+      mMediaCodec.setParameters(b);
+    } catch (IllegalStateException e) {
+      Log.e(TAG, "Failed to set MediaCodec operating rate", e);
+    }
   }
 
   @SuppressWarnings("unused")
@@ -846,6 +928,7 @@ class MediaCodecBridge {
       }
       maybeSetMaxInputSize(format);
       mMediaCodec.configure(format, surface, crypto, flags);
+      mFrameRateEstimator = new FrameRateEstimator();
       return true;
     } catch (IllegalArgumentException e) {
       Log.e(TAG, "Cannot configure the video codec with IllegalArgumentException: ", e);
