@@ -94,6 +94,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               creation_parameters.decode_target_graphics_context_provider(),
               creation_parameters.max_video_capabilities(), error_message));
       if (video_decoder_impl->is_valid()) {
+        video_render_algorithm->reset(new android::shared::VideoRenderAlgorithm(
+            video_decoder_impl.get()));
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
       } else {
@@ -103,8 +105,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             "Failed to create video decoder with error: " + *error_message;
         return false;
       }
-
-      video_render_algorithm->reset(new android::shared::VideoRenderAlgorithm);
     }
 
     return true;

@@ -344,6 +344,11 @@ void MediaCodecBridge::ReleaseOutputBufferAtTimestamp(
                                           render_timestamp_ns);
 }
 
+void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
+  JniEnvExt::Get()->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "setPlaybackRate", "(D)V", playback_rate);
+}
+
 jint MediaCodecBridge::Flush() {
   return JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_, "flush",
                                                 "()I");

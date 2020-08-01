@@ -377,6 +377,7 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
       media_decoder_->Initialize(
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
+    media_decoder_->SetPlaybackRate(playback_rate_);
     return true;
   }
   media_decoder_.reset();
@@ -575,6 +576,13 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
     }
   }
   return kSbDecodeTargetInvalid;
+}
+
+void VideoDecoder::SetPlaybackRate(double playback_rate) {
+  playback_rate_ = playback_rate;
+  if (media_decoder_) {
+    media_decoder_->SetPlaybackRate(playback_rate);
+  }
 }
 
 void VideoDecoder::OnNewTextureAvailable() {
