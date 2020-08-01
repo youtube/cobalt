@@ -21,13 +21,16 @@ namespace {
 const std::string& OnGetArgument(const std::string& link) { return link; }
 }  // namespace
 
-H5vccDeepLinkEventTarget::H5vccDeepLinkEventTarget()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)) {}
+H5vccDeepLinkEventTarget::H5vccDeepLinkEventTarget(
+    base::Callback<const std::string&()> unconsumed_deep_link_callback)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)),
+      unconsumed_deep_link_callback_(unconsumed_deep_link_callback) {}
 
 void H5vccDeepLinkEventTarget::AddListener(
     const H5vccDeepLinkEventTarget::H5vccDeepLinkEventCallbackHolder&
         callback_holder) {
-  listeners_.AddListener(callback_holder);
+  listeners_.AddListenerAndCallIfFirst(callback_holder,
+                                       unconsumed_deep_link_callback_);
 }
 
 void H5vccDeepLinkEventTarget::DispatchEvent(const std::string& link) {

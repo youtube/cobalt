@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/h5vcc_deep_link_event_target.h"
 #include "cobalt/h5vcc/h5vcc_runtime_event_target.h"
@@ -30,6 +31,7 @@ class H5vccRuntime : public script::Wrappable {
   explicit H5vccRuntime(base::EventDispatcher* event_dispatcher);
   ~H5vccRuntime();
 
+  std::string initial_deep_link();
   const scoped_refptr<H5vccDeepLinkEventTarget>& on_deep_link() const;
   const scoped_refptr<H5vccRuntimeEventTarget>& on_pause() const;
   const scoped_refptr<H5vccRuntimeEventTarget>& on_resume() const;
@@ -38,9 +40,11 @@ class H5vccRuntime : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  // Called by the event dispatcher to handle various event types.
-  void OnApplicationEvent(const base::Event* event);
+  // Called by the event dispatcher to handle deep link events.
   void OnDeepLinkEvent(const base::Event* event);
+
+  // Returns the initial deep link if it's unconsumed.
+  const std::string& GetUnconsumedDeepLink();
 
   scoped_refptr<H5vccDeepLinkEventTarget> on_deep_link_;
   scoped_refptr<H5vccRuntimeEventTarget> on_pause_;
@@ -48,10 +52,14 @@ class H5vccRuntime : public script::Wrappable {
 
   // Non-owned reference used to receive application event callbacks.
   base::EventDispatcher* event_dispatcher_;
+  std::string initial_deep_link_;
+  const std::string empty_string_;
 
   // Event callbacks.
-  base::EventCallback application_event_callback_;
   base::EventCallback deep_link_event_callback_;
+  base::OnceClosure consumed_callback_;
+
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccRuntime);
 };

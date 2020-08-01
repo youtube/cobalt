@@ -32,13 +32,15 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 
 class ProxyServer(object):
 
-  def __init__(self, hostname='0.0.0.0', port='8000', host_resolve_map=None,
+  def __init__(self,
+               hostname='0.0.0.0',
+               port='8000',
+               host_resolve_map=None,
                client_ips=None):
     self.command = [
         'python',
         os.path.join(SRC_DIR, 'third_party', 'proxy_py', 'proxy.py'),
-        '--hostname', hostname,
-        '--port', port
+        '--hostname', hostname, '--port', port, '--log-level', 'WARNING'
     ]
     self.host_resolver_path = None
 
