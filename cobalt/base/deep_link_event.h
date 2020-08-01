@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/strings/string_util.h"
 #include "cobalt/base/event.h"
@@ -25,13 +26,16 @@ namespace base {
 
 class DeepLinkEvent : public Event {
  public:
-  explicit DeepLinkEvent(const std::string& link) : link_(link) {}
+  DeepLinkEvent(const std::string& link, const base::Closure& consumed_callback)
+      : link_(link), consumed_callback_(consumed_callback) {}
   const std::string& link() const { return link_; }
+  const base::Closure& callback() const { return consumed_callback_; }
 
   BASE_EVENT_SUBCLASS(DeepLinkEvent);
 
  private:
   std::string link_;
+  base::Closure consumed_callback_;
 };
 
 }  // namespace base

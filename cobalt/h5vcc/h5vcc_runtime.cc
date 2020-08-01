@@ -14,7 +14,7 @@
 
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 
-#include "cobalt/base/application_event.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
@@ -22,15 +22,12 @@ namespace cobalt {
 namespace h5vcc {
 H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher) {
-  on_deep_link_ = new H5vccDeepLinkEventTarget;
+  on_deep_link_ = new H5vccDeepLinkEventTarget(
+      base::Bind(&H5vccRuntime::GetUnconsumedDeepLink, base::Unretained(this)));
   on_pause_ = new H5vccRuntimeEventTarget;
   on_resume_ = new H5vccRuntimeEventTarget;
 
   DCHECK(event_dispatcher_);
-  application_event_callback_ =
-      base::Bind(&H5vccRuntime::OnApplicationEvent, base::Unretained(this));
-  event_dispatcher_->AddEventCallback(base::ApplicationEvent::TypeId(),
-                                      application_event_callback_);
   deep_link_event_callback_ =
       base::Bind(&H5vccRuntime::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_->AddEventCallback(base::DeepLinkEvent::TypeId(),
@@ -38,11 +35,32 @@ H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
 }
 
 H5vccRuntime::~H5vccRuntime() {
-  event_dispatcher_->RemoveEventCallback(base::ApplicationEvent::TypeId(),
-                                         application_event_callback_);
   event_dispatcher_->RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                          deep_link_event_callback_);
 }
+
+std::string H5vccRuntime::initial_deep_link() {
+  base::AutoLock auto_lock(lock_);
+  if (consumed_callback_) {
+    std::move(consumed_callback_).Run();
+  }
+  if (!initial_deep_link_.empty()) {
+    LOG(INFO) << "Returning stashed deep link: " << initial_deep_link_;
+  }
+  return initial_deep_link_;
+}
+
+const std::string& H5vccRuntime::GetUnconsumedDeepLink() {
+  base::AutoLock auto_lock(lock_);
+  if (!initial_deep_link_.empty() && consumed_callback_) {
+    LOG(INFO) << "Returning stashed unconsumed deep link: "
+              << initial_deep_link_;
+    std::move(consumed_callback_).Run();
+    return initial_deep_link_;
+  }
+  return empty_string_;
+}
+
 
 const scoped_refptr<H5vccDeepLinkEventTarget>& H5vccRuntime::on_deep_link()
     const {
@@ -63,21 +81,30 @@ void H5vccRuntime::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(on_resume_);
 }
 
-void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
-  const base::ApplicationEvent* app_event =
-      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
-  if (app_event->type() == kSbEventTypePause) {
-    on_pause()->DispatchEvent();
-  } else if (app_event->type() == kSbEventTypeUnpause) {
-    on_resume()->DispatchEvent();
-  }
-}
-
 void H5vccRuntime::OnDeepLinkEvent(const base::Event* event) {
+  base::AutoLock auto_lock(lock_);
   const base::DeepLinkEvent* deep_link_event =
       base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  DLOG(INFO) << "Got deep link event: " << deep_link_event->link();
-  on_deep_link()->DispatchEvent(deep_link_event->link());
+  const std::string& link = deep_link_event->link();
+  if (link.empty()) {
+    return;
+  }
+
+  if (on_deep_link()->empty()) {
+    // Store the link for later consumption.
+    LOG(INFO) << "Stashing deep link: " << link;
+    initial_deep_link_ = link;
+    consumed_callback_ = deep_link_event->callback();
+  } else {
+    // Send the link.
+    DCHECK(consumed_callback_.is_null());
+    LOG(INFO) << "Dispatching deep link event: " << link;
+    on_deep_link()->DispatchEvent(link);
+    base::OnceClosure callback(deep_link_event->callback());
+    if (callback) {
+      std::move(callback).Run();
+    }
+  }
 }
 }  // namespace h5vcc
 }  // namespace cobalt

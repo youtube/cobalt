@@ -22,6 +22,7 @@
 #include "base/command_line.h"
 #include "base/macros.h"
 #include "base/message_loop/message_loop.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -49,8 +50,8 @@ namespace browser {
 // loop. This class is not designed to be thread safe.
 class Application {
  public:
-  // The passed in |quit_closure| can be called internally by the Application to
-  // signal that it would like to quit.
+  // The passed in |quit_closure| can be called internally by the Application
+  // to signal that it would like to quit.
   Application(const base::Closure& quit_closure, bool should_preload);
   virtual ~Application();
 
@@ -89,7 +90,7 @@ class Application {
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   // Called when a navigation occurs in the BrowserModule.
-  void WebModuleRecreated();
+  void WebModuleCreated();
 
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
@@ -219,12 +220,18 @@ class Application {
   void OnMemoryTrackerCommand(const std::string& message);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-  // The latest link received before the Web Module is loaded is stored here.
-  std::string early_deep_link_;
+  // Deep links are stored here until they are reported consumed.
+  std::string unconsumed_deep_link_;
 
-  // Dispach events for early deeplink. This should be called once the Web
-  // Module is loaded.
-  void DispatchEarlyDeepLink();
+  // Lock for access to unconsumed_deep_link_ from different threads.
+  base::Lock unconsumed_deep_link_lock_;
+
+  // Called when deep links are consumed.
+  void OnDeepLinkConsumedCallback(const std::string& link);
+
+  // Dispach events for deep links.
+  void DispatchDeepLink(const char* link);
+  void DispatchDeepLinkIfNotConsumed();
 
   DISALLOW_COPY_AND_ASSIGN(Application);
 };

@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import json
+import logging
 import os
 import re
 import sys
@@ -46,6 +47,7 @@ PAGE_LOAD_WAIT_SECONDS = 30
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 45
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 45
 FIND_ELEMENT_RETRY_LIMIT = 20
+EXECUTE_JAVASCRIPT_RETRY_LIMIT = 10
 
 COBALT_WEBDRIVER_CAPABILITIES = {
     'browserName': 'cobalt',
@@ -112,6 +114,7 @@ class CobaltRunner(object):
     self.launcher_params = launcher_params
     if log_file:
       self.log_file = open(log_file)
+      logging.basicConfig(stream=self.log_file, level=logging.INFO)
     else:
       self.log_file = sys.stdout
     self.url = url
@@ -176,8 +179,8 @@ class CobaltRunner(object):
 
       # Bail out immediately if the Cobalt WebDriver server doesn't start.
       if RE_WEBDRIVER_FAILED.search(line):
-        print('\nCobalt WebDriver server not started.'
-              '\nIs another instance of Cobalt running?')
+        logging.error('\nCobalt WebDriver server not started.'
+                      '\nIs another instance of Cobalt running?')
         self.launcher.Kill()
 
       match = RE_WEBDRIVER_LISTEN.search(line)
@@ -185,7 +188,7 @@ class CobaltRunner(object):
         continue
 
       port = match.group(1)
-      print('WebDriver port opened:' + port + '\n', file=self.log_file)
+      logging.info('WebDriver port opened:' + port + '\n')
       self._StartWebdriver(port)
 
   def __enter__(self):
@@ -287,7 +290,7 @@ class CobaltRunner(object):
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
     self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
-    print('Selenium Connected\n', file=self.log_file)
+    logging.info('Selenium Connected')
     self.test_script_started.set()
 
   def WaitForStart(self):
@@ -299,16 +302,17 @@ class CobaltRunner(object):
     if not self.test_script_started.wait(startup_timeout_seconds):
       self.Exit(should_fail=True)
       raise TimeoutException
-    print('Cobalt started', file=self.log_file)
+    logging.info('Cobalt started')
 
   def _RunLauncher(self):
     """Thread run routine."""
     try:
-      print('Running launcher', file=self.log_file)
+      logging.info('Running launcher')
       self.launcher.Run()
-      print('Cobalt terminated.', file=self.log_file)
+      logging.info('Cobalt terminated.')
       if not self.failed and self.success_message:
         print('{}\n'.format(self.success_message))
+        logging.info('{}\n'.format(self.success_message))
     # pylint: disable=broad-except
     except Exception as ex:
       sys.stderr.write('Exception running Cobalt ' + str(ex))
@@ -324,7 +328,20 @@ class CobaltRunner(object):
     return self.webdriver is not None
 
   def ExecuteJavaScript(self, js_code):
-    return self.webdriver.execute_script(js_code)
+    retry_count = 0
+    while retry_count < EXECUTE_JAVASCRIPT_RETRY_LIMIT:
+      retry_count += 1
+      try:
+        result = self.webdriver.execute_script(js_code)
+      except (selenium_exceptions.NoSuchElementException,
+              selenium_exceptions.NoSuchWindowException):
+        time.sleep(0.2)
+        continue
+      except Exception:
+        sys.excepthook(*sys.exc_info())
+        logging.exception("Failed with unexpected exception")
+      break
+    return result
 
   def GetCval(self, cval_name):
     """Returns the Python object represented by a cval string.
@@ -441,9 +458,13 @@ class CobaltRunner(object):
       retry_count += 1
       try:
         elements = self.webdriver.find_elements_by_css_selector(css_selector)
-      except selenium_exceptions.NoSuchElementException:
+      except (selenium_exceptions.NoSuchElementException,
+              selenium_exceptions.NoSuchWindowException):
         time.sleep(0.2)
         continue
+      except Exception:
+        sys.excepthook(*sys.exc_info())
+        logging.exception("Failed with unexpected exception")
       break
     if expected_num is not None and len(elements) != expected_num:
       raise CobaltRunner.AssertException(

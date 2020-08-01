@@ -38,7 +38,6 @@
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/accessibility_text_to_speech_settings_changed_event.h"
-#include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/get_application_key.h"
@@ -565,8 +564,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
-  early_deep_link_ = GetInitialDeepLink();
-  DLOG(INFO) << "Initial deep link: " << early_deep_link_;
+  unconsumed_deep_link_ = GetInitialDeepLink();
+  DLOG(INFO) << "Initial deep link: " << unconsumed_deep_link_;
 
   WebModule::Options web_options;
   storage::StorageManager::Options storage_manager_options;
@@ -653,8 +652,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired};
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
-  options.web_module_recreated_callback =
-      base::Bind(&Application::WebModuleRecreated, base::Unretained(this));
+  options.web_module_created_callback =
+      base::Bind(&Application::WebModuleCreated, base::Unretained(this));
 
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
@@ -728,8 +727,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
   options.requested_viewport_size = requested_viewport_size;
-  options.web_module_loaded_callback =
-      base::Bind(&Application::DispatchEarlyDeepLink, base::Unretained(this));
   account_manager_.reset(new account::AccountManager());
 
   storage_manager_.reset(new storage::StorageManager(
@@ -980,14 +977,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
-      const char* link = static_cast<const char*>(starboard_event->data);
-      if (browser_module_->IsWebModuleLoaded()) {
-        DLOG(INFO) << "Dispatching deep link: " << link;
-        DispatchEventInternal(new base::DeepLinkEvent(link));
-      } else {
-        DLOG(INFO) << "Storing deep link: " << link;
-        early_deep_link_ = link;
-      }
+      DispatchDeepLink(static_cast<const char*>(starboard_event->data));
       break;
     }
     case kSbEventTypeAccessiblitySettingsChanged:
@@ -1202,8 +1192,9 @@ void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
 }
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
-void Application::WebModuleRecreated() {
-  TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
+void Application::WebModuleCreated() {
+  TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");
+  DispatchDeepLinkIfNotConsumed();
 #if defined(ENABLE_WEBDRIVER)
   if (web_driver_module_) {
     web_driver_module_->OnWindowRecreated();
@@ -1235,7 +1226,7 @@ Application::CValStats::CValStats()
 // to a new location on the heap.
 void Application::UpdateUserAgent() {
   non_trivial_static_fields.Get().user_agent = browser_module_->GetUserAgent();
-  DLOG(INFO) << "User Agent: " << non_trivial_static_fields.Get().user_agent;
+  LOG(INFO) << "User Agent: " << non_trivial_static_fields.Get().user_agent;
 }
 
 void Application::UpdatePeriodicStats() {
@@ -1286,13 +1277,52 @@ void Application::OnMemoryTrackerCommand(const std::string& message) {
 }
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-void Application::DispatchEarlyDeepLink() {
-  if (early_deep_link_.empty()) {
+// Called to handle deep link consumed events.
+void Application::OnDeepLinkConsumedCallback(const std::string& link) {
+  LOG(INFO) << "Got deep link consumed callback: " << link;
+  base::AutoLock auto_lock(unconsumed_deep_link_lock_);
+  if (link == unconsumed_deep_link_) {
+    unconsumed_deep_link_.clear();
+  }
+}
+
+void Application::DispatchDeepLink(const char* link) {
+  if (!link || *link == 0) {
     return;
   }
-  DLOG(INFO) << "Dispatching early deep link: " << early_deep_link_;
-  DispatchEventInternal(new base::DeepLinkEvent(early_deep_link_.c_str()));
-  early_deep_link_ = "";
+
+  std::string deep_link;
+  // This block exists to ensure that the lock is held while accessing
+  // unconsumed_deep_link_.
+  {
+    base::AutoLock auto_lock(unconsumed_deep_link_lock_);
+    // Stash the deep link so that if it is not consumed, it can be dispatched
+    // again after the next WebModule is created.
+    unconsumed_deep_link_ = link;
+    deep_link = unconsumed_deep_link_;
+  }
+
+  LOG(INFO) << "Dispatching deep link: " << deep_link;
+  DispatchEventInternal(new base::DeepLinkEvent(
+      deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
+                            base::Unretained(this), deep_link)));
+}
+
+void Application::DispatchDeepLinkIfNotConsumed() {
+  std::string deep_link;
+  // This block exists to ensure that the lock is held while accessing
+  // unconsumed_deep_link_.
+  {
+    base::AutoLock auto_lock(unconsumed_deep_link_lock_);
+    deep_link = unconsumed_deep_link_;
+  }
+
+  if (!deep_link.empty()) {
+    LOG(INFO) << "Dispatching deep link: " << deep_link;
+    DispatchEventInternal(new base::DeepLinkEvent(
+        deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
+                              base::Unretained(this), deep_link)));
+  }
 }
 
 }  // namespace browser

@@ -260,7 +260,7 @@ BrowserModule::BrowserModule(const GURL& url,
       // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
-      web_module_recreated_callback_(options_.web_module_recreated_callback),
+      web_module_created_callback_(options_.web_module_created_callback),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -306,8 +306,7 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1),
-      web_module_loaded_callback_(options_.web_module_loaded_callback) {
+      current_main_web_module_timeline_id_(-1) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
@@ -640,8 +639,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       viewport_size, GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
       options));
   lifecycle_observers_.AddObserver(web_module_.get());
-  if (!web_module_recreated_callback_.is_null()) {
-    web_module_recreated_callback_.Run();
+  if (!web_module_created_callback_.is_null()) {
+    web_module_created_callback_.Run();
   }
 
   if (system_window_) {
@@ -696,10 +695,6 @@ void BrowserModule::OnLoad() {
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
 
   web_module_loaded_.Signal();
-
-  if (!web_module_loaded_callback_.is_null()) {
-    web_module_loaded_callback_.Run();
-  }
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {

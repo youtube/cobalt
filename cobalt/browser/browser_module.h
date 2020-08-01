@@ -100,14 +100,13 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
-    base::Closure web_module_recreated_callback;
+    base::Closure web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
     base::Optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
-    base::Closure web_module_loaded_callback;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -536,9 +535,9 @@ class BrowserModule {
   // Will be signalled when the WebModule's Window.onload event is fired.
   base::WaitableEvent web_module_loaded_;
 
-  // This will be called after the WebModule has been destroyed and recreated,
-  // which could occur on navigation.
-  base::Closure web_module_recreated_callback_;
+  // This will be called after a WebModule has been recreated, which could occur
+  // on navigation.
+  base::Closure web_module_created_callback_;
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
@@ -673,9 +672,6 @@ class BrowserModule {
   // by automem.  We want this so that we can check that it never changes, since
   // we do not have the ability to modify it after startup.
   base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
-
-  // Callback to run when the Web Module is loaded.
-  base::Closure web_module_loaded_callback_;
 };
 
 }  // namespace browser
