@@ -100,6 +100,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                          const math::RectF& content_rect);
 
   void OffscreenRasterize(scoped_refptr<render_tree::Node> node,
+                          bool limit_to_screen_size,
                           const backend::TextureEGL** out_texture,
                           math::Matrix3F* out_texcoord_transform,
                           math::RectF* out_content_rect);
