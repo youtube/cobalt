@@ -177,6 +177,12 @@ void MediaDecoder::WriteEndOfStream() {
   }
 }
 
+void MediaDecoder::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+  SB_DCHECK(media_codec_bridge_);
+  media_codec_bridge_->SetPlaybackRate(playback_rate);
+}
+
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);

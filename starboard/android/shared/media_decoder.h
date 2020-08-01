@@ -86,6 +86,8 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
+  void SetPlaybackRate(double playback_rate);
+
   size_t GetNumberOfPendingTasks() const {
     return number_of_pending_tasks_.load();
   }
