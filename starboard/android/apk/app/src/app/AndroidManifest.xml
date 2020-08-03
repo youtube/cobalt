@@ -29,6 +29,8 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+  <!-- This is needed when targeting API 28+ to use foreground services -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
   <application
     android:name="dev.cobalt.app.CobaltApplication"
@@ -64,6 +66,11 @@
         <data android:pathPattern=".*"/>
       </intent-filter>
     </activity>
+
+    <service android:name="dev.cobalt.coat.MediaPlaybackService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback"/>
 
   </application>
 
