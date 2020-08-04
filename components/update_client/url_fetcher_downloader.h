@@ -15,6 +15,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "components/update_client/crx_downloader.h"
+#include "components/update_client/update_client_errors.h"
 
 #if defined(OS_STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
@@ -53,7 +54,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   void OnDownloadProgress(int64_t content_length);
   void ReportDownloadFailure(const GURL& url);
 #if defined(OS_STARBOARD)
-  void ReportDownloadFailure(const GURL& url, CrxDownloader::Error error);
+  void ReportDownloadFailure(const GURL& url, CrxDownloaderError error);
 #endif
 
   THREAD_CHECKER(thread_checker_);

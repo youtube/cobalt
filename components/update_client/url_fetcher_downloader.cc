@@ -74,7 +74,7 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
   SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
-    ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
+    ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
 
@@ -86,7 +86,7 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
   SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
   if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
-    ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_ABORT);
+    ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
 
@@ -135,11 +135,11 @@ void UrlFetcherDownloader::CreateDownloadDir() {
 
 #if defined(OS_STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
-  ReportDownloadFailure(url, CrxDownloader::Error::CRX_DOWNLOADER_RETRY);
+  ReportDownloadFailure(url, CrxDownloaderError::GENERIC_ERROR);
 }
 
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url,
-                                                 CrxDownloader::Error error) {
+                                                 CrxDownloaderError error) {
 #else
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 #endif
@@ -149,7 +149,7 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 #endif
   Result result;
 #if defined(OS_STARBOARD)
-  result.error = error;
+  result.error = static_cast<int>(error);
 #else
   result.error = -1;
 #endif

@@ -37,6 +37,9 @@ enum class ErrorCategory {
 // the Chrome net stack.
 enum class CrxDownloaderError {
   NONE = 0,
+#if defined(OS_STARBOARD)
+  SLOT_UNAVAILABLE = 9,
+#endif
   NO_URL = 10,
   NO_HASH = 11,
   BAD_HASH = 12,  // The downloaded file fails the hash verification.
