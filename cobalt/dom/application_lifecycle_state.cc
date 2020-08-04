@@ -85,6 +85,7 @@ ApplicationLifecycleState::ApplicationLifecycleState(
   DLOG(INFO) << __FUNCTION__
              << ": app_state=" << STATE_STRING(application_state_);
   DCHECK((application_state_ == base::kApplicationStateStarted) ||
+         (application_state_ == base::kApplicationStateBlurred) ||
          (application_state_ == base::kApplicationStateConcealed))
       << "application_state_=" << STATE_STRING(application_state_);
 }
