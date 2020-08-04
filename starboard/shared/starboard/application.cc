@@ -430,9 +430,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       }
 
       if (state() == kStatePreloading) {
-        // If Preloading, we can jump straight to Suspended, so we don't try to
-        // do anything fancy here.
-        break;
+        return true;
       }
 
       if (state() == kStateStarted) {
