@@ -416,15 +416,14 @@ static inline unsigned char FAR* chunkcopy_safe_ugly(unsigned char FAR* out,
      w/ GCC on ARM (tested gcc 6.3 and 7.5) and avoids
      undefined behavior.
   */
-  out = chunkcopy_core_safe(out, out - dist, len, limit);
+  return chunkcopy_core_safe(out, out - dist, len, limit);
 #elif defined(__clang__) && defined(ARMV8_OS_ANDROID) && !defined(__aarch64__)
   /* Seems to perform better on 32bit (i.e. Android). */
-  out = chunkcopy_core_safe(out, out - dist, len, limit);
-#elif defined(__clang__)
+  return chunkcopy_core_safe(out, out - dist, len, limit);
+#else
   /* Seems to perform better on 64bit. */
-  out = chunkcopy_lapped_safe(out, dist, len, limit);
+  return chunkcopy_lapped_safe(out, dist, len, limit);
 #endif
-  return out;
 }
 
 /*
