@@ -185,7 +185,7 @@ void CrxDownloader::HandleDownloadError(
   download_metrics_.push_back(download_metrics);
 
 #if defined(OS_STARBOARD)
-  if (result.error != Error::CRX_DOWNLOADER_ABORT) {
+  if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
 #endif
 
     // If an error has occured, try the next url if there is any,

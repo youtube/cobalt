@@ -39,19 +39,6 @@ class NetworkFetcherFactory;
 // The members of this class expect to be called from the main thread only.
 class CrxDownloader {
  public:
-#if defined(OS_STARBOARD)
-  enum Error {
-    // The download succeeded.
-    CRX_DOWNLOADER_OK = 0,
-
-    // The download failed and should be retried.
-    CRX_DOWNLOADER_RETRY = -1,
-
-    // The download failed and should be aborted.
-    CRX_DOWNLOADER_ABORT = -2,
-  };
-#endif
-
   struct DownloadMetrics {
     enum Downloader { kNone = 0, kUrlFetcher, kBits };
 
