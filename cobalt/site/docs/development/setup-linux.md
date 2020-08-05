@@ -9,6 +9,8 @@ binary. Note that the binary has a graphical client and must be run locally
 on the machine that you are using to view the client. For example, you cannot
 SSH into another machine and run the binary on that machine.
 
+## Set up your workstation
+
 1.  Choose where you want to put the `depot_tools` directory, which is used
     by the Cobalt code. An easy option is to put them in `~/depot_tools`.
     Clone the tools by running the following command:
@@ -54,6 +56,8 @@ SSH into another machine and run the binary on that machine.
     ```
     $ git clone https://cobalt.googlesource.com/cobalt
     ```
+
+## Build and Run Cobalt
 
 1.  Build the code by navigating to the `src` directory in your new
     `cobalt` directory and running the following command. You must
