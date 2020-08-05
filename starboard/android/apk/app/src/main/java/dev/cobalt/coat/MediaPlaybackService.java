@@ -1,0 +1,145 @@
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dev.cobalt.coat;
+
+import static dev.cobalt.media.Log.TAG;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.os.Build.VERSION;
+import android.os.IBinder;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
+import dev.cobalt.util.Log;
+import dev.cobalt.util.UsedByNative;
+
+public class MediaPlaybackService extends Service{
+
+private static final int NOTIFICATION_ID = 1234;
+private static final String NOTIFICAITON_CHANNEL_ID = "default";
+private static final String NOTIFICATION_CHANNEL_NAME = "Default channel";
+private Context context;
+
+@Override
+public void onCreate() {
+  super.onCreate();
+  Log.i(TAG, "Creating a Media playback foreground service.");
+  getStarboardBridge().onServiceStart(this);
+  context = getApplicationContext();
+}
+
+@Override
+public int onStartCommand(Intent intent, int flags, int startId) {
+  Log.i(TAG, "Cold start - Starting the serivce.");
+  startService();
+  // We don't want the system to recreate a service for us.
+  return START_NOT_STICKY;
+}
+
+@Override
+public IBinder onBind(Intent intent) {
+  // Do not support binding.
+  return null;
+}
+
+@Override
+public void onDestroy() {
+  getStarboardBridge().onServiceDestroy(this);
+  context = null;
+  super.onDestroy();
+  Log.i(TAG, "Destorying the Media playback service.");
+}
+
+public void startService() {
+  createChannel();
+  startForeground(NOTIFICATION_ID, buildNotification());
+}
+
+public void stopService() {
+  deleteChannel();
+  hideNotification();
+  stopForeground(true);
+  stopSelf();
+}
+
+private void hideNotification() {
+  Log.i(TAG, "Hiding notification after stopped the serivce");
+  NotificationManager notificationManager =
+      (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+  notificationManager.cancel(NOTIFICATION_ID);
+}
+
+private void createChannel() {
+  if (Build.VERSION.SDK_INT >= 26) {
+    createChannelInternalV26();
+  }
+}
+
+@RequiresApi(26)
+private void createChannelInternalV26() {
+  NotificationManager notificationManager =
+      (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+  NotificationChannel channel =
+      new NotificationChannel(
+          NOTIFICAITON_CHANNEL_ID,
+          NOTIFICATION_CHANNEL_NAME,
+          notificationManager.IMPORTANCE_DEFAULT);
+  channel.setDescription("Channel for showing persistent notification");
+  try {
+    notificationManager.createNotificationChannel(channel);
+  } catch (IllegalArgumentException e) {
+
+  }
+}
+
+public void deleteChannel() {
+  if (Build.VERSION.SDK_INT >= 26) {
+    deleteChannelInternalV26();
+  }
+}
+
+@RequiresApi(26)
+private void deleteChannelInternalV26() {
+  NotificationManager notificationManager =
+        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+  notificationManager.deleteNotificationChannel(NOTIFICAITON_CHANNEL_ID);
+}
+
+Notification buildNotification() {
+  NotificationCompat.Builder builder =
+      new NotificationCompat.Builder(context, NOTIFICAITON_CHANNEL_ID)
+          .setShowWhen(false)
+          .setPriority(NotificationCompat.PRIORITY_MIN)
+          .setSmallIcon(android.R.drawable.stat_sys_warning)
+          .setContentTitle("Media playback serivce")
+          .setContentText("Media playback serivce is running");
+
+  if (VERSION.SDK_INT >= 26) {
+    builder.setChannelId(NOTIFICAITON_CHANNEL_ID);
+  }
+  return builder.build();
+}
+
+@UsedByNative
+protected StarboardBridge getStarboardBridge() {
+  return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+}
+
+}
