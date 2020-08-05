@@ -35,6 +35,11 @@ namespace renderer {
 // provided on each call to TestTree().
 class RenderTreePixelTester {
  public:
+  // This returns whether the current platform is related to the platform used
+  // to generate the reference images for pixel tests. Stricter tolerances can
+  // be used for pixel tests on reference platforms.
+  static bool IsReferencePlatform();
+
   bool IsMapToMeshEnabled() {
     return backend::GraphicsContext::IsMapToMeshEnabled(graphics_context_);
   }
