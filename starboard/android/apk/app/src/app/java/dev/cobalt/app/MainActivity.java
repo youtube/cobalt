@@ -15,6 +15,7 @@
 package dev.cobalt.app;
 
 import android.app.Activity;
+import android.app.Service;
 import dev.cobalt.account.UserAuthorizerImpl;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.StarboardBridge;
@@ -31,6 +32,7 @@ public class MainActivity extends CobaltActivity {
   @Override
   protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
     Holder<Activity> activityHolder = new Holder<>();
+    Holder<Service> serviceHolder = new Holder<>();
     Runnable stopRequester =
         new Runnable() {
           @Override
@@ -43,6 +45,7 @@ public class MainActivity extends CobaltActivity {
     return new StarboardBridge(
         getApplicationContext(),
         activityHolder,
+        serviceHolder,
         userAuthorizer,
         args,
         startDeepLink);
