@@ -20,11 +20,13 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/renderer/test/png_utils/png_encode.h"
+#include "starboard/system.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
@@ -72,6 +74,21 @@ RenderTreePixelTester::RenderTreePixelTester(
 }
 
 RenderTreePixelTester::~RenderTreePixelTester() {}
+
+// static
+bool RenderTreePixelTester::IsReferencePlatform() {
+  const char* rasterizer_type =
+      configuration::Configuration::GetInstance()->CobaltRasterizerType();
+  const bool is_opengles_rasterizer =
+      strcmp(rasterizer_type, "hardware") == 0 ||
+      strcmp(rasterizer_type, "direct-gles") == 0;
+
+  char platform_name[32];
+  return SbSystemGetProperty(kSbSystemPropertyPlatformName, platform_name,
+                             sizeof(platform_name)) &&
+         strcmp(platform_name, "X11; Linux x86_64") == 0 &&
+         is_opengles_rasterizer;
+}
 
 ResourceProvider* RenderTreePixelTester::GetResourceProvider() const {
   return rasterizer_->GetResourceProvider();

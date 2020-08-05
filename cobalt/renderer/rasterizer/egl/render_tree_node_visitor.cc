@@ -931,6 +931,11 @@ void RenderTreeNodeVisitor::GetCachedTarget(
     OffscreenTargetManager::TargetInfo* out_target_info,
     math::RectF* out_content_rect) {
   math::RectF node_bounds(node->GetBounds());
+  if (node->GetTypeId() == base::GetTypeId<render_tree::TextNode>()) {
+    // Work around bug with text width calculation being slightly too small for
+    // cursive text.
+    node_bounds.set_width(node_bounds.width() * 1.01f);
+  }
   math::RectF mapped_bounds(draw_state_.transform.MapRect(node_bounds));
   if (mapped_bounds.IsEmpty()) {
     *out_content_cached = true;
