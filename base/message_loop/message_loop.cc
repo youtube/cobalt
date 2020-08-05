@@ -24,6 +24,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
+#include "nb/memory_scope.h"
 
 namespace base {
 
@@ -404,6 +405,7 @@ void MessageLoop::EnsureWorkScheduled() {
 }
 
 void MessageLoop::SetThreadTaskRunnerHandle() {
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK_CALLED_ON_VALID_THREAD(bound_thread_checker_);
   // Clear the previous thread task runner first, because only one can exist at
   // a time.
@@ -529,6 +531,7 @@ bool MessageLoop::DoWork() {
 }
 
 bool MessageLoop::DoDelayedWork(TimeTicks* next_delayed_work_time) {
+  TRACK_MEMORY_SCOPE("MessageLoop");
   if (!task_execution_allowed_ ||
       !pending_task_queue_.delayed_tasks().HasTasks()) {
     *next_delayed_work_time = TimeTicks();
