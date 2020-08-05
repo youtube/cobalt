@@ -33,6 +33,8 @@ base::FilePath GetOrCreateDirectory(SbSystemPathId path_id) {
       return directory;
     }
   }
+  DLOG(ERROR) << "Attempt to open or create this path failed: " +
+                     directory.value();
   return base::FilePath();
 }
 }  // namespace
