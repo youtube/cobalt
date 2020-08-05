@@ -12,6 +12,7 @@
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
+#include "nb/memory_scope.h"
 
 namespace base {
 
@@ -255,6 +256,7 @@ RunLoop::ScopedDisallowRunningForTesting::~ScopedDisallowRunningForTesting() =
 #endif  // DCHECK_IS_ON()
 
 bool RunLoop::BeforeRun() {
+  TRACK_MEMORY_SCOPE("MessageLoop");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if DCHECK_IS_ON()

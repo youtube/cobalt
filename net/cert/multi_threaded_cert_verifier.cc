@@ -21,6 +21,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "nb/memory_scope.h"
 #include "net/base/hash_value.h"
 #include "net/base/net_errors.h"
 #include "net/base/trace_constants.h"
@@ -202,6 +203,7 @@ std::unique_ptr<ResultHelper> DoVerifyOnWorkerThread(
     int flags,
     const scoped_refptr<CRLSet>& crl_set,
     const CertificateList& additional_trust_anchors) {
+  TRACK_MEMORY_SCOPE("Net");
   TRACE_EVENT0(kNetTracingCategory, "DoVerifyOnWorkerThread");
   auto verify_result = std::make_unique<ResultHelper>();
   MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives
