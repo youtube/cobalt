@@ -23,10 +23,9 @@ import config.base
 import starboard.shared.win32.sdk_configuration as win_sdk_configuration
 from starboard.tools.paths import STARBOARD_ROOT
 from starboard.tools.testing import test_filter
-from starboard.tools.toolchain import bash
-from starboard.tools.toolchain import cp
-from starboard.tools.toolchain import touch
+from starboard.tools.toolchain import cmd
 from starboard.tools.toolchain import msvc
+from starboard.tools.toolchain import python
 
 
 def GetWindowsVersion():
@@ -262,9 +261,9 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
             arch=arch,
             gyp_ldflags=gyp_ldflags
         ),
-        cp.Copy(),
-        touch.Stamp(),
-        bash.Shell(quote=False),
+        python.Copy(),
+        python.Stamp(),
+        cmd.Shell(quote=False),
     ]
 
   def GetCompilerSettings(self, spec, generator_flags):
