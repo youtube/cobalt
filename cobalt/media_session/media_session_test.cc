@@ -20,6 +20,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
+#include "cobalt/extension/media_session.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -193,12 +194,12 @@ TEST(MediaSessionTest, NullActionClears) {
   session->SetActionHandler(kMediaSessionActionPlay, holder);
   client.WaitForSessionStateChange();
   EXPECT_EQ(1, client.GetMediaSessionState().available_actions().to_ulong());
-  client.InvokeAction(kMediaSessionActionPlay);
+  client.InvokeAction(kCobaltExtensionMediaSessionActionPlay);
 
   session->SetActionHandler(kMediaSessionActionPlay, null_holder);
   client.WaitForSessionStateChange();
   EXPECT_EQ(0, client.GetMediaSessionState().available_actions().to_ulong());
-  client.InvokeAction(kMediaSessionActionPlay);
+  client.InvokeAction(kCobaltExtensionMediaSessionActionPlay);
 
   EXPECT_GE(client.GetMediaSessionChangeCount(), 3);
 }
@@ -315,7 +316,7 @@ TEST(MediaSessionTest, SeekDetails) {
 
   MockCallbackFunction cf;
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
-  std::unique_ptr<MediaSessionActionDetails> details;
+  CobaltExtensionMediaSessionActionDetails details;
 
   session->SetActionHandler(kMediaSessionActionSeekto, holder);
   session->SetActionHandler(kMediaSessionActionSeekforward, holder);
@@ -323,31 +324,31 @@ TEST(MediaSessionTest, SeekDetails) {
 
   EXPECT_CALL(cf, Run(SeekNoOffset(kMediaSessionActionSeekforward)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(kMediaSessionActionSeekforward);
+  client.InvokeAction(kCobaltExtensionMediaSessionActionSeekforward);
 
   EXPECT_CALL(cf, Run(SeekNoOffset(kMediaSessionActionSeekbackward)))
       .WillOnce(Return(CallbackResult<void>()));
-  client.InvokeAction(kMediaSessionActionSeekbackward);
+  client.InvokeAction(kCobaltExtensionMediaSessionActionSeekbackward);
 
   EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
-  details.reset(new MediaSessionActionDetails());
-  details->set_action(kMediaSessionActionSeekto);
-  details->set_seek_time(1.2);
-  client.InvokeAction(std::move(details));
+  CobaltExtensionMediaSessionActionDetailsInit(
+      &details, kCobaltExtensionMediaSessionActionSeekto);
+  details.seek_time = 1.2;
+  client.InvokeCobaltExtensionAction(details);
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
       .WillOnce(Return(CallbackResult<void>()));
-  details.reset(new MediaSessionActionDetails());
-  details->set_action(kMediaSessionActionSeekforward);
-  details->set_seek_offset(3.4);
-  client.InvokeAction(std::move(details));
+  CobaltExtensionMediaSessionActionDetailsInit(
+      &details, kCobaltExtensionMediaSessionActionSeekforward);
+  details.seek_offset = 3.4;
+  client.InvokeCobaltExtensionAction(details);
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
       .WillOnce(Return(CallbackResult<void>()));
-  details.reset(new MediaSessionActionDetails());
-  details->set_action(kMediaSessionActionSeekbackward);
-  details->set_seek_offset(5.6);
-  client.InvokeAction(std::move(details));
+  CobaltExtensionMediaSessionActionDetailsInit(
+      &details, kCobaltExtensionMediaSessionActionSeekbackward);
+  details.seek_offset = 5.6;
+  client.InvokeCobaltExtensionAction(details);
 
   client.WaitForSessionStateChange();
   EXPECT_GE(client.GetMediaSessionChangeCount(), 0);
