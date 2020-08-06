@@ -64,7 +64,6 @@ void GuessMediaPositionState(MediaSessionState* session_state,
         session_state->available_actions());
   }
 }
-
 }  // namespace
 
 MediaSessionClient::MediaSessionClient(
@@ -171,38 +170,37 @@ MediaSessionClient::ComputeAvailableActions() const {
   return result;
 }
 
-void MediaSessionClient::UpdatePlatformPlaybackState(
-    MediaSessionPlaybackState state) {
+void MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState(
+    CobaltExtensionMediaSessionPlaybackState state) {
   DCHECK(media_session_->task_runner_);
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
-        FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
-                              base::Unretained(this), state));
+        FROM_HERE,
+        base::Bind(
+            &MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState,
+            base::Unretained(this), state));
     return;
   }
 
-  platform_playback_state_ = state;
+  platform_playback_state_ = ConvertPlaybackState(state);
   if (session_state_.actual_playback_state() != ComputeActualPlaybackState()) {
     UpdateMediaSessionState();
   }
 }
 
 void MediaSessionClient::InvokeActionInternal(
-    std::unique_ptr<MediaSessionActionDetails> details) {
-  DCHECK(details->has_action());
+    CobaltExtensionMediaSessionActionDetails* details) {
+  DCHECK(details->action >= 0 &&
+         details->action < kCobaltExtensionMediaSessionActionNumActions);
 
   // Some fields should only be set for applicable actions.
-  DCHECK(!details->has_seek_offset() ||
-         details->action() == kMediaSessionActionSeekforward ||
-         details->action() == kMediaSessionActionSeekbackward);
-  DCHECK(!details->has_seek_time() ||
-         details->action() == kMediaSessionActionSeekto);
-  DCHECK(!details->has_fast_seek() ||
-         details->action() == kMediaSessionActionSeekto);
-
-  // Seek times/offsets are non-negative, even for seeking backwards.
-  DCHECK(!details->has_seek_time() || details->seek_time() >= 0.0);
-  DCHECK(!details->has_seek_offset() || details->seek_offset() >= 0.0);
+  DCHECK(details->seek_offset < 0.0 ||
+         details->action == kCobaltExtensionMediaSessionActionSeekforward ||
+         details->action == kCobaltExtensionMediaSessionActionSeekbackward);
+  DCHECK(details->seek_time < 0.0 ||
+         details->action == kCobaltExtensionMediaSessionActionSeekto);
+  DCHECK(!details->fast_seek ||
+         details->action == kCobaltExtensionMediaSessionActionSeekto);
 
   DCHECK(media_session_->task_runner_);
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
@@ -212,14 +210,16 @@ void MediaSessionClient::InvokeActionInternal(
     return;
   }
 
-  MediaSession::ActionMap::iterator it =
-      media_session_->action_map_.find(details->action());
+  MediaSession::ActionMap::iterator it = media_session_->action_map_.find(
+      ConvertMediaSessionAction(details->action));
 
   if (it == media_session_->action_map_.end()) {
     return;
   }
 
-  it->second->value().Run(*details);
+  std::unique_ptr<MediaSessionActionDetails> script_details =
+      ConvertActionDetails(details);
+  it->second->value().Run(*script_details);
 
   // Queue a session update to reflect the effects of the action.
   if (!media_session_->media_position_state_) {
@@ -306,20 +306,54 @@ void MediaSessionClient::OnMediaSessionStateChanged(
       ext_state.metadata = ext_metadata;
     }
 
+    ext_state.update_platform_playback_state_callback =
+        &UpdatePlatformPlaybackStateCallback;
+    ext_state.invoke_action_callback = &InvokeActionCallback;
+    ext_state.callback_context = this;
+
     extension_->OnMediaSessionStateChanged(ext_state);
   }
 }
 
-CobaltExtensionPlaybackState MediaSessionClient::ConvertPlaybackState(
-    MediaSessionPlaybackState in_state) {
-  switch (in_state) {
+// static
+void MediaSessionClient::UpdatePlatformPlaybackStateCallback(
+    CobaltExtensionMediaSessionPlaybackState state, void* callback_context) {
+  MediaSessionClient* client =
+      static_cast<MediaSessionClient*>(callback_context);
+  client->UpdatePlatformCobaltExtensionPlaybackState(state);
+};
+
+// static
+void MediaSessionClient::InvokeActionCallback(
+    CobaltExtensionMediaSessionActionDetails details, void* callback_context) {
+  MediaSessionClient* client =
+      static_cast<MediaSessionClient*>(callback_context);
+  client->InvokeCobaltExtensionAction(details);
+}
+
+CobaltExtensionMediaSessionPlaybackState
+MediaSessionClient::ConvertPlaybackState(MediaSessionPlaybackState state) {
+  switch (state) {
     case kMediaSessionPlaybackStatePlaying:
-      return CobaltExtensionPlaybackState::kCobaltExtensionPlaying;
+      return kCobaltExtensionMediaSessionPlaying;
     case kMediaSessionPlaybackStatePaused:
-      return CobaltExtensionPlaybackState::kCobaltExtensionPaused;
+      return kCobaltExtensionMediaSessionPaused;
     case kMediaSessionPlaybackStateNone:
     default:
-      return CobaltExtensionPlaybackState::kCobaltExtensionNone;
+      return kCobaltExtensionMediaSessionNone;
+  }
+}
+
+MediaSessionPlaybackState MediaSessionClient::ConvertPlaybackState(
+    CobaltExtensionMediaSessionPlaybackState state) {
+  switch (state) {
+    case kCobaltExtensionMediaSessionPlaying:
+      return kMediaSessionPlaybackStatePlaying;
+    case kCobaltExtensionMediaSessionPaused:
+      return kMediaSessionPlaybackStatePaused;
+    case kCobaltExtensionMediaSessionNone:
+    default:
+      return kMediaSessionPlaybackStateNone;
   }
 }
 
@@ -328,32 +362,73 @@ void MediaSessionClient::ConvertMediaSessionActions(
     bool result[kCobaltExtensionMediaSessionActionNumActions]) {
   for (int i = 0; i < kCobaltExtensionMediaSessionActionNumActions; i++) {
     result[i] = false;
-  }
-  if (actions[kMediaSessionActionPause]) {
-    result[kCobaltExtensionMediaSessionActionPause] = true;
-  }
-  if (actions[kMediaSessionActionPlay]) {
-    result[kCobaltExtensionMediaSessionActionPlay] = true;
-  }
-  if (actions[kMediaSessionActionSeekbackward]) {
-    result[kCobaltExtensionMediaSessionActionSeekbackward] = true;
-  }
-  if (actions[kMediaSessionActionPrevioustrack]) {
-    result[kCobaltExtensionMediaSessionActionPrevioustrack] = true;
-  }
-  if (actions[kMediaSessionActionNexttrack]) {
-    result[kCobaltExtensionMediaSessionActionNexttrack] = true;
-  }
-  if (actions[kMediaSessionActionSeekforward]) {
-    result[kCobaltExtensionMediaSessionActionSeekforward] = true;
-  }
-  if (actions[kMediaSessionActionSeekto]) {
-    result[kCobaltExtensionMediaSessionActionSeekto] = true;
-  }
-  if (actions[kMediaSessionActionStop]) {
-    result[kCobaltExtensionMediaSessionActionStop] = true;
+    MediaSessionAction action = static_cast<MediaSessionAction>(i);
+    if (actions[action]) {
+      result[ConvertMediaSessionAction(action)] = true;
+    }
   }
 }
 
+std::unique_ptr<MediaSessionActionDetails>
+MediaSessionClient::ConvertActionDetails(
+    CobaltExtensionMediaSessionActionDetails* ext_details) {
+  std::unique_ptr<MediaSessionActionDetails> details(
+      new MediaSessionActionDetails());
+  details->set_action(ConvertMediaSessionAction(ext_details->action));
+  if (ext_details->seek_offset >= 0.0) {
+    details->set_seek_offset(ext_details->seek_offset);
+  }
+  if (ext_details->seek_time >= 0.0) {
+    details->set_seek_time(ext_details->seek_time);
+  }
+  details->set_fast_seek(ext_details->fast_seek);
+  return details;
+}
+
+CobaltExtensionMediaSessionAction MediaSessionClient::ConvertMediaSessionAction(
+    MediaSessionAction action) {
+  switch (action) {
+    case kMediaSessionActionPause:
+      return kCobaltExtensionMediaSessionActionPause;
+    case kMediaSessionActionSeekbackward:
+      return kCobaltExtensionMediaSessionActionSeekbackward;
+    case kMediaSessionActionPrevioustrack:
+      return kCobaltExtensionMediaSessionActionPrevioustrack;
+    case kMediaSessionActionNexttrack:
+      return kCobaltExtensionMediaSessionActionNexttrack;
+    case kMediaSessionActionSeekforward:
+      return kCobaltExtensionMediaSessionActionSeekforward;
+    case kMediaSessionActionSeekto:
+      return kCobaltExtensionMediaSessionActionSeekto;
+    case kMediaSessionActionStop:
+      return kCobaltExtensionMediaSessionActionStop;
+    case kMediaSessionActionPlay:
+    default:
+      return kCobaltExtensionMediaSessionActionPlay;
+  }
+}
+
+MediaSessionAction MediaSessionClient::ConvertMediaSessionAction(
+    CobaltExtensionMediaSessionAction action) {
+  switch (action) {
+    case kCobaltExtensionMediaSessionActionPause:
+      return kMediaSessionActionPause;
+    case kCobaltExtensionMediaSessionActionSeekbackward:
+      return kMediaSessionActionSeekbackward;
+    case kCobaltExtensionMediaSessionActionPrevioustrack:
+      return kMediaSessionActionPrevioustrack;
+    case kCobaltExtensionMediaSessionActionNexttrack:
+      return kMediaSessionActionNexttrack;
+    case kCobaltExtensionMediaSessionActionSeekforward:
+      return kMediaSessionActionSeekforward;
+    case kCobaltExtensionMediaSessionActionSeekto:
+      return kMediaSessionActionSeekto;
+    case kCobaltExtensionMediaSessionActionStop:
+      return kMediaSessionActionStop;
+    case kCobaltExtensionMediaSessionActionPlay:
+    default:
+      return kMediaSessionActionPlay;
+  }
+}
 }  // namespace media_session
 }  // namespace cobalt

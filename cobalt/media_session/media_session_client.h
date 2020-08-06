@@ -58,23 +58,50 @@ class MediaSessionClient {
   // the "guessed playback state"
   // https://wicg.github.io/mediasession/#guessed-playback-state
   // Can be invoked from any thread.
-  void UpdatePlatformPlaybackState(MediaSessionPlaybackState state);
+  void UpdatePlatformCobaltExtensionPlaybackState(
+      CobaltExtensionMediaSessionPlaybackState state);
+
+  // Deprecated - use the alternative
+  // UpdatePlatformCobaltExtensionPlaybackState.
+  // TODO: Delete once platform migrations to CobaltExtensionMediaSessionApi are
+  // complete.
+  void UpdatePlatformPlaybackState(MediaSessionPlaybackState state) {
+    UpdatePlatformCobaltExtensionPlaybackState(ConvertPlaybackState(state));
+  }
 
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
   // Can be invoked from any thread.
-  void InvokeAction(MediaSessionAction action) {
-    std::unique_ptr<MediaSessionActionDetails> details(
-        new MediaSessionActionDetails());
-    details->set_action(action);
-    InvokeActionInternal(std::move(details));
+  void InvokeAction(CobaltExtensionMediaSessionAction action) {
+    CobaltExtensionMediaSessionActionDetails details = {};
+    CobaltExtensionMediaSessionActionDetailsInit(&details, action);
+    InvokeActionInternal(std::move(&details));
   }
 
   // Invokes a given media session action that takes additional details.
-  void InvokeAction(std::unique_ptr<MediaSessionActionDetails> details) {
-    InvokeActionInternal(std::move(details));
+  void InvokeCobaltExtensionAction(
+      CobaltExtensionMediaSessionActionDetails details) {
+    InvokeActionInternal(&details);
   }
 
+  // Deprecated - use the alternative InvokeCobaltExtensionAction.
+  // TODO: Delete once platform migrations to CobaltExtensionMediaSessionApi are
+  // complete.
+  void InvokeAction(std::unique_ptr<MediaSessionActionDetails> details) {
+    CobaltExtensionMediaSessionActionDetails* ext_details = {};
+    CobaltExtensionMediaSessionActionDetailsInit(
+        ext_details, ConvertMediaSessionAction(details->action()));
+    if (details->has_seek_offset()) {
+      ext_details->seek_offset = details->seek_offset().value();
+    }
+    if (details->has_seek_time()) {
+      ext_details->seek_time = details->seek_time().value();
+    }
+    if (details->has_fast_seek()) {
+      ext_details->fast_seek = details->fast_seek().value();
+    }
+    InvokeActionInternal(std::move(ext_details));
+  }
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
   virtual void OnMediaSessionStateChanged(
@@ -91,13 +118,29 @@ class MediaSessionClient {
   void UpdateMediaSessionState();
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
   MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
-  CobaltExtensionPlaybackState ConvertPlaybackState(
-      MediaSessionPlaybackState in_state);
+  void InvokeActionInternal(CobaltExtensionMediaSessionActionDetails* details);
+
   void ConvertMediaSessionActions(
       const MediaSessionState::AvailableActionsSet& actions,
       bool result[kCobaltExtensionMediaSessionActionNumActions]);
+  std::unique_ptr<MediaSessionActionDetails> ConvertActionDetails(
+      CobaltExtensionMediaSessionActionDetails* ext_details);
 
-  void InvokeActionInternal(std::unique_ptr<MediaSessionActionDetails> details);
+  // Static callback wrappers for MediaSessionAPI extension.
+  static void UpdatePlatformPlaybackStateCallback(
+      CobaltExtensionMediaSessionPlaybackState state, void* callback_context);
+  static void InvokeActionCallback(
+      CobaltExtensionMediaSessionActionDetails details, void* callback_context);
+
+  // MediaSessionAPI extension type conversion helpers.
+  CobaltExtensionMediaSessionPlaybackState ConvertPlaybackState(
+      MediaSessionPlaybackState state);
+  MediaSessionPlaybackState ConvertPlaybackState(
+      CobaltExtensionMediaSessionPlaybackState state);
+  CobaltExtensionMediaSessionAction ConvertMediaSessionAction(
+      MediaSessionAction action);
+  MediaSessionAction ConvertMediaSessionAction(
+      CobaltExtensionMediaSessionAction action);
 
   DISALLOW_COPY_AND_ASSIGN(MediaSessionClient);
 };
