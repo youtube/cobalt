@@ -1,0 +1,17 @@
+name: "pulseaudio_includes"
+description:
+  "PulseAudio is a sound system for POSIX OSes, i.e. a proxy for sound "
+  "applications. pulseaudio_includes contains the header files necessary "
+  "for the library to be dynamically linked into crosstool builds."
+third_party {
+  url {
+    type: GIT
+    value: "git://anongit.freedesktop.org/pulseaudio/pulseaudio"
+  }
+  version: "ee910cf6daa5120ab534eb2e6c573d94b9b182e7"
+  last_upgrade_date {
+    year: 2018
+    month: 7
+    day: 16
+  }
+}
