@@ -35,6 +35,7 @@
       'dependencies': [
         ':installation_store_proto',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.
@@ -46,6 +47,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'installation_manager_test.cc',
+        'pending_restart_test.cc',
         '<(DEPTH)/starboard/common/test_main.cc',
       ],
       'dependencies': [
