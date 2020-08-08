@@ -70,7 +70,7 @@ void RequestConcealOrStop() {
     SbLogFlush();
     SbSystemRequestStop(0);
   } else {
-    SbSystemRequestConceal();
+    SbSytemRequestConceal();
   }
 }
 #endif
