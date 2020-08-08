@@ -468,16 +468,6 @@ stored under the content location for the installation:
 <SLOT_#>/content/icu
 ```
 
-### Handling Pending Updates
-Pending updates will be picked up on the next application start, which means
-that on platforms that support suspending the platform should check
-`loader_app::IsPendingRestart` and call `SbSystemRequestStop` instead of
- suspending if there is a pending restart.
-
-Please see
-[`suspend_signals.cc`](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/shared/signal/suspend_signals.cc)
-for an example.
-
 ### Multi-App Support
 Evergreen can support multiple apps that share a Cobalt binary. This is a very
 common way to save space and keep all your Cobalt apps using the latest version

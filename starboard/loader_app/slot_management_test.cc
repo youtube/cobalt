@@ -26,7 +26,7 @@
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_API_VERSION >= 12
 
 namespace starboard {
 namespace loader_app {
@@ -270,4 +270,4 @@ TEST_F(SlotManagementTest, AlternativeContent) {
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard
-#endif  // #if SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // #if SB_API_VERSION >= 12

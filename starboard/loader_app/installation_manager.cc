@@ -26,7 +26,6 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
-#include "starboard/loader_app/pending_restart.h"
 #include "starboard/once.h"
 #include "starboard/string.h"
 
@@ -580,10 +579,6 @@ bool InstallationManager::SaveInstallationStore() {
                   << installation_store_.ByteSize();
     return false;
   }
-
-  loader_app::SetPendingRestart(
-      installation_store_.roll_forward_to_installation() != -1);
-
   installation_store_.SerializeToArray(buf, installation_store_.ByteSize());
 
 #if SB_API_VERSION >= 12
