@@ -34,6 +34,7 @@ NavItem::NavItem(NativeItemType type,
       nav_item_(GetInterface().create_item(type, &s_callbacks_, this)) {}
 
 NavItem::~NavItem() {
+  GetInterface().set_item_enabled(nav_item_, false);
   GetInterface().destroy_item(nav_item_);
 }
 
