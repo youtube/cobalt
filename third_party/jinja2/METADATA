@@ -1,0 +1,17 @@
+name: "jinja2"
+description:
+  "jinja is a templating language for Python. It is a dependency for Cobalt's "
+  "IDL parser."
+third_party {
+  # Note: This library was added to Cobalt from Chromium, but the information
+  # below reflects that of the original source code.
+  url {
+    type: ARCHIVE
+    value: "https://pypi.python.org/packages/source/J/Jinja2/Jinja2-2.7.1.tar.gz"
+  }
+  last_upgrade_date {
+    year: 2013
+    month: 8
+    day: 7
+  }
+}
