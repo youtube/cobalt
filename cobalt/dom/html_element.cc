@@ -1250,6 +1250,12 @@ void HTMLElement::OnRemovedFromDocument() {
   // by OnRemovedFromDocument() being called on them from
   // Node::OnRemovedFromDocument().
   ClearRuleMatchingStateInternal(false /*invalidate_descendants*/);
+
+  // Release the associated navigation item as the object is no longer visible.
+  if (ui_nav_item_) {
+    ui_nav_item_->SetEnabled(false);
+    ui_nav_item_ = nullptr;
+  }
 }
 
 void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
@@ -2088,6 +2094,7 @@ void HTMLElement::UpdateUiNavigationType() {
       // that callbacks won't be invoked for it. The object will be destroyed
       // when all references to it are released.
       ui_nav_item_->SetEnabled(false);
+      ui_nav_item_ = nullptr;
     }
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
