@@ -1,0 +1,20 @@
+name: "libjpeg-turbo"
+description:
+  "libjpeg-turbo is a SIMD-accelerated libjpeg-compatible JPEG codec library. "
+  "It was added to Cobalt to eventually enable screencasting for DevTools."
+third_party {
+  url {
+    type: GIT
+    value: "https://github.com/libjpeg-turbo/libjpeg-turbo"
+  }
+  # Note: We initially added a version of libjpeg-turbo that was in between
+  # versions 2.0.0 and 1.5.91. The version and last upgrade date below should
+  # reflect the point in between those two versions when the library was first
+  # brought into Cobalt.
+  version: "1a85fc497db85e1bf8b026d51cf6e5dec391d224"
+  last_upgrade_date {
+    year: 2018
+    month: 5
+    day: 21
+  }
+}

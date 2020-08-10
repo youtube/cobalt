@@ -1,0 +1,16 @@
+name: "promise-polyfill"
+description:
+  "Promise Polyfill is a lightweight ES6 polyfill. It is used for mozjs builds "
+  "of Cobalt that lack native promise support."
+third_party {
+  url {
+    type: GIT
+    value: "https://taylorhakes@github.com/taylorhakes/promise-polyfill.git"
+  }
+  version: "b4ab1de0d73c14753e6ff21f35f9b432f5496fee"
+  last_upgrade_date {
+    year: 2016
+    month: 11
+    day: 24
+  }
+}
