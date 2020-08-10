@@ -1,0 +1,15 @@
+name: "mozjs-45"
+description:
+  "SpiderMonkey is Mozilla's JavaScript engine. SpiderMonkey was recently "
+  "deprecated in Cobalt 21 but is still used out in production."
+third_party {
+  url {
+    type: ARCHIVE
+    value: "https://ftp.mozilla.org/pub/spidermonkey/releases/45.0.2/mozjs-45.0.2.tar.bz2"
+  }
+  last_upgrade_date {
+    year: 2016
+    month: 4
+    day: 14
+  }
+}

@@ -1,0 +1,17 @@
+name: "ply"
+description:
+  "PLY is an implementation of lex and yacc parsing tools for Python. It is "
+  "a dependency for Cobalt's IDL parser."
+third_party {
+  # Note: This library was added to Cobalt from Chromium, but the information
+  # below reflects that of the original source code.
+  url {
+    type: ARCHIVE
+    value: "http://www.dabeaz.com/ply/ply-3.4.tar.gz"
+  }
+  last_upgrade_date {
+    year: 2011
+    month: 2
+    day: 17
+  }
+}
