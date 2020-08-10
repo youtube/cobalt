@@ -144,8 +144,9 @@ void UpdaterModule::Initialize() {
   update_client_->AddObserver(updater_observer_.get());
 
   // Schedule the first update check.
-  updater_thread_.task_runner()->PostTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
+  updater_thread_.task_runner()->PostDelayedTask(
+      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
+      base::TimeDelta::FromMinutes(1));
 }
 
 void UpdaterModule::Finalize() {
