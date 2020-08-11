@@ -131,7 +131,6 @@ void MinRequiredFramesTester::TesterThreadFunc() {
 
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
-      SB_NOTREACHED();
     }
 
     delete audio_sink_;
