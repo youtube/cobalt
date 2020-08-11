@@ -124,7 +124,6 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
       if (wait_timeout) {
         SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
-        SB_NOTREACHED();
       }
     }
   }
