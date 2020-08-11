@@ -60,14 +60,39 @@ services:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
 
-  android:
+  # Define common build container for Android
+  build-android:
     <<: *build-common-definitions
     build:
       context: ./docker/linux/android
       dockerfile: ./Dockerfile
     image: cobalt-build-android
+
+  android-x86:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM
+      - IS_DOCKER=1
+      - PLATFORM=android-x86
+      - CONFIG=${CONFIG:-debug}
+
+  android-arm:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-evergreen ]
+    environment:
+      - IS_DOCKER=1
+      - PLATFORM=android-arm
+      - CONFIG=${CONFIG:-debug}
+
+  android-arm64:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-evergreen ]
+    environment:
+      - IS_DOCKER=1
+      - PLATFORM=android-arm64
       - CONFIG=${CONFIG:-debug}
 
   raspi:
