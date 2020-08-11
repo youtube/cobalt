@@ -219,6 +219,42 @@ requirements to do so:
     `PROT_EXEC`) for loading in-memory and performing relocations for Cobalt
     Evergreen binaries
 
+## Building and Running Tests
+
+The `elf_loader_sandbox` binary can be used to run tests in Evergreen mode. This
+is much more lightweight than the `loader_app`, and does not have any knowledge
+about installations or downloading updates.
+
+The `elf_loader_sandbox` is run using two command line switches:
+`--evergreen_library` and `--evergreen_content`. These switches are the path to
+the shared library to be run and the path to that shared library's content.
+These paths should be *relative to the content of the elf_loader_sandbox*.
+
+For example, if we wanted to run the NPLB set of tests and had the following
+directory tree,
+
+```
+.../elf_loader_sandbox
+.../content/app/nplb/lib/libnplb.so
+.../content/app/nplb/content
+```
+
+we would use the following command to run NPLB:
+
+```
+.../elf_loader_sandbox --evergreen_library=app/nplb/lib/libcobalt.so
+                       --evergreen_content=app/nplb/content
+```
+
+Building tests is identical to how they are already built except that a
+different platform configuration must be used. The platform configuration should
+be an Evergreen platform configuration, and have a Starboard ABI file that
+matches the file used by the platform configuration used to build the
+`elf_loader_sandbox`.
+
+For example, building these targets for the Raspberry Pi 2 would use the
+`raspi-2` and `evergreen-arm-hardfp` platform configurations.
+
 ## Verifying Platform Requirements
 
 In order to verify the platform requirements you should run the
