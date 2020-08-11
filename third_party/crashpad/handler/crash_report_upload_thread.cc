@@ -241,6 +241,9 @@ void CrashReportUploadThread::ProcessPendingReport(
                                   Metrics::CrashSkippedReason::kUploadFailed);
       break;
   }
+#if defined(STARBOARD)
+  database_->DeleteReport(report.uuid);
+#endif
 }
 
 CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
