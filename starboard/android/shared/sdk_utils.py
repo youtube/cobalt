@@ -216,8 +216,8 @@ def _GetInstalledSdkPackages():
   return installed_package_versions
 
 
-def _IsOnBuildbot():
-  return 'BUILDBOT_BUILDERNAME' in os.environ
+def _IsUnattended():
+  return 'BUILDBOT_BUILDERNAME' in os.environ or 'IS_DOCKER' in os.environ
 
 
 def _DownloadInstallOrUpdateSdk():
@@ -246,7 +246,7 @@ def _DownloadInstallOrUpdateSdk():
 
   # Run the "sdkmanager" command with the appropriate packages
 
-  if _IsOnBuildbot():
+  if _IsUnattended():
     stdin = subprocess.PIPE
   else:
     stdin = sys.stdin
@@ -254,7 +254,7 @@ def _DownloadInstallOrUpdateSdk():
   p = subprocess.Popen(
       [_SDKMANAGER_TOOL, '--verbose'] + _ANDROID_SDK_PACKAGES, stdin=stdin)
 
-  if _IsOnBuildbot():
+  if _IsUnattended():
     try:
       # Accept "Terms and Conditions" (android-sdk-license)
       time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)
