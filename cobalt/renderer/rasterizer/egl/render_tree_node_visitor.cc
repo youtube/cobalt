@@ -407,12 +407,15 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         }
         draw_state_.opacity = 1.0f;
 
+        math::PointF mapped_origin = draw_state_.transform * math::PointF(0, 0);
         math::PointF mapped_x = draw_state_.transform * math::PointF(1, 0);
         math::PointF mapped_y = draw_state_.transform * math::PointF(0, 1);
-        float scale_x = std::sqrt(mapped_x.x() * mapped_x.x() +
-                                  mapped_x.y() * mapped_x.y());
-        float scale_y = std::sqrt(mapped_y.x() * mapped_y.x() +
-                                  mapped_y.y() * mapped_y.y());
+        math::Vector2dF mapped_vecx(mapped_x.x() - mapped_origin.x(),
+                                    mapped_x.y() - mapped_origin.y());
+        math::Vector2dF mapped_vecy(mapped_y.x() - mapped_origin.x(),
+                                    mapped_y.y() - mapped_origin.y());
+        float scale_x = mapped_vecx.Length();
+        float scale_y = mapped_vecy.Length();
         draw_state_.transform = math::ScaleMatrix(std::max(1.0f, scale_x),
                                                   std::max(1.0f, scale_y));
 
@@ -1106,7 +1109,9 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   offscreen_target_manager_->AllocateUncachedTarget(target_size, &target_info);
 
   if (!target_info.framebuffer) {
-    LOG(ERROR) << "Could not allocate framebuffer for offscreen rasterization.";
+    LOG(ERROR) << "Could not allocate framebuffer ("
+               << target_size.width() << "x" << target_size.height()
+               << ") for offscreen rasterization.";
     out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
     return;
   }
