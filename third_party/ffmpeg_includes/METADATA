@@ -1,0 +1,27 @@
+name: "ffmpeg_includes"
+description:
+  "ffmpeg is a software project consisting of various libraries and programs "
+  "for recording, converting, and streaming audio and video. libav, not to be "
+  "confused with a software system of the same name that underlies ffmpeg "
+  "itself, is a project that was forked from ffmpeg in 2011, and also provides "
+  "cross-platform tools and libraries to convert and manipulate a range of "
+  "multimedia formats and protocols. "
+  "Not all systems build Cobalt binaries with the same version of libavcodec, "
+  "which causes issues when building a binary on one system but running on "
+  "another. ffmpeg_includes contains the header files of the different "
+  "versions required, so that there are no unresolved dependencies."
+third_party {
+  # url for ffmpeg
+  url {
+    type: GIT
+    value: "https://git.ffmpeg.org/ffmpeg.git"
+  }
+  # url for libav
+  url {
+    type: GIT
+    value: "git://git.libav.org/libav"
+  }
+  # Note: "version" and "last_upgrade_date" for the version contained in each
+  # sub-directory is unknown. The version specified in the sub-directory name
+  # corresponds to the version of libavcodec, not the version of ffmpeg/libav.
+}

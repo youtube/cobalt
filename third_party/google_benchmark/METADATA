@@ -1,0 +1,21 @@
+name: "google_benchmark"
+description:
+  "Benchmark is a Google library that benchmarks code snippets, similar to "
+  "unit tests. Cobalt currently enables Benchmark on Linux and Android to "
+  "benchmark memory and thread usage."
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/google_benchmark_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/google/benchmark"
+  }
+  version: "367119482ff4abc3d73e4a109b410090fc281337"
+  last_upgrade_date {
+    year: 2019
+    month: 12
+    day: 2
+  }
+}
