@@ -19,6 +19,8 @@
 #include <poll.h>
 #include <sys/socket.h>
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/numerics/safe_conversions.h"
@@ -36,6 +38,11 @@
 
 #if defined(CRASHPAD_USE_BORINGSSL)
 #include <openssl/ssl.h>
+#endif
+
+#if defined(STARBOARD)
+#include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 #endif
 
 namespace crashpad {
@@ -123,7 +130,27 @@ class SSLStream : public Stream {
         return false;
       }
     } else {
-#if defined(OS_LINUX)
+#if defined(STARBOARD)
+      std::vector<char> buffer(kSbFileMaxPath);
+      bool result = SbSystemGetPath(
+          kSbSystemPathContentDirectory, buffer.data(), buffer.size());
+      if (!result) {
+        LOG(ERROR) << "SSL_CTX_load_verify_locations";
+        return false;
+      }
+
+      std::string cert_location(buffer.data());
+      cert_location.append(std::string(kSbFileSepString) + "app" +
+                           kSbFileSepString + "cobalt" + kSbFileSepString +
+                           "content" + kSbFileSepString + "ssl" +
+                           kSbFileSepString + "certs");
+
+      if (SSL_CTX_load_verify_locations(
+              ctx_.get(), nullptr, cert_location.c_str()) <= 0) {
+        LOG(ERROR) << "SSL_CTX_load_verify_locations";
+        return false;
+      }
+#elif defined(OS_LINUX)
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), nullptr, "/etc/ssl/certs") <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
