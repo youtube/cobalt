@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#include "starboard/android/shared/cobalt/android_media_session_client.h"
+#include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -28,9 +28,8 @@
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
-using starboard::android::shared::cobalt::kPlaying;
-using starboard::android::shared::cobalt::
-    UpdateActiveSessionPlatformPlaybackState;
+using starboard::android::shared::kPlaying;
+using starboard::android::shared::UpdateActiveSessionPlatformPlaybackState;
 using starboard::android::shared::VideoDecoder;
 
 SbPlayer SbPlayerCreate(SbWindow window,

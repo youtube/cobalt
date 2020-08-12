@@ -303,7 +303,7 @@ void MediaSessionClient::OnMediaSessionStateChanged(
           ext_metadata.artwork[i] = ext_image;
         }
       }
-      ext_state.metadata = ext_metadata;
+      ext_state.metadata = &ext_metadata;
     }
 
     ext_state.update_platform_playback_state_callback =

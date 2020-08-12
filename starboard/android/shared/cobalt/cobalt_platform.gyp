@@ -20,10 +20,6 @@
       'sources': [
         'android_user_authorizer.h',
         'android_user_authorizer.cc',
-        'android_media_session_client.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session'
       ],
     },
   ],
