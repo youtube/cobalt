@@ -1,0 +1,20 @@
+name: "blink"
+description:
+  "Blink is a browser engine used by Chromium. Cobalt uses Blink for its IDL "
+  "parser and bindings generation."
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/blink"
+  }
+  # When Blink was initially added to Cobalt, its version was not specified.
+  # The information below was determined by manually tracking down the point
+  # where the initial state of Cobalt's blink Source/bindings and Tools/Scripts
+  # directories had no diffs from those of Chromium's.
+  version: "dcb6aa9bef3b496069e234ed4dc52d1e8c636776"
+  last_upgrade_date {
+    year: 2014
+    month: 11
+    day: 4
+  }
+}
