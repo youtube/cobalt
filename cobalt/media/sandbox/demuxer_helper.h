@@ -40,8 +40,7 @@ class DemuxerHelper {
       const DemuxerReadyCB& demuxer_ready_cb);
   // This ctor will create an Demuxer internally that caches the media data in
   // memory before calling the callback.  This ensures that there is no I/O
-  // incurred during playback.  Note that the amount can cache is subject to
-  // the pool size of ShellBufferFactory.
+  // incurred during playback.
   DemuxerHelper(
       const scoped_refptr<base::SingleThreadTaskRunner>& media_message_loop,
       loader::FetcherFactory* fetcher_factory, const GURL& video_url,
