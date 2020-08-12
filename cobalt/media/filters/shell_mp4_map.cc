@@ -55,7 +55,7 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
     if (cache_first_entry_number_ + cache_entry_count_ > entry_count_) {
       cache_entry_count_ = entry_count_ - cache_first_entry_number_;
     }
-    // drop old data to allow ShellBufferFactory to defrag
+    // drop old data
     cache_.clear();
     DCHECK_GE(cache_entry_count_, 0);
     int bytes_to_read = cache_entry_count_ * entry_size_;

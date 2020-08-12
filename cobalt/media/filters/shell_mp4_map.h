@@ -34,9 +34,9 @@ static const int kEntrySize_stss = 4;
 static const int kEntrySize_stsz = 4;
 
 // Utility class to parse the various subatoms of the stbl mp4 atom and use
-// them to provide byte offsets, sizes, and timestamps of a mp4 atom while
-// reusing memory issued by ShellBufferFactory. The caching design benefits
-// from, but does not require, sequential access in sample numbers.
+// them to provide byte offsets, sizes, and timestamps of a mp4 atom. The
+// caching design benefits from, but does not require, sequential access
+// in sample numbers.
 class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
  public:
   explicit ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader);
