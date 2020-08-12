@@ -86,7 +86,7 @@ typedef struct CobaltExtensionMediaSessionState {
   SbTimeMonotonic duration;
   CobaltExtensionMediaSessionPlaybackState actual_playback_state;
   bool available_actions[kCobaltExtensionMediaSessionActionNumActions];
-  CobaltExtensionMediaMetadata metadata;
+  CobaltExtensionMediaMetadata* metadata;
   double actual_playback_rate;
   SbTimeMonotonic current_playback_position;
 

@@ -14,14 +14,13 @@
 
 #include "starboard/player.h"
 
-#include "starboard/android/shared/cobalt/android_media_session_client.h"
+#include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-using starboard::android::shared::cobalt::kPaused;
-using starboard::android::shared::cobalt::kPlaying;
-using starboard::android::shared::cobalt::
-    UpdateActiveSessionPlatformPlaybackState;
+using starboard::android::shared::kPaused;
+using starboard::android::shared::kPlaying;
+using starboard::android::shared::UpdateActiveSessionPlatformPlaybackState;
 
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {

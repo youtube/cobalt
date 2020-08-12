@@ -15,17 +15,21 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
 
+#include "cobalt/extension/media_session.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
-namespace cobalt {
 
 // Duplicated in CobaltMediaSession.java
 enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
 
-}  // namespace cobalt
+void OnMediaSessionStateChanged(
+    const CobaltExtensionMediaSessionState session_state);
+
+const void* GetMediaSessionApi();
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
