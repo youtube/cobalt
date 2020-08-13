@@ -61,15 +61,15 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 }
 
 base::FilePath GetDatabasePath() {
-  std::vector<char> temp_directory_path(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathTempDirectory,
-                       temp_directory_path.data(),
+  std::vector<char> cache_directory_path(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory,
+                       cache_directory_path.data(),
                        kSbFileMaxPath)) {
     LOG(ERROR) << "Couldn't retrieve path to database directory";
     return base::FilePath("");
   }
 
-  std::string crashpad_directory_path(temp_directory_path.data());
+  std::string crashpad_directory_path(cache_directory_path.data());
   crashpad_directory_path.push_back(kSbFileSepChar);
   crashpad_directory_path.append("crashpad_database");
   if (!SbDirectoryCreate(crashpad_directory_path.c_str())) {
