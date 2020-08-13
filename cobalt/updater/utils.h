@@ -16,8 +16,12 @@ class FilePath;
 namespace cobalt {
 namespace updater {
 
-// Returns a directory where updater files or its data is stored.
-bool GetProductDirectory(base::FilePath* path);
+// Create a directory where updater files or its data is stored.
+bool CreateProductDirectory(base::FilePath* path);
+
+// Return the path to the product directory where updater files or its data is
+// stored.
+bool GetProductDirectoryPath(base::FilePath* path);
 
 // Returns the Evergreen version of the current installation.
 const std::string GetCurrentEvergreenVersion();

@@ -21,7 +21,7 @@ namespace updater {
 
 std::unique_ptr<PrefService> CreatePrefService() {
   base::FilePath product_data_dir;
-  if (!GetProductDirectory(&product_data_dir)) return nullptr;
+  if (!CreateProductDirectory(&product_data_dir)) return nullptr;
 
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(

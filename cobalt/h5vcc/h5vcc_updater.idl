@@ -20,4 +20,6 @@ interface H5vccUpdater {
   void setUpdaterChannel(DOMString channel);
 
   DOMString getUpdateStatus();
+
+  void resetInstallations();
 };

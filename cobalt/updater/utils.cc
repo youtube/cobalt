@@ -23,7 +23,19 @@
 namespace cobalt {
 namespace updater {
 
-bool GetProductDirectory(base::FilePath* path) {
+bool CreateProductDirectory(base::FilePath* path) {
+  if (!GetProductDirectoryPath(path)) {
+    LOG(ERROR) << "Can't get product directory path";
+    return false;
+  }
+  if (!base::CreateDirectory(*path)) {
+    LOG(ERROR) << "Can't create product directory.";
+    return false;
+  }
+  return true;
+}
+
+bool GetProductDirectoryPath(base::FilePath* path) {
 #if defined(OS_WIN)
   constexpr int kPathKey = base::DIR_LOCAL_APP_DATA;
 #elif defined(OS_MACOSX)
@@ -42,12 +54,12 @@ bool GetProductDirectory(base::FilePath* path) {
 #if SB_API_VERSION >= 12
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        kSbFileMaxPath)) {
-    SB_LOG(ERROR) << "GetProductDirectory: Failed to get "
+    SB_LOG(ERROR) << "GetProductDirectoryPath: Failed to get "
                      "kSbSystemPathStorageDirectory";
     return false;
   }
 #else
-  SB_NOTREACHED() << "GetProductDirectory: kSbSystemPathStorageDirectory "
+  SB_NOTREACHED() << "GetProductDirectoryPath: kSbSystemPathStorageDirectory "
                      "is not available before "
                      "starboard version 12";
   return false;
@@ -56,10 +68,6 @@ bool GetProductDirectory(base::FilePath* path) {
   base::FilePath app_data_dir(storage_dir.data());
   const auto product_data_dir =
       app_data_dir.AppendASCII(PRODUCT_FULLNAME_STRING);
-  if (!base::CreateDirectory(product_data_dir)) {
-    LOG(ERROR) << "Can't create product directory.";
-    return false;
-  }
 
   *path = product_data_dir;
   return true;

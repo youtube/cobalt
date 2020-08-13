@@ -46,8 +46,8 @@ int Uninstall() {
   updater::UnregisterUpdateAppsTask();
 
   base::FilePath product_dir;
-  if (!GetProductDirectory(&product_dir)) {
-    LOG(ERROR) << "GetProductDirectory failed.";
+  if (!CreateProductDirectory(&product_dir)) {
+    LOG(ERROR) << "CreateProductDirectory failed.";
     return -1;
   }
 

@@ -46,5 +46,11 @@ std::string H5vccUpdater::GetUpdateStatus() const {
   return updater_module_->GetUpdaterStatus();
 }
 
+void H5vccUpdater::ResetInstallations() {
+  if (updater_module_) {
+    updater_module_->ResetInstallations();
+  }
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
