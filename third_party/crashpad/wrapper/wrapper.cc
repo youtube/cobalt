@@ -25,6 +25,7 @@
 #include "client/settings.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#include "starboard/file.h"
 #include "starboard/system.h"
 
 namespace third_party {
@@ -179,6 +180,12 @@ void InstallCrashpadHandler() {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
+  if (!SbFileExists(handler_path.value().c_str())) {
+    LOG(WARNING) << "crashpad_handler not at expected location of "
+                 << handler_path.value();
+    return;
+  }
+
   const base::FilePath database_directory_path = GetDatabasePath();
   const base::FilePath default_metrics_dir;
   const std::string product_name = GetProductName();
