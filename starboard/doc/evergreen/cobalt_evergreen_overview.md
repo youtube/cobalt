@@ -413,6 +413,7 @@ Image required for all slot configurations:
 ```
 .
 ├── content <--(kSbSystemPathContentDirectory)
+│   └── fonts <--(kSbSystemPathFontDirectory, to be explained below)
 │   └── app
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
@@ -467,8 +468,9 @@ reference.
 ### Fonts
 The system font directory `kSbSystemPathFontDirectory` should be configured to
 point to the `standard` (23MB) or the `limited` (3.1MB) cobalt font packages. An
-easy way to do that is to use the `loader_app/content` directory and setting the
-`cobalt_font_package` to `standard` or `limited` in your port.
+easy way to do that is to use the `kSbSystemPathContentDirectory` to contain
+the system font directory and setting the `cobalt_font_package` to `standard` or
+`limited` in your port.
 
 Cobalt Evergreen (built by Google), will by default use the `minimal` font
 package which is around 16KB to minimize storage requirements. A separate
@@ -478,12 +480,12 @@ On Raspberry Pi this is:
 
 `minimal` set of fonts under:
 ```
-<kSbSystemPathContentDirectory>/fonts/
+<kSbSystemPathContentDirectory>/app/cobalt/content/fonts
 ```
 
 `standard` or `limited` set of fonts under:
 ```
-loader_app/content/fonts
+<kSbSystemPathContentDirectory>/fonts
 ```
 
 ### ICU Tables
