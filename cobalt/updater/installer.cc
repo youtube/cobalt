@@ -27,7 +27,7 @@ const char kNullVersion[] = "0.0.0.0";
 // identified by the |crx_id|.
 base::FilePath GetAppInstallDir(const std::string& crx_id) {
   base::FilePath app_install_dir;
-  if (GetProductDirectory(&app_install_dir)) {
+  if (CreateProductDirectory(&app_install_dir)) {
     app_install_dir = app_install_dir.AppendASCII(kAppsDir);
     app_install_dir = app_install_dir.AppendASCII(crx_id);
   }
