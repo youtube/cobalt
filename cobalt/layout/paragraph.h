@@ -111,7 +111,8 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // substring coming before |break_position|.
   //
   // Returns false if no usable break position was found.
-  bool FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+  bool FindBreakPosition(BaseDirection direction, bool should_attempt_to_wrap,
+                         const scoped_refptr<dom::FontList>& used_font,
                          int32 start_position, int32 end_position,
                          LayoutUnit available_width,
                          bool should_collapse_trailing_white_space,
@@ -136,6 +137,8 @@ class Paragraph : public base::RefCounted<Paragraph> {
 
   int GetBidiLevel(int32 position) const;
   bool IsRTL(int32 position) const;
+  bool AreInlineAndScriptDirectionsTheSame(BaseDirection direction,
+                                           int32 position) const;
   bool IsCollapsibleWhiteSpace(int32 position) const;
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
@@ -174,7 +177,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // that first overflowing segment will be included. The parameter
   // |break_width| indicates the width of the portion of the substring coming
   // before |break_position|.
-  void FindIteratorBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+  void FindIteratorBreakPosition(BaseDirection direction,
+                                 bool should_attempt_to_wrap,
+                                 const scoped_refptr<dom::FontList>& used_font,
                                  icu::BreakIterator* const break_iterator,
                                  int32 start_position, int32 end_position,
                                  LayoutUnit available_width,
@@ -197,6 +202,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // of false does not guarantee that the segment was not included, but simply
   // that no additional segments can be included.
   bool TryIncludeSegmentWithinAvailableWidth(
+      BaseDirection direction, bool should_attempt_to_wrap,
       const scoped_refptr<dom::FontList>& used_font, int32 start_position,
       int32 end_position, LayoutUnit available_width,
       bool should_collapse_trailing_white_space, bool* allow_overflow,
