@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import os
 import SimpleHTTPServer
 import socket
@@ -52,6 +53,9 @@ def MakeRequestHandlerClass(base_path):
       potential_path = potential_path.replace(self._current_working_directory,
                                               self._base_path)
       return potential_path
+
+    def log_message(self, format, *args):
+      logging.info(format % (args))
 
   return TestDataHTTPRequestHandler
 

@@ -1,0 +1,13 @@
+name: "modp_b64"
+description:
+  "modp base64 decoder is part of the stringencoders library and is a high "
+  "performance base64 encoder/decoder. Cobalt uses base64 decoding to enable "
+  "client apps to perform device authentication."
+third_party {
+  # Note: This library was initially added to Cobalt from Chromium. "version"
+  # and "last_upgrade_date" are unknown.
+  url {
+    type: GIT
+    value: "https://github.com/client9/stringencoders"
+  }
+}

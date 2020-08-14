@@ -37,6 +37,7 @@
 #include "cobalt/updater/utils.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/utils.h"
+#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 
 namespace {
@@ -144,8 +145,9 @@ void UpdaterModule::Initialize() {
   update_client_->AddObserver(updater_observer_.get());
 
   // Schedule the first update check.
-  updater_thread_.task_runner()->PostTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
+  updater_thread_.task_runner()->PostDelayedTask(
+      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
+      base::TimeDelta::FromMinutes(1));
 }
 
 void UpdaterModule::Finalize() {
@@ -256,6 +258,30 @@ void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
 void UpdaterModule::RunUpdateCheck() {
   updater_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
+}
+
+void UpdaterModule::ResetInstallations() {
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager) {
+    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    return;
+  }
+  if (installation_manager->Reset() == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to reset installations.";
+    return;
+  }
+  base::FilePath product_data_dir;
+  if (!GetProductDirectoryPath(&product_data_dir)) {
+    SB_LOG(ERROR) << "Updater failed to get product directory path.";
+    return;
+  }
+  if (!starboard::SbFileDeleteRecursive(product_data_dir.value().c_str(),
+                                        true)) {
+    SB_LOG(ERROR) << "Updater failed to clean the product directory.";
+    return;
+  }
 }
 
 }  // namespace updater

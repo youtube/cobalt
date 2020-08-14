@@ -1163,6 +1163,20 @@ TEST_F(PixelTest, SimpleTextInRed40PtFont) {
                                        ColorRGBA(1.0, 0, 0, 1.0)));
 }
 
+TEST_F(PixelTest, RotatedTextInScaledRoundedCorners) {
+  // If the source has enough fidelity, then magnified versions of it
+  // should be crisp instead of blurry; blurriness indicates that any
+  // intermediate render targets used did not have enough resolution.
+  scoped_refptr<Node> rotated_text = new MatrixTransformNode(
+      CreateTextNodeWithinSurface(GetResourceProvider(), "Cobalt", FontStyle(),
+                                  5, ColorRGBA(0, 0, 0, 1.0)),
+      RotateMatrix(static_cast<float>(-M_PI) / 4.0f));
+  TestTree(new MatrixTransformNode(
+      new FilterNode(ViewportFilter(RectF(0, 0, 10, 10), RoundedCorners(3, 5)),
+                     rotated_text),
+      ScaleMatrix(50.0f, 25.0f)));
+}
+
 namespace {
 scoped_refptr<Node> CreateTextNodeWithBackgroundColor(
     ResourceProvider* resource_provider, const std::string& text,

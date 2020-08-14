@@ -1,0 +1,16 @@
+name: "libpng"
+description:
+  "libpng is the official PNG reference library. Cobalt uses libpng for "
+  "encoding and decoding PNG images."
+third_party {
+  url {
+    type: GIT
+    value: "git://git.code.sf.net/p/libpng/code"
+  }
+  version: "3341f519f40bc1309367e3c543303a0a518f5c5d"
+  last_upgrade_date {
+    year: 2011
+    month: 7
+    day: 7
+  }
+}

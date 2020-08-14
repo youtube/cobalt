@@ -204,8 +204,12 @@ void Layout::TearDownTestCase() {
 }
 
 TEST_P(Layout, Test) {
-  RunTest(GetParam(), graphics_context_,
-          renderer::RenderTreePixelTester::Options());
+  renderer::RenderTreePixelTester::Options pixel_tester_options;
+  if (renderer::RenderTreePixelTester::IsReferencePlatform()) {
+    // Use stricter tolerances on reference platforms.
+    pixel_tester_options.gaussian_blur_sigma = 3.0f;
+  }
+  RunTest(GetParam(), graphics_context_, pixel_tester_options);
 }
 
 // This test does an exact pixel compare with the expected output.

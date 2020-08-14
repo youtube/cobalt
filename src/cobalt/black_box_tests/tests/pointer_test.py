@@ -25,6 +25,7 @@ from __future__ import print_function
 
 import _env  # pylint: disable=unused-import,g-bad-import-order
 
+import logging
 import traceback
 
 from cobalt.black_box_tests import black_box_tests
@@ -51,9 +52,9 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
         url = server.GetURL(file_name='testdata/pointer_test.html')
 
         with self.CreateCobaltRunner(url=url) as runner:
-          print('JS Test Setup WaitForJSTestsSetup')
+          logging.info('JS Test Setup WaitForJSTestsSetup')
           runner.WaitForJSTestsSetup()
-          print('JS Test Setup')
+          logging.info('JS Test Setup')
           self.assertTrue(runner.webdriver)
 
           top_one = find_element_by_id(runner, 'top_one')
@@ -100,4 +101,4 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
       # Consider an exception being thrown as a test failure.
       self.assertTrue(False)
     finally:
-      print('Cleaning up.')
+      logging.info('Cleaning up.')

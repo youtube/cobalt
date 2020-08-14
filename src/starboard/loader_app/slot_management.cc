@@ -24,6 +24,7 @@
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/string.h"
+#include "third_party/crashpad/wrapper/wrapper.h"
 
 namespace starboard {
 namespace loader_app {
@@ -230,6 +231,16 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         // The system image at index 0 failed.
         return NULL;
       }
+    }
+
+    EvergreenInfo evergreen_info;
+    GetEvergreenInfo(&evergreen_info);
+    if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
+            evergreen_info)) {
+      SB_LOG(ERROR)
+          << "Could not send Cobalt library information into Crashapd.";
+    } else {
+      SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
     }
 
     SB_DLOG(INFO) << "Successfully loaded Cobalt!\n";

@@ -77,6 +77,8 @@ class UpdaterModule {
     return updater_configurator_->GetUpdaterStatus();
   }
 
+  void ResetInstallations();
+
  private:
   base::Thread updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;

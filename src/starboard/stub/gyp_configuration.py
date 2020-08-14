@@ -52,9 +52,8 @@ class StubConfiguration(config.base.PlatformConfigBase):
 
   def GetEnvironmentVariables(self):
     if not hasattr(self, 'host_compiler_environment'):
-      goma_supports_compiler = True
       self.host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang_specification.GetClangSpecification(), goma_supports_compiler)
+          clang_specification.GetClangSpecification(), 'ccache')
 
     env_variables = self.host_compiler_environment
     env_variables.update({

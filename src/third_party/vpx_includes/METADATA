@@ -1,0 +1,16 @@
+name: "vpx_includes"
+description:
+  "libvpx is a VP9 codec library. libvpx_includes contains the header files "
+  "necessary for the library to be dynamically linked into crosstool builds."
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/webm/libvpx"
+  }
+  version: "0c0a05046db1c0b59a7fcc29785a190fdbbe39c2"
+  last_upgrade_date {
+    year: 2016
+    month: 12
+    day: 29
+  }
+}

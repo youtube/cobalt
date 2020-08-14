@@ -14,10 +14,12 @@
 
 #include "third_party/crashpad/wrapper/wrapper.h"
 
+#include <map>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "client/crash_report_database.h"
 #include "client/crashpad_client.h"
 #include "client/settings.h"
@@ -59,15 +61,15 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 }
 
 base::FilePath GetDatabasePath() {
-  std::vector<char> temp_directory_path(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathTempDirectory,
-                       temp_directory_path.data(),
+  std::vector<char> cache_directory_path(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory,
+                       cache_directory_path.data(),
                        kSbFileMaxPath)) {
     LOG(ERROR) << "Couldn't retrieve path to database directory";
     return base::FilePath("");
   }
 
-  std::string crashpad_directory_path(temp_directory_path.data());
+  std::string crashpad_directory_path(cache_directory_path.data());
   crashpad_directory_path.push_back(kSbFileSepChar);
   crashpad_directory_path.append("crashpad_database");
   if (!SbDirectoryCreate(crashpad_directory_path.c_str())) {
@@ -93,6 +95,84 @@ std::string GetProductName() {
 #endif
 }
 
+std::map<std::string, std::string> GetPlatformInfo() {
+  std::map<std::string, std::string> platform_info;
+
+  platform_info.insert({"starboard_version",
+                        base::StringPrintf("Starboard/%d", SB_API_VERSION)});
+
+  const size_t kSystemPropertyMaxLength = 1024;
+  std::vector<char> value(kSystemPropertyMaxLength);
+  bool result;
+
+#if SB_API_VERSION >= 12
+  result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+#elif SB_API_VERSION == 11
+  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+#else
+  result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+#endif
+  if (result) {
+    platform_info.insert({"system_integrator_name", value.data()});
+  }
+
+#if defined(STARBOARD_BUILD_TYPE_DEBUG)
+  platform_info.insert({"build_configuration", "debug"});
+#elif defined(STARBOARD_BUILD_TYPE_DEVEL)
+  platform_info.insert({"build_configuration", "devel"});
+#elif defined(STARBOARD_BUILD_TYPE_QA)
+  platform_info.insert({"build_configuration", "qa"});
+#elif defined(STARBOARD_BUILD_TYPE_GOLD)
+  platform_info.insert({"build_configuration", "gold"});
+#endif
+
+  result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"aux_field", value.data()});
+  }
+
+  result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"chipset_model_number", value.data()});
+  }
+
+  result = SbSystemGetProperty(
+      kSbSystemPropertyModelYear, value.data(), kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"model_year", value.data()});
+  }
+
+  result = SbSystemGetProperty(
+      kSbSystemPropertyFirmwareVersion, value.data(), kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"firmware_version", value.data()});
+  }
+
+  result = SbSystemGetProperty(
+      kSbSystemPropertyBrandName, value.data(), kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"brand", value.data()});
+  }
+
+  result = SbSystemGetProperty(
+      kSbSystemPropertyModelName, value.data(), kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({"model", value.data()});
+  }
+
+  return platform_info;
+}
+
 }  // namespace
 
 void InstallCrashpadHandler() {
@@ -102,9 +182,12 @@ void InstallCrashpadHandler() {
   const base::FilePath database_directory_path = GetDatabasePath();
   const base::FilePath default_metrics_dir;
   const std::string product_name = GetProductName();
-  const std::map<std::string, std::string> default_annotations = {
+  std::map<std::string, std::string> default_annotations = {
       {"ver", kCrashpadVersion}, {"prod", product_name}};
   const std::vector<std::string> default_arguments = {};
+
+  const std::map<std::string, std::string> platform_info = GetPlatformInfo();
+  default_annotations.insert(platform_info.begin(), platform_info.end());
 
   InitializeCrashpadDatabase(database_directory_path);
   client->SetUnhandledSignals({});

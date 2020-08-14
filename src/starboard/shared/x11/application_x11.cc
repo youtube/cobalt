@@ -893,7 +893,7 @@ void ApplicationX11::Teardown() {
 }
 
 bool ApplicationX11::MayHaveSystemEvents() {
-  return display_;
+  return display_ && !windows_.empty();
 }
 
 shared::starboard::Application::Event*

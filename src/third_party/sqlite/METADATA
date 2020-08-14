@@ -1,0 +1,21 @@
+name: "sqlite"
+description:
+  "SQLite is a library that implements a embeddable SQL database engine. "
+  "Cobalt uses SQLite for local storage."
+third_party {
+  url {
+    type: HOMEPAGE
+    value: "http://sqlite.org/"
+  }
+  # In the case that the archive url changes, manually navigate to the homepage
+  # and to the downloads page.
+  url {
+    type: ARCHIVE
+    value: "https://www.sqlite.org/src/tarball/ed1da510/SQLite-ed1da510.tar.gz"
+  }
+  last_upgrade_date {
+    year: 2011
+    month: 5
+    day: 19
+  }
+}

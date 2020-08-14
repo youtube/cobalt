@@ -1,0 +1,99 @@
+// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_EXTENSION_MEDIA_SESSION_H_
+#define COBALT_EXTENSION_MEDIA_SESSION_H_
+
+
+#include "starboard/configuration.h"
+#include "starboard/time.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define kCobaltExtensionMediaSessionName "dev.cobalt.extension.MediaSession"
+
+enum CobaltExtensionPlaybackState {
+  kCobaltExtensionPlaying = 0,
+  kCobaltExtensionPaused = 1,
+  kCobaltExtensionNone = 2
+};
+
+enum CobaltExtensionMediaSessionAction {
+  kCobaltExtensionMediaSessionActionPlay,
+  kCobaltExtensionMediaSessionActionPause,
+  kCobaltExtensionMediaSessionActionSeekbackward,
+  kCobaltExtensionMediaSessionActionSeekforward,
+  kCobaltExtensionMediaSessionActionPrevioustrack,
+  kCobaltExtensionMediaSessionActionNexttrack,
+  kCobaltExtensionMediaSessionActionSkipad,
+  kCobaltExtensionMediaSessionActionStop,
+  kCobaltExtensionMediaSessionActionSeekto,
+
+  // Not part of spec, but used in Cobalt implementation.
+  kCobaltExtensionMediaSessionActionNumActions,
+};
+
+typedef struct CobaltExtensionMediaImage {
+  // These fields are null-terminated strings copied over from IDL.
+  const char* size;
+  const char* src;
+  const char* type;
+} CobaltExtensionMediaImage;
+
+typedef struct CobaltExtensionMediaMetadata {
+  // These fields are null-terminated strings copied over from IDL.
+  const char* album;
+  const char* artist;
+  const char* title;
+
+  CobaltExtensionMediaImage* artwork;
+  size_t artwork_count;
+} CobaltExtensionMediaMetadata;
+
+
+// This struct and all its members should only be used for piping data to each
+// platform's implementation of OnMediaSessionStateChanged and they are only
+// valid within the scope of that function. Any data inside must be copied if it
+// will be referenced later.
+typedef struct CobaltExtensionMediaSessionState {
+  SbTimeMonotonic duration;
+  enum CobaltExtensionPlaybackState actual_playback_state;
+  bool available_actions[kCobaltExtensionMediaSessionActionNumActions];
+  CobaltExtensionMediaMetadata metadata;
+  double actual_playback_rate;
+  SbTimeMonotonic current_playback_position;
+} CobaltExtensionMediaSessionState;
+
+typedef struct CobaltExtensionMediaSessionApi {
+  // Name should be the string kCobaltExtensionMediaSessionName.
+  // This helps to validate that the extension API is correct.
+  const char* name;
+
+  // This specifies the version of the API that is implemented.
+  uint32_t version;
+
+  // MediaSession API Wrapper.
+
+  void (*OnMediaSessionStateChanged)(
+      CobaltExtensionMediaSessionState session_state);
+
+} CobaltExtensionMediaSessionApi;
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // COBALT_EXTENSION_MEDIA_SESSION_H_

@@ -13,12 +13,16 @@
 // limitations under the License.
 
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/script/sequence.h"
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
 
+#include "base/logging.h"
 #include "starboard/time.h"
+
+using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
 
 namespace cobalt {
 namespace media_session {
@@ -62,6 +66,26 @@ void GuessMediaPositionState(MediaSessionState* session_state,
 }
 
 }  // namespace
+
+MediaSessionClient::MediaSessionClient(
+    scoped_refptr<MediaSession> media_session)
+    : media_session_(media_session),
+      platform_playback_state_(kMediaSessionPlaybackStateNone) {
+#if SB_API_VERSION < 11
+  extension_ = nullptr;
+#else
+  extension_ = static_cast<const CobaltExtensionMediaSessionApi*>(
+      SbSystemGetExtension(kCobaltExtensionMediaSessionName));
+  if (extension_) {
+    if (SbStringCompareAll(extension_->name,
+                           kCobaltExtensionMediaSessionName) != 0 ||
+        extension_->version < 1) {
+      LOG(WARNING) << "Wrong MediaSession extension supplied";
+      extension_ = nullptr;
+    }
+  }
+#endif
+}
 
 MediaSessionClient::~MediaSessionClient() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -240,6 +264,95 @@ void MediaSessionClient::UpdateMediaSessionState() {
   }
 
   OnMediaSessionStateChanged(session_state_);
+}
+
+void MediaSessionClient::OnMediaSessionStateChanged(
+    const MediaSessionState& session_state) {
+  if (extension_ && extension_->version >= 1) {
+    CobaltExtensionMediaSessionState ext_state;
+    CobaltExtensionMediaMetadata ext_metadata = {0};
+    size_t artwork_size = 0;
+    if (session_state.has_metadata() &&
+        session_state.metadata().value().has_artwork()) {
+      artwork_size = session_state.metadata().value().artwork().size();
+    }
+    ext_metadata.artwork_count = artwork_size;
+
+    ext_state.duration = session_state.duration();
+    ext_state.actual_playback_rate = session_state.actual_playback_rate();
+    ext_state.current_playback_position =
+        session_state.current_playback_position();
+    ext_state.actual_playback_state =
+        ConvertPlaybackState(session_state.actual_playback_state());
+    ConvertMediaSessionActions(session_state.available_actions(),
+                               ext_state.available_actions);
+
+    if (session_state.has_metadata()) {
+      const MediaMetadataInit& metadata = session_state.metadata().value();
+      ext_metadata.album = metadata.album().c_str();
+      ext_metadata.artist = metadata.artist().c_str();
+      ext_metadata.title = metadata.title().c_str();
+      if (artwork_size > 0) {
+        const MediaImageSequence& artwork(metadata.artwork());
+        for (MediaImageSequence::size_type i = 0; i < artwork_size; i++) {
+          const MediaImage& media_image(artwork.at(i));
+          CobaltExtensionMediaImage ext_image;
+          ext_image.src = media_image.src().c_str();
+          ext_image.size = media_image.sizes().c_str();
+          ext_image.type = media_image.type().c_str();
+          ext_metadata.artwork[i] = ext_image;
+        }
+      }
+      ext_state.metadata = ext_metadata;
+    }
+
+    extension_->OnMediaSessionStateChanged(ext_state);
+  }
+}
+
+CobaltExtensionPlaybackState MediaSessionClient::ConvertPlaybackState(
+    MediaSessionPlaybackState in_state) {
+  switch (in_state) {
+    case kMediaSessionPlaybackStatePlaying:
+      return CobaltExtensionPlaybackState::kCobaltExtensionPlaying;
+    case kMediaSessionPlaybackStatePaused:
+      return CobaltExtensionPlaybackState::kCobaltExtensionPaused;
+    case kMediaSessionPlaybackStateNone:
+    default:
+      return CobaltExtensionPlaybackState::kCobaltExtensionNone;
+  }
+}
+
+void MediaSessionClient::ConvertMediaSessionActions(
+    const MediaSessionState::AvailableActionsSet& actions,
+    bool result[kCobaltExtensionMediaSessionActionNumActions]) {
+  for (int i = 0; i < kCobaltExtensionMediaSessionActionNumActions; i++) {
+    result[i] = false;
+  }
+  if (actions[kMediaSessionActionPause]) {
+    result[kCobaltExtensionMediaSessionActionPause] = true;
+  }
+  if (actions[kMediaSessionActionPlay]) {
+    result[kCobaltExtensionMediaSessionActionPlay] = true;
+  }
+  if (actions[kMediaSessionActionSeekbackward]) {
+    result[kCobaltExtensionMediaSessionActionSeekbackward] = true;
+  }
+  if (actions[kMediaSessionActionPrevioustrack]) {
+    result[kCobaltExtensionMediaSessionActionPrevioustrack] = true;
+  }
+  if (actions[kMediaSessionActionNexttrack]) {
+    result[kCobaltExtensionMediaSessionActionNexttrack] = true;
+  }
+  if (actions[kMediaSessionActionSeekforward]) {
+    result[kCobaltExtensionMediaSessionActionSeekforward] = true;
+  }
+  if (actions[kMediaSessionActionSeekto]) {
+    result[kCobaltExtensionMediaSessionActionSeekto] = true;
+  }
+  if (actions[kMediaSessionActionStop]) {
+    result[kCobaltExtensionMediaSessionActionStop] = true;
+  }
 }
 
 }  // namespace media_session

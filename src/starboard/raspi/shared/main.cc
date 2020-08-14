@@ -19,10 +19,17 @@
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 
+#include "third_party/crashpad/wrapper/wrapper.h"
+
 int main(int argc, char** argv) {
   tzset();
+
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  third_party::crashpad::wrapper::InstallCrashpadHandler();
+#endif
   starboard::raspi::shared::ApplicationDispmanx application;
   int result = application.Run(argc, argv);
   starboard::shared::signal::UninstallSuspendSignalHandlers();

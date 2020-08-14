@@ -18,5 +18,5 @@ from starboard.evergreen.x86 import gyp_configuration as parent_configuration
 
 def CreatePlatformConfig():
   return parent_configuration.EvergreenX86Configuration(
-      platform_name='evergreen-x86-sbversion-12',
+      'evergreen-x86-sbversion-12',
       sabi_json_path='starboard/sabi/x86/sabi-v12.json')
