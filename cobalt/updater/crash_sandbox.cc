@@ -18,5 +18,6 @@
 #include "starboard/event.h"
 
 void SbEventHandle(const SbEvent* event) {
-  SB_CHECK(false);
+  volatile int* a = (int*)(NULL);
+  *a = 1;
 }
