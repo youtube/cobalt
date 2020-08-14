@@ -24,7 +24,6 @@ from starboard.optional import get_optional_tests
 from starboard.sabi import sabi
 from starboard.tools import ccache
 from starboard.tools import environment
-from starboard.tools import goma
 from starboard.tools import paths
 from starboard.tools import platform
 from starboard.tools.config import Config
@@ -72,12 +71,8 @@ class PlatformConfiguration(object):
     self._application_configuration = None
     self._application_configuration_search_path = [self._directory]
 
-    # Specifies the build accelerator to be used. Default is ccache. Goma can
-    # be used but will be deprecated.
-    if 'FORCE_GOMA' in os.environ and os.environ['FORCE_GOMA'] == 1:
-      build_accelerator = goma.Goma()
-    else:
-      build_accelerator = ccache.Ccache()
+    # Specifies the build accelerator to be used. Default is ccache.
+    build_accelerator = ccache.Ccache()
     if build_accelerator.Use():
       self.build_accelerator = build_accelerator.GetName()
       logging.info('Using %sbuild accelerator.', self.build_accelerator)

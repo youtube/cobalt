@@ -39,9 +39,3 @@ cobalt_use_media_source_2016 = true
 
 # Use ASAN by default when building with Clang.
 use_asan_by_default = true
-
-declare_args() {
-  # Set to true to enable distributed compilation using Goma. By default we
-  # use Goma for stub and linux.
-  use_goma = true
-}
