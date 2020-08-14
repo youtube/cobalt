@@ -18,9 +18,3 @@ gl_type = "none"
 # Use media source extension implementation that is conformed to the
 # Candidate Recommendation of July 5th 2016.
 cobalt_use_media_source_2016 = true
-
-declare_args() {
-  # Set to true to enable distributed compilation using Goma. By default we
-  # use Goma for stub and linux.
-  use_goma = true
-}
