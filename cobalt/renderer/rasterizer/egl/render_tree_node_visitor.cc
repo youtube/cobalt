@@ -44,6 +44,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 
 namespace cobalt {
 namespace renderer {
@@ -109,6 +110,17 @@ math::Matrix3F GetTexcoordTransform(
       target.region.width() * scale_x, 0, target.region.x() * scale_x, 0,
       target.region.height() * scale_y, 1.0f + target.region.y() * scale_y, 0,
       0, 1);
+}
+
+math::SizeF GetTransformScale(const math::Matrix3F& transform) {
+  math::PointF mapped_origin = transform * math::PointF(0, 0);
+  math::PointF mapped_x = transform * math::PointF(1, 0);
+  math::PointF mapped_y = transform * math::PointF(0, 1);
+  math::Vector2dF mapped_vecx(mapped_x.x() - mapped_origin.x(),
+                              mapped_x.y() - mapped_origin.y());
+  math::Vector2dF mapped_vecy(mapped_y.x() - mapped_origin.x(),
+                              mapped_y.y() - mapped_origin.y());
+  return math::SizeF(mapped_vecx.Length(), mapped_vecy.Length());
 }
 
 bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
@@ -407,17 +419,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         }
         draw_state_.opacity = 1.0f;
 
-        math::PointF mapped_origin = draw_state_.transform * math::PointF(0, 0);
-        math::PointF mapped_x = draw_state_.transform * math::PointF(1, 0);
-        math::PointF mapped_y = draw_state_.transform * math::PointF(0, 1);
-        math::Vector2dF mapped_vecx(mapped_x.x() - mapped_origin.x(),
-                                    mapped_x.y() - mapped_origin.y());
-        math::Vector2dF mapped_vecy(mapped_y.x() - mapped_origin.x(),
-                                    mapped_y.y() - mapped_origin.y());
-        float scale_x = mapped_vecx.Length();
-        float scale_y = mapped_vecy.Length();
-        draw_state_.transform = math::ScaleMatrix(std::max(1.0f, scale_x),
-                                                  std::max(1.0f, scale_y));
+        math::SizeF scale = GetTransformScale(draw_state_.transform);
+        draw_state_.transform = math::ScaleMatrix(
+            std::max(1.0f, scale.width()), std::max(1.0f, scale.height()));
 
         // Don't clip the source since it is in its own local space.
         bool limit_to_screen_size = false;
@@ -672,12 +676,63 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::LottieNode* lottie_node) {
-  if (!IsVisible(lottie_node->GetBounds())) {
+  const render_tree::LottieNode::Builder& data = lottie_node->data();
+  math::RectF content_rect = data.destination_rect;
+  if (!IsVisible(content_rect)) {
     return;
   }
 
-  // Use Skottie to render Lottie animations.
-  FallbackRasterize(lottie_node);
+  skia::SkottieAnimation* animation =
+      base::polymorphic_downcast<skia::SkottieAnimation*>(data.animation.get());
+  if (animation->GetSize().GetArea() == 0) {
+    return;
+  }
+  animation->SetAnimationTime(data.animation_time);
+
+  // Get an offscreen target to cache the animation. Make the target big enough
+  // to avoid scaling artifacts.
+  math::SizeF scale = GetTransformScale(draw_state_.transform);
+  math::SizeF mapped_size = content_rect.size();
+  // Use a uniform scale to avoid impacting aspect ratio calculations.
+  mapped_size.Scale(std::max(scale.width(), scale.height()));
+
+  OffscreenTargetManager::TargetInfo target_info;
+  if (!offscreen_target_manager_->GetCachedTarget(
+      animation, mapped_size, &target_info)) {
+    // No pre-existing target was found. Allocate a new target.
+    animation->ResetRenderCache();
+    offscreen_target_manager_->AllocateCachedTarget(
+        animation, mapped_size, &target_info);
+  }
+  if (target_info.framebuffer == nullptr) {
+    // Unable to allocate the render target for the animation cache.
+    return;
+  }
+
+  // Add a draw call to update the cache.
+  std::unique_ptr<DrawObject> update_cache(new DrawCallback(
+      base::Bind(&skia::SkottieAnimation::UpdateRenderCache,
+                 base::Unretained(animation),
+                 base::Unretained(target_info.skia_canvas),
+                 target_info.region.size())));
+  draw_object_manager_->AddBatchedExternalDraw(
+      std::move(update_cache), lottie_node->GetTypeId(),
+      target_info.framebuffer, target_info.region);
+
+  // Add a draw call to render the cached animation to the current target.
+  backend::TextureEGL* texture = target_info.framebuffer->GetColorTexture();
+  math::Matrix3F texcoord_transform = GetTexcoordTransform(target_info);
+  if (IsOpaque(draw_state_.opacity)) {
+    std::unique_ptr<DrawObject> draw(
+        new DrawRectTexture(graphics_state_, draw_state_, content_rect, texture,
+                            texcoord_transform));
+    AddDraw(std::move(draw), content_rect, DrawObjectManager::kBlendSrcAlpha);
+  } else {
+    std::unique_ptr<DrawObject> draw(new DrawRectColorTexture(
+        graphics_state_, draw_state_, content_rect, kOpaqueWhite, texture,
+        texcoord_transform, false /* clamp_texcoords */));
+    AddDraw(std::move(draw), content_rect, DrawObjectManager::kBlendSrcAlpha);
+  }
 }
 
 void RenderTreeNodeVisitor::Visit(
