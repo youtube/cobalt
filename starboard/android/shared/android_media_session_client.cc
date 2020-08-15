@@ -145,9 +145,9 @@ SbMutex mutex;
 // Used to route Java callbacks.
 // In practice, only one MediaSessionClient will become active at a time.
 // Protected by "mutex"
-CobaltExtensionUpdatePlatformPlaybackStateCallback
+CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
     update_platform_playback_state_callback;
-CobaltExtensionInvokeActionCallback invoke_action_callback;
+CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback;
 void* callback_context;
 
 void OnceInit() {
