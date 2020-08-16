@@ -1,0 +1,16 @@
+name: "aom_includes"
+description:
+  "libaom is an AV1 codec library. aom_includes contains the header files "
+  "necessary for the library to be dynamically linked into crosstool builds."
+third_party {
+  url {
+    type: GIT
+    value: "https://aomedia.googlesource.com/aom"
+  }
+  version: "d14c5bb4f336ef1842046089849dee4a301fbbf0"
+  last_upgrade_date {
+    year: 2018
+    month: 6
+    day: 25
+  }
+}
