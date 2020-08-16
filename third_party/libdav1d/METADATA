@@ -1,0 +1,20 @@
+name: "libdav1d"
+description:
+  "Subtree at third_party/libdav1d."
+  "dav1d is an AV1 cross-platform decoder focused on speed and correctness."
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/libdav1d_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://code.videolan.org/videolan/dav1d"
+  }
+  version: "39667c751d427e447cbe8be783cfecd296659e24"
+  last_upgrade_date {
+    year: 2019
+    month: 12
+    day: 2
+  }
+}
