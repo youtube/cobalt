@@ -72,6 +72,11 @@ void SkottieAnimation::SetAnimationTimeInternal(
     return;
   }
 
+  // Do not update the animation time if it has already reached the last frame.
+  if (is_complete_) {
+    return;
+  }
+
   base::TimeDelta current_animation_time = last_updated_animation_time_;
   base::TimeDelta time_elapsed =
       animate_function_time - last_updated_animate_function_time_;
