@@ -51,6 +51,7 @@ class ApplicationAndroid
       kNativeWindowDestroyed,
       kWindowFocusGained,
       kWindowFocusLost,
+      kDeepLink,
     } CommandType;
 
     CommandType type;
