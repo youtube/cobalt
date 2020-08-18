@@ -41,6 +41,10 @@
 #include "starboard/shared/x11/window_internal.h"
 #include "starboard/time.h"
 
+namespace {
+const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
+}
+
 namespace starboard {
 namespace shared {
 namespace x11 {
@@ -715,6 +719,7 @@ SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
     // evdev input will be sent to the first created window only.
     dev_input_.reset(DevInput::Create(window, ConnectionNumber(display_)));
   }
+  touchscreen_pointer_ = GetCommandLine()->HasSwitch(kTouchscreenPointerSwitch);
   return window;
 }
 
@@ -1242,7 +1247,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key = XButtonEventToSbKey(x_button_event);
       data->type =
           is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
-      data->device_type = kSbInputDeviceTypeMouse;
+      data->device_type = touchscreen_pointer_ ? kSbInputDeviceTypeTouchScreen
+                                               : kSbInputDeviceTypeMouse;
       if (is_wheel_event) {
         data->pressure = NAN;
         data->size = {NAN, NAN};
@@ -1268,11 +1274,17 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->size = {NAN, NAN};
       data->tilt = {NAN, NAN};
       data->type = kSbInputEventTypeMove;
-      data->device_type = kSbInputDeviceTypeMouse;
+      data->device_type = touchscreen_pointer_ ? kSbInputDeviceTypeTouchScreen
+                                               : kSbInputDeviceTypeMouse;
       data->device_id = kMouseDeviceId;
       data->key_modifiers = XEventStateToSbKeyModifiers(x_motion_event->state);
       data->position.x = x_motion_event->x;
       data->position.y = x_motion_event->y;
+      if (touchscreen_pointer_ && !data->key_modifiers) {
+        // For touch screens, only report motion events when a button is
+        // pressed.
+        return NULL;
+      }
       return new Event(kSbEventTypeInput, data.release(),
                        &DeleteDestructor<SbInputData>);
     }

@@ -150,6 +150,9 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   // The /dev/input input handler. Only set when there is an open window.
   scoped_ptr<::starboard::shared::dev_input::DevInput> dev_input_;
+
+  // Indicates whether pointer input is from a touchscreen.
+  bool touchscreen_pointer_;
 };
 
 }  // namespace x11
