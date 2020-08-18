@@ -152,9 +152,8 @@ TryGetSupportedCapabilities(
     // 3.13. If the user agent and [CDM] implementation definitely support
     //       playback of encrypted media data for the combination of container,
     //       media types [...]:
-    const bool kIsProgressive = false;
-    if (can_play_type_handler->CanPlayType(
-            content_type.c_str(), key_system.c_str(), kIsProgressive) ==
+    if (can_play_type_handler->CanPlayAdaptive(content_type.c_str(),
+                                               key_system.c_str()) ==
         kSbMediaSupportTypeProbably) {
       LOG(INFO) << "Navigator::RequestMediaKeySystemAccess(" << content_type
                 << ", " << key_system << ") -> supported";
