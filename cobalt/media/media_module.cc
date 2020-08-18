@@ -48,37 +48,27 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
               << "\" from console/command line.";
   }
 
-  SbMediaSupportType CanPlayType(const std::string& mime_type,
-                                 const std::string& key_system,
-                                 bool is_progressive) const override {
-    if (is_progressive) {
-      // |mime_type| is something like:
-      //   video/mp4
-      //   video/webm
-      //   video/mp4; codecs="avc1.4d401e"
-      //   video/webm; codecs="vp9"
-      // We do a rough pre-filter to ensure that only video/mp4 is supported as
-      // progressive.
-      if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
-          SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
-        return kSbMediaSupportTypeNotSupported;
-      }
+  SbMediaSupportType CanPlayProgressive(
+      const std::string& mime_type) const override {
+    // |mime_type| is something like:
+    //   video/mp4
+    //   video/webm
+    //   video/mp4; codecs="avc1.4d401e"
+    //   video/webm; codecs="vp9"
+    // We do a rough pre-filter to ensure that only video/mp4 is supported as
+    // progressive.
+    if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
+        SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
+      return kSbMediaSupportTypeNotSupported;
     }
-    if (!disabled_media_codecs_.empty()) {
-      auto mime_codecs = ExtractCodecs(mime_type);
-      for (auto& disabled_codec : disabled_media_codecs_) {
-        for (auto& mime_codec : mime_codecs) {
-          if (mime_codec.find(disabled_codec) != std::string::npos) {
-            LOG(INFO) << "Codec (" << mime_codec
-                      << ") is disabled via console/command line.";
-            return kSbMediaSupportTypeNotSupported;
-          }
-        }
-      }
-    }
-    SbMediaSupportType type =
-        SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
-    return type;
+
+    return CanPlayType(mime_type, "");
+  }
+
+  SbMediaSupportType CanPlayAdaptive(
+      const std::string& mime_type,
+      const std::string& key_system) const override {
+    return CanPlayType(mime_type, key_system);
   }
 
  private:
@@ -105,6 +95,25 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       }
     }
     return codecs;
+  }
+
+  SbMediaSupportType CanPlayType(const std::string& mime_type,
+                                 const std::string& key_system) const {
+    if (!disabled_media_codecs_.empty()) {
+      auto mime_codecs = ExtractCodecs(mime_type);
+      for (auto& disabled_codec : disabled_media_codecs_) {
+        for (auto& mime_codec : mime_codecs) {
+          if (mime_codec.find(disabled_codec) != std::string::npos) {
+            LOG(INFO) << "Codec (" << mime_codec
+                      << ") is disabled via console/command line.";
+            return kSbMediaSupportTypeNotSupported;
+          }
+        }
+      }
+    }
+    SbMediaSupportType type =
+        SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
+    return type;
   }
 
   // List of disabled media codecs that will be treated as unsupported.
