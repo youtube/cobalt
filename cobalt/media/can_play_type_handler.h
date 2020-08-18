@@ -25,9 +25,10 @@ namespace media {
 class CanPlayTypeHandler {
  public:
   virtual ~CanPlayTypeHandler() {}
-  virtual SbMediaSupportType CanPlayType(const std::string& mime_type,
-                                         const std::string& key_system,
-                                         bool is_progressive) const = 0;
+  virtual SbMediaSupportType CanPlayProgressive(
+      const std::string& mime_type) const = 0;
+  virtual SbMediaSupportType CanPlayAdaptive(
+      const std::string& mime_type, const std::string& key_system) const = 0;
   virtual void SetDisabledMediaCodecs(const std::string& codecs) = 0;
 
  protected:
