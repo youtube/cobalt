@@ -44,8 +44,7 @@ def find_element_by_id(runner, id_selector):
 class PointerTest(black_box_tests.BlackBoxTestCase):
   """Tests pointer and mouse event."""
 
-  def test_simple(self):
-
+  def test_pointer_events(self):
     try:
       with ThreadedWebServer(
           binding_address=self.GetBindingAddress()) as server:
