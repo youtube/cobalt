@@ -434,7 +434,11 @@
     } else if (ArrayBuffer.prototype.isPrototypeOf(data)) {
       controller.enqueue(new Uint8Array(data.slice(0)))
     } else if (isArrayBufferView(data)) {
-      controller.enqueue(new Uint8Array(data.buffer.slice(0)))
+      // View as bytes
+      const asBytes = new Uint8Array(data.buffer);
+      // slice and copy
+      var byteSlice = Uint8Array.from(asBytes.slice(data.byteOffset, data.byteLength + 1));
+      controller.enqueue(byteSlice);
     } else if (data instanceof Blob) {
       controller.enqueue(new Uint8Array(FetchInternal.blobToArrayBuffer(data)))
     } else {
@@ -529,6 +533,7 @@
                   init.cloneBody === undefined
     init = init || {}
     var body = init.body || init.cloneBody
+    if(init.body === '') body = '';
     var headersInit = init.headers
 
     // AbortSignal cannot be constructed directly, so create a temporary
