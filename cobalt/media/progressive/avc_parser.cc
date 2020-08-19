@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_avc_parser.h"
+#include "cobalt/media/progressive/avc_parser.h"
 
 #include <limits>
 #include <vector>
@@ -23,9 +23,9 @@
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/base/media_util.h"
 #include "cobalt/media/base/video_types.h"
-#include "cobalt/media/filters/shell_au.h"
-#include "cobalt/media/filters/shell_rbsp_stream.h"
 #include "cobalt/media/formats/mp4/aac.h"
+#include "cobalt/media/progressive/avc_access_unit.h"
+#include "cobalt/media/progressive/rbsp_stream.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -36,19 +36,19 @@ static const int kAVCConfigMinSize = 8;
 // lower five bits of first byte in SPS should be 7
 static const uint8 kSPSNALType = 7;
 
-ShellAVCParser::ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
-                               const scoped_refptr<MediaLog>& media_log)
-    : ShellParser(reader),
+AVCParser::AVCParser(scoped_refptr<DataSourceReader> reader,
+                     const scoped_refptr<MediaLog>& media_log)
+    : ProgressiveParser(reader),
       media_log_(media_log),
       nal_header_size_(0),
       video_prepend_size_(0) {
   DCHECK(media_log);
 }
 
-ShellAVCParser::~ShellAVCParser() {}
+AVCParser::~AVCParser() {}
 
-bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
-                             scoped_refptr<DecoderBuffer> buffer) {
+bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
+                        scoped_refptr<DecoderBuffer> buffer) {
   // sanity-check inputs
   if (!au || !buffer) {
     NOTREACHED() << "bad input to Prepend()";
@@ -93,8 +93,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
   return true;
 }
 
-bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
-                                                     uint32 size) {
+bool AVCParser::DownloadAndParseAVCConfigRecord(uint64 offset, uint32 size) {
   if (size == 0) {
     return false;
   }
@@ -109,8 +108,8 @@ bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
 }
 
 // static
-bool ShellAVCParser::ParseSPS(const uint8* sps, size_t sps_size,
-                              ShellSPSRecord* record_out) {
+bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
+                         SPSRecord* record_out) {
   DCHECK(sps) << "no sps provided";
   DCHECK(record_out) << "no output structure provided";
   // first byte is NAL type id, check that it is SPS
@@ -119,7 +118,7 @@ bool ShellAVCParser::ParseSPS(const uint8* sps, size_t sps_size,
     return false;
   }
   // convert SPS NALU to RBSP stream
-  ShellRBSPStream sps_rbsp(sps + 1, sps_size - 1);
+  RBSPStream sps_rbsp(sps + 1, sps_size - 1);
   uint8 profile_idc = 0;
   if (!sps_rbsp.ReadByte(&profile_idc)) {
     DLOG(ERROR) << "failure reading profile_idc from sps RBSP";
@@ -294,7 +293,7 @@ bool ShellAVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   return true;
 }
 
-bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
+bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   if (size < kAVCConfigMinSize) {
     DLOG(ERROR) << base::StringPrintf("AVC config record bad size: %d", size);
     return false;
@@ -392,7 +391,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     }
   }
   // now we parse the valid SPS we extracted from byte stream earlier.
-  ShellSPSRecord sps_record;
+  SPSRecord sps_record;
   if (!ParseSPS(buffer + usable_sps_offset, usable_sps_size, &sps_record)) {
     DLOG(WARNING) << "error parsing SPS";
     return false;
@@ -409,8 +408,8 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
                             buffer + usable_pps_offset, usable_pps_size);
 }
 
-bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
-                                        uint32 pps_size) {
+bool AVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
+                                   uint32 pps_size) {
   // We will need to attach the sps and pps (if provided) to each keyframe
   // video packet, with the AnnexB start code in front of each. Start with
   // sps size and start code
@@ -445,7 +444,7 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
   return true;
 }
 
-void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
+void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   media::mp4::AAC aac;
   std::vector<uint8> aac_config(2);
 
@@ -472,8 +471,8 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
       Unencrypted(), base::TimeDelta(), 0);
 }
 
-size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
-                                            bool is_keyframe) {
+size_t AVCParser::CalculatePrependSize(DemuxerStream::Type type,
+                                       bool is_keyframe) {
   size_t prepend_size = 0;
   if (type == DemuxerStream::VIDEO) {
     bool needs_prepend = is_keyframe;

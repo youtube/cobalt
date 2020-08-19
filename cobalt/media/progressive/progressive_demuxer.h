@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
-#define COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
+#define COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
 
 #include <deque>
 #include <memory>
@@ -28,17 +28,17 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/ranges.h"
-#include "cobalt/media/filters/shell_parser.h"
+#include "cobalt/media/progressive/progressive_parser.h"
 
 namespace cobalt {
 namespace media {
 
 class DecoderBuffer;
-class ShellDemuxer;
+class ProgressiveDemuxer;
 
-class ShellDemuxerStream : public DemuxerStream {
+class ProgressiveDemuxerStream : public DemuxerStream {
  public:
-  ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
+  ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
   void Read(const ReadCB& read_cb) override;
@@ -56,7 +56,7 @@ class ShellDemuxerStream : public DemuxerStream {
     NOTREACHED();
   }
 
-  // Functions used by ShellDemuxer
+  // Functions used by ProgressiveDemuxer
   Ranges<base::TimeDelta> GetBufferedRanges();
   void EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer);
   void FlushBuffers();
@@ -72,7 +72,7 @@ class ShellDemuxerStream : public DemuxerStream {
   void RebuildEnqueuedRanges_Locked();
 
   // non-owning pointer to avoid circular reference
-  ShellDemuxer* demuxer_;
+  ProgressiveDemuxer* demuxer_;
   Type type_;
 
   // Used to protect everything below.
@@ -97,19 +97,19 @@ class ShellDemuxerStream : public DemuxerStream {
   size_t total_buffer_size_ = 0;
   size_t total_buffer_count_ = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
+  DISALLOW_COPY_AND_ASSIGN(ProgressiveDemuxerStream);
 };
 
-class MEDIA_EXPORT ShellDemuxer : public Demuxer {
+class MEDIA_EXPORT ProgressiveDemuxer : public Demuxer {
  public:
-  ShellDemuxer(const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
-               DecoderBuffer::Allocator* buffer_allocator,
-               DataSource* data_source,
-               const scoped_refptr<MediaLog>& media_log);
-  ~ShellDemuxer() override;
+  ProgressiveDemuxer(
+      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+      DecoderBuffer::Allocator* buffer_allocator, DataSource* data_source,
+      const scoped_refptr<MediaLog>& media_log);
+  ~ProgressiveDemuxer() override;
 
   // Demuxer implementation.
-  std::string GetDisplayName() const override { return "ShellDemuxer"; }
+  std::string GetDisplayName() const override { return "ProgressiveDemuxer"; }
   void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
                   bool enable_text_tracks) override;
   void AbortPendingReads() override {}
@@ -140,12 +140,12 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // in to it, and enqueue the data in the appropriate demuxer stream.
   void Request(DemuxerStream::Type type);
 
-  // The DemuxerStream objects ask their parent ShellDemuxer stream class
+  // The DemuxerStream objects ask their parent ProgressiveDemuxer stream class
   // for these configuration data rather than duplicating in the child classes
   const AudioDecoderConfig& AudioConfig();
   const VideoDecoderConfig& VideoConfig();
 
-  // Provide access to ShellDemuxerStream.
+  // Provide access to ProgressiveDemuxerStream.
   bool MessageLoopBelongsToCurrentThread() const;
 
  private:
@@ -170,17 +170,17 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   base::Thread blocking_thread_;
   DataSource* data_source_;
   scoped_refptr<MediaLog> media_log_;
-  scoped_refptr<ShellDataSourceReader> reader_;
+  scoped_refptr<DataSourceReader> reader_;
 
   base::Lock lock_for_stopped_;
   bool stopped_;
   bool flushing_;
 
-  std::unique_ptr<ShellDemuxerStream> audio_demuxer_stream_;
-  std::unique_ptr<ShellDemuxerStream> video_demuxer_stream_;
-  scoped_refptr<ShellParser> parser_;
+  std::unique_ptr<ProgressiveDemuxerStream> audio_demuxer_stream_;
+  std::unique_ptr<ProgressiveDemuxerStream> video_demuxer_stream_;
+  scoped_refptr<ProgressiveParser> parser_;
 
-  scoped_refptr<ShellAU> requested_au_;
+  scoped_refptr<AvcAccessUnit> requested_au_;
   bool audio_reached_eos_;
   bool video_reached_eos_;
 };
@@ -188,4 +188,4 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_DEMUXER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_

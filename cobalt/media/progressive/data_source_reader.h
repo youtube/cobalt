@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
-#define COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
-
+#ifndef COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_
+#define COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -32,12 +31,11 @@ namespace media {
 // object is also the sole owner of a pointer to DataSource.  If we want to add
 // asynchronous reading to this object it will need its own thread and a
 // callback queue.
-class ShellDataSourceReader
-    : public base::RefCountedThreadSafe<ShellDataSourceReader> {
+class DataSourceReader : public base::RefCountedThreadSafe<DataSourceReader> {
  public:
   static const int kReadError;
 
-  ShellDataSourceReader();
+  DataSourceReader();
   virtual void SetDataSource(DataSource* data_source);
 
   // Block the calling thread's message loop until read is complete.
@@ -53,8 +51,8 @@ class ShellDataSourceReader
   virtual void Stop();
 
  protected:
-  friend class base::RefCountedThreadSafe<ShellDataSourceReader>;
-  virtual ~ShellDataSourceReader();
+  friend class base::RefCountedThreadSafe<DataSourceReader>;
+  virtual ~DataSourceReader();
   // blocking read callback
   virtual void BlockingReadCompleted(int bytes_read);
 
@@ -69,4 +67,4 @@ class ShellDataSourceReader
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_SHELL_DATA_SOURCE_READER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_mp4_parser.h"
+#include "cobalt/media/progressive/mp4_parser.h"
 
 #include <inttypes.h>
 #include <limits>
@@ -67,10 +67,10 @@ static const int kMapTableAtomCacheEntries_co64 = 740212 / kEntrySize_co64;
 static const int kMapTableAtomCacheEntries_ctts = 51543 / kEntrySize_ctts;
 
 // static
-PipelineStatus ShellMP4Parser::Construct(
-    scoped_refptr<ShellDataSourceReader> reader,
-    const uint8* construction_header, scoped_refptr<ShellParser>* parser,
-    const scoped_refptr<MediaLog>& media_log) {
+PipelineStatus MP4Parser::Construct(scoped_refptr<DataSourceReader> reader,
+                                    const uint8* construction_header,
+                                    scoped_refptr<ProgressiveParser>* parser,
+                                    const scoped_refptr<MediaLog>& media_log) {
   DCHECK(parser);
   DCHECK(media_log);
   *parser = NULL;
@@ -90,28 +90,28 @@ PipelineStatus ShellMP4Parser::Construct(
   }
 
   // construct new mp4 parser
-  *parser = new ShellMP4Parser(reader, ftyp_atom_size, media_log);
+  *parser = new MP4Parser(reader, ftyp_atom_size, media_log);
   return PIPELINE_OK;
 }
 
-ShellMP4Parser::ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                               uint32 ftyp_atom_size,
-                               const scoped_refptr<MediaLog>& media_log)
-    : ShellAVCParser(reader, media_log),
+MP4Parser::MP4Parser(scoped_refptr<DataSourceReader> reader,
+                     uint32 ftyp_atom_size,
+                     const scoped_refptr<MediaLog>& media_log)
+    : AVCParser(reader, media_log),
       atom_offset_(ftyp_atom_size),  // start at next atom, skipping over ftyp
       current_trak_is_video_(false),
       current_trak_is_audio_(false),
       current_trak_time_scale_(0),
       video_time_scale_hz_(0),
       audio_time_scale_hz_(0),
-      audio_map_(new ShellMP4Map(reader)),
-      video_map_(new ShellMP4Map(reader)),
+      audio_map_(new MP4Map(reader)),
+      video_map_(new MP4Map(reader)),
       audio_sample_(0),
       video_sample_(0),
       first_audio_hole_ticks_(0),
       first_audio_hole_(base::TimeDelta::FromSeconds(0)) {}
 
-ShellMP4Parser::~ShellMP4Parser() {}
+MP4Parser::~MP4Parser() {}
 
 // For MP4 we traverse the file's atom structure attempting to find the audio
 // and video configuration information and the locations in the file of the
@@ -119,7 +119,7 @@ ShellMP4Parser::~ShellMP4Parser() {}
 // NALUs in the file. As some of the stbl subatoms can be quite large we cache
 // a fixed maximum quantity of each stbl subatom and update the cache only on
 // miss.
-bool ShellMP4Parser::ParseConfig() {
+bool MP4Parser::ParseConfig() {
   while (!IsConfigComplete() || !audio_map_->IsComplete() ||
          !video_map_->IsComplete()) {
     if (!ParseNextAtom()) {
@@ -129,7 +129,7 @@ bool ShellMP4Parser::ParseConfig() {
   return true;
 }
 
-scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
+scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
   uint32 size = 0;
   uint32 duration_ticks = 0;
   uint64 timestamp_ticks = 0;
@@ -148,8 +148,8 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
         !audio_map_->GetTimestamp(audio_sample_, &timestamp_ticks)) {
       // determine if EOS or error
       if (audio_map_->IsEOS(audio_sample_)) {
-        return ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO,
-                                            audio_track_duration_);
+        return AvcAccessUnit::CreateEndOfStreamAU(DemuxerStream::AUDIO,
+                                                  audio_track_duration_);
       } else {
         DLOG(ERROR) << "parsed bad audio AU";
         return NULL;
@@ -195,8 +195,8 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
         !video_map_->GetTimestamp(video_sample_, &timestamp_ticks) ||
         !video_map_->GetIsKeyframe(video_sample_, &is_keyframe)) {
       if (video_map_->IsEOS(video_sample_)) {
-        return ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO,
-                                            video_track_duration_);
+        return AvcAccessUnit::CreateEndOfStreamAU(DemuxerStream::VIDEO,
+                                                  video_track_duration_);
       } else {
         DLOG(ERROR) << "parsed bad video AU";
         return NULL;
@@ -219,13 +219,14 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
   size_t prepend_size = CalculatePrependSize(type, is_keyframe);
 
   if (type == DemuxerStream::AUDIO)
-    return ShellAU::CreateAudioAU(offset, size, prepend_size, is_keyframe,
-                                  timestamp, duration, this);
-  return ShellAU::CreateVideoAU(offset, size, prepend_size, nal_header_size_,
-                                is_keyframe, timestamp, duration, this);
+    return AvcAccessUnit::CreateAudioAU(offset, size, prepend_size, is_keyframe,
+                                        timestamp, duration, this);
+  return AvcAccessUnit::CreateVideoAU(offset, size, prepend_size,
+                                      nal_header_size_, is_keyframe, timestamp,
+                                      duration, this);
 }
 
-bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
+bool MP4Parser::SeekTo(base::TimeDelta timestamp) {
   if (audio_time_scale_hz_ == 0 || video_time_scale_hz_ == 0) {
     DLOG_IF(ERROR, audio_time_scale_hz_ == 0)
         << "|audio_time_scale_hz_| cannot be 0.";
@@ -272,7 +273,7 @@ bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
 // fourCC code       | ASCII  | four-byte ASCII code we treat as uint32
 // extended size     | uint64 | optional size field, only here if atom size is 1
 // <--- rest of atom body starts here
-bool ShellMP4Parser::ParseNextAtom() {
+bool MP4Parser::ParseNextAtom() {
   uint8 atom[kAtomDownload];
   int bytes_read = reader_->BlockingRead(atom_offset_, kAtomDownload, atom);
   if (bytes_read < kAtomDownload) {
@@ -461,7 +462,7 @@ bool ShellMP4Parser::ParseNextAtom() {
   return atom_parse_success;
 }
 
-bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
+bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   if (atom_data_size < kFullBoxHeaderAndFlagSize) {
     DLOG(WARNING) << base::StringPrintf(
         "esds box should at least be %d bytes but now it is %" PRId64 " bytes",
@@ -501,7 +502,7 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   return false;
 }
 
-bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
+bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   // ensure we're downloading enough of the hdlr to parse
   DCHECK_LE(kDesiredBytes_hdlr + 16, kAtomDownload);
   // sanity-check for minimum size
@@ -534,7 +535,7 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   return true;
 }
 
-bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
+bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   DCHECK_LE(kDesiredBytes_mdhd + 16, kAtomDownload);
   if (atom_data_size < kDesiredBytes_mdhd) {
     DLOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mdhd",
@@ -577,7 +578,7 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   return true;
 }
 
-bool ShellMP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
+bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
   DCHECK_LE(kDesiredBytes_mp4a + 16, kAtomDownload);
   // we only need the first two bytes of the header, which details the version
   // number of this atom, which tells us the size of the rest of the header,
@@ -619,7 +620,7 @@ bool ShellMP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
 // 12     | time scale        | 4
 // 16     | duration:         | 4
 //
-bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
+bool MP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
   DCHECK_LE(kDesiredBytes_mvhd + 16, kAtomDownload);
   // it should be at least long enough for us to extract the parts we want
   if (atom_data_size < kDesiredBytes_mvhd) {
@@ -641,8 +642,7 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
   return true;
 }
 
-base::TimeDelta ShellMP4Parser::TicksToTime(uint64 ticks,
-                                            uint32 time_scale_hz) {
+base::TimeDelta MP4Parser::TicksToTime(uint64 ticks, uint32 time_scale_hz) {
   DCHECK_NE(time_scale_hz, 0);
 
   if (time_scale_hz == 0) {
@@ -652,7 +652,7 @@ base::TimeDelta ShellMP4Parser::TicksToTime(uint64 ticks,
                                            time_scale_hz);
 }
 
-uint64 ShellMP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
+uint64 MP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
   DCHECK_NE(time_scale_hz, 0);
 
   if (time_scale_hz == 0) {

@@ -12,44 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_AU_H_
-#define COBALT_MEDIA_FILTERS_SHELL_AU_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
+#define COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/demuxer_stream.h"
-#include "cobalt/media/base/shell_data_source_reader.h"
+#include "cobalt/media/progressive/data_source_reader.h"
 
 namespace cobalt {
 namespace media {
 
-class ShellParser;
+class ProgressiveParser;
 
 static const int kAnnexBStartCodeSize = 4;
 static const uint8_t kAnnexBStartCode[] = {0, 0, 0, 1};
 
-// The basic unit of currency between ShellDemuxer and ShellParser, the ShellAU
-// defines all needed information for a given AccessUnit (Frame) of encoded
-// media data.
-class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
+// The basic unit of currency between ProgressiveDemuxer and ProgressiveParser,
+// the AvcAccessUnit defines all needed information for a given AvcAccessUnit
+// (Frame) of encoded media data.
+class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
  public:
   typedef base::TimeDelta TimeDelta;
   typedef DemuxerStream::Type Type;
 
-  static scoped_refptr<ShellAU> CreateEndOfStreamAU(Type type,
-                                                    TimeDelta timestamp);
-  static scoped_refptr<ShellAU> CreateAudioAU(
+  static scoped_refptr<AvcAccessUnit> CreateEndOfStreamAU(Type type,
+                                                          TimeDelta timestamp);
+  static scoped_refptr<AvcAccessUnit> CreateAudioAU(
       uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
-      TimeDelta timestamp, TimeDelta duration, ShellParser* parser);
-  static scoped_refptr<ShellAU> CreateVideoAU(
+      TimeDelta timestamp, TimeDelta duration, ProgressiveParser* parser);
+  static scoped_refptr<AvcAccessUnit> CreateVideoAU(
       uint64 offset, size_t size, size_t prepend_size,
       uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
-      TimeDelta duration, ShellParser* parser);
+      TimeDelta duration, ProgressiveParser* parser);
 
   virtual bool IsEndOfStream() const = 0;
   virtual bool IsValid() const = 0;
   // Read an AU from reader to buffer and also do all the necessary operations
   // like prepending head to make it ready to decode.
-  virtual bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) = 0;
+  virtual bool Read(DataSourceReader* reader, DecoderBuffer* buffer) = 0;
   virtual Type GetType() const = 0;
   virtual bool IsKeyframe() const = 0;
   virtual bool AddPrepend() const = 0;
@@ -63,13 +63,13 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
   virtual void SetTimestamp(TimeDelta timestamp) = 0;
 
  protected:
-  friend class base::RefCountedThreadSafe<ShellAU>;
+  friend class base::RefCountedThreadSafe<AvcAccessUnit>;
 
-  ShellAU();
-  virtual ~ShellAU();
+  AvcAccessUnit();
+  virtual ~AvcAccessUnit();
 };
 
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_AU_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
