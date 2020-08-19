@@ -25,7 +25,7 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/pipeline_status.h"
-#include "media/filters/shell_demuxer.h"
+#include "media/progressive/progressive_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -39,19 +39,20 @@ using ::media::Demuxer;
 using ::media::DemuxerHost;
 using ::media::DemuxerStream;
 using ::media::PipelineStatus;
-using ::media::ShellDemuxer;
+using ::media::ProgressiveDemuxer;
 
-class ShellDemuxerFuzzer : DemuxerHost {
+class DemuxerFuzzer : DemuxerHost {
  public:
-  explicit ShellDemuxerFuzzer(const std::vector<uint8>& content)
+  explicit DemuxerFuzzer(const std::vector<uint8>& content)
       : error_occurred_(false), eos_count_(0), stopped_(false) {
-    demuxer_ = new ShellDemuxer(base::MessageLoop::current()->task_runner(),
-                                new InMemoryDataSource(content));
+    demuxer_ =
+        new ProgressiveDemuxer(base::MessageLoop::current()->task_runner(),
+                               new InMemoryDataSource(content));
   }
 
   void Fuzz() {
     demuxer_->Initialize(
-        this, Bind(&ShellDemuxerFuzzer::InitializeCB, base::Unretained(this)));
+        this, Bind(&DemuxerFuzzer::InitializeCB, base::Unretained(this)));
 
     // Check if there is any error or if both of the audio and video streams
     // have reached eos.
@@ -59,7 +60,7 @@ class ShellDemuxerFuzzer : DemuxerHost {
       base::RunLoop().RunUntilIdle();
     }
 
-    demuxer_->Stop(Bind(&ShellDemuxerFuzzer::StopCB, base::Unretained(this)));
+    demuxer_->Stop(Bind(&DemuxerFuzzer::StopCB, base::Unretained(this)));
 
     while (!stopped_) {
       base::RunLoop().RunUntilIdle();
@@ -101,10 +102,10 @@ class ShellDemuxerFuzzer : DemuxerHost {
       error_occurred_ = true;
       return;
     }
-    audio_stream->Read(BindToCurrentLoop(Bind(
-        &ShellDemuxerFuzzer::ReadCB, base::Unretained(this), audio_stream)));
-    video_stream->Read(BindToCurrentLoop(Bind(
-        &ShellDemuxerFuzzer::ReadCB, base::Unretained(this), video_stream)));
+    audio_stream->Read(BindToCurrentLoop(
+        Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), audio_stream)));
+    video_stream->Read(BindToCurrentLoop(
+        Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), video_stream)));
   }
 
   void StopCB() { stopped_ = true; }
@@ -122,18 +123,18 @@ class ShellDemuxerFuzzer : DemuxerHost {
     }
     DCHECK(!error_occurred_);
     stream->Read(BindToCurrentLoop(
-        Bind(&ShellDemuxerFuzzer::ReadCB, base::Unretained(this), stream)));
+        Bind(&DemuxerFuzzer::ReadCB, base::Unretained(this), stream)));
   }
 
   bool error_occurred_;
   int eos_count_;
   bool stopped_;
-  scoped_refptr<ShellDemuxer> demuxer_;
+  scoped_refptr<ProgressiveDemuxer> demuxer_;
 };
 
-class ShellDemuxerFuzzerApp : public FuzzerApp {
+class DemuxerFuzzerApp : public FuzzerApp {
  public:
-  explicit ShellDemuxerFuzzerApp(MediaSandbox* media_sandbox)
+  explicit DemuxerFuzzerApp(MediaSandbox* media_sandbox)
       : media_sandbox_(media_sandbox) {}
 
   std::vector<uint8> ParseFileContent(
@@ -149,7 +150,7 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
 
   void Fuzz(const std::string& file_name,
             const std::vector<uint8>& fuzzing_content) override {
-    ShellDemuxerFuzzer demuxer_fuzzer(fuzzing_content);
+    DemuxerFuzzer demuxer_fuzzer(fuzzing_content);
     demuxer_fuzzer.Fuzz();
   }
 
@@ -159,9 +160,8 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
 
 int SandboxMain(int argc, char** argv) {
   MediaSandbox media_sandbox(
-      argc, argv,
-      base::FilePath(FILE_PATH_LITERAL("shell_demuxer_fuzzer.json")));
-  ShellDemuxerFuzzerApp fuzzer_app(&media_sandbox);
+      argc, argv, base::FilePath(FILE_PATH_LITERAL("demuxer_fuzzer.json")));
+  DemuxerFuzzerApp fuzzer_app(&media_sandbox);
 
   if (fuzzer_app.Init(argc, argv)) {
     fuzzer_app.RunFuzzingLoop();

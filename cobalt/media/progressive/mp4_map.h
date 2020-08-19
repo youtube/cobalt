@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
-#define COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_MP4_MAP_H_
+#define COBALT_MEDIA_PROGRESSIVE_MP4_MAP_H_
 
 #include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/base/shell_data_source_reader.h"
+#include "cobalt/media/progressive/data_source_reader.h"
 
 namespace cobalt {
 namespace media {
@@ -37,9 +37,9 @@ static const int kEntrySize_stsz = 4;
 // them to provide byte offsets, sizes, and timestamps of a mp4 atom. The
 // caching design benefits from, but does not require, sequential access
 // in sample numbers.
-class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
+class MP4Map : public base::RefCountedThreadSafe<MP4Map> {
  public:
-  explicit ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader);
+  explicit MP4Map(scoped_refptr<DataSourceReader> reader);
 
   bool IsComplete();
 
@@ -117,7 +117,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
                uint32 entry_count,   // number of entries in table
                uint32 entry_size,    // size in bytes of each entry in table
                uint32 cache_size_entries,  // number of entries to cache in mem
-               scoped_refptr<ShellDataSourceReader> reader);  // reader to use
+               scoped_refptr<DataSourceReader> reader);  // reader to use
 
     // The following Read* functions all read values in big endian.
     bool ReadU32Entry(uint32 entry_number, uint32* entry);
@@ -138,7 +138,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
     uint32 entry_count_;         // size of table in entries
     uint32 cache_size_entries_;  // max number of entries to fit in memory
     uint64 table_offset_;        // offset of table in stream
-    scoped_refptr<ShellDataSourceReader> reader_;  // means to read more table
+    scoped_refptr<DataSourceReader> reader_;  // means to read more table
 
     // current cache state
     std::vector<uint8> cache_;         // the cached part of the table
@@ -146,7 +146,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
     uint32 cache_entry_count_;         // number of valid entries in cache
   };
 
-  scoped_refptr<ShellDataSourceReader> reader_;
+  scoped_refptr<DataSourceReader> reader_;
 
   // current integration state for GetOffset(), we save the sum of sample sizes
   // within the current chunk.
@@ -211,4 +211,4 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_MAP_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_MP4_MAP_H_

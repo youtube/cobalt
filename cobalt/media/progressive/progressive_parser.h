@@ -12,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
-#define COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
-
+#ifndef COBALT_MEDIA_PROGRESSIVE_PARSER_H_
+#define COBALT_MEDIA_PROGRESSIVE_PARSER_H_
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/base/shell_data_source_reader.h"
 #include "cobalt/media/base/video_decoder_config.h"
-#include "cobalt/media/filters/shell_au.h"
+#include "cobalt/media/progressive/avc_access_unit.h"
+#include "cobalt/media/progressive/data_source_reader.h"
 
 namespace cobalt {
 namespace media {
 
-// abstract base class to define a stream parser interface used by ShellDemuxer.
-class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
+// abstract base class to define a stream parser interface used by
+// ProgressiveDemuxer.
+class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
  public:
   static const int kInitialHeaderSize;
   // Determine stream type, construct appropriate parser object, and returns
   // PIPELINE_OK on success or error code.
-  static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
-                                  scoped_refptr<ShellParser>* parser,
+  static PipelineStatus Construct(scoped_refptr<DataSourceReader> reader,
+                                  scoped_refptr<ProgressiveParser>* parser,
                                   const scoped_refptr<MediaLog>& media_log);
-  explicit ShellParser(scoped_refptr<ShellDataSourceReader> reader);
+  explicit ProgressiveParser(scoped_refptr<DataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,
   // saving as much config state as is possible. Should try to be fast but this
@@ -47,10 +47,10 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   // downloding and decoding the next access unit in the stream, or NULL on
   // fatal error. On success this advances the respective audio or video cursor
   // to the next AU.
-  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) = 0;
+  virtual scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) = 0;
   // Write the appropriate prepend header for the supplied au into the supplied
   // buffer. Return false on error.
-  virtual bool Prepend(scoped_refptr<ShellAU> au,
+  virtual bool Prepend(scoped_refptr<AvcAccessUnit> au,
                        scoped_refptr<DecoderBuffer> buffer) = 0;
   // Advance internal state to provided timestamp. Return false on error.
   virtual bool SeekTo(base::TimeDelta timestamp) = 0;
@@ -68,9 +68,9 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
 
  protected:
   // only allow RefCountedThreadSafe to delete us
-  friend class base::RefCountedThreadSafe<ShellParser>;
-  virtual ~ShellParser();
-  scoped_refptr<ShellDataSourceReader> reader_;
+  friend class base::RefCountedThreadSafe<ProgressiveParser>;
+  virtual ~ProgressiveParser();
+  scoped_refptr<DataSourceReader> reader_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   base::TimeDelta duration_;
@@ -80,4 +80,4 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_PARSER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_PARSER_H_

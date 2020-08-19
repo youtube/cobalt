@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/shell_data_source_reader.h"
+#include "cobalt/media/progressive/data_source_reader.h"
 
 #include "starboard/types.h"
 
 namespace cobalt {
 namespace media {
 
-const int ShellDataSourceReader::kReadError = DataSource::kReadError;
+const int DataSourceReader::kReadError = DataSource::kReadError;
 
-ShellDataSourceReader::ShellDataSourceReader()
+DataSourceReader::DataSourceReader()
     : data_source_(NULL),
       blocking_read_event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                            base::WaitableEvent::InitialState::NOT_SIGNALED),
@@ -29,15 +29,15 @@ ShellDataSourceReader::ShellDataSourceReader()
       read_has_failed_(false),
       last_bytes_read_(0) {}
 
-ShellDataSourceReader::~ShellDataSourceReader() {}
+DataSourceReader::~DataSourceReader() {}
 
-void ShellDataSourceReader::SetDataSource(DataSource* data_source) {
+void DataSourceReader::SetDataSource(DataSource* data_source) {
   DCHECK(data_source);
   data_source_ = data_source;
 }
 
 // currently only single-threaded reads supported
-int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
+int DataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
   // read failures are unrecoverable, all subsequent reads will also fail
   if (read_has_failed_) {
     return kReadError;
@@ -57,7 +57,7 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
       }
       data_source_->Read(
           position, size, data,
-          base::Bind(&ShellDataSourceReader::BlockingReadCompleted, this));
+          base::Bind(&DataSourceReader::BlockingReadCompleted, this));
     }
 
     // wait for callback on read completion
@@ -91,7 +91,7 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
   return total_bytes_read;
 }
 
-void ShellDataSourceReader::Stop() {
+void DataSourceReader::Stop() {
   if (data_source_) {
     data_source_->Stop();
 
@@ -100,13 +100,13 @@ void ShellDataSourceReader::Stop() {
   }
 }
 
-void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
+void DataSourceReader::BlockingReadCompleted(int bytes_read) {
   last_bytes_read_ = bytes_read;
   // wake up blocked thread
   blocking_read_event_.Signal();
 }
 
-int64 ShellDataSourceReader::FileSize() {
+int64 DataSourceReader::FileSize() {
   if (file_size_ == -1) {
     base::AutoLock auto_lock(lock_);
     if (data_source_ && !data_source_->GetSize(&file_size_)) {

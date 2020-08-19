@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_
-#define COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_
+#define COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_
 
 #include <vector>
 
 #include "cobalt/media/base/media_log.h"
-#include "cobalt/media/filters/shell_parser.h"
+#include "cobalt/media/progressive/progressive_parser.h"
 
 namespace cobalt {
 namespace media {
@@ -29,27 +29,27 @@ namespace media {
 static const int kAnnexBPrependMaxSize = 1024;
 
 // while not an actual parser, provides shared functionality to both the
-// mp4 and flv parsers which derive from it. Implements part of ShellParser
-// while leaving the rest for its children.
-class ShellAVCParser : public ShellParser {
+// mp4 and flv parsers which derive from it. Implements part of
+// ProgressiveParser while leaving the rest for its children.
+class AVCParser : public ProgressiveParser {
  public:
-  explicit ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
-                          const scoped_refptr<MediaLog>& media_log);
-  virtual ~ShellAVCParser();
+  explicit AVCParser(scoped_refptr<DataSourceReader> reader,
+                     const scoped_refptr<MediaLog>& media_log);
+  virtual ~AVCParser();
 
-  struct ShellSPSRecord {
+  struct SPSRecord {
     math::Size coded_size;
     math::Rect visible_rect;
     math::Size natural_size;
     uint32 num_ref_frames;
   };
   static bool ParseSPS(const uint8* sps, size_t sps_size,
-                       ShellSPSRecord* record_out);
+                       SPSRecord* record_out);
 
   // GetNextAU we must pass on to FLV or MP4 children.
-  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) = 0;
+  virtual scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) = 0;
   // Prepends are common to all AVC/AAC containers so we can do this one here.
-  bool Prepend(scoped_refptr<ShellAU> au,
+  bool Prepend(scoped_refptr<AvcAccessUnit> au,
                scoped_refptr<DecoderBuffer> buffer) override;
 
  protected:
@@ -77,4 +77,4 @@ class ShellAVCParser : public ShellParser {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_AVC_PARSER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_AVC_PARSER_H_

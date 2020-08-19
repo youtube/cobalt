@@ -24,8 +24,8 @@
 #include "cobalt/media/base/limits.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
-#include "cobalt/media/filters/shell_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
+#include "cobalt/media/progressive/progressive_demuxer.h"
 #include "starboard/double.h"
 #include "starboard/types.h"
 
@@ -292,8 +292,8 @@ void WebMediaPlayerImpl::LoadProgressive(
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   progressive_demuxer_.reset(
-      new ShellDemuxer(pipeline_thread_.task_runner(), buffer_allocator_,
-                       proxy_->data_source(), media_log_));
+      new ProgressiveDemuxer(pipeline_thread_.task_runner(), buffer_allocator_,
+                             proxy_->data_source(), media_log_));
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
