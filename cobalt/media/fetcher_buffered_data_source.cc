@@ -407,7 +407,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
     read_cb.Run(static_cast<int>(bytes_peeked));
     // If we have a large buffer size, it could be ideal if we can keep sending
     // small requests when the read offset is far from the beginning of the
-    // buffer.  However as the ShellDemuxer will cache many frames and the
+    // buffer.  However as the ProgressiveDemuxer will cache many frames and the
     // buffer we are using is usually small, we will just avoid sending requests
     // here to make code simple.
     return;

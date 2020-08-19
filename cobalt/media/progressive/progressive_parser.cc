@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_parser.h"
+#include "cobalt/media/progressive/progressive_parser.h"
 
 #include "base/logging.h"
 #include "cobalt/media/base/timestamp_constants.h"
-#include "cobalt/media/filters/shell_mp4_parser.h"
+#include "cobalt/media/progressive/mp4_parser.h"
 
 namespace cobalt {
 namespace media {
 
-// ==== ShellParser ============================================================
+// ==== ProgressiveParser
+// ============================================================
 
 // how many bytes to download of the file to determine type?
-const int ShellParser::kInitialHeaderSize = 9;
+const int ProgressiveParser::kInitialHeaderSize = 9;
 
 // static
-PipelineStatus ShellParser::Construct(
-    scoped_refptr<ShellDataSourceReader> reader,
-    scoped_refptr<ShellParser>* parser,
+PipelineStatus ProgressiveParser::Construct(
+    scoped_refptr<DataSourceReader> reader,
+    scoped_refptr<ProgressiveParser>* parser,
     const scoped_refptr<MediaLog>& media_log) {
   DCHECK(parser);
   DCHECK(media_log);
@@ -44,15 +45,15 @@ PipelineStatus ShellParser::Construct(
   }
 
   // attempt to construct mp4 parser from this header
-  return ShellMP4Parser::Construct(reader, header, parser, media_log);
+  return MP4Parser::Construct(reader, header, parser, media_log);
 }
 
-ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader)
+ProgressiveParser::ProgressiveParser(scoped_refptr<DataSourceReader> reader)
     : reader_(reader), duration_(kInfiniteDuration), bits_per_second_(0) {}
 
-ShellParser::~ShellParser() {}
+ProgressiveParser::~ProgressiveParser() {}
 
-bool ShellParser::IsConfigComplete() {
+bool ProgressiveParser::IsConfigComplete() {
   return video_config_.IsValidConfig() && audio_config_.IsValidConfig() &&
          duration_ != kInfiniteDuration;
 }

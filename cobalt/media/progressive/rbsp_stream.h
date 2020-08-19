@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_RBSP_STREAM_H_
-#define COBALT_MEDIA_FILTERS_SHELL_RBSP_STREAM_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_
+#define COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_
 
 #include "base/basictypes.h"
 
@@ -25,11 +25,11 @@ namespace media {
 // that some other atoms are defined. This class takes a non-owning reference
 // to a buffer and extract various types from the stream while silently
 // consuming the extra encoding bytes and advancing a bit stream pointer.
-class ShellRBSPStream {
+class RBSPStream {
  public:
   // NON-OWNING pointer to buffer. It is assumed the client will dispose of
   // this buffer.
-  ShellRBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size);
+  RBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size);
   // all Read/Skip methods return the value by reference and return true
   // on success, false on read error/EOB. Once the object has returned
   // false the consistency of the data is not guaranteed.
@@ -70,4 +70,4 @@ class ShellRBSPStream {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_RBSP_STREAM_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_

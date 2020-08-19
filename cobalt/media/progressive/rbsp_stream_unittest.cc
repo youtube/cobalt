@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_rbsp_stream.h"
+#include "cobalt/media/progressive/rbsp_stream.h"
 
 #include <list>
 #include <memory>
@@ -24,11 +24,11 @@
 namespace cobalt {
 namespace media {
 
-class ShellRBSPStreamTest : public testing::Test {
+class RBSPStreamTest : public testing::Test {
  protected:
-  ShellRBSPStreamTest() {}
+  RBSPStreamTest() {}
 
-  virtual ~ShellRBSPStreamTest() {}
+  virtual ~RBSPStreamTest() {}
 
   // Given num encode the value in signed exp-golomb syntax and push
   // the value on the provided bitlist
@@ -76,7 +76,7 @@ class ShellRBSPStreamTest : public testing::Test {
   }
 
   // after building a bitlist in various fun ways call this method to
-  // create a buffer on the heap that can be passed to ShellRBSPStream
+  // create a buffer on the heap that can be passed to RBSPStream
   // for deserialization.
   std::unique_ptr<uint8[]> SerializeToBuffer(const std::list<bool>& bitlist,
                                              bool add_sequence_bytes,
@@ -150,7 +150,7 @@ class ShellRBSPStreamTest : public testing::Test {
   }
 };
 
-TEST_F(ShellRBSPStreamTest, ReadUEV) {
+TEST_F(RBSPStreamTest, ReadUEV) {
   std::list<bool> fibbits;
   // encode first 47 Fibonacci numbers
   uint32 f_n_minus_2 = 0;
@@ -171,9 +171,9 @@ TEST_F(ShellRBSPStreamTest, ReadUEV) {
   size_t fib_buffer_no_sequence_size;
   std::unique_ptr<uint8[]> fib_buffer_no_sequence =
       SerializeToBuffer(fibbits, false, fib_buffer_no_sequence_size);
-  ShellRBSPStream fib_stream(fib_buffer.get(), fib_buffer_size);
-  ShellRBSPStream fib_stream_no_sequence(fib_buffer_no_sequence.get(),
-                                         fib_buffer_no_sequence_size);
+  RBSPStream fib_stream(fib_buffer.get(), fib_buffer_size);
+  RBSPStream fib_stream_no_sequence(fib_buffer_no_sequence.get(),
+                                    fib_buffer_no_sequence_size);
   // deserialize the same sequence from both buffers
   uint32 uev = 0;
   uint32 uev_n = 0;
@@ -203,7 +203,7 @@ TEST_F(ShellRBSPStreamTest, ReadUEV) {
   ASSERT_FALSE(fib_stream_no_sequence.ReadUEV(&uev_n));
 }
 
-TEST_F(ShellRBSPStreamTest, ReadSEV) {
+TEST_F(RBSPStreamTest, ReadSEV) {
   std::list<bool> lucasbits;
   // encode first 44 Lucas numbers with alternating sign
   int32 l_n_minus_2 = 1;
@@ -227,10 +227,9 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
   size_t lucas_deseq_buffer_size = 0;
   std::unique_ptr<uint8[]> lucas_deseq_buffer =
       SerializeToBuffer(lucasbits, false, lucas_deseq_buffer_size);
-  ShellRBSPStream lucas_seq_stream(lucas_seq_buffer.get(),
-                                   lucas_seq_buffer_size);
-  ShellRBSPStream lucas_deseq_stream(lucas_deseq_buffer.get(),
-                                     lucas_deseq_buffer_size);
+  RBSPStream lucas_seq_stream(lucas_seq_buffer.get(), lucas_seq_buffer_size);
+  RBSPStream lucas_deseq_stream(lucas_deseq_buffer.get(),
+                                lucas_deseq_buffer_size);
   l_n_minus_2 = 1;
   l_n_minus_1 = 2;
   int32 sev = 0;
@@ -286,10 +285,10 @@ static const uint8 kTestRBSPExpGolombTooBig[] = {
     // 1111 111+0 (to complete the byte)
     0xfe};
 
-TEST_F(ShellRBSPStreamTest, ReadUEVTooLarge) {
+TEST_F(RBSPStreamTest, ReadUEVTooLarge) {
   // construct a stream from the supplied test data
-  ShellRBSPStream uev_too_big(kTestRBSPExpGolombTooBig,
-                              sizeof(kTestRBSPExpGolombTooBig));
+  RBSPStream uev_too_big(kTestRBSPExpGolombTooBig,
+                         sizeof(kTestRBSPExpGolombTooBig));
   // first call should succeed
   uint32 uev = 0;
   ASSERT_TRUE(uev_too_big.ReadUEV(&uev));
@@ -301,10 +300,10 @@ TEST_F(ShellRBSPStreamTest, ReadUEVTooLarge) {
   ASSERT_FALSE(uev_too_big.ReadUEV(&uev));
 }
 
-TEST_F(ShellRBSPStreamTest, ReadSEVTooLarge) {
+TEST_F(RBSPStreamTest, ReadSEVTooLarge) {
   // construct a stream from the supplied test data
-  ShellRBSPStream sev_too_big(kTestRBSPExpGolombTooBig,
-                              sizeof(kTestRBSPExpGolombTooBig));
+  RBSPStream sev_too_big(kTestRBSPExpGolombTooBig,
+                         sizeof(kTestRBSPExpGolombTooBig));
   // first call should succeed
   int32 sev = 0;
   ASSERT_TRUE(sev_too_big.ReadSEV(&sev));
@@ -316,7 +315,7 @@ TEST_F(ShellRBSPStreamTest, ReadSEVTooLarge) {
   ASSERT_FALSE(sev_too_big.ReadSEV(&sev));
 }
 
-TEST_F(ShellRBSPStreamTest, ReadBit) {
+TEST_F(RBSPStreamTest, ReadBit) {
   std::list<bool> padded_ones;
   // build a bitfield of 1 padded by n zeros, for n in range[0, 1024]
   for (int i = 0; i < 1024; i++) {
@@ -329,12 +328,12 @@ TEST_F(ShellRBSPStreamTest, ReadBit) {
   size_t sequence_buff_size = 0;
   std::unique_ptr<uint8[]> sequence_buff =
       SerializeToBuffer(padded_ones, true, sequence_buff_size);
-  ShellRBSPStream seq_stream(sequence_buff.get(), sequence_buff_size);
+  RBSPStream seq_stream(sequence_buff.get(), sequence_buff_size);
 
   size_t desequence_buff_size = 0;
   std::unique_ptr<uint8[]> desequence_buff =
       SerializeToBuffer(padded_ones, false, desequence_buff_size);
-  ShellRBSPStream deseq_stream(desequence_buff.get(), desequence_buff_size);
+  RBSPStream deseq_stream(desequence_buff.get(), desequence_buff_size);
   for (std::list<bool>::iterator it = padded_ones.begin();
        it != padded_ones.end(); ++it) {
     uint8 bit = 0;
@@ -351,7 +350,7 @@ TEST_F(ShellRBSPStreamTest, ReadBit) {
   ASSERT_FALSE(deseq_stream.ReadByte(&fail_byte));
 }
 
-TEST_F(ShellRBSPStreamTest, ReadByte) {
+TEST_F(RBSPStreamTest, ReadByte) {
   // build a field of 16 x (0xaa byte followed by 0 bit)
   std::list<bool> aa_field;
   for (int i = 0; i < 16; ++i) {
@@ -364,7 +363,7 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   size_t aabuff_size = 0;
   std::unique_ptr<uint8[]> aabuff =
       SerializeToBuffer(aa_field, true, aabuff_size);
-  ShellRBSPStream aa_stream(aabuff.get(), aabuff_size);
+  RBSPStream aa_stream(aabuff.get(), aabuff_size);
   for (int i = 0; i < 16; ++i) {
     uint8 aa = 0;
     ASSERT_TRUE(aa_stream.ReadByte(&aa));
@@ -397,11 +396,11 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   size_t zseqbuff_size = 0;
   std::unique_ptr<uint8[]> zseqbuff =
       SerializeToBuffer(zero_field, true, zseqbuff_size);
-  ShellRBSPStream zseq_stream(zseqbuff.get(), zseqbuff_size);
+  RBSPStream zseq_stream(zseqbuff.get(), zseqbuff_size);
   size_t zdseqbuff_size = 0;
   std::unique_ptr<uint8[]> zdseqbuff =
       SerializeToBuffer(zero_field, false, zdseqbuff_size);
-  ShellRBSPStream zdseq_stream(zdseqbuff.get(), zdseqbuff_size);
+  RBSPStream zdseq_stream(zdseqbuff.get(), zdseqbuff_size);
   for (int i = 0; i < 24; ++i) {
     // read the leading 1 bit
     uint8 seq_bit = 0;
@@ -454,7 +453,7 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
   }
 }
 
-TEST_F(ShellRBSPStreamTest, ReadBits) {
+TEST_F(RBSPStreamTest, ReadBits) {
   // test the assertion in the ReadBits comment, as it had a bug :)
   std::list<bool> seventeen_ones;
   for (int i = 0; i < 17; ++i) {
@@ -463,8 +462,8 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
   size_t seventeen_ones_size = 0;
   std::unique_ptr<uint8[]> seventeen_ones_buff =
       SerializeToBuffer(seventeen_ones, false, seventeen_ones_size);
-  ShellRBSPStream seventeen_ones_stream(seventeen_ones_buff.get(),
-                                        seventeen_ones_size);
+  RBSPStream seventeen_ones_stream(seventeen_ones_buff.get(),
+                                   seventeen_ones_size);
   uint32 seventeen_ones_word = 0;
   ASSERT_TRUE(seventeen_ones_stream.ReadBits(17, &seventeen_ones_word));
   ASSERT_EQ(seventeen_ones_word, 0x0001ffff);
@@ -479,7 +478,7 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
   }
   size_t pows_size = 0;
   std::unique_ptr<uint8[]> pows_buff = SerializeToBuffer(pows, true, pows_size);
-  ShellRBSPStream pows_stream(pows_buff.get(), pows_size);
+  RBSPStream pows_stream(pows_buff.get(), pows_size);
   // ReadBits(0) should succeed and not modify the value of the ref output or
   // internal bit iterator
   uint32 dont_touch = 0xfeedfeed;
@@ -493,7 +492,7 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
   }
 }
 
-TEST_F(ShellRBSPStreamTest, SkipBytes) {
+TEST_F(RBSPStreamTest, SkipBytes) {
   // serialize all nine-bit values from zero to 512
   std::list<bool> nines;
   for (int i = 0; i < 512; ++i) {
@@ -507,8 +506,8 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
   size_t nines_deseq_size = 0;
   std::unique_ptr<uint8[]> nines_deseq_buff =
       SerializeToBuffer(nines, false, nines_deseq_size);
-  ShellRBSPStream nines_stream(nines_buff.get(), nines_size);
-  ShellRBSPStream nines_deseq_stream(nines_deseq_buff.get(), nines_deseq_size);
+  RBSPStream nines_stream(nines_buff.get(), nines_size);
+  RBSPStream nines_deseq_stream(nines_deseq_buff.get(), nines_deseq_size);
   // iterate through streams, skipping in one and reading in the other, always
   // comparing values.
   for (int i = 0; i < 512; ++i) {
@@ -547,9 +546,9 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
   size_t run_length_deseq_size = 0;
   std::unique_ptr<uint8[]> run_length_deseq_buff =
       SerializeToBuffer(run_length, false, run_length_deseq_size);
-  ShellRBSPStream run_length_stream(run_length_buff.get(), run_length_size);
-  ShellRBSPStream run_length_deseq_stream(run_length_deseq_buff.get(),
-                                          run_length_deseq_size);
+  RBSPStream run_length_stream(run_length_buff.get(), run_length_size);
+  RBSPStream run_length_deseq_stream(run_length_deseq_buff.get(),
+                                     run_length_deseq_size);
   // read first bit, skip first byte from each stream, read next bit
   uint8 bit = 0;
   ASSERT_TRUE(run_length_stream.ReadBit(&bit));
@@ -593,7 +592,7 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
   ASSERT_FALSE(run_length_deseq_stream.SkipBytes(1));
 }
 
-TEST_F(ShellRBSPStreamTest, SkipBits) {
+TEST_F(RBSPStreamTest, SkipBits) {
   std::list<bool> one_ohs;
   // encode one 1, followed by one zero, followed by 2 1s, followed by 2 zeros,
   // etc
@@ -611,8 +610,8 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
   size_t skip_ohs_size = 0;
   std::unique_ptr<uint8[]> skip_ohs_buff =
       SerializeToBuffer(one_ohs, false, skip_ohs_size);
-  ShellRBSPStream skip_ones(skip_ones_buff.get(), skip_ones_size);
-  ShellRBSPStream skip_ohs(skip_ohs_buff.get(), skip_ohs_size);
+  RBSPStream skip_ones(skip_ones_buff.get(), skip_ones_size);
+  RBSPStream skip_ohs(skip_ohs_buff.get(), skip_ohs_size);
   for (int i = 1; i < 64; ++i) {
     // skip the ones
     ASSERT_TRUE(skip_ones.SkipBits(i));

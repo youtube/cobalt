@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_rbsp_stream.h"
+#include "cobalt/media/progressive/rbsp_stream.h"
 
 #include "base/logging.h"
 
 namespace cobalt {
 namespace media {
 
-ShellRBSPStream::ShellRBSPStream(const uint8* nalu_buffer,
-                                 size_t nalu_buffer_size)
+RBSPStream::RBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size)
     : nalu_buffer_(nalu_buffer),
       nalu_buffer_size_(nalu_buffer_size),
       nalu_buffer_byte_offset_(0),
@@ -29,7 +28,7 @@ ShellRBSPStream::ShellRBSPStream(const uint8* nalu_buffer,
       rbsp_bit_offset_(0) {}
 
 // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-bool ShellRBSPStream::ReadUEV(uint32* uev_out) {
+bool RBSPStream::ReadUEV(uint32* uev_out) {
   DCHECK(uev_out);
   int leading_zero_bits = -1;
   for (uint8 b = 0; b == 0; leading_zero_bits++) {
@@ -52,7 +51,7 @@ bool ShellRBSPStream::ReadUEV(uint32* uev_out) {
 }
 
 // read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-bool ShellRBSPStream::ReadSEV(int32* sev_out) {
+bool RBSPStream::ReadSEV(int32* sev_out) {
   DCHECK(sev_out);
   // we start off by reading an unsigned Exp-Golomb coded number
   uint32 uev = 0;
@@ -71,7 +70,7 @@ bool ShellRBSPStream::ReadSEV(int32* sev_out) {
 
 // read and return up to 32 bits, filling from the right, meaning that
 // ReadBits(17) on a stream of all 1s would return 0x01ffff
-bool ShellRBSPStream::ReadBits(size_t bits, uint32* bits_out) {
+bool RBSPStream::ReadBits(size_t bits, uint32* bits_out) {
   DCHECK(bits_out);
   if (bits > 32) {
     return false;
@@ -105,7 +104,7 @@ bool ShellRBSPStream::ReadBits(size_t bits, uint32* bits_out) {
 }
 
 // jump over bytes in the RBSP stream
-bool ShellRBSPStream::SkipBytes(size_t bytes) {
+bool RBSPStream::SkipBytes(size_t bytes) {
   for (int i = 0; i < bytes; ++i) {
     if (!ConsumeNALUByte()) {
       return false;
@@ -115,7 +114,7 @@ bool ShellRBSPStream::SkipBytes(size_t bytes) {
 }
 
 // jump over bits in the RBSP stream
-bool ShellRBSPStream::SkipBits(size_t bits) {
+bool RBSPStream::SkipBits(size_t bits) {
   // skip bytes first
   size_t bytes = bits >> 3;
   if (bytes > 0) {
@@ -152,7 +151,7 @@ bool ShellRBSPStream::SkipBits(size_t bits) {
 
 // advance by one byte through the NALU buffer, respecting the encoding of
 // 00 00 03 => 00 00. Updates the state of current_nalu_byte_ to the new value.
-bool ShellRBSPStream::ConsumeNALUByte() {
+bool RBSPStream::ConsumeNALUByte() {
   if (nalu_buffer_byte_offset_ >= nalu_buffer_size_) {
     return false;
   }
@@ -174,7 +173,7 @@ bool ShellRBSPStream::ConsumeNALUByte() {
 
 // return single bit in the LSb from the RBSP stream. Bits are read from MSb
 // to LSb in the stream.
-bool ShellRBSPStream::ReadRBSPBit(uint8* bit_out) {
+bool RBSPStream::ReadRBSPBit(uint8* bit_out) {
   DCHECK(bit_out);
   // check to see if we need to consume a fresh byte
   if (rbsp_bit_offset_ == 0) {
@@ -190,7 +189,7 @@ bool ShellRBSPStream::ReadRBSPBit(uint8* bit_out) {
   return true;
 }
 
-bool ShellRBSPStream::ReadRBSPByte(uint8* byte_out) {
+bool RBSPStream::ReadRBSPByte(uint8* byte_out) {
   DCHECK(byte_out);
   // fast path for byte-aligned access
   if (rbsp_bit_offset_ == 0) {

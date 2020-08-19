@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
-#define COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_MP4_PARSER_H_
+#define COBALT_MEDIA_PROGRESSIVE_MP4_PARSER_H_
 
 #include "cobalt/media/base/media_log.h"
-#include "cobalt/media/filters/shell_avc_parser.h"
-#include "cobalt/media/filters/shell_mp4_map.h"
+#include "cobalt/media/progressive/avc_parser.h"
+#include "cobalt/media/progressive/mp4_map.h"
 
 namespace cobalt {
 namespace media {
@@ -27,7 +27,7 @@ namespace media {
 // second download (typically), but no larger. This is currently set at 16
 // bytes for the 8 byte header + optional 8 byte size extension plus 20 bytes
 // for the needed values within an mvhd header. We leave this is the header so
-// that ShellMP4Map can re-use,
+// that MP4Map can re-use,
 static const int kAtomDownload = 36;
 
 // mp4 atom fourCC codes as big-endian unsigned ints
@@ -59,24 +59,23 @@ static const uint32 kAtomType_tkhd = 0x746b6864;  // skip whole atom
 static const uint32 kAtomType_vmhd = 0x766d6864;  // skip whole atom
 // TODO: mp4v!!
 
-class ShellMP4Parser : public ShellAVCParser {
+class MP4Parser : public AVCParser {
  public:
   // Attempts to make sense of the provided bytes of the top of a file as an
   // flv, and if it does make sense returns PIPELINE_OK and |*parser| contains a
-  // ShellMP4Parser initialized with some basic state.  If it doesn't make sense
+  // MP4Parser initialized with some basic state.  If it doesn't make sense
   // this returns an error status and |*parser| contains NULL.
-  static PipelineStatus Construct(scoped_refptr<ShellDataSourceReader> reader,
+  static PipelineStatus Construct(scoped_refptr<DataSourceReader> reader,
                                   const uint8* construction_header,
-                                  scoped_refptr<ShellParser>* parser,
+                                  scoped_refptr<ProgressiveParser>* parser,
                                   const scoped_refptr<MediaLog>& media_log);
-  ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                 uint32 ftyp_atom_size,
-                 const scoped_refptr<MediaLog>& media_log);
-  ~ShellMP4Parser() override;
+  MP4Parser(scoped_refptr<DataSourceReader> reader, uint32 ftyp_atom_size,
+            const scoped_refptr<MediaLog>& media_log);
+  ~MP4Parser() override;
 
-  // === ShellParser implementation
+  // === ProgressiveParser implementation
   bool ParseConfig() override;
-  scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) override;
+  scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) override;
   bool SeekTo(base::TimeDelta timestamp) override;
 
  private:
@@ -99,8 +98,8 @@ class ShellMP4Parser : public ShellAVCParser {
   uint32 audio_time_scale_hz_;
   base::TimeDelta audio_track_duration_;
   base::TimeDelta video_track_duration_;
-  scoped_refptr<ShellMP4Map> audio_map_;
-  scoped_refptr<ShellMP4Map> video_map_;
+  scoped_refptr<MP4Map> audio_map_;
+  scoped_refptr<MP4Map> video_map_;
   uint32 audio_sample_;
   uint32 video_sample_;
   // for keeping buffers continuous across time scales
@@ -111,4 +110,4 @@ class ShellMP4Parser : public ShellAVCParser {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FILTERS_SHELL_MP4_PARSER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_MP4_PARSER_H_

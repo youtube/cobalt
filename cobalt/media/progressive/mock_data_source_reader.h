@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_MEDIA_BASE_MOCK_SHELL_DATA_SOURCE_READER_H_
-#define COBALT_MEDIA_BASE_MOCK_SHELL_DATA_SOURCE_READER_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_MOCK_DATA_SOURCE_READER_H_
+#define COBALT_MEDIA_PROGRESSIVE_MOCK_DATA_SOURCE_READER_H_
 
-#include "media/base/shell_data_source_reader.h"
+#include "media/progressive/data_source_reader.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace media {
 
-class MockShellDataSourceReader : public ShellDataSourceReader {
+class MockDataSourceReader : public DataSourceReader {
  public:
-  MockShellDataSourceReader() {}
+  MockDataSourceReader() {}
 
-  // ShellDataSourceReader implementation
+  // DataSourceReader implementation
   MOCK_METHOD1(SetDataSource, void(DataSource*));
   MOCK_METHOD3(BlockingRead, int(int64, int, uint8*));
   MOCK_METHOD0(FileSize, int64());
@@ -37,4 +37,4 @@ class MockShellDataSourceReader : public ShellDataSourceReader {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_MOCK_SHELL_DATA_SOURCE_READER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_MOCK_DATA_SOURCE_READER_H_

@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/filters/shell_mp4_map.h"
+#include "cobalt/media/progressive/mp4_map.h"
 
 #include <algorithm>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/filters/shell_mp4_parser.h"
+#include "cobalt/media/progressive/mp4_parser.h"
 
 namespace cobalt {
 namespace media {
 
 // ==== TableCache =============================================================
 
-ShellMP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
-                                    uint32 entry_size,
-                                    uint32 cache_size_entries,
-                                    scoped_refptr<ShellDataSourceReader> reader)
+MP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
+                               uint32 entry_size, uint32 cache_size_entries,
+                               scoped_refptr<DataSourceReader> reader)
     : entry_size_(entry_size),
       entry_count_(entry_count),
       cache_size_entries_(cache_size_entries),
@@ -37,7 +36,7 @@ ShellMP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
       cache_first_entry_number_(-1),
       cache_entry_count_(0) {}
 
-uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
+uint8* MP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
   // don't fetch the unfetchable
   if (entry_number >= entry_count_) {
     return NULL;
@@ -77,7 +76,7 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
   return &cache_[0] + (cache_offset * entry_size_);
 }
 
-bool ShellMP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
+bool MP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint32_big_endian(data);
     return true;
@@ -86,8 +85,8 @@ bool ShellMP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
   return false;
 }
 
-bool ShellMP4Map::TableCache::ReadU32PairEntry(uint32 entry_number,
-                                               uint32* first, uint32* second) {
+bool MP4Map::TableCache::ReadU32PairEntry(uint32 entry_number, uint32* first,
+                                          uint32* second) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
     if (first) *first = endian_util::load_uint32_big_endian(data);
     if (second) *second = endian_util::load_uint32_big_endian(data + 4);
@@ -97,8 +96,8 @@ bool ShellMP4Map::TableCache::ReadU32PairEntry(uint32 entry_number,
   return false;
 }
 
-bool ShellMP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
-                                                  uint64* entry) {
+bool MP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
+                                             uint64* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint32_big_endian(data);
     return true;
@@ -107,7 +106,7 @@ bool ShellMP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
   return false;
 }
 
-bool ShellMP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
+bool MP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint64_big_endian(data);
     return true;
@@ -116,7 +115,7 @@ bool ShellMP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
   return false;
 }
 
-// ==== ShellMP4Map ============================================================
+// ==== MP4Map ============================================================
 
 // atom | name                  | size | description, (*) means optional table
 // -----+-----------------------+------+----------------------------------------
@@ -128,7 +127,7 @@ bool ShellMP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
 // stts | time-to-sample        | 8    | run-length sample number to duration
 // stsz | sample size           | 4    | per-sample list of sample sizes
 
-ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader)
+MP4Map::MP4Map(scoped_refptr<DataSourceReader> reader)
     : reader_(reader),
       current_chunk_sample_(0),
       next_chunk_sample_(0),
@@ -155,14 +154,14 @@ ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader)
       stts_table_index_(0),
       stsz_default_size_(0) {}
 
-bool ShellMP4Map::IsComplete() {
+bool MP4Map::IsComplete() {
   // all required table pointers must be valid for map to function
   return (co64_ || stco_) && stsc_ && stts_ && (stsz_ || stsz_default_size_);
 }
 
 // The sample size is a lookup in the stsz table, which is indexed per sample
 // number.
-bool ShellMP4Map::GetSize(uint32 sample_number, uint32* size_out) {
+bool MP4Map::GetSize(uint32 sample_number, uint32* size_out) {
   DCHECK(size_out);
   DCHECK(stsz_ || stsz_default_size_);
 
@@ -184,7 +183,7 @@ bool ShellMP4Map::GetSize(uint32 sample_number, uint32* size_out) {
 // then use the stsz to sum samples to the byte offset with that chunk. The sum
 // of the chunk offset and the byte offset within the chunk is the offset of
 // the sample.
-bool ShellMP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
+bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
   DCHECK(offset_out);
   DCHECK(stsc_);
   DCHECK(stco_ || co64_);
@@ -255,7 +254,7 @@ bool ShellMP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
 // durations to find the dts of that sample number. We then integrate sample
 // numbers through the ctts to find the composition time offset, which we add to
 // the dts to return the pts.
-bool ShellMP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
+bool MP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
   DCHECK(timestamp_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -280,7 +279,7 @@ bool ShellMP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
 }
 
 // Sum through the stts to find the duration of the given sample_number.
-bool ShellMP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
+bool MP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
   DCHECK(duration_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -295,7 +294,7 @@ bool ShellMP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
   return true;
 }
 
-bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
+bool MP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
   DCHECK(is_keyframe_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -336,14 +335,14 @@ bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
   return true;
 }
 
-bool ShellMP4Map::IsEOS(uint32 sample_number) {
+bool MP4Map::IsEOS(uint32 sample_number) {
   return (sample_number > highest_valid_sample_number_);
 }
 
 // First look up the sample number for the provided timestamp by integrating
 // timestamps through the stts. Then do a binary search on the stss to find the
 // keyframe nearest that sample number.
-bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
+bool MP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
   DCHECK(sample_out);
   // Advance stts to the provided timestamp range
   if (!stts_AdvanceToTime(timestamp)) {
@@ -375,8 +374,8 @@ bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
 
 // Set up map state and load first part of table, or entire table if it is small
 // enough, for each of the supporated atoms.
-bool ShellMP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
-                          uint32 cache_size_entries, const uint8* atom) {
+bool MP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
+                     uint32 cache_size_entries, const uint8* atom) {
   // All map atoms are variable-length tables starting with 4 bytes of
   // version/flag info followed by a uint32 indicating the number of items in
   // table. The stsz atom bucks tradition by putting an optional default value
@@ -463,7 +462,7 @@ bool ShellMP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
   return atom_init;
 }
 
-bool ShellMP4Map::co64_Init() {
+bool MP4Map::co64_Init() {
   DCHECK(co64_);
   // load offset of first chunk into current_chunk_offset_
   if (co64_->GetEntryCount() > 0) {
@@ -482,7 +481,7 @@ bool ShellMP4Map::co64_Init() {
 // uint32 sample count
 // uint32 composition offset in ticks
 //
-bool ShellMP4Map::ctts_Init() {
+bool MP4Map::ctts_Init() {
   DCHECK(ctts_);
   // get cache segment vector to reserve table entries in advance
   int cache_segments =
@@ -506,7 +505,7 @@ bool ShellMP4Map::ctts_Init() {
 // To find the composition offset of a given sample number we must integrate
 // through the ctts to find the range of samples containing sample_number. Note
 // that the ctts is an optional table.
-bool ShellMP4Map::ctts_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::ctts_AdvanceToSample(uint32 sample_number) {
   // ctts table is optional, so treat not having one as non-fatal
   if (!ctts_) {
     return true;
@@ -573,8 +572,8 @@ bool ShellMP4Map::ctts_AdvanceToSample(uint32 sample_number) {
   return true;
 }
 
-bool ShellMP4Map::ctts_SlipCacheToSample(uint32 sample_number,
-                                         int starting_cache_index) {
+bool MP4Map::ctts_SlipCacheToSample(uint32 sample_number,
+                                    int starting_cache_index) {
   DCHECK_LT(starting_cache_index, ctts_samples_.size());
   int cache_index = starting_cache_index;
   for (; cache_index + 1 < ctts_samples_.size(); cache_index++) {
@@ -593,7 +592,7 @@ bool ShellMP4Map::ctts_SlipCacheToSample(uint32 sample_number,
   return true;
 }
 
-bool ShellMP4Map::stco_Init() {
+bool MP4Map::stco_Init() {
   DCHECK(stco_);
   // load offset of first chunk into current_chunk_offset_
   if (stco_->GetEntryCount() > 0) {
@@ -610,7 +609,7 @@ bool ShellMP4Map::stco_Init() {
 // uint32 first chunk number with this sample count
 // uint32 samples-per-chunk
 // uint32 sample description id (unused)
-bool ShellMP4Map::stsc_Init() {
+bool MP4Map::stsc_Init() {
   DCHECK(stsc_);
   // set up vector to correct final size
   int cache_segments =
@@ -660,7 +659,7 @@ bool ShellMP4Map::stsc_Init() {
 // to be consumed incrementally and with minimal memory consumption we calculate
 // this integration step only when needed, and save results for each cached
 // piece of the table, to avoid having to recalculate needed data.
-bool ShellMP4Map::stsc_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::stsc_AdvanceToSample(uint32 sample_number) {
   DCHECK(stsc_);
   // sample_number could be before first chunk, meaning that we are seeking
   // backwards and have left the current chunk. Find the closest part of the
@@ -736,8 +735,8 @@ bool ShellMP4Map::stsc_AdvanceToSample(uint32 sample_number) {
   return true;
 }
 
-bool ShellMP4Map::stsc_SlipCacheToSample(uint32 sample_number,
-                                         int starting_cache_index) {
+bool MP4Map::stsc_SlipCacheToSample(uint32 sample_number,
+                                    int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stsc_sample_sums_.size());
   // look through old sample sums for the first entry that exceeds sample
   // sample_number, we want the entry right before that
@@ -776,7 +775,7 @@ bool ShellMP4Map::stsc_SlipCacheToSample(uint32 sample_number,
 }
 
 // stss is a list of sample numbers that are keyframes.
-bool ShellMP4Map::stss_Init() {
+bool MP4Map::stss_Init() {
   int cache_segments =
       (stss_->GetEntryCount() / stss_->GetCacheSizeEntries()) + 1;
   stss_keyframes_.reserve(cache_segments);
@@ -800,7 +799,7 @@ bool ShellMP4Map::stss_Init() {
 }
 
 // advance by one table entry through stss, updating cache if necessary
-bool ShellMP4Map::stss_AdvanceStep() {
+bool MP4Map::stss_AdvanceStep() {
   DCHECK(stss_);
   stss_last_keyframe_ = stss_next_keyframe_;
   stss_table_index_++;
@@ -823,7 +822,7 @@ bool ShellMP4Map::stss_AdvanceStep() {
   return true;
 }
 
-bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
+bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
   DCHECK(stss_);
   // it is assumed that there's at least one cache entry created by
   // stss_Init();
@@ -955,7 +954,7 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
 // The stts table has the following per-entry layout:
 // uint32 sample count - number of sequential samples with this duration
 // uint32 sample duration - duration in ticks of this sample range
-bool ShellMP4Map::stts_Init() {
+bool MP4Map::stts_Init() {
   int cache_segments =
       (stts_->GetEntryCount() / stts_->GetCacheSizeEntries()) + 1;
   stts_samples_.reserve(cache_segments);
@@ -982,7 +981,7 @@ bool ShellMP4Map::stts_Init() {
   return true;
 }
 
-bool ShellMP4Map::stts_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::stts_AdvanceToSample(uint32 sample_number) {
   DCHECK(stts_);
   // sample_number could be before our current sample range, in which case
   // we skip to the nearest table entry before sample_number and integrate
@@ -1015,8 +1014,8 @@ bool ShellMP4Map::stts_AdvanceToSample(uint32 sample_number) {
 // Move our integration steps to a previously saved entry in the cache tables.
 // Searches linearly through the vector of old cached values, so can accept a
 // starting index to do the search from.
-bool ShellMP4Map::stts_SlipCacheToSample(uint32 sample_number,
-                                         int starting_cache_index) {
+bool MP4Map::stts_SlipCacheToSample(uint32 sample_number,
+                                    int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stts_samples_.size());
   int cache_index = starting_cache_index;
   for (; cache_index + 1 < stts_samples_.size(); cache_index++) {
@@ -1039,7 +1038,7 @@ bool ShellMP4Map::stts_SlipCacheToSample(uint32 sample_number,
   return true;
 }
 
-bool ShellMP4Map::stts_AdvanceToTime(uint64 timestamp) {
+bool MP4Map::stts_AdvanceToTime(uint64 timestamp) {
   DCHECK(stts_);
 
   if (timestamp < stts_first_sample_time_) {
@@ -1067,7 +1066,7 @@ bool ShellMP4Map::stts_AdvanceToTime(uint64 timestamp) {
   return true;
 }
 
-bool ShellMP4Map::stts_IntegrateStep() {
+bool MP4Map::stts_IntegrateStep() {
   // advance time to next sample range
   uint32 range_size = stts_next_first_sample_ - stts_first_sample_;
   stts_first_sample_time_ += (range_size * stts_sample_duration_);
@@ -1111,8 +1110,7 @@ bool ShellMP4Map::stts_IntegrateStep() {
   return true;
 }
 
-bool ShellMP4Map::stts_SlipCacheToTime(uint64 timestamp,
-                                       int starting_cache_index) {
+bool MP4Map::stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stts_timestamps_.size());
   int cache_index = starting_cache_index;
   for (; cache_index + 1 < stts_timestamps_.size(); cache_index++) {
@@ -1135,7 +1133,7 @@ bool ShellMP4Map::stts_SlipCacheToTime(uint64 timestamp,
   return true;
 }
 
-bool ShellMP4Map::stsz_Init() { return stsz_->GetBytesAtEntry(0) != NULL; }
+bool MP4Map::stsz_Init() { return stsz_->GetBytesAtEntry(0) != NULL; }
 
 }  // namespace media
 }  // namespace cobalt
