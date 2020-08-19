@@ -69,12 +69,18 @@
       }, "Consume request's body as " + bodyType);
     }
 
+/* Cobalt doesn't support FormData request body
     var formData = new FormData();
+*/
     checkRequestWithNoBody("text", checkBodyText);
+/* Cobalt doesn't support Blob request body
     checkRequestWithNoBody("blob", checkBodyBlob);
+*/
     checkRequestWithNoBody("arrayBuffer", checkBodyArrayBuffer);
     checkRequestWithNoBody("json", checkBodyJSON);
+/* Cobalt doesn't support FormData request body
     checkRequestWithNoBody("formData", checkBodyFormData);
+*/
 
     function checkRequestWithEmptyBody(bodyType, body, asText) {
       promise_test(function(test) {
@@ -98,9 +104,11 @@
     checkRequestWithEmptyBody("text", "", false);
     checkRequestWithEmptyBody("blob", new Blob([], { "type" : "text/plain" }), true);
     checkRequestWithEmptyBody("text", "", true);
+/* Cobalt doesn't support URLSearchParams and FormData request body
     checkRequestWithEmptyBody("URLSearchParams", new URLSearchParams(""), true);
     // FIXME: This test assumes that the empty string be returned but it is not clear whether that is right. See https://github.com/w3c/web-platform-tests/pull/3950.
     checkRequestWithEmptyBody("FormData", new FormData(), true);
+*/
     checkRequestWithEmptyBody("ArrayBuffer", new ArrayBuffer(), true);
     </script>
   </body>
