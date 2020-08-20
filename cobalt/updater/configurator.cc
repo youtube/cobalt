@@ -31,6 +31,7 @@ const int kDelayOneHour = kDelayOneMinute * 60;
 
 #if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
 const std::set<std::string> valid_channels = {"dev"};
+const std::string kDefaultUpdaterChannel = "dev";
 #elif defined(COBALT_BUILD_TYPE_QA)
 // Find more information about these test channels in the Evergreen test plan.
 const std::set<std::string> valid_channels = {
@@ -51,8 +52,10 @@ const std::set<std::string> valid_channels = {
     // Test an update that's larger than the available storage on the device
     "tistore",
 };
+const std::string kDefaultUpdaterChannel = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
 const std::set<std::string> valid_channels = {"prod", "dogfood"};
+const std::string kDefaultUpdaterChannel = "prod";
 #endif
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
@@ -74,11 +77,21 @@ namespace updater {
 
 Configurator::Configurator(network::NetworkModule* network_module)
     : pref_service_(CreatePrefService()),
+      persisted_data_(std::make_unique<update_client::PersistedData>(
+          pref_service_.get(), nullptr)),
       is_channel_changed_(0),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
-      patch_factory_(base::MakeRefCounted<PatcherFactory>()) {}
+      patch_factory_(base::MakeRefCounted<PatcherFactory>()) {
+  const std::string persisted_channel =
+      persisted_data_->GetUpdaterChannel(GetAppGuid());
+  if (persisted_channel.empty()) {
+    SetChannel(kDefaultUpdaterChannel);
+  } else {
+    SetChannel(persisted_channel);
+  }
+}
 Configurator::~Configurator() = default;
 
 int Configurator::InitialDelay() const { return 0; }
@@ -216,6 +229,7 @@ std::string Configurator::GetChannel() const {
 void Configurator::SetChannel(const std::string& updater_channel) {
   base::AutoLock auto_lock(updater_channel_lock_);
   updater_channel_ = updater_channel;
+  persisted_data_->SetUpdaterChannel(GetAppGuid(), updater_channel);
 }
 
 bool Configurator::IsChannelValid(const std::string& channel) {
