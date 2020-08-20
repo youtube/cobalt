@@ -69,6 +69,7 @@ class MockMediaSessionClient : public MediaSessionClient {
       override {
     session_state_ = session_state;
     ++session_change_count_;
+    MediaSessionClient::OnMediaSessionStateChanged(session_state);
   }
   void WaitForSessionStateChange() {
     size_t current_change_count = session_change_count_;
