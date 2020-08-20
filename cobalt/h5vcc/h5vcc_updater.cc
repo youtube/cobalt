@@ -33,7 +33,7 @@ void H5vccUpdater::SetUpdaterChannel(const std::string& channel) {
   if (updater_module_->GetUpdaterChannel().compare(channel) != 0 &&
       updater_module_->IsChannelValid(channel)) {
     updater_module_->SetUpdaterChannel(channel);
-    updater_module_->MarkChannelChanged();
+    updater_module_->CompareAndSwapChannelChanged(0, 1);
     updater_module_->RunUpdateCheck();
   }
 }
