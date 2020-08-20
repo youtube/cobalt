@@ -17,6 +17,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
+#include "components/update_client/persisted_data.h"
 
 class GURL;
 class PrefService;
@@ -88,6 +89,7 @@ class Configurator : public update_client::Configurator {
   ~Configurator() override;
 
   std::unique_ptr<PrefService> pref_service_;
+  std::unique_ptr<update_client::PersistedData> persisted_data_;
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
