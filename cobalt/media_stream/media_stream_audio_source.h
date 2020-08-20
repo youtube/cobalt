@@ -58,9 +58,8 @@ class MediaStreamAudioSource : public MediaStreamSource {
   // Subclasses should call these methods. |DeliverDataToTracks| can be
   // called from a different thread than where MediaStreamAudioSource
   // was created.
-  void DeliverDataToTracks(
-      const MediaStreamAudioTrack::ShellAudioBus& audio_bus,
-      base::TimeTicks reference_time);
+  void DeliverDataToTracks(const MediaStreamAudioTrack::AudioBus& audio_bus,
+                           base::TimeTicks reference_time);
 
   void SetFormat(const media_stream::AudioParameters& params) {
     DLOG(INFO) << "MediaStreamAudioSource@" << this << "::SetFormat("

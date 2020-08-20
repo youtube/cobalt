@@ -16,7 +16,7 @@
 
 #include "base/bind_helpers.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/media_stream_audio_deliverer.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,7 +36,7 @@ const int kBitsPerSample = 8;
 namespace cobalt {
 namespace media_stream {
 
-typedef media::ShellAudioBus ShellAudioBus;
+typedef media::AudioBus AudioBus;
 
 // This fixture is created, so it can be added as a friend to
 // |MediaStreamAudioTrack|.  This enables calling a private method
@@ -71,8 +71,8 @@ TEST_F(MediaStreamAudioTrackTest, OnSetFormatAndData) {
 
   deliverer.OnSetFormat(expected_params);
 
-  ShellAudioBus audio_bus(kChannelCount, kFrameCount, ShellAudioBus::kInt16,
-                          ShellAudioBus::kInterleaved);
+  AudioBus audio_bus(kChannelCount, kFrameCount, AudioBus::kInt16,
+                     AudioBus::kInterleaved);
 
   deliverer.OnData(audio_bus, expected_time);
 }
@@ -104,8 +104,8 @@ TEST_F(MediaStreamAudioTrackTest, OneTrackMultipleSinks) {
 
   deliverer.OnSetFormat(expected_params);
 
-  ShellAudioBus audio_bus(kChannelCount, kFrameCount, ShellAudioBus::kInt16,
-                          ShellAudioBus::kInterleaved);
+  AudioBus audio_bus(kChannelCount, kFrameCount, AudioBus::kInt16,
+                     AudioBus::kInterleaved);
 
   deliverer.OnData(audio_bus, expected_time);
 }
@@ -141,8 +141,8 @@ TEST_F(MediaStreamAudioTrackTest, TwoTracksWithOneSinkEach) {
 
   deliverer.OnSetFormat(expected_params);
 
-  ShellAudioBus audio_bus(kChannelCount, kFrameCount, ShellAudioBus::kInt16,
-                          ShellAudioBus::kInterleaved);
+  AudioBus audio_bus(kChannelCount, kFrameCount, AudioBus::kInt16,
+                     AudioBus::kInterleaved);
 
   deliverer.OnData(audio_bus, expected_time);
 }
@@ -166,8 +166,8 @@ TEST_F(MediaStreamAudioTrackTest, AddRemoveSink) {
 
   deliverer.OnSetFormat(expected_params);
 
-  ShellAudioBus audio_bus(kChannelCount, kFrameCount, ShellAudioBus::kInt16,
-                          ShellAudioBus::kInterleaved);
+  AudioBus audio_bus(kChannelCount, kFrameCount, AudioBus::kInt16,
+                     AudioBus::kInterleaved);
 
   track->RemoveSink(&mock_sink);
   deliverer.OnData(audio_bus, expected_time);

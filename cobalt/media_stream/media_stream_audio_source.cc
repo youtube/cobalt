@@ -60,7 +60,7 @@ MediaTrackSettings MediaStreamAudioSource::GetMediaTrackSettings() const {
 }
 
 void MediaStreamAudioSource::DeliverDataToTracks(
-    const MediaStreamAudioTrack::ShellAudioBus& audio_bus,
+    const MediaStreamAudioTrack::AudioBus& audio_bus,
     base::TimeTicks reference_time) {
   deliverer_.OnData(audio_bus, reference_time);
 }

@@ -24,7 +24,7 @@
 namespace cobalt {
 namespace audio {
 
-typedef media::ShellAudioBus ShellAudioBus;
+typedef media::AudioBus AudioBus;
 
 AudioNodeOutput::~AudioNodeOutput() {
   owner_node_->audio_lock()->AssertLocked();
@@ -57,7 +57,7 @@ void AudioNodeOutput::DisconnectAll() {
   }
 }
 
-std::unique_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
+std::unique_ptr<AudioBus> AudioNodeOutput::PassAudioBusFromSource(
     int32 number_of_frames, SampleType sample_type, bool* finished) {
   // This is called by Audio thread.
   owner_node_->audio_lock()->AssertLocked();

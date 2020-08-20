@@ -52,7 +52,7 @@ void PushData(cobalt::media_capture::MediaRecorder* media_recorder) {
   frames.push_back(32767);
   frames.push_back(1000);
   frames.push_back(0);
-  cobalt::media_stream::MediaStreamAudioTrack::ShellAudioBus audio_bus(
+  cobalt::media_stream::MediaStreamAudioTrack::AudioBus audio_bus(
       1, frames.size(), frames.data());
   base::TimeTicks current_time = base::TimeTicks::Now();
   media_recorder->OnData(audio_bus, current_time);
@@ -68,9 +68,8 @@ class FakeMediaStreamAudioSource : public MediaStreamAudioSource {
   MOCK_METHOD0(EnsureSourceIsStarted, bool());
   MOCK_METHOD0(EnsureSourceIsStopped, void());
 
-  void DeliverDataToTracks(
-      const MediaStreamAudioTrack::ShellAudioBus& audio_bus,
-      base::TimeTicks reference_time) {
+  void DeliverDataToTracks(const MediaStreamAudioTrack::AudioBus& audio_bus,
+                           base::TimeTicks reference_time) {
     MediaStreamAudioSource::DeliverDataToTracks(audio_bus, reference_time);
   }
 
@@ -191,8 +190,8 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
   frames.push_back(32767);
   frames.push_back(1000);
   frames.push_back(0);
-  media_stream::MediaStreamAudioTrack::ShellAudioBus audio_bus(1, frames.size(),
-                                                               frames.data());
+  media_stream::MediaStreamAudioTrack::AudioBus audio_bus(1, frames.size(),
+                                                          frames.data());
   base::TimeTicks current_time = base::TimeTicks::Now();
   media_recorder_->OnData(audio_bus, current_time);
   current_time += base::TimeDelta::FromSecondsD(frames.size() / kSampleRate);

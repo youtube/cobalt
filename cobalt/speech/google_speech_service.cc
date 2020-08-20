@@ -220,8 +220,8 @@ void GoogleSpeechService::Stop() {
       base::Bind(&GoogleSpeechService::StopInternal, base::Unretained(this)));
 }
 
-void GoogleSpeechService::RecognizeAudio(
-    std::unique_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
+void GoogleSpeechService::RecognizeAudio(std::unique_ptr<AudioBus> audio_bus,
+                                         bool is_last_chunk) {
   // Called by the speech recognition manager thread.
   thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::UploadAudioDataInternal,
@@ -393,7 +393,7 @@ void GoogleSpeechService::ClearFinalResults() {
 }
 
 void GoogleSpeechService::UploadAudioDataInternal(
-    std::unique_ptr<ShellAudioBus> audio_bus, bool is_last_chunk) {
+    std::unique_ptr<AudioBus> audio_bus, bool is_last_chunk) {
   DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
   DCHECK(audio_bus);
 

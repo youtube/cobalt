@@ -118,7 +118,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   RecordingState state() { return recording_state_; }
 
   // MediaStreamAudioSink overrides.
-  void OnData(const ShellAudioBus& audio_bus,
+  void OnData(const AudioBus& audio_bus,
               base::TimeTicks reference_time) override;
   void OnSetFormat(const media_stream::AudioParameters& params) override;
   void OnReadyStateChanged(

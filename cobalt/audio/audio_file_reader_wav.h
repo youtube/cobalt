@@ -36,7 +36,7 @@ class AudioFileReaderWAV : public AudioFileReader {
   int32 number_of_channels() const override { return number_of_channels_; }
   SampleType sample_type() const override { return sample_type_; }
 
-  std::unique_ptr<ShellAudioBus> ResetAndReturnAudioBus() override {
+  std::unique_ptr<AudioBus> ResetAndReturnAudioBus() override {
     return std::move(audio_bus_);
   }
 
@@ -52,7 +52,7 @@ class AudioFileReaderWAV : public AudioFileReader {
 
   bool is_valid() { return audio_bus_ != NULL; }
 
-  std::unique_ptr<ShellAudioBus> audio_bus_;
+  std::unique_ptr<AudioBus> audio_bus_;
   float sample_rate_;
   int32 number_of_frames_;
   int32 number_of_channels_;

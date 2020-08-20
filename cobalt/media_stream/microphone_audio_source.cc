@@ -100,7 +100,7 @@ MicrophoneAudioSource::MicrophoneAudioSource(
                      base::Unretained(this), options))) {}
 
 void MicrophoneAudioSource::OnDataReceived(
-    std::unique_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus) {
+    std::unique_ptr<MediaStreamAudioTrack::AudioBus> audio_bus) {
   base::TimeTicks now = base::TimeTicks::Now();
   DeliverDataToTracks(*audio_bus, now);
 }

@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "content/browser/speech/endpointer/energy_endpointer.h"
 #include "content/common/content_export.h"
 
@@ -47,7 +47,7 @@ class AudioChunk;
 // long_speech_input_complete_silence_length.
 class CONTENT_EXPORT Endpointer {
  public:
-  typedef cobalt::media::ShellAudioBus ShellAudioBus;
+  typedef cobalt::media::AudioBus AudioBus;
 
   explicit Endpointer(int sample_rate);
 
@@ -68,7 +68,7 @@ class CONTENT_EXPORT Endpointer {
   // Process a segment of audio, which may be more than one frame.
   // The status of the last frame will be returned.
 #if defined(STARBOARD)
-  EpStatus ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out);
+  EpStatus ProcessAudio(const AudioBus& audio_bus, float* rms_out);
 #else
   EpStatus ProcessAudio(const AudioChunk& raw_audio, float* rms_out);
 #endif

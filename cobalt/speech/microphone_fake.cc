@@ -31,7 +31,7 @@
 namespace cobalt {
 namespace speech {
 
-typedef audio::ShellAudioBus ShellAudioBus;
+typedef audio::AudioBus AudioBus;
 
 namespace {
 
@@ -89,10 +89,10 @@ MicrophoneFake::MicrophoneFake(const Options& options)
   } else {
     file_length_ = std::min(options.audio_data_size, kMaxBufferSize);
     DCHECK_GT(file_length_, 0);
-    audio_bus_.reset(new ShellAudioBus(
-        kSupportedMonoChannel,
-        file_length_ / audio::GetSampleTypeSize(ShellAudioBus::kInt16),
-        ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+    audio_bus_.reset(
+        new AudioBus(kSupportedMonoChannel,
+                     file_length_ / audio::GetSampleTypeSize(AudioBus::kInt16),
+                     AudioBus::kInt16, AudioBus::kInterleaved));
     SbMemoryCopy(audio_bus_->interleaved_data(), options.external_audio_data,
                  file_length_);
   }
@@ -131,14 +131,14 @@ bool MicrophoneFake::Open() {
     const float kSupportedSampleRate = 16000.0f;
     if (!reader) {
       // If it is not a WAV file, read audio data as raw audio.
-      audio_bus_.reset(new ShellAudioBus(
+      audio_bus_.reset(new AudioBus(
           kSupportedMonoChannel,
-          file_buffer_size / audio::GetSampleTypeSize(ShellAudioBus::kInt16),
-          ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+          file_buffer_size / audio::GetSampleTypeSize(AudioBus::kInt16),
+          AudioBus::kInt16, AudioBus::kInterleaved));
       SbMemoryCopy(audio_bus_->interleaved_data(), audio_input.get(),
                    file_buffer_size);
       file_length_ = file_buffer_size;
-    } else if (reader->sample_type() != ShellAudioBus::kInt16 ||
+    } else if (reader->sample_type() != AudioBus::kInt16 ||
                reader->sample_rate() != kSupportedSampleRate ||
                reader->number_of_channels() != kSupportedMonoChannel) {
       // If it is a WAV file but it doesn't meet the audio input criteria, treat

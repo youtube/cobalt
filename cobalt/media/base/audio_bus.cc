@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 #include <algorithm>
 #include <limits>
@@ -24,20 +24,17 @@ namespace media {
 
 namespace {
 
-typedef ShellAudioBus::StorageType StorageType;
-typedef ShellAudioBus::SampleType SampleType;
+typedef AudioBus::StorageType StorageType;
+typedef AudioBus::SampleType SampleType;
 
 const float kFloat32ToInt16Factor = 32768.f;
 
-inline void ConvertSample(ShellAudioBus::SampleType src_type,
-                          const uint8* src_ptr,
-                          ShellAudioBus::SampleType dest_type,
-                          uint8* dest_ptr) {
+inline void ConvertSample(AudioBus::SampleType src_type, const uint8* src_ptr,
+                          AudioBus::SampleType dest_type, uint8* dest_ptr) {
   if (src_type == dest_type) {
-    SbMemoryCopy(
-        dest_ptr, src_ptr,
-        src_type == ShellAudioBus::kInt16 ? sizeof(int16) : sizeof(float));
-  } else if (src_type == ShellAudioBus::kFloat32) {
+    SbMemoryCopy(dest_ptr, src_ptr,
+                 src_type == AudioBus::kInt16 ? sizeof(int16) : sizeof(float));
+  } else if (src_type == AudioBus::kFloat32) {
     float sample_in_float = *reinterpret_cast<const float*>(src_ptr);
     int32 sample_in_int32 =
         static_cast<int32>(sample_in_float * kFloat32ToInt16Factor);
@@ -78,8 +75,8 @@ void Sum(const int16* source, int16* destination, size_t size) {
 
 }  // namespace
 
-ShellAudioBus::ShellAudioBus(size_t channels, size_t frames,
-                             SampleType sample_type, StorageType storage_type)
+AudioBus::AudioBus(size_t channels, size_t frames, SampleType sample_type,
+                   StorageType storage_type)
     : channels_(channels),
       frames_(frames),
       sample_type_(sample_type),
@@ -106,7 +103,7 @@ ShellAudioBus::ShellAudioBus(size_t channels, size_t frames,
   }
 }
 
-ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<float*>& samples)
+AudioBus::AudioBus(size_t frames, const std::vector<float*>& samples)
     : channels_(samples.size()),
       frames_(frames),
       sample_type_(kFloat32),
@@ -119,7 +116,7 @@ ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<float*>& samples)
   }
 }
 
-ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, float* samples)
+AudioBus::AudioBus(size_t channels, size_t frames, float* samples)
     : channels_(channels),
       frames_(frames),
       sample_type_(kFloat32),
@@ -129,7 +126,7 @@ ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, float* samples)
   channel_data_.push_back(reinterpret_cast<uint8*>(samples));
 }
 
-ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<int16*>& samples)
+AudioBus::AudioBus(size_t frames, const std::vector<int16*>& samples)
     : channels_(samples.size()),
       frames_(frames),
       sample_type_(kInt16),
@@ -142,7 +139,7 @@ ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<int16*>& samples)
   }
 }
 
-ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, int16* samples)
+AudioBus::AudioBus(size_t channels, size_t frames, int16* samples)
     : channels_(channels),
       frames_(frames),
       sample_type_(kInt16),
@@ -152,7 +149,7 @@ ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, int16* samples)
   channel_data_.push_back(reinterpret_cast<uint8*>(samples));
 }
 
-size_t ShellAudioBus::GetSampleSizeInBytes() const {
+size_t AudioBus::GetSampleSizeInBytes() const {
   if (sample_type_ == kInt16) {
     return sizeof(int16);
   }
@@ -160,29 +157,29 @@ size_t ShellAudioBus::GetSampleSizeInBytes() const {
   return sizeof(float);
 }
 
-const uint8* ShellAudioBus::interleaved_data() const {
+const uint8* AudioBus::interleaved_data() const {
   DCHECK_EQ(storage_type_, kInterleaved);
   return channel_data_[0];
 }
 
-const uint8* ShellAudioBus::planar_data(size_t channel) const {
+const uint8* AudioBus::planar_data(size_t channel) const {
   DCHECK_LT(channel, channels_);
   DCHECK_EQ(storage_type_, kPlanar);
   return channel_data_[channel];
 }
 
-uint8* ShellAudioBus::interleaved_data() {
+uint8* AudioBus::interleaved_data() {
   DCHECK_EQ(storage_type_, kInterleaved);
   return channel_data_[0];
 }
 
-uint8* ShellAudioBus::planar_data(size_t channel) {
+uint8* AudioBus::planar_data(size_t channel) {
   DCHECK_LT(channel, channels_);
   DCHECK_EQ(storage_type_, kPlanar);
   return channel_data_[channel];
 }
 
-void ShellAudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
+void AudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
   DCHECK_LE(start_frame, end_frame);
   DCHECK_LE(end_frame, frames_);
   end_frame = std::min(end_frame, frames_);
@@ -201,7 +198,7 @@ void ShellAudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
   }
 }
 
-void ShellAudioBus::Assign(const ShellAudioBus& source) {
+void AudioBus::Assign(const AudioBus& source) {
   DCHECK_EQ(channels_, source.channels_);
   if (channels_ != source.channels_) {
     ZeroAllFrames();
@@ -232,8 +229,8 @@ void ShellAudioBus::Assign(const ShellAudioBus& source) {
   }
 }
 
-void ShellAudioBus::Assign(const ShellAudioBus& source,
-                           const std::vector<float>& matrix) {
+void AudioBus::Assign(const AudioBus& source,
+                      const std::vector<float>& matrix) {
   DCHECK_EQ(channels() * source.channels(), matrix.size());
   DCHECK_EQ(sample_type_, kFloat32);
   DCHECK_EQ(source.sample_type_, kFloat32);
@@ -258,7 +255,7 @@ void ShellAudioBus::Assign(const ShellAudioBus& source,
 }
 
 template <StorageType SourceStorageType, StorageType DestStorageType>
-void ShellAudioBus::MixFloatSamples(const ShellAudioBus& source) {
+void AudioBus::MixFloatSamples(const AudioBus& source) {
   const size_t frames = std::min(frames_, source.frames_);
 
   if (SourceStorageType == DestStorageType) {
@@ -284,7 +281,7 @@ void ShellAudioBus::MixFloatSamples(const ShellAudioBus& source) {
 }
 
 template <StorageType SourceStorageType, StorageType DestStorageType>
-void ShellAudioBus::MixInt16Samples(const ShellAudioBus& source) {
+void AudioBus::MixInt16Samples(const AudioBus& source) {
   const size_t frames = std::min(frames_, source.frames_);
 
   if (SourceStorageType == DestStorageType) {
@@ -318,7 +315,7 @@ void ShellAudioBus::MixInt16Samples(const ShellAudioBus& source) {
   }
 }
 
-void ShellAudioBus::Mix(const ShellAudioBus& source) {
+void AudioBus::Mix(const AudioBus& source) {
   DCHECK_EQ(channels_, source.channels_);
   DCHECK_EQ(sample_type_, source.sample_type_);
 
@@ -359,8 +356,7 @@ void ShellAudioBus::Mix(const ShellAudioBus& source) {
   }
 }
 
-void ShellAudioBus::Mix(const ShellAudioBus& source,
-                        const std::vector<float>& matrix) {
+void AudioBus::Mix(const AudioBus& source, const std::vector<float>& matrix) {
   DCHECK_EQ(channels() * source.channels(), matrix.size());
   DCHECK_EQ(sample_type_, source.sample_type_);
 
@@ -411,7 +407,7 @@ void ShellAudioBus::Mix(const ShellAudioBus& source,
   }
 }
 
-uint8* ShellAudioBus::GetSamplePtr(size_t channel, size_t frame) {
+uint8* AudioBus::GetSamplePtr(size_t channel, size_t frame) {
   DCHECK_LT(channel, channels_);
   DCHECK_LT(frame, frames_);
 
@@ -423,7 +419,7 @@ uint8* ShellAudioBus::GetSamplePtr(size_t channel, size_t frame) {
   }
 }
 
-const uint8* ShellAudioBus::GetSamplePtr(size_t channel, size_t frame) const {
+const uint8* AudioBus::GetSamplePtr(size_t channel, size_t frame) const {
   DCHECK_LT(channel, channels_);
   DCHECK_LT(frame, frames_);
 

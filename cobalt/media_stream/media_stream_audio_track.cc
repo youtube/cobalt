@@ -69,7 +69,7 @@ void MediaStreamAudioTrack::Start(const base::Closure& stop_callback) {
   stop_callback_ = stop_callback;
 }
 
-void MediaStreamAudioTrack::OnData(const ShellAudioBus& audio_bus,
+void MediaStreamAudioTrack::OnData(const AudioBus& audio_bus,
                                    base::TimeTicks reference_time) {
   deliverer_.OnData(audio_bus, reference_time);
 }

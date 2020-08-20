@@ -15,8 +15,8 @@
 #ifndef COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 #define COBALT_SPEECH_ENDPOINTER_DELEGATE_H_
 
+#include "cobalt/media/base/audio_bus.h"
 #include "content/browser/speech/endpointer/endpointer.h"
-#include "cobalt/media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace speech {
@@ -25,7 +25,7 @@ namespace speech {
 // speech session (from start speaking to end of speaking).
 class EndPointerDelegate {
  public:
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
 
   explicit EndPointerDelegate(int sample_rate);
   ~EndPointerDelegate();
@@ -36,7 +36,7 @@ class EndPointerDelegate {
   void Stop();
 
   // Return true if it is the first time that the sound started.
-  bool IsFirstTimeSoundStarted(const ShellAudioBus& audio_bus);
+  bool IsFirstTimeSoundStarted(const AudioBus& audio_bus);
 
  private:
   // Used for detecting sound start event.

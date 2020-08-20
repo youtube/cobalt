@@ -25,7 +25,7 @@
 #include "base/threading/thread.h"
 #include "base/timer/timer.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/speech/microphone.h"
 
 namespace cobalt {
@@ -39,9 +39,8 @@ class MicrophoneManager {
     kAudioCapture,
     kAborted,
   };
-  typedef media::ShellAudioBus ShellAudioBus;
-  typedef base::Callback<void(std::unique_ptr<ShellAudioBus>)>
-      DataReceivedCallback;
+  typedef media::AudioBus AudioBus;
+  typedef base::Callback<void(std::unique_ptr<AudioBus>)> DataReceivedCallback;
   typedef base::Closure CompletionCallback;
   typedef base::Closure SuccessfulOpenCallback;
   typedef base::Callback<void(MicrophoneError, std::string)> ErrorCallback;

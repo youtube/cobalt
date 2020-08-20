@@ -22,8 +22,8 @@
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media/base/interleaved_sinc_resampler.h"
-#include "cobalt/media/base/shell_audio_bus.h"
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
@@ -35,7 +35,7 @@ namespace audio {
 //   https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioNode {
   typedef media::InterleavedSincResampler InterleavedSincResampler;
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
 
  public:
   AudioBufferSourceNode(script::EnvironmentSettings* settings,
@@ -75,8 +75,9 @@ class AudioBufferSourceNode : public AudioNode {
     SetAttributeEventListener(base::Tokens::ended(), event_listener);
   }
 
-  std::unique_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 number_of_frames, SampleType sample_type, bool* finished) override;
+  std::unique_ptr<AudioBus> PassAudioBusFromSource(int32 number_of_frames,
+                                                   SampleType sample_type,
+                                                   bool* finished) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
   void TraceMembers(script::Tracer* tracer) override;

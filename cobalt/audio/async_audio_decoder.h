@@ -28,7 +28,7 @@ namespace audio {
 class AsyncAudioDecoder {
  public:
   typedef base::Callback<void(float sample_rate,
-                              std::unique_ptr<ShellAudioBus> audio_bus)>
+                              std::unique_ptr<AudioBus> audio_bus)>
       DecodeFinishCallback;
 
   AsyncAudioDecoder();

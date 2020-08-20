@@ -52,7 +52,7 @@ class MicrophoneFake : public Microphone {
 
   bool read_data_from_file_;
   std::vector<base::FilePath> file_paths_;
-  std::unique_ptr<audio::ShellAudioBus> audio_bus_;
+  std::unique_ptr<audio::AudioBus> audio_bus_;
   int file_length_;
   int read_index_;
   bool is_valid_;

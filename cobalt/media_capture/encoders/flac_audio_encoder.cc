@@ -59,11 +59,11 @@ FlacAudioEncoder::~FlacAudioEncoder() {
       base::Bind(&FlacAudioEncoder::DestroyEncoder, base::Unretained(this)));
 }
 
-void FlacAudioEncoder::Encode(const ShellAudioBus& audio_bus,
+void FlacAudioEncoder::Encode(const AudioBus& audio_bus,
                               base::TimeTicks reference_time) {
-  std::unique_ptr<ShellAudioBus> audio_bus_copy(
-      new ShellAudioBus(audio_bus.channels(), audio_bus.frames(),
-                        audio_bus.sample_type(), audio_bus.storage_type()));
+  std::unique_ptr<AudioBus> audio_bus_copy(
+      new AudioBus(audio_bus.channels(), audio_bus.frames(),
+                   audio_bus.sample_type(), audio_bus.storage_type()));
   audio_bus_copy->Assign(audio_bus);
 
   // base::Unretained usage is safe here, since we're posting to a thread that
@@ -107,7 +107,7 @@ void FlacAudioEncoder::CreateEncoder(
 
 void FlacAudioEncoder::DestroyEncoder() { flac_encoder_.reset(); }
 
-void FlacAudioEncoder::DoEncode(std::unique_ptr<ShellAudioBus> audio_bus,
+void FlacAudioEncoder::DoEncode(std::unique_ptr<AudioBus> audio_bus,
                                 base::TimeTicks reference_time) {
   DCHECK(flac_encoder_);
   flac_encoder_->Encode(audio_bus.get());

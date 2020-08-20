@@ -25,8 +25,7 @@
 namespace cobalt {
 namespace audio {
 
-AudioBuffer::AudioBuffer(float sample_rate,
-                         std::unique_ptr<ShellAudioBus> audio_bus)
+AudioBuffer::AudioBuffer(float sample_rate, std::unique_ptr<AudioBus> audio_bus)
     : sample_rate_(sample_rate), audio_bus_(std::move(audio_bus)) {
   DCHECK_GT(sample_rate_, 0);
   DCHECK_GT(length(), 0);
