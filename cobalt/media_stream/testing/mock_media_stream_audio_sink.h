@@ -24,8 +24,8 @@ namespace media_stream {
 
 class MockMediaStreamAudioSink : public MediaStreamAudioSink {
  public:
-  MOCK_METHOD2(OnData, void(const ShellAudioBus& audio_bus,
-                            base::TimeTicks reference_time));
+  MOCK_METHOD2(OnData,
+               void(const AudioBus& audio_bus, base::TimeTicks reference_time));
   MOCK_METHOD1(OnSetFormat, void(const media_stream::AudioParameters& params));
   MOCK_METHOD1(OnReadyStateChanged,
                void(media_stream::MediaStreamTrack::ReadyState new_state));

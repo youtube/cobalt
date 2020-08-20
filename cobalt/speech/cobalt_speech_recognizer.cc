@@ -123,7 +123,7 @@ void CobaltSpeechRecognizer::Stop() {
 }
 
 void CobaltSpeechRecognizer::OnDataReceived(
-    std::unique_ptr<ShellAudioBus> audio_bus) {
+    std::unique_ptr<AudioBus> audio_bus) {
   if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
     RunEventCallback(new dom::Event(base::Tokens::soundstart()));
   }
@@ -135,8 +135,8 @@ void CobaltSpeechRecognizer::OnDataCompletion() {
   // silence at the end in case encoder had no data already.
   size_t dummy_frames =
       static_cast<size_t>(kSampleRate * kAudioPacketDurationInSeconds);
-  std::unique_ptr<ShellAudioBus> dummy_audio_bus(new ShellAudioBus(
-      1, dummy_frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+  std::unique_ptr<AudioBus> dummy_audio_bus(
+      new AudioBus(1, dummy_frames, AudioBus::kInt16, AudioBus::kInterleaved));
   dummy_audio_bus->ZeroAllFrames();
   service_->RecognizeAudio(std::move(dummy_audio_bus), true);
 }

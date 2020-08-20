@@ -39,7 +39,7 @@ namespace audio {
 //   https://www.w3.org/TR/webaudio/#AudioBuffer
 class AudioBuffer : public script::Wrappable {
  public:
-  AudioBuffer(float sample_rate, std::unique_ptr<ShellAudioBus> audio_bus);
+  AudioBuffer(float sample_rate, std::unique_ptr<AudioBus> audio_bus);
 
   // Web API: AudioBuffer
   //
@@ -60,14 +60,14 @@ class AudioBuffer : public script::Wrappable {
 
   // Custom, not in any spec
   //
-  ShellAudioBus* audio_bus() { return audio_bus_.get(); }
+  AudioBus* audio_bus() { return audio_bus_.get(); }
 
   DEFINE_WRAPPABLE_TYPE(AudioBuffer);
 
  private:
   const float sample_rate_;
 
-  std::unique_ptr<ShellAudioBus> audio_bus_;
+  std::unique_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBuffer);
 };

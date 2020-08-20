@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
-#define COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
+#ifndef COBALT_MEDIA_BASE_AUDIO_BUS_H_
+#define COBALT_MEDIA_BASE_AUDIO_BUS_H_
 
 #include <memory>
 #include <vector>
@@ -37,11 +37,11 @@ namespace media {
 // second of such audio contains 48000 frames (96000 samples).
 // Note: This class doesn't do endianness conversions.  It assumes that all data
 // is in the correct endianness.
-class COBALT_EXPORT ShellAudioBus {
+class COBALT_EXPORT AudioBus {
  public:
   // Guaranteed alignment of each channel's data; use 64-byte alignment so it
   // satisfies all our current platforms.  Note that this is only used for
-  // buffers that are allocated and owned by the ShellAudioBus.  We don't
+  // buffers that are allocated and owned by the AudioBus.  We don't
   // enforce alignment for the buffers passed in and extra caution should be
   // taken if they are used as hardware buffer.
   static const size_t kChannelAlignmentInBytes = 64;
@@ -50,12 +50,12 @@ class COBALT_EXPORT ShellAudioBus {
 
   enum StorageType { kInterleaved, kPlanar };
 
-  ShellAudioBus(size_t channels, size_t frames, SampleType sample_type,
-                StorageType storage_type);
-  ShellAudioBus(size_t frames, const std::vector<float*>& samples);
-  ShellAudioBus(size_t channels, size_t frames, float* samples);
-  ShellAudioBus(size_t frames, const std::vector<int16*>& samples);
-  ShellAudioBus(size_t channels, size_t frames, int16* samples);
+  AudioBus(size_t channels, size_t frames, SampleType sample_type,
+           StorageType storage_type);
+  AudioBus(size_t frames, const std::vector<float*>& samples);
+  AudioBus(size_t channels, size_t frames, float* samples);
+  AudioBus(size_t frames, const std::vector<int16*>& samples);
+  AudioBus(size_t channels, size_t frames, int16* samples);
 
   size_t channels() const { return channels_; }
   size_t frames() const { return frames_; }
@@ -84,7 +84,7 @@ class COBALT_EXPORT ShellAudioBus {
   // conversion between different sample types and storage types.  When source
   // has less frames than the destination object, it will only copy these frames
   // and will not fill the rest frames in our buffer with 0.
-  void Assign(const ShellAudioBus& source);
+  void Assign(const AudioBus& source);
 
   // The same as the above function except that this function also does mixing.
   // |matrix| is a |dest.channels()| row * |source.channels()| column matrix in
@@ -96,14 +96,14 @@ class COBALT_EXPORT ShellAudioBus {
   //   + source.sample[source.channels() - 1][frame] *
   //         matrix[channels() * source.channels() + source.channels() - 1];
   // Note: Both objects must have storage type of kFloat32.
-  void Assign(const ShellAudioBus& source, const std::vector<float>& matrix);
+  void Assign(const AudioBus& source, const std::vector<float>& matrix);
 
   // The following functions are the same as the Assign() functions except that
   // they add the calculated samples to the target samples instead of replacing
   // the target samples with the calculated samples.
   // Note: Both objects must have storage type of kFloat32.
-  void Mix(const ShellAudioBus& source);
-  void Mix(const ShellAudioBus& source, const std::vector<float>& matrix);
+  void Mix(const AudioBus& source);
+  void Mix(const AudioBus& source, const std::vector<float>& matrix);
 
  public:
   // The .*ForTypes? functions below are optimized versions that assume what
@@ -134,10 +134,10 @@ class COBALT_EXPORT ShellAudioBus {
   }
 
   template <StorageType SourceStorageType, StorageType DestStorageType>
-  void MixFloatSamples(const ShellAudioBus& source);
+  void MixFloatSamples(const AudioBus& source);
 
   template <StorageType SourceStorageType, StorageType DestStorageType>
-  void MixInt16Samples(const ShellAudioBus& source);
+  void MixInt16Samples(const AudioBus& source);
 
  private:
   void SetFloat32Sample(size_t channel, size_t frame, float sample) {
@@ -160,10 +160,10 @@ class COBALT_EXPORT ShellAudioBus {
   SampleType sample_type_;
   StorageType storage_type_;
 
-  DISALLOW_COPY_AND_ASSIGN(ShellAudioBus);
+  DISALLOW_COPY_AND_ASSIGN(AudioBus);
 };
 
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_SHELL_AUDIO_BUS_H_
+#endif  // COBALT_MEDIA_BASE_AUDIO_BUS_H_

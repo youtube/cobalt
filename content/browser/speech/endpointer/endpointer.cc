@@ -89,7 +89,7 @@ EpStatus Endpointer::Status(int64_t* time) {
 }
 
 #if defined(STARBOARD)
-EpStatus Endpointer::ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out) {
+EpStatus Endpointer::ProcessAudio(const AudioBus& audio_bus, float* rms_out) {
   // TODO[Cobalt]: replace ShellAudioData with AudioChunk and deprecate
   // ShellAudioData.
   DCHECK_EQ(audio_bus.channels(), 1);
@@ -97,16 +97,16 @@ EpStatus Endpointer::ProcessAudio(const ShellAudioBus& audio_bus, float* rms_out
   const size_t num_samples = audio_bus.frames();
   const int16_t* audio_data = NULL;
 
-  ShellAudioBus int16_audio_bus(1, num_samples, ShellAudioBus::kInt16,
-                                ShellAudioBus::kInterleaved);
+  AudioBus int16_audio_bus(1, num_samples, AudioBus::kInt16,
+                           AudioBus::kInterleaved);
 
-  if (audio_bus.sample_type() == ShellAudioBus::kFloat32) {
+  if (audio_bus.sample_type() == AudioBus::kFloat32) {
     int16_audio_bus.Assign(audio_bus);
-    DCHECK_EQ(int16_audio_bus.sample_type(), ShellAudioBus::kInt16);
+    DCHECK_EQ(int16_audio_bus.sample_type(), AudioBus::kInt16);
     audio_data =
         reinterpret_cast<const int16_t*>(int16_audio_bus.interleaved_data());
   } else {
-    DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
+    DCHECK_EQ(audio_bus.sample_type(), AudioBus::kInt16);
     audio_data =
         reinterpret_cast<const int16_t*>(audio_bus.interleaved_data());
   }

@@ -29,6 +29,8 @@
         'media_module.cc',
         'media_module.h',
 
+        'base/audio_bus.cc',
+        'base/audio_bus.h',
         'base/audio_codecs.cc',
         'base/audio_codecs.h',
         'base/audio_decoder_config.cc',
@@ -90,8 +92,6 @@
         'base/sbplayer_pipeline.cc',
         'base/sbplayer_set_bounds_helper.cc',
         'base/sbplayer_set_bounds_helper.h',
-        'base/shell_audio_bus.cc',
-        'base/shell_audio_bus.h',
         'base/starboard_player.cc',
         'base/starboard_player.h',
         'base/starboard_utils.cc',

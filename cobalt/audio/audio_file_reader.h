@@ -35,7 +35,7 @@ class AudioFileReader {
   virtual int32 number_of_channels() const = 0;
   virtual SampleType sample_type() const = 0;
 
-  virtual std::unique_ptr<ShellAudioBus> ResetAndReturnAudioBus() = 0;
+  virtual std::unique_ptr<AudioBus> ResetAndReturnAudioBus() = 0;
 };
 
 }  // namespace audio

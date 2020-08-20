@@ -36,7 +36,7 @@ class FlacAudioEncoder : public AudioEncoder {
 
   // Called from the thread the object is constructed on (usually
   // a dedicated audio thread).
-  void Encode(const ShellAudioBus& audio_bus,
+  void Encode(const AudioBus& audio_bus,
               base::TimeTicks reference_time) override;
 
   // This can be called from any thread
@@ -54,7 +54,7 @@ class FlacAudioEncoder : public AudioEncoder {
   // These functions are called on the encoder thread.
   void CreateEncoder(const media_stream::AudioParameters& params);
   void DestroyEncoder();
-  void DoEncode(std::unique_ptr<ShellAudioBus> audio_bus,
+  void DoEncode(std::unique_ptr<AudioBus> audio_bus,
                 base::TimeTicks reference_time);
   void DoFinish(base::TimeTicks reference_time);
 

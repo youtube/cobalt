@@ -70,7 +70,7 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
       int buffer_size_bytes);
 
   void OnDataReceived(
-      std::unique_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus);
+      std::unique_ptr<MediaStreamAudioTrack::AudioBus> audio_bus);
 
   void OnDataCompletion();
   void OnMicrophoneOpen();

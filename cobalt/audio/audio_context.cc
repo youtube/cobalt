@@ -64,7 +64,7 @@ scoped_refptr<AudioBuffer> AudioContext::CreateBuffer(uint32 num_of_channels,
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   return scoped_refptr<AudioBuffer>(new AudioBuffer(
-      sample_rate, std::unique_ptr<ShellAudioBus>(new ShellAudioBus(
+      sample_rate, std::unique_ptr<AudioBus>(new AudioBus(
                        num_of_channels, length, GetPreferredOutputSampleType(),
                        kStorageTypeInterleaved))));
 }
@@ -151,7 +151,7 @@ void AudioContext::DecodeAudioDataInternal(
 // Success callback and error callback should be scheduled to run on the main
 // thread's event loop.
 void AudioContext::DecodeFinish(int callback_id, float sample_rate,
-                                std::unique_ptr<ShellAudioBus> audio_bus) {
+                                std::unique_ptr<AudioBus> audio_bus) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
         FROM_HERE,

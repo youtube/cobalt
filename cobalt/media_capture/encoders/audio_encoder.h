@@ -20,10 +20,10 @@
 #include "base/basictypes.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "starboard/common/mutex.h"
 
-#include "cobalt/media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -31,7 +31,7 @@ namespace encoders {
 
 class AudioEncoder {
  public:
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
 
   class Listener {
    public:
@@ -44,7 +44,7 @@ class AudioEncoder {
   virtual ~AudioEncoder() = default;
 
   // Encode raw audio data.
-  virtual void Encode(const ShellAudioBus& audio_bus,
+  virtual void Encode(const AudioBus& audio_bus,
                       base::TimeTicks reference_time) = 0;
   // Finish encoding.
   virtual void Finish(base::TimeTicks timecode) = 0;

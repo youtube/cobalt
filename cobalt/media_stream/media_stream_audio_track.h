@@ -19,7 +19,7 @@
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/event_target.h"
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_deliverer.h"
 #include "cobalt/media_stream/media_stream_audio_sink.h"
@@ -50,7 +50,7 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
     settings.set_sample_size(parameters.bits_per_sample());
     return settings;
   }
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
   explicit MediaStreamAudioTrack(script::EnvironmentSettings* settings)
       : MediaStreamTrack(settings) {}
 
@@ -81,7 +81,7 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
   void Start(const base::Closure& stop_callback);
 
   // Called by MediaStreamAudioDeliverer.
-  void OnData(const ShellAudioBus& audio_bus, base::TimeTicks reference_time);
+  void OnData(const AudioBus& audio_bus, base::TimeTicks reference_time);
   void OnSetFormat(const media_stream::AudioParameters& params);
 
   THREAD_CHECKER(thread_checker_);

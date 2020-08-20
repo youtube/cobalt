@@ -190,7 +190,7 @@ class AudioContext : public dom::EventTarget {
 
   void DecodeAudioDataInternal(std::unique_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate,
-                    std::unique_ptr<ShellAudioBus> audio_bus);
+                    std::unique_ptr<AudioBus> audio_bus);
 
   script::GlobalEnvironment* global_environment_;
 
