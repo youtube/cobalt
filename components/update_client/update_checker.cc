@@ -284,6 +284,10 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       config_->EnabledCupSigning(),
       base::BindOnce(&UpdateCheckerImpl::OnRequestSenderComplete,
                      base::Unretained(this)));
+#if defined(OS_STARBOARD)
+  // Reset is_channel_changed flag to false if it is true
+  config_->CompareAndSwapChannelChanged(1, 0);
+#endif
 }
 
 void UpdateCheckerImpl::OnRequestSenderComplete(int error,

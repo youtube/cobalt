@@ -74,6 +74,7 @@ namespace updater {
 
 Configurator::Configurator(network::NetworkModule* network_module)
     : pref_service_(CreatePrefService()),
+      is_channel_changed_(0),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
@@ -134,9 +135,9 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
   params.insert(std::make_pair(
       "jsengine", script::GetJavaScriptEngineNameAndVersion()));
-  params.insert(std::make_pair("updaterchannelchanged",
-                               IsChannelChanged() ? "True" : "False"));
-
+  params.insert(std::make_pair(
+      "updaterchannelchanged",
+      SbAtomicNoBarrier_Load(&is_channel_changed_) == 1 ? "True" : "False"));
   // Brand name
   params.insert(
       std::make_pair("brand", GetDeviceProperty(kSbSystemPropertyBrandName)));
@@ -198,6 +199,10 @@ Configurator::GetProtocolHandlerFactory() const {
 update_client::RecoveryCRXElevator Configurator::GetRecoveryCRXElevator()
     const {
   return {};
+}
+
+void Configurator::CompareAndSwapChannelChanged(int old_value, int new_value) {
+  SbAtomicNoBarrier_CompareAndSwap(&is_channel_changed_, old_value, new_value);
 }
 
 // The updater channel is get and set by main web module thread and update

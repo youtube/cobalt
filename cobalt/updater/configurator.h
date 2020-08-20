@@ -76,8 +76,8 @@ class Configurator : public update_client::Configurator {
 
   void SetChannel(const std::string& updater_channel) override;
 
-  void MarkChannelChanged() { is_channel_changed = true; }
-  bool IsChannelChanged() const override { return is_channel_changed; }
+  void CompareAndSwapChannelChanged(int old_value, int new_value) override;
+
   bool IsChannelValid(const std::string& channel);
 
   std::string GetUpdaterStatus() const;
@@ -93,7 +93,7 @@ class Configurator : public update_client::Configurator {
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
   std::string updater_channel_;
   base::Lock updater_channel_lock_;
-  bool is_channel_changed = false;
+  SbAtomic32 is_channel_changed_;
   std::string updater_status_;
   base::Lock updater_status_lock_;
 
