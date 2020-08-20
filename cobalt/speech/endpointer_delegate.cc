@@ -45,8 +45,7 @@ void EndPointerDelegate::Start() {
 
 void EndPointerDelegate::Stop() { endpointer_.EndSession(); }
 
-bool EndPointerDelegate::IsFirstTimeSoundStarted(
-    const ShellAudioBus& audio_bus) {
+bool EndPointerDelegate::IsFirstTimeSoundStarted(const AudioBus& audio_bus) {
   if (is_first_time_sound_started_) {
     return false;
   }

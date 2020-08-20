@@ -15,12 +15,13 @@
 #ifndef COBALT_MEDIA_STREAM_MEDIA_STREAM_AUDIO_SINK_H_
 #define COBALT_MEDIA_STREAM_MEDIA_STREAM_AUDIO_SINK_H_
 
+#include "cobalt/media/base/audio_bus.h"
+
 #include "cobalt/media_stream/audio_parameters.h"
 
 #include "cobalt/media_stream/media_stream_source.h"
 #include "cobalt/media_stream/media_stream_track.h"
 
-#include "cobalt/media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -29,11 +30,11 @@ namespace media_stream {
 // Note: users of this class will call OnSetFormat is before OnData.
 class MediaStreamAudioSink {
  public:
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
   MediaStreamAudioSink() = default;
 
   // These are called on the same thread.
-  virtual void OnData(const ShellAudioBus& audio_bus,
+  virtual void OnData(const AudioBus& audio_bus,
                       base::TimeTicks reference_time) = 0;
   virtual void OnSetFormat(const media_stream::AudioParameters& params) = 0;
   virtual void OnReadyStateChanged(

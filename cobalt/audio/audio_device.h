@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 namespace cobalt {
 namespace audio {
@@ -28,7 +28,7 @@ class AudioDevice {
  public:
   class RenderCallback {
    public:
-    typedef media::ShellAudioBus ShellAudioBus;
+    typedef media::AudioBus AudioBus;
 
     // |all_consumed| will be set to true if all audio frames has been consumed.
     // This gives the AudioDestinationNode a chance to decide if the AudioDevice
@@ -38,7 +38,7 @@ class AudioDevice {
     // |silence| will be set to true before calling if |audio_buffer| contains
     // only silence samples, it will be set to |false| otherwise.  It will be
     // set to false on return if |audio_buffer| has been modified.
-    virtual void FillAudioBus(bool all_consumed, ShellAudioBus* audio_buffer,
+    virtual void FillAudioBus(bool all_consumed, AudioBus* audio_buffer,
                               bool* silence) = 0;
 
    protected:

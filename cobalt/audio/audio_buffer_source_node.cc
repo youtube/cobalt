@@ -27,7 +27,7 @@ namespace cobalt {
 namespace audio {
 
 typedef media::InterleavedSincResampler InterleavedSincResampler;
-typedef media::ShellAudioBus ShellAudioBus;
+typedef media::AudioBus AudioBus;
 
 // numberOfInputs  : 0
 // numberOfOutputs : 1
@@ -115,7 +115,7 @@ void AudioBufferSourceNode::Stop(double when,
   state_ = kStopped;
 }
 
-std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
+std::unique_ptr<AudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
     int32 number_of_frames, SampleType sample_type, bool* finished) {
   DCHECK_GT(number_of_frames, 0);
   DCHECK(finished);
@@ -126,7 +126,7 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
   *finished = false;
 
   if (state_ == kNone || !buffer_) {
-    return std::unique_ptr<ShellAudioBus>();
+    return std::unique_ptr<AudioBus>();
   }
 
   if (state_ == kStopped ||
@@ -140,7 +140,7 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
                                 base::Unretained(this)));
       buffer_source_added_ = false;
     }
-    return std::unique_ptr<ShellAudioBus>();
+    return std::unique_ptr<AudioBus>();
   }
 
   DCHECK_EQ(state_, kStarted);
@@ -151,22 +151,22 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
   int32 frames_to_end = buffer_->length() - read_index_;
   int32 channel_count = static_cast<int32>(audio_bus->channels());
 
-  std::unique_ptr<ShellAudioBus> result;
+  std::unique_ptr<AudioBus> result;
 
   if (!interleaved_resampler_) {
     int32 audio_bus_frames = std::min(number_of_frames, frames_to_end);
     if (sample_type == kSampleTypeInt16) {
-      result.reset(new ShellAudioBus(
-          channel_count, audio_bus_frames,
-          reinterpret_cast<int16*>(audio_bus->interleaved_data()) +
-              read_index_ * channel_count));
+      result.reset(
+          new AudioBus(channel_count, audio_bus_frames,
+                       reinterpret_cast<int16*>(audio_bus->interleaved_data()) +
+                           read_index_ * channel_count));
     } else {
       DCHECK_EQ(sample_type, kSampleTypeFloat32);
 
-      result.reset(new ShellAudioBus(
-          channel_count, audio_bus_frames,
-          reinterpret_cast<float*>(audio_bus->interleaved_data()) +
-              read_index_ * channel_count));
+      result.reset(
+          new AudioBus(channel_count, audio_bus_frames,
+                       reinterpret_cast<float*>(audio_bus->interleaved_data()) +
+                           read_index_ * channel_count));
     }
     read_index_ += audio_bus_frames;
     return result;
@@ -219,8 +219,8 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
     interleaved_resampler_->Resample(interleaved_output.get(),
                                      number_of_frames);
 
-    result.reset(new ShellAudioBus(channel_count, number_of_frames,
-                                   kSampleTypeInt16, kStorageTypeInterleaved));
+    result.reset(new AudioBus(channel_count, number_of_frames, kSampleTypeInt16,
+                              kStorageTypeInterleaved));
     for (int32 i = 0; i < channel_count * number_of_frames; ++i) {
       uint8* dest_ptr = result->interleaved_data() + sizeof(int16) * i;
       *reinterpret_cast<int16*>(dest_ptr) =
@@ -229,9 +229,8 @@ std::unique_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
   } else {
     DCHECK_EQ(sample_type, kSampleTypeFloat32);
 
-    result.reset(new ShellAudioBus(channel_count, number_of_frames,
-                                   kSampleTypeFloat32,
-                                   kStorageTypeInterleaved));
+    result.reset(new AudioBus(channel_count, number_of_frames,
+                              kSampleTypeFloat32, kStorageTypeInterleaved));
     interleaved_resampler_->Resample(
         reinterpret_cast<float*>(result->interleaved_data()), number_of_frames);
   }

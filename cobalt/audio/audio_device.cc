@@ -27,7 +27,7 @@
 namespace cobalt {
 namespace audio {
 
-typedef media::ShellAudioBus ShellAudioBus;
+typedef media::AudioBus AudioBus;
 
 namespace {
 const int kRenderBufferSizeFrames = 1024;
@@ -69,7 +69,7 @@ class AudioDevice::Impl {
   // The |render_callback_| returns audio data in planar form.  So we read it
   // into |input_audio_bus_| and convert it into interleaved form and store in
   // |output_frame_buffer_|.
-  ShellAudioBus input_audio_bus_;
+  AudioBus input_audio_bus_;
 
   std::unique_ptr<uint8[]> output_frame_buffer_;
 
@@ -102,7 +102,7 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
 #endif  // SB_API_VERSION >= 11
       input_audio_bus_(static_cast<size_t>(number_of_channels),
                        static_cast<size_t>(kRenderBufferSizeFrames),
-                       GetPreferredOutputSampleType(), ShellAudioBus::kPlanar),
+                       GetPreferredOutputSampleType(), AudioBus::kPlanar),
       output_frame_buffer_(
           new uint8[frames_per_channel_ * number_of_channels_ *
                     GetStarboardSampleTypeSize(output_sample_type_)]) {
@@ -226,8 +226,8 @@ inline void AudioDevice::Impl::FillOutputAudioBusForType() {
     for (size_t channel = 0; channel < input_audio_bus_.channels(); ++channel) {
       *output_buffer = ConvertSample<InputType, OutputType>(
           input_audio_bus_
-              .GetSampleForType<InputType, media::ShellAudioBus::kPlanar>(
-                  channel, frame));
+              .GetSampleForType<InputType, media::AudioBus::kPlanar>(channel,
+                                                                     frame));
       ++output_buffer;
     }
   }
@@ -237,7 +237,7 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   TRACE_EVENT0("cobalt::audio", "AudioDevice::Impl::FillOutputAudioBus()");
 
   const bool is_input_int16 =
-      input_audio_bus_.sample_type() == media::ShellAudioBus::kInt16;
+      input_audio_bus_.sample_type() == media::AudioBus::kInt16;
   const bool is_output_int16 =
       output_sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated;
 

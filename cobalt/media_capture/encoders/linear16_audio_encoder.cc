@@ -43,9 +43,9 @@ bool Linear16AudioEncoder::IsLinear16MIMEType(
   return match_iterator == mime_type_container.begin();
 }
 
-void Linear16AudioEncoder::Encode(const ShellAudioBus& audio_bus,
+void Linear16AudioEncoder::Encode(const AudioBus& audio_bus,
                                   base::TimeTicks reference_time) {
-  DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
+  DCHECK_EQ(audio_bus.sample_type(), AudioBus::kInt16);
   DCHECK_EQ(audio_bus.channels(), size_t(1));
   auto data = audio_bus.interleaved_data();
   size_t data_size = audio_bus.GetSampleSizeInBytes() * audio_bus.frames();

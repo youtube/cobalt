@@ -26,9 +26,10 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/audio_parameters.h"
 
-#include "cobalt/media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -119,7 +120,7 @@ class MediaStreamAudioDeliverer {
 
 // Deliver data to all consumers. This method may be called on any thread.
 
-  void OnData(const media::ShellAudioBus& audio_bus,
+  void OnData(const media::AudioBus& audio_bus,
               base::TimeTicks reference_time) {
     TRACE_EVENT1("media_stream", "MediaStreamAudioDeliverer::OnData",
                  "reference time (ms)",
