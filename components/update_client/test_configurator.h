@@ -128,7 +128,7 @@ class TestConfigurator : public Configurator {
 
 #if defined(STARBOARD)
   void SetChannel(const std::string& channel) override {}
-  bool IsChannelChanged() const override { return false; }
+  void CompareAndSwapChannelChanged(int old_value, int new_value) override {}
 #else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;

@@ -246,6 +246,10 @@ void UpdaterModule::Update() {
       base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }
 
+void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
+  updater_configurator_->CompareAndSwapChannelChanged(old_value, new_value);
+}
+
 // The following three methods all called by the main web module thread.
 std::string UpdaterModule::GetUpdaterChannel() const {
   return updater_configurator_->GetChannel();
