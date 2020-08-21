@@ -66,7 +66,7 @@ android {
     defaultConfig {
         applicationId "dev.cobalt.coat"
         minSdkVersion 21
-        targetSdkVersion 30
+        targetSdkVersion 29
         versionCode 1
         versionName "${buildId}"
         manifestPlaceholders = [applicationName: "CoAT: ${cobaltTarget}"]
