@@ -86,6 +86,12 @@ bool CrashReportExceptionHandler::AddEvergreenInfo(
   evergreen_info_ = info.evergreen_information_address;
   return true;
 }
+
+bool CrashReportExceptionHandler::AddAnnotations(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  annotations_address_ = info.annotations_address;
+  return true;
+}
 #endif
 
 bool CrashReportExceptionHandler::HandleException(
@@ -150,7 +156,8 @@ bool CrashReportExceptionHandler::HandleExceptionWithConnection(
                        &sanitized_snapshot
 #if defined(STARBOARD)
                        ,
-                       evergreen_info_
+                       evergreen_info_,
+                       annotations_address_
 #endif
                        )) {
     return false;
