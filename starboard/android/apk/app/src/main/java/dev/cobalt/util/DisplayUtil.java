@@ -15,47 +15,15 @@
 package dev.cobalt.util;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.util.SizeF;
-import android.view.Display;
 import android.view.WindowManager;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
 
   private DisplayUtil() {}
-
-  /**
-   * Returns the default display associated with a context.
-   */
-  @Nullable
-  public static Display getDefaultDisplay(Context context) {
-    if (context == null) {
-      return null;
-    }
-    if (android.os.Build.VERSION.SDK_INT >= 30) {
-      return getDefaultDisplayV30(context);
-    } else {
-      return getDefaultDisplayDeprecated(context);
-    }
-  }
-
-  @Nullable
-  @SuppressWarnings("deprecation")
-  private static Display getDefaultDisplayDeprecated(Context context) {
-    WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-    return (wm == null) ? null : wm.getDefaultDisplay();
-  }
-
-  @Nullable
-  @RequiresApi(30)
-  private static Display getDefaultDisplayV30(Context context) {
-    return context.getDisplay();
-  }
 
   /**
    * Returns the physical pixels per inch of the screen in the X and Y
@@ -114,10 +82,10 @@ public class DisplayUtil {
   private static DisplayMetrics cachedDisplayMetrics = null;
 
   private static DisplayMetrics getDisplayMetrics(Context context) {
-    Resources.getSystem().getDisplayMetrics();
     if (cachedDisplayMetrics == null) {
       cachedDisplayMetrics = new DisplayMetrics();
-      getDefaultDisplay(context).getRealMetrics(cachedDisplayMetrics);
+      ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE))
+          .getDefaultDisplay().getRealMetrics(cachedDisplayMetrics);
     }
     return cachedDisplayMetrics;
   }

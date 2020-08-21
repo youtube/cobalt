@@ -30,7 +30,7 @@ import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Size;
 import android.util.SizeF;
-import android.view.Display;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.RequiresApi;
@@ -521,12 +521,18 @@ public class StarboardBridge {
       return false;
     }
 
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay(activityHolder.get());
-    if (defaultDisplay == null) {
+    Activity activity = activityHolder.get();
+    if (activity == null) {
       return false;
     }
 
-    int[] supportedHdrTypes = defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
+    WindowManager windowManager = activity.getWindowManager();
+    if (windowManager == null) {
+      return false;
+    }
+
+    int[] supportedHdrTypes =
+        windowManager.getDefaultDisplay().getHdrCapabilities().getSupportedHdrTypes();
     for (int supportedType : supportedHdrTypes) {
       if (supportedType == hdrType) {
         return true;
