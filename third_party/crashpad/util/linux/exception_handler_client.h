@@ -57,6 +57,12 @@ class ExceptionHandlerClient {
   //! \return `true` on success or `false` on failure.
   bool SendEvergreenInfo(
       const ExceptionHandlerProtocol::ClientInformation& info);
+
+  //! \brief Sends EvergreenAnnotations to the ExceptionHandlerServer.
+  //!
+  //! \param[in] info Information to about this client.
+  //! \return `true` on success or `false` on failure.
+  bool SendAnnotations(const ExceptionHandlerProtocol::ClientInformation& info);
 #endif
 
   //! \brief Request a crash dump from the ExceptionHandlerServer.
@@ -82,6 +88,9 @@ class ExceptionHandlerClient {
  private:
 #if defined(STARBOARD)
   bool SendEvergreenInfoRequest(
+      const ExceptionHandlerProtocol::ClientInformation& info);
+
+  bool SendAddAnnotationsRequest(
       const ExceptionHandlerProtocol::ClientInformation& info);
 #endif
   int SendCrashDumpRequest(

@@ -55,7 +55,8 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
 
 #if defined(STARBOARD)
 bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
-                                      VMAddress evergreen_information_address) {
+                                      VMAddress evergreen_information_address,
+                                      VMAddress annotations_address) {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
 
   if (gettimeofday(&snapshot_time_, nullptr) != 0) {
@@ -67,6 +68,15 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
       !memory_range_.Initialize(process_reader_.Memory(),
                                 process_reader_.Is64Bit())) {
     return false;
+  }
+
+  EvergreenAnnotations annotations;
+  if (!memory_range_.Read(
+          annotations_address, sizeof(EvergreenAnnotations), &annotations)) {
+    LOG(ERROR) << "Could not read annotations";
+  } else {
+    AddAnnotation("user_agent_string",
+                  std::string(annotations.user_agent_string));
   }
 
   system_.Initialize(&process_reader_, &snapshot_time_);

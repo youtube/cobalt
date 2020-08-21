@@ -25,6 +25,7 @@
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
+#include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
@@ -107,6 +108,20 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
     SB_LOG(ERROR) << "Could not send Cobalt library information into Crashapd.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
+  }
+
+  auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
+      g_elf_loader.LookupSymbol("GetCobaltUserAgentString"));
+  if (!get_user_agent_func) {
+    SB_LOG(ERROR) << "Failed to get user agent string";
+  } else {
+    EvergreenAnnotations cobalt_version_info;
+    SbMemorySet(&cobalt_version_info, sizeof(EvergreenAnnotations), 0);
+    SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
+                 EVERGREEN_USER_AGENT_MAX_SIZE);
+    third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
+        cobalt_version_info);
+    SB_DLOG(INFO) << "Added user agent string to Crashpad.";
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(

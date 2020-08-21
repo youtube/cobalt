@@ -239,4 +239,9 @@ class Application {
 }  // namespace browser
 }  // namespace cobalt
 
+
+extern "C" {
+SB_IMPORT const char* GetCobaltUserAgentString();
+}
+
 #endif  // COBALT_BROWSER_APPLICATION_H_
