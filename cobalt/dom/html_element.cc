@@ -1023,10 +1023,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
   // themselves still need to have their computed style updated, in case the
   // value of display is changed.
   if (computed_style()->display() == cssom::KeywordValue::GetNone()) {
-    if (ui_nav_item_) {
-      ui_nav_item_->SetEnabled(false);
-      ui_nav_item_ = nullptr;
-    }
+    ReleaseUiNavigationItem();
     return;
   }
 
@@ -1207,12 +1204,7 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
 }
 
 HTMLElement::~HTMLElement() {
-  // Disable any associated navigation item to prevent callbacks during
-  // destruction.
-  if (ui_nav_item_) {
-    ui_nav_item_->SetEnabled(false);
-    ui_nav_item_ = nullptr;
-  }
+  ReleaseUiNavigationItem();
 
   if (IsInDocument()) {
     dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
@@ -1251,11 +1243,7 @@ void HTMLElement::OnRemovedFromDocument() {
   // Node::OnRemovedFromDocument().
   ClearRuleMatchingStateInternal(false /*invalidate_descendants*/);
 
-  // Release the associated navigation item as the object is no longer visible.
-  if (ui_nav_item_) {
-    ui_nav_item_->SetEnabled(false);
-    ui_nav_item_ = nullptr;
-  }
+  ReleaseUiNavigationItem();
 }
 
 void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
@@ -2007,6 +1995,11 @@ void HTMLElement::UpdateComputedStyle(
     }
   }
 
+  // Update the UI navigation item and invalidate layout boxes if needed.
+  if (!UpdateUiNavigationAndReturnIfLayoutBoxesAreValid()) {
+    invalidation_flags.invalidate_layout_boxes = true;
+  }
+
   if (invalidation_flags.mark_descendants_as_display_none) {
     MarkNotDisplayedOnDescendants();
   }
@@ -2028,9 +2021,6 @@ void HTMLElement::UpdateComputedStyle(
       InvalidateLayoutBoxRenderTreeNodes();
     }
   }
-
-  // Update the UI navigation item.
-  UpdateUiNavigationType();
 
   computed_style_valid_ = true;
   pseudo_elements_computed_styles_valid_ = true;
@@ -2069,7 +2059,7 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();
 }
 
-void HTMLElement::UpdateUiNavigationType() {
+bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
   base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
   if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
       computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
@@ -2088,7 +2078,7 @@ void HTMLElement::UpdateUiNavigationType() {
       if (ui_nav_item_->GetType() == *ui_nav_item_type) {
         // Keep using the existing navigation item.
         ui_nav_item_->SetDir(ui_nav_item_dir);
-        return;
+        return true;
       }
       // The current navigation item isn't of the correct type. Disable it so
       // that callbacks won't be invoked for it. The object will be destroyed
@@ -2096,6 +2086,7 @@ void HTMLElement::UpdateUiNavigationType() {
       ui_nav_item_->SetEnabled(false);
       ui_nav_item_ = nullptr;
     }
+
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
         base::Bind(
@@ -2114,8 +2105,28 @@ void HTMLElement::UpdateUiNavigationType() {
             FROM_HERE,
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
+    return false;
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
+    ui_nav_item_->SetEnabled(false);
+    ui_nav_item_ = nullptr;
+    return false;
+  }
+
+  return true;
+}
+
+void HTMLElement::ReleaseUiNavigationItem() {
+  if (ui_nav_item_) {
+    // Make sure layout updates this element.
+    InvalidateLayoutBoxesOfNodeAndAncestors();
+    if (ui_nav_item_->IsContainer()) {
+      // Make sure layout updates any focus items that may be in this container.
+      InvalidateLayoutBoxesOfDescendants();
+    }
+
+    // Disable the UI navigation item so it won't receive anymore callbacks
+    // while being released.
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;
   }

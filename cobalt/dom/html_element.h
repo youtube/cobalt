@@ -412,7 +412,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void ClearRuleMatchingStateInternal(bool invalidate_descendants);
 
   // Update the UI navigation item type for this element.
-  void UpdateUiNavigationType();
+  bool UpdateUiNavigationAndReturnIfLayoutBoxesAreValid();
+  void ReleaseUiNavigationItem();
 
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
