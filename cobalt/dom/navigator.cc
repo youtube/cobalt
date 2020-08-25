@@ -152,11 +152,15 @@ TryGetSupportedCapabilities(
     // 3.13. If the user agent and [CDM] implementation definitely support
     //       playback of encrypted media data for the combination of container,
     //       media types [...]:
-    if (can_play_type_handler->CanPlayAdaptive(content_type.c_str(),
-                                               key_system.c_str()) ==
-        kSbMediaSupportTypeProbably) {
+    auto can_play_result = can_play_type_handler->CanPlayAdaptive(
+        content_type.c_str(), key_system.c_str());
+    if (can_play_result == kSbMediaSupportTypeProbably ||
+        can_play_result == kSbMediaSupportTypeMaybe) {
       LOG(INFO) << "Navigator::RequestMediaKeySystemAccess(" << content_type
-                << ", " << key_system << ") -> supported";
+                << ", " << key_system << ") -> supported ("
+                << (can_play_result == kSbMediaSupportTypeProbably ? "probably"
+                                                                   : "maybe")
+                << ")";
       // 3.13.1. Add requested media capability to supported media capabilities.
       supported_media_capabilities.push_back(requested_media_capability);
     } else {
