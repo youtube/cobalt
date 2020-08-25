@@ -373,8 +373,11 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   }
 
   if (codecs.size() == 0) {
-    // This is a progressive query.  We only support "video/mp4" in this case.
-    if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {
+    // This happens when the H5 player is either querying for progressive
+    // playback support, or probing for generic mp4 support without specific
+    // codecs.  We only support "audio/mp4" and "video/mp4" for these cases.
+    if ((mime_type.type() == "audio" || mime_type.type() == "video") &&
+        mime_type.subtype() == "mp4") {
       return kSbMediaSupportTypeMaybe;
     }
     return kSbMediaSupportTypeNotSupported;
