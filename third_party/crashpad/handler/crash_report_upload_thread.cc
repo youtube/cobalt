@@ -242,7 +242,7 @@ void CrashReportUploadThread::ProcessPendingReport(
       break;
   }
 #if defined(STARBOARD)
-  database_->DeleteReport(report.uuid);
+  database_->RemoveOldReports(/*num_reports_to_save=*/2);
 #endif
 }
 

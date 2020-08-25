@@ -404,6 +404,15 @@ class CrashReportDatabase {
   //! \return The number of reports cleaned.
   virtual int CleanDatabase(time_t lockfile_ttl) { return 0; }
 
+  //! \brief Deletes the oldest crash reports and their associated metadata,
+  //!     leaving only num_reports_to_keep left in the database.
+  //!
+  //! \param[in] num_reports_to_keep To number of most recent reports to leave
+  //!     in the database.
+  //!
+  //! \return The operation status code.
+  virtual OperationStatus RemoveOldReports(int num_reports_to_keep) = 0;
+
  protected:
   CrashReportDatabase() {}
 
