@@ -224,10 +224,15 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   std::string os_name_and_version = platform_info.os_name_and_version;
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kUserAgentOsNameVersion)) {
-    os_name_and_version =
-        command_line->GetSwitchValueASCII(switches::kUserAgentOsNameVersion);
+  // Because we add Cobalt's user agent string to Crashpad before we actually
+  // start Cobalt, the command line won't be initialized when we first try to
+  // get the user agent string.
+  if (base::CommandLine::InitializedForCurrentProcess()) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kUserAgentOsNameVersion)) {
+      os_name_and_version =
+          command_line->GetSwitchValueASCII(switches::kUserAgentOsNameVersion);
+    }
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 

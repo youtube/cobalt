@@ -21,6 +21,7 @@
 #include "starboard/event.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/string.h"
 #include "starboard/thread_types.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 
@@ -62,6 +63,20 @@ void LoadLibraryAndInitialize(const std::string& library_path,
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
       g_elf_loader.LookupSymbol("SbEventHandle"));
+
+  auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
+      g_elf_loader.LookupSymbol("GetCobaltUserAgentString"));
+  if (!get_user_agent_func) {
+    SB_LOG(ERROR) << "Failed to get user agent string";
+  } else {
+    EvergreenAnnotations cobalt_version_info;
+    SbMemorySet(&cobalt_version_info, sizeof(EvergreenAnnotations), 0);
+    SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
+                 EVERGREEN_USER_AGENT_MAX_SIZE);
+    third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
+        cobalt_version_info);
+    SB_DLOG(INFO) << "Added user agent string to Crashpad.";
+  }
 
   if (!g_sb_event_func) {
     SB_LOG(ERROR) << "Failed to find SbEventHandle.";

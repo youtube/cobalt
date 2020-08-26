@@ -89,6 +89,11 @@ bool ExceptionHandlerClient::SendEvergreenInfo(
     const ExceptionHandlerProtocol::ClientInformation& info) {
   return SendEvergreenInfoRequest(info);
 }
+
+bool ExceptionHandlerClient::SendAnnotations(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  return SendAddAnnotationsRequest(info);
+}
 #endif
 
 int ExceptionHandlerClient::RequestCrashDump(
@@ -156,6 +161,17 @@ bool ExceptionHandlerClient::SendEvergreenInfoRequest(
   ExceptionHandlerProtocol::ClientToServerMessage message;
   message.type =
       ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo;
+  message.client_info = info;
+
+  UnixCredentialSocket::SendMsg(server_sock_, &message, sizeof(message));
+  return true;
+}
+
+bool ExceptionHandlerClient::SendAddAnnotationsRequest(
+    const ExceptionHandlerProtocol::ClientInformation& info) {
+  ExceptionHandlerProtocol::ClientToServerMessage message;
+  message.type =
+      ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddAnnotations;
   message.client_info = info;
 
   UnixCredentialSocket::SendMsg(server_sock_, &message, sizeof(message));
