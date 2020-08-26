@@ -37,6 +37,10 @@ const char kTestApp2Key[] = "ABCD";
 
 void SbEventFake(const SbEvent*) {}
 
+const char* GetCobaltUserAgentStringFake() {
+  return "";
+}
+
 class MockLibraryLoader : public LibraryLoader {
  public:
   MOCK_METHOD2(Load,
@@ -132,6 +136,10 @@ class SlotManagementTest : public testing::Test {
                 Load(testing::EndsWith(lib), testing::EndsWith(content)))
         .Times(1)
         .WillOnce(testing::Return(true));
+    EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
+        .Times(1)
+        .WillOnce(testing::Return(
+            reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
     EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
         .Times(1)
         .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
@@ -261,6 +269,10 @@ TEST_F(SlotManagementTest, AlternativeContent) {
                                    testing::EndsWith("/foo")))
       .Times(1)
       .WillOnce(testing::Return(true));
+  EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
+      .Times(1)
+      .WillOnce(testing::Return(
+          reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
   EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
       .Times(1)
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));

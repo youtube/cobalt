@@ -102,6 +102,13 @@ class ExceptionHandlerServer {
     //! \return `true` on success. `false` on failure with a message logged.
     virtual bool AddEvergreenInfo(
         const ExceptionHandlerProtocol::ClientInformation& info) = 0;
+
+    //! \brief Called on receipt of a request to add Evergreen Annotations.
+    //!
+    //! \param[in] info Information on the client.
+    //! \return `true` on success. `false` on failure with a message logged.
+    virtual bool AddAnnotations(
+        const ExceptionHandlerProtocol::ClientInformation& info) = 0;
 #endif
 
     //! \brief Called on the receipt of a crash dump request from a client for a
@@ -191,6 +198,9 @@ class ExceptionHandlerServer {
 
 #if defined(STARBOARD)
   bool HandleAddEvergreenInfoRequest(
+      const ucred& creds,
+      const ExceptionHandlerProtocol::ClientInformation& client_info);
+  bool HandleAddAnnotationsRequest(
       const ucred& creds,
       const ExceptionHandlerProtocol::ClientInformation& client_info);
 #endif
