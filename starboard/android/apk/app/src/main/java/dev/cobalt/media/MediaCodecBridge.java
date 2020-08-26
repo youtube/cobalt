@@ -830,14 +830,19 @@ class MediaCodecBridge {
       if (mAdaptivePlaybackSupported) {
         // Since we haven't passed the properties of the stream we're playing
         // down to this level, from our perspective, we could potentially
-        // adapt up to 8k at any point.  We thus request 8k buffers up front,
+        // adapt up to 8k at any point. We thus request 8k buffers up front,
         // unless the decoder claims to not be able to do 8k, in which case
         // we're ok, since we would've rejected a 8k stream when canPlayType
         // was called, and then use those decoder values instead.
-        int maxWidth = Math.min(7680, maxSupportedWidth);
-        int maxHeight = Math.min(4320, maxSupportedHeight);
-        format.setInteger(MediaFormat.KEY_MAX_WIDTH, maxWidth);
-        format.setInteger(MediaFormat.KEY_MAX_HEIGHT, maxHeight);
+        if (Build.VERSION.SDK_INT > 22) {
+          format.setInteger(MediaFormat.KEY_MAX_WIDTH, Math.min(7680, maxSupportedWidth));
+          format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(4320, maxSupportedHeight));
+        } else {
+          // Android 5.0/5.1 seems not support 8K. Fallback to 4K until we get a
+          // better way to get maximum supported resolution.
+          format.setInteger(MediaFormat.KEY_MAX_WIDTH, Math.min(3840, maxSupportedWidth));
+          format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(2160, maxSupportedHeight));
+        }
       }
       maybeSetMaxInputSize(format);
       mMediaCodec.configure(format, surface, crypto, flags);
