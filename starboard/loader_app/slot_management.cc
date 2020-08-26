@@ -23,6 +23,7 @@
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
+#include "starboard/memory.h"
 #include "starboard/string.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 
@@ -241,6 +242,20 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
           << "Could not send Cobalt library information into Crashapd.";
     } else {
       SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
+    }
+
+    auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
+        library_loader->Resolve("GetCobaltUserAgentString"));
+    if (!get_user_agent_func) {
+      SB_LOG(ERROR) << "Failed to get user agent string";
+    } else {
+      EvergreenAnnotations cobalt_version_info;
+      SbMemorySet(&cobalt_version_info, sizeof(EvergreenAnnotations), 0);
+      SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
+                   EVERGREEN_USER_AGENT_MAX_SIZE);
+      third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
+          cobalt_version_info);
+      SB_DLOG(INFO) << "Added user agent string to Crashpad.";
     }
 
     SB_DLOG(INFO) << "Successfully loaded Cobalt!\n";

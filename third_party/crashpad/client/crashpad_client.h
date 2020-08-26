@@ -388,6 +388,15 @@ class CrashpadClient {
   //!
   //! \return `true` on success, `false` on failure with a message logged.
   static bool SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
+
+  //! \brief Sends mapping info to the handler
+  //!
+  //! A handler must have already been installed before calling this method.
+  //! \param[in] annotations A EvergreenAnnotations struct, whose information
+  //!     was created on Evergreen startup.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  static bool SendAnnotationsToHandler(EvergreenAnnotations annotations);
 #endif
 
   //! \brief Requests that the handler capture a dump even though there hasn't

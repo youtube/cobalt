@@ -56,6 +56,10 @@ class ExceptionHandlerProtocol {
     //! \brief The address in the client's address space of an EvergreenInfo
     //!     struct, or 0 if there is no such struct.
     VMAddress evergreen_information_address;
+
+    //! \brief The address in the client's address space of an
+    //!     EvergreenAnnotations struct, or 0 if there is no such struct.
+    VMAddress annotations_address;
 #endif
 
 #if defined(OS_LINUX)
@@ -93,7 +97,8 @@ class ExceptionHandlerProtocol {
 #if defined(STARBOARD)
       //! \brief Used to store Evergreen mapping info in the handler for use at
       //!     time of crash.
-      kTypeAddEvergreenInfo
+      kTypeAddEvergreenInfo,
+      kTypeAddAnnotations,
 #endif
     };
 
