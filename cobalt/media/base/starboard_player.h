@@ -114,7 +114,9 @@ class StarboardPlayer {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void Suspend();
-  void Resume();
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  void Resume(SbWindow window);
 
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
@@ -213,7 +215,7 @@ class StarboardPlayer {
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;
-  const SbWindow window_;
+  SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
   // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.

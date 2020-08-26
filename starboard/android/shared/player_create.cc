@@ -129,7 +129,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
     UpdateActiveSessionPlatformPlaybackState(kPlaying);
   }
 
-  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture &&
+      // TODO: This is temporary for supporting background media playback.
+      //       Need to be removed with media refactor.
+      video_codec != kSbMediaVideoCodecNone) {
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
