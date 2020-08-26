@@ -140,7 +140,7 @@ StarboardPlayer::StarboardPlayer(
 #if SB_HAS(PLAYER_WITH_URL)
       ,
       is_url_based_(false)
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL
 {
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
@@ -450,8 +450,10 @@ void StarboardPlayer::Suspend() {
   player_ = kSbPlayerInvalid;
 }
 
-void StarboardPlayer::Resume() {
+void StarboardPlayer::Resume(SbWindow window) {
   DCHECK(task_runner_->BelongsToCurrentThread());
+
+  window_ = window;
 
   // Check if the player is already resumed.
   if (state_ != kSuspended) {
@@ -540,16 +542,22 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
+bool is_visible = SbWindowIsValid(window_);
 #if SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
-  SbMediaVideoCodec video_codec = video_sample_info_.codec;
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  if (is_visible) {
+    video_codec = video_sample_info_.codec;
+  }
 #else   // SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
   if (audio_config_.IsValidConfig()) {
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-  if (video_config_.IsValidConfig()) {
+  if (video_config_.IsValidConfig() && is_visible) {
     video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   }
 #endif  // SB_API_VERSION >= 11
@@ -562,6 +570,11 @@ void StarboardPlayer::CreatePlayer() {
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
   creation_param.video_sample_info = video_sample_info_;
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  if (!is_visible) {
+    creation_param.video_sample_info.codec = kSbMediaVideoCodecNone;
+  }
   creation_param.output_mode = output_mode_;
   DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
   player_ = SbPlayerCreate(
@@ -573,6 +586,11 @@ void StarboardPlayer::CreatePlayer() {
 #else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  if (!is_visible) {
+    DCHECK(audio_codec != kSbMediaAudioCodecNone);
+  }
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec,
       drm_system_, has_audio ? &audio_sample_info_ : NULL,

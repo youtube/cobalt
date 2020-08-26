@@ -140,7 +140,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // Suspend/Resume
   void Suspend() override;
-  void Resume() override;
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  void Resume(PipelineWindow window) override;
 
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const override;
