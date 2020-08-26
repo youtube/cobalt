@@ -25,8 +25,6 @@ void InstallCrashpadHandler();
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
-bool AddAnnotationsToCrashpad(EvergreenAnnotations annotations);
-
 }  // namespace wrapper
 }  // namespace crashpad
 }  // namespace third_party

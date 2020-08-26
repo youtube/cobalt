@@ -1327,9 +1327,3 @@ void Application::DispatchDeepLinkIfNotConsumed() {
 
 }  // namespace browser
 }  // namespace cobalt
-
-const char* GetCobaltUserAgentString() {
-  static std::string ua = cobalt::browser::CreateUserAgentString(
-      cobalt::browser::GetUserAgentPlatformInfoFromSystem());
-  return ua.c_str();
-}
