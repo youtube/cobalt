@@ -24,10 +24,6 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return false;
 }
 
-bool AddAnnotationsToCrashpad(EvergreenAnnotations annotations) {
-  return false;
-}
-
 }  // namespace wrapper
 }  // namespace crashpad
 }  // namespace third_party
