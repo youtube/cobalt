@@ -141,11 +141,6 @@ class SignalHandler {
     evergreen_info_ = evergreen_info;
     return SendEvergreenInfoImpl();
   }
-
-  bool SendAnnotations(EvergreenAnnotations annotations) {
-    annotations_ = annotations;
-    return SendAnnotationsImpl();
-  }
 #endif
 
   // The base implementation for all signal handlers, suitable for calling
@@ -186,7 +181,6 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
-  const EvergreenAnnotations& GetAnnotations() { return annotations_; }
 #endif
 
   const ExceptionInformation& GetExceptionInfo() {
@@ -195,7 +189,6 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   virtual bool SendEvergreenInfoImpl() = 0;
-  virtual bool SendAnnotationsImpl() = 0;
 #endif
 
   virtual void HandleCrashImpl() = 0;
@@ -218,7 +211,6 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   EvergreenInfo evergreen_info_;
-  EvergreenAnnotations annotations_;
 #endif
 
   static SignalHandler* handler_;
@@ -258,7 +250,6 @@ class LaunchAtCrashHandler : public SignalHandler {
 
 #if defined(STARBOARD)
   bool SendEvergreenInfoImpl() override { return false; }
-  bool SendAnnotationsImpl() override { return false; }
 #endif
 
   void HandleCrashImpl() override {
@@ -360,14 +351,6 @@ class RequestCrashDumpHandler : public SignalHandler {
     info.evergreen_information_address =
         FromPointerCast<VMAddress>(&GetEvergreenInfo());
     client.SendEvergreenInfo(info);
-    return true;
-  }
-
-  bool SendAnnotationsImpl() override {
-    ExceptionHandlerClient client(sock_to_handler_.get(), true);
-    ExceptionHandlerProtocol::ClientInformation info = {};
-    info.annotations_address = FromPointerCast<VMAddress>(&GetAnnotations());
-    client.SendAnnotations(info);
     return true;
   }
 #endif
@@ -592,16 +575,6 @@ bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
   }
 
   return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
-}
-
-bool CrashpadClient::SendAnnotationsToHandler(
-    EvergreenAnnotations annotations) {
-  if (!SignalHandler::Get()) {
-    DLOG(ERROR) << "Crashpad isn't enabled";
-    return false;
-  }
-
-  return SignalHandler::Get()->SendAnnotations(annotations);
 }
 #endif
 

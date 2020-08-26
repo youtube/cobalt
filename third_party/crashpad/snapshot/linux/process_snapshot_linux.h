@@ -70,14 +70,11 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //! \param[in] connection A connection to the process to snapshot.
   //! \param[in] evergreen_information_address An address sent to the handler
   //!     server that points to a populated EvergreenInfo struct.
-  //! \param[in] annotations_address An address sent to the handler server that
-  //!     that points to a populated EvergreenAnnotations struct.
   //!
   //! \return `true` if the snapshot could be created, `false` otherwise with
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connnection,
-                  VMAddress evergreen_information_address,
-                  VMAddress annotations_address);
+                  VMAddress evergreen_information_address);
 #endif
 
   //! \brief Finds the thread whose stack contains \a stack_address.
