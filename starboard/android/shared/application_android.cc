@@ -354,7 +354,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
     // Android main thread. This lets the MediaSession get released now without
     // having to wait to bounce between threads.
     JniEnvExt* env = JniEnvExt::Get();
-    env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+    env->CallStarboardVoidMethod("beforeSuspend", "()V");
   }
   AndroidCommand cmd {type, data};
   ScopedLock lock(android_command_mutex_);
