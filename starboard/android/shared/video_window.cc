@@ -123,6 +123,11 @@ void VideoSurfaceHolder::ClearVideoWindow() {
   // during painting.
   ScopedLock lock(*GetViewSurfaceMutex());
 
+  if (!g_native_video_window) {
+    SB_LOG(INFO) << "Tried to clear video window when it was null.";
+    return;
+  }
+
   if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
     int height = ANativeWindow_getHeight(g_native_video_window);
@@ -131,11 +136,6 @@ void VideoSurfaceHolder::ClearVideoWindow() {
                                                        "()V");
       return;
     }
-  }
-
-  if (!g_native_video_window) {
-    SB_LOG(INFO) << "Tried to clear video window when it was null.";
-    return;
   }
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
