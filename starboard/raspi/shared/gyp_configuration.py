@@ -72,18 +72,22 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       self.host_compiler_environment = build.GetHostCompilerEnvironment(
           clang_specification.GetClangSpecification(), self.build_accelerator)
 
-    toolchain = os.path.realpath(os.path.join(
-        self.raspi_home,
-        'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
+    toolchain = os.path.realpath(
+        os.path.join(
+            self.raspi_home,
+            'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
 
     env_variables = self.host_compiler_environment
     env_variables.update({
-        'CC': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
-            'arm-linux-gnueabihf-gcc'),
-        'CXX': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
-            'arm-linux-gnueabihf-g++'),
-        'STRIP': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-strip'),
+        'CC':
+            self.build_accelerator + ' ' +
+            os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
+        'CXX':
+            self.build_accelerator + ' ' +
+            os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
+        'STRIP':
+            os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-strip'),
     })
     return env_variables
 
@@ -152,6 +156,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
+          'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete
