@@ -155,13 +155,17 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void beforeSuspend() {
-    Log.i(TAG, "Prepare to suspend");
-    // We want the MediaSession to be deactivated immediately before suspending so that by the time
-    // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
-    // can take their time suspending after that.
-    cobaltMediaSession.suspend();
-    for (CobaltService service : cobaltServices.values()) {
-      service.beforeSuspend();
+    try {
+      Log.i(TAG, "Prepare to suspend");
+      // We want the MediaSession to be deactivated immediately before suspending so that by the time
+      // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
+      // can take their time suspending after that.
+      cobaltMediaSession.suspend();
+      for (CobaltService service : cobaltServices.values()) {
+        service.beforeSuspend();
+      }
+    } catch (Throwable e) {
+      Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
     }
   }
 
