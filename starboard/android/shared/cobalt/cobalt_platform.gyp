@@ -21,6 +21,9 @@
         'android_user_authorizer.h',
         'android_user_authorizer.cc',
       ],
-    },
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+      ],
+    }
   ],
 }
