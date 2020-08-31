@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"

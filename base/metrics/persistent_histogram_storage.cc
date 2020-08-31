@@ -15,7 +15,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/file.h"
+#include "starboard/common/file.h"
 #endif
 
 namespace {

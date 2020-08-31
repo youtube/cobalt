@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
