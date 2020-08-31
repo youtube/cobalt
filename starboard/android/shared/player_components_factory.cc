@@ -38,6 +38,15 @@ namespace filter {
 
 namespace {
 
+const int kAudioSinkFramesAlignment = 256;
+const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+const int kDefaultAudioSinkMaxCachedFrames =
+    8 * kDefaultAudioSinkMinFramesPerAppend;
+
+int AlignUp(int value, int alignment) {
+  return (value + alignment - 1) / alignment * alignment;
+}
+
 class PlayerComponentsFactory : public PlayerComponents::Factory {
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
@@ -108,6 +117,31 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     return true;
+  }
+
+  void GetAudioRendererParams(const CreationParameters& creation_parameters,
+                              int* max_cached_frames,
+                              int* min_frames_per_append) const override {
+    SB_DCHECK(max_cached_frames);
+    SB_DCHECK(min_frames_per_append);
+    SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
+              0);
+    *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
+
+    // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
+    // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+    int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+        creation_parameters.audio_sample_info().number_of_channels,
+        SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+            ? kSbMediaAudioSampleTypeFloat32
+            : kSbMediaAudioSampleTypeInt16Deprecated,
+        creation_parameters.audio_sample_info().samples_per_second);
+    // On Android 5.0, the size of audio renderer sink buffer need to be two
+    // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
+    // stop working after pause.
+    *max_cached_frames =
+        min_frames_required * 2 + kDefaultAudioSinkMinFramesPerAppend;
+    *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 };
 
