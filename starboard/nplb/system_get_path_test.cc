@@ -16,9 +16,9 @@
 
 #include <algorithm>
 
+#include "starboard/common/file.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
