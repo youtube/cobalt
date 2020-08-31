@@ -50,6 +50,19 @@ SSH into another machine and run the binary on that machine.
         && nvm use default
     ```
 
+1.  Install ccache to support build acceleration. ccache is automatically used
+    when available, otherwise defaults to unaccelerated building:
+
+    ```
+    $ sudo apt install -qqy --no-install-recommends ccache
+    ```
+
+    We recommend adjusting the cache size as needed to increase cache hits:
+
+    ```
+    $ ccache --max-size=20G
+    ```
+
 1.  Clone the Cobalt code repository. The following `git` command creates a
     `cobalt` directory that contains the repository:
 
