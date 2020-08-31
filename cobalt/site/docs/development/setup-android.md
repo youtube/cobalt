@@ -37,6 +37,19 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
     python -m pip install requests
     ```
 
+1.  Install ccache to support build acceleration. ccache is automatically used
+    when available, otherwise defaults to unaccelerated building:
+
+    ```
+    $ sudo apt-get install ccache
+    ```
+
+    We recommend adjusting the cache size as needed to increase cache hits:
+
+    ```
+    $ ccache --max-size=20G
+    ```
+
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
 1.  Run `cobalt/build/gyp_cobalt android-x86` to configure the Cobalt build,
     which also installs the SDK and NDK. (This step will have to be repeated
