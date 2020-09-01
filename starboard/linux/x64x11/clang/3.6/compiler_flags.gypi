@@ -50,8 +50,6 @@
         'common_clang_flags': [
           '-Werror',
           '-fcolor-diagnostics',
-          # Point to a gcc toolchain that works with this compiler.
-          '--gcc-toolchain=<(GCC_TOOLCHAIN_FOLDER)',
           # Default visibility to hidden, to enable dead stripping.
           '-fvisibility=hidden',
           # Warn for implicit type conversions that may change a value.
@@ -107,6 +105,16 @@
           '-Wno-unused-parameter',
           # Suppress warnings about unknown pragmas.
           '-Wno-unknown-pragmas',
+          # Suppress warnings about equality checks within double parentheses.
+          '-Wno-parentheses-equality',
+          # Suppress warnings about unreachable code due to constexpr conditions
+          '-Wno-unreachable-code',
+          # Suppress warnings about values being written but not read before the next write.
+          '-Wno-unused-value',
+          # Suppress warnings related to unused compilation flags in clang.
+          '-Wno-unused-command-line-argument',
+          # Suppress warnings related to tautological comparisons.
+          '-Wno-tautological-compare',
         ],
       }],
       ['cobalt_fastbuild==0', {

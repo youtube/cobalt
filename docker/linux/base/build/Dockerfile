@@ -1,6 +1,5 @@
-<<<<<<< HEAD   (1b23ff Replace goma with ccache on linux builders.)
-=======
-FROM cobalt-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-base}
 
 # === Get Nodejs pinned LTS version via NVM
 ENV NVM_DIR /root/.nvm
@@ -33,4 +32,3 @@ RUN cd /tmp && gclient verify || true \
 
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]
->>>>>>> CHANGE (bad52a Remove deprecated Goma references.)

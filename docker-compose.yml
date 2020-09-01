@@ -1,27 +1,66 @@
 version: '2.4'
 
+volumes:
+  android-debug-keystore:
+  container-ccache:
+  container-starboard-toolchains:
+
 x-common-definitions: &common-definitions
   stdin_open: true
   tty: true
+
+x-build-volumes: &build-volumes
   volumes:
     - ${COBALT_SRC:-.}:/code/
-    - ./docker/linux/scripts:/scripts
-    - ${COBALT_SRC:-.}/out/ccache:/root/ccache
+    - android-debug-keystore:/root/.android/
+    - ${CCACHE_DIR:-container-ccache}:/root/ccache
+    - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
+
+x-build-common-definitions: &build-common-definitions
+  <<: *common-definitions
+  <<: *build-volumes
   depends_on:
-    - base
+    - build-base
 
 services:
-  # Define common build container for Linux
   base:
     build:
       args:
         - BASE_OS
       context: ./docker/linux
       dockerfile: base/Dockerfile
+    image: cobalt-base
+
+  base-xenial:
+    build:
+      args:
+        - BASE_OS=ubuntu
+        - BASE_OS_TAG=xenial
+      context: ./docker/linux
+      dockerfile: base/Dockerfile
+    image: base-xenial
+
+  # Define common build container for Linux
+  build-base:
+    build:
+      context: ./docker/linux
+      dockerfile: base/build/Dockerfile
     image: cobalt-build-base
+    depends_on:
+      - base
+
+  build-base-xenial:
+    build:
+      context: ./docker/linux
+      dockerfile: base/build/Dockerfile
+      args:
+        - FROM_IMAGE=base-xenial
+    image: build-base-xenial
+    depends_on:
+      - base-xenial
 
   stub:
-    <<: *common-definitions
+    <<: *build-common-definitions
     build:
       context: ./docker/linux
       dockerfile: stub/Dockerfile
@@ -31,18 +70,89 @@ services:
       - CONFIG=${CONFIG:-debug}
 
   linux-x64x11:
-    <<: *common-definitions
+    <<: *build-common-definitions
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
+    depends_on: [ build-base ]
     environment:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
 
+  linux-x64x11-xenial:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=build-base-xenial
+    image: linux-x64x11-xenial
+    depends_on:
+      - build-base-xenial
+
+  linux-x64x11-clang-3-6:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux/
+      dockerfile: clang-3-6/Dockerfile
+    image: cobalt-build-linux-clang-3-6
+    environment:
+      - PLATFORM=linux-x64x11-clang-3-6
+      - CONFIG=${CONFIG:-debug}
+    depends_on:
+      - linux-x64x11-xenial
+
+  # Define common build container for Android
+  build-android:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/android
+      dockerfile: ./Dockerfile
+    image: cobalt-build-android
+
+  android-x86:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-android ]
+    environment:
+      - IS_DOCKER=1
+      - PLATFORM=android-x86
+      - CONFIG=${CONFIG:-debug}
+
+  android-arm:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-android ]
+    environment:
+      - IS_DOCKER=1
+      - PLATFORM=android-arm
+      - CONFIG=${CONFIG:-debug}
+
+  android-arm64:
+    <<: *build-common-definitions
+    image: cobalt-build-android
+    depends_on: [ build-android ]
+    environment:
+      - IS_DOCKER=1
+      - PLATFORM=android-arm64
+      - CONFIG=${CONFIG:-debug}
+
+  raspi:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/raspi
+      dockerfile: ./Dockerfile
+    image: cobalt-build-raspi
+    environment:
+      - PLATFORM
+      - CONFIG=${CONFIG:-debug}
+
   # Define common build container for Evergreen
   build-evergreen:
-    <<: *common-definitions
+    <<: *build-common-definitions
     build:
       context: ./docker/linux
       dockerfile: evergreen/Dockerfile
@@ -52,36 +162,51 @@ services:
       - CONFIG
 
   evergreen-x64-sbversion-12:
-    <<: *common-definitions
+    <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-x64-sbversion-12
 
   evergreen-x86-sbversion-12:
-    <<: *common-definitions
+    <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-x86-sbversion-12
 
   evergreen-arm64-sbversion-12:
-    <<: *common-definitions
+    <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-arm64-sbversion-12
 
   evergreen-arm-hardfp-sbversion-12:
-    <<: *common-definitions
+    <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-arm-hardfp-sbversion-12
 
   evergreen-arm-softfp-sbversion-12:
-    <<: *common-definitions
+    <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-arm-softfp-sbversion-12
+
+  unittest:
+    <<: *common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: unittest/Dockerfile
+    image: cobalt-unittest
+    environment:
+      - PLATFORM=${PLATFORM:-linux-x64x11}
+      - CONFIG=${CONFIG:-debug}
+    volumes:
+      - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-debug}:/out
+    # TODO: Get NPLB unittests to run with IPv6 without using the host network.
+    network_mode: "host"
+    depends_on: [ base ]
