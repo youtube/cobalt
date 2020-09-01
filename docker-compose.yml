@@ -31,6 +31,15 @@ services:
       dockerfile: base/Dockerfile
     image: cobalt-base
 
+  base-xenial:
+    build:
+      args:
+        - BASE_OS=ubuntu
+        - BASE_OS_TAG=xenial
+      context: ./docker/linux
+      dockerfile: base/Dockerfile
+    image: base-xenial
+
   # Define common build container for Linux
   build-base:
     build:
@@ -39,6 +48,16 @@ services:
     image: cobalt-build-base
     depends_on:
       - base
+
+  build-base-xenial:
+    build:
+      context: ./docker/linux
+      dockerfile: base/build/Dockerfile
+      args:
+        - FROM_IMAGE=base-xenial
+    image: build-base-xenial
+    depends_on:
+      - base-xenial
 
   stub:
     <<: *build-common-definitions
@@ -60,6 +79,31 @@ services:
     environment:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
+
+  linux-x64x11-xenial:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=build-base-xenial
+    image: linux-x64x11-xenial
+    depends_on:
+      - build-base-xenial
+
+  linux-x64x11-clang-3-6:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux/
+      dockerfile: clang-3-6/Dockerfile
+    image: cobalt-build-linux-clang-3-6
+    environment:
+      - PLATFORM=linux-x64x11-clang-3-6
+      - CONFIG=${CONFIG:-debug}
+    depends_on:
+      - linux-x64x11-xenial
 
   # Define common build container for Android
   build-android:
@@ -165,3 +209,4 @@ services:
       - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-debug}:/out
     # TODO: Get NPLB unittests to run with IPv6 without using the host network.
     network_mode: "host"
+    depends_on: [ base ]

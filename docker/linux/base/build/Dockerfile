@@ -1,4 +1,5 @@
-FROM cobalt-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-base}
 
 # === Get Nodejs pinned LTS version via NVM
 ENV NVM_DIR /root/.nvm
