@@ -736,7 +736,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
 
   size_t bytes_to_free = 0;
 
-  int garbage_collection_duration_threshold_in_seconds =
+  int64_t garbage_collection_duration_threshold_in_seconds =
       SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
   // Check if we're under or at the memory/duration limit.
   const auto kGcDurationThresholdInMilliseconds =
