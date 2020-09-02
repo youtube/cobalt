@@ -95,38 +95,6 @@ TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {
   ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
 }
 
-TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
-  // H.264 Main Profile Level 4.2
-  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
-      "framerate=30;",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
-      "framerate=60;",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // H.264 Main Profile Level 2.1
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d4015\"; width=432; height=240; "
-      "framerate=15;",
-      "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // AAC-LC
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2; bitrate=256;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-
-  // HE-AAC
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.5\"; channels=2; bitrate=48;", "");
-  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-}
-
 }  // namespace
 }  // namespace media
 }  // namespace starboard
