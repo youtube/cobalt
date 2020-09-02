@@ -69,7 +69,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'layout_tests': [
           # Android relies of system fonts and some older Android builds do not
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
-          'CSS3FontsLayoutTests/Layout.Test/color_emojis_should_render_properly.'
+          'CSS3FontsLayoutTests/Layout.Test/color_emojis_should_render_properly'
       ],
       'renderer_test': [
           # Instead of returning an error when allocating too much texture
