@@ -72,9 +72,9 @@ using Atomic64 = intptr_t;
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
 #if defined(V8_OS_STARBOARD)
-typedef SbAtomicPtr AtomicWord;
+using AtomicWord = SbAtomicPtr;
 #else
-typedef intptr_t AtomicWord;
+using AtomicWord = intptr_t;
 #endif
 
 // Atomically execute:
