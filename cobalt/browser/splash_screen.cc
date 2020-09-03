@@ -59,7 +59,8 @@ SplashScreen::SplashScreen(
     const base::Optional<GURL>& fallback_splash_screen_url,
     SplashScreenCache* splash_screen_cache,
     const base::Callback<void(base::TimeDelta)>&
-        on_splash_screen_shutdown_complete)
+        on_splash_screen_shutdown_complete,
+    const base::Closure& maybe_freeze_callback)
     : render_tree_produced_callback_(render_tree_produced_callback),
       self_message_loop_(base::MessageLoop::current()),
       on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
@@ -92,6 +93,9 @@ SplashScreen::SplashScreen(
   // Since the splash screen is intended to possibly fade in to the main web
   // module contents, make sure blending is enabled for its background.
   web_module_options.clear_window_with_background_color = false;
+
+  // Pass down this callback from Browser module to Web module eventually.
+  web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
