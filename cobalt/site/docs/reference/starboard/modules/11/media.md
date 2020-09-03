@@ -659,6 +659,8 @@ Indicates whether output copy protection is currently enabled on all capable
 outputs. If `true`, then non-protection-capable outputs are expected to be
 blanked.
 
+presubmit: allow sb_export mismatch
+
 #### Declaration ####
 
 ```
@@ -711,6 +713,8 @@ function returns a success even if the call is redundant in that it doesn't
 change the current value.
 
 `enabled`: Indicates whether output protection is enabled (`true`) or disabled.
+
+presubmit: allow sb_export mismatch
 
 #### Declaration ####
 
