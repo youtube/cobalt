@@ -24,7 +24,7 @@ from starboard.tools import port_symlink
 
 _BASE_STAGING_DIRECTORY = 'evergreen_staging'
 _CRASHPAD_TARGET = 'crashpad_handler'
-_LOADER_TARGET = 'elf_loader_sandbox'
+_DEFAULT_LOADER_TARGET = 'elf_loader_sandbox'
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -66,6 +66,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
 
+    self.loader_target = kwargs.get('loader_target')
+    if not self.loader_target:
+      self.loader_target = _DEFAULT_LOADER_TARGET
+
     self.loader_out_directory = kwargs.get('loader_out_directory')
     if not self.loader_out_directory:
       self.loader_out_directory = paths.BuildOutputDirectory(
@@ -99,7 +103,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.launcher = abstract_launcher.LauncherFactory(
         self.loader_platform,
-        _LOADER_TARGET,
+        self.loader_target,
         self.loader_config,
         device_id,
         target_params=target_command_line_params,
@@ -150,7 +154,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # out/evergreen_staging/linux-x64x11_devel__evergreen-x64_devel/deploy/elf_loader_sandbox
     staging_directory_loader = os.path.join(self.staging_directory, 'deploy',
-                                            _LOADER_TARGET)
+                                            self.loader_target)
 
     # out/evergreen_staging/linux-x64x11_devel__evergreen-x64_devel/deploy/elf_loader_sandbox/content/app/nplb/
     staging_directory_evergreen = os.path.join(staging_directory_loader,
@@ -161,7 +165,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # specified by |staging_directory_loader|. A symbolic link here would cause
     # future symbolic links to fall through to the original out-directories.
     shutil.copytree(
-        os.path.join(self.loader_out_directory, 'deploy', _LOADER_TARGET),
+        os.path.join(self.loader_out_directory, 'deploy', self.loader_target),
         staging_directory_loader)
     shutil.copy(
         os.path.join(self.loader_out_directory, 'deploy', _CRASHPAD_TARGET,
@@ -174,8 +178,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # TODO: Make the Linux launcher run from the deploy directory, no longer
     #       create these symlinks, and remove the NOTE from the docstring.
     port_symlink.MakeSymLink(
-        os.path.join(staging_directory_loader, _LOADER_TARGET),
-        os.path.join(self.staging_directory, _LOADER_TARGET))
+        os.path.join(staging_directory_loader, self.loader_target),
+        os.path.join(self.staging_directory, self.loader_target))
     port_symlink.MakeSymLink(
         os.path.join(staging_directory_loader, _CRASHPAD_TARGET),
         os.path.join(self.staging_directory, _CRASHPAD_TARGET))
