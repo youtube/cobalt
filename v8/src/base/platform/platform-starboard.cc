@@ -1,25 +1,18 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Platform-specific code for Starboard goes here. Starboard is the platform
+// abstraction layer for Cobalt, an HTML5 container used mainly by YouTube
+// LivingRoom products. Starboard was ported to platforms like PlayStations,
+// AndroidTV, AppleTV, Samsung smart TVs and so on.
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/utils/random-number-generator.h"
-
 #include "src/base/timezone-cache.h"
-
+#include "src/base/utils/random-number-generator.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -102,9 +95,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 #endif
 }
 
-double OS::TimeCurrentMillis() {
-  return Time::Now().ToJsTime();
-}
+double OS::TimeCurrentMillis() { return Time::Now().ToJsTime(); }
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
@@ -148,7 +139,8 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
       break;
     default:
       SB_LOG(ERROR) << "The requested memory allocation access is not"
-      " implemented for Starboard: " << static_cast<int>(access);
+                       " implemented for Starboard: "
+                    << static_cast<int>(access);
       return nullptr;
   }
   void* result = SbMemoryMap(size, sb_flags, "v8::Base::Allocate");
@@ -247,10 +239,10 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
       break;
     case OS::MemoryPermission::kReadExecute:
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      new_protection = SbMemoryMapFlags(kSbMemoryMapProtectRead |
-                                        kSbMemoryMapProtectExec);
+      new_protection =
+          SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec);
 #else
-      CHECK(false);
+      UNREACHABLE();
 #endif
       break;
     default:
@@ -417,9 +409,7 @@ Thread::Thread(const Options& options)
   set_name(options.name());
 }
 
-Thread::~Thread() {
-  delete data_;
-}
+Thread::~Thread() { delete data_; }
 
 static void SetThreadName(const char* name) { SbThreadSetName(name); }
 

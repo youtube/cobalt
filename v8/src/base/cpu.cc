@@ -5,13 +5,7 @@
 #include "src/base/cpu.h"
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/cpu_features.h"
-#endif
-
-#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
-// Assume that if we're on a MIPS platform, we're on Linux.
-#define V8_OS_LINUX 1
 #endif
 
 #if V8_LIBC_MSVCRT
@@ -43,13 +37,11 @@
 #endif
 
 #include <ctype.h>
-#if !V8_OS_STARBOARD
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
-#endif
 
 #include "src/base/logging.h"
 #if V8_OS_WIN

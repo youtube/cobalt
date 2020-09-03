@@ -458,15 +458,11 @@ struct timeval Time::ToTimeval() const {
 
 #elif V8_OS_STARBOARD
 
-Time Time::Now() {
-  return Time(SbTimeToPosix(SbTimeGetNow()));
-}
+Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
 
-Time Time::NowFromSystemTime() {
-  return Now();
-}
+Time Time::NowFromSystemTime() { return Now(); }
 
-#endif  // V8_OS_WIN
+#endif  // V8_OS_STARBOARD
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {
