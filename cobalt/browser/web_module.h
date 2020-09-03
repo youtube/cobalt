@@ -270,6 +270,11 @@ class WebModule : public LifecycleObserver {
     // there is no state to restore.
     debug::backend::DebuggerState* debugger_state = nullptr;
 #endif  // defined(ENABLE_DEBUGGER)
+
+    // This callback is for checking the mediasession actions transitions. When
+    // there is no playback during Concealed state, we should provide a chance
+    // for Cobalt to freeze.
+    base::Closure maybe_freeze_callback;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -396,6 +401,9 @@ class WebModule : public LifecycleObserver {
   // intended thread should it want to.
   void RequestJavaScriptHeapStatistics(
       const JavaScriptHeapStatisticsCallback& callback);
+
+  // Indicate the web module is ready to freeze.
+  bool IsReadyToFreeze();
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and

@@ -51,7 +51,8 @@ class DebugConsole : public LifecycleObserver {
       const cssom::ViewportSize& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
       float layout_refresh_rate,
-      const debug::CreateDebugClientCallback& create_debug_client_callback);
+      const debug::CreateDebugClientCallback& create_debug_client_callback,
+      const base::Closure& maybe_freeze_callback);
   ~DebugConsole();
 
   // Filters a key event.
@@ -108,6 +109,10 @@ class DebugConsole : public LifecycleObserver {
   void Focus() override { web_module_->Focus(); }
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
+
+  bool IsReadyToFreeze() {
+    return web_module_->IsReadyToFreeze();
+  }
 
  private:
   void OnError(const GURL& url, const std::string& error) {

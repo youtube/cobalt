@@ -186,6 +186,10 @@ void MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState(
   if (session_state_.actual_playback_state() != ComputeActualPlaybackState()) {
     UpdateMediaSessionState();
   }
+
+  if (!is_active() && !maybe_freeze_callback_.is_null()) {
+    maybe_freeze_callback_.Run();
+  }
 }
 
 void MediaSessionClient::InvokeActionInternal(
@@ -328,7 +332,7 @@ void MediaSessionClient::UpdatePlatformPlaybackStateCallback(
   MediaSessionClient* client =
       static_cast<MediaSessionClient*>(callback_context);
   client->UpdatePlatformCobaltExtensionPlaybackState(state);
-};
+}
 
 // static
 void MediaSessionClient::InvokeActionCallback(

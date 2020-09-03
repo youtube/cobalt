@@ -107,6 +107,17 @@ class MediaSessionClient {
   virtual void OnMediaSessionStateChanged(
       const MediaSessionState& session_state);
 
+  // Indicate the media session client is active or not depending on the
+  // media session playback state.
+  bool is_active() {
+    return platform_playback_state_ != kMediaSessionPlaybackStateNone;
+  }
+
+  // Set maybe freeze callback.
+  void SetMaybeFreezeCallback(const base::Closure& maybe_freeze_callback) {
+    maybe_freeze_callback_ = maybe_freeze_callback;
+  }
+
  private:
   THREAD_CHECKER(thread_checker_);
   scoped_refptr<MediaSession> media_session_;
@@ -141,6 +152,8 @@ class MediaSessionClient {
       MediaSessionAction action);
   MediaSessionAction ConvertMediaSessionAction(
       CobaltExtensionMediaSessionAction action);
+
+  base::Closure maybe_freeze_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSessionClient);
 };

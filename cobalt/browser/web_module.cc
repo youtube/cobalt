@@ -237,6 +237,10 @@ class WebModule::Impl {
 
   void CancelSynchronousLoads();
 
+  void IsReadyToFreeze(volatile bool* is_ready_to_freeze) {
+    *is_ready_to_freeze = !media_session_client_->is_active();
+  }
+
  private:
   class DocumentLoadedObserver;
 
@@ -588,6 +592,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_session_client_ = media_session::MediaSessionClient::Create();
   media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
+  media_session_client_->SetMaybeFreezeCallback(
+      data.options.maybe_freeze_callback);
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
       environment_settings_.get());
@@ -1685,6 +1691,17 @@ void WebModule::RequestJavaScriptHeapStatistics(
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::GetJavaScriptHeapStatistics,
                             base::Unretained(impl_.get()), callback));
+}
+
+bool WebModule::IsReadyToFreeze() {
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
+
+  volatile bool is_ready_to_freeze = false;
+  message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::IsReadyToFreeze,
+                            base::Unretained(impl_.get()),
+                            &is_ready_to_freeze));
+  return is_ready_to_freeze;
 }
 
 }  // namespace browser
