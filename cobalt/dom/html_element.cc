@@ -79,6 +79,11 @@ namespace {
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
 const int32 kUiNavFocusTabIndexThreshold = -2;
 
+// Track which HTMLElement is currently focused by UI navigation so that
+// redundant blur / focus events are not fired. Do not de-reference this
+// variable -- it is only meant to identify objects.
+const HTMLElement* g_ui_nav_focus_ = nullptr;
+
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
     cssom::PropertyKeyVector computed_style_invalidation_properties;
@@ -1160,15 +1165,19 @@ void HTMLElement::InvalidateLayoutBoxes() {
   directionality_ = base::nullopt;
 }
 
-void HTMLElement::OnUiNavBlur() { Blur(); }
+void HTMLElement::OnUiNavBlur() {
+  if (g_ui_nav_focus_ == this) {
+    g_ui_nav_focus_ = nullptr;
+    Blur();
+  }
+}
 
 void HTMLElement::OnUiNavFocus() {
-  // Ensure the focusing steps do not trigger the UI navigation item to
-  // force focus again.
-  if (!ui_nav_focusing_) {
-    ui_nav_focusing_ = true;
+  // Suppress the focus event if this is already focused -- i.e. the HTMLElement
+  // initiated the focus change that resulted in this call to OnUiNavFocus.
+  if (g_ui_nav_focus_ != this) {
+    g_ui_nav_focus_ = this;
     Focus();
-    ui_nav_focusing_ = false;
   }
 }
 
@@ -1324,6 +1333,45 @@ void HTMLElement::RunFocusingSteps() {
     old_active_element->AsHTMLElement()->RunUnFocusingSteps();
   }
 
+  // Custom, not in any spec.
+  // Set the focus item for the UI navigation system. Search up the DOM tree to
+  // find the nearest ancestor that is a UI navigation item if needed. Do this
+  // step before dispatching events as the event handlers may make UI navigation
+  // changes.
+  for (Node* node = this; node; node = node->parent_node()) {
+    Element* element = node->AsElement();
+    if (!element) {
+      continue;
+    }
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (!html_element) {
+      continue;
+    }
+    if (!html_element->ui_nav_item_ ||
+        html_element->ui_nav_item_->IsContainer()) {
+      continue;
+    }
+    if (g_ui_nav_focus_ == html_element) {
+      // UI navigation is already focused on the correct element.
+      break;
+    }
+    // Updating the g_ui_nav_focus_ has the additional effect of suppressing
+    // the Blur call for the previously focused HTMLElement and the Focus call
+    // for this HTMLElement as a result of OnUiNavBlur / OnUiNavFocus callbacks
+    // that result from initiating the UI navigation focus change.
+    g_ui_nav_focus_ = html_element;
+    // Only navigation items attached to the root container are interactable.
+    // If the item is not registered with a container, then force a layout to
+    // connect items to their containers and eventually to the root container.
+    scoped_refptr<ui_navigation::NavItem> nav_item = html_element->ui_nav_item_;
+    if (!nav_item->GetContainerItem()) {
+      // UI navigation items are updated as part of generating the render tree.
+      node_document()->DoSynchronousLayoutAndGetRenderTree();
+    }
+    nav_item->Focus();
+    break;
+  }
+
   // focusin: A user agent MUST dispatch this event when an event target is
   // about to receive focus. This event type MUST be dispatched before the
   // element is given focus. The event target MUST be the element which is about
@@ -1352,18 +1400,6 @@ void HTMLElement::RunFocusingSteps() {
 
   // Custom, not in any spec.
   ClearRuleMatchingState();
-
-  // Set the focus item for the UI navigation system.
-  if (ui_nav_item_ && !ui_nav_item_->IsContainer() && !ui_nav_focusing_) {
-    // Only navigation items attached to the root container are interactable.
-    // If the item is not registered with a container, then force a layout to
-    // connect items to their containers and eventually to the root container.
-    if (!ui_nav_item_->GetContainerItem()) {
-      // UI navigation items are updated as part of generating the render tree.
-      node_document()->DoSynchronousLayoutAndGetRenderTree();
-    }
-    ui_nav_item_->Focus();
-  }
 }
 
 // Algorithm for RunUnFocusingSteps:
@@ -2083,6 +2119,9 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
       // The current navigation item isn't of the correct type. Disable it so
       // that callbacks won't be invoked for it. The object will be destroyed
       // when all references to it are released.
+      if (g_ui_nav_focus_ == this) {
+        g_ui_nav_focus_ = nullptr;
+      }
       ui_nav_item_->SetEnabled(false);
       ui_nav_item_ = nullptr;
     }
@@ -2108,6 +2147,9 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
     return false;
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
+    if (g_ui_nav_focus_ == this) {
+      g_ui_nav_focus_ = nullptr;
+    }
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;
     return false;
@@ -2127,6 +2169,9 @@ void HTMLElement::ReleaseUiNavigationItem() {
 
     // Disable the UI navigation item so it won't receive anymore callbacks
     // while being released.
+    if (g_ui_nav_focus_ == this) {
+      g_ui_nav_focus_ = nullptr;
+    }
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;
   }
