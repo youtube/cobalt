@@ -207,7 +207,7 @@ TEST_P(Layout, Test) {
   renderer::RenderTreePixelTester::Options pixel_tester_options;
   if (renderer::RenderTreePixelTester::IsReferencePlatform()) {
     // Use stricter tolerances on reference platforms.
-    pixel_tester_options.gaussian_blur_sigma = 3.0f;
+    pixel_tester_options.gaussian_blur_sigma = 3.5f;
   }
   RunTest(GetParam(), graphics_context_, pixel_tester_options);
 }
