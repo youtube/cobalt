@@ -38,7 +38,6 @@
 tags
 Thumbs.db
 v8.log
-/buildbot
 /cobalt/black_box_tests/_certs
 /gyp-mac-tool
 /out
@@ -61,7 +60,6 @@ v8.log
 /third_party/cros
 /third_party/cros_dbus_cplusplus/source
 /third_party/cros_system_api
-/third_party/cygwin
 /third_party/directxsdk
 /third_party/drmemory
 /third_party/eyesfree/src
@@ -146,7 +144,6 @@ v8.log
 /third_party/webrtc
 /third_party/webrtc/internal
 /third_party/webrtc/modules/video_coding/codecs/vp8_internal
-/third_party/winflexbison
 /third_party/wix
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
