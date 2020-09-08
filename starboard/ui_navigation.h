@@ -198,6 +198,11 @@ typedef struct SbUiNavInterface {
   // the specified window. Navigation items are only interactable if they are
   // transitively attached to a window.
   //
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  // The native UI engine should never change this navigation item's content
+  // offset. It is assumed to be used as a proxy for the system window.
+  //
+#endif
   // A navigation item may only have a SbUiNavItem or SbWindow as its direct
   // container. The navigation item hierarchy is established using
   // set_item_container_item() with the root container attached to a SbWindow
@@ -247,6 +252,13 @@ typedef struct SbUiNavInterface {
 
   // Retrieve the current content offset for the navigation item. If |item| is
   // not a container, then the content offset is (0,0).
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  //
+  // The native UI engine should not change the content offset of a container
+  // unless one of its contents (possibly recursively) is focused. This is to
+  // allow seemlessly disabling then re-enabling focus items without having
+  // their containers change offsets.
+#endif
   void (*get_item_content_offset)(SbUiNavItem item,
                                   float* out_content_offset_x,
                                   float* out_content_offset_y);
