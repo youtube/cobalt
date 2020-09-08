@@ -23,9 +23,18 @@ TEST_NAME="OutOfStorage"
 TEST_FILE="test.html"
 
 function run_test() {
+  if [[ ! -z "${IS_BUILDBOT}" ]] && [[ "${IS_BUILDBOT}" -eq 1 ]]; then
+    echo " Cannot mount temporary filesystems on builbot, skipping"
+    return 2
+  fi
+
   clear_storage
 
   run_command "ln -s \"${STORAGE_DIR_TMPFS}\" \"${STORAGE_DIR}\"" 1> /dev/null
+
+  # We need to explicitly clear the "storage", i.e. the temporary filesystem,
+  # since previous runs might have artifacts leftover.
+  run_command "rm -rf ${STORAGE_DIR}/*" 1> /dev/null
 
   OLD_TIMEOUT="${TIMEOUT}"
   TIMEOUT=300

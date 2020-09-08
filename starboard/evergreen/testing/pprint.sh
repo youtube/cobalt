@@ -30,6 +30,10 @@ function info() {
   pprint 32 "${1}"
 }
 
+function warn() {
+  pprint 33 "${1}"
+}
+
 function error() {
   pprint 31 "${1}"
 }
