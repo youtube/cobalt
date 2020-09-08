@@ -143,6 +143,11 @@ typedef struct SbUiNavInterface {
   // kSbUiNavItemTypeFocus. Any previously focused navigation item should
   // receive the blur event. If the item is not transitively a content of the
   // root item, then this does nothing.
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  //
+  // Specifying kSbUiNavItemInvalid should remove focus from the UI navigation
+  // system.
+#endif
   void (*set_focus)(SbUiNavItem item);
 
   // This is used to enable or disable user interaction with the specified

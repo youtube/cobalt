@@ -2121,6 +2121,7 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
       // when all references to it are released.
       if (g_ui_nav_focus_ == this) {
         g_ui_nav_focus_ = nullptr;
+        ui_nav_item_->UnfocusAll();
       }
       ui_nav_item_->SetEnabled(false);
       ui_nav_item_ = nullptr;
@@ -2149,6 +2150,7 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
     // This navigation item is no longer relevant.
     if (g_ui_nav_focus_ == this) {
       g_ui_nav_focus_ = nullptr;
+      ui_nav_item_->UnfocusAll();
     }
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;
@@ -2171,6 +2173,7 @@ void HTMLElement::ReleaseUiNavigationItem() {
     // while being released.
     if (g_ui_nav_focus_ == this) {
       g_ui_nav_focus_ = nullptr;
+      ui_nav_item_->UnfocusAll();
     }
     ui_nav_item_->SetEnabled(false);
     ui_nav_item_ = nullptr;

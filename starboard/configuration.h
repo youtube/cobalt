@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Iteration on UI navigation API.
+#define SB_UI_NAVIGATION2_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
