@@ -21,20 +21,24 @@ STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"
 ID="id"
 TAIL="tail"
 
-# Attempt to check for a temporary filesystem at |STORAGE_DIR_TMPFS|, and try to
-# create and mount it if not.
-if ! grep -qs "${STORAGE_DIR_TMPFS}" "/proc/mounts"; then
-  echo " Missing tmpfs mount at ${STORAGE_DIR_TMPFS}"
+# Mounting a temporary filesystem cannot be done on buildbot since it requires
+# sudo. When run locally, check for the temporary filesystem and create and
+# mount it if it does not exist.
+if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
+  if ! grep -qs "${STORAGE_DIR_TMPFS}" "/proc/mounts"; then
+    echo " Missing tmpfs mount at ${STORAGE_DIR_TMPFS}"
 
-  if [[ "$(id -u)" -ne 0 ]]; then
-    echo " Not root, cannot mount tmpfs at ${STORAGE_DIR_TMPFS}"
-    return
+    if [[ ! -e "${STORAGE_DIR_TMPFS}" ]]; then
+      mkdir -p "${STORAGE_DIR_TMPFS}" 1> /dev/null
+    fi
+
+    if [[ "$(${ID} -u)" -ne 0 ]]; then
+      echo " Not root, trying to mount tmpfs with sudo at ${STORAGE_DIR_TMPFS}"
+      sudo mount -F -t tmpfs -o size=10m "cobalt_storage.tmpfs" "${STORAGE_DIR_TMPFS}" 1> /dev/null
+    else
+      echo " Mounting tmpfs as root at ${STORAGE_DIR_TMPFS}"
+      mount -F -t tmpfs -o size=10m "cobalt_storage.tmpfs" "${STORAGE_DIR_TMPFS}" 1> /dev/null
+    fi
   fi
-
-  rm -rf "${STORAGE_DIR_TMPFS}"
-
-  mkdir -p "${STORAGE_DIR_TMPFS}"
-
-  sudo mount -F -t tmpfs -o size=10m "cobalt_storage.tmpfs" "${STORAGE_DIR_TMPFS}"
 fi
 

@@ -30,8 +30,9 @@ source $DIR/setup.sh
 TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
 
 COUNT=0
-PASSED=()
 FAILED=()
+PASSED=()
+SKIPPED=()
 
 info " [==========] Deploying Cobalt."
 
@@ -47,12 +48,17 @@ for test in "${TESTS[@]}"; do
 
   run_test
 
-  if [[ $? -eq 0 ]]; then
+  RESULT=$?
+
+  if [[ "${RESULT}" -eq 0 ]]; then
     info  " [   PASSED ] ${TEST_NAME}"
     PASSED+=("${TEST_NAME}")
-  else
+  elif [[ "${RESULT}" -eq 1 ]]; then
     error " [   FAILED ] ${TEST_NAME}"
     FAILED+=("$TEST_NAME")
+  elif [[ "${RESULT}" -eq 2 ]]; then
+    warn " [  SKIPPED ] ${TEST_NAME}"
+    SKIPPED+=("$TEST_NAME")
   fi
 
   stop_cobalt &> /dev/null
@@ -68,6 +74,18 @@ if [[ "${#PASSED[@]}" -eq 1 ]]; then
 elif [[ "${#PASSED[@]}" -gt 1 ]]; then
   info " [  PASSED  ] ${#PASSED[@]} tests."
 fi
+
+# Output the number of skipped tests.
+if [[ "${#SKIPPED[@]}" -eq 1 ]]; then
+  warn " [  SKIPPED ] 1 test, listed below:"
+elif [[ "${#SKIPPED[@]}" -gt 1 ]]; then
+  warn " [  SKIPPED ] ${#SKIPPED[@]} tests, listed below:"
+fi
+
+# Output each of the skipped tests.
+for test in "${SKIPPED[@]}"; do
+  warn " [  SKIPPED ] ${test}"
+done
 
 # Output the number of failed tests.
 if [[ "${#FAILED[@]}" -eq 1 ]]; then
