@@ -154,16 +154,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
 
     case kSbSystemPropertyPlatformName: {
-      // Example output: "Raspian Linux armv7l".
-      utsname name;
-
-      if (uname(&name) == -1)
-        return false;
-
-      std::string temp =
-          starboard::FormatString("Raspian %s %s", name.sysname, name.machine);
-
-      return CopyStringAndTestIfSuccess(out_value, value_length, temp.c_str());
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        "X11; Linux armv7l");
     }
 
     default:
