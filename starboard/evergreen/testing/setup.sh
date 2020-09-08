@@ -37,8 +37,6 @@ fi
 
 # List of all required scripts.
 SCRIPTS=("${DIR}/shared/app_key.sh"           \
-         "${DIR}/shared/create_tmpfs.sh"      \
-         "${DIR}/shared/delete_tmpfs.sh"      \
          "${DIR}/shared/drain_file.sh"        \
          "${DIR}/shared/installation_slot.sh" \
          "${DIR}/shared/wait_and_watch.sh"    \

@@ -25,7 +25,7 @@ ID="id"
 TAIL="tail"
 
 if [[ -z "${RASPI_ADDR}" ]]; then
-  info "Please set the environment variable 'RASPI_ADDR'"
+  info " Please set the environment variable 'RASPI_ADDR'"
   exit 1
 fi
 
@@ -34,32 +34,34 @@ KEYPATH="${HOME}/.ssh/raspi"
 if [[ ! -f "${KEYPATH}" ]]; then
   ssh-keygen -t rsa -q -f "${KEYPATH}" -N "" 1> /dev/null
   ssh-copy-id -i "${KEYPATH}.pub" pi@"${RASPI_ADDR}" 1> /dev/null
-  info "Generated SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
+  echo " Generated SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
 else
-  info "Re-using existing SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
+  echo " Re-using existing SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
 fi
 
 SSH="ssh -i ${KEYPATH} pi@${RASPI_ADDR} "
 SCP="scp -i ${KEYPATH} "
 
-info "Targeting the Raspberry Pi 2 at ${RASPI_ADDR}"
+echo " Targeting the Raspberry Pi 2 at ${RASPI_ADDR}"
 
-# Attempt to check for a temporary filesystem at |STORAGE_DIR_TMPFS|, and try to
-# create and mount it if not.
-eval "${SSH}\"grep -qs \"${STORAGE_DIR_TMPFS}\" \"/proc/mounts\"\"" 1> /dev/null
+# Mounting a temporary filesystem cannot be done on buildbot since it requires
+# sudo. When run locally, check for the temporary filesystem and create and
+# mount it if it does not exist.
+if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
+  eval "${SSH}\"grep -qs \"${STORAGE_DIR_TMPFS}\" \"/proc/mounts\"\"" 1> /dev/null
 
-if [[ $? -ne 0 ]]; then
-  echo " Missing tmpfs mount at ${STORAGE_DIR_TMPFS}"
+  if [[ $? -ne 0 ]]; then
+    if [[ ! -e "${STORAGE_DIR_TMPFS}" ]]; then
+      run_command "mkdir -p \"${STORAGE_DIR_TMPFS}\"" 1> /dev/null
+    fi
 
-  if [[ "$(eval "${SSH}\"id -u\"")" -ne 0 ]]; then
-    echo " Not root, cannot mount tmpfs at ${STORAGE_DIR_TMPFS}"
-    return
+    if [[ "$(${SSH} "${ID} -u")" -ne 0 ]]; then
+      echo " Not root, trying to mount tmpfs with sudo at ${STORAGE_DIR_TMPFS}"
+      run_command "sudo mount -F -t tmpfs -o size=10m \"cobalt_storage.tmpfs\" \"${STORAGE_DIR_TMPFS}\"" 1> /dev/null
+    else
+      echo " Mounting tmpfs as root at ${STORAGE_DIR_TMPFS}"
+      run_command "mount -F -t tmpfs -o size=10m \"cobalt_storage.tmpfs\" \"${STORAGE_DIR_TMPFS}\"" 1> /dev/null
+    fi
   fi
-
-  run_command "rm -rf \"${STORAGE_DIR_TMPFS}\""
-
-  run_command "mkdir -p \"${STORAGE_DIR_TMPFS}\""
-
-  run_command "sudo mount -F -t tmpfs -o size=10m \"cobalt_storage.tmpfs\" \"${STORAGE_DIR_TMPFS}\""
 fi
 
