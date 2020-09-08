@@ -45,6 +45,12 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     }
   }
 
+  void UnfocusAll() {
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+    GetInterface().set_focus(kNativeItemInvalid);
+#endif
+  }
+
   void SetEnabled(bool enabled) {
     SbAtomicNoBarrier_Store8(&enabled_, enabled ? 1 : 0);
     GetInterface().set_item_enabled(nav_item_, enabled);
