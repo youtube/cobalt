@@ -7,7 +7,9 @@ RUN apt update -qqy \
         libavformat57 \
         libavresample3 \
         libavutil55 \
+        libegl1-mesa \
         libgl1-mesa-dri \
+        libgles2-mesa \
         libx11-6 \
         libxcomposite1 \
         libxrender1 \
@@ -27,7 +29,7 @@ ENV LANG en_US.UTF-8
 
 RUN mkdir -p /app_launcher_out
 
-CMD unzip /out/app_launcher -d /app_launcher_out && \
+CMD unzip -q /out/app_launcher -d /app_launcher_out && \
     xvfb-run --server-args="-screen 0 1920x1080x24 +render +extension GLX -noreset" \
     python /app_launcher_out/starboard/tools/testing/test_runner.py --run \
            -o /out --platform $PLATFORM --config $CONFIG -t $TEST_TARGET
