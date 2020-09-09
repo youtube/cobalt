@@ -16,6 +16,8 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
+RUN mkdir -p /root/.android
+
 CMD (test -f /root/.android/debug.keystore \
     && echo "Android debug keystore exists." \
     || (keytool -genkey -v \

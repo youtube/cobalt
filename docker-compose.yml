@@ -56,6 +56,7 @@ services:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
+    depends_on: [ build-base ]
     environment:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
@@ -71,7 +72,7 @@ services:
   android-x86:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-evergreen ]
+    depends_on: [ build-android ]
     environment:
       - IS_DOCKER=1
       - PLATFORM=android-x86
@@ -80,7 +81,7 @@ services:
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-evergreen ]
+    depends_on: [ build-android ]
     environment:
       - IS_DOCKER=1
       - PLATFORM=android-arm
@@ -89,7 +90,7 @@ services:
   android-arm64:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-evergreen ]
+    depends_on: [ build-android ]
     environment:
       - IS_DOCKER=1
       - PLATFORM=android-arm64
