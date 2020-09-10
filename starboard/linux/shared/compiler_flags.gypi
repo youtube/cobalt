@@ -36,9 +36,15 @@
     ],
     'compiler_flags_qa_size': [
       '-Os',
+      # Compile symbols in separate sections
+      '-ffunction-sections',
+      '-fdata-sections',
     ],
     'compiler_flags_qa_speed': [
       '-O2',
+      # Compile symbols in separate sections
+      '-ffunction-sections',
+      '-fdata-sections',
     ],
     'compiler_flags_gold': [
       '-fno-rtti',
@@ -46,9 +52,15 @@
     ],
     'compiler_flags_gold_size': [
       '-Os',
+      # Compile symbols in separate sections
+      '-ffunction-sections',
+      '-fdata-sections',
     ],
     'compiler_flags_gold_speed': [
       '-O2',
+      # Compile symbols in separate sections
+      '-ffunction-sections',
+      '-fdata-sections',
     ],
     'conditions': [
       ['clang==1', {
@@ -135,6 +147,8 @@
     ],
     'ldflags': [
       '-Wl,-rpath=$ORIGIN/lib',
+      # Cleanup unused sections
+      '-Wl,-gc-sections',
     ],
     'target_conditions': [
       ['sb_pedantic_warnings==1', {
