@@ -717,7 +717,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(const net::URLFetcher* source,
 
   if (fetch_callback_) {
     std::string downloaded_data;
-    response_body_->GetAndReset(&downloaded_data);
+    response_body_->GetAndResetDataAndDownloadProgress(&downloaded_data);
     script::Handle<script::Uint8Array> data =
         script::Uint8Array::New(settings_->global_environment(),
                                 downloaded_data.data(), downloaded_data.size());
@@ -729,9 +729,13 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(const net::URLFetcher* source,
   const base::TimeDelta elapsed(now - last_progress_time_);
   if (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs)) {
     last_progress_time_ = now;
-    // TODO: Investigate if we have to fire progress event with 0 loaded bytes
-    // when used as Fetch API.
-    UpdateProgress(response_body_->GetAndResetDownloadProgress());
+    if (fetch_callback_) {
+      // TODO: Investigate if we have to fire progress event with 0 loaded bytes
+      //       when used as Fetch API.
+      UpdateProgress(0);
+    } else {
+      UpdateProgress(response_body_->GetAndResetDownloadProgress());
+    }
   }
 }
 
@@ -1025,7 +1029,7 @@ script::Handle<script::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
     // request is re-opened.
     std::unique_ptr<script::PreallocatedArrayBufferData> downloaded_data(
         new script::PreallocatedArrayBufferData());
-    response_body_->GetAndReset(downloaded_data.get());
+    response_body_->GetAndResetData(downloaded_data.get());
     auto array_buffer = script::ArrayBuffer::New(
         settings_->global_environment(), std::move(downloaded_data));
     response_array_buffer_reference_.reset(
