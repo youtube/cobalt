@@ -28,6 +28,7 @@ class SharedLibraryLinker(clangxx.DynamicLinkerBase,
 
     return shell.And('{0} '
                      '--build-id '
+                     '-gc-sections '
                      '-X '
                      '-v '
                      '--eh-frame-hdr '
