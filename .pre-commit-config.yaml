@@ -1,0 +1,98 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages: [commit]
+
+default_language_version:
+    python: python3
+
+exclude: '^third_party/'
+
+repos:
+-   repo: https://cobalt.googlesource.com/pre-commit-hooks
+    rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
+    hooks:
+    -   id: check-case-conflict
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: mixed-line-ending
+
+-   repo: local
+    hooks:
+    -   id: sync-keyboxes
+        name: sync-keyboxes
+        entry: python ./precommit_hooks/sync_keyboxes_wrapper.py
+        language: python
+        stages: [post-checkout]
+        always_run: true
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=4, --quiet]
+        exclude: '.*tests?.(cc|h)$'
+    -   id: cpplint_test
+        name: cpplint_test
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=5, --quiet]
+        files: '.*tests?.(cc|h)$'
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: system
+        types: [python]
+        args: [--style=yapf, -i]
+        exclude: '\.gypi?$'
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        args: [-d W0201]
+        exclude: '\.gypi?$'
+    -   id: clang-format
+        name: clang-format
+        entry: python ./precommit_hooks/clang_format_wrapper.py
+        language: python
+        types: [c++]
+        args: [-i, -style=file]
+    -   id: google-java-format
+        name: google-java-format
+        entry: python ./precommit_hooks/google_java_format_wrapper.py
+        language: python
+        types: [java]
+        args: [-i]
+    -   id: gcheckstyle
+        name: gcheckstyle
+        entry: python ./precommit_hooks/gcheckstyle_wrapper.py
+        language: python
+        types: [java]
+        verbose: true
+    -   id: check-copyright-year
+        name: check copyright year
+        entry: python ./precommit_hooks/custom_hooks/check_copyright_year.py
+        language: python
+        types: [file, text]
+        stages: [push]
+    -   id: check-if-starboard-interface-changed
+        name: check if starboard interface changed
+        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed.py
+        language: python
+        files: '^starboard/*.h$'
+        stages: [push]
+    -   id: download-resources
+        name: download resources
+        entry: python ./download_resources.py
+        language: python
+        stages: [post-checkout]
+        always_run: true
+    -   id: test-download-from-gcs-helper
+        name: test download from gcs helper
+        entry: python
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [push]
+        args: [-m, unittest, tools/download_from_gcs_test.py]
