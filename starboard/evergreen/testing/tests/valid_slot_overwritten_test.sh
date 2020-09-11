@@ -25,14 +25,14 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "update from test channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the test package"
     return 1
   fi
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.1.log" "App is up to date"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to run the downloaded installation"
@@ -47,7 +47,7 @@ function run_test() {
 
   create_file "${STORAGE_DIR}/installation_${SLOT}/app_key_TEST.good"
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.2.log" "AdoptInstallation: current_installation=${SLOT}"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "AdoptInstallation: current_installation=${SLOT}"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to adopt installation"

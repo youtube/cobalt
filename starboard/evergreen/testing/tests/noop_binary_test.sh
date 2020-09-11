@@ -20,12 +20,12 @@ unset TEST_FILE
 unset -f run_test
 
 TEST_NAME="NoOpBinary"
-TEST_FILE="tnoop.html"
+TEST_FILE="test.html"
 
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "update from tnoop channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tnoop" "${TEST_NAME}.0.log" "update from tnoop channel installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the tnoop package"
@@ -33,7 +33,7 @@ function run_test() {
   fi
 
   for i in {1..3}; do
-    start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.${i}.log" "Load start=0x[a-f0-9]{8,} base_memory_address=0x[a-f0-9]{8,}"
+    start_cobalt "file:///tests/${TEST_FILE}?channel=tnoop" "${TEST_NAME}.${i}.log" "Load start=0x[a-f0-9]{8,} base_memory_address=0x[a-f0-9]{8,}"
 
     if [[ $? -ne 0 ]]; then
       error "Failed to load binary"
@@ -46,7 +46,7 @@ function run_test() {
     fi
   done
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.4.log" "App is up to date"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tnoop" "${TEST_NAME}.4.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to revert to working installation after no-oping 3 times"
