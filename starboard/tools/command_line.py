@@ -23,8 +23,18 @@ import starboard.tools.config
 import starboard.tools.platform
 
 
+def AddLoggingArguments(arg_parser):
+  arg_parser.add_argument(
+      '--log_level',
+      choices=['debug', 'warning', 'error', 'critical'],
+      default='info',
+      help='The minimum level a log statement must be to be output. This value '
+      "is used to initialize the 'logging' module log level.")
+
+
 def AddPlatformConfigArguments(arg_parser):
   """Adds the platform configuration arguments required for building."""
+  AddLoggingArguments(arg_parser)
   default_config, default_platform = build.GetDefaultConfigAndPlatform()
   arg_parser.add_argument(
       '-p',
