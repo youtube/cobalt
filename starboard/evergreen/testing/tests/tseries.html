@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <html>
 <meta charset="utf-8">
-<title>ttseries</title>
+<title>tseries</title>
 <script>
   var alternatedCount = 0;
   var alternatingChannels = setInterval(alternateChannels, 500);
@@ -25,23 +25,28 @@ limitations under the License.
     const channel = window.h5vcc.updater.getUpdaterChannel();
     const status = window.h5vcc.updater.getUpdateStatus();
 
+    if (channel == "") {
+      return;
+    }
+
+    if ((status != "App is up to date") &&
+        (status != "Update installed, pending restart")) {
+      return;
+    }
+
     if (channel == "qa") {
-      console.log("channel changed from qa to tseries1");
       window.h5vcc.updater.setUpdaterChannel("tseries1");
+      console.log("channel changed from qa to tseries1");
       return;
     }
 
     if (alternatedCount < 5) {
-      if (status != "Update installed, pending restart") {
-        return;
-      }
-
       if (channel == "tseries1") {
-        console.log("channel changed from tseries1 to tseries2");
         window.h5vcc.updater.setUpdaterChannel("tseries2");
+        console.log("channel changed from tseries1 to tseries2");
       } else {
-        console.log("channel changed from " + channel + " to tseries1");
         window.h5vcc.updater.setUpdaterChannel("tseries1");
+        console.log("channel changed from tseries2 to tseries1");
       }
 
       alternatedCount++;

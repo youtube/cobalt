@@ -18,28 +18,47 @@ limitations under the License.
 <meta charset="utf-8">
 <title>test</title>
 <script>
-  var changeChannel = setInterval(tryChangeChannel, 500);
+  var changeChannel = null;
+  var targetChannel = null;
 
   function tryChangeChannel() {
-    const channel = window.h5vcc.updater.getUpdaterChannel();
+    const currentChannel = window.h5vcc.updater.getUpdaterChannel();
     const status = window.h5vcc.updater.getUpdateStatus();
 
-    if (channel == "") {
+    if ((currentChannel == "") ||
+        ((status != "App is up to date") &&
+         (status != "Update installed, pending restart"))) {
       return;
     }
 
-    if (channel == "qa") {
-      if ((status == "App is up to date") || (status == "Update installed, pending restart")) {
-        window.h5vcc.updater.setUpdaterChannel("test");
-        console.log("channel was changed to test");
-        return;
-      }
+    if (currentChannel == "qa") {
+      window.h5vcc.updater.setUpdaterChannel(targetChannel);
+      console.log("channel was changed to " + targetChannel);
+      return;
     }
 
-    if ((channel == "test") && (status == "Update installed, pending restart")) {
-      console.log("update from test channel installed");
-      clearInterval(changeChannel);
+    if (currentChannel == targetChannel) {
+      console.log("update from " + targetChannel + " channel installed");
     }
   }
+
+  var query = window.location.search;
+
+  if (query) {
+    // Splits each paramter of the query into an array after removing the
+    // prepended "?".
+    query = query.slice(1).split("&");
+  }
+
+  query.forEach(part => {
+    if (changeChannel) {
+      return;
+    }
+
+    if (part.startsWith("channel=")) {
+      targetChannel = part.split("=")[1];
+      changeChannel = setInterval(tryChangeChannel, 500);
+    }
+  });
 </script>
 </html>

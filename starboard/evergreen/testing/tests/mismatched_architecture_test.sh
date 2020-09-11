@@ -20,19 +20,19 @@ unset TEST_FILE
 unset -f run_test
 
 TEST_NAME="MismatchedArchitecture"
-TEST_FILE="tmsabi.html"
+TEST_FILE="test.html"
 
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "update from tmsabi channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.0.log" "update from tmsabi channel installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the tmsabi package"
     return 1
   fi
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.1.log" "Failed to load(ed)? ELF header"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.1.log" "Failed to load(ed)? ELF header"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to recognize architecture mismatch"
