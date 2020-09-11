@@ -169,3 +169,5 @@ v8.log
 *.gyp_lb*
 .vscode
 .idea
+/venv/*
+!/venv/.gitkeep
