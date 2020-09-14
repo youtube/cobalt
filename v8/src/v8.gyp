@@ -15,7 +15,7 @@
       'NO_ARRAY_MOVE_STARBOARD',
       # Disable mitigations for executing untrusted code.
       # Disabled by default on x86 due to conflicting requirements with embedded
-      # builtins. 
+      # builtins.
       # Chrome enabled this by default only on Android since it doesn't support
       # site-isolation and on simulator builds which test code generation
       # on these platforms.
@@ -334,7 +334,7 @@
             '<(generate_bytecode_builtins_list_output)',
           ],
           'action': [
-            'python',
+            'python2',
             '<(DEPTH)/v8/tools/run.py',
             '<@(_inputs)',
             '<@(_outputs)',
@@ -509,7 +509,7 @@
              'inputs': ['<(INTERMEDIATE_DIR)/embedded.S'],
              'outputs': ['<(INTERMEDIATE_DIR)/embedded.cc'],
              'action': [
-               'python',
+               'python2',
                '../tools/snapshot/asm_to_inline_asm.py',
                '>@(_inputs)',
                '>@(_outputs)',
@@ -1630,7 +1630,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/src/regexp/special-case.cc',
           ],
           'action': [
-            'python',
+            'python2',
             '<(DEPTH)/v8/tools/run.py',
             '<@(_inputs)',
             '<@(_outputs)',
@@ -1733,7 +1733,7 @@
             }],
           ],
           'action': [
-            'python', '<(DEPTH)/v8/tools/testrunner/utils/dump_build_config_gyp.py',
+            'python2', '<(DEPTH)/v8/tools/testrunner/utils/dump_build_config_gyp.py',
             '<@(v8_dump_build_config_args)',
           ],
         },
@@ -1769,7 +1769,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
           ],
           'action': [
-            'python',
+            'python2',
             '<(DEPTH)/v8/tools/gen-postmortem-metadata.py',
             '<@(_outputs)',
             '<@(heapobject_files)'

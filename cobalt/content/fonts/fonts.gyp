@@ -151,7 +151,7 @@
             '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
           ],
           'action': [
-            'python', 'scripts/filter_fonts.py',
+            'python2', 'scripts/filter_fonts.py',
             '-i', '<(source_font_config_dir)/fonts.xml',
             '-o', '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
             '<@(package_categories)',

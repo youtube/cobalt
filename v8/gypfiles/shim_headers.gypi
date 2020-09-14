@@ -62,7 +62,7 @@
       'outputs': [
         '<!@pymod_do_main(generate_shim_headers <@(generator_args) --outputs)',
       ],
-      'action': ['python',
+      'action': ['python2',
                  '<(generator_path)',
                  '<@(generator_args)',
                  '--generate',

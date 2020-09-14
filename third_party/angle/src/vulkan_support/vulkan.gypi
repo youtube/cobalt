@@ -442,7 +442,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(spirv_tools_path)/utils/generate_grammar_tables.py',
+                                'python2', '<(spirv_tools_path)/utils/generate_grammar_tables.py',
                                 '--spirv-core-grammar=<(spirv_headers_path)/include/spirv/1.0/spirv.core.grammar.json',
                                 '--extinst-glsl-grammar=<(spirv_headers_path)/include/spirv/1.0/extinst.glsl.std.450.grammar.json',
                                 '--extinst-opencl-grammar=<(spirv_tools_path)/source/extinst-1.0.opencl.std.grammar.json',
@@ -469,7 +469,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(spirv_tools_path)/utils/generate_grammar_tables.py',
+                                'python2', '<(spirv_tools_path)/utils/generate_grammar_tables.py',
                                 '--spirv-core-grammar=<(spirv_headers_path)/include/spirv/1.1/spirv.core.grammar.json',
                                 '--core-insts-output=<(angle_gen_path)/vulkan/core.insts-1.1.inc',
                                 '--operand-kinds-output=<(angle_gen_path)/vulkan/operand.kinds-1.1.inc',
@@ -491,7 +491,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(spirv_tools_path)/utils/generate_registry_tables.py',
+                                'python2', '<(spirv_tools_path)/utils/generate_registry_tables.py',
                                 '--xml=<(spirv_headers_path)/include/spirv/spir-v.xml',
                                 '--generator-output=<(angle_gen_path)/vulkan/generators.inc',
                             ],
@@ -651,7 +651,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
                                  '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'vk_enum_string_helper.h', '-quiet',
@@ -676,7 +676,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
                                  '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'vk_struct_size_helper.h', '-quiet',
@@ -701,7 +701,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
                                  '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'vk_struct_size_helper.c', '-quiet',
@@ -726,7 +726,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
                                  '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'vk_safe_struct.h', '-quiet',
@@ -751,7 +751,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py',
                                  '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'vk_safe_struct.cpp', '-quiet',
@@ -776,7 +776,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'vk_layer_dispatch_table.h', '-quiet',
                             ],
                         },
@@ -799,7 +799,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'vk_dispatch_table_helper.h', '-quiet',
                             ],
                         },
@@ -822,7 +822,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'vk_loader_extensions.h', '-quiet',
                             ],
                         },
@@ -845,7 +845,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'vk_loader_extensions.c', '-quiet',
                             ],
                         },
@@ -871,7 +871,7 @@
                                     ],
                                     'action':
                                     [
-                                        'python', '<(angle_path)/scripts/generate_vulkan_layers_json.py',
+                                        'python2', '<(angle_path)/scripts/generate_vulkan_layers_json.py',
                                         '<(vulkan_layers_path)/layers/windows', '<(PRODUCT_DIR)/<(vulkan_json)',
                                     ],
                                 }],
@@ -883,7 +883,7 @@
                                     ],
                                     'action':
                                     [
-                                        'python', '<(angle_path)/scripts/generate_vulkan_layers_json.py',
+                                        'python2', '<(angle_path)/scripts/generate_vulkan_layers_json.py',
                                         '<(vulkan_layers_path)/layers/linux', '<(PRODUCT_DIR)/<(vulkan_json)',
                                     ],
                                 }],
@@ -1011,7 +1011,7 @@
                             'action':
                             [
                                 # TODO(jmadill): Use correct platform path
-                                'python', '<(angle_path)/scripts/generate_vulkan_header.py', '<(PRODUCT_DIR)/<(vulkan_json)',
+                                'python2', '<(angle_path)/scripts/generate_vulkan_header.py', '<(PRODUCT_DIR)/<(vulkan_json)',
                                 '<(angle_gen_path)/vulkan/angle_loader.h', '<(PRODUCT_DIR)',
                             ],
                         },
@@ -1023,7 +1023,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/vulkan_loader_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/vulkan_loader_order_deps.stamp',
                             ]
                         },
@@ -1052,7 +1052,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_core_validation_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_core_validation_order_deps.stamp',
                             ]
                         },
@@ -1090,7 +1090,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_swapchain_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_swapchain_order_deps.stamp',
                             ]
                         },
@@ -1128,7 +1128,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_object_tracker_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_object_tracker_order_deps.stamp',
                             ]
                         },
@@ -1176,7 +1176,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_unique_objects_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_unique_objects_order_deps.stamp',
                             ]
                         },
@@ -1198,7 +1198,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'unique_objects_wrappers.h', '-quiet',
                             ],
                         },
@@ -1236,7 +1236,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_threading_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_threading_order_deps.stamp',
                             ]
                         },
@@ -1257,7 +1257,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o',
                                 '<(angle_gen_path)/vulkan', '-registry', '<(vulkan_layers_path)/scripts/vk.xml',
                                 'thread_check.h', '-quiet',
                             ],
@@ -1296,7 +1296,7 @@
                             'outputs': [ '<(angle_gen_path)/vulkan/layer_parameter_validation_order_deps.stamp' ],
                             'action':
                             [
-                                'python', '<(angle_path)/gyp/touch_stamp.py',
+                                'python2', '<(angle_path)/gyp/touch_stamp.py',
                                 '<(angle_gen_path)/vulkan/layer_parameter_validation_order_deps.stamp',
                             ]
                         },
@@ -1317,7 +1317,7 @@
                             ],
                             'action':
                             [
-                                'python', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
+                                'python2', '<(vulkan_layers_path)/scripts/lvl_genvk.py', '-o', '<(angle_gen_path)/vulkan',
                                 '-registry', '<(vulkan_layers_path)/scripts/vk.xml', 'parameter_validation.h', '-quiet',
                             ],
                         },

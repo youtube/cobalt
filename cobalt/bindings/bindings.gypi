@@ -274,7 +274,7 @@
               '-e h -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
-          'python',
+          'python2',
           '<(idl_compiler_script)',
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
@@ -363,7 +363,7 @@
               '-e cc -d <(generated_source_output_dir) -b <(DEPTH) <(RULE_INPUT_DIRNAME)/<(RULE_INPUT_ROOT))'
         ],
         'action': [
-          'python',
+          'python2',
           '<(idl_compiler_script)',
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
@@ -437,7 +437,7 @@
           '<(generated_type_conversion_header_file)',
         ],
         'action': [
-          'python',
+          'python2',
           '<(conversion_header_generator_script)',
           '--cache-dir',
           '<(bindings_scripts_output_dir)',
@@ -539,7 +539,7 @@
           '<(bindings_scripts_output_dir)/parsetab.pickle',
         ],
         'action': [
-          'python',
+          'python2',
           '<(bindings_scripts_dir)/blink_idl_parser.py',
           '<(bindings_scripts_output_dir)',
         ],
@@ -562,7 +562,7 @@
           '<(bindings_scripts_output_dir)/cached_jinja_templates.stamp',  # Dummy to track dependency
         ],
         'action': [
-          'python',
+          'python2',
           '<(DEPTH)/cobalt/bindings/code_generator_cobalt.py',
           '<(bindings_scripts_output_dir)',
           '<(bindings_templates_dir)',

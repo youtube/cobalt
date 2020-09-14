@@ -50,6 +50,6 @@ set PATH=%PATH%;%GIT_BIN_DIR%
 
 set ARGS=%*
 
-python %SCRIPT_DIR%gyp_cobalt %ARGS%
+python2 %SCRIPT_DIR%gyp_cobalt %ARGS%
 
 :EOF

@@ -140,7 +140,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'MozjsEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'action': ['python2', '<(script_path)', 'MozjsEmbeddedResources', '<(output_path)', '<@(_sources)' ],
           'message': 'Embedding mozjs resources in into header file, "<(output_path)".',
         },
       ],

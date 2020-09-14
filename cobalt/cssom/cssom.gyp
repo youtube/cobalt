@@ -286,7 +286,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'CSSOMEmbeddedResources', '<(output_path)', '<(input_directory)'],
+          'action': ['python2', '<(script_path)', 'CSSOMEmbeddedResources', '<(output_path)', '<(input_directory)'],
           'message': 'Embedding cssom resources in "<(input_directory)" into header file, "<(output_path)".',
         },
       ],
