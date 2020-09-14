@@ -61,7 +61,7 @@
     ],
     'outputs': [ '<(content_deploy_stamp_file)' ],
     'action': [
-      'python',
+      'python2',
       '<(DEPTH)/starboard/build/collect_deploy_content.py',
       '-i', '<(input_dir)',
       '-o', '<(output_dir)',

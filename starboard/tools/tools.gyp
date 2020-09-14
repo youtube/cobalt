@@ -35,7 +35,7 @@
             '<(app_launcher_zip_file)',
           ],
           'action': [
-            'python',
+            'python2',
             '<(app_launcher_packager_path)',
             '-z',
             '<(app_launcher_zip_file)',

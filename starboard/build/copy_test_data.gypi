@@ -58,7 +58,7 @@
         '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_data_dir)/test/<(content_test_output_subdir) --outputs <(content_test_input_files))',
       ],
       'action': [
-        'python',
+        'python2',
         '<(DEPTH)/starboard/build/copy_data.py',
         '-o', '<(sb_static_contents_output_data_dir)/test/<(content_test_output_subdir)',
         '<@(content_test_input_files)',

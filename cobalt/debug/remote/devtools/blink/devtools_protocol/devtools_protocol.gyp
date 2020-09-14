@@ -37,7 +37,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(stamp_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '--stamp',
           '<(stamp_file)',
@@ -65,7 +65,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(input_files)',
           '<(output_file)',

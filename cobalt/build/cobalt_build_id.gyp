@@ -19,7 +19,7 @@
             '<(output_path)',
           ],
           'action': [
-            'python',
+            'python2',
             '<(build_id_py_path)',
             '<(output_path)',
             '<(cobalt_version)',

@@ -58,7 +58,7 @@
     ],
     'outputs': ['<@(outputs)'],
     'action': [
-      'python',
+      'python2',
       '<(bindings_scripts_dir)/generate_global_constructors.py',
       '--idl-files-list',
       '<(idl_files_list)',

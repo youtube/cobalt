@@ -218,7 +218,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'LoaderEmbeddedResources', '<(output_path)', '<(input_directory)'],
+          'action': ['python2', '<(script_path)', 'LoaderEmbeddedResources', '<(output_path)', '<(input_directory)'],
           'message': 'Embedding layout resources in "<(input_directory)" into header file, "<(output_path)".',
         },
       ],
