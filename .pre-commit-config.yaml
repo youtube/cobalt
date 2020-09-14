@@ -9,7 +9,7 @@ repos:
         entry: cpplint
         language: system
         types: [c++]
-        args: [--verbose=4]
+        args: [--verbose=4, --quiet]
         exclude: '.*tests?.(cc|h)$'
         stages: [push]
     -   id: cpplint_test
@@ -17,7 +17,7 @@ repos:
         entry: cpplint
         language: system
         types: [c++]
-        args: [--verbose=5]
+        args: [--verbose=5, --quiet]
         files: '.*tests?.(cc|h)$'
         stages: [push]
     -   id: yapf
