@@ -98,7 +98,7 @@
         '<(cc_dir)/<(RULE_INPUT_ROOT).pb.h',
       ],
       'action': [
-        'python',
+        'python2',
         '<(protoc_wrapper)',
         '--include',
         '<(cc_include)',

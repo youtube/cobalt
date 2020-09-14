@@ -43,7 +43,7 @@
             '<!@pymod_do_main(starboard.build.convert_i18n_data -o <@(output_dir) --outputs <@(xlb_files))',
           ],
           'action': [
-            'python',
+            'python2',
             '<(DEPTH)/starboard/build/convert_i18n_data.py',
             '-o', '<@(output_dir)',
             '<@(xlb_files)',

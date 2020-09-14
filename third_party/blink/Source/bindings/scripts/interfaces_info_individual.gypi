@@ -54,7 +54,7 @@
     ],
 
     'action': [
-      'python',
+      'python2',
       '<(bindings_scripts_dir)/compute_interfaces_info_individual.py',
       '--cache-directory',
       '<(cache_directory)',
