@@ -13,8 +13,6 @@
 # limitations under the License.
 """Starboard Linux X64 X11 platform configuration."""
 
-import os.path
-
 from starboard.linux.shared import gyp_configuration as shared_configuration
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
@@ -22,7 +20,6 @@ from starboard.tools.toolchain import clang
 from starboard.tools.toolchain import clangxx
 from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
-from starboard.tools import paths
 
 
 class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
@@ -32,9 +29,8 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
                platform='linux-x64x11',
                asan_enabled_by_default=True,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(LinuxX64X11Configuration, self).__init__(platform,
-                                                   asan_enabled_by_default,
-                                                   sabi_json_path)
+    super(LinuxX64X11Configuration,
+          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
 
   def GetTargetToolchain(self, **kwargs):
     return self.GetHostToolchain(**kwargs)
@@ -56,25 +52,6 @@ class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
         touch.Stamp(),
         bash.Shell(),
     ]
-
-  def GetTestFilters(self):
-    filters = super(LinuxX64X11Configuration, self).GetTestFilters()
-    # Remove the exclusion filter on SbDrmTest.AnySupportedKeySystems.
-    # Generally, children of linux/shared do not support widevine, but children
-    # of linux/x64x11 do, if the content decryption module is present.
-
-    has_cdm = os.path.isfile(
-        os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'cdm', 'cdm',
-                     'include', 'content_decryption_module.h'))
-
-    if not has_cdm:
-      return filters
-
-    for test_filter in filters:
-      if (test_filter.target_name == 'nplb' and
-          test_filter.test_name == 'SbDrmTest.AnySupportedKeySystems'):
-        filters.remove(test_filter)
-    return filters
 
 
 def CreatePlatformConfig():
