@@ -67,6 +67,7 @@
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:*',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
+        '<(DEPTH)/cobalt/renderer/backend/backend.gyp:graphics_system_test_deploy',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/samples/simple_example/simple_example.gyp:*',
@@ -90,7 +91,7 @@
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
         '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
-        '<(DEPTH)/starboard/loader_app/loader_app.gyp:loader_app',
+        '<(DEPTH)/starboard/loader_app/loader_app.gyp:loader_app_tests_deploy',
         '<(DEPTH)/starboard/nplb/nplb_evergreen_compat_tests/nplb_evergreen_compat_tests.gyp:nplb_evergreen_compat_tests_deploy',
       ],
       'conditions': [

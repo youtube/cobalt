@@ -91,5 +91,17 @@
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
+    {
+      'target_name': 'loader_app_tests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'loader_app',
+        '<(DEPTH)/starboard/loader_app/app_key.gyp:app_key_test_deploy',
+        '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files_test_deploy',
+        '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file_test_deploy',
+        '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager_test_deploy',
+        '<(DEPTH)/starboard/loader_app/slot_management.gyp:slot_management_test_deploy',
+      ],
+    },
   ],
 }
