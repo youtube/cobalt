@@ -32,4 +32,4 @@ RUN mkdir -p /app_launcher_out
 CMD unzip -q /out/app_launcher -d /app_launcher_out && \
     xvfb-run --server-args="-screen 0 1920x1080x24 +render +extension GLX -noreset" \
     python /app_launcher_out/starboard/tools/testing/test_runner.py --run \
-           -o /out --platform $PLATFORM --config $CONFIG -t $TEST_TARGET
+           -o /out --platform $PLATFORM --config $CONFIG
