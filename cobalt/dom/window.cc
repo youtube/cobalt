@@ -707,7 +707,7 @@ void Window::CacheSplashScreen(const std::string& content) {
     return;
   }
   DLOG(INFO) << "Caching splash screen for URL " << location()->url();
-  splash_screen_cache_callback_.Run(location()->url(), content);
+  splash_screen_cache_callback_.Run(content);
 }
 
 const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {

@@ -122,7 +122,7 @@ class Window : public EventTarget,
   // close() was called.
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
-  typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
+  typedef base::Callback<void(const std::string&)> CacheCallback;
 
   enum ClockType {
     kClockTypeTestRunner,

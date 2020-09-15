@@ -562,15 +562,15 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
-    base::Optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+    splash_screen_cache_->SetUrl(url);
     if (fallback_splash_screen_url_ ||
-        (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+        splash_screen_cache_->IsSplashScreenCached()) {
       splash_screen_.reset(new SplashScreen(
           application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
           network_module_, viewport_size, GetResourceProvider(),
-          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
+          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_,
           splash_screen_cache_.get(),
           base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
       lifecycle_observers_.AddObserver(splash_screen_.get());

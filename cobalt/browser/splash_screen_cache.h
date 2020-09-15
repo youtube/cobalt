@@ -20,6 +20,7 @@
 
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/loader/cache_fetcher.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -36,25 +37,35 @@ class SplashScreenCache {
   SplashScreenCache();
 
   // Cache the splash screen.
-  bool CacheSplashScreen(const std::string& key,
-                         const std::string& content) const;
+  bool CacheSplashScreen(const std::string& content) const;
 
   // Read the cached the splash screen.
   int ReadCachedSplashScreen(const std::string& key,
                              std::unique_ptr<char[]>* result) const;
 
-  // Determine if a splash screen is cached corresponding to the key.
-  bool IsSplashScreenCached(const std::string& key) const;
+  // Determine if a splash screen is cached corresponding to the current url.
+  bool IsSplashScreenCached() const;
 
+  // Set the URL of the currently requested splash screen.
+  void SetUrl(const GURL& url) { url_ = url; }
+
+  // Get the cache location of the currently requested splash screen.
+  GURL GetCachedSplashScreenUrl() {
+    base::Optional<std::string> key = GetKeyForStartUrl(url_);
+    return GURL(loader::kCacheScheme + ("://" + *key));
+  }
+
+ private:
   // Get the key that corresponds to a starting URL. Optionally create
   // subdirectories along the path.
   static base::Optional<std::string> GetKeyForStartUrl(const GURL& url);
 
- private:
   // Lock to protect access to the cache file.
   mutable base::Lock lock_;
   // Hash of the last read page contents.
   mutable uint32_t last_page_hash_;
+  // Latest url that was navigated to.
+  GURL url_;
 };
 
 }  // namespace browser

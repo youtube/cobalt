@@ -86,23 +86,18 @@ namespace {
 // deeper than this could be discarded, and will not be rendered.
 const int kDOMMaxElementDepth = 32;
 
-bool CacheUrlContent(SplashScreenCache* splash_screen_cache, const GURL& url,
+void CacheUrlContent(SplashScreenCache* splash_screen_cache,
                      const std::string& content) {
-  base::Optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
-  if (key) {
-    return splash_screen_cache->SplashScreenCache::CacheSplashScreen(*key,
-                                                                     content);
-  }
-  return false;
+  splash_screen_cache->SplashScreenCache::CacheSplashScreen(content);
 }
 
-base::Callback<bool(const GURL&, const std::string&)> CacheUrlContentCallback(
+base::Callback<void(const std::string&)> CacheUrlContentCallback(
     SplashScreenCache* splash_screen_cache) {
   // This callback takes in first the url, then the content string.
   if (splash_screen_cache) {
     return base::Bind(CacheUrlContent, base::Unretained(splash_screen_cache));
   } else {
-    return base::Callback<bool(const GURL&, const std::string&)>();
+    return base::Callback<void(const std::string&)>();
   }
 }
 
