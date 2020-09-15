@@ -57,7 +57,6 @@ SplashScreen::SplashScreen(
     const cssom::ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const base::Optional<GURL>& fallback_splash_screen_url,
-    const GURL& initial_main_web_module_url,
     SplashScreenCache* splash_screen_cache,
     const base::Callback<void(base::TimeDelta)>&
         on_splash_screen_shutdown_complete)
@@ -76,15 +75,10 @@ SplashScreen::SplashScreen(
       base::ThreadPriority::HIGHEST;
 
   base::Optional<GURL> url_to_pass = fallback_splash_screen_url;
-  // Use the cached URL rather than the passed in URL if it exists.
-  base::Optional<std::string> key =
-      SplashScreenCache::GetKeyForStartUrl(initial_main_web_module_url);
   DCHECK(fallback_splash_screen_url ||
-         (key && splash_screen_cache &&
-          splash_screen_cache->IsSplashScreenCached(*key)));
-  if (key && splash_screen_cache &&
-      splash_screen_cache->IsSplashScreenCached(*key)) {
-    url_to_pass = GURL(loader::kCacheScheme + ("://" + *key));
+         (splash_screen_cache && splash_screen_cache->IsSplashScreenCached()));
+  if (splash_screen_cache && splash_screen_cache->IsSplashScreenCached()) {
+    url_to_pass = splash_screen_cache->GetCachedSplashScreenUrl();
     web_module_options.can_fetch_cache = true;
     web_module_options.splash_screen_cache = splash_screen_cache;
   }

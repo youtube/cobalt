@@ -59,10 +59,10 @@ SplashScreenCache::SplashScreenCache() : last_page_hash_(0) {
   base::AutoLock lock(lock_);
 }
 
-bool SplashScreenCache::CacheSplashScreen(const std::string& key,
-                                          const std::string& content) const {
+bool SplashScreenCache::CacheSplashScreen(const std::string& content) const {
   base::AutoLock lock(lock_);
-  if (key.empty()) {
+  base::Optional<std::string> key = GetKeyForStartUrl(url_);
+  if (!key) {
     return false;
   }
 
@@ -76,10 +76,11 @@ bool SplashScreenCache::CacheSplashScreen(const std::string& key,
                        kSbFileMaxPath)) {
     return false;
   }
-  if (!CreateDirsForKey(key)) {
+  if (!CreateDirsForKey(key.value())) {
     return false;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
+  std::string full_path =
+      std::string(path.data()) + kSbFileSepString + key.value();
   starboard::ScopedFile cache_file(
       full_path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
 
@@ -87,15 +88,18 @@ bool SplashScreenCache::CacheSplashScreen(const std::string& key,
                              static_cast<int>(content.size())) > 0;
 }
 
-bool SplashScreenCache::IsSplashScreenCached(const std::string& key) const {
+bool SplashScreenCache::IsSplashScreenCached() const {
   base::AutoLock lock(lock_);
   std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                        kSbFileMaxPath)) {
     return false;
   }
-  std::string full_path = std::string(path.data()) + kSbFileSepString + key;
-  return !key.empty() && SbFileExists(full_path.c_str());
+  base::Optional<std::string> key = GetKeyForStartUrl(url_);
+  if (!key) return false;
+  std::string full_path =
+      std::string(path.data()) + kSbFileSepString + key.value();
+  return SbFileExists(full_path.c_str());
 }
 
 int SplashScreenCache::ReadCachedSplashScreen(
