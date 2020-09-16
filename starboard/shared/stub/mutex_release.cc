@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/mutex.h"
+#include "starboard/mutex.h"
 
 bool SbMutexRelease(SbMutex* mutex) {
   return false;
