@@ -193,7 +193,7 @@ void MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState(
 }
 
 void MediaSessionClient::InvokeActionInternal(
-    CobaltExtensionMediaSessionActionDetails* details) {
+    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details) {
   DCHECK(details->action >= 0 &&
          details->action < kCobaltExtensionMediaSessionActionNumActions);
 
@@ -222,7 +222,7 @@ void MediaSessionClient::InvokeActionInternal(
   }
 
   std::unique_ptr<MediaSessionActionDetails> script_details =
-      ConvertActionDetails(details);
+      ConvertActionDetails(*details);
   it->second->value().Run(*script_details);
 
   // Queue a session update to reflect the effects of the action.
@@ -382,17 +382,17 @@ void MediaSessionClient::ConvertMediaSessionActions(
 
 std::unique_ptr<MediaSessionActionDetails>
 MediaSessionClient::ConvertActionDetails(
-    CobaltExtensionMediaSessionActionDetails* ext_details) {
+    const CobaltExtensionMediaSessionActionDetails& ext_details) {
   std::unique_ptr<MediaSessionActionDetails> details(
       new MediaSessionActionDetails());
-  details->set_action(ConvertMediaSessionAction(ext_details->action));
-  if (ext_details->seek_offset >= 0.0) {
-    details->set_seek_offset(ext_details->seek_offset);
+  details->set_action(ConvertMediaSessionAction(ext_details.action));
+  if (ext_details.seek_offset >= 0.0) {
+    details->set_seek_offset(ext_details.seek_offset);
   }
-  if (ext_details->seek_time >= 0.0) {
-    details->set_seek_time(ext_details->seek_time);
+  if (ext_details.seek_time >= 0.0) {
+    details->set_seek_time(ext_details.seek_time);
   }
-  details->set_fast_seek(ext_details->fast_seek);
+  details->set_fast_seek(ext_details.fast_seek);
   return details;
 }
 

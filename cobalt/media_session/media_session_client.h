@@ -73,24 +73,28 @@ class MediaSessionClient {
   // https://wicg.github.io/mediasession/#actions-model
   // Can be invoked from any thread.
   void InvokeAction(CobaltExtensionMediaSessionAction action) {
-    CobaltExtensionMediaSessionActionDetails details = {};
-    CobaltExtensionMediaSessionActionDetailsInit(&details, action);
-    InvokeActionInternal(std::move(&details));
+    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details(
+        new CobaltExtensionMediaSessionActionDetails());
+    CobaltExtensionMediaSessionActionDetailsInit(details.get(), action);
+    InvokeActionInternal(std::move(details));
   }
 
   // Invokes a given media session action that takes additional details.
   void InvokeCobaltExtensionAction(
       CobaltExtensionMediaSessionActionDetails details) {
-    InvokeActionInternal(&details);
+    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details_ptr(
+        new CobaltExtensionMediaSessionActionDetails(details));
+    InvokeActionInternal(std::move(details_ptr));
   }
 
   // Deprecated - use the alternative InvokeCobaltExtensionAction.
   // TODO: Delete once platform migrations to CobaltExtensionMediaSessionApi are
   // complete.
   void InvokeAction(std::unique_ptr<MediaSessionActionDetails> details) {
-    CobaltExtensionMediaSessionActionDetails* ext_details = {};
+    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> ext_details(
+        new CobaltExtensionMediaSessionActionDetails());
     CobaltExtensionMediaSessionActionDetailsInit(
-        ext_details, ConvertMediaSessionAction(details->action()));
+        ext_details.get(), ConvertMediaSessionAction(details->action()));
     if (details->has_seek_offset()) {
       ext_details->seek_offset = details->seek_offset().value();
     }
@@ -102,6 +106,7 @@ class MediaSessionClient {
     }
     InvokeActionInternal(std::move(ext_details));
   }
+
   // Invoked on the browser thread when any metadata, position state, playback
   // state, or supported session actions change.
   virtual void OnMediaSessionStateChanged(
@@ -129,13 +134,14 @@ class MediaSessionClient {
   void UpdateMediaSessionState();
   MediaSessionPlaybackState ComputeActualPlaybackState() const;
   MediaSessionState::AvailableActionsSet ComputeAvailableActions() const;
-  void InvokeActionInternal(CobaltExtensionMediaSessionActionDetails* details);
+  void InvokeActionInternal(
+      std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details);
 
   void ConvertMediaSessionActions(
       const MediaSessionState::AvailableActionsSet& actions,
       bool result[kCobaltExtensionMediaSessionActionNumActions]);
   std::unique_ptr<MediaSessionActionDetails> ConvertActionDetails(
-      CobaltExtensionMediaSessionActionDetails* ext_details);
+      const CobaltExtensionMediaSessionActionDetails& ext_details);
 
   // Static callback wrappers for MediaSessionAPI extension.
   static void UpdatePlatformPlaybackStateCallback(
