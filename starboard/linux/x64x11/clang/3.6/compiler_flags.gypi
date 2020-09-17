@@ -71,15 +71,18 @@
           '-Wno-invalid-offsetof',
           # Suppress 'implicit conversion changes signedness'
           '-Wno-sign-conversion',
+
           # shifting a negative signed value is undefined
           '-Wno-shift-sign-overflow',
+          # Suppress "'&&' within '||'"
+          '-Wno-logical-op-parentheses',
           # Suppress "comparison may be assumed to always evaluate to false"
           '-Wno-tautological-undefined-compare',
           # Suppress "comparison of unsigned enum expression < 0 is always false"
           '-Wno-tautological-compare',
           # Suppress "[type1] has C-linkage specified, but returns user-defined type [type2] which is incompatible with C"
           '-Wno-return-type-c-linkage',
-          '-Wno-array-bounds',
+
           # Suppress "template argument uses unnamed type"
           '-Wno-unnamed-type-template-args',
           # 'this' pointer cannot be NULL...pointer may be assumed
@@ -89,8 +92,16 @@
           '-Wno-inconsistent-missing-override',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
+          # shifting a negative signed value is undefined
+          '-Wno-shift-sign-overflow',
           # Suppress "'&&' within '||'"
           '-Wno-logical-op-parentheses',
+          # Suppress "comparison may be assumed to always evaluate to false"
+          '-Wno-tautological-undefined-compare',
+          # Suppress "comparison of unsigned enum expression < 0 is always false"
+          '-Wno-tautological-compare',
+          # Suppress "[type1] has C-linkage specified, but returns user-defined type [type2] which is incompatible with C"
+          '-Wno-return-type-c-linkage',
           '-Wno-unused-parameter',
           # Suppress warnings about unknown pragmas.
           '-Wno-unknown-pragmas',
@@ -102,6 +113,8 @@
           '-Wno-unused-value',
           # Suppress warnings related to unused compilation flags in clang.
           '-Wno-unused-command-line-argument',
+          # Suppress warnings related to tautological comparisons.
+          '-Wno-tautological-compare',
         ],
       }],
       ['cobalt_fastbuild==0', {
