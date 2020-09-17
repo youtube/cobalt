@@ -309,6 +309,25 @@ TEST(MediaSessionTest, AvailableActions) {
             state.available_actions().to_ulong());
 }
 
+TEST(MediaSessionTest, InvokeAction) {
+  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
+
+  MockMediaSessionClient client;
+  scoped_refptr<MediaSession> session = client.GetMediaSession();
+
+  MockCallbackFunction cf;
+  FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
+  std::unique_ptr<MediaSessionActionDetails> details(
+      new MediaSessionActionDetails());
+
+  session->SetActionHandler(kMediaSessionActionSeekto, holder);
+  EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
+
+  details->set_action(kMediaSessionActionSeekto);
+  details->set_seek_time(1.2);
+  client.InvokeAction(std::move(details));
+}
+
 TEST(MediaSessionTest, SeekDetails) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
