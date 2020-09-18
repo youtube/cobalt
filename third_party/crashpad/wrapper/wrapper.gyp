@@ -22,22 +22,16 @@
         'wrapper.h',
       ],
     },
-  ],
-  'conditions': [
-    ['sb_evergreen_compatible == 1', {
-      'targets': [
-        {
-          'target_name': 'crashpad_wrapper',
-          'type': 'static_library',
-          'sources': [
-            'wrapper.cc',
-            'wrapper.h',
-          ],
-          'dependencies': [
-            '<(DEPTH)/third_party/crashpad/client/client.gyp:crashpad_client',
-          ],
-        },
+    {
+      'target_name': 'crashpad_wrapper',
+      'type': 'static_library',
+      'sources': [
+        'wrapper.cc',
+        'wrapper.h',
       ],
-    }],
+      'dependencies': [
+        '<(DEPTH)/third_party/crashpad/client/client.gyp:crashpad_client',
+      ],
+    },
   ],
 }

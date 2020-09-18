@@ -5,6 +5,7 @@
 #ifndef MINI_CHROMIUM_BASE_STRINGS_UTF_STRING_CONVERSION_UTILS_H_
 #define MINI_CHROMIUM_BASE_STRINGS_UTF_STRING_CONVERSION_UTILS_H_
 
+#include "base/base_wrapper.h"
 #include "base/strings/string16.h"
 
 namespace base {
