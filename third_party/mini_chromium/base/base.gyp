@@ -43,6 +43,7 @@
         'atomicops_internals_atomicword_compat.h',
         'atomicops_internals_portable.h',
         'auto_reset.h',
+        'base_wrapper.h',
         'bit_cast.h',
         'compiler_specific.h',
         'debug/alias.cc',
