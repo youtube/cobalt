@@ -81,6 +81,9 @@
     # Whether this is an evergreen build.
     'sb_evergreen': 0,
 
+    # Whether to use crashpad.
+    'sb_crashpad_enabled': 0,
+
     # Whether this is an evergreen compatible platform. A compatible platform
     # can run the elf_loader and launch the evergreen build.
     'sb_evergreen_compatible%': '<(sb_evergreen_compatible)',
