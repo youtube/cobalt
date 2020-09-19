@@ -348,7 +348,14 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
                                             void* data) {
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
-
+  if (type == AndroidCommand::kNativeWindowDestroyed) {
+    // When this command is processed it will suspend Cobalt, so make the JNI
+    // call to StarboardBridge.beforeSuspend() early while still here on the
+    // Android main thread. This lets the MediaSession get released now without
+    // having to wait to bounce between threads.
+    JniEnvExt* env = JniEnvExt::Get();
+    env->CallStarboardVoidMethod("beforeSuspend", "()V");
+  }
   AndroidCommand cmd {type, data};
   ScopedLock lock(android_command_mutex_);
   write(android_command_writefd_, &cmd, sizeof(cmd));
