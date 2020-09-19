@@ -169,7 +169,4 @@
 #error "Android builds need a GCC-like compiler (for the moment)."
 #endif
 
-// Enable SB_HAS_CONCEALED_STATE support.
-#define SB_HAS_CONCEALED_STATE 1
-
 #endif  // STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
