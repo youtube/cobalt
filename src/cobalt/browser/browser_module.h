@@ -426,6 +426,11 @@ class BrowserModule {
   // the app state update.
   void UnfreezeInternal();
 
+  // Check debug console, splash screen and web module if they are
+  // ready to freeze at Concealed state. If so, call SystemRequestFreeze
+  // to freeze Cobalt.
+  void OnMaybeFreeze();
+
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While concealed, this returns the requested
   // viewport size. If there was no requested viewport size, it returns a

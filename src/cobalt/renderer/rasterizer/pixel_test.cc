@@ -4538,6 +4538,61 @@ TEST_F(PixelTest, ConcurrentTrimPathsLottieAnimationTest) {
   TestTree(lottie_node);
 }
 
+TEST_F(PixelTest, LottiePreserveAspectRatioTooShortAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->BeginRenderFrame(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size().width(),
+                                           100.0f));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, LottiePreserveAspectRatioTooNarrowAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->BeginRenderFrame(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(100.0f,
+                                           output_surface_size().height()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(lottie_node);
+}
+
+TEST_F(PixelTest, LottieScaledWideAnimationTest) {
+  std::vector<uint8> animation_data =
+      GetFileData(GetTestFilePath("white_material_wave_loading.json"));
+  scoped_refptr<LottieAnimation> animation =
+      GetResourceProvider()->CreateLottieAnimation(
+          reinterpret_cast<char*>(&animation_data[0]), animation_data.size());
+  LottieAnimation::LottieProperties lottie_properties;
+  lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
+  animation->BeginRenderFrame(lottie_properties);
+
+  LottieNode::Builder node_builder =
+      LottieNode::Builder(animation, RectF(output_surface_size()));
+  node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
+  scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
+  TestTree(new MatrixTransformNode(lottie_node,
+      ScaleMatrix(4.0f, 1.0f) *
+      TranslateMatrix(output_surface_size().width() * -0.5f, 0.0f)));
+}
+
 #endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer

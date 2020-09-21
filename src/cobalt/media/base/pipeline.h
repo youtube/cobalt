@@ -92,7 +92,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual ~Pipeline() {}
 
   virtual void Suspend() {}
-  virtual void Resume() {}
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  virtual void Resume(PipelineWindow window) {}
 
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.

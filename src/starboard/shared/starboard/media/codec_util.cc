@@ -499,10 +499,10 @@ bool ParseVp09Info(const char* codec,
     return true;
   }
 
-  // 6. Parse chroma subsampling, which we only support 01.
+  // 6. Parse chroma subsampling, which we only support 00 and 01.
   // Note that this value is not returned.
   int chroma;
-  if (!ReadTwoDigitDecimal(codec + 14, &chroma) || chroma != 1) {
+  if (!ReadTwoDigitDecimal(codec + 14, &chroma) || (chroma != 0 && chroma != 1)) {
     return false;
   }
 

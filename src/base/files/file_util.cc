@@ -21,8 +21,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
+
+#if defined(STARBOARD)
+#include "starboard/common/file.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
+#endif
 
 namespace base {
 

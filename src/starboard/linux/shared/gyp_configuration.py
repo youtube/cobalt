@@ -18,6 +18,7 @@ import os
 from starboard.build import clang
 from starboard.build import platform_configuration
 from starboard.tools import build
+from starboard.tools import paths
 from starboard.tools.testing import test_filter
 
 
@@ -88,13 +89,25 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(LinuxConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+
+    has_cdm = os.path.isfile(
+        os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'ce_cdm', 'cdm',
+                     'include', 'cdm.h'))
+
+    if has_cdm:
+      return filters
+
+    # Filter the drm related tests, as ce_cdm is not present.
+    for target, tests in self.__DRM_RELATED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetPathToSabiJsonFile(self):
     return self.sabi_json_path
 
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': ['SbDrmTest.AnySupportedKeySystems',],
+  __DRM_RELATED_TESTS = {  # pylint: disable=invalid-name
+      'nplb': [
+          'SbDrmTest.AnySupportedKeySystems',
+          'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
+      ],
   }

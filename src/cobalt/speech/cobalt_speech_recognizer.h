@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/endpointer_delegate.h"
 #include "cobalt/speech/google_speech_service.h"
@@ -39,7 +39,7 @@ namespace speech {
 // from there.
 class CobaltSpeechRecognizer : public SpeechRecognizer {
  public:
-  typedef media::ShellAudioBus ShellAudioBus;
+  typedef media::AudioBus AudioBus;
 
   CobaltSpeechRecognizer(network::NetworkModule* network_module,
                          const Microphone::Options& microphone_options,
@@ -51,7 +51,7 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
 
  private:
   // Callbacks from mic.
-  void OnDataReceived(std::unique_ptr<ShellAudioBus> audio_bus);
+  void OnDataReceived(std::unique_ptr<AudioBus> audio_bus);
   void OnDataCompletion();
   void OnMicrophoneError(MicrophoneManager::MicrophoneError error,
                          std::string error_message);

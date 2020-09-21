@@ -1,4 +1,5 @@
-FROM cobalt-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-base}
 
 # === Get Nodejs pinned LTS version via NVM
 ENV NVM_DIR /root/.nvm
@@ -18,17 +19,15 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 RUN git clone https://cobalt.googlesource.com/depot_tools /depot_tools
 
 # === Configure common env vars
-ENV PATH="${PATH}:/depot_tools:/root/fake_goma" \
+ENV PATH="${PATH}:/depot_tools" \
     OUTDIR=out \
     DEPOT_TOOLS_UPDATE=0 \
     NINJA_STATUS="[%f/%t %c/sec] " \
     CCACHE_DIR=/root/ccache \
     CCACHE_MAXSIZE=30G
 
-# == Set up gclient and fake Goma with ccache
-COPY ./files/fake_goma /root/fake_goma
+# == Set up gclient and ccache
 RUN cd /tmp && gclient verify || true \
-    && chmod +x /root/fake_goma/gomacc /root/fake_goma/goma_ctl.py \
     && mkdir /root/ccache
 
 WORKDIR /code

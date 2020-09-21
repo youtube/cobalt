@@ -42,7 +42,9 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
+      truncated_text_start_position_(text_start_position),
       truncated_text_end_position_(text_end_position),
+      previous_truncated_text_start_position_(text_start_position),
       previous_truncated_text_end_position_(text_end_position),
       truncated_text_offset_from_left_(0),
       used_font_(used_style_provider->GetUsedFontList(
@@ -237,12 +239,16 @@ bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
 }
 
 void TextBox::DoPreEllipsisPlacementProcessing() {
+  previous_truncated_text_start_position_ = truncated_text_start_position_;
   previous_truncated_text_end_position_ = truncated_text_end_position_;
+  truncated_text_start_position_ = text_start_position_;
   truncated_text_end_position_ = text_end_position_;
 }
 
 void TextBox::DoPostEllipsisPlacementProcessing() {
-  if (previous_truncated_text_end_position_ != truncated_text_end_position_) {
+  if (previous_truncated_text_start_position_ !=
+          truncated_text_start_position_ ||
+      previous_truncated_text_end_position_ != truncated_text_end_position_) {
     InvalidateRenderTreeNodesOfBoxAndAncestors();
   }
 }
@@ -397,7 +403,7 @@ void TextBox::RenderAndAnimateContent(
     // color is animated, in which case it could become non-transparent.
     if (used_color.a() > 0.0f || is_color_animated ||
         text_shadow != cssom::KeywordValue::GetNone()) {
-      int32 text_start_position = GetNonCollapsedTextStartPosition();
+      int32 text_start_position = GetVisibleTextStartPosition();
       int32 text_length = GetVisibleTextLength();
 
       scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
@@ -481,7 +487,12 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // If the ellipsis has already been placed, then the text is fully truncated
   // by the ellipsis.
   if (*is_placed) {
-    truncated_text_end_position_ = text_start_position_;
+    if (paragraph_->AreInlineAndScriptDirectionsTheSame(base_direction,
+                                                        text_start_position_)) {
+      truncated_text_end_position_ = text_start_position_;
+    } else {
+      truncated_text_start_position_ = text_end_position_;
+    }
     return;
   }
 
@@ -510,8 +521,8 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // text box. Otherwise, it can only appear after the first character
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   if (paragraph_->FindBreakPosition(
-          used_font_, start_position, end_position, desired_content_offset,
-          false, !(*is_placement_requirement_met),
+          base_direction, false, used_font_, start_position, end_position,
+          desired_content_offset, false, !(*is_placement_requirement_met),
           Paragraph::kBreakPolicyBreakWord, &found_position, &found_offset)) {
     // A usable break position was found. Calculate the placed offset using the
     // the break position's distance from the content box's start edge. In the
@@ -525,7 +536,12 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     } else {
       *placed_offset = content_box_start_offset + found_offset;
     }
-    truncated_text_end_position_ = found_position;
+    if (paragraph_->AreInlineAndScriptDirectionsTheSame(base_direction,
+                                                        start_position)) {
+      truncated_text_end_position_ = found_position;
+    } else {
+      truncated_text_start_position_ = found_position;
+    }
     // An acceptable break position was not found. If the placement requirement
     // was already met prior to this box, then the ellipsis doesn't require a
     // character from this box to appear prior to its position, so simply place
@@ -533,7 +549,12 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   } else if (is_placement_requirement_met) {
     *placed_offset =
         GetMarginBoxStartEdgeOffsetFromContainingBlock(base_direction);
-    truncated_text_end_position_ = text_start_position_;
+    if (paragraph_->AreInlineAndScriptDirectionsTheSame(base_direction,
+                                                        start_position)) {
+      truncated_text_end_position_ = text_start_position_;
+    } else {
+      truncated_text_start_position_ = text_end_position_;
+    }
     // The placement requirement has not already been met. Given that an
     // acceptable break position was not found within the text, the ellipsis can
     // only be placed at the end edge of the box.
@@ -603,7 +624,8 @@ int32 TextBox::GetWrapPosition(WrapAtPolicy wrap_at_policy,
       // fits within the available width. Overflow is never allowed.
       LayoutUnit wrap_width;
       if (!paragraph_->FindBreakPosition(
-              used_font_, start_position, text_end_position_, available_width,
+              paragraph_->base_direction(), true, used_font_, start_position,
+              text_end_position_, available_width,
               should_collapse_trailing_white_space, false, break_policy,
               &wrap_position, &wrap_width)) {
         // If no break position is found, but the line existence is already
@@ -720,19 +742,24 @@ std::string TextBox::GetNonCollapsibleText() const {
                                            Paragraph::kVisualTextOrder);
 }
 
+int32 TextBox::GetVisibleTextStartPosition() const {
+  return std::max(GetNonCollapsedTextStartPosition(),
+                  truncated_text_start_position_);
+}
+
 int32 TextBox::GetVisibleTextEndPosition() const {
   return std::min(GetNonCollapsedTextEndPosition(),
                   truncated_text_end_position_);
 }
 
 int32 TextBox::GetVisibleTextLength() const {
-  return GetVisibleTextEndPosition() - GetNonCollapsedTextStartPosition();
+  return GetVisibleTextEndPosition() - GetVisibleTextStartPosition();
 }
 
 bool TextBox::HasVisibleText() const { return GetVisibleTextLength() > 0; }
 
 std::string TextBox::GetVisibleText() const {
-  return paragraph_->RetrieveUtf8SubString(GetNonCollapsedTextStartPosition(),
+  return paragraph_->RetrieveUtf8SubString(GetVisibleTextStartPosition(),
                                            GetVisibleTextEndPosition(),
                                            Paragraph::kVisualTextOrder);
 }

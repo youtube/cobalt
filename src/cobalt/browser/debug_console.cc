@@ -110,7 +110,8 @@ DebugConsole::DebugConsole(
     network::NetworkModule* network_module,
     const cssom::ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const debug::CreateDebugClientCallback& create_debug_client_callback) {
+    const debug::CreateDebugClientCallback& create_debug_client_callback,
+    const base::Closure& maybe_freeze_callback) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
@@ -134,6 +135,10 @@ DebugConsole::DebugConsole(
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
                  create_debug_client_callback);
+
+  // Pass down this callback from Browser module to Web module eventually.
+  web_module_options.maybe_freeze_callback = maybe_freeze_callback;
+
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), initial_application_state,
       render_tree_produced_callback,

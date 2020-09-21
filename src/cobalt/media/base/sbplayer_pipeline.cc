@@ -90,7 +90,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
-  void Resume() override;
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  void Resume(PipelineWindow window) override;
+
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
@@ -175,7 +178,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void CallSeekCB(PipelineStatus status);
 
   void SuspendTask(base::WaitableEvent* done_event);
-  void ResumeTask(base::WaitableEvent* done_event);
+  void ResumeTask(PipelineWindow window, base::WaitableEvent* done_event);
 
   // Store the media time retrieved by GetMediaTime so we can cache it as an
   // estimate and avoid calling SbPlayerGetInfo too frequently.
@@ -331,7 +334,7 @@ void SbPlayerPipeline::Suspend() {
   waitable_event.Wait();
 }
 
-void SbPlayerPipeline::Resume() {
+void SbPlayerPipeline::Resume(PipelineWindow window) {
   DCHECK(!task_runner_->BelongsToCurrentThread());
 
   base::WaitableEvent waitable_event(
@@ -339,7 +342,8 @@ void SbPlayerPipeline::Resume() {
       base::WaitableEvent::InitialState::NOT_SIGNALED);
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&SbPlayerPipeline::ResumeTask,
-                                    base::Unretained(this), &waitable_event));
+                                    base::Unretained(this),
+                                    window, &waitable_event));
   waitable_event.Wait();
 }
 
@@ -1314,7 +1318,8 @@ void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
   done_event->Signal();
 }
 
-void SbPlayerPipeline::ResumeTask(base::WaitableEvent* done_event) {
+void SbPlayerPipeline::ResumeTask(PipelineWindow window,
+                                  base::WaitableEvent* done_event) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(done_event);
   DCHECK(suspended_);
@@ -1324,8 +1329,10 @@ void SbPlayerPipeline::ResumeTask(base::WaitableEvent* done_event) {
     return;
   }
 
+  window_ = window;
+
   if (player_) {
-    player_->Resume();
+    player_->Resume(window);
   }
 
   suspended_ = false;

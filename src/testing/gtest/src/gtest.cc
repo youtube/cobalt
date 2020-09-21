@@ -37,6 +37,7 @@
 
 #if GTEST_OS_STARBOARD
 #include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/file.h"
 #include "starboard/system.h"
 #else
 #include <ctype.h>

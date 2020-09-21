@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/scoped_ptr.h"
-#include "starboard/file.h"
 
 namespace starboard {
 namespace shared {

@@ -15,7 +15,9 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKOTTIE_ANIMATION_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKOTTIE_ANIMATION_H_
 
+#include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/lottie_animation.h"
+#include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/modules/skottie/include/Skottie.h"
 
 namespace cobalt {
@@ -40,6 +42,12 @@ class SkottieAnimation : public render_tree::LottieAnimation {
   void SetAnimationTimeInternal(base::TimeDelta animate_function_time) override;
 
   sk_sp<skottie::Animation> GetSkottieAnimation() { return skottie_animation_; }
+
+  // Rendering the lottie animation can be CPU-intensive. To minimize the cost,
+  // the animation can be updated in an offscreen render target only as needed,
+  // then the offscreen target rendered to the screen.
+  void ResetRenderCache() { cached_animation_time_ = base::TimeDelta::Min(); }
+  void UpdateRenderCache(SkCanvas* render_target, const math::SizeF& size);
 
  private:
   void UpdateAnimationFrameAndAnimateFunctionTimes(
@@ -79,6 +87,9 @@ class SkottieAnimation : public render_tree::LottieAnimation {
 
   // The most recently updated frame time for |skottie_animation_|.
   base::TimeDelta last_updated_animation_time_;
+
+  // This is the animation time used for the last cache update.
+  base::TimeDelta cached_animation_time_;
 };
 
 }  // namespace skia

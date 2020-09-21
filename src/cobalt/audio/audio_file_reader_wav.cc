@@ -192,9 +192,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
       static_cast<int32>(size / (bytes_per_src_sample * number_of_channels_));
 
   // We store audio samples in the current platform's preferred format.
-  audio_bus_.reset(new ShellAudioBus(number_of_channels_, number_of_frames_,
-                                     sample_type_,
-                                     ShellAudioBus::kInterleaved));
+  audio_bus_.reset(new AudioBus(number_of_channels_, number_of_frames_,
+                                sample_type_, AudioBus::kInterleaved));
 
 // Both the source data and the destination data are stored in interleaved.
 #if SB_IS(LITTLE_ENDIAN)

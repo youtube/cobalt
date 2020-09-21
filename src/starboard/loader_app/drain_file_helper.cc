@@ -14,7 +14,7 @@
 
 #include "starboard/loader_app/drain_file_helper.h"
 
-#include "starboard/file.h"
+#include "starboard/common/file.h"
 #include "starboard/loader_app/drain_file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -442,6 +442,8 @@ bool ExceptionHandlerServer::ReceiveClientMessage(Event* event) {
 #if defined(STARBOARD)
     case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo:
       return HandleAddEvergreenInfoRequest(creds, message.client_info);
+    case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddAnnotations:
+      return HandleAddAnnotationsRequest(creds, message.client_info);
 #endif
   }
 
@@ -455,6 +457,12 @@ bool ExceptionHandlerServer::HandleAddEvergreenInfoRequest(
     const ucred& creds,
     const ExceptionHandlerProtocol::ClientInformation& client_info) {
   return delegate_->AddEvergreenInfo(client_info);
+}
+
+bool ExceptionHandlerServer::HandleAddAnnotationsRequest(
+    const ucred& creds,
+    const ExceptionHandlerProtocol::ClientInformation& client_info) {
+  return delegate_->AddAnnotations(client_info);
 }
 #endif
 

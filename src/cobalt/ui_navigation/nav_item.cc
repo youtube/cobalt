@@ -31,7 +31,9 @@ NavItem::NavItem(NativeItemType type,
       onfocus_callback_(onfocus_callback),
       onscroll_callback_(onscroll_callback),
       nav_item_type_(type),
-      nav_item_(GetInterface().create_item(type, &s_callbacks_, this)) {}
+      nav_item_(GetInterface().create_item(type, &s_callbacks_, this)) {
+  SbAtomicNoBarrier_Store8(&enabled_, 0);
+}
 
 NavItem::~NavItem() {
   GetInterface().set_item_enabled(nav_item_, false);

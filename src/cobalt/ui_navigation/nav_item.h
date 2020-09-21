@@ -18,6 +18,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/ui_navigation/interface.h"
+#include "starboard/atomic.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -39,10 +40,19 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   }
 
   void Focus() {
-    GetInterface().set_focus(nav_item_);
+    if (SbAtomicNoBarrier_Load8(&enabled_)) {
+      GetInterface().set_focus(nav_item_);
+    }
+  }
+
+  void UnfocusAll() {
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+    GetInterface().set_focus(kNativeItemInvalid);
+#endif
   }
 
   void SetEnabled(bool enabled) {
+    SbAtomicNoBarrier_Store8(&enabled_, enabled ? 1 : 0);
     GetInterface().set_item_enabled(nav_item_, enabled);
   }
 
@@ -104,6 +114,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
 
   NativeItemType nav_item_type_;
   NativeItem nav_item_;
+  SbAtomic8 enabled_;
 
   static NativeCallbacks s_callbacks_;
 };

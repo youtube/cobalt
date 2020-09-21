@@ -327,6 +327,18 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbDirectoryGetNextTest.SunnyDayStaticContent',
           'SbDirectoryOpenTest.SunnyDayStaticContent',
           'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
+          # Android doesn't currently support specifying a bitrate under 8000
+          'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+          # There are issues with playback of heeac format files where the input
+          # |frames_per_channel| is 6912, instead of 12544 (as with other
+          # formats).
+          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/6',
+          # These tests are disabled due to not receiving the kEndOfStream
+          # player state update within the specified timeout.
+          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/7',
+          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/8',
+          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/9',
+          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/10',
       ],
   }
 

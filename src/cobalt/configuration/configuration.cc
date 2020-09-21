@@ -25,7 +25,8 @@ namespace configuration {
 Configuration* Configuration::configuration_ = nullptr;
 
 Configuration* Configuration::GetInstance() {
-  return base::Singleton<Configuration>::get();
+  return base::Singleton<Configuration,
+                         base::LeakySingletonTraits<Configuration>>::get();
 }
 
 Configuration::Configuration() {

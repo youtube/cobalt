@@ -56,7 +56,6 @@
 // -----------------------------------------------------------------------------
 // Operating system detection
 //
-//  V8_OS_STARBOARD     - Starboard (platform abstraction layer for the Cobalt project)
 //  V8_OS_ANDROID       - Android
 //  V8_OS_BSD           - BSDish (Mac OS X, Net/Free/Open/DragonFlyBSD)
 //  V8_OS_CYGWIN        - Cygwin
@@ -71,6 +70,7 @@
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
 //  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
+//  V8_OS_STARBOARD     - Starboard (platform abstraction layer for the Cobalt project)
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 

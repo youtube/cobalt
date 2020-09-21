@@ -16,6 +16,7 @@
 #define STARBOARD_NPLB_PLAYER_TEST_UTIL_H_
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "starboard/configuration_constants.h"
@@ -23,6 +24,13 @@
 
 namespace starboard {
 namespace nplb {
+
+typedef std::tuple<const char* /* audio_filename */,
+                   const char* /* video_filename */,
+                   SbPlayerOutputMode /* output_mode */>
+    SbPlayerTestConfig;
+
+std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs();
 
 std::string ResolveTestFileName(const char* filename);
 
@@ -63,6 +71,13 @@ SbPlayer CallSbPlayerCreate(
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaVideoCodec codec);
+
+bool IsMediaConfigSupported(SbMediaVideoCodec video_codec,
+                            SbMediaAudioCodec audio_codec,
+                            SbDrmSystem drm_system,
+                            const SbMediaAudioSampleInfo* audio_sample_info,
+                            const char* max_video_capabilities,
+                            SbPlayerOutputMode output_mode);
 
 }  // namespace nplb
 }  // namespace starboard

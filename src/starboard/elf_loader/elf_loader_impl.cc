@@ -40,7 +40,7 @@ bool ElfLoaderImpl::Load(
 
   elf_header_loader_.reset(new ElfHeader());
   if (!elf_header_loader_->LoadElfHeader(elf_file_.get())) {
-    SB_LOG(ERROR) << "Failed to loaded ELF header";
+    SB_LOG(ERROR) << "Failed to load ELF header";
     return false;
   }
 

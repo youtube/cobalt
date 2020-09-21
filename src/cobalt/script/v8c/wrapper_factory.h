@@ -50,8 +50,6 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
 
   v8::Local<v8::Object> GetWrapper(const scoped_refptr<Wrappable>& wrappable);
 
-  // Added temporarily for debugging purpose, will be removed soon.
-  bool HasWrapper(Wrappable* wrappable);
   // Attempt to get the |WrapperPrivate| associated with |wrappable|.  Returns
   // |nullptr| if no |WrapperPrivate| was found.
   WrapperPrivate* MaybeGetWrapperPrivate(Wrappable* wrappable);

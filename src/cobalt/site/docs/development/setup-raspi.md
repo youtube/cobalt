@@ -48,14 +48,26 @@ so that Cobalt can run properly:
 $ apt-get remove -y --purge --auto-remove libgl1-mesa-dev \
           libegl1-mesa-dev libgles2-mesa libgles2-mesa-dev
 $ apt-get install -y libpulse-dev libasound2-dev libavformat-dev \
-          libavresample-dev
+          libavresample-dev rsync
 ```
 
 ## Set up your workstation
 
+<aside class="note">
+<b>Note:</b> Before proceeding further, refer to the documentation for ["Set up your environment - Linux"](setup-linux.md). Complete the section **Set up your workstation**, then return and complete the following steps.
+</aside>
+
 The following steps install the cross-compiling toolchain on your workstation.
 The toolchain runs on an x86 workstation and compiles binaries for your ARM
 Raspberry Pi.
+
+1.  Run the following command to install packages needed to build and run
+    Cobalt for Raspberry Pi:
+
+    ```
+    $ sudo apt install -qqy --no-install-recommends g++-multilib \
+          python-requests wget xz-utils
+    ```
 
 1.  Choose a location for the installed toolchain &ndash; e.g. `raspi-tools`
     &ndash; and set `$RASPI_HOME` to that location.
@@ -94,10 +106,16 @@ Raspberry Pi.
 
 ## Build, install, and run Cobalt for Raspberry Pi
 
-1.  Run the following commands to build Cobalt:
+1.  Build the code by navigating to the src directory in your cobalt directory and run the
+    following command :
 
     ```
-    $ gyp_cobalt raspi-2
+    $ cobalt/build/gyp_cobalt raspi-2
+    ```
+
+1.  Compile the code from the `src/` directory:
+
+    ```
     $ ninja -C out/raspi-2_debug cobalt
     ```
 
@@ -105,7 +123,7 @@ Raspberry Pi.
     on the device:
 
     ```
-    rsync -avzh --exclude="obj*" \
+    rsync -avzLPh --exclude="obj*" --exclude="gen/" \
           $COBALT_SRC/out/raspi-2_debug pi@$RASPI_ADDR:~/
     ```
 
@@ -129,3 +147,21 @@ Raspberry Pi.
     Note that you can also exit YouTube on Cobalt by hitting the `[Esc]` key
     enough times to bring up the "Do you want to quit YouTube?" dialog and
     selecting "yes".
+
+### Improving Cobalt performance on Raspberry Pi
+
+1.  You will find that there are some processes installed by default that run on the
+    Raspberry Pi and can take away CPU time from Cobalt. You may wish to consider
+    disabling these processes for maximum (and more consistent) performance, as they
+    have been found to occasionally take >10% of the CPU according to `top`.
+    You can do this by typing:
+
+    ```
+    apt-get remove -y --auto-remove [PACKAGE_NAME, ...]
+    ```
+
+    For example:
+
+    ```
+    apt-get remove -y --auto-remove avahi-daemon
+    ```

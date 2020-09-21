@@ -17,6 +17,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
+#include "components/update_client/persisted_data.h"
 
 class GURL;
 class PrefService;
@@ -76,8 +77,8 @@ class Configurator : public update_client::Configurator {
 
   void SetChannel(const std::string& updater_channel) override;
 
-  void MarkChannelChanged() { is_channel_changed = true; }
-  bool IsChannelChanged() const override { return is_channel_changed; }
+  void CompareAndSwapChannelChanged(int old_value, int new_value) override;
+
   bool IsChannelValid(const std::string& channel);
 
   std::string GetUpdaterStatus() const;
@@ -88,12 +89,13 @@ class Configurator : public update_client::Configurator {
   ~Configurator() override;
 
   std::unique_ptr<PrefService> pref_service_;
+  std::unique_ptr<update_client::PersistedData> persisted_data_;
   scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
   scoped_refptr<update_client::UnzipperFactory> unzip_factory_;
   scoped_refptr<update_client::PatcherFactory> patch_factory_;
   std::string updater_channel_;
   base::Lock updater_channel_lock_;
-  bool is_channel_changed = false;
+  SbAtomic32 is_channel_changed_;
   std::string updater_status_;
   base::Lock updater_status_lock_;
 

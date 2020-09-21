@@ -16,7 +16,11 @@
 
 dictionary MediaKeySystemMediaCapability {
   DOMString contentType = "";
+
   // TODO: Implement robustness as per
   //       https://www.w3.org/TR/encrypted-media/#dom-mediakeysystemmediacapability-robustness.
   // DOMString robustness = "";
+
+  // https://wicg.github.io/encrypted-media-encryption-scheme/
+  DOMString? encryptionScheme = null;
 };

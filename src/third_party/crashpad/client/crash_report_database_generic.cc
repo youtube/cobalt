@@ -18,7 +18,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "build/build_config.h"
@@ -191,6 +193,11 @@ void AddAttachmentSize(const base::FilePath& attachments_dir, uint64_t* size) {
   }
 }
 
+bool WasCreatedSooner(CrashReportDatabase::Report a,
+                      CrashReportDatabase::Report b) {
+  return a.creation_time < b.creation_time;
+}
+
 }  // namespace
 
 class CrashReportDatabaseGeneric : public CrashReportDatabase {
@@ -218,6 +225,7 @@ class CrashReportDatabaseGeneric : public CrashReportDatabase {
   OperationStatus DeleteReport(const UUID& uuid) override;
   OperationStatus RequestUpload(const UUID& uuid) override;
   int CleanDatabase(time_t lockfile_ttl) override;
+  OperationStatus RemoveOldReports(int num_reports_to_keep) override;
 
   // Build a filepath for the directory for the report to hold attachments.
   base::FilePath AttachmentsPath(const UUID& uuid);
@@ -638,6 +646,32 @@ int CrashReportDatabaseGeneric::CleanDatabase(time_t lockfile_ttl) {
   removed += CleanReportsInState(kCompleted, lockfile_ttl);
   CleanOrphanedAttachments();
   return removed;
+}
+
+OperationStatus CrashReportDatabaseGeneric::RemoveOldReports(
+    int num_reports_to_keep) {
+  std::vector<CrashReportDatabase::Report> pending_reports;
+  std::vector<CrashReportDatabase::Report> completed_reports;
+  std::vector<CrashReportDatabase::Report> all_reports;
+
+  GetPendingReports(&pending_reports);
+  GetCompletedReports(&completed_reports);
+
+  all_reports.insert(
+      all_reports.end(), pending_reports.begin(), pending_reports.end());
+  all_reports.insert(
+      all_reports.end(), completed_reports.begin(), completed_reports.end());
+  std::sort(all_reports.begin(), all_reports.end(), WasCreatedSooner);
+
+  while (all_reports.size() > num_reports_to_keep) {
+    OperationStatus os = DeleteReport((*all_reports.begin()).uuid);
+    if (os != kNoError) {
+      return os;
+    }
+    all_reports.erase(all_reports.begin());
+  }
+
+  return kNoError;
 }
 
 OperationStatus CrashReportDatabaseGeneric::RecordUploadAttempt(

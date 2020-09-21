@@ -120,7 +120,7 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
 class EndpointerFrameProcessor : public FrameProcessor {
  public:
 #if defined(STARBOARD)
-  typedef Endpointer::ShellAudioBus ShellAudioBus;
+  typedef Endpointer::AudioBus AudioBus;
 #endif
   explicit EndpointerFrameProcessor(Endpointer* endpointer)
       : endpointer_(endpointer) {}
@@ -129,7 +129,7 @@ class EndpointerFrameProcessor : public FrameProcessor {
                         int16_t* samples,
                         int frame_size) override {
 #if defined(STARBOARD)
-    auto frame = std::make_unique<ShellAudioBus>(1, kFrameSize, samples);
+    auto frame = std::make_unique<AudioBus>(1, kFrameSize, samples);
     endpointer_->ProcessAudio(*frame.get(), NULL);
 #else
     scoped_refptr<AudioChunk> frame(

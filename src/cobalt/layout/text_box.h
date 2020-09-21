@@ -133,6 +133,7 @@ class TextBox : public Box {
   int32 GetNonCollapsibleTextLength() const;
   std::string GetNonCollapsibleText() const;
 
+  int32 GetVisibleTextStartPosition() const;
   int32 GetVisibleTextEndPosition() const;
   int32 GetVisibleTextLength() const;
   bool HasVisibleText() const;
@@ -145,7 +146,7 @@ class TextBox : public Box {
   const scoped_refptr<Paragraph> paragraph_;
   // The position within the paragraph where the text contained in this box
   // begins.
-  const int32 text_start_position_;
+  int32 text_start_position_;
   // The position within the paragraph where the text contained in this box
   // ends.
   int32 text_end_position_;
@@ -154,11 +155,13 @@ class TextBox : public Box {
   // "Implementations must hide characters and atomic inline-level elements at
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
   //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  int32 truncated_text_start_position_;
   int32 truncated_text_end_position_;
-  // Tracking of the previous value of |truncated_text_end_position_|, which
+  // Tracking of the previous value of the truncated text position, which
   // allows for determination of whether or not the value changed during
   // ellipsis placement. When this occurs, the cached render tree nodes of this
   // box and its ancestors are invalidated.
+  int32 previous_truncated_text_start_position_;
   int32 previous_truncated_text_end_position_;
   // The horizontal offset to apply to rendered text as a result of an ellipsis
   // truncating the text. This value can be non-zero when the text box is in a

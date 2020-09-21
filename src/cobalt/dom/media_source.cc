@@ -269,10 +269,8 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);
   DCHECK(dom_settings->can_play_type_handler());
-  const bool kIsProgressive = false;
   SbMediaSupportType support_type =
-      dom_settings->can_play_type_handler()->CanPlayType(type.c_str(), "",
-                                                         kIsProgressive);
+      dom_settings->can_play_type_handler()->CanPlayAdaptive(type.c_str(), "");
   if (support_type == kSbMediaSupportTypeNotSupported) {
     LOG(INFO) << "MediaSource::IsTypeSupported(" << type
               << ") -> not supported/false";

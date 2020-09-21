@@ -30,8 +30,8 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
+#include "starboard/common/file.h"
 #include "starboard/event.h"
-#include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
 

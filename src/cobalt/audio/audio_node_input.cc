@@ -26,12 +26,12 @@ namespace audio {
 
 namespace {
 
-typedef media::ShellAudioBus ShellAudioBus;
+typedef media::AudioBus AudioBus;
 
 void MixAudioBufferBasedOnInterpretation(
     const float* speaker, const float* discrete,
-    const AudioNodeChannelInterpretation& interpretation, ShellAudioBus* source,
-    ShellAudioBus* output_audio_data) {
+    const AudioNodeChannelInterpretation& interpretation, AudioBus* source,
+    AudioBus* output_audio_data) {
   const float* kMatrix =
       interpretation == kAudioNodeChannelInterpretationSpeakers ? speaker
                                                                 : discrete;
@@ -49,7 +49,7 @@ void MixAudioBufferBasedOnInterpretation(
 // Up down mix equations for mono, stereo, quad, 5.1:
 //   https://www.w3.org/TR/webaudio/#ChannelLayouts
 void MixAudioBuffer(const AudioNodeChannelInterpretation& interpretation,
-                    ShellAudioBus* source, ShellAudioBus* output_audio_data) {
+                    AudioBus* source, AudioBus* output_audio_data) {
   DCHECK_GT(source->channels(), 0u);
   DCHECK_GT(output_audio_data->channels(), 0u);
   DCHECK(interpretation == kAudioNodeChannelInterpretationSpeakers ||
@@ -224,8 +224,8 @@ void AudioNodeInput::DisconnectAll() {
   }
 }
 
-void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
-                                  bool* silence, bool* all_finished) {
+void AudioNodeInput::FillAudioBus(AudioBus* output_audio_bus, bool* silence,
+                                  bool* all_finished) {
   DCHECK(silence);
   DCHECK(all_finished);
 
@@ -247,7 +247,7 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
        iter != outputs_.end(); ++iter) {
     bool finished = false;
-    std::unique_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
+    std::unique_ptr<AudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
         static_cast<int32>(output_audio_bus->frames()),
         output_audio_bus->sample_type(), &finished);
     *all_finished &= finished;

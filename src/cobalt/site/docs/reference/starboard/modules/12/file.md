@@ -184,7 +184,7 @@ Deletes the regular file, symlink, or empty directory at `path`. This function
 is used primarily to clean up after unit tests. On some platforms, this function
 fails if the file in question is being held open.
 
-`path`: The absolute path fo the file, symlink, or directory to be deleted.
+`path`: The absolute path of the file, symlink, or directory to be deleted.
 
 #### Declaration ####
 

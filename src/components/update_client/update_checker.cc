@@ -44,14 +44,6 @@ namespace update_client {
 
 namespace {
 
-#if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const std::string kDefaultUpdaterChannel = "dev";
-#elif defined(COBALT_BUILD_TYPE_QA)
-const std::string kDefaultUpdaterChannel = "qa";
-#elif defined(COBALT_BUILD_TYPE_GOLD)
-const std::string kDefaultUpdaterChannel = "prod";
-#endif
-
 // Returns a sanitized version of the brand or an empty string otherwise.
 std::string SanitizeBrand(const std::string& brand) {
   return IsValidBrand(brand) ? brand : std::string("");
@@ -249,22 +241,6 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         MakeProtocolPing(app_id, metadata_)));
   }
   std::string updater_channel = config_->GetChannel();
-#if defined(OS_STARBOARD)
-  // If the updater channel is not set, read from pref store instead.
-  if (updater_channel.empty()) {
-    // All apps of the update use the same channel.
-    updater_channel = GetPersistedData()->GetUpdaterChannel(ids_checked_[0]);
-    if (updater_channel.empty()) {
-      updater_channel = kDefaultUpdaterChannel;
-    }
-    // Set the updater channel from the persistent store or to default channel,
-    // if it's not set already.
-    config_->SetChannel(updater_channel);
-  } else {
-    // Update the record of updater channel in pref store.
-    GetPersistedData()->SetUpdaterChannel(ids_checked_[0], updater_channel);
-  }
-#endif
 
   const auto request = MakeProtocolRequest(
       session_id, config_->GetProdId(),
@@ -284,6 +260,10 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       config_->EnabledCupSigning(),
       base::BindOnce(&UpdateCheckerImpl::OnRequestSenderComplete,
                      base::Unretained(this)));
+#if defined(OS_STARBOARD)
+  // Reset is_channel_changed flag to false if it is true
+  config_->CompareAndSwapChannelChanged(1, 0);
+#endif
 }
 
 void UpdateCheckerImpl::OnRequestSenderComplete(int error,

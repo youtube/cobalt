@@ -71,6 +71,9 @@
 // Add Concealed state support.
 #define SB_ADD_CONCEALED_STATE_SUPPORT_VERSION 14
 
+// Iteration on UI navigation API.
+#define SB_UI_NAVIGATION2_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

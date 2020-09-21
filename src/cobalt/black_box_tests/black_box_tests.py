@@ -30,6 +30,7 @@ from proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
+from starboard.tools import log_level
 
 _DISABLED_BLACKBOXTEST_CONFIGS = [
     'android-arm/devel',
@@ -294,13 +295,7 @@ def main():
             'specified, all IPs will be allowed to connect.'))
   args, _ = parser.parse_known_args()
 
-  # This format matches Cobalt's console log format.
-  logging_format = ('[%(process)d:%(asctime)s.%(msecs)03d...:'
-                    '%(levelname)s:%(filename)s(%(lineno)s)] %(message)s')
-  logging.basicConfig(
-      level=logging.INFO, format=logging_format, datefmt='%m%d/%H%M%S')
-  if args.verbose:
-    logging.getLogger().setLevel(logging.DEBUG)
+  log_level.InitializeLogging(args)
 
   test_object = BlackBoxTests(args.server_binding_address, args.proxy_address,
                               args.proxy_port, args.test_name,

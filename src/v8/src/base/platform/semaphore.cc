@@ -190,21 +190,13 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 #elif V8_OS_STARBOARD
 
-Semaphore::Semaphore(int count) : native_handle_(count) {
-  DCHECK_GE(count, 0);
-}
+Semaphore::Semaphore(int count) : native_handle_(count) { DCHECK_GE(count, 0); }
 
-Semaphore::~Semaphore() {
-}
+Semaphore::~Semaphore() {}
 
-void Semaphore::Signal() {
-  native_handle_.Put();
-}
+void Semaphore::Signal() { native_handle_.Put(); }
 
-
-void Semaphore::Wait() {
-  native_handle_.Take();
-}
+void Semaphore::Wait() { native_handle_.Take(); }
 
 bool Semaphore::WaitFor(const TimeDelta& rel_time) {
   SbTime microseconds = rel_time.InMicroseconds();

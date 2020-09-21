@@ -102,27 +102,145 @@ Chrome docs:
 
 ### Console
 
-Cobalt has two consoles:
-* Overlay console in Cobalt itself (shown with ctrl-O or F1).
-* Remote console shown in a connected DevTools session.
+Cobalt has two types of consoles:
+
+*   Overlay Console: shown at runtime of Cobalt. It has multiple mode that it
+    can cycle between as well:
+    *   HUD
+    *   HUD & Debug Console
+    *   Media Console
+*   Remote Console: shown in a connected devtools session.
 
 Both console UIs show messages logged from JavaScript (with `console.log()`,
 etc.), and have a command line to evaluate arbitrary JavaScript in the context
 of the page being debugged.
 
+#### Overlay Console
+
 The overlay console also shows non-JavaScript logging from Cobalt itself, which
 is mostly interesting to Cobalt developers rather than web app developers.
+
+The various modes of the overlay console are accessed by repeatedly pressing
+"`F1`" or "`Ctrl+O`". They cycle in order between: none, HUD, HUD & Debug, and
+Media. Alternatively, initial console state can be set with the
+`--debug_console=off|hud|debug|media` command-line switch (`--debug_console=on`
+is accepted as a legacy option and maps to "debug" setting).
+
+![Overlay Console mode switching](resources/devtools-overlay-console-flow.png)
+
+##### HUD overlay
+
+This brings up an overlay panel which does not block sending input to the
+underlying Cobalt app. It serves to display real-time statistics (e.g. memory
+usage) and configuration values (e.g. disabled codecs) of the Cobalt app in a
+compact string.
+
+##### Debug Console overlay
+
+This overlay is interactive and it shows messages from Cobalt, along with logs
+from Javacript `console.log()`. While it is active, you cannot interact directly
+with the underlying page.
+
+Additionally, it can act as a JS interpreter that will evaluate arbitrary
+expressions on the page being debugged. The output from these JS commands will
+also be printed to the Debug console.
+
+Finally, it has some special debug commands which can be listed by calling
+`d.help()`. They are provided by a debug helper object and the list of functions
+are invoked by prepending either "`debug`" or "`d`". For example, you can
+disable the vp9 codec manually for all future played videos in this session of
+Cobalt by sending `debug.disable_media_codecs("vp9")` to the console.
+
+Note: you can clear the disabled media codecs by sending
+`debug.disable_media_codecs("")`. The command takes a semicolon separated list
+of codecs as the input list of codecs to disable.
+
+##### Media Console overlay
+
+The media console is a specialized console of the debug overlay system, for
+playback and media related tasks. The current list of implemented features are:
+
+*   Reading the play/pause state of the primary video
+*   Reading the current time and duration of the primary video
+*   Reading the playback rate of the primary video
+*   Reading the currently disabled codecs for the player
+*   Toggling between playing and pausing the primary video
+*   Setting the current playback rate between various presets for the primary
+    video
+*   Toggling the enabled/disabled state of the available codecs
+
+While the media console is shown, it is not possible to interact with the page
+below it directly.
+
+Additionally, the console does not show any meaningful information or
+interactions when no video is currently playing (all the readouts are blank or
+undefined). A status message of “No primary video.” indicates there is no valid
+player element on the current page.
+
+In the case of multiple videos playing (such as picture in picture), only the
+primary (fullscreen) video’s information is shown and the controls are only
+enabled for the primary video.
+
+The list of hotkeys and commands are dynamically generated as they are found to
+be available on app startup.
+
+Basic always-enabled commands are (case-sensitive):
+
+*   "`p`" Toggle the play/pause state
+*   "`]`" Increase the playback rate
+*   "`[`" Decrease the playback rate
+
+The above commands will take effect instantly for the currently playing video.
+They have no effect if there is no video playing.
+
+The following commands are dynamically loaded based on the capability of the
+system:
+
+*   "`CTRL+NUM`" Enable/disable specific video codec
+*   "`ALT+NUM`" Enable/disable specific audio codec
+
+**Important:** Media Console cannot be used to directly select a specific codec for
+playback. See the section below for rough outline of steps to work around this.
+
+The list of available codecs for any video is chosen based on the decoders on
+the platform, and what formats YouTube itself serves. As a result, the only way
+to get a particular codec to play is to disable all the options until the
+desired codec is the one that is picked. Simply do the following procedure:
+
+*   Pick the video you want to play.
+*   Enable “stats for nerds” (See [help page for
+    instructions](https://support.google.com/youtube/answer/7519898)).
+*   Write down the codecs that are chosen when playing the video, without any
+    codecs disabled (one for video, and one for audio).
+*   Disable the default codecs.
+*   Replay the same video from the browse screen.
+*   Repeat until you identify all codecs that are available for the video, until
+    the video is unable to be played.
+*   Use the above knowledge to disable the codecs to force the player into
+    choosing a particular codec, by process of elimination.
+
+**Important:** Disabled codecs only take effect when a video starts playing.
+When you play a video, the current list of disabled codecs is used to select an
+arbitrary enabled format. When you seek in the video, the disabled codecs list
+does not take effect. Only when you exit the player and re-enter by playing a
+video will any toggled codecs be affected.
+
+**Important:** Disabled codecs list is persistent for the app-run. If you
+disable “av01”, then until you re-enable it, “av01” formats will never be
+chosen.
+
+**Important:** If you disable all the available codecs, no video codec can be
+selected and an error dialog will be shown. This means that YouTube does not
+have the video in any other formats, outside of the codecs that are disabled.
+The player reports that it cannot play the video in any of the available formats
+so playback will fail here, which is intended.
+
+#### Remote Console
 
 The console in DevTools is a richer UI that can show evaluated objects with an
 expander so you can dig in to their properties. Logging from JavaScript with
 `console.log()` can show objects and exceptions as well, in contrast to the
 text-only messages shown in the console overlay.
-
-> There may be some things (e.g.  timers) that still need to be hooked up to the
-> V8 backend, so please file a bug if something isn't working as expected.
-
-> When built with MozJs instead of V8, the functionality of the console is
-> limited to showing only text log messages.
 
 Chrome docs:
 

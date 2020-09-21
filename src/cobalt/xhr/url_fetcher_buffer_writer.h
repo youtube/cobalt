@@ -57,8 +57,8 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     // public member function is called on this object.
     const std::string& GetTemporaryReferenceOfString();
 
-    void GetAndReset(std::string* str);
-    void GetAndReset(PreallocatedArrayBufferData* data);
+    void GetAndResetDataAndDownloadProgress(std::string* str);
+    void GetAndResetData(PreallocatedArrayBufferData* data);
 
     void MaybePreallocate(int64_t capacity);
     void Write(const void* buffer, int num_bytes);

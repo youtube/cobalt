@@ -15,7 +15,7 @@
 #ifndef COBALT_AUDIO_AUDIO_HELPERS_H_
 #define COBALT_AUDIO_AUDIO_HELPERS_H_
 
-#include "cobalt/media/base/shell_audio_bus.h"
+#include "cobalt/media/base/audio_bus.h"
 
 #if defined(OS_STARBOARD)
 #include "starboard/audio_sink.h"
@@ -25,13 +25,13 @@
 namespace cobalt {
 namespace audio {
 
-typedef media::ShellAudioBus ShellAudioBus;
-typedef media::ShellAudioBus::SampleType SampleType;
-typedef media::ShellAudioBus::StorageType StorageType;
-const SampleType kSampleTypeInt16 = media::ShellAudioBus::kInt16;
-const SampleType kSampleTypeFloat32 = media::ShellAudioBus::kFloat32;
-const StorageType kStorageTypeInterleaved = media::ShellAudioBus::kInterleaved;
-const StorageType kStorageTypePlanar = media::ShellAudioBus::kPlanar;
+typedef media::AudioBus AudioBus;
+typedef media::AudioBus::SampleType SampleType;
+typedef media::AudioBus::StorageType StorageType;
+const SampleType kSampleTypeInt16 = media::AudioBus::kInt16;
+const SampleType kSampleTypeFloat32 = media::AudioBus::kFloat32;
+const StorageType kStorageTypeInterleaved = media::AudioBus::kInterleaved;
+const StorageType kStorageTypePlanar = media::AudioBus::kPlanar;
 
 const float kMaxInt16AsFloat32 = 32767.0f;
 
@@ -52,7 +52,7 @@ inline size_t GetStarboardSampleTypeSize(SbMediaAudioSampleType sample_type) {
 #endif
 
 // Get the size in bytes of an internal sample type, which is an alias for
-// media::ShellAudioBus::SampleType.
+// media::AudioBus::SampleType.
 inline size_t GetSampleTypeSize(SampleType sample_type) {
   switch (sample_type) {
     case kSampleTypeInt16:

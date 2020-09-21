@@ -55,6 +55,7 @@
         'accessibility_get_text_to_speech_settings.cc',
         'accessibility_set_captions_enabled.cc',
         'android_main.cc',
+        'android_media_session_client.cc',
         'application_android.cc',
         'application_android.h',
         'atomic_public.h',

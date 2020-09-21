@@ -145,9 +145,9 @@ void MicrophoneManager::Read() {
   // If |read_bytes| is zero, nothing should happen.
   if (read_bytes > 0 && read_bytes % sizeof(int16_t) == 0) {
     size_t frames = read_bytes / sizeof(int16_t);
-    std::unique_ptr<ShellAudioBus> output_audio_bus(new ShellAudioBus(
-        1, frames, ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
-    ShellAudioBus source(1, frames, samples);
+    std::unique_ptr<AudioBus> output_audio_bus(
+        new AudioBus(1, frames, AudioBus::kInt16, AudioBus::kInterleaved));
+    AudioBus source(1, frames, samples);
     output_audio_bus->Assign(source);
     data_received_callback_.Run(std::move(output_audio_bus));
   } else if (read_bytes != 0) {

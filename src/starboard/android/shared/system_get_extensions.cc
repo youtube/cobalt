@@ -15,7 +15,9 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
+#include "cobalt/extension/media_session.h"
 #include "cobalt/extension/platform_service.h"
+#include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
@@ -27,6 +29,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::android::shared::GetConfigurationApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionMediaSessionName) == 0) {
+    return starboard::android::shared::GetMediaSessionApi();
   }
   return NULL;
 }

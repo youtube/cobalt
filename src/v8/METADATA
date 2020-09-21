@@ -1,0 +1,22 @@
+name: "v8"
+description:
+  "Subtree at v8."
+  "v8 is Google's JavaScript engine developed for The Chromium Project. Cobalt "
+  "uses v8 as its primary JavaScript engine. v8 works closely with Cobalt's "
+  "script interface and templated bindings code."
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/v8_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/v8/v8"
+  }
+  version: "1e6ebba9def991e536159fa658bf5564c054733f"
+  last_upgrade_date {
+    year: 2019
+    month: 8
+    day: 26
+  }
+}

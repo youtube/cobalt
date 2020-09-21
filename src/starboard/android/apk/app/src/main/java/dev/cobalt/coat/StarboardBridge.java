@@ -30,7 +30,7 @@ import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Size;
 import android.util.SizeF;
-import android.view.Display;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.RequiresApi;
@@ -155,13 +155,17 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void beforeSuspend() {
-    Log.i(TAG, "Prepare to suspend");
-    // We want the MediaSession to be deactivated immediately before suspending so that by the time
-    // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
-    // can take their time suspending after that.
-    cobaltMediaSession.suspend();
-    for (CobaltService service : cobaltServices.values()) {
-      service.beforeSuspend();
+    try {
+      Log.i(TAG, "Prepare to suspend");
+      // We want the MediaSession to be deactivated immediately before suspending so that by the time
+      // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
+      // can take their time suspending after that.
+      cobaltMediaSession.suspend();
+      for (CobaltService service : cobaltServices.values()) {
+        service.beforeSuspend();
+      }
+    } catch (Throwable e) {
+      Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
     }
   }
 
@@ -521,12 +525,18 @@ public class StarboardBridge {
       return false;
     }
 
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay(activityHolder.get());
-    if (defaultDisplay == null) {
+    Activity activity = activityHolder.get();
+    if (activity == null) {
       return false;
     }
 
-    int[] supportedHdrTypes = defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
+    WindowManager windowManager = activity.getWindowManager();
+    if (windowManager == null) {
+      return false;
+    }
+
+    int[] supportedHdrTypes =
+        windowManager.getDefaultDisplay().getHdrCapabilities().getSupportedHdrTypes();
     for (int supportedType : supportedHdrTypes) {
       if (supportedType == hdrType) {
         return true;

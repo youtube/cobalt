@@ -419,7 +419,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void ClearRuleMatchingStateInternal(bool invalidate_descendants);
 
   // Update the UI navigation item type for this element.
-  void UpdateUiNavigationType();
+  bool UpdateUiNavigationAndReturnIfLayoutBoxesAreValid();
+  void ReleaseUiNavigationItem();
 
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
@@ -514,12 +515,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // then query starboard for position data each frame, thus animating the
   // boxes without requiring a new layout.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
-
-  // This temporary flag is used to avoid a cycle on focus changes. When the
-  // HTML element receives focus, it must inform the UI navigation item. When
-  // the UI navigation item receives focus (either by calling SetFocus or by an
-  // update from the UI engine), it will tell the HTML element it was focused.
-  bool ui_nav_focusing_ = false;
 
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.

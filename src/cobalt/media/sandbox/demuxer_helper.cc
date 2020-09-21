@@ -24,7 +24,7 @@
 #include "media/base/bind_to_loop.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
-#include "media/filters/shell_demuxer.h"
+#include "media/progressive/progressive_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -263,7 +263,7 @@ void DemuxerHelper::CreateDemuxer(
                                     fetcher_factory->network_module(),
                                     loader::kNoCORSMode, loader::Origin()));
   scoped_refptr<Demuxer> demuxer =
-      new ::media::ShellDemuxer(media_message_loop, data_source);
+      new ::media::ProgressiveDemuxer(media_message_loop, data_source);
   demuxer->Initialize(
       host_, base::Bind(&DemuxerHelper::OnDemuxerReady, base::Unretained(this),
                         demuxer, demuxer_ready_cb, bytes_to_cache));

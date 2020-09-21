@@ -115,7 +115,9 @@ class WebMediaPlayer {
 
   // Suspend/Resume
   virtual void Suspend() = 0;
-  virtual void Resume() = 0;
+  // TODO: This is temporary for supporting background media playback.
+  //       Need to be removed with media refactor.
+  virtual void Resume(SbWindow window) = 0;
 
   // True if the loaded media has a playable video/audio track.
   virtual bool HasVideo() const = 0;

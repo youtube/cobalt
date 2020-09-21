@@ -74,10 +74,10 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
                                        SbMediaAudioSampleType sample_type,
                                        int sampling_frequency_hz);
 
-  MinRequiredFramesTester min_required_frames_tester_;
   Mutex min_required_frames_map_mutex_;
   // The minimum frames required to avoid underruns of different frequencies.
   std::map<int, int> min_required_frames_map_;
+  MinRequiredFramesTester min_required_frames_tester_;
 };
 
 class AudioTrackAudioSink : public SbAudioSinkPrivate {

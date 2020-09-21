@@ -103,7 +103,8 @@ URLFetcherResponseWriter::Buffer::GetTemporaryReferenceOfString() {
   return copy_of_data_as_string_;
 }
 
-void URLFetcherResponseWriter::Buffer::GetAndReset(std::string* str) {
+void URLFetcherResponseWriter::Buffer::GetAndResetDataAndDownloadProgress(
+    std::string* str) {
   DCHECK(str);
 
   ReleaseMemory(str);
@@ -119,9 +120,15 @@ void URLFetcherResponseWriter::Buffer::GetAndReset(std::string* str) {
   }
 
   data_as_string_.swap(*str);
+
+  // It is important to reset the |download_progress_| and return the data in
+  // one function to avoid potential race condition that may prevent the last
+  // bit of data of Fetcher from being downloaded, because the data download is
+  // guarded by HasProgressSinceLastGetAndReset().
+  download_progress_ = 0;
 }
 
-void URLFetcherResponseWriter::Buffer::GetAndReset(
+void URLFetcherResponseWriter::Buffer::GetAndResetData(
     PreallocatedArrayBufferData* data) {
   DCHECK(data);
 

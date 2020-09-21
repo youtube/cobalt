@@ -34,14 +34,15 @@ bool CaptureSnapshot(
     std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot
 #if defined(STARBOARD)
     ,
-    VMAddress evergreen_information_address
+    VMAddress evergreen_information_address,
+    VMAddress annotations_address
 #endif
     ) {
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
 #if defined(STARBOARD)
-  if (!process_snapshot->Initialize(connection,
-                                    evergreen_information_address)) {
+  if (!process_snapshot->Initialize(
+          connection, evergreen_information_address, annotations_address)) {
 #else
   if (!process_snapshot->Initialize(connection)) {
 #endif

@@ -29,7 +29,7 @@ class Linear16AudioEncoder : public AudioEncoder {
   static bool IsLinear16MIMEType(const base::StringPiece& mime_type);
 
   Linear16AudioEncoder() = default;
-  void Encode(const ShellAudioBus& audio_bus,
+  void Encode(const AudioBus& audio_bus,
               base::TimeTicks reference_time) override;
   void Finish(base::TimeTicks reference_time) override;
   std::string GetMimeType() const override;

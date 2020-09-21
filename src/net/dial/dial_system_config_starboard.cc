@@ -14,8 +14,8 @@
 
 #include "net/dial/dial_system_config.h"
 
+#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/system.h"
 
 namespace {

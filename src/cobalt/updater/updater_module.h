@@ -65,8 +65,7 @@ class UpdaterModule {
   std::string GetUpdaterChannel() const;
   void SetUpdaterChannel(const std::string& updater_channel);
 
-  void MarkChannelChanged() { updater_configurator_->MarkChannelChanged(); }
-  bool IsChannelChanged() { return updater_configurator_->IsChannelChanged(); }
+  void CompareAndSwapChannelChanged(int old_value, int new_value);
   bool IsChannelValid(const std::string& channel) {
     return updater_configurator_->IsChannelValid(channel);
   }

@@ -22,6 +22,12 @@
 
 namespace cobalt {
 namespace updater {
+namespace {
+// The default manifest version to assume when the actual manifest cannot be
+// parsed for any reason. This should not be used for installation manager
+// errors, or any other error unrelated to parsing the manifest.
+const std::string kDefaultManifestVersion = "1.0.0";
+}  // namespace
 
 bool CreateProductDirectory(base::FilePath* path) {
   if (!GetProductDirectoryPath(path)) {
@@ -112,6 +118,12 @@ const std::string GetCurrentEvergreenVersion() {
       std::string(installation_path.begin(), installation_path.end())));
 
   if (!version.IsValid()) {
+    if (!index) {
+      SB_LOG(ERROR) << "Failed to get the Everegreen version. Defaulting to "
+                    << kDefaultManifestVersion << ".";
+      return kDefaultManifestVersion;
+    }
+
     SB_LOG(ERROR) << "Failed to get the Everegreen version.";
     return "";
   }

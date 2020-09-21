@@ -25,13 +25,13 @@ extern "C" {
 
 #define kCobaltExtensionMediaSessionName "dev.cobalt.extension.MediaSession"
 
-enum CobaltExtensionPlaybackState {
-  kCobaltExtensionPlaying = 0,
-  kCobaltExtensionPaused = 1,
-  kCobaltExtensionNone = 2
-};
+typedef enum CobaltExtensionMediaSessionPlaybackState {
+  kCobaltExtensionMediaSessionNone = 0,
+  kCobaltExtensionMediaSessionPaused = 1,
+  kCobaltExtensionMediaSessionPlaying = 2
+} CobaltExtensionMediaSessionPlaybackState;
 
-enum CobaltExtensionMediaSessionAction {
+typedef enum CobaltExtensionMediaSessionAction {
   kCobaltExtensionMediaSessionActionPlay,
   kCobaltExtensionMediaSessionActionPause,
   kCobaltExtensionMediaSessionActionSeekbackward,
@@ -44,7 +44,7 @@ enum CobaltExtensionMediaSessionAction {
 
   // Not part of spec, but used in Cobalt implementation.
   kCobaltExtensionMediaSessionActionNumActions,
-};
+} CobaltExtensionMediaSessionAction;
 
 typedef struct CobaltExtensionMediaImage {
   // These fields are null-terminated strings copied over from IDL.
@@ -63,6 +63,20 @@ typedef struct CobaltExtensionMediaMetadata {
   size_t artwork_count;
 } CobaltExtensionMediaMetadata;
 
+typedef struct CobaltExtensionMediaSessionActionDetails {
+  CobaltExtensionMediaSessionAction action;
+
+  // Seek time/offset are non-negative. Negative value signifies "unset".
+  double seek_offset;
+  double seek_time;
+
+  bool fast_seek;
+} CobaltExtensionMediaSessionActionDetails;
+
+typedef void (*CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback)(
+    CobaltExtensionMediaSessionPlaybackState state, void* callback_context);
+typedef void (*CobaltExtensionMediaSessionInvokeActionCallback)(
+    CobaltExtensionMediaSessionActionDetails details, void* callback_context);
 
 // This struct and all its members should only be used for piping data to each
 // platform's implementation of OnMediaSessionStateChanged and they are only
@@ -70,11 +84,21 @@ typedef struct CobaltExtensionMediaMetadata {
 // will be referenced later.
 typedef struct CobaltExtensionMediaSessionState {
   SbTimeMonotonic duration;
-  enum CobaltExtensionPlaybackState actual_playback_state;
+  CobaltExtensionMediaSessionPlaybackState actual_playback_state;
   bool available_actions[kCobaltExtensionMediaSessionActionNumActions];
-  CobaltExtensionMediaMetadata metadata;
+  CobaltExtensionMediaMetadata* metadata;
   double actual_playback_rate;
   SbTimeMonotonic current_playback_position;
+
+  // Callback to MediaSessionClient::UpdatePlatformPlaybackState for when the
+  // platform updates state.
+  CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
+      update_platform_playback_state_callback;
+
+  // Callback to MediaSessionClient::InvokeAction for when the platform handles
+  // a new media action.
+  void* callback_context;
+  CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback;
 } CobaltExtensionMediaSessionState;
 
 typedef struct CobaltExtensionMediaSessionApi {
@@ -91,6 +115,15 @@ typedef struct CobaltExtensionMediaSessionApi {
       CobaltExtensionMediaSessionState session_state);
 
 } CobaltExtensionMediaSessionApi;
+
+inline void CobaltExtensionMediaSessionActionDetailsInit(
+    CobaltExtensionMediaSessionActionDetails* details,
+    CobaltExtensionMediaSessionAction action) {
+  details->action = action;
+  details->seek_offset = -1.0;
+  details->seek_time = -1.0;
+  details->fast_seek = false;
+}
 
 #ifdef __cplusplus
 }  // extern "C"

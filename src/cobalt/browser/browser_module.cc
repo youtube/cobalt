@@ -433,7 +433,8 @@ BrowserModule::BrowserModule(const GURL& url,
                  base::Unretained(this)),
       network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this))));
+      base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -563,17 +564,18 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
-    base::Optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+    splash_screen_cache_->SetUrl(url);
     if (fallback_splash_screen_url_ ||
-        (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+        splash_screen_cache_->IsSplashScreenCached()) {
       splash_screen_.reset(new SplashScreen(
           application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
           network_module_, viewport_size, GetResourceProvider(),
-          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
+          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_,
           splash_screen_cache_.get(),
-          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
+          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_),
+          base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
       lifecycle_observers_.AddObserver(splash_screen_.get());
     }
   }
@@ -628,6 +630,10 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 
   options.debugger_state = debugger_state.get();
 #endif  // ENABLE_DEBUGGER
+
+  // Pass down this callback from to Web module.
+  options_.web_module_options.maybe_freeze_callback =
+      base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -1466,6 +1472,7 @@ void BrowserModule::Conceal() {
   DCHECK(application_state_ == base::kApplicationStateBlurred);
   application_state_ = base::kApplicationStateConcealed;
   ConcealInternal();
+  OnMaybeFreeze();
 }
 
 void BrowserModule::Focus() {
@@ -1793,6 +1800,35 @@ void BrowserModule::UnfreezeInternal() {
   media_module_->Resume(GetResourceProvider());
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Unfreeze(GetResourceProvider()));
+}
+
+void BrowserModule::OnMaybeFreeze() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::MaybeFreeze()");
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this)));
+    return;
+  }
+
+  bool splash_screen_ready_to_freeze = splash_screen_ ?
+      splash_screen_->IsReadyToFreeze() : true;
+#if defined(ENABLE_DEBUGGER)
+  bool debug_console_ready_to_freeze = debug_console_ ?
+      debug_console_->IsReadyToFreeze() : true;
+#endif  // defined(ENABLE_DEBUGGER)
+  bool web_module_ready_to_freeze = web_module_->IsReadyToFreeze();
+  if (splash_screen_ready_to_freeze &&
+#if defined(ENABLE_DEBUGGER)
+      debug_console_ready_to_freeze &&
+#endif  // defined(ENABLE_DEBUGGER)
+      web_module_ready_to_freeze) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    SbSystemRequestFreeze();
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
+  }
 }
 
 ViewportSize BrowserModule::GetViewportSize() {

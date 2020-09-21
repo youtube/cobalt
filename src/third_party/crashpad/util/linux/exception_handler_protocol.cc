@@ -25,7 +25,8 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
 #endif  // OS_LINUX
 #if defined(STARBOARD)
       ,
-      evergreen_information_address(0)
+      evergreen_information_address(0),
+      annotations_address(0)
 #endif
 {
 }
