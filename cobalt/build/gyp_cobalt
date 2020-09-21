@@ -27,7 +27,9 @@ from cobalt.build import gyp_utils
 from cobalt.tools import paths
 from starboard.build.gyp_runner import GypRunner
 from starboard.tools import build
+from starboard.tools import command_line
 from starboard.tools import config
+from starboard.tools import log_level
 from starboard.tools import platform
 
 
@@ -64,9 +66,9 @@ def _ParseCommandLineArguments(argv):
 
   parser.add_argument('--check', action='store_true',
                       help='Check format of gyp files.')
-  parser.add_argument('-v', '--verbose', dest='verbose_count',
-                      default=0, action='count',
-                      help='Verbose level (multiple times for more).')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Enables verbose logging. For more control over the '
+                      "logging level use '--log_level' instead.")
   parser.add_argument('platform', choices=platform.GetAll(),
                       metavar='platform',
                       help='Target platform. Supported platforms are: %s.' % (
@@ -75,24 +77,12 @@ def _ParseCommandLineArguments(argv):
                       default=None,
                       help='GYP build file. Uses all.gyp if nothing is given.')
 
+  command_line.AddLoggingArguments(parser, default='warning')
+
   options = parser.parse_args(argv)
   options.application = cobalt_configuration.APPLICATION_NAME
   return options
 
-
-def _SetupLogging():
-  logging_level = logging.WARNING
-  logging_format = '%(message)s'
-  logging.basicConfig(level=logging_level, format=logging_format)
-
-
-def _SetLogLevel(verbose_count):
-  logging_level = logging.WARNING
-  if verbose_count == 1:
-    logging_level = logging.INFO
-  elif verbose_count >= 2:
-    logging_level = logging.DEBUG
-  logging.getLogger().setLevel(logging_level)
 
 def _GetBuildConfigs(build_configs):
   if build_configs:
@@ -105,9 +95,9 @@ def _GetBuildConfigs(build_configs):
       return config.GetAll()
 
 def main(argv):
-  _SetupLogging()
   options = _ParseCommandLineArguments(argv)
-  _SetLogLevel(options.verbose_count)
+
+  log_level.InitializeLogging(options)
 
   if os.environ.get('GYP_DEFINES'):
     logging.error('GYP_DEFINES environment variable is not supported.')
