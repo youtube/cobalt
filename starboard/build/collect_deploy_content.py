@@ -21,6 +21,7 @@ import sys
 
 import _env  # pylint: disable=unused-import
 import starboard.tools.port_symlink as port_symlink
+from starboard.tools import log_level
 
 # The name of an environment variable that when set to |'1'|, signals to us that
 # we should log all output directories that we have populated.
@@ -88,10 +89,9 @@ def main(argv):
   options = parser.parse_args(argv[1:])
 
   if os.environ.get(_SHOULD_LOG_ENV_KEY, None) == '1':
-    log_level = logging.INFO
+    log_level.InitializeLoggingWithLevel(logging.INFO)
   else:
-    log_level = logging.WARNING
-  logging.basicConfig(level=log_level, format='COLLECT CONTENT: %(message)s')
+    log_level.InitializeLoggingWithLevel(logging.WARNING)
 
   logging.info('max_depth: %s', options.max_depth)
   logging.info('< %s', options.input_dir)

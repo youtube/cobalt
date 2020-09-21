@@ -24,7 +24,9 @@ import textwrap
 import _env  # pylint: disable=unused-import
 from starboard.build.gyp_runner import GypRunner
 from starboard.tools import build
+from starboard.tools import command_line
 from starboard.tools import config
+from starboard.tools import log_level
 from starboard.tools import paths
 from starboard.tools import platform
 
@@ -71,9 +73,9 @@ def _ParseCommandLineArguments(argv):
 
   parser.add_argument('--check', action='store_true',
                       help='Check format of gyp files.')
-  parser.add_argument('-v', '--verbose', dest='verbose_count',
-                      default=0, action='count',
-                      help='Verbose level (multiple times for more).')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Enables verbose logging. For more control over the '
+                      "logging level use '--log_level' instead.")
   parser.add_argument('-a', '--application',
                       metavar='application',
                       default='cobalt',
@@ -83,28 +85,15 @@ def _ParseCommandLineArguments(argv):
                       default=None,
                       help='Root GYP build file. Default: starboard_all.gyp')
 
+  command_line.AddLoggingArguments(parser, default='warning')
+
   return parser.parse_args(argv)
 
 
-def _SetupLogging():
-  logging_level = logging.WARNING
-  logging_format = '%(message)s'
-  logging.basicConfig(level=logging_level, format=logging_format)
-
-
-def _SetLogLevel(verbose_count):
-  logging_level = logging.WARNING
-  if verbose_count == 1:
-    logging_level = logging.INFO
-  elif verbose_count >= 2:
-    logging_level = logging.DEBUG
-  logging.getLogger().setLevel(logging_level)
-
-
 def main(argv):
-  _SetupLogging()
   options = _ParseCommandLineArguments(argv)
-  _SetLogLevel(options.verbose_count)
+
+  log_level.InitializeLogging(options)
 
   if os.environ.get('GYP_DEFINES'):
     logging.error('GYP_DEFINES environment variable is not supported.')

@@ -23,11 +23,18 @@ import starboard.tools.config
 import starboard.tools.platform
 
 
-def AddLoggingArguments(arg_parser):
+def AddLoggingArguments(arg_parser, default='info'):
+  """Adds the logging level configuration argument.
+
+  Args:
+    arg_parser: The argument parser to used for initialization.
+    default: The default logging level to use. Valid values are: 'info',
+      'debug', 'warning', 'error', and 'critical'.
+  """
   arg_parser.add_argument(
       '--log_level',
-      choices=['debug', 'warning', 'error', 'critical'],
-      default='info',
+      choices=['info', 'debug', 'warning', 'error', 'critical'],
+      default=default,
       help='The minimum level a log statement must be to be output. This value '
       "is used to initialize the 'logging' module log level.")
 
