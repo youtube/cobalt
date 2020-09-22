@@ -1656,9 +1656,12 @@ void BrowserModule::InitializeSystemWindow() {
     if (web_module_) {
       web_module_->SetCamera3D(input_device_manager_->camera_3d());
       web_module_->SetWebMediaPlayerFactory(media_module_.get());
-      web_module_->GetUiNavRoot()->SetContainerWindow(
-          system_window_->GetSbWindow());
     }
+  }
+
+  if (web_module_) {
+    web_module_->GetUiNavRoot()->SetContainerWindow(
+        system_window_->GetSbWindow());
   }
 }
 
