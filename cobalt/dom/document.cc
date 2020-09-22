@@ -997,6 +997,15 @@ void Document::OnWindowFocusChanged(bool has_focus) {
 void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
+
+  // Refocus the previously-focused UI navigation item (if any).
+  if (visibility_state == kVisibilityStateVisible) {
+    HTMLElement* active_html_element = active_element() ?
+        active_element()->AsHTMLElement() : nullptr;
+    if (active_html_element) {
+      active_html_element->RefocusUiNavItem();
+    }
+  }
 }
 
 // Algorithm for 'change the frozenness of a document'
