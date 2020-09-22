@@ -28,9 +28,9 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 
-PLATFORMS=("linux" "raspi" "***REMOVED***")
+PLATFORMS=("linux" "raspi")
 
-if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]]; then
+if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]] && [[ ! -d "${DIR}/${1}" ]]; then
   error "The platform provided must be one of the following: " "${PLATFORMS[@]}"
   exit 1
 fi
