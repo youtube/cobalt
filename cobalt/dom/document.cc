@@ -996,6 +996,15 @@ void Document::OnVisibilityStateChanged(
     page_visibility::VisibilityState visibility_state) {
   DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
                           Event::kNotCancelable));
+
+  // Refocus the previously-focused UI navigation item (if any).
+  if (visibility_state == page_visibility::kVisibilityStateVisible) {
+    HTMLElement* active_html_element = active_element() ?
+        active_element()->AsHTMLElement() : nullptr;
+    if (active_html_element) {
+      active_html_element->RefocusUiNavItem();
+    }
+  }
 }
 
 void Document::TraceMembers(script::Tracer* tracer) {
