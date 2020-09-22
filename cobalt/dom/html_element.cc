@@ -2097,11 +2097,12 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
 
 bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
   base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
-  if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
-      computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
-    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
-  } else if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold) {
+  if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold &&
+      computed_style()->pointer_events() != cssom::KeywordValue::GetNone()) {
     ui_nav_item_type = ui_navigation::kNativeItemTypeFocus;
+  } else if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
+             computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
+    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
   }
 
   if (ui_nav_item_type) {
