@@ -61,27 +61,10 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
 
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
     SB_HAS(CONCEALED_STATE)
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-void RequestConcealOrStop() {
-  if (loader_app::IsPendingRestart()) {
-    SbLogRawFormatF("\nPending update restart. Stopping.\n");
-    SbLogFlush();
-    SbSystemRequestStop(0);
-  } else {
-    SbSystemRequestConceal();
-  }
-}
-#endif
-
 void Conceal(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  RequestConcealOrStop();
-#else
   SbSystemRequestConceal();
-#endif
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
@@ -107,27 +90,10 @@ void Stop(int signal_id) {
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 #else
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-void RequestSuspendOrStop() {
-  if (loader_app::IsPendingRestart()) {
-    SbLogRawFormatF("\nPending update restart . Stopping.\n");
-    SbLogFlush();
-    SbSystemRequestStop(0);
-  } else {
-    SbSystemRequestSuspend();
-  }
-}
-#endif
-
 void Suspend(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  RequestSuspendOrStop();
-#else
   SbSystemRequestSuspend();
-#endif
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
