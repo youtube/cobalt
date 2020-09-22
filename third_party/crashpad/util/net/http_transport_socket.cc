@@ -144,7 +144,12 @@ class SSLStream : public Stream {
                            kSbFileSepString + "cobalt" + kSbFileSepString +
                            "content" + kSbFileSepString + "ssl" +
                            kSbFileSepString + "certs");
-
+      // If this is not Cobalt Evergreen setup use the regular content path.
+      if (!SbFileExists(cert_location.c_str())) {
+        cert_location = buffer.data();
+        cert_location.append(std::string(kSbFileSepString) + "ssl" +
+                             kSbFileSepString + "certs");
+      }
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), nullptr, cert_location.c_str()) <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
