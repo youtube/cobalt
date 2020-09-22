@@ -17,11 +17,26 @@
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/loader_app/pending_restart.h"
+#endif
+
 void SuspendDone(void* context) {
   // Stop all thread execution after fully transitioning into Suspended.
   raise(SIGSTOP);
 }
 
 void SbSystemRequestSuspend() {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  if (starboard::loader_app::IsPendingRestart()) {
+    SbLogRawFormatF("\nPending update restart . Stopping.\n");
+    SbLogFlush();
+    starboard::shared::starboard::Application::Get()->Stop(0);
+  } else {
+    starboard::shared::starboard::Application::Get()->Suspend(NULL,
+                                                              &SuspendDone);
+  }
+#else
   starboard::shared::starboard::Application::Get()->Suspend(NULL, &SuspendDone);
+#endif
 }

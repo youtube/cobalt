@@ -58,26 +58,10 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   ::sigaction(signal_id, &action, NULL);
 }
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
-void RequestSuspendOrStop() {
-  if (loader_app::IsPendingRestart()) {
-    SbLogRawFormatF("\nPending update restart . Stopping.\n");
-    SbLogFlush();
-    SbSystemRequestStop(0);
-  } else {
-    SbSystemRequestSuspend();
-  }
-}
-#endif
-
 void Suspend(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  RequestSuspendOrStop();
-#else
   SbSystemRequestSuspend();
-#endif
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
