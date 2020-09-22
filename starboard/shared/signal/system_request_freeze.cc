@@ -25,8 +25,19 @@ void FreezeDone(void* /*context*/) {
 }
 
 void SbSystemRequestFreeze() {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  if (starboard::loader_app::IsPendingRestart()) {
+    SbLogRawFormatF("\nPending update restart . Stopping.\n");
+    SbLogFlush();
+    starboard::shared::starboard::Application::Get()->Stop(0);
+  } else {
+    // Let the platform decide if directly transit into Frozen.
+    starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
+  }
+#else
   // Let the platform decide if directly transit into Frozen.
   starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
+#endif
 }
 #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
         // SB_HAS(CONCEALED_STATE)
