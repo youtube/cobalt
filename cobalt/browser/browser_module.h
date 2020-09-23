@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_BROWSER_MODULE_H_
 #define COBALT_BROWSER_BROWSER_MODULE_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -104,6 +105,7 @@ class BrowserModule {
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
+    std::map<std::string, GURL> fallback_splash_screen_topic_map;
     base::Optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
@@ -215,6 +217,11 @@ class BrowserModule {
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   bool IsWebModuleLoaded() { return web_module_loaded_.IsSignaled(); }
+
+  // Parses url and defines a mapping of parameter values of the form
+  // &option=value&foo=bar.
+  static void GetParamMap(const std::string& url,
+                          std::map<std::string, std::string>& map);
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -456,6 +463,9 @@ class BrowserModule {
   // This returns the render tree of the most recent submission, with animations
   // applied according to the current time.
   scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
+
+  // Sets the fallback splash screen url to a topic-specific URL, if applicable.
+  void SetSplashScreenTopicFallback(const GURL& url);
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to

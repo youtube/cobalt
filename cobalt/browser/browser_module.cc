@@ -15,6 +15,7 @@
 #include "cobalt/browser/browser_module.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -31,6 +32,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
@@ -453,6 +455,7 @@ BrowserModule::BrowserModule(const GURL& url,
                    base::Unretained(this))));
   }
 
+  // Set the fallback splash screen url to the default fallback url.
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
 
   // Synchronously construct our WebModule object.
@@ -564,7 +567,9 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
+    SetSplashScreenTopicFallback(url);
     splash_screen_cache_->SetUrl(url);
+
     if (fallback_splash_screen_url_ ||
         splash_screen_cache_->IsSplashScreenCached()) {
       splash_screen_.reset(new SplashScreen(
@@ -1975,6 +1980,62 @@ SbWindow BrowserModule::GetSbWindow() {
     return NULL;
   }
   return system_window_->GetSbWindow();
+}
+
+void BrowserModule::SetSplashScreenTopicFallback(const GURL& url) {
+  std::map<std::string, std::string> url_param_map;
+  // If this is the initial startup, use topic within deeplink, if specified.
+  if (main_web_module_generation_ == 1) {
+    GetParamMap(GetInitialDeepLink(), url_param_map);
+  }
+  // If this is not the initial startup, there was no deeplink specified, or
+  // the deeplink did not have a topic, check the current url for a topic.
+  if (url_param_map["topic"].empty()) {
+    GetParamMap(url.query(), url_param_map);
+  }
+  std::string splash_topic = url_param_map["topic"];
+  // If a topic was found, check whether a fallback url was specified.
+  if (!splash_topic.empty()) {
+    GURL splash_url = options_.fallback_splash_screen_topic_map[splash_topic];
+    if (!splash_url.spec().empty()) {
+      // Update fallback splash screen url to topic-specific URL.
+      fallback_splash_screen_url_ = splash_url;
+    }
+  }
+}
+
+void BrowserModule::GetParamMap(const std::string& url,
+                                std::map<std::string, std::string>& map) {
+  bool next_is_option = true;
+  bool next_is_value = false;
+  std::string option = "";
+  base::StringTokenizer tokenizer(url, "&=");
+  tokenizer.set_options(base::StringTokenizer::RETURN_DELIMS);
+
+  while (tokenizer.GetNext()) {
+    if (tokenizer.token_is_delim()) {
+      switch (*tokenizer.token_begin()) {
+        case '&':
+          next_is_option = true;
+          break;
+        case '=':
+          next_is_value = true;
+          break;
+      }
+    } else {
+      std::string token = tokenizer.token();
+      if (next_is_value && !option.empty()) {
+        // Overwrite previous value when an option appears more than once.
+        map[option] = token;
+      }
+      option = "";
+      if (next_is_option) {
+        option = token;
+      }
+      next_is_option = false;
+      next_is_value = false;
+    }
+  }
 }
 
 }  // namespace browser
