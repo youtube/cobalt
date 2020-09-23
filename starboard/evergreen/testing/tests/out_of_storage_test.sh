@@ -30,6 +30,13 @@ function run_test() {
 
   clear_storage
 
+  # We do not delete the storage directory to avoid removing the existing icu
+  # tables. However, this means that we need to move it temporarily to create
+  # our symbolic link to the temporary filesystem.
+  if [[ -d "${STORAGE_DIR}" ]]; then
+    run_command "mv \"${STORAGE_DIR}\" \"${STORAGE_DIR}.tmp\"" 1> /dev/null
+  fi
+
   run_command "ln -s \"${STORAGE_DIR_TMPFS}\" \"${STORAGE_DIR}\"" 1> /dev/null
 
   # We need to explicitly clear the "storage", i.e. the temporary filesystem,
@@ -40,6 +47,14 @@ function run_test() {
   TIMEOUT=300
 
   start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "Failed to update, error code is 12"
+
+  # Remove the symbolic link.
+  run_command "rm -f ${STORAGE_DIR}" 1> /dev/null
+
+  # Move the storage directory back to its original location.
+  if [[ -d "${STORAGE_DIR}.tmp" ]]; then
+    run_command "mv \"${STORAGE_DIR}.tmp\" \"${STORAGE_DIR}\"" 1> /dev/null
+  fi
 
   if [[ $? -ne 0 ]]; then
     error "Failed to run out of storage"
