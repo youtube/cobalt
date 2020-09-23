@@ -18,6 +18,7 @@
 
 #include "cobalt/browser/application.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -255,6 +256,15 @@ GURL GetInitialURL(bool should_preload) {
   return initial_url;
 }
 
+bool ValidateSplashScreen(const base::Optional<GURL>& url) {
+  if (url->is_valid() &&
+      (url->SchemeIsFile() || url->SchemeIs("h5vcc-embedded"))) {
+    return true;
+  }
+  LOG(FATAL) << "Ignoring invalid fallback splash screen: " << url->spec();
+  return false;
+}
+
 base::Optional<GURL> GetFallbackSplashScreenURL() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string fallback_splash_screen_string;
@@ -270,13 +280,45 @@ base::Optional<GURL> GetFallbackSplashScreenURL() {
   }
   base::Optional<GURL> fallback_splash_screen_url =
       GURL(fallback_splash_screen_string);
-  if (!fallback_splash_screen_url->is_valid() ||
-      !(fallback_splash_screen_url->SchemeIsFile() ||
-        fallback_splash_screen_url->SchemeIs("h5vcc-embedded"))) {
-    LOG(FATAL) << "Ignoring invalid fallback splash screen: "
-               << fallback_splash_screen_string;
-  }
+  ValidateSplashScreen(fallback_splash_screen_url);
   return fallback_splash_screen_url;
+}
+
+// Parses the fallback_splash_screen_topics command line parameter
+// and maps topics to full file url locations, if valid.
+void ParseFallbackSplashScreenTopics(
+    const base::Optional<GURL>& default_fallback_splash_screen_url,
+    std::map<std::string, GURL>* fallback_splash_screen_topic_map) {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kFallbackSplashScreenTopics)) {
+    std::string topics = command_line->GetSwitchValueASCII(
+        switches::kFallbackSplashScreenTopics);
+
+    // Note: values in topics_map may be either file paths or filenames.
+    std::map<std::string, std::string> topics_map;
+    BrowserModule::GetParamMap(topics, topics_map);
+    for (auto iterator = topics_map.begin(); iterator != topics_map.end();
+         iterator++) {
+      std::string topic = iterator->first;
+      std::string location = iterator->second;
+      base::Optional<GURL> topic_fallback_url = GURL(location);
+
+      // If not a valid url, check whether it is a valid filename in the
+      // same directory as the default fallback url.
+      if (!topic_fallback_url->is_valid()) {
+        if (default_fallback_splash_screen_url) {
+          topic_fallback_url = GURL(
+              default_fallback_splash_screen_url->GetWithoutFilename().spec() +
+              location);
+        } else {
+          break;
+        }
+      }
+      if (ValidateSplashScreen(topic_fallback_url)) {
+        (*fallback_splash_screen_topic_map)[topic] = topic_fallback_url.value();
+      }
+    }
+  }
 }
 
 base::TimeDelta GetTimedTraceDuration() {
@@ -578,6 +620,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       memory_settings::GetSettings(*command_line);
   options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
   options.fallback_splash_screen_url = fallback_splash_screen_url;
+
+  ParseFallbackSplashScreenTopics(fallback_splash_screen_url,
+                                  &options.fallback_splash_screen_topic_map);
 
   if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
     options.renderer_module_options.enable_fps_stdout = true;
