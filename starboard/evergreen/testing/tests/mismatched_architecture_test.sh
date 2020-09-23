@@ -32,7 +32,7 @@ function run_test() {
     return 1
   fi
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.1.log" "Failed to load ELF header"
+  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.1.log" "Failed to load(ed)? ELF header"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to recognize architecture mismatch"

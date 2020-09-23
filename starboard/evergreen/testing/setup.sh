@@ -63,6 +63,7 @@ for script in "${SCRIPTS[@]}"; do
   source $script "${DIR}/${1}"
 done
 
+# The /tmp/ directory is used for temporarily storing logs.
 if [[ ! -d "/tmp/" ]]; then
   error "The '/tmp/' directory is missing"
   exit 1

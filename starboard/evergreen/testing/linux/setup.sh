@@ -21,6 +21,10 @@ STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"
 ID="id"
 TAIL="tail"
 
+if [[ -L "${STORAGE_DIR}" ]]; then
+  rm -f ${STORAGE_DIR} 1> /dev/null
+fi
+
 # Mounting a temporary filesystem cannot be done on buildbot since it requires
 # sudo. When run locally, check for the temporary filesystem and create and
 # mount it if it does not exist.

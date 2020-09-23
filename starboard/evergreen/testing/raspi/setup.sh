@@ -44,6 +44,9 @@ SCP="scp -i ${KEYPATH} "
 
 echo " Targeting the Raspberry Pi 2 at ${RASPI_ADDR}"
 
+# Attempt to unlink the path, ignoring errors.
+eval "${SSH}\"unlink \"${STORAGE_DIR}\"\"" 1> /dev/null
+
 # Mounting a temporary filesystem cannot be done on buildbot since it requires
 # sudo. When run locally, check for the temporary filesystem and create and
 # mount it if it does not exist.
