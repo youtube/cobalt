@@ -14,6 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Polls a file for the provided pattern.
+#
+# Globals:
+#   TIMEOUT
+#   WAITED
+#
+# Args:
+#   A pattern to check for, a path to a file to check.
+#
+# Returns:
+#   1 if the pattern was found, otherwise 0.
 function wait_and_watch() {
   if [[ $# -ne 2 ]]; then
     error " wait_and_watch requires a pattern and a path"

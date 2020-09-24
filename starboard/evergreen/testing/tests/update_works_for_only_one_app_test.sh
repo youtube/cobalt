@@ -48,6 +48,11 @@ function run_test() {
 
   FILENAME="$(get_bad_app_key_file_path "${TEST_NAME}.2.log")"
 
+  if [[ -z "${FILENAME}" ]]; then
+    error "Failed to find the bad app key file path"
+    return 1
+  fi
+
   create_file "${FILENAME}"
 
   start_cobalt "file:///tests/empty.html" "${TEST_NAME}.3.log" "RevertBack current_installation="

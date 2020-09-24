@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Driver script that sets up the testing environment, collects all of the tests
-# to run, runs them, and outputs the results.
+# Driver script used to find all of the tests, run all of the tests, and output
+# the results of the tests. This script, and all other scripts, assume the
+# availability of "find", "grep", "ln", "mv", and "rm".
 
 DIR="$(dirname "${0}")"
 
