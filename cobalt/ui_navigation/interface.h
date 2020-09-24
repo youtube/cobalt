@@ -32,7 +32,6 @@ using NativeItemDir = SbUiNavItemDir;
 using NativeMatrix2x3 = SbUiNavMatrix2x3;
 using NativeMatrix4 = SbUiNavMatrix4;
 using NativeCallbacks = SbUiNavCallbacks;
-using NativeInterface = SbUiNavInterface;
 #define kNativeItemInvalid kSbUiNavItemInvalid
 
 #else
@@ -64,6 +63,10 @@ struct NativeCallbacks {
   void (*onscroll)(NativeItem item, void* callback_context);
 };
 
+#define kNativeItemInvalid nullptr
+
+#endif  // SB_API_VERSION >= 12
+
 struct NativeInterface {
   NativeItem (*create_item)(NativeItemType type,
                             const NativeCallbacks* callbacks,
@@ -85,11 +88,8 @@ struct NativeInterface {
   void (*get_item_content_offset)(NativeItem item,
                                   float* out_content_offset_x,
                                   float* out_content_offset_y);
+  void (*do_batch_update)(void (*update_function)(void*), void* context);
 };
-
-#define kNativeItemInvalid nullptr
-
-#endif  // SB_API_VERSION >= 11
 
 // Retrieve the interface to use for UI navigation.
 extern const NativeInterface& GetInterface();
