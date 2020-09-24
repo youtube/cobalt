@@ -21,6 +21,7 @@ function pprint() {
   if [[ "${OSTYPE}" = "*darwin*" ]]; then
     arg=""
   fi
+
   # This command uses ANSI escape codes to attempt to output colored text. For
   # more information see https://en.wikipedia.org/wiki/ANSI_escape_code.
   echo "$arg" "\033[0;${1}m${2}\033[0m" >&2

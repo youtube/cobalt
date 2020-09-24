@@ -53,6 +53,11 @@ function run_test() {
 
   FILENAME="$(get_temporary_drain_file_path "${TEST_NAME}.0.log")"
 
+  if [[ -z "${FILENAME}" ]]; then
+    error "Failed to evaluate a temporary drain file path"
+    return 1
+  fi
+
   clear_storage
 
   wait_and_force_race_condition "Created drain file" "${LOG_PATH}/${TEST_NAME}.1.log" "${FILENAME}" &
