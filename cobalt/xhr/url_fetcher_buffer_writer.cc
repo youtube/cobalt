@@ -26,6 +26,8 @@ namespace {
 // Allocate 64KB if the total size is unknown to avoid allocating small buffer
 // too many times.
 const int64_t kDefaultPreAllocateSizeInBytes = 64 * 1024;
+// Set max allocate size to avoid erroneous size estimate.
+const int64_t kMaxPreAllocateSizeInBytes = 10 * 1024 * 1024;
 
 void ReleaseMemory(std::string* str) {
   DCHECK(str);
@@ -158,6 +160,10 @@ void URLFetcherResponseWriter::Buffer::MaybePreallocate(int64_t capacity) {
 
   if (capacity < 0) {
     capacity = kDefaultPreAllocateSizeInBytes;
+  } else if (capacity > kMaxPreAllocateSizeInBytes) {
+    LOG(WARNING) << "Allocation of " << capacity << " bytes is capped to "
+                 << kMaxPreAllocateSizeInBytes;
+    capacity = kMaxPreAllocateSizeInBytes;
   } else {
     capacity_known_ = true;
   }
