@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,10 +33,10 @@ const int kDelayOneHour = kDelayOneMinute * 60;
 const std::set<std::string> valid_channels = {"dev"};
 const std::string kDefaultUpdaterChannel = "dev";
 #elif defined(COBALT_BUILD_TYPE_QA)
-// Find more information about these test channels in the Evergreen test plan.
 const std::set<std::string> valid_channels = {
+    // Default channel for qa builds
     "qa",
-    // A normal test channel that serves a valid update
+    // Test an update with higher version than qa channel
     "test",
     // Test an update with mismatched sabi
     "tmsabi",
@@ -47,14 +47,31 @@ const std::set<std::string> valid_channels = {
     // Test an update that fails verification
     "tfailv",
     // Test a series of continuous updates with two channels
-    "tseries1",
-    "tseries2",
-    // Test an update that's larger than the available storage on the device
-    "tistore",
+    "tseries1", "tseries2",
 };
 const std::string kDefaultUpdaterChannel = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-const std::set<std::string> valid_channels = {"prod", "dogfood"};
+const std::set<std::string> valid_channels = {
+    // Default channel for gold builds
+    "prod",
+    // Channel for dogfooders
+    "dogfood",
+    // Default channel for qa builds. A gold build can switch to this channel to
+    // get an official qa build.
+    "qa",
+    // Test an update with higher version than prod channel
+    "test",
+    // Test an update with mismatched sabi
+    "tmsabi",
+    // Test an update that does nothing
+    "tnoop",
+    // Test an update that crashes
+    "tcrash",
+    // Test an update that fails verification
+    "tfailv",
+    // Test a series of continuous updates with two channels
+    "tseries1", "tseries2",
+};
 const std::string kDefaultUpdaterChannel = "prod";
 #endif
 
@@ -146,8 +163,8 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   base::flat_map<std::string, std::string> params;
   params.insert(std::make_pair("SABI", SB_SABI_JSON_ID));
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
-  params.insert(std::make_pair(
-      "jsengine", script::GetJavaScriptEngineNameAndVersion()));
+  params.insert(
+      std::make_pair("jsengine", script::GetJavaScriptEngineNameAndVersion()));
   params.insert(std::make_pair(
       "updaterchannelchanged",
       SbAtomicNoBarrier_Load(&is_channel_changed_) == 1 ? "True" : "False"));
