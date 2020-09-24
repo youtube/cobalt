@@ -33,6 +33,10 @@ const char* CobaltFallbackSplashScreenUrlDefault() {
   return "none";
 }
 
+const char* CobaltFallbackSplashScreenTopicsDefault() {
+  return "";
+}
+
 bool CobaltEnableQuicDefault() {
   return true;
 }

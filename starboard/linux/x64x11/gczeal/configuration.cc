@@ -38,7 +38,7 @@ bool CobaltGcZeal() {
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
-    1,
+    2,
     &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
@@ -61,6 +61,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &CobaltGcZeal,
     &common::CobaltRasterizerTypeDefault,
     &common::CobaltEnableJitDefault,
+    &common::CobaltFallbackSplashScreenTopicsDefault,
 };
 
 }  // namespace

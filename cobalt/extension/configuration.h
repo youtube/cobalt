@@ -219,6 +219,11 @@ typedef struct CobaltExtensionConfigurationApi {
   // See "cobalt/doc/performance_tuning.md" for more information on when this
   // should be used.
   bool (*CobaltEnableJit)();
+
+  // The fields below this point were added in version 2 or later.
+
+  // A mapping of splash screen topics to fallback URLs.
+  const char* (*CobaltFallbackSplashScreenTopics)();
 } CobaltExtensionConfigurationApi;
 
 #ifdef __cplusplus

@@ -128,7 +128,7 @@ TEST(ExtensionTest, Configuration) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_TRUE(extension_api->version == 1);
+  EXPECT_TRUE(extension_api->version == 1 || extension_api->version == 2);
   EXPECT_TRUE(extension_api->CobaltUserOnExitStrategy != NULL);
   EXPECT_TRUE(extension_api->CobaltRenderDirtyRegionOnly != NULL);
   EXPECT_TRUE(extension_api->CobaltEglSwapInterval != NULL);
@@ -149,6 +149,9 @@ TEST(ExtensionTest, Configuration) {
   EXPECT_TRUE(extension_api->CobaltReduceCpuMemoryBy != NULL);
   EXPECT_TRUE(extension_api->CobaltReduceGpuMemoryBy != NULL);
   EXPECT_TRUE(extension_api->CobaltGcZeal != NULL);
+  if (extension_api->version >= 2) {
+    EXPECT_TRUE(extension_api->CobaltFallbackSplashScreenTopics != NULL);
+  }
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

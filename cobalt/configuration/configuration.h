@@ -59,6 +59,7 @@ class Configuration {
   bool CobaltGcZeal();
   const char* CobaltRasterizerType();
   bool CobaltEnableJit();
+  const char* CobaltFallbackSplashScreenTopics();
 
  private:
   Configuration();

@@ -32,7 +32,7 @@ int CobaltEglSwapInterval() {
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
-    1,
+    2,
     &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
@@ -55,6 +55,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltGcZealDefault,
     &common::CobaltRasterizerTypeDefault,
     &common::CobaltEnableJitDefault,
+    &common::CobaltFallbackSplashScreenTopicsDefault,
 };
 
 }  // namespace
