@@ -5,18 +5,25 @@
 <script src="./resources/intersection-observer-test-utils.js"></script>
 
 <style>
+/* Cobalt does not implement HTML5 spec for body margin. */
+body {
+  margin: 8px;
+}
 pre, #log {
   position: absolute;
   top: 0;
   left: 200px;
 }
 .spacer {
-  height: calc(100vh + 100px);
+  /* Cobalt does not support calc */
+  height: 100vh;
 }
 #target {
   width: 100px;
   height: 100px;
   background-color: green;
+  /* Adjust for subtracted 100px in class=spacer */
+  margin-top: 100px;
 }
 </style>
 <div class="spacer"></div>
@@ -31,21 +38,26 @@ runTestCycle(function() {
   assert_true(!!target, "Target exists");
   function createObserver() {
     new IntersectionObserver(function(changes) {
-      entries = entries.concat(changes)
+      entries = entries.concat(changes);
+      window.testRunner.DoNonMeasuredLayout();
     }).observe(target);
   }
   createObserver();
   runTestCycle(step0, "First rAF");
 }, "IntersectionObserver that is unreachable in js should still generate notifications.");
+window.testRunner.DoNonMeasuredLayout();
+window.testRunner.DoNonMeasuredLayout();
 
 function step0() {
-  document.scrollingElement.scrollTop = 300;
+  document.getElementById("target").style.marginTop = "-200px";
+  //document.scrollingElement.scrollTop = 300;
   runTestCycle(step1, "document.scrollingElement.scrollTop = 300");
   assert_equals(entries.length, 1, "One notification.");
 }
 
 function step1() {
-  document.scrollingElement.scrollTop = 0;
+  document.getElementById("target").style.marginTop = "100px";
+  //document.scrollingElement.scrollTop = 0;
   assert_equals(entries.length, 2, "Two notifications.");
 }
 </script>
