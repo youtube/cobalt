@@ -38,7 +38,7 @@ const char* CobaltRasterizerType() {
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
-    1,
+    2,
     &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
@@ -61,6 +61,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltGcZealDefault,
     &CobaltRasterizerType,
     &common::CobaltEnableJitDefault,
+    &common::CobaltFallbackSplashScreenTopicsDefault,
 };
 
 }  // namespace

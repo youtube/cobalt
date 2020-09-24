@@ -43,7 +43,7 @@ bool CobaltEnableQuic() {
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
-    1,
+    2,
     &CobaltUserOnExitStrategy,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &CobaltEglSwapInterval,
@@ -66,6 +66,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltGcZealDefault,
     &common::CobaltRasterizerTypeDefault,
     &common::CobaltEnableJitDefault,
+    &common::CobaltFallbackSplashScreenTopicsDefault,
 };
 
 }  // namespace
