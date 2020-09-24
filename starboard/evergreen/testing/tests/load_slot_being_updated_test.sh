@@ -34,6 +34,11 @@ function run_test() {
 
   FILENAME=$(get_temporary_drain_file_path "${TEST_NAME}.0.log")
 
+  if [[ -z "${FILENAME}" ]]; then
+    error "Failed to evaluate a temporary drain file path"
+    return 1
+  fi
+
   create_file "${FILENAME}"
 
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "Active slot draining"

@@ -41,6 +41,11 @@ function run_test() {
 
   SLOT="$(get_current_installation_slot "${TEST_NAME}.1.log")"
 
+  if [[ -z "${SLOT}" ]]; then
+    error "Failed to evaluate the current installation slot"
+    return 1
+  fi
+
   # Warning: do not wrap '$TAIL' with double quotes or else it will not actually
   # resolve to the correct command.
   delete_file "$(run_command "find ${STORAGE_DIR}/installation_${SLOT} -name app_key_*.good | ${TAIL} -1")"

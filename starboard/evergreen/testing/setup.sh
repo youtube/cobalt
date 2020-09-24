@@ -13,6 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Driver script used to perform the setup required for all of the tests.
+# Platform specific setup is delegated to the platform specific setup scripts.
 
 if [[ ! -f "${DIR}/pprint.sh" ]]; then
   echo "The script 'pprint.sh' is required"
@@ -31,13 +34,14 @@ fi
 PLATFORMS=("linux" "raspi")
 
 if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]] && [[ ! -d "${DIR}/${1}" ]]; then
-  error "The platform provided must be one of the following: " "${PLATFORMS[@]}"
+  error "The platform provided must be one of the following: ${PLATFORMS[*]}"
   exit 1
 fi
 
 # List of all required scripts.
 SCRIPTS=("${DIR}/shared/app_key.sh"           \
          "${DIR}/shared/drain_file.sh"        \
+         "${DIR}/shared/init_logging.sh"      \
          "${DIR}/shared/installation_slot.sh" \
          "${DIR}/shared/wait_and_watch.sh"    \
 
@@ -62,20 +66,4 @@ for script in "${SCRIPTS[@]}"; do
 
   source $script "${DIR}/${1}"
 done
-
-# The /tmp/ directory is used for temporarily storing logs.
-if [[ ! -d "/tmp/" ]]; then
-  error "The '/tmp/' directory is missing"
-  exit 1
-fi
-
-# A path in the temporary directory to write test log files to.
-LOG_PATH="/tmp/youtube_test_logs/$(date +%s%3N)"
-
-mkdir -p "${LOG_PATH}" &> /dev/null
-
-if [[ ! -d "${LOG_PATH}" ]]; then
-  error "Failed to create directory at '${LOG_PATH}'"
-  exit 1
-fi
 

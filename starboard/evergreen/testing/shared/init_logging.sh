@@ -14,27 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Searches the provided log file for the path to the bad app key file.
-#
-# Globals:
-#   LOG_PATH
-#   TAIL
-#
-# Args:
-#   Path to a log file.
-#
-# Returns:
-#   Path to the bad app key file, otherwise "".
-function get_bad_app_key_file_path() {
-  if [[ $# -ne 1 ]]; then
-    error " get_bad_app_key_file_path only accepts a single argument"
-    return 1
-  fi
+if [[ ! -d "/tmp/" ]]; then
+  error "The '/tmp/' directory is required for log files"
+  exit 1
+fi
 
-  # Warning: do not wrap '$TAIL' with double quotes or else it will not actually
-  # resolve to the correct command.
-  echo "$( \
-    sed -n "s/.*bad_app_key_file_path: \(.*app_key_[A-Za-z0-9+/=]\{32,\}\.bad\).*/\1/p" \
-      "${LOG_PATH}/${1}" | ${TAIL} -1)"
-}
+LOG_PATH="/tmp/youtube_test_logs/$(date +%s%3N)"
+
+mkdir -p "${LOG_PATH}" &> /dev/null
+
+if [[ ! -d "${LOG_PATH}" ]]; then
+  error "Failed to create directory at '${LOG_PATH}'"
+  exit 1
+fi
 
