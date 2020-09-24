@@ -1880,6 +1880,10 @@ void BrowserModule::GetHeapStatisticsCallback(
 }
 
 void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
+  if (web_module_) {
+    web_module_->GetUiNavRoot()->PerformQueuedUpdates();
+  }
+
   if (!renderer_module_) {
     return;
   }

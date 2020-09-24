@@ -162,6 +162,10 @@ typedef struct SbUiNavInterface {
   // This specifies directionality for container items. Containers within
   // containers do not inherit directionality. Directionality must be specified
   // for each container explicitly.
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  //
+  // This should work even if |item| is disabled.
+#endif
   void (*set_item_dir)(SbUiNavItem item, SbUiNavItemDir dir);
 
   // Set the interactable size of the specified navigation item. By default,
@@ -246,6 +250,11 @@ typedef struct SbUiNavInterface {
   //   [container position] + [content position] - [container content offset]
   // If |item| is not a container, then this does nothing.
   // By default, the content offset is (0,0).
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  //
+  // This should update the values returned by get_item_content_offset() even
+  // if the |item| is disabled.
+#endif
   void (*set_item_content_offset)(SbUiNavItem item,
                                   float content_offset_x,
                                   float content_offset_y);
@@ -262,6 +271,12 @@ typedef struct SbUiNavInterface {
   void (*get_item_content_offset)(SbUiNavItem item,
                                   float* out_content_offset_x,
                                   float* out_content_offset_y);
+
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  // Call |update_function| with |context| to perform a series of UI navigation
+  // changes atomically before returning.
+  void (*do_batch_update)(void (*update_function)(void*), void* context);
+#endif
 } SbUiNavInterface;
 
 // --- Constants -------------------------------------------------------------
