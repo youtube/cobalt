@@ -290,33 +290,37 @@ void ParseFallbackSplashScreenTopics(
     const base::Optional<GURL>& default_fallback_splash_screen_url,
     std::map<std::string, GURL>* fallback_splash_screen_topic_map) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  std::string topics;
   if (command_line->HasSwitch(switches::kFallbackSplashScreenTopics)) {
-    std::string topics = command_line->GetSwitchValueASCII(
+    topics = command_line->GetSwitchValueASCII(
         switches::kFallbackSplashScreenTopics);
+  } else {
+    topics = configuration::Configuration::GetInstance()
+                 ->CobaltFallbackSplashScreenTopics();
+  }
 
-    // Note: values in topics_map may be either file paths or filenames.
-    std::map<std::string, std::string> topics_map;
-    BrowserModule::GetParamMap(topics, topics_map);
-    for (auto iterator = topics_map.begin(); iterator != topics_map.end();
-         iterator++) {
-      std::string topic = iterator->first;
-      std::string location = iterator->second;
-      base::Optional<GURL> topic_fallback_url = GURL(location);
+  // Note: values in topics_map may be either file paths or filenames.
+  std::map<std::string, std::string> topics_map;
+  BrowserModule::GetParamMap(topics, topics_map);
+  for (auto iterator = topics_map.begin(); iterator != topics_map.end();
+       iterator++) {
+    std::string topic = iterator->first;
+    std::string location = iterator->second;
+    base::Optional<GURL> topic_fallback_url = GURL(location);
 
-      // If not a valid url, check whether it is a valid filename in the
-      // same directory as the default fallback url.
-      if (!topic_fallback_url->is_valid()) {
-        if (default_fallback_splash_screen_url) {
-          topic_fallback_url = GURL(
-              default_fallback_splash_screen_url->GetWithoutFilename().spec() +
-              location);
-        } else {
-          break;
-        }
+    // If not a valid url, check whether it is a valid filename in the
+    // same directory as the default fallback url.
+    if (!topic_fallback_url->is_valid()) {
+      if (default_fallback_splash_screen_url) {
+        topic_fallback_url = GURL(
+            default_fallback_splash_screen_url->GetWithoutFilename().spec() +
+            location);
+      } else {
+        break;
       }
-      if (ValidateSplashScreen(topic_fallback_url)) {
-        (*fallback_splash_screen_topic_map)[topic] = topic_fallback_url.value();
-      }
+    }
+    if (ValidateSplashScreen(topic_fallback_url)) {
+      (*fallback_splash_screen_topic_map)[topic] = topic_fallback_url.value();
     }
   }
 }
