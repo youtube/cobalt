@@ -7,33 +7,33 @@ display-none.html,DISABLE
 # Empty rootMargin should evaluate to default, not cause error
 empty-root-margin.html,DISABLE
 initial-observation-with-threshold.html,PASS
+# Unsupported functions measuring space width between adjacent inline elements
+inline-client-rect.html,DISABLE
 inline-with-block-child-client-rect.html,PASS
 isIntersecting-change-events.html,PASS
+# overflow: scroll results in incorrectly clipped intersection rect
+isIntersecting-threshold.html,DISABLE
+multiple-targets.html,PASS
+multiple-thresholds.html,PASS
 # rootMargin default should be "0px 0px 0px 0px", not "0px"
 observer-attributes.html,DISABLE
 # WPT testharness needs to be rebased
 observer-exceptions.html,DISABLE
+observer-without-js-reference.html,PASS
 #Deleting an element does not trigger an intersection
 remove-element.html,DISABLE
 root-margin-root-element.html,PASS
+# Root margin calculations have rounding errors
+root-margin.html,DISABLE
 # Setting IO target equal to document.documentElement crashes Cobalt
 root-margin-rounding.html,DISABLE
 rtl-clipped-root.html,PASS
+same-document-no-root.html,PASS
 same-document-root.html,PASS
+same-document-zero-size-target.html,PASS
+text-target.html,PASS
 zero-area-element-hidden.html,PASS
-#Zero-area target does not trigger an intersection
-zero-area-element-visible.html,DISABLE
-
-#No root specified - intersections with viewport incorrectly reported
-inline-client-rect.html,DISABLE
-isIntersecting-threshold.html,DISABLE
-multiple-targets.html,DISABLE
-multiple-thresholds.html,DISABLE
-observer-without-js-reference.html,DISABLE
-root-margin.html,DISABLE
-same-document-no-root.html,DISABLE
-same-document-zero-size-target.html,DISABLE
-text-target.html,DISABLE
+zero-area-element-visible.html,PASS
 
 #IntersectionObserverV2 not implemented
 v2/blur-filter.html,DISABLE

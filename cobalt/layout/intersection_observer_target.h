@@ -75,34 +75,6 @@ class IntersectionObserverTarget
   }
 
  private:
-  // Walk up the containing block chain, as described in
-  // http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
-  bool IsInContainingBlockChain(const ContainerBox* potential_containing_block,
-                                const ContainerBox* target_box);
-
-  int32 GetUsedLengthOfRootMarginPropertyValue(
-      const scoped_refptr<cssom::PropertyValue>& length_property_value,
-      LayoutUnit percentage_base);
-
-  // Rules for determining the root intersection rectangle bounds.
-  // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
-  math::RectF GetRootBounds(
-      const ContainerBox* root_box,
-      scoped_refptr<cssom::PropertyListValue> root_margin_property_value);
-
-  // Compute the intersection between a target and the observer's intersection
-  // root.
-  // https://www.w3.org/TR/intersection-observer/#calculate-intersection-rect-algo
-  math::RectF ComputeIntersectionBetweenTargetAndRoot(
-      const ContainerBox* root_box, const math::RectF& root_bounds,
-      const math::RectF& target_rect, const ContainerBox* target_box);
-
-  // Similar to the IntersectRects function in math::RectF, but handles edge
-  // adjacent intersections as valid intersections (instead of returning a
-  // rectangle with zero dimensions)
-  math::RectF IntersectIntersectionObserverRects(const math::RectF& a,
-                                                 const math::RectF& b);
-
   OnIntersectionCallback on_intersection_callback_;
 
   scoped_refptr<IntersectionObserverRoot> intersection_observer_root_;

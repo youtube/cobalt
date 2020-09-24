@@ -1057,12 +1057,17 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   container_box_before_split->SetUiNavItem(html_element->GetUiNavItem());
   boxes_.push_back(container_box_before_split);
 
-  BoxIntersectionObserverModule::IntersectionObserverRootVector roots =
-      html_element->GetLayoutIntersectionObserverRoots();
-  BoxIntersectionObserverModule::IntersectionObserverTargetVector targets =
-      html_element->GetLayoutIntersectionObserverTargets();
-  container_box_before_split->AddIntersectionObserverRootsAndTargets(
-      std::move(roots), std::move(targets));
+  // We already handle the case where the Intersection Observer root is the
+  // viewport with the initial containing block in layout.
+  if (html_element !=
+      html_element->node_document()->document_element()->AsHTMLElement()) {
+    BoxIntersectionObserverModule::IntersectionObserverRootVector roots =
+        html_element->GetLayoutIntersectionObserverRoots();
+    BoxIntersectionObserverModule::IntersectionObserverTargetVector targets =
+        html_element->GetLayoutIntersectionObserverTargets();
+    container_box_before_split->AddIntersectionObserverRootsAndTargets(
+        std::move(roots), std::move(targets));
+  }
 
   AppendPseudoElementToLine(html_element, dom::kBeforePseudoElementType);
 
