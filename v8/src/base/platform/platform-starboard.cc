@@ -150,37 +150,6 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
   return result;
 }
 
-// The following code was taken from old v8 to deal with rounding up pointers.
-namespace {
-// Compute the 0-relative offset of some absolute value x of type T.
-// This allows conversion of Addresses and integral types into
-// 0-relative int offsets.
-template <typename T>
-constexpr inline intptr_t OffsetFrom(T x) {
-  return x - static_cast<T>(0);
-}
-
-// Compute the absolute value of type T for some 0-relative offset x.
-// This allows conversion of 0-relative int offsets into Addresses and
-// integral types.
-template <typename T>
-constexpr inline T AddressFrom(intptr_t x) {
-  return static_cast<T>(static_cast<T>(0) + x);
-}
-
-template <typename T>
-inline T RoundDown(T x, intptr_t m) {
-  // m must be a power of two.
-  DCHECK(m != 0 && ((m & (m - 1)) == 0));
-  return AddressFrom<T>(OffsetFrom(x) & -m);
-}
-
-template <typename T>
-inline T RoundUpOld(T x, intptr_t m) {
-  return RoundDown<T>(static_cast<T>(x + m - 1), m);
-}
-}  // namespace
-
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
@@ -196,7 +165,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 
   // Unmap memory allocated before the aligned base address.
   uint8_t* base = static_cast<uint8_t*>(result);
-  uint8_t* aligned_base = RoundUpOld(base, alignment);
+  uint8_t* aligned_base = reinterpret_cast<uint8_t*>(
+      RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
