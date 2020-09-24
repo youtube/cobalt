@@ -88,10 +88,36 @@ void GetItemContentOffset(NativeItem item,
   *out_content_offset_y = stub_item->content_offset_y;
 }
 
+void DoBatchUpdate(void (*update_function)(void*), void* context) {
+  (*update_function)(context);
+}
+
 NativeInterface InitializeInterface() {
   NativeInterface interface = { 0 };
+
 #if SB_API_VERSION >= 12
-  if (SbUiNavGetInterface(&interface)) {
+  SbUiNavInterface sb_ui_interface = { 0 };
+  if (SbUiNavGetInterface(&sb_ui_interface)) {
+    interface.create_item = sb_ui_interface.create_item;
+    interface.destroy_item = sb_ui_interface.destroy_item;
+    interface.set_focus = sb_ui_interface.set_focus;
+    interface.set_item_enabled = sb_ui_interface.set_item_enabled;
+    interface.set_item_dir = sb_ui_interface.set_item_dir;
+    interface.set_item_size = sb_ui_interface.set_item_size;
+    interface.set_item_transform = sb_ui_interface.set_item_transform;
+    interface.get_item_focus_transform =
+        sb_ui_interface.get_item_focus_transform;
+    interface.get_item_focus_vector = sb_ui_interface.get_item_focus_vector;
+    interface.set_item_container_window =
+        sb_ui_interface.set_item_container_window;
+    interface.set_item_container_item = sb_ui_interface.set_item_container_item;
+    interface.set_item_content_offset = sb_ui_interface.set_item_content_offset;
+    interface.get_item_content_offset = sb_ui_interface.get_item_content_offset;
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+    interface.do_batch_update = sb_ui_interface.do_batch_update;
+#else
+    interface.do_batch_update = &DoBatchUpdate;
+#endif
     return interface;
   }
 #endif
@@ -109,6 +135,7 @@ NativeInterface InitializeInterface() {
   interface.set_item_container_item = &SetItemContainerItem;
   interface.set_item_content_offset = &SetItemContentOffset;
   interface.get_item_content_offset = &GetItemContentOffset;
+  interface.do_batch_update = &DoBatchUpdate;
   return interface;
 }
 
