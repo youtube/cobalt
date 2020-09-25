@@ -36,18 +36,27 @@ BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 def GetRevinfo():
   """Get absolute state of all git repos."""
 
+  git_get_remote_args = ['config', '--get', 'remote.origin.url']
+  git_get_revision_args = ['rev-parse', 'HEAD']
+
   try:
-    cobalt_remote = subprocess.check_output(
-        ['git', 'config', '--get', 'remote.origin.url']).strip()
-    cobalt_rev = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+    cobalt_remote = subprocess.check_output(['git'] +
+                                            git_get_remote_args).strip()
+    cobalt_rev = subprocess.check_output(['git'] +
+                                         git_get_revision_args).strip()
     return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
-  except (subprocess.CalledProcessError, ValueError) as e:
-    logging.warning('Failed to get revision information: %s', e)
+  except subprocess.CalledProcessError:
+    logging.info(
+        'Failed to get revision information. Trying again in src/ directory...')
     try:
-      logging.warning('Command output was: %s', line)
-    except NameError:
-      pass
-    return {}
+      cobalt_remote = subprocess.check_output(['git', '-C', 'src'] +
+                                              git_get_remote_args).strip()
+      cobalt_rev = subprocess.check_output(['git', '-C', 'src'] +
+                                           git_get_revision_args).strip()
+      return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
+    except subprocess.CalledProcessError as e:
+      logging.warning('Failed to get revision information: %s', e)
+      return {}
 
 
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):
