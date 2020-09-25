@@ -4,11 +4,10 @@ default_stages: [commit]
 repos:
 -   repo: local
     hooks:
-    -   id: replace-keyboxes
-        name: replace-keyboxes
-        entry: buildbot/slave_scripts/replace_keyboxes.py
+    -   id: sync-keyboxes
+        name: sync-keyboxes
+        entry: third_party/precommit-hooks/sync_keyboxes_wrapper.py
         language: python
-        args: [--url=https://lbshell-internal.googlesource.com/keyboxes-dev, --branch=COBALT, --root_dir=., --keep_existing]
         stages: [post-checkout]
         always_run: true
     -   id: cpplint
