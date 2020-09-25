@@ -25,7 +25,7 @@ import urllib2
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 
-
+_REVINFO_KEY = 'cobalt_src'
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
@@ -34,32 +34,29 @@ BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 
 
 def GetRevinfo():
-  """Get absolute state of all git repos from gclient DEPS."""
+  """Get absolute state of all git repos."""
+
+  git_get_remote_args = ['config', '--get', 'remote.origin.url']
+  git_get_revision_args = ['rev-parse', 'HEAD']
 
   try:
-    revinfo_cmd = ['gclient', 'revinfo', '-a']
-
-    if sys.platform.startswith('linux') or sys.platform == 'darwin':
-      use_shell = False
-    else:
-      # Windows needs shell to find gclient in the PATH.
-      use_shell = True
-    output = subprocess.check_output(revinfo_cmd, shell=use_shell)
-    revinfo = {}
-    lines = output.splitlines()
-    for line in lines:
-      repo, url = line.split(':', 1)
-      repo = repo.strip().replace('\\', '/')
-      url = url.strip()
-      revinfo[repo] = url
-    return revinfo
-  except (subprocess.CalledProcessError, ValueError) as e:
-    logging.warning('Failed to get revision information: %s', e)
+    cobalt_remote = subprocess.check_output(['git'] +
+                                            git_get_remote_args).strip()
+    cobalt_rev = subprocess.check_output(['git'] +
+                                         git_get_revision_args).strip()
+    return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
+  except subprocess.CalledProcessError:
+    logging.info(
+        'Failed to get revision information. Trying again in src/ directory...')
     try:
-      logging.warning('Command output was: %s', line)
-    except NameError:
-      pass
-    return {}
+      cobalt_remote = subprocess.check_output(['git', '-C', 'src'] +
+                                              git_get_remote_args).strip()
+      cobalt_rev = subprocess.check_output(['git', '-C', 'src'] +
+                                           git_get_revision_args).strip()
+      return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
+    except subprocess.CalledProcessError as e:
+      logging.warning('Failed to get revision information: %s', e)
+      return {}
 
 
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):
@@ -119,10 +116,10 @@ def GetConstantValue(file_path, constant_name):
     match = search_re.search(f.read())
 
   if not match:
-    logging.critical('Could not query constant value.  The expression '
-                     'should only have numbers, operators, spaces, and '
-                     'parens.  Please check "%s" in %s.\n', constant_name,
-                     file_path)
+    logging.critical(
+        'Could not query constant value.  The expression '
+        'should only have numbers, operators, spaces, and '
+        'parens.  Please check "%s" in %s.\n', constant_name, file_path)
     sys.exit(1)
 
   expression = match.group(1)
