@@ -25,7 +25,7 @@ import urllib2
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 
-
+_REVINFO_KEY = 'cobalt_src'
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
@@ -34,25 +34,13 @@ BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 
 
 def GetRevinfo():
-  """Get absolute state of all git repos from gclient DEPS."""
+  """Get absolute state of all git repos."""
 
   try:
-    revinfo_cmd = ['gclient', 'revinfo', '-a']
-
-    if sys.platform.startswith('linux') or sys.platform == 'darwin':
-      use_shell = False
-    else:
-      # Windows needs shell to find gclient in the PATH.
-      use_shell = True
-    output = subprocess.check_output(revinfo_cmd, shell=use_shell)
-    revinfo = {}
-    lines = output.splitlines()
-    for line in lines:
-      repo, url = line.split(':', 1)
-      repo = repo.strip().replace('\\', '/')
-      url = url.strip()
-      revinfo[repo] = url
-    return revinfo
+    cobalt_remote = subprocess.check_output(
+        ['git', 'config', '--get', 'remote.origin.url']).strip()
+    cobalt_rev = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+    return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
   except (subprocess.CalledProcessError, ValueError) as e:
     logging.warning('Failed to get revision information: %s', e)
     try:
@@ -119,10 +107,10 @@ def GetConstantValue(file_path, constant_name):
     match = search_re.search(f.read())
 
   if not match:
-    logging.critical('Could not query constant value.  The expression '
-                     'should only have numbers, operators, spaces, and '
-                     'parens.  Please check "%s" in %s.\n', constant_name,
-                     file_path)
+    logging.critical(
+        'Could not query constant value.  The expression '
+        'should only have numbers, operators, spaces, and '
+        'parens.  Please check "%s" in %s.\n', constant_name, file_path)
     sys.exit(1)
 
   expression = match.group(1)
