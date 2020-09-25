@@ -105,7 +105,13 @@ void NavItem::PerformQueuedUpdates() {
 void NavItem::Focus() {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   if (enabled_) {
-    g_pending_focus = nav_item_;
+    if (g_pending_updates->empty()) {
+      // Immediately update focus if nothing else is queued for update.
+      g_pending_focus = kNativeItemInvalid;
+      GetInterface().set_focus(nav_item_);
+    } else {
+      g_pending_focus = nav_item_;
+    }
   }
 }
 
