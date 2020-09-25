@@ -48,16 +48,16 @@ static const EzTimeT kTestTimeWindowsZero =
 // agree.
 static const EzTimeT kTestTimeWindowsNegative = SB_INT64_C(-12212553600);
 
-// 1443473373 in POSIX time is
-// Monday, 9/28/2015 20:49:33 UTC
-// NOTE: Update this value once every 5 or so years.
-static const EzTimeT kTestTimeWritten = SB_INT64_C(1443473373);
+// 1600970155 in POSIX time is
+// Thursday, 9/24/2020 17:55:55 UTC
+// NOTE: Update this value once every 25 or so years.
+static const EzTimeT kTestTimeWritten = SB_INT64_C(1600970155);
 
-// 5 years after the time this test was written.
+// 25 years after the time this test was written.
 static const EzTimeT kTestTimePastWritten =
-    (kTestTimeWritten + (5 * kTestEzTimeTYear));
+    (kTestTimeWritten + (25 * kTestEzTimeTYear));
 
-// 1443473373 in POSIX time is
+// 4133980800 in POSIX time is
 // Saturday, 01 Jan 2101 00:00:00 UTC
 // NOTE: Update this value once every 100 or so years.
 static const EzTimeT kTestTimeNextCentury = SB_INT64_C(4133980800);
