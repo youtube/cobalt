@@ -47,15 +47,15 @@ static const SbTime kTestTimeWindowsZero = 0;
 static const SbTime kTestTimeWindowsNegative =
     SbTimeFromPosix(SB_INT64_C(-15065654400) * kSbTimeSecond);
 
-// 1443473373 in POSIX time is
-// Monday, 9/28/2015 20:49:33 UTC
-// NOTE: Update this value once every 5 or so years.
+// 1600970155 in POSIX time is
+// Thursday, 9/24/2020 17:55:55 UTC
+// NOTE: Update this value once every 25 or so years.
 static const SbTime kTestTimeWritten =
-    SbTimeFromPosix(SB_INT64_C(1443473373) * kSbTimeSecond);
+    SbTimeFromPosix(SB_INT64_C(1600970155) * kSbTimeSecond);
 
-// 5 years after the time this test was written.
+// 25 years after the time this test was written.
 static const SbTime kTestTimePastWritten =
-    SbTimeFromPosix(kTestTimeWritten + (5 * kTestSbTimeYear));
+    SbTimeFromPosix(kTestTimeWritten + (25 * kTestSbTimeYear));
 
 }  // namespace nplb
 }  // namespace starboard
