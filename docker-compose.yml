@@ -36,59 +36,10 @@ services:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
-    depends_on: [ build-base ]
     environment:
       - PLATFORM=linux-x64x11
       - CONFIG=${CONFIG:-debug}
 
-<<<<<<< HEAD   (aac228 [PS4] Add 0-byte libSceNpToolkit.prx)
-=======
-  # Define common build container for Android
-  build-android:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux/android
-      dockerfile: ./Dockerfile
-    image: cobalt-build-android
-
-  android-x86:
-    <<: *build-common-definitions
-    image: cobalt-build-android
-    depends_on: [ build-android ]
-    environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-x86
-      - CONFIG=${CONFIG:-debug}
-
-  android-arm:
-    <<: *build-common-definitions
-    image: cobalt-build-android
-    depends_on: [ build-android ]
-    environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-arm
-      - CONFIG=${CONFIG:-debug}
-
-  android-arm64:
-    <<: *build-common-definitions
-    image: cobalt-build-android
-    depends_on: [ build-android ]
-    environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-arm64
-      - CONFIG=${CONFIG:-debug}
-
-  raspi:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux/raspi
-      dockerfile: ./Dockerfile
-    image: cobalt-build-raspi
-    environment:
-      - PLATFORM
-      - CONFIG=${CONFIG:-debug}
-
->>>>>>> CHANGE (ab57a6 Fixes to docker containers)
   # Define common build container for Evergreen
   build-evergreen:
     <<: *common-definitions
