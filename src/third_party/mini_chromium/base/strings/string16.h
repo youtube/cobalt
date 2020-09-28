@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "base/base_wrapper.h"
 #include "build/build_config.h"
 
 namespace base {

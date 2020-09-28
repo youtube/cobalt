@@ -1441,6 +1441,34 @@ void HTMLElement::RunUnFocusingSteps() {
   ClearRuleMatchingState();
 }
 
+void HTMLElement::RefocusUiNavItem() {
+  // Set the focus item for the UI navigation system. Search up the DOM tree to
+  // find the nearest ancestor that is a UI navigation item if needed. Do this
+  // step before dispatching events as the event handlers may make UI navigation
+  // changes.
+  for (Node* node = this; node; node = node->parent_node()) {
+    Element* element = node->AsElement();
+    if (!element) {
+      continue;
+    }
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (!html_element) {
+      continue;
+    }
+    if (!html_element->ui_nav_item_ ||
+        html_element->ui_nav_item_->IsContainer()) {
+      continue;
+    }
+    // Updating the g_ui_nav_focus_ has the additional effect of suppressing
+    // the Blur call for the previously focused HTMLElement and the Focus call
+    // for this HTMLElement as a result of OnUiNavBlur / OnUiNavFocus callbacks
+    // that result from initiating the UI navigation focus change.
+    g_ui_nav_focus_ = html_element;
+    html_element->ui_nav_item_->Focus();
+    break;
+  }
+}
+
 void HTMLElement::SetDir(const std::string& value) {
   // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
   auto previous_dir = dir_;
@@ -2124,11 +2152,12 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
 
 bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
   base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
-  if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
-      computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
-    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
-  } else if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold) {
+  if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold &&
+      computed_style()->pointer_events() != cssom::KeywordValue::GetNone()) {
     ui_nav_item_type = ui_navigation::kNativeItemTypeFocus;
+  } else if (computed_style()->overflow() == cssom::KeywordValue::GetAuto() ||
+             computed_style()->overflow() == cssom::KeywordValue::GetScroll()) {
+    ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
   }
 
   if (ui_nav_item_type) {

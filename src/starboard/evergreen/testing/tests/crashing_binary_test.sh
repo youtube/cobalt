@@ -20,12 +20,12 @@ unset TEST_FILE
 unset -f run_test
 
 TEST_NAME="CrashingBinary"
-TEST_FILE="tcrash.html"
+TEST_FILE="test.html"
 
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "update from tcrash channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tcrash" "${TEST_NAME}.0.log" "update from tcrash channel installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the tcrash package"
@@ -33,7 +33,7 @@ function run_test() {
   fi
 
   for i in {1..3}; do
-    start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.${i}.log" "Caught signal: SIG[A-Z]{4}"
+    start_cobalt "file:///tests/${TEST_FILE}?channel=tcrash" "${TEST_NAME}.${i}.log" "Caught signal: SIG[A-Z]{4}"
 
     if [[ $? -ne 0 ]]; then
       error "Binary did not crash on attempt #${i}"
@@ -41,7 +41,7 @@ function run_test() {
     fi
   done
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.4.log" "App is up to date"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tcrash" "${TEST_NAME}.4.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to revert to working installation after crashing 3 times"

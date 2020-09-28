@@ -520,7 +520,6 @@
         'minizip',
         'zip',
         'zlib',
-        '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:test_support_base',
         '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/testing/gmock.gyp:gmock',

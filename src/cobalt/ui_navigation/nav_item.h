@@ -18,7 +18,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/ui_navigation/interface.h"
-#include "starboard/atomic.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -39,64 +38,24 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
     return nav_item_type_ == kNativeItemTypeContainer;
   }
 
-  void Focus() {
-    if (SbAtomicNoBarrier_Load8(&enabled_)) {
-      GetInterface().set_focus(nav_item_);
-    }
-  }
+  // Some actions may be queued for later execution by this function. This is
+  // to ensure the UI is updated atomically. This function must be called
+  // periodically to ensure all UI updates are executed.
+  void PerformQueuedUpdates();
 
-  void UnfocusAll() {
-#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-    GetInterface().set_focus(kNativeItemInvalid);
-#endif
-  }
-
-  void SetEnabled(bool enabled) {
-    SbAtomicNoBarrier_Store8(&enabled_, enabled ? 1 : 0);
-    GetInterface().set_item_enabled(nav_item_, enabled);
-  }
-
-  void SetDir(NativeItemDir dir) {
-    GetInterface().set_item_dir(nav_item_, dir);
-  }
-
-  void SetSize(float width, float height) {
-    GetInterface().set_item_size(nav_item_, width, height);
-  }
-
-  void SetTransform(const NativeMatrix2x3* transform) {
-    GetInterface().set_item_transform(nav_item_, transform);
-  }
-
-  bool GetFocusTransform(NativeMatrix4* out_transform) {
-    return GetInterface().get_item_focus_transform(nav_item_, out_transform);
-  }
-
-  bool GetFocusVector(float* out_x, float* out_y) {
-    return GetInterface().get_item_focus_vector(nav_item_, out_x, out_y);
-  }
-
-  void SetContainerWindow(SbWindow window) {
-    GetInterface().set_item_container_window(nav_item_, window);
-  }
-
-  void SetContainerItem(const scoped_refptr<NavItem>& container) {
-    container_ = container;
-    GetInterface().set_item_container_item(nav_item_,
-        container ? container->nav_item_ : kNativeItemInvalid);
-  }
-
-  const scoped_refptr<NavItem>& GetContainerItem() const {
-    return container_;
-  }
-
-  void SetContentOffset(float x, float y) {
-    GetInterface().set_item_content_offset(nav_item_, x, y);
-  }
-
-  void GetContentOffset(float* out_x, float* out_y) {
-    GetInterface().get_item_content_offset(nav_item_, out_x, out_y);
-  }
+  void Focus();
+  void UnfocusAll();
+  void SetEnabled(bool enabled);
+  void SetDir(NativeItemDir dir);
+  void SetSize(float width, float height);
+  void SetTransform(const NativeMatrix2x3* transform);
+  bool GetFocusTransform(NativeMatrix4* out_transform);
+  bool GetFocusVector(float* out_x, float* out_y);
+  void SetContainerWindow(SbWindow window);
+  void SetContainerItem(const scoped_refptr<NavItem>& container);
+  const scoped_refptr<NavItem>& GetContainerItem() const;
+  void SetContentOffset(float x, float y);
+  void GetContentOffset(float* out_x, float* out_y);
 
  private:
   friend class base::RefCountedThreadSafe<NavItem>;
@@ -114,7 +73,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
 
   NativeItemType nav_item_type_;
   NativeItem nav_item_;
-  SbAtomic8 enabled_;
+  bool enabled_;
 
   static NativeCallbacks s_callbacks_;
 };
