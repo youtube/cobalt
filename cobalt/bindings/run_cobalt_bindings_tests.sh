@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
@@ -14,10 +15,8 @@
 # limitations under the License.
 #
 
-#!/bin/bash
-
 # Ensure we are in the bindings directory.
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-python run_cobalt_bindings_tests.py mozjs45 "$@"
-python run_cobalt_bindings_tests.py v8c "$@"
+./run_cobalt_bindings_tests.py mozjs45 "$@"
+./run_cobalt_bindings_tests.py v8c "$@"
