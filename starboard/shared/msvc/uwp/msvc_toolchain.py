@@ -508,7 +508,7 @@ class MsvsSettings(CompilerSettings):
     ld = self._GetWrapper(
         self, self.msvs_settings[config], 'VCLinkerTool', append=ldflags)
     self._GetDefFileAsLdflags(self.spec, ldflags, gyp_path_to_ninja)
-    ld('GenerateDebugInformation', map={'true': '/DEBUG'})
+    ld('GenerateDebugInformation', map={'true': '/DEBUG:FULL'})
     ld('TargetMachine', map={'1': 'X86', '17': 'X64'}, prefix='/MACHINE:')
     ldflags.extend(
         self._GetAdditionalLibraryDirectories('VCLinkerTool', config,

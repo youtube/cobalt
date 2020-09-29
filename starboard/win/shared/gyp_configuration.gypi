@@ -35,7 +35,7 @@
       ['cobalt_fastbuild==0', {
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'DebugInformationFormat': '3',
+            'DebugInformationFormat': '1',
           },
           'VCLinkerTool': {
             'GenerateDebugInformation': 'true',
@@ -152,7 +152,7 @@
           ['cobalt_fastbuild==0', {
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'DebugInformationFormat': '3',
+                'DebugInformationFormat': '1',
                 'AdditionalOptions': [
                 '/FS',
                 ],
