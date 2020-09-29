@@ -597,13 +597,33 @@ public class MediaCodecUtil {
                   name, videoCapabilities.getBitrateRange().toString(), bitrate));
           continue;
         }
-        if (fps != 0 && !videoCapabilities.getSupportedFrameRates().contains(fps)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                  name, videoCapabilities.getSupportedFrameRates().toString(), fps));
-          continue;
+        if (fps != 0) {
+          if (frameHeight != 0 && frameWidth != 0) {
+            if (!videoCapabilities
+                .getSupportedFrameRatesFor(frameWidth, frameHeight)
+                .contains((double) fps)) {
+              Log.v(
+                  TAG,
+                  String.format(
+                      "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                      name,
+                      videoCapabilities
+                          .getSupportedFrameRatesFor(frameWidth, frameHeight)
+                          .toString(),
+                      fps));
+              continue;
+            }
+          } else {
+            // At least one of frameHeight or frameWidth is 0
+            if (!videoCapabilities.getSupportedFrameRates().contains(fps)) {
+              Log.v(
+                  TAG,
+                  String.format(
+                      "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                      name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+              continue;
+            }
+          }
         }
         String resultName =
             (secure && !name.endsWith(SECURE_DECODER_SUFFIX))
