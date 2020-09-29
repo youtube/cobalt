@@ -89,16 +89,6 @@ typedef struct CobaltExtensionMediaSessionState {
   CobaltExtensionMediaMetadata* metadata;
   double actual_playback_rate;
   SbTimeMonotonic current_playback_position;
-
-  // Callback to MediaSessionClient::UpdatePlatformPlaybackState for when the
-  // platform updates state.
-  CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
-      update_platform_playback_state_callback;
-
-  // Callback to MediaSessionClient::InvokeAction for when the platform handles
-  // a new media action.
-  void* callback_context;
-  CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback;
 } CobaltExtensionMediaSessionState;
 
 typedef struct CobaltExtensionMediaSessionApi {
@@ -114,6 +104,13 @@ typedef struct CobaltExtensionMediaSessionApi {
   void (*OnMediaSessionStateChanged)(
       CobaltExtensionMediaSessionState session_state);
 
+  // Register MediaSessionClient callbacks when the platform create a new
+  // MediaSessionClient.
+  void (*RegisterMediaSessionCallbacks)(
+      void* callback_context,
+      CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
+      CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
+          update_platform_playback_state_callback);
 } CobaltExtensionMediaSessionApi;
 
 inline void CobaltExtensionMediaSessionActionDetailsInit(

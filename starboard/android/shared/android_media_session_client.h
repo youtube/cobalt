@@ -29,6 +29,12 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
 void OnMediaSessionStateChanged(
     const CobaltExtensionMediaSessionState session_state);
 
+void RegisterMediaSessionCallbacks(
+    void* callback_context,
+    CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
+    CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
+        update_platform_playback_state_callback);
+
 const void* GetMediaSessionApi();
 }  // namespace shared
 }  // namespace android
