@@ -81,6 +81,9 @@ MediaSessionClient::MediaSessionClient(
         extension_->version < 1) {
       LOG(WARNING) << "Wrong MediaSession extension supplied";
       extension_ = nullptr;
+    } else {
+      extension_->RegisterMediaSessionCallbacks(
+          this, &InvokeActionCallback, &UpdatePlatformPlaybackStateCallback);
     }
   }
 #endif
@@ -316,11 +319,6 @@ void MediaSessionClient::OnMediaSessionStateChanged(
         album.c_str(), artist.c_str(), title.c_str(), ext_artwork.get(),
         artwork_size};
     ext_state.metadata = &ext_metadata;
-
-    ext_state.update_platform_playback_state_callback =
-        &UpdatePlatformPlaybackStateCallback;
-    ext_state.invoke_action_callback = &InvokeActionCallback;
-    ext_state.callback_context = this;
 
     extension_->OnMediaSessionStateChanged(ext_state);
   }
