@@ -137,9 +137,6 @@
               'pngconf.h',
             ],
           },
-          'includes': [
-            '../../build/shim_headers.gypi',
-          ],
         },
       ],
     }],
