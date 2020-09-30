@@ -465,7 +465,8 @@ class BrowserModule {
   scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
 
   // Sets the fallback splash screen url to a topic-specific URL, if applicable.
-  void SetSplashScreenTopicFallback(const GURL& url);
+  // Returns the topic used, or an empty Optional if a topic isn't found.
+  base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
