@@ -592,8 +592,25 @@ class MediaCodecBridge {
       mediaFormat.setByteBuffer(MediaFormat.KEY_HDR_STATIC_INFO, colorInfo.hdrStaticInfo);
     }
 
-    int maxWidth = findVideoDecoderResult.videoCapabilities.getSupportedWidths().getUpper();
-    int maxHeight = findVideoDecoderResult.videoCapabilities.getSupportedHeights().getUpper();
+    VideoCapabilities videoCapabilities = findVideoDecoderResult.videoCapabilities;
+    int maxWidth = videoCapabilities.getSupportedWidths().getUpper();
+    int maxHeight = videoCapabilities.getSupportedHeights().getUpper();
+    if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
+      if (maxHeight >= 4320 && videoCapabilities.isSizeSupported(7680, 4320)) {
+        maxWidth = 7680;
+        maxHeight = 4320;
+      } else if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+        maxWidth = 3840;
+        maxHeight = 2160;
+      } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
+        maxWidth = 1920;
+        maxHeight = 1080;
+      } else {
+        Log.e(TAG, "Failed to find a compatible resolution");
+        maxWidth = 1920;
+        maxHeight = 1080;
+      }
+    }
     if (!bridge.configureVideo(
         mediaFormat,
         surface,
@@ -915,8 +932,9 @@ class MediaCodecBridge {
         // adapt up to 8k at any point. We thus request 8k buffers up front,
         // unless the decoder claims to not be able to do 8k, in which case
         // we're ok, since we would've rejected a 8k stream when canPlayType
-        // was called, and then use those decoder values instead.
-        if (Build.VERSION.SDK_INT > 22) {
+        // was called, and then use those decoder values instead. We only
+        // support 8k for API level 29 and above.
+        if (Build.VERSION.SDK_INT > 28) {
           format.setInteger(MediaFormat.KEY_MAX_WIDTH, Math.min(7680, maxSupportedWidth));
           format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(4320, maxSupportedHeight));
         } else {
