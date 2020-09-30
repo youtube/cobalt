@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -34,10 +35,15 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+const char* kSplashScreenFormat = "^([a-zA-Z0-9_\\-]+_)?splashscreen$";
+bool IsValidSplashScreenFormat(const std::string& rel) {
+  return std::regex_match(rel.c_str(), std::regex(kSplashScreenFormat));
+}
+
 CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
   if (rel == "stylesheet") {
     return CspDelegate::kStyle;
-  } else if (rel == "splashscreen") {
+  } else if (IsValidSplashScreenFormat(rel)) {
     return CspDelegate::kLocation;
   } else {
     NOTIMPLEMENTED();
@@ -71,16 +77,17 @@ loader::RequestMode GetRequestMode(
 const char HTMLLinkElement::kTagName[] = "link";
 // static
 const std::vector<std::string> HTMLLinkElement::kSupportedRelValues = {
-    "stylesheet", "splashscreen"};
+    "^stylesheet$", kSplashScreenFormat};
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  if (std::find(kSupportedRelValues.begin(), kSupportedRelValues.end(),
-                rel()) != kSupportedRelValues.end()) {
-    Obtain();
-  } else {
-    LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
+  for (auto expr : kSupportedRelValues) {
+    if (std::regex_match(rel().c_str(), std::regex(expr))) {
+      Obtain();
+      return;
+    }
   }
+  LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
 }
 
 base::Optional<std::string> HTMLLinkElement::cross_origin() const {
@@ -202,7 +209,7 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
   Document* document = node_document();
   if (rel() == "stylesheet") {
     OnStylesheetLoaded(document, *content);
-  } else if (rel() == "splashscreen") {
+  } else if (IsValidSplashScreenFormat(rel())) {
     OnSplashscreenLoaded(document, *content);
   } else {
     NOTIMPLEMENTED();
@@ -257,7 +264,11 @@ void HTMLLinkElement::OnLoadingComplete(
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
                                            const std::string& content) {
   scoped_refptr<Window> window = document->window();
-  window->CacheSplashScreen(content);
+  std::string link = rel();
+  size_t last_underscore = link.find_last_of("_");
+  std::string topic =
+      last_underscore >= link.size() ? "" : link.substr(0, last_underscore);
+  window->CacheSplashScreen(content, topic);
 }
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
