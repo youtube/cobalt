@@ -111,6 +111,10 @@ typedef struct CobaltExtensionMediaSessionApi {
       CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
       CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
           update_platform_playback_state_callback);
+
+  // Destory platform's MediaSessionClient after the Cobalt's
+  // MediaSessionClient has been destroyed.
+  void (*DestroyMediaSessionClientCallback) ();
 } CobaltExtensionMediaSessionApi;
 
 inline void CobaltExtensionMediaSessionActionDetailsInit(

@@ -294,7 +294,7 @@ void RegisterMediaSessionCallbacks(
 
 const CobaltExtensionMediaSessionApi kMediaSessionApi = {
     kCobaltExtensionMediaSessionName, 1, &OnMediaSessionStateChanged,
-    &RegisterMediaSessionCallbacks};
+    &RegisterMediaSessionCallbacks, NULL};
 
 const void* GetMediaSessionApi() {
   return &kMediaSessionApi;
