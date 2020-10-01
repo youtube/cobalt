@@ -93,6 +93,12 @@ MediaSessionClient::~MediaSessionClient() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Prevent any outstanding MediaSession::OnChanged tasks from calling this.
   media_session_->media_session_client_ = nullptr;
+
+  // Destroy the platform's MediaSessionClient, if it exists.
+  if (extension_ != NULL &&
+      extension_->DestroyMediaSessionClientCallback != NULL) {
+    extension_->DestroyMediaSessionClientCallback();
+  }
 }
 
 void MediaSessionClient::SetMediaPlayerFactory(
