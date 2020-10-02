@@ -38,6 +38,7 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
           'SbAccessibilityTest.CallSetCaptionsEnabled',
           'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
           'SbAudioSinkTest.*',
+          'SbMediaCanPlayMimeAndKeySystem.*',
           'SbMicrophoneCloseTest.*',
           'SbMicrophoneOpenTest.*',
           'SbMicrophoneReadTest.*',
@@ -48,7 +49,7 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
           '.WriteContinuedLimitedInput/*',
       ],
       'player_filter_tests': [
-          'VideoDecoderTests/VideoDecoderTest.MaxNumberOfCachedFrames/2',
+          'VideoDecoderTests/*',
           'AudioDecoderTests/*',
       ],
   }
