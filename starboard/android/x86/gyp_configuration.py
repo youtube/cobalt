@@ -18,7 +18,7 @@ from starboard.tools.testing import test_filter
 
 
 def CreatePlatformConfig():
-  return shared_configuration.AndroidConfiguration('android-x86', 'x86')
+  return Androidx86Configuration('android-x86', 'x86')
 
 
 class Androidx86Configuration(shared_configuration.AndroidConfiguration):
@@ -32,20 +32,17 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
   # A map of failing or crashing tests per target
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
-          'SbAccessibilityTest.CallSetCaptionsEnabled',
-          'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
           'SbAudioSinkTest.*',
           'SbMicrophoneCloseTest.*',
           'SbMicrophoneOpenTest.*',
           'SbMicrophoneReadTest.*',
-          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/*',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteContinuedLimitedInput/*',
       ],
       'player_filter_tests': [
-          'VideoDecoderTests/VideoDecoderTest.MaxNumberOfCachedFrames/2',
+          'AdaptiveAudioDecoderTests/*',
           'AudioDecoderTests/*',
+          'VideoDecoderTests/SingleInput/*',
+          'VideoDecoderTests/ResetBeforeInput/*',
+          'VideoDecoderTests/MultipleResets/*',
+          'VideoDecoderTests/DecodeFullGOP/*',
       ],
   }
