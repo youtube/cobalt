@@ -573,21 +573,33 @@ public class MediaCodecUtil {
         }
 
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-        if (frameWidth != 0 && !videoCapabilities.getSupportedWidths().contains(frameWidth)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: supported widths %s does not contain %d",
-                  name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
-          continue;
-        }
-        if (frameHeight != 0 && !videoCapabilities.getSupportedHeights().contains(frameHeight)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: supported heights %s does not contain %d",
-                  name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
-          continue;
+        if (frameWidth != 0 && frameHeight != 0) {
+          if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
+            Log.v(
+                TAG,
+                String.format(
+                    "Rejecting %s, reason: width %s is not compatible with height %d",
+                    name, frameWidth, frameHeight));
+            continue;
+          }
+        } else if (frameWidth != 0) {
+          if (!videoCapabilities.getSupportedWidths().contains(frameWidth)) {
+            Log.v(
+                TAG,
+                String.format(
+                    "Rejecting %s, reason: supported widths %s does not contain %d",
+                    name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
+            continue;
+          }
+        } else if (frameHeight != 0) {
+          if (!videoCapabilities.getSupportedHeights().contains(frameHeight)) {
+            Log.v(
+                TAG,
+                String.format(
+                    "Rejecting %s, reason: supported heights %s does not contain %d",
+                    name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
+            continue;
+          }
         }
         if (bitrate != 0 && !videoCapabilities.getBitrateRange().contains(bitrate)) {
           Log.v(
@@ -599,9 +611,7 @@ public class MediaCodecUtil {
         }
         if (fps != 0) {
           if (frameHeight != 0 && frameWidth != 0) {
-            if (!videoCapabilities
-                .getSupportedFrameRatesFor(frameWidth, frameHeight)
-                .contains((double) fps)) {
+            if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
               Log.v(
                   TAG,
                   String.format(
