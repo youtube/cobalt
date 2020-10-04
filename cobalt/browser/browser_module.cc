@@ -567,8 +567,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
-    base::Optional<std::string> topic = SetSplashScreenTopicFallback(url);
-    splash_screen_cache_->SetUrl(url, topic);
+    SetSplashScreenTopicFallback(url);
+    splash_screen_cache_->SetUrl(url);
 
     if (fallback_splash_screen_url_ ||
         splash_screen_cache_->IsSplashScreenCached()) {
@@ -1982,8 +1982,7 @@ SbWindow BrowserModule::GetSbWindow() {
   return system_window_->GetSbWindow();
 }
 
-base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
-    const GURL& url) {
+void BrowserModule::SetSplashScreenTopicFallback(const GURL& url) {
   std::map<std::string, std::string> url_param_map;
   // If this is the initial startup, use topic within deeplink, if specified.
   if (main_web_module_generation_ == 1) {
@@ -2002,9 +2001,7 @@ base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
       // Update fallback splash screen url to topic-specific URL.
       fallback_splash_screen_url_ = splash_url;
     }
-    return base::Optional<std::string>(splash_topic);
   }
-  return base::Optional<std::string>();
 }
 
 void BrowserModule::GetParamMap(const std::string& url,
