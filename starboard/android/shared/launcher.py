@@ -48,10 +48,6 @@ _CROW_COMMANDLINE = [
 # How long to keep logging after a crash in order to emit the stack trace.
 _CRASH_LOG_SECONDS = 1.0
 
-_DEV_NULL = open('/dev/null')
-
-_ADB = os.path.join(sdk_utils.GetSdkPath(), 'platform-tools', 'adb')
-
 _RUNTIME_PERMISSIONS = [
     'android.permission.GET_ACCOUNTS',
     'android.permission.RECORD_AUDIO',
@@ -89,12 +85,13 @@ class StepTimer(object):
 class AdbCommandBuilder(object):
   """Builder for 'adb' commands."""
 
-  def __init__(self, device_id):
+  def __init__(self, adb, device_id=None):
+    self.adb = adb
     self.device_id = device_id
 
   def Build(self, *args):
     """Builds an 'adb' commandline with the given args."""
-    result = [_ADB]
+    result = [self.adb]
     if self.device_id:
       result.append('-s')
       result.append(self.device_id)
@@ -105,20 +102,21 @@ class AdbCommandBuilder(object):
 class AdbAmMonitorWatcher(object):
   """Watches an "adb shell am monitor" process to detect crashes."""
 
-  def __init__(self, adb_builder, done_queue):
-    self.adb_builder = adb_builder
-    self.process = subprocess.Popen(
-        adb_builder.Build('shell', 'am', 'monitor'),
-        stdout=subprocess.PIPE,
-        stderr=_DEV_NULL,
-        close_fds=True)
+  def __init__(self, launcher, done_queue):
+    self.launcher = launcher
+    self.process = launcher._PopenAdb(
+        'shell', 'am', 'monitor', stdout=subprocess.PIPE)
+    if abstract_launcher.ARG_DRYRUN in launcher.launcher_args:
+      self.thread = None
+      return
     self.thread = threading.Thread(target=self._Run)
     self.thread.start()
     self.done_queue = done_queue
 
   def Shutdown(self):
     self.process.kill()
-    self.thread.join()
+    if self.thread:
+      self.thread.join()
 
   def _Run(self):
     while True:
@@ -128,10 +126,8 @@ class AdbAmMonitorWatcher(object):
       if re.search(_RE_ADB_AM_MONITOR_ERROR, line):
         self.done_queue.put(_QUEUE_CODE_CRASHED)
         # This log line will wake up the main thread
-        subprocess.call(
-            self.adb_builder.Build('shell', 'log', '-t', 'starboard',
-                                   'am monitor detected crash'),
-            close_fds=True)
+        self.launcher.CallAdb('shell', 'log', '-t', 'starboard',
+                              'am monitor detected crash')
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -142,12 +138,23 @@ class Launcher(abstract_launcher.AbstractLauncher):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
 
+    if abstract_launcher.ARG_SYSTOOLS in self.launcher_args:
+      # Use default adb binary from path.
+      self.adb = 'adb'
+    else:
+      self.adb = os.path.join(sdk_utils.GetSdkPath(), 'platform-tools', 'adb')
+
+    self.adb_builder = AdbCommandBuilder(self.adb)
+
     if not self.device_id:
       self.device_id = self._IdentifyDevice()
     else:
       self._ConnectIfNecessary()
 
-    self.adb_builder = AdbCommandBuilder(self.device_id)
+    self.adb_builder.device_id = self.device_id
+
+    # Verify connection and dump target build fingerprint.
+    self._CheckCallAdb('shell', 'getprop', 'ro.build.fingerprint')
 
     out_directory = os.path.split(self.GetTargetPath())[0]
     self.apk_path = os.path.join(out_directory, '{}.apk'.format(target_name))
@@ -168,9 +175,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # inet_aton throws an exception if the address is not a valid IPv4
       # address. However addresses such as '127.1' might still be considered
       # valid, hence the check for 3 '.' in the address.
+      # pylint: disable=g-socket-inet-aton
       if socket.inet_aton(address) and address.count('.') == 3:
         return True
-    except:
+    except Exception:  # pylint: disable=broad-except
       pass
     return False
 
@@ -179,10 +187,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
-    p = subprocess.Popen([_ADB, 'devices'],
-                         stderr=_DEV_NULL,
-                         stdout=subprocess.PIPE,
-                         close_fds=True)
+    p = self._PopenAdb('devices', stdout=subprocess.PIPE)
     result = p.stdout.readlines()[1:-1]
     p.wait()
 
@@ -229,10 +234,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Device isn't connected. Run ADB connect.
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
-    p = subprocess.Popen([_ADB, 'connect', '{}:5555'.format(self.device_id)],
-                         stderr=subprocess.STDOUT,
-                         stdout=subprocess.PIPE,
-                         close_fds=True)
+    p = self._PopenAdb(
+        'connect',
+        '{}:5555'.format(self.device_id),
+        stderr=subprocess.STDOUT,
+        stdout=subprocess.PIPE,
+    )
     result = p.stdout.readlines()[0]
     p.wait()
 
@@ -251,24 +258,28 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _Call(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL, close_fds=True)
+    if abstract_launcher.ARG_DRYRUN not in self.launcher_args:
+      subprocess.call(args, close_fds=True)
 
-  def _CallAdb(self, *in_args):
+  def CallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
     self._Call(*args)
 
   def _CheckCall(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.check_call(
-        args, stdout=_DEV_NULL, stderr=_DEV_NULL, close_fds=True)
+    if abstract_launcher.ARG_DRYRUN not in self.launcher_args:
+      subprocess.check_call(args, close_fds=True)
 
   def _CheckCallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
     self._CheckCall(*args)
 
   def _PopenAdb(self, *args, **kwargs):
-    return subprocess.Popen(
-        self.adb_builder.Build(*args), close_fds=True, **kwargs)
+    build_args = self.adb_builder.Build(*args)
+    sys.stderr.write('{}\n'.format(' '.join(build_args)))
+    if abstract_launcher.ARG_DRYRUN in self.launcher_args:
+      return subprocess.Popen(['echo', 'dry-run'])
+    return subprocess.Popen(build_args, close_fds=True, **kwargs)
 
   def Run(self):
     # The return code for binaries run on Android is read from a log line that
@@ -285,21 +296,24 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Clear logcat
     self._CheckCallAdb('logcat', '-c')
 
-    # Install the APK.
-    install_timer = StepTimer('install')
-    self._CheckCallAdb('install', '-r', self.apk_path)
-    install_timer.Stop()
+    # Install the APK, unless "noinstall" was specified.
+    if abstract_launcher.ARG_NOINSTALL not in self.launcher_args:
+      install_timer = StepTimer('install')
+      self._CheckCallAdb('install', '-r', self.apk_path)
+      install_timer.Stop()
 
     # Send the wakeup key to ensure daydream isn't running, otherwise Activity
     # Manager may get in a loop running the test over and over again.
     self._CheckCallAdb('shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
 
     # Grant runtime permissions to avoid prompts during testing.
-    for permission in _RUNTIME_PERMISSIONS:
-      self._CheckCallAdb('shell', 'pm', 'grant', _APP_PACKAGE_NAME, permission)
+    if abstract_launcher.ARG_NOINSTALL not in self.launcher_args:
+      for permission in _RUNTIME_PERMISSIONS:
+        self._CheckCallAdb('shell', 'pm', 'grant', _APP_PACKAGE_NAME,
+                           permission)
 
     done_queue = Queue.Queue()
-    am_monitor = AdbAmMonitorWatcher(self.adb_builder, done_queue)
+    am_monitor = AdbAmMonitorWatcher(self, done_queue)
 
     # Increases the size of the logcat buffer.  Without this, the log buffer
     # will not flush quickly enough and output will be cut off.
@@ -339,8 +353,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       self._CheckCallAdb(*args)
 
+      run_loop = abstract_launcher.ARG_DRYRUN not in self.launcher_args
+
       app_crashed = False
-      while True:
+      while run_loop:
         if not done_queue.empty():
           done_queue_code = done_queue.get_nowait()
           if done_queue_code == _QUEUE_CODE_CRASHED:
@@ -374,10 +390,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     finally:
       if app_crashed:
         self._WriteLine('***Application Crashed***\n')
+        # Set return code to mimic segfault code on Linux
+        return_code = 11
       else:
         self._Shutdown()
       if self.local_port is not None:
-        self._CallAdb('forward', '--remove', 'tcp:{}'.format(self.local_port))
+        self.CallAdb('forward', '--remove', 'tcp:{}'.format(self.local_port))
       am_monitor.Shutdown()
       self.killed.set()
       run_timer.Stop()
@@ -390,7 +408,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return return_code
 
   def _Shutdown(self):
-    self._CallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
+    self.CallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
 
   def SupportsDeepLink(self):
     return True
@@ -417,16 +435,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetHostAndPortGivenPort(self, port):
     forward_p = self._PopenAdb(
-        'forward',
-        'tcp:0',
-        'tcp:{}'.format(port),
-        stdout=subprocess.PIPE,
-        stderr=_DEV_NULL)
+        'forward', 'tcp:0', 'tcp:{}'.format(port), stdout=subprocess.PIPE)
     forward_p.wait()
 
     self.local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
     sys.stderr.write('ADB forward local port {} '
                      '=> device port {}\n'.format(self.local_port, port))
+    # pylint: disable=g-socket-gethostbyname
     return socket.gethostbyname('localhost'), self.local_port
 
   def GetDeviceIp(self):
