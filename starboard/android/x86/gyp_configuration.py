@@ -40,9 +40,9 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
       'player_filter_tests': [
           'AdaptiveAudioDecoderTests/*',
           'AudioDecoderTests/*',
-          'VideoDecoderTests/SingleInput/*',
-          'VideoDecoderTests/ResetBeforeInput/*',
-          'VideoDecoderTests/MultipleResets/*',
-          'VideoDecoderTests/DecodeFullGOP/*',
+          'VideoDecoderTests/VideoDecoderTest.SingleInput/*',
+          'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/*',
+          'VideoDecoderTests/VideoDecoderTest.MultipleResets/*',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/*',
       ],
   }
