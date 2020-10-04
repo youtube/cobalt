@@ -705,13 +705,12 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(on_screen_keyboard_);
 }
 
-void Window::CacheSplashScreen(const std::string& content,
-                               const std::string& topic) {
+void Window::CacheSplashScreen(const std::string& content) {
   if (splash_screen_cache_callback_.is_null()) {
     return;
   }
   DLOG(INFO) << "Caching splash screen for URL " << location()->url();
-  splash_screen_cache_callback_.Run(content, topic);
+  splash_screen_cache_callback_.Run(content);
 }
 
 const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {

@@ -121,8 +121,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   // close() was called.
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
-  typedef base::Callback<void(const std::string&, const std::string&)>
-      CacheCallback;
+  typedef base::Callback<void(const std::string&)> CacheCallback;
 
   enum ClockType {
     kClockTypeTestRunner,
@@ -379,7 +378,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   void OnDocumentRootElementUnableToProvideOffsetDimensions();
 
   // Cache the passed in splash screen content for the window.location URL.
-  void CacheSplashScreen(const std::string& content, const std::string& topic);
+  void CacheSplashScreen(const std::string& content);
 
   const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
     return preflight_cache_;
