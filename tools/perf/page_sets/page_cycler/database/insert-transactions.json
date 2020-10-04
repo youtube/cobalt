@@ -1,9 +1,0 @@
-{
-    "description": "INSERT transactions database page_cycler benchmark",
-    "pages": [
-        {
-            "url": "file:///../../../../data/page_cycler/database/insert-transactions/start.html?iterations=5&auto=1",
-            "url_base_dir": "file:///../../../../tools/page_cycler/database/"
-        }
-    ]
-}
