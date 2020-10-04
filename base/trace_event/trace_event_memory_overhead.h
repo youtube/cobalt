@@ -6,6 +6,7 @@
 #define BASE_TRACE_EVENT_TRACE_EVENT_MEMORY_OVERHEAD_H_
 
 #include <unordered_map>
+#include <string>
 
 #include "base/base_export.h"
 #include "base/macros.h"
