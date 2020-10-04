@@ -23,6 +23,10 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import build
 from starboard.tools import paths
 
+ARG_NOINSTALL = "noinstall"
+ARG_SYSTOOLS = "systools"
+ARG_DRYRUN = "dryrun"
+
 
 def _GetLauncherForPlatform(platform_name):
   """Gets the module containing a platform's concrete launcher implementation.
@@ -124,6 +128,11 @@ class AbstractLauncher(object):
     if env_variables is None:
       env_variables = {}
     self.env_variables = env_variables
+
+    launcher_args = kwargs.get("launcher_args", None)
+    if launcher_args is None:
+      launcher_args = []
+    self.launcher_args = launcher_args
 
     # Launchers that need different startup timeout times should reassign
     # this variable during initialization.
