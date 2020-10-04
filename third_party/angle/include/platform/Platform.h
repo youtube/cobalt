@@ -236,11 +236,11 @@ inline void DefaultOverrideFeaturesMtl(PlatformMethods *platform, angle::Feature
 using ProgramKeyType   = std::array<uint8_t, 20>;
 using CacheProgramFunc = void (*)(PlatformMethods *platform,
                                   const ProgramKeyType &key,
-                                  size_t programSize,
+                                  std::size_t programSize,
                                   const uint8_t *programBytes);
 inline void DefaultCacheProgram(PlatformMethods *platform,
                                 const ProgramKeyType &key,
-                                size_t programSize,
+                                std::size_t programSize,
                                 const uint8_t *programBytes)
 {}
 
