@@ -429,10 +429,38 @@ Note that neither `mime` nor `key_system` can be NULL. This function returns
 `mime`: The mime information of the media in the form of `video/webm` or
 `video/mp4; codecs="avc1.42001E"`. It may include arbitrary parameters like
 "codecs", "channels", etc. Note that the "codecs" parameter may contain more
-than one codec, delimited by comma. `key_system`: A lowercase value in fhe form
+than one codec, delimited by comma. `key_system`: A lowercase value in the form
 of "com.example.somesystem" as suggested by [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)) that can
 be matched exactly with known DRM key systems of the platform. When `key_system`
 is an empty string, the return value is an indication for non-encrypted media.
+
+An implementation may choose to support `key_system` with extra attributes,
+separated by ';', like `com.example.somesystem; attribute_name1="value1";
+attribute_name2=value1`. If `key_system` with attributes is not supported by an
+implementation, it should treat `key_system` as if it contains only the key
+system, and reject any input containing extra attributes, i.e. it can keep using
+its existing implementation. When an implementation supports `key_system` with
+attributes, it has to support all attributes defined by the Starboard version
+the implementation uses. An implementation should ignore any unknown attributes,
+and make a decision solely based on the key system and the known attributes. For
+example, if an implementation supports "com.widevine.alpha", it should also
+return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
+Currently the only attribute has to be supported is `encryptionscheme`. It
+reflects the value passed to `encryptionScheme` encryptionScheme of
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+not a valid value for `encryptionscheme` and the implementation should return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+`encryptionscheme` is set to "". The implementation should return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported for unknown
+values of known attributes. For example, if an implementation supports
+"encryptionscheme" with value "cenc", "cbcs", or "cbcs-1-9", then it should
+return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`key_system` is `com.widevine.alpha; encryptionscheme="cenc"`, and return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+`key_system` is `com.widevine.alpha; encryptionscheme="invalid"`. If an
+implementation supports key system with attributes on one key system, it has to
+support key system with attributes on all key systems supported.
 
 #### Declaration ####
 
