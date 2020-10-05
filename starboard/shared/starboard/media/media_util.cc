@@ -160,6 +160,10 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
+  if (width < 0 || height < 0 || fps < 0 || bitrate < 0) {
+    return false;
+  }
+
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec,
 #if SB_API_VERSION >= 12
@@ -170,7 +174,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
                                fps, decode_to_texture_required)) {
     return false;
   }
-#else  //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#else   //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps,
                                decode_to_texture_required)) {
     return false;
@@ -470,7 +474,7 @@ const char* GetCodecName(SbMediaVideoCodec codec) {
 #if SB_API_VERSION < 11
     case kSbMediaVideoCodecVp10:
       return "vp10";
-#else   // SB_API_VERSION < 11
+#else  // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
       return "av1";
 #endif  // SB_API_VERSION < 11
@@ -722,7 +726,7 @@ std::ostream& operator<<(std::ostream& os,
   os << sample_info.frame_width << 'x' << sample_info.frame_height << ' ';
 #if SB_API_VERSION >= 11
   os << '(' << sample_info.color_metadata << ')';
-#else   // SB_API_VERSION >= 11
+#else  // SB_API_VERSION >= 11
   os << '(' << *sample_info.color_metadata << ')';
 #endif  // SB_API_VERSION >= 11
   return os;
