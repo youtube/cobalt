@@ -94,10 +94,41 @@ TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {
       "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=99999;", "");
   ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
 
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=-1080;", "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=-1920; height=1080;", "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=-1920; height=-1080;", "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
   // Invalid bitrate
   result = SbMediaCanPlayMimeAndKeySystem(
       "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=1080; "
       "bitrate=999999999;",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=1080; "
+      "bitrate=-20000",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
+  // Invalid framerate
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=1080; "
+      "framerate=-30",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=1920; height=1080; "
+      "framerate=-25",
       "");
   ASSERT_EQ(result, kSbMediaSupportTypeNotSupported);
 
@@ -155,6 +186,18 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   result = SbMediaCanPlayMimeAndKeySystem(
       "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
       "framerate=60;",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d402a\"; width=0; height=0; "
+      "framerate=0; bitrate=0",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d402a\"; width=-0; height=-0; "
+      "framerate=-0; bitrate=-0",
       "");
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
 
