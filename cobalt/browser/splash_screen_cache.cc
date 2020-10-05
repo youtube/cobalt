@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/hash.h"
 #include "base/optional.h"
 #include "base/strings/string_util.h"
@@ -59,9 +60,14 @@ SplashScreenCache::SplashScreenCache() : last_page_hash_(0) {
   base::AutoLock lock(lock_);
 }
 
-bool SplashScreenCache::CacheSplashScreen(const std::string& content) const {
+bool SplashScreenCache::CacheSplashScreen(
+    const std::string& content,
+    const base::Optional<std::string>& topic) const {
   base::AutoLock lock(lock_);
-  base::Optional<std::string> key = GetKeyForStartUrl(url_);
+  // Cache the content so that it's retrievable for the topic specified in the
+  // rel attribute. This topic may or may not match the topic-specified for this
+  // particular startup, tracked with "topic_".
+  base::Optional<std::string> key = GetKeyForStartConfig(url_, topic);
   if (!key) {
     return false;
   }
@@ -95,7 +101,7 @@ bool SplashScreenCache::IsSplashScreenCached() const {
                        kSbFileMaxPath)) {
     return false;
   }
-  base::Optional<std::string> key = GetKeyForStartUrl(url_);
+  base::Optional<std::string> key = GetKeyForStartConfig(url_, topic_);
   if (!key) return false;
   std::string full_path =
       std::string(path.data()) + kSbFileSepString + key.value();
@@ -130,9 +136,8 @@ int SplashScreenCache::ReadCachedSplashScreen(
   return result_size;
 }
 
-// static
-base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
-    const GURL& url) {
+base::Optional<std::string> SplashScreenCache::GetKeyForStartConfig(
+    const GURL& url, const base::Optional<std::string>& topic) const {
   base::Optional<std::string> encoded_url = base::GetApplicationKey(url);
   if (!encoded_url) {
     return base::nullopt;
@@ -146,26 +151,36 @@ base::Optional<std::string> SplashScreenCache::GetKeyForStartUrl(
   }
 
   std::string subpath = "";
-  std::string subcomponent = kSbFileSepString + std::string("splash_screen");
-  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
-      static_cast<int>(kSbFileMaxPath)) {
+  if (!AddPathDirectory(std::string("splash_screen"), path, subpath)) {
     return base::nullopt;
   }
-  subpath += "splash_screen";
-  subcomponent = kSbFileSepString + *encoded_url;
-  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
-      static_cast<int>(kSbFileMaxPath)) {
+  if (!AddPathDirectory(*encoded_url, path, subpath)) {
     return base::nullopt;
   }
-  subpath += subcomponent;
-  subcomponent = kSbFileSepString + std::string("splash.html");
-  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >
-      static_cast<int>(kSbFileMaxPath)) {
+  if (topic && !topic.value().empty()) {
+    std::string encoded_topic;
+    base::Base64Encode(topic.value(), &encoded_topic);
+    if (!AddPathDirectory(encoded_topic, path, subpath)) {
+      return base::nullopt;
+    }
+  }
+  if (!AddPathDirectory(std::string("splash.html"), path, subpath)) {
     return base::nullopt;
   }
-  subpath += subcomponent;
 
-  return subpath;
+  return subpath.erase(0, 1);  // Remove leading separator
+}
+
+bool SplashScreenCache::AddPathDirectory(const std::string& directory,
+                                         std::vector<char>& path,
+                                         std::string& subpath) const {
+  std::string subcomponent = kSbFileSepString + directory;
+  if (SbStringConcat(path.data(), subcomponent.c_str(), kSbFileMaxPath) >=
+      static_cast<int>(kSbFileMaxPath)) {
+    return false;
+  }
+  subpath += subcomponent;
+  return true;
 }
 
 }  // namespace browser

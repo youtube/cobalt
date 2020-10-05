@@ -87,17 +87,19 @@ namespace {
 const int kDOMMaxElementDepth = 32;
 
 void CacheUrlContent(SplashScreenCache* splash_screen_cache,
-                     const std::string& content) {
-  splash_screen_cache->SplashScreenCache::CacheSplashScreen(content);
+                     const std::string& content,
+                     const base::Optional<std::string>& topic) {
+  splash_screen_cache->SplashScreenCache::CacheSplashScreen(content, topic);
 }
 
-base::Callback<void(const std::string&)> CacheUrlContentCallback(
-    SplashScreenCache* splash_screen_cache) {
+base::Callback<void(const std::string&, const base::Optional<std::string>&)>
+CacheUrlContentCallback(SplashScreenCache* splash_screen_cache) {
   // This callback takes in first the url, then the content string.
   if (splash_screen_cache) {
     return base::Bind(CacheUrlContent, base::Unretained(splash_screen_cache));
   } else {
-    return base::Callback<void(const std::string&)>();
+    return base::Callback<void(const std::string&,
+                               const base::Optional<std::string>&)>();
   }
 }
 
