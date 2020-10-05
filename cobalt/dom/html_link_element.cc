@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/strings/string_tokenizer.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -34,10 +35,34 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+bool IsValidRelChar(char const& c) {
+  return (isalnum(c) || c == '_' || c == '\\' || c == '-');
+}
+
+bool IsValidSplashScreenFormat(const std::string& rel) {
+  base::StringTokenizer tokenizer(rel, "_");
+  tokenizer.set_options(base::StringTokenizer::RETURN_DELIMS);
+  bool is_valid_format = true;
+  while (tokenizer.GetNext()) {
+    std::string token = tokenizer.token();
+    if (SbStringCompareAll(token.c_str(), "splashscreen") == 0) {
+      is_valid_format = true;
+    } else {
+      for (char const& c : token) {
+        if (!IsValidRelChar(c)) {
+          return false;
+        }
+      }
+      is_valid_format = false;
+    }
+  }
+  return is_valid_format;
+}
+
 CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
   if (rel == "stylesheet") {
     return CspDelegate::kStyle;
-  } else if (rel == "splashscreen") {
+  } else if (IsValidSplashScreenFormat(rel)) {
     return CspDelegate::kLocation;
   } else {
     NOTIMPLEMENTED();
@@ -71,12 +96,14 @@ loader::RequestMode GetRequestMode(
 const char HTMLLinkElement::kTagName[] = "link";
 // static
 const std::vector<std::string> HTMLLinkElement::kSupportedRelValues = {
-    "stylesheet", "splashscreen"};
+    "stylesheet"};
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   if (std::find(kSupportedRelValues.begin(), kSupportedRelValues.end(),
                 rel()) != kSupportedRelValues.end()) {
+    Obtain();
+  } else if (IsValidSplashScreenFormat(rel())) {
     Obtain();
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
@@ -202,7 +229,7 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
   Document* document = node_document();
   if (rel() == "stylesheet") {
     OnStylesheetLoaded(document, *content);
-  } else if (rel() == "splashscreen") {
+  } else if (IsValidSplashScreenFormat(rel())) {
     OnSplashscreenLoaded(document, *content);
   } else {
     NOTIMPLEMENTED();
@@ -257,7 +284,13 @@ void HTMLLinkElement::OnLoadingComplete(
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
                                            const std::string& content) {
   scoped_refptr<Window> window = document->window();
-  window->CacheSplashScreen(content);
+  std::string link = rel();
+  size_t last_underscore = link.find_last_of("_");
+  base::Optional<std::string> topic;
+  if (last_underscore != std::string::npos) {
+    topic = link.substr(0, last_underscore);
+  }
+  window->CacheSplashScreen(content, topic);
 }
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
