@@ -33,6 +33,7 @@ repos:
         language: system
         types: [python]
         args: [--style=yapf, -i]
+        exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
         entry: pylint
@@ -40,6 +41,7 @@ repos:
         types: [python]
         args: [-d W0201]
         stages: [push]
+        exclude: '\.gypi?$'
     -   id: clang-format
         name: clang-format
         entry: third_party/precommit-hooks/clang-format_wrapper.py
