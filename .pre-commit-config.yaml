@@ -26,7 +26,6 @@ repos:
         types: [c++]
         args: [--verbose=4, --quiet]
         exclude: '.*tests?.(cc|h)$'
-        stages: [push]
     -   id: cpplint_test
         name: cpplint_test
         entry: cpplint
@@ -34,7 +33,6 @@ repos:
         types: [c++]
         args: [--verbose=5, --quiet]
         files: '.*tests?.(cc|h)$'
-        stages: [push]
     -   id: yapf
         name: yapf
         entry: yapf
@@ -48,7 +46,6 @@ repos:
         language: system
         types: [python]
         args: [-d W0201]
-        stages: [push]
         exclude: '\.gypi?$'
     -   id: clang-format
         name: clang-format
@@ -68,7 +65,6 @@ repos:
         language: python
         types: [java]
         verbose: true
-        stages: [push]
     -   id: check-copyright-year
         name: check copyright year
         entry: third_party/precommit-hooks/custom_hooks/check_copyright_year.py
