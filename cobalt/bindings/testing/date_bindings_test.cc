@@ -14,8 +14,11 @@
 
 #include "base/logging.h"
 
+#include "base/time/time.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/interface_with_date.h"
+#include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -77,6 +80,45 @@ TEST_F(DateBindingsTest, PosixEpoch) {
   auto js_now_ms = std::stoll(result);
   auto posix_now_ms = SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
   EXPECT_LT(std::abs(posix_now_ms - js_now_ms), 1000);
+}
+
+TEST_F(DateBindingsTest, StarboardTimeZone) {
+  const char* month_table[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+  std::string result;
+
+  EvaluateScript("new Date().toString();", &result);
+  base::Time now = base::Time::Now();
+
+  SB_LOG(INFO) << "JavaScript Date now is : " << result;
+  SB_LOG(INFO) << "and base::Time is: " << now;
+
+  base::Time::Exploded exploded;
+  now.LocalExplode(&exploded);
+  EXPECT_NE(result.find(std::to_string(exploded.year)), std::string::npos);
+  EXPECT_NE(result.find(month_table[exploded.month - 1]), std::string::npos);
+  EXPECT_NE(result.find(std::to_string(exploded.day_of_month)),
+            std::string::npos);
+  EXPECT_NE(result.find(std::to_string(exploded.hour)), std::string::npos);
+  EXPECT_NE(result.find(std::to_string(exploded.minute)), std::string::npos);
+  EXPECT_NE(result.find(std::to_string(exploded.second)), std::string::npos);
+}
+
+TEST_F(DateBindingsTest, TimezoneOffset) {
+  EzTimeExploded ez_exploded;
+
+  auto eztt = EzTimeTFromSbTime(SbTimeGetNow());
+  EzTimeTExplodeLocal(&eztt, &ez_exploded);
+  // ez_exploded is already local time, use UTC method to convert to
+  // EzTimeT.
+  EzTimeT local_time_minutes = EzTimeTImplodeUTC(&ez_exploded) / 60;
+  EzTimeT utc_minutes = EzTimeTFromSbTime(SbTimeGetNow()) / 60;
+  EzTimeT timezone_offset = utc_minutes - local_time_minutes;
+
+  std::string result;
+  EvaluateScript("new Date().getTimezoneOffset();", &result);
+
+  EXPECT_EQ(result, std::to_string(utc_minutes - local_time_minutes));
 }
 
 }  // namespace
