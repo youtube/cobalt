@@ -27,6 +27,16 @@
 
 namespace starboard {
 
+// Returns an IP unspecified address with the given port.
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port);
+
+// Gets an IP localhost address with the given port.
+// Returns true if it was successful.
+bool GetLocalhostAddress(SbSocketAddressType address_type,
+                         int port,
+                         SbSocketAddress* address);
+
 class Socket {
  public:
   Socket(SbSocketAddressType address_type, SbSocketProtocol protocol);

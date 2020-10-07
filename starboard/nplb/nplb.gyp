@@ -318,6 +318,7 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
         '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
         '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
