@@ -30,6 +30,7 @@
         'testing/mock_media_stream_audio_track.h',
       ],
       'dependencies': [
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/media_stream/media_stream.gyp:media_stream',
         '<(DEPTH)/testing/gmock.gyp:gmock',

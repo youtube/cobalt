@@ -33,6 +33,7 @@
         'web_socket_impl.h',
       ],
       'dependencies': [
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',

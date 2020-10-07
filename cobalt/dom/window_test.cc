@@ -29,7 +29,6 @@
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media_session/media_session.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -74,7 +73,7 @@ class WindowTest : public ::testing::Test {
         kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         dom::Window::CloseCallback() /* window_close */,
-        base::Closure() /* window_minimize */, NULL, NULL, NULL,
+        base::Closure() /* window_minimize */, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
