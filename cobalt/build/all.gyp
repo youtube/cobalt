@@ -89,6 +89,7 @@
         '<(DEPTH)/third_party/zlib/zlib.gyp:zip_unittests_deploy',
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
+        '<(DEPTH)/starboard/common/common_test.gyp:common_test_deploy',
         '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
         '<(DEPTH)/starboard/loader_app/loader_app.gyp:loader_app_tests_deploy',
         '<(DEPTH)/starboard/nplb/nplb_evergreen_compat_tests/nplb_evergreen_compat_tests.gyp:nplb_evergreen_compat_tests_deploy',

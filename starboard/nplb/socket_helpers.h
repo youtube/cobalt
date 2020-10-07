@@ -40,13 +40,6 @@ bool IsLocalhost(const SbSocketAddress* address);
 // This will always return the same port number.
 int GetPortNumberForTests();
 
-// Returns an IP localhost address with the given port.
-SbSocketAddress GetLocalhostAddress(SbSocketAddressType address_type, int port);
-
-// Returns an IP unspecified address with the given port.
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port);
-
 // Creates a TCP/IP server socket (sets Reuse Address option).
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
 scoped_ptr<Socket> CreateServerTcpSocketWrapped(

@@ -84,32 +84,6 @@ bool IsLocalhost(const SbSocketAddress* address) {
   return false;
 }
 
-SbSocketAddress GetLocalhostAddress(SbSocketAddressType address_type,
-                                    int port) {
-  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
-  switch (address_type) {
-    case kSbSocketAddressTypeIpv4: {
-      address.address[0] = 127;
-      address.address[3] = 1;
-      return address;
-    }
-    case kSbSocketAddressTypeIpv6: {
-      address.address[15] = 1;
-      return address;
-    }
-  }
-  ADD_FAILURE() << "GetLocalhostAddress for unknown address type";
-  return address;
-}
-
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port) {
-  SbSocketAddress address = {0};
-  address.type = address_type;
-  address.port = port;
-  return address;
-}
-
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
   SbSocket server_socket = SbSocketCreate(address_type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(server_socket)) {
@@ -220,7 +194,12 @@ SbSocket CreateConnectingTcpSocket(SbSocketAddressType address_type, int port) {
   }
 
   // Connect to localhost:<port>.
-  SbSocketAddress address = GetLocalhostAddress(address_type, port);
+  SbSocketAddress address = {};
+  bool success = GetLocalhostAddress(address_type, port, &address);
+  if (!success) {
+    ADD_FAILURE() << "GetLocalhostAddress failed";
+    return kSbSocketInvalid;
+  }
 
   // This connect will probably return pending, but we'll assume it will connect
   // eventually.
@@ -245,7 +224,12 @@ scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
   }
 
   // Connect to localhost:<port>.
-  SbSocketAddress address = GetLocalhostAddress(address_type, port);
+  SbSocketAddress address = {};
+  bool success = GetLocalhostAddress(address_type, port, &address);
+  if (!success) {
+    ADD_FAILURE() << "GetLocalhostAddress failed";
+    return scoped_ptr<Socket>().Pass();
+  }
 
   // This connect will probably return pending, but we'll assume it will connect
   // eventually.

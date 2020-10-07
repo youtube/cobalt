@@ -12,12 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/socket.h"
+
 #include <iomanip>
 
-#include "starboard/common/socket.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
 namespace starboard {
+
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port) {
+  SbSocketAddress address = {};
+  address.type = address_type;
+  address.port = port;
+  return address;
+}
+
+bool GetLocalhostAddress(SbSocketAddressType address_type,
+                         int port,
+                         SbSocketAddress* address) {
+  if (address_type != kSbSocketAddressTypeIpv4 &&
+      address_type != kSbSocketAddressTypeIpv6) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": unknown address type: " << address_type;
+    return false;
+  }
+  *address = GetUnspecifiedAddress(address_type, port);
+  switch (address_type) {
+    case kSbSocketAddressTypeIpv4:
+      address->address[0] = 127;
+      address->address[3] = 1;
+      break;
+    case kSbSocketAddressTypeIpv6:
+      address->address[15] = 1;
+      break;
+  }
+
+  return true;
+}
 
 Socket::Socket(SbSocketAddressType address_type, SbSocketProtocol protocol)
     : socket_(SbSocketCreate(address_type, protocol)) {}
