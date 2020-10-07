@@ -17,9 +17,8 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
-
 #include "src/base/timezone-cache.h"
-
+#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -468,7 +467,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 class StarboardTimezoneCache : public TimezoneCache {
  public:
-  double DaylightSavingsOffset(double time_ms) override { return 0.0; }
   void Clear(TimeZoneDetection time_zone_detection) override {}
   ~StarboardTimezoneCache() override {}
 
@@ -482,7 +480,18 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     return SbTimeZoneGetName();
   }
   double LocalTimeOffset(double time_ms, bool is_utc) override {
-    return SbTimeZoneGetCurrent() * 60000.0;
+    // SbTimeZOneGetCurrent returns an offset west of Greenwich, which has the
+    // opposite sign V8 expects.
+    // The starboard function returns offset in minutes. We convert to return
+    // value in milliseconds.
+    return SbTimeZoneGetCurrent() * 60.0 * msPerSecond * (-1);
+  }
+  double DaylightSavingsOffset(double time_ms) override {
+    EzTimeValue value = EzTimeValueFromSbTime(SbTimeGetNow());
+    EzTimeExploded ez_exploded;
+    bool result = EzTimeValueExplode(&value, kEzTimeZoneLocal, &ez_exploded,
+                                     NULL);
+    return ez_exploded.tm_isdst > 0 ? 3600 * msPerSecond : 0;
   }
 
   ~StarboardDefaultTimezoneCache() override {}
