@@ -62,6 +62,7 @@
         'xml_http_request_test.cc',
       ],
       'dependencies': [
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/testing/gmock.gyp:gmock',

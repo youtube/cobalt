@@ -52,6 +52,7 @@
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/navigator.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/ui_event.h"
@@ -240,7 +241,11 @@ class WebModule::Impl {
   void CancelSynchronousLoads();
 
   void IsReadyToFreeze(volatile bool* is_ready_to_freeze) {
-    *is_ready_to_freeze = !media_session_client_->is_active();
+    if (window_->media_session()->
+        media_session_client() == NULL)
+      return;
+    *is_ready_to_freeze = !window_->media_session()->
+        media_session_client()->is_active();
   }
 
  private:
@@ -432,8 +437,6 @@ class WebModule::Impl {
   // DocumentObserver that observes the loading document.
   std::unique_ptr<DocumentLoadedObserver> document_load_observer_;
 
-  std::unique_ptr<media_session::MediaSessionClient> media_session_client_;
-
   std::unique_ptr<layout::TopmostEventTarget> topmost_event_target_;
 
   base::Closure on_before_unload_fired_but_not_handled_;
@@ -592,11 +595,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
       &mutation_observer_task_manager_, data.options.dom_settings_options));
   DCHECK(environment_settings_);
 
-  media_session_client_ = media_session::MediaSessionClient::Create();
-  media_session_client_->SetMediaPlayerFactory(data.web_media_player_factory);
-  media_session_client_->SetMaybeFreezeCallback(
-      data.options.maybe_freeze_callback);
-
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
       environment_settings_.get());
 
@@ -653,7 +651,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
       data.options.on_screen_keyboard_bridge, data.options.camera_3d,
-      media_session_client_->GetMediaSession(),
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
@@ -685,6 +682,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   error_callback_ = data.error_callback;
   DCHECK(!error_callback_.is_null());
+
+  window_->navigator()->set_maybefreeze_callback(
+      data.options.maybe_freeze_callback);
+  window_->navigator()->set_media_player_factory(
+      data.web_media_player_factory);
 
   bool is_concealed =
       (data.initial_application_state == base::kApplicationStateConcealed);
@@ -749,7 +751,6 @@ WebModule::Impl::~Impl() {
       script::GlobalEnvironment::ReportErrorCallback());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
-  media_session_client_.reset();
 
 #if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
@@ -1069,7 +1070,6 @@ void WebModule::Impl::SetCamera3D(
 void WebModule::Impl::SetWebMediaPlayerFactory(
     media::WebMediaPlayerFactory* web_media_player_factory) {
   window_->set_web_media_player_factory(web_media_player_factory);
-  media_session_client_->SetMediaPlayerFactory(web_media_player_factory);
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {

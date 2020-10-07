@@ -35,10 +35,9 @@ class MediaSessionClient {
   friend class MediaSession;
 
  public:
-  MediaSessionClient() : MediaSessionClient(new MediaSession(this)) {}
-
+  MediaSessionClient(): MediaSessionClient(nullptr) {}
   // Injectable MediaSession for tests.
-  explicit MediaSessionClient(scoped_refptr<MediaSession> media_session);
+  explicit MediaSessionClient(MediaSession* media_session);
 
   virtual ~MediaSessionClient();
 
@@ -46,7 +45,7 @@ class MediaSessionClient {
   static std::unique_ptr<MediaSessionClient> Create();
 
   // Retrieves the singleton MediaSession associated with this client.
-  scoped_refptr<MediaSession>& GetMediaSession() { return media_session_; }
+  MediaSession* GetMediaSession() { return media_session_; }
 
   // The web app should set the MediaPositionState of the MediaSession object.
   // However, if that is not done, then query the web media player factory to
@@ -123,9 +122,13 @@ class MediaSessionClient {
     maybe_freeze_callback_ = maybe_freeze_callback;
   }
 
+  void set_media_session(MediaSession* media_session) {
+    media_session_ = media_session;
+  }
+
  private:
   THREAD_CHECKER(thread_checker_);
-  scoped_refptr<MediaSession> media_session_;
+  MediaSession* media_session_;
   MediaSessionState session_state_;
   MediaSessionPlaybackState platform_playback_state_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;

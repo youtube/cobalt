@@ -67,7 +67,7 @@ void GuessMediaPositionState(MediaSessionState* session_state,
 }  // namespace
 
 MediaSessionClient::MediaSessionClient(
-    scoped_refptr<MediaSession> media_session)
+    MediaSession* media_session)
     : media_session_(media_session),
       platform_playback_state_(kMediaSessionPlaybackStateNone) {
 #if SB_API_VERSION < 11
@@ -91,8 +91,6 @@ MediaSessionClient::MediaSessionClient(
 
 MediaSessionClient::~MediaSessionClient() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // Prevent any outstanding MediaSession::OnChanged tasks from calling this.
-  media_session_->media_session_client_ = nullptr;
 
   // Destroy the platform's MediaSessionClient, if it exists.
   if (extension_ != NULL &&

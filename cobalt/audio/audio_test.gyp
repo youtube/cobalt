@@ -24,6 +24,7 @@
         'audio_node_input_output_test.cc',
       ],
       'dependencies': [
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/testing/gmock.gyp:gmock',
