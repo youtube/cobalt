@@ -661,7 +661,9 @@ class NinjaWriter:
 
   def IsCygwinRule(self, action):
     if self.flavor in sony_flavors:
-      return str(action.get('msvs_cygwin_shell', 1)) != '0'
+      value = str(action.get('msvs_cygwin_shell', 0)) != '0'
+      if value:
+        raise Exception("Cygwin usage is no longer allowed in Cobalt Gyp")
     return False
 
   def WriteActions(self, actions, extra_sources, prebuild,
@@ -1428,11 +1430,8 @@ class NinjaWriter:
     if (self.flavor in windows_host_flavors and is_windows):
       rspfile = rule_name + '.$unique_name.rsp'
       # The cygwin case handles this inside the bash sub-shell.
-      run_in = '' if is_cygwin else ' ' + self.build_to_base
-      if is_cygwin:
-        rspfile_content = self.msvs_settings.BuildCygwinBashCommandLine(
-            args, self.build_to_base)
-      elif self.flavor in sony_flavors:
+      run_in = ' ' + self.build_to_base
+      if self.flavor in sony_flavors:
         rspfile_content = gyp.msvs_emulation.EncodeRspFileList(args)
       else:
         rspfile_content = GetToolchainOrNone(
