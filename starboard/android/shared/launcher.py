@@ -39,12 +39,6 @@ _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
 # String added to queue to indicate process has crashed
 _QUEUE_CODE_CRASHED = 'crashed'
 
-# Args to ***REMOVED***crow, which is started if no other device is attached.
-_CROW_COMMANDLINE = [
-    '/***REMOVED***/teams/mobile_eng_prod/crow/crow.par', '--api_level', '24',
-    '--device', 'tv', '--open_gl_driver', 'host', '--noenable_g3_monitor'
-]
-
 # How long to keep logging after a crash in order to emit the stack trace.
 _CRASH_LOG_SECONDS = 1.0
 
@@ -248,14 +242,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
       sys.stderr.write('connect command exited with code {} '
                        'and returned: {}'.format(p.returncode, result))
 
-  def _LaunchCrowIfNecessary(self):
-    if self.device_id:
-      return
-
-    # Note that we just leave Crow running, since we uninstall/reinstall
-    # each time anyway.
-    self._CheckCall(*_CROW_COMMANDLINE)
-
   def _Call(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
     if abstract_launcher.ARG_DRYRUN not in self.launcher_args:
@@ -289,7 +275,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return_code = 1
 
     # Setup for running executable
-    self._LaunchCrowIfNecessary()
     self._CheckCallAdb('wait-for-device')
     self._Shutdown()
 
