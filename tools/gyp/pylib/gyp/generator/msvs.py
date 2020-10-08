@@ -325,7 +325,7 @@ def _BuildCommandLineForRule(spec, rule, has_input_path, do_setup_env):
   # per project. For now the behavior chrome needs is the default.
   mcs = rule.get('msvs_cygwin_shell')
   if mcs is None:
-    mcs = int(spec.get('msvs_cygwin_shell', 1))
+    mcs = int(spec.get('msvs_cygwin_shell', 0))
   elif isinstance(mcs, str):
     mcs = int(mcs)
   quote_cmd = int(rule.get('msvs_quote_cmd', 1))
