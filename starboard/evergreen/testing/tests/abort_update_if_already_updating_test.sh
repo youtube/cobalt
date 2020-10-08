@@ -25,7 +25,7 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file at"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to create a drain file for the test package"
