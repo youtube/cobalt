@@ -44,7 +44,7 @@ function wait_and_force_race_condition() {
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file at"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to create a drain file for the test package"
@@ -60,7 +60,7 @@ function run_test() {
 
   clear_storage
 
-  wait_and_force_race_condition "Created drain file" "${LOG_PATH}/${TEST_NAME}.1.log" "${FILENAME}" &
+  wait_and_force_race_condition "Created drain file at" "${LOG_PATH}/${TEST_NAME}.1.log" "${FILENAME}" &
 
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "failed to lock slot"
 

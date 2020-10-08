@@ -25,7 +25,7 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.0.log" "update from tmsabi channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.0.log" "update from tmsabi channel was installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the tmsabi package"
