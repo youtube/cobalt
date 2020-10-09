@@ -136,12 +136,14 @@ void VideoDecoderTestFixture::OnDecoderStatusUpdate(
     event_queue_.push_back(Event(kBufferFull, frame));
   } else {
     event_queue_.push_back(Event(kError, frame));
+    SB_LOG(WARNING) << "OnDecoderStatusUpdate received unknown state.";
   }
 }
 
 void VideoDecoderTestFixture::OnError() {
   ScopedLock scoped_lock(mutex_);
   event_queue_.push_back(Event(kError, NULL));
+  SB_LOG(WARNING) << "Video decoder received error.";
 }
 
 #if SB_HAS(GLES2)
@@ -185,6 +187,7 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event,
     SbThreadSleep(kSbTimeMillisecond);
   } while (SbTimeGetMonotonicNow() - start < timeout);
   event->status = kTimeout;
+  SB_LOG(WARNING) << "WaitForNextEvent() timeout.";
 }
 
 bool VideoDecoderTestFixture::HasPendingEvents() {
