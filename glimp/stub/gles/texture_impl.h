@@ -31,30 +31,32 @@ namespace gles {
 class TextureImplStub : public TextureImpl {
  public:
   TextureImplStub();
-  ~TextureImplStub() SB_OVERRIDE {}
+  ~TextureImplStub() override {}
 
-  void Initialize(int level, PixelFormat pixel_format, int width, int height)
-      SB_OVERRIDE;
+  void Initialize(int level,
+                  PixelFormat pixel_format,
+                  int width,
+                  int height) override;
 
   bool UpdateData(int level,
                   const nb::Rect<int>& window,
                   int pitch_in_bytes,
-                  const void* pixels) SB_OVERRIDE;
+                  const void* pixels) override;
 
   void UpdateDataFromBuffer(
       int level,
       const nb::Rect<int>& window,
       int pitch_in_bytes,
       const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
-      uintptr_t buffer_offset) SB_OVERRIDE;
+      uintptr_t buffer_offset) override;
 
-  void BindToEGLSurface(egl::Surface* surface) SB_OVERRIDE;
+  void BindToEGLSurface(egl::Surface* surface) override;
 
   void ReadPixelsAsRGBA8(const nb::Rect<int>& window,
                          int pitch_in_bytes,
-                         void* pixels) SB_OVERRIDE;
+                         void* pixels) override;
 
-  bool CanBeAttachedToFramebuffer() const SB_OVERRIDE;
+  bool CanBeAttachedToFramebuffer() const override;
 
  private:
 };

@@ -33,15 +33,15 @@ class ProgramImplStub : public ProgramImpl {
   static const int kMaxUniformsPerShader = 16;
 
   ProgramImplStub();
-  ~ProgramImplStub() SB_OVERRIDE {}
+  ~ProgramImplStub() override {}
 
   ProgramImpl::LinkResults Link(
       const nb::scoped_refptr<Shader>& vertex_shader,
-      const nb::scoped_refptr<Shader>& fragment_shader) SB_OVERRIDE;
+      const nb::scoped_refptr<Shader>& fragment_shader) override;
 
-  bool BindAttribLocation(unsigned int index, const char* name) SB_OVERRIDE;
+  bool BindAttribLocation(unsigned int index, const char* name) override;
 
-  int GetUniformLocation(const char* name) SB_OVERRIDE;
+  int GetUniformLocation(const char* name) override;
 
   // Returns the location of the shader attribute that was previously bound
   // to |index| in a call to BindAttribLocation().

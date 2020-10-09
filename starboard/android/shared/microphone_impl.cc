@@ -47,11 +47,11 @@ bool CheckReturnValue(SLresult result) {
 class SbMicrophoneImpl : public SbMicrophonePrivate {
  public:
   SbMicrophoneImpl();
-  ~SbMicrophoneImpl() SB_OVERRIDE;
+  ~SbMicrophoneImpl() override;
 
-  bool Open() SB_OVERRIDE;
-  bool Close() SB_OVERRIDE;
-  int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
+  bool Open() override;
+  bool Close() override;
+  int Read(void* out_audio_data, int audio_data_size) override;
 
   void SetPermission(bool is_granted);
   static bool IsMicrophoneDisconnected();

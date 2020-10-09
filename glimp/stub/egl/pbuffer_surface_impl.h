@@ -30,8 +30,8 @@ class PbufferSurfaceImplStub : public SurfaceImplStub {
   PbufferSurfaceImplStub(int width, int height);
   virtual ~PbufferSurfaceImplStub();
 
-  int GetWidth() const SB_OVERRIDE { return width_; }
-  int GetHeight() const SB_OVERRIDE { return height_; }
+  int GetWidth() const override { return width_; }
+  int GetHeight() const override { return height_; }
 
  private:
   int width_;
