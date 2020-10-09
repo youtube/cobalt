@@ -116,11 +116,6 @@ inclusive.
 Macro to annotate a function as noreturn, which signals to the compiler that the
 function cannot return.
 
-### SB_OVERRIDE ###
-
-Declares a function as overriding a virtual function on compilers that support
-it.
-
 ### SB_PREFERRED_RGBA_BYTE_ORDER_RGBA ###
 
 An enumeration of values for the kSbPreferredByteOrder configuration variable.

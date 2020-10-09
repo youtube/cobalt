@@ -32,47 +32,47 @@ class ContextImplStub : public ContextImpl {
   ContextImplStub();
   virtual ~ContextImplStub() {}
 
-  ContextImpl::ExtensionList GetExtensions() const SB_OVERRIDE;
-  int GetMaxVertexAttribs() const SB_OVERRIDE;
-  int GetMaxFragmentTextureUnits() const SB_OVERRIDE;
-  int GetMaxCombinedTextureImageUnits() const SB_OVERRIDE;
-  int GetMaxTextureSize() const SB_OVERRIDE;
-  int GetMaxRenderbufferSize() const SB_OVERRIDE;
-  int GetMaxFragmentUniformVectors() const SB_OVERRIDE;
-  int GetMaxVertexTextureImageUnits() const SB_OVERRIDE { return 0; }
+  ContextImpl::ExtensionList GetExtensions() const override;
+  int GetMaxVertexAttribs() const override;
+  int GetMaxFragmentTextureUnits() const override;
+  int GetMaxCombinedTextureImageUnits() const override;
+  int GetMaxTextureSize() const override;
+  int GetMaxRenderbufferSize() const override;
+  int GetMaxFragmentUniformVectors() const override;
+  int GetMaxVertexTextureImageUnits() const override { return 0; }
 
-  nb::scoped_ptr<ProgramImpl> CreateProgram() SB_OVERRIDE;
+  nb::scoped_ptr<ProgramImpl> CreateProgram() override;
 
-  nb::scoped_ptr<ShaderImpl> CreateVertexShader() SB_OVERRIDE;
-  nb::scoped_ptr<ShaderImpl> CreateFragmentShader() SB_OVERRIDE;
+  nb::scoped_ptr<ShaderImpl> CreateVertexShader() override;
+  nb::scoped_ptr<ShaderImpl> CreateFragmentShader() override;
 
-  nb::scoped_ptr<BufferImpl> CreateBuffer() SB_OVERRIDE;
+  nb::scoped_ptr<BufferImpl> CreateBuffer() override;
 
-  nb::scoped_ptr<TextureImpl> CreateTexture() SB_OVERRIDE;
+  nb::scoped_ptr<TextureImpl> CreateTexture() override;
 
-  void Flush() SB_OVERRIDE;
-  void Finish() SB_OVERRIDE;
+  void Flush() override;
+  void Finish() override;
 
   void Clear(bool clear_color,
              bool clear_depth,
              bool clear_stencil,
              const DrawState& draw_state,
-             DrawStateDirtyFlags* dirty_flags) SB_OVERRIDE;
+             DrawStateDirtyFlags* dirty_flags) override;
 
   void DrawArrays(DrawMode mode,
                   int first_vertex,
                   int num_vertices,
                   const DrawState& draw_state,
-                  DrawStateDirtyFlags* dirty_flags) SB_OVERRIDE;
+                  DrawStateDirtyFlags* dirty_flags) override;
 
   void DrawElements(DrawMode mode,
                     int num_vertices,
                     IndexDataType index_data_type,
                     intptr_t index_offset_in_bytes,
                     const DrawState& draw_state,
-                    DrawStateDirtyFlags* dirty_flags) SB_OVERRIDE;
+                    DrawStateDirtyFlags* dirty_flags) override;
 
-  void SwapBuffers(egl::Surface* surface) SB_OVERRIDE;
+  void SwapBuffers(egl::Surface* surface) override;
 
  private:
 };

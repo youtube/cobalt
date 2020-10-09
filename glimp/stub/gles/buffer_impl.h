@@ -26,13 +26,13 @@ namespace gles {
 class BufferImplStub : public BufferImpl {
  public:
   BufferImplStub();
-  ~BufferImplStub() SB_OVERRIDE {}
+  ~BufferImplStub() override {}
 
-  bool Allocate(Usage usage, size_t size) SB_OVERRIDE;
-  bool SetData(intptr_t offset, size_t size, const void* data) SB_OVERRIDE;
+  bool Allocate(Usage usage, size_t size) override;
+  bool SetData(intptr_t offset, size_t size, const void* data) override;
 
-  void* Map() SB_OVERRIDE;
-  bool Unmap() SB_OVERRIDE;
+  void* Map() override;
+  bool Unmap() override;
 
  private:
 };
