@@ -20,7 +20,7 @@
 #ifndef STARBOARD_COMMON_SOCKET_H_
 #define STARBOARD_COMMON_SOCKET_H_
 
-#include <iostream>
+#include <ostream>
 
 #include "starboard/socket.h"
 #include "starboard/types.h"
