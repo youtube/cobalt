@@ -277,8 +277,13 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   VideoFrameProvider* video_frame_provider_;
 
+  // Read audio from the stream if |timestamp_of_last_written_audio_| is less
+  // than |seek_time_| + |kAudioPrerollLimit|, this effectively allows 10
+  // seconds of audio to be written to the SbPlayer after playback startup or
+  // seek.
+  static const SbTime kAudioPrerollLimit = 10 * kSbTimeSecond;
   // Don't read audio from the stream more than |kAudioLimit| ahead of the
-  // current media time.
+  // current media time during playing.
   static const SbTime kAudioLimit = kSbTimeSecond;
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
@@ -1117,22 +1122,28 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
         kMediaTimeCheckInterval) {
       GetMediaTime();
     }
-    // The estimated time ahead of playback may be negative if no audio has been
-    // written.
-    SbTime time_ahead_of_playback =
-        timestamp_of_last_written_audio_ - last_media_time_;
-    // Delay reading audio more than |kAudioLimit| ahead of playback, taking
-    // into account that our estimate of playback time might be behind by
+
+    // Delay reading audio more than |kAudioLimit| ahead of playback after the
+    // player has received enough audio for preroll, taking into account that
+    // our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
-    if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
-      SbTime delay_time = (time_ahead_of_playback - kAudioLimit) /
-                          std::max(playback_rate_, 1.0f);
-      task_runner_->PostDelayedTask(
-          FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
-          base::TimeDelta::FromMicroseconds(delay_time));
-      audio_read_delayed_ = true;
-      return;
+    if (timestamp_of_last_written_audio_ - seek_time_.ToSbTime() >
+        kAudioPrerollLimit) {
+      // The estimated time ahead of playback may be negative if no audio has
+      // been written.
+      SbTime time_ahead_of_playback =
+          timestamp_of_last_written_audio_ - last_media_time_;
+      if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
+        SbTime delay_time = (time_ahead_of_playback - kAudioLimit) /
+                            std::max(playback_rate_, 1.0f);
+        task_runner_->PostDelayedTask(
+            FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
+            base::TimeDelta::FromMicroseconds(delay_time));
+        audio_read_delayed_ = true;
+        return;
+      }
     }
+
     audio_read_delayed_ = false;
 #endif  // SB_API_VERSION >= 11
     audio_read_in_progress_ = true;
