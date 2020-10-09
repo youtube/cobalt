@@ -70,6 +70,7 @@ repos:
         language: python
         types: [file, text]
         stages: [push]
+        exclude: ''  # Currently broken
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: third_party/precommit-hooks/custom_hooks/warn_that_starboard_interface_changed.py
