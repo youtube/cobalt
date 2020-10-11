@@ -114,7 +114,15 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
         # XMLHttpRequest: send() - Redirects (basics) (307).
         # Disabled because of: Flaky.
-        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_htm'
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_htm',
+
+        # Disabled because of: Flaky on buildbot across multiple buildconfigs.
+        # Non-reproducible with local runs.
+        ('xhr/WebPlatformTest.Run/'
+        'XMLHttpRequest_send_entity_body_get_head_async_htm'),
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_status_error_htm',
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_response_json_htm',
+        'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_to_non_cors_htm',
     ]
     return filters
 
