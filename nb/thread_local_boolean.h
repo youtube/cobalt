@@ -44,7 +44,8 @@ class ThreadLocalBoolean {
   ThreadLocalPointer<void> tlp_;
   const bool default_value_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalBoolean);
+  ThreadLocalBoolean(const ThreadLocalBoolean&) = delete;
+  void operator=(const ThreadLocalBoolean&) = delete;
 };
 
 }  // namespace nb.

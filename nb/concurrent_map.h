@@ -299,7 +299,8 @@ class ConcurrentMap {
     typename InnerMap::iterator iterator_;
     bool iterator_valid_;
 
-    SB_DISALLOW_COPY_AND_ASSIGN(EntryHandle);
+    EntryHandle(const EntryHandle&) = delete;
+    void operator=(const EntryHandle&) = delete;
   };
 
   class ConstEntryHandle {
@@ -349,7 +350,8 @@ class ConcurrentMap {
     typename InnerMap::const_iterator iterator_;
     bool iterator_valid_;
 
-    SB_DISALLOW_COPY_AND_ASSIGN(ConstEntryHandle);
+    ConstEntryHandle(const ConstEntryHandle&) = delete;
+    void operator=(const ConstEntryHandle&) = delete;
   };
 
   struct Bucket {

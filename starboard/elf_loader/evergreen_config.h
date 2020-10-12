@@ -48,7 +48,8 @@ struct EvergreenConfig {
   EvergreenConfig(const char* library_path,
                   const char* content_path,
                   const void* (*custom_get_extension_)(const char* name));
-  SB_DISALLOW_COPY_AND_ASSIGN(EvergreenConfig);
+  EvergreenConfig(const EvergreenConfig&) = delete;
+  void operator=(const EvergreenConfig&) = delete;
 };
 
 }  // namespace elf_loader

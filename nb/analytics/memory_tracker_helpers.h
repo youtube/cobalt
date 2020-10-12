@@ -42,9 +42,7 @@ class NoReportAllocator {
  public:
   NoReportAllocator() {}
   NoReportAllocator(const NoReportAllocator&) {}
-  static void* Allocate(size_t n) {
-    return SbMemoryAllocateNoReport(n);
-  }
+  static void* Allocate(size_t n) { return SbMemoryAllocateNoReport(n); }
   // Second argument can be used for accounting, but is otherwise optional.
   static void Deallocate(void* ptr, size_t /* not used*/) {
     SbMemoryDeallocateNoReport(ptr);
@@ -73,7 +71,8 @@ class AllocationGroup {
   starboard::atomic_int64_t allocation_bytes_;
   starboard::atomic_int32_t num_allocations_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroup);
+  AllocationGroup(const AllocationGroup&) = delete;
+  void operator=(const AllocationGroup&) = delete;
 };
 
 // A self locking data structure that maps strings -> AllocationGroups. This is
@@ -96,14 +95,16 @@ class AtomicStringAllocationGroupMap {
       std::string,
       AllocationGroup*,
       std::less<std::string>,
-      nb::StdAllocator<
-          std::pair<const std::string, AllocationGroup*>,
-          NoReportAllocator> > Map;
+      nb::StdAllocator<std::pair<const std::string, AllocationGroup*>,
+                       NoReportAllocator> >
+      Map;
   Map group_map_;
   AllocationGroup* unaccounted_group_;
   mutable starboard::Mutex mutex_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(AtomicStringAllocationGroupMap);
+  AtomicStringAllocationGroupMap(const AtomicStringAllocationGroupMap&) =
+      delete;
+  void operator=(const AtomicStringAllocationGroupMap&) = delete;
 };
 
 class AllocationGroupStack {
@@ -127,7 +128,9 @@ class AllocationGroupStack {
   const AllocationGroupPtrVec& data() const { return alloc_group_stack_; }
 
  private:
-  SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroupStack);
+  AllocationGroupStack(const AllocationGroupStack&) = delete;
+  void operator=(const AllocationGroupStack&) = delete;
+
   AllocationGroupPtrVec alloc_group_stack_, debug_stack_;
 };
 
@@ -161,14 +164,15 @@ class AtomicAllocationMap {
       const void*,
       AllocationRecord,
       std::less<const void*>,  // required, when specifying allocator.
-      nb::StdAllocator<
-          std::pair<const void* const, AllocationRecord>,
-          NoReportAllocator> > PointerMap;
+      nb::StdAllocator<std::pair<const void* const, AllocationRecord>,
+                       NoReportAllocator> >
+      PointerMap;
 
   PointerMap pointer_map_;
   mutable starboard::Mutex mutex_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(AtomicAllocationMap);
+  AtomicAllocationMap(const AtomicAllocationMap&) = delete;
+  void operator=(const AtomicAllocationMap&) = delete;
 };
 
 // A per-pointer map of allocations to AllocRecords. This is a hybrid data
@@ -203,7 +207,9 @@ class ConcurrentAllocationMap {
   const AtomicAllocationMap& GetMapForPointer(const void* ptr) const;
 
  private:
-  SB_DISALLOW_COPY_AND_ASSIGN(ConcurrentAllocationMap);
+  ConcurrentAllocationMap(const ConcurrentAllocationMap&) = delete;
+  void operator=(const ConcurrentAllocationMap&) = delete;
+
   // Takes a pointer and generates a hash.
   static uint32_t hash_ptr(const void* ptr);
 

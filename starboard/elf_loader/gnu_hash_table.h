@@ -57,7 +57,8 @@ class GnuHashTable {
   const uint32_t* buckets_;
   const uint32_t* chain_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(GnuHashTable);
+  GnuHashTable(const GnuHashTable&) = delete;
+  void operator=(const GnuHashTable&) = delete;
 };
 
 }  // namespace elf_loader

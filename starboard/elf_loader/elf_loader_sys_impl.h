@@ -32,7 +32,8 @@ class ElfLoaderImpl {
  private:
   void* handle_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ElfLoaderImpl);
+  ElfLoaderImpl(const ElfLoaderImpl&) = delete;
+  void operator=(const ElfLoaderImpl&) = delete;
 };
 
 }  // namespace elf_loader

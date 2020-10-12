@@ -36,7 +36,9 @@ class ElfHeader {
 
  private:
   scoped_ptr<Ehdr> elf_header_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ElfHeader);
+
+  ElfHeader(const ElfHeader&) = delete;
+  void operator=(const ElfHeader&) = delete;
 };
 
 }  // namespace elf_loader

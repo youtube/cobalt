@@ -52,7 +52,8 @@ class Semaphore {
   ConditionVariable condition_;
   int permits_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(Semaphore);
+  Semaphore(const Semaphore&) = delete;
+  void operator=(const Semaphore&) = delete;
 };
 
 }  // namespace starboard.

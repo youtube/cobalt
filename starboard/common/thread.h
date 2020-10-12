@@ -77,7 +77,8 @@ class Thread {
   struct Data;
   scoped_ptr<Data> d_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(Thread);
+  Thread(const Thread&) = delete;
+  void operator=(const Thread&) = delete;
 };
 
 }  // namespace starboard

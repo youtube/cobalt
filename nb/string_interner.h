@@ -65,13 +65,15 @@ class StringInterner {
   mutable starboard::Mutex mutex_;
   mutable std::string scratch_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(StringInterner);
+  StringInterner(const StringInterner&) = delete;
+  void operator=(const StringInterner&) = delete;
 };
 
 class ConcurrentStringInterner {
  public:
   explicit ConcurrentStringInterner(size_t table_size = 32);
-  ~ConcurrentStringInterner();  // All outstanding const std::string* are invalidated.
+  ~ConcurrentStringInterner();  // All outstanding const std::string* are
+                                // invalidated.
 
   // Returns an equivalent string to the input. If the input is missing from
   // the data store then a copy-by-value is made.
@@ -90,7 +92,8 @@ class ConcurrentStringInterner {
   const StringInterner& GetBucket(const char* string, size_t n) const;
   std::vector<StringInterner*> string_interner_table_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ConcurrentStringInterner);
+  ConcurrentStringInterner(const ConcurrentStringInterner&) = delete;
+  void operator=(const ConcurrentStringInterner&) = delete;
 };
 
 }  // namespace nb

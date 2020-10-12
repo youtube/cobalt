@@ -86,7 +86,8 @@ class InterleavedSincResampler {
     scoped_array<float> data_;
     int frames_ = 0;
 
-    SB_DISALLOW_COPY_AND_ASSIGN(Buffer);
+    Buffer(const Buffer&) = delete;
+    void operator=(const Buffer&) = delete;
   };
 
   // The kernel size can be adjusted for quality (higher is better) at the
@@ -164,7 +165,8 @@ class InterleavedSincResampler {
   float* r4_;
   float* r5_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(InterleavedSincResampler);
+  InterleavedSincResampler(const InterleavedSincResampler&) = delete;
+  void operator=(const InterleavedSincResampler&) = delete;
 };
 
 }  // namespace filter

@@ -93,7 +93,8 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   std::vector<SbDrmSubSampleMapping> subsamples_;
   std::vector<uint8_t> flattened_data_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(InputBuffer);
+  InputBuffer(const InputBuffer&) = delete;
+  void operator=(const InputBuffer&) = delete;
 };
 
 }  // namespace player

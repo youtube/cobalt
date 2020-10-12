@@ -46,7 +46,8 @@ class ElfLoaderImpl {
   scoped_ptr<ExportedSymbols> exported_symbols_;
   scoped_ptr<Relocations> relocations_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ElfLoaderImpl);
+  ElfLoaderImpl(const ElfLoaderImpl&) = delete;
+  void operator=(const ElfLoaderImpl&) = delete;
 };
 
 }  // namespace elf_loader

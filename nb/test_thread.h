@@ -35,14 +35,11 @@ class TestThread {
   void Start() {
     SbThreadEntryPoint entry_point = ThreadEntryPoint;
 
-    thread_ = SbThreadCreate(
-        0,                     // default stack_size.
-        kSbThreadNoPriority,   // default priority.
-        kSbThreadNoAffinity,   // default affinity.
-        true,                  // joinable.
-        "TestThread",
-        entry_point,
-        this);
+    thread_ = SbThreadCreate(0,                    // default stack_size.
+                             kSbThreadNoPriority,  // default priority.
+                             kSbThreadNoAffinity,  // default affinity.
+                             true,                 // joinable.
+                             "TestThread", entry_point, this);
 
     if (kSbThreadInvalid == thread_) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Invalid thread.";
@@ -65,7 +62,8 @@ class TestThread {
 
   SbThread thread_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(TestThread);
+  TestThread(const TestThread&) = delete;
+  void operator=(const TestThread&) = delete;
 };
 
 }  // namespace nb.

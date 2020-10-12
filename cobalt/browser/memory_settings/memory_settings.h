@@ -107,7 +107,8 @@ class MemorySetting {
  private:
   // Default constructor for MemorySetting is forbidden. Do not use it.
   MemorySetting();
-  SB_DISALLOW_COPY_AND_ASSIGN(MemorySetting);
+  MemorySetting(const MemorySetting&) = delete;
+  void operator=(const MemorySetting&) = delete;
 };
 
 // A memory setting for integer values.
@@ -135,7 +136,8 @@ class IntSetting : public MemorySetting {
  private:
   int64_t value_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(IntSetting);
+  IntSetting(const IntSetting&) = delete;
+  void operator=(const IntSetting&) = delete;
 };
 
 // A memory setting for dimensions type values like "2048x4096x2" where
@@ -166,7 +168,8 @@ class DimensionSetting : public MemorySetting {
  private:
   TextureDimensions value_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DimensionSetting);
+  DimensionSetting(const DimensionSetting&) = delete;
+  void operator=(const DimensionSetting&) = delete;
 };
 
 class SkiaGlyphAtlasTextureSetting : public DimensionSetting {

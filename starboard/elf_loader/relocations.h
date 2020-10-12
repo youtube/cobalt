@@ -84,7 +84,8 @@ class Relocations {
 
   ExportedSymbols* exported_symbols_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(Relocations);
+  Relocations(const Relocations&) = delete;
+  void operator=(const Relocations&) = delete;
 };
 
 }  // namespace elf_loader

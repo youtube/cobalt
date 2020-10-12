@@ -49,7 +49,8 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  private:
   SbTime timestamp_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
+  VideoFrame(const VideoFrame&) = delete;
+  void operator=(const VideoFrame&) = delete;
 };
 
 }  // namespace filter
