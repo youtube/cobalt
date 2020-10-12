@@ -48,7 +48,8 @@ class RecursiveMutex {
   // Only the owner is able to modify recurse_count_.
   size_t recurse_count_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(RecursiveMutex);
+  RecursiveMutex(const RecursiveMutex&) = delete;
+  void operator=(const RecursiveMutex&) = delete;
 };
 
 class ScopedRecursiveLock {
@@ -58,7 +59,9 @@ class ScopedRecursiveLock {
 
  private:
   RecursiveMutex& mutex_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ScopedRecursiveLock);
+
+  ScopedRecursiveLock(const ScopedRecursiveLock&) = delete;
+  void operator=(const ScopedRecursiveLock&) = delete;
 };
 
 }  // namespace starboard

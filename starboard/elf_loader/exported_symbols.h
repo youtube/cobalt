@@ -41,7 +41,8 @@ class ExportedSymbols {
  private:
   std::map<std::string, const void*> map_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ExportedSymbols);
+  ExportedSymbols(const ExportedSymbols&) = delete;
+  void operator=(const ExportedSymbols&) = delete;
 };
 
 }  // namespace elf_loader

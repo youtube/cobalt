@@ -90,7 +90,8 @@ class ProgramTable {
   // from the ELF file are offsets from this address.
   Addr base_memory_address_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ProgramTable);
+  ProgramTable(const ProgramTable&) = delete;
+  void operator=(const ProgramTable&) = delete;
 };
 
 }  // namespace elf_loader

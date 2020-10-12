@@ -218,7 +218,8 @@ class AudioTimeStretcher {
   int initial_capacity_;
   int max_capacity_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(AudioTimeStretcher);
+  AudioTimeStretcher(const AudioTimeStretcher&) = delete;
+  void operator=(const AudioTimeStretcher&) = delete;
 };
 
 }  // namespace filter

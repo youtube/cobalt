@@ -54,7 +54,8 @@ class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  private:
   StubPlayerComponentsFactory() {}
 
-  SB_DISALLOW_COPY_AND_ASSIGN(StubPlayerComponentsFactory);
+  StubPlayerComponentsFactory(const StubPlayerComponentsFactory&) = delete;
+  void operator=(const StubPlayerComponentsFactory&) = delete;
 };
 
 }  // namespace filter

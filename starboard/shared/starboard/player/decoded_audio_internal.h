@@ -73,7 +73,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   scoped_array<uint8_t> buffer_;
   size_t size_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DecodedAudio);
+  DecodedAudio(const DecodedAudio&) = delete;
+  void operator=(const DecodedAudio&) = delete;
 };
 
 }  // namespace player

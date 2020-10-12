@@ -32,8 +32,11 @@ class AllocationVisitor;
 class AllocationGroup;
 
 struct MemoryStats {
-  MemoryStats() : total_cpu_memory(0), used_cpu_memory(0),
-                  total_gpu_memory(0), used_gpu_memory(0) {}
+  MemoryStats()
+      : total_cpu_memory(0),
+        used_cpu_memory(0),
+        total_gpu_memory(0),
+        used_gpu_memory(0) {}
   int64_t total_cpu_memory;
   int64_t used_cpu_memory;
   int64_t total_gpu_memory;
@@ -143,7 +146,8 @@ class MemoryTracker {
  protected:
   virtual ~MemoryTracker() {}
 
-  SB_DISALLOW_COPY_AND_ASSIGN(MemoryTracker);
+  MemoryTracker(const MemoryTracker&) = delete;
+  void operator=(const MemoryTracker&) = delete;
 };
 
 // A visitor class which is useful for inspecting data.

@@ -56,7 +56,8 @@ class DispmanxDisplay {
  private:
   DISPMANX_DISPLAY_HANDLE_T handle_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DispmanxDisplay);
+  DispmanxDisplay(const DispmanxDisplay&) = delete;
+  void operator=(const DispmanxDisplay&) = delete;
 };
 
 class DispmanxResource {
@@ -90,7 +91,8 @@ class DispmanxResource {
   uint32_t visible_width_;
   uint32_t visible_height_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DispmanxResource);
+  DispmanxResource(const DispmanxResource&) = delete;
+  void operator=(const DispmanxResource&) = delete;
 };
 
 class DispmanxYUV420Resource : public DispmanxResource {
@@ -140,7 +142,8 @@ class DispmanxElement {
  private:
   DISPMANX_ELEMENT_HANDLE_T handle_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DispmanxElement);
+  DispmanxElement(const DispmanxElement&) = delete;
+  void operator=(const DispmanxElement&) = delete;
 };
 
 class DispmanxVideoFrame
@@ -183,7 +186,8 @@ class DispmanxVideoRenderer {
   // console does not show through.
   DispmanxRGB565Resource black_frame_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DispmanxVideoRenderer);
+  DispmanxVideoRenderer(const DispmanxVideoRenderer&) = delete;
+  void operator=(const DispmanxVideoRenderer&) = delete;
 };
 
 }  // namespace shared

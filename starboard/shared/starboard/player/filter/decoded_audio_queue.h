@@ -97,7 +97,8 @@ class DecodedAudioQueue {
   // Number of frames available to be read in the buffer.
   int frames_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DecodedAudioQueue);
+  DecodedAudioQueue(const DecodedAudioQueue&) = delete;
+  void operator=(const DecodedAudioQueue&) = delete;
 };
 
 }  // namespace filter

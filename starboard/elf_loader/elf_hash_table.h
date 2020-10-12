@@ -53,7 +53,8 @@ class ElfHashTable {
   const Word* hash_chain_;
   size_t hash_chain_size_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ElfHashTable);
+  ElfHashTable(const ElfHashTable&) = delete;
+  void operator=(const ElfHashTable&) = delete;
 };
 
 }  // namespace elf_loader

@@ -66,7 +66,8 @@ class ElfLoader {
   // The single ELF Loader instance.
   static ElfLoader* g_instance;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ElfLoader);
+  ElfLoader(const ElfLoader&) = delete;
+  void operator=(const ElfLoader&) = delete;
 };
 
 }  // namespace elf_loader

@@ -77,6 +77,10 @@
 // Deprecated the SB_OVERRIDE macro.
 #define SB_OVERRIDE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated the SB_DISALLOW_COPY_AND_ASSIGN macro.
+#define SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -146,11 +150,16 @@ struct CompileAssert {};
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
 
+#if SB_API_VERSION < SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;         \
   void operator=(const TypeName&) = delete
+#else
+#define SB_DISALLOW_COPY_AND_ASSIGN \
+  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
+#endif  // SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION < SB_API_VERSION
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when

@@ -35,7 +35,8 @@ class FileImpl : public File {
  private:
   SbFile file_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(FileImpl);
+  FileImpl(const FileImpl&) = delete;
+  void operator=(const FileImpl&) = delete;
 };
 
 }  // namespace elf_loader

@@ -53,11 +53,6 @@ will trigger a compiler warning when referenced.
 SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for external
 clients, but not deprecated for starboard.
 
-### SB_DISALLOW_COPY_AND_ASSIGN(TypeName) ###
-
-A macro to disallow the copy constructor and operator= functions This should be
-used in the private: declarations for a class
-
 ### SB_EXPERIMENTAL_API_VERSION ###
 
 The API version that is currently open for changes, and therefore is not stable
