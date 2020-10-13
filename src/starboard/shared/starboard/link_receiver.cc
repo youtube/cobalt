@@ -34,36 +34,6 @@ namespace shared {
 namespace starboard {
 
 namespace {
-// Returns an address that means bind to any interface on the given |port|. When
-// |port| is zero, it means the system should choose the port.
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port) {
-  SbSocketAddress address = {0};
-  address.type = address_type;
-  address.port = port;
-  return address;
-}
-
-// Returns an address that means bind to the loopback interface on the given
-// |port|. When |port| is zero, it means the system should choose the port.
-SbSocketAddress GetLocalhostAddress(SbSocketAddressType address_type,
-                                    int port) {
-  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
-  switch (address_type) {
-    case kSbSocketAddressTypeIpv4: {
-      address.address[0] = 127;
-      address.address[3] = 1;
-      return address;
-    }
-    case kSbSocketAddressTypeIpv6: {
-      address.address[15] = 1;
-      return address;
-    }
-  }
-  SB_LOG(ERROR) << __FUNCTION__ << ": unknown address type: " << address_type;
-  return address;
-}
-
 // Creates a socket that is appropriate for binding and listening, but is not
 // bound and hasn't started listening yet.
 scoped_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
@@ -91,7 +61,12 @@ scoped_ptr<Socket> CreateLocallyBoundSocket(SbSocketAddressType address_type,
     return scoped_ptr<Socket>().Pass();
   }
 
-  SbSocketAddress address = GetLocalhostAddress(address_type, port);
+  SbSocketAddress address = {};
+  bool success = GetLocalhostAddress(address_type, port, &address);
+  if (!success) {
+    SB_LOG(ERROR) << "GetLocalhostAddress failed";
+    return scoped_ptr<Socket>().Pass();
+  }
   SbSocketError result = socket->Bind(&address);
   if (result != kSbSocketOk) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "

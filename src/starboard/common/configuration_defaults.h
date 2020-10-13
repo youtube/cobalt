@@ -26,6 +26,8 @@ bool CobaltRenderDirtyRegionOnlyDefault();
 
 const char* CobaltFallbackSplashScreenUrlDefault();
 
+const char* CobaltFallbackSplashScreenTopicsDefault();
+
 bool CobaltEnableQuicDefault();
 
 int CobaltSkiaCacheSizeInBytesDefault();

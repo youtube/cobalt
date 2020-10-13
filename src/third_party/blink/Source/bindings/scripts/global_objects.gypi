@@ -50,7 +50,7 @@
       '<(output_file)',
     ],
     'action': [
-      'python',
+      'python2',
       '<(bindings_scripts_dir)/compute_global_objects.py',
       '--idl-files-list',
       '<(idl_files_list)',

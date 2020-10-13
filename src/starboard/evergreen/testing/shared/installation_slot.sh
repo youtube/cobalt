@@ -14,6 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Searches the provided log file for the current installation slot.
+#
+# Globals:
+#   LOG_PATH
+#   TAIL
+#
+# Args:
+#   Path to a log file.
+#
+# Returns:
+#   The current installation slot number, otherwise "".
 function get_current_installation_slot() {
   if [[ $# -ne 1 ]]; then
     error " get_current_installation_slot only accepts a single argument"

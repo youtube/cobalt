@@ -74,6 +74,9 @@
 // Iteration on UI navigation API.
 #define SB_UI_NAVIGATION2_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated the SB_OVERRIDE macro.
+#define SB_OVERRIDE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -232,6 +235,7 @@ struct CompileAssert {};
 
 // Declares a function as overriding a virtual function on compilers that
 // support it.
+#if SB_API_VERSION < SB_OVERRIDE_DEPRECATED_VERSION
 #if !defined(SB_OVERRIDE)
 #if defined(COMPILER_MSVC)
 #define SB_OVERRIDE override
@@ -241,6 +245,10 @@ struct CompileAssert {};
 #define SB_OVERRIDE
 #endif
 #endif  // SB_OVERRIDE
+#else
+#define SB_OVERRIDE \
+  #error "The SB_OVERRIDE macro is deprecated. Please use \"override\" instead."
+#endif  // SB_API_VERSION < SB_OVERRIDE_DEPRECATED_VERSION
 
 // Declare numeric literals of signed 64-bit type.
 #if !defined(SB_INT64_C)
@@ -914,14 +922,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
-        // >= 5
+// >= 5
 
 #if SB_API_VERSION < 12 && SB_API_VERSION >= 8
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION < 12 &&
-        // SB_API_VERSION >= 8
+#endif  // SB_API_VERSION < 12 && SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."

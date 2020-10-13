@@ -148,7 +148,7 @@
           'outputs': [
             '<(output_path)',
           ],
-          'action': ['python', '<(script_path)', 'V8cEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'action': ['python2', '<(script_path)', 'V8cEmbeddedResources', '<(output_path)', '<@(_sources)' ],
           'message': 'Embedding v8c resources in into header file, "<(output_path)".',
         },
       ],
@@ -186,7 +186,7 @@
           'outputs': [
             '<(dummy_output_path)',
           ],
-          'action': ['python', '<(touch_script_path)', '<(touch_file_path)', '<(dummy_output_path)',
+          'action': ['python2', '<(touch_script_path)', '<(touch_file_path)', '<(dummy_output_path)',
           ],
           'message': 'Updating V8 snapshot creation time.',
         },

@@ -357,7 +357,7 @@
                 '<(INTERMEDIATE_DIR)/util/mach/<(RULE_INPUT_ROOT)Server.h',
               ],
               'action': [
-                'python',
+                'python2',
                 '<@(_inputs)',
                 '<(RULE_INPUT_PATH)',
                 '<@(_outputs)',

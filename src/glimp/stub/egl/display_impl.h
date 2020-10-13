@@ -32,25 +32,25 @@ class DisplayImplStub : public DisplayImpl {
   DisplayImplStub();
   ~DisplayImplStub();
 
-  DisplayImpl::VersionInfo GetVersionInfo() SB_OVERRIDE;
+  DisplayImpl::VersionInfo GetVersionInfo() override;
 
-  const ConfigSet& GetSupportedConfigs() const SB_OVERRIDE {
+  const ConfigSet& GetSupportedConfigs() const override {
     return supported_configs_;
   }
 
-  nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(const Config* config,
-                                                  EGLNativeWindowType win,
-                                                  const AttribMap& attributes)
-      SB_OVERRIDE;
+  nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
+      const Config* config,
+      EGLNativeWindowType win,
+      const AttribMap& attributes) override;
 
-  nb::scoped_ptr<SurfaceImpl> CreatePbufferSurface(const Config* config,
-                                                   const AttribMap& attributes)
-      SB_OVERRIDE;
+  nb::scoped_ptr<SurfaceImpl> CreatePbufferSurface(
+      const Config* config,
+      const AttribMap& attributes) override;
 
   nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
-                                                  int gles_version) SB_OVERRIDE;
+                                                  int gles_version) override;
 
-  bool SetSwapInterval(int interval) SB_OVERRIDE { return true; }
+  bool SetSwapInterval(int interval) override { return true; }
 
  private:
   void InitializeSupportedConfigs();

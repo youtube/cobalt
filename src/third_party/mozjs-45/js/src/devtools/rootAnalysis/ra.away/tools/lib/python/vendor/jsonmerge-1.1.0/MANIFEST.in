@@ -1,3 +1,0 @@
-include README.rst
-include ChangeLog
-recursive-include tests *.py

@@ -44,7 +44,7 @@
       '<(output_file)',
     ],
     'action': [
-      'python',
+      'python2',
       '<(bindings_scripts_dir)/compute_interfaces_info_overall.py',
       '--',
       '<@(input_files)',

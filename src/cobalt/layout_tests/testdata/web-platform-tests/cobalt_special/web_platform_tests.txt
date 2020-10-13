@@ -2,3 +2,4 @@
 
 origin-clean.htm,PASS
 preflight-cache-2.htm,PASS
+xhr_content_length.htm,PASS

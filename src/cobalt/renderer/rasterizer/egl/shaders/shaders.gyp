@@ -75,7 +75,7 @@
             '<(shader_impl_source)',
           ],
           'action': [
-            'python',
+            'python2',
             '<(generate_class_script)',
             '<(shader_impl_header)',
             '<(shader_impl_source)',

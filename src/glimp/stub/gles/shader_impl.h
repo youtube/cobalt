@@ -36,9 +36,9 @@ class ShaderImplStub : public ShaderImpl {
   };
 
   explicit ShaderImplStub(Type type);
-  ~ShaderImplStub() SB_OVERRIDE {}
+  ~ShaderImplStub() override {}
 
-  ShaderImpl::CompileResults Compile(const std::string& source) SB_OVERRIDE;
+  ShaderImpl::CompileResults Compile(const std::string& source) override;
 
  private:
   Type type_;

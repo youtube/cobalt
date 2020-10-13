@@ -82,6 +82,22 @@ class Extensions(object):
       ret += f.replace(os.sep, '/') + ' '
     return ret.strip()
 
+  def basename(self):
+    """Basename of list of files"""
+    parser = ExtensionCommandParser([])
+    parser.add_argument('input_list', nargs='*')
+    args = parser.parse_args(self.argv)
+    ret = [os.path.basename(x) for x in args.input_list]
+    return ' '.join(ret)
+
+  def replace_in_list(self):
+    """String replace in a list of arguments"""
+    parser = ExtensionCommandParser(['old', 'new'])
+    parser.add_argument('input_list', nargs='*')
+    args = parser.parse_args(self.argv)
+    inp = args.input_list
+    return ' '.join([x.replace(args.old, args.new) for x in inp])
+
   def file_glob_sub(self):
     """Glob files, but return filenames with string replace from->to applied."""
     args = ExtensionCommandParser(
@@ -139,7 +155,7 @@ class Extensions(object):
         return prog.replace(os.sep, '/')
       previous_dir = root_dir
       root_dir = os.path.dirname(root_dir)
-    logging.error('Failed to find program.')
+    logging.error('Failed to find program "{}".'.format(args.program))
     return None
 
   def getenv(self):

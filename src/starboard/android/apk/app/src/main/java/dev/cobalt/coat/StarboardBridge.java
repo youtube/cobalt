@@ -19,6 +19,7 @@ import static android.media.AudioManager.GET_DEVICES_INPUTS;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -74,6 +75,7 @@ public class StarboardBridge {
 
   private final Context appContext;
   private final Holder<Activity> activityHolder;
+  private final Holder<Service> serviceHolder;
   private final String[] args;
   private final String startDeepLink;
   private final Runnable stopRequester =
@@ -92,6 +94,7 @@ public class StarboardBridge {
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
+      Holder<Service> serviceHolder,
       UserAuthorizer userAuthorizer,
       String[] args,
       String startDeepLink) {
@@ -102,6 +105,7 @@ public class StarboardBridge {
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
+    this.serviceHolder = serviceHolder;
     this.args = args;
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
@@ -137,6 +141,36 @@ public class StarboardBridge {
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
+    }
+  }
+
+  protected void onServiceStart(Service service) {
+    serviceHolder.set(service);
+  }
+
+  protected void onServiceDestroy(Service service) {
+    if (serviceHolder.get() == service) {
+      serviceHolder.set(null);
+    }
+  }
+
+  protected void startMediaPlaybackService() {
+    Service service = serviceHolder.get();
+    if (service == null) {
+      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackSerivce.");
+      Intent intent = new Intent(appContext, MediaPlaybackService.class);
+      appContext.startService(intent);
+    } else {
+      Log.i(TAG, "Warm start - Restarting the serivce.");
+      ((MediaPlaybackService) service).startService();
+    }
+  }
+
+  protected void stopMediaPlaybackService() {
+    Service service = serviceHolder.get();
+    if (service != null) {
+      Log.i(TAG, "Stopping the Media playback serivce.");
+      ((MediaPlaybackService) service).stopService();
     }
   }
 

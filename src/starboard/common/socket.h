@@ -20,12 +20,22 @@
 #ifndef STARBOARD_COMMON_SOCKET_H_
 #define STARBOARD_COMMON_SOCKET_H_
 
-#include <iostream>
+#include <ostream>
 
 #include "starboard/socket.h"
 #include "starboard/types.h"
 
 namespace starboard {
+
+// Returns an IP unspecified address with the given port.
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port);
+
+// Gets an IP localhost address with the given port.
+// Returns true if it was successful.
+bool GetLocalhostAddress(SbSocketAddressType address_type,
+                         int port,
+                         SbSocketAddress* address);
 
 class Socket {
  public:

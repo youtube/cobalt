@@ -32,6 +32,7 @@ import sys
 import textwrap
 
 import _env  # pylint: disable=unused-import
+from starboard.tools import log_level
 from starboard.tools import paths
 import starboard.tools.environment as environment
 
@@ -151,11 +152,7 @@ def _CreateDerivedBuild(parent_build_path, parent_configuration_class_name,
 
 
 def main():
-  logging.basicConfig(
-      level=logging.INFO,
-      format=('[%(filename)s:%(lineno)s - %(asctime)s %(levelname)-8s] '
-              '%(message)s'),
-      datefmt='%m-%d %H:%M')
+  log_level.InitializeLoggingWithLevel(logging.INFO)
 
   parser = argparse.ArgumentParser(
       formatter_class=argparse.ArgumentDefaultsHelpFormatter,

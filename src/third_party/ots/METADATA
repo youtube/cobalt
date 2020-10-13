@@ -9,7 +9,7 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/external/ots"
+    value: "https://github.com/khaledhosny/ots.git"
   }
   version: "f7238234966c466c5e3d11ee822e9760be0c527a"
   last_upgrade_date {

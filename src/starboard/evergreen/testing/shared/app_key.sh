@@ -14,6 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Searches the provided log file for the path to the bad app key file.
+#
+# Globals:
+#   LOG_PATH
+#   TAIL
+#
+# Args:
+#   Path to a log file.
+#
+# Returns:
+#   Path to the bad app key file, otherwise "".
 function get_bad_app_key_file_path() {
   if [[ $# -ne 1 ]]; then
     error " get_bad_app_key_file_path only accepts a single argument"

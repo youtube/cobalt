@@ -243,6 +243,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
         DispatchStart();
+      } else if (state() == kStateConcealed) {
+        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -257,7 +259,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // Cobalt can't keep running without a window, even if the Activity
         // hasn't stopped yet. DispatchAndDelete() will inject events as needed
         // if we're not already paused.
-        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
         if (window_) {
           window_->native_window = NULL;
         }
@@ -322,21 +324,20 @@ void ApplicationAndroid::ProcessAndroidCommand() {
   if (native_window_) {
     switch (sync_state) {
       case AndroidCommand::kStart:
-        DispatchAndDelete(new Event(kSbEventTypeResume, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
         break;
       case AndroidCommand::kResume:
-        DispatchAndDelete(new Event(kSbEventTypeUnpause, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeFocus, NULL, NULL));
         break;
       case AndroidCommand::kPause:
-        DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeBlur, NULL, NULL));
         break;
       case AndroidCommand::kStop:
-        if (state() != kStateSuspended) {
-          // We usually suspend when losing the window above, but if the window
+        if (state() != kStateConcealed) {
+          // We usually conceal when losing the window above, but if the window
           // wasn't destroyed (e.g. when Daydream starts) then we still have to
-          // suspend when the Activity is stopped.
-          env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
-          DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+          // conceal when the Activity is stopped.
+          DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
         }
         break;
       default:
@@ -348,14 +349,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
                                             void* data) {
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
-  if (type == AndroidCommand::kNativeWindowDestroyed) {
-    // When this command is processed it will suspend Cobalt, so make the JNI
-    // call to StarboardBridge.beforeSuspend() early while still here on the
-    // Android main thread. This lets the MediaSession get released now without
-    // having to wait to bounce between threads.
-    JniEnvExt* env = JniEnvExt::Get();
-    env->CallStarboardVoidMethod("beforeSuspend", "()V");
-  }
   AndroidCommand cmd {type, data};
   ScopedLock lock(android_command_mutex_);
   write(android_command_writefd_, &cmd, sizeof(cmd));

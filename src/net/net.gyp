@@ -1823,7 +1823,7 @@
             '<(output_dir)/<(RULE_INPUT_ROOT)-inc.cc',
           ],
           'action': [
-            'python',
+            'python2',
             '<(script_path)',
             '<(data_dir)/<(RULE_INPUT_ROOT).gperf',
             '<(output_dir)/<(RULE_INPUT_ROOT)-inc.cc',

@@ -1,2 +1,0 @@
-poster
-tests

@@ -2046,7 +2046,7 @@
         ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(grd_files)',
           '--relative_path_dirs',
@@ -2072,7 +2072,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<(output_file)',
           '<@(input_files)',
@@ -2093,7 +2093,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(input_files)',
           '<(output_file)',
@@ -2114,7 +2114,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(input_files)',
           '<(output_file)',
@@ -2138,7 +2138,7 @@
         'inputs': [ '<(script_path)', '<@(input_files)' ],
         'outputs': [ '<(output_file)' ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(input_files)',
           '--output_js_dir',
@@ -2185,7 +2185,7 @@
           '<@(generated_worker_bundles)',
         ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '<@(devtools_applications)',
           '--input_path',
@@ -2218,7 +2218,7 @@
           '<@(copied_devtools_modules)',
         ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '--rsp',
           '<(rsp_file)',
@@ -2248,7 +2248,7 @@
           '<(stamp_file)',
         ],
         'action': [
-          'python',
+          'python2',
           '<(script_path)',
           '--input_path',
           '<(input_path)',

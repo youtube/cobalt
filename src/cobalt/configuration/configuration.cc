@@ -155,6 +155,13 @@ const char* Configuration::CobaltFallbackSplashScreenUrl() {
 #endif
 }
 
+const char* Configuration::CobaltFallbackSplashScreenTopics() {
+  if (configuration_api_ && configuration_api_->version >= 2) {
+    return configuration_api_->CobaltFallbackSplashScreenTopics();
+  }
+  return "";
+}
+
 bool Configuration::CobaltEnableQuic() {
   if (configuration_api_) {
 #if defined(COBALT_ENABLE_QUIC)

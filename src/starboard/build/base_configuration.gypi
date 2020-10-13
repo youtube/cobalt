@@ -266,10 +266,6 @@
     'cflags_cc_host': [ '<@(compiler_flags_cc_host)', ],
     'ldflags_host': [ '<@(linker_flags_host)' ],
 
-    # Location of Cygwin which is used by the build system when running on a
-    # Windows platform.
-    'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-
     # Allows any source file to include files relative to the source tree.
     'include_dirs': [ '<(DEPTH)' ],
     'libraries': [ '<@(platform_libraries)' ],

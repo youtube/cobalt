@@ -32,12 +32,14 @@ SSH into another machine and run the binary on that machine.
     Cobalt on Linux:
 
     ```
-    $ sudo apt install -qqy --no-install-recommends pkgconf ninja-build bison \
-        yasm binutils clang libgles2-mesa-dev mesa-common-dev libpulse-dev \
-        libavresample-dev libasound2-dev libxrender-dev libxcomposite-dev
+    $ sudo apt install -qqy --no-install-recommends pkgconf ninja-build \
+        bison yasm binutils clang libgles2-mesa-dev mesa-common-dev \
+        libpulse-dev libavresample-dev libasound2-dev libxrender-dev \
+        libxcomposite-dev
     ```
 
 1.  Install Node.js via `nvm`:
+
     ```
     $ export NVM_DIR=~/.nvm
     $ export NODE_VERSION=12.17.0

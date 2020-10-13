@@ -33,6 +33,8 @@ from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
 # pylint: disable=g-import-not-at-top,g-bad-import-order
 import jinja2
+from starboard.tools import command_line
+from starboard.tools import log_level
 from starboard.tools import port_symlink
 import starboard.tools.platform
 
@@ -237,8 +239,8 @@ def MakeZipArchive(src, output_zip):
 
 
 def main(command_args):
-  logging.basicConfig(level=logging.INFO)
   parser = argparse.ArgumentParser()
+  command_line.AddLoggingArguments(parser, default='warning')
   dest_group = parser.add_mutually_exclusive_group(required=True)
   dest_group.add_argument(
       '-d',
@@ -256,12 +258,12 @@ def main(command_args):
       action='store_true',
       help='List to stdout the application resources relative to the current '
       'directory.')
-  parser.add_argument(
-      '-v', '--verbose', action='store_true', help='Verbose logging output.')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Enables verbose logging. For more control over the '
+                      "logging level use '--log_level' instead.")
   args = parser.parse_args(command_args)
 
-  if not args.verbose:
-    logging.disable(logging.INFO)
+  log_level.InitializeLogging(args)
 
   if args.destination_root:
     CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)

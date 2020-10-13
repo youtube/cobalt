@@ -110,8 +110,8 @@ override two functions:
 ``` c++
 class MyApplication : public shared::starboard::QueueApplication {
   // [ ... ]
-  bool IsStartImmediate() SB_OVERRIDE;
-  bool IsPreloadImmediate() SB_OVERRIDE;
+  bool IsStartImmediate() override;
+  bool IsPreloadImmediate() override;
   // [ ... ]
 }
 ```
@@ -132,6 +132,6 @@ complete before starting Cobalt.
 To support the `--preload` command-line argument:
 
 ``` c++
-  bool IsStartImmediate() SB_OVERRIDE { return !HasPreloadSwitch(); }
-  bool IsPreloadImmediate() SB_OVERRIDE { return HasPreloadSwitch(); }
+  bool IsStartImmediate() override { return !HasPreloadSwitch(); }
+  bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 ```

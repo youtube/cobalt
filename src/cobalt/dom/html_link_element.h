@@ -67,13 +67,14 @@ class HTMLLinkElement : public HTMLElement {
 
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 
- private:
+ protected:
   ~HTMLLinkElement() override {}
 
+ private:
   void ResolveAndSetAbsoluteURL();
 
   // From the spec: HTMLLinkElement.
-  void Obtain();
+  virtual void Obtain();
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);

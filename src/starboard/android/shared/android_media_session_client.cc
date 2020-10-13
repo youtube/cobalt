@@ -24,6 +24,7 @@
 namespace starboard {
 namespace android {
 namespace shared {
+namespace {
 
 using ::starboard::android::shared::JniEnvExt;
 using ::starboard::android::shared::ScopedLocalJavaRef;
@@ -146,9 +147,9 @@ SbMutex mutex;
 // In practice, only one MediaSessionClient will become active at a time.
 // Protected by "mutex"
 CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
-    update_platform_playback_state_callback;
-CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback;
-void* callback_context;
+    g_update_platform_playback_state_callback;
+CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback;
+void* g_callback_context;
 
 void OnceInit() {
   SbMutexCreate(&mutex);
@@ -158,7 +159,7 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
   SbOnce(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
-  if (invoke_action_callback != NULL && callback_context != NULL) {
+  if (g_invoke_action_callback != NULL && g_callback_context != NULL) {
     CobaltExtensionMediaSessionActionDetails details = {};
     CobaltExtensionMediaSessionActionDetailsInit(
         &details, PlaybackStateActionToMediaSessionAction(action));
@@ -166,11 +167,13 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
     if (details.action == kCobaltExtensionMediaSessionActionSeekto) {
       details.seek_time = seek_ms / 1000.0;
     }
-    invoke_action_callback(details, callback_context);
+    g_invoke_action_callback(details, g_callback_context);
   }
 
   SbMutexRelease(&mutex);
 }
+
+}  // namespace
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
   SbOnce(&once_flag, OnceInit);
@@ -179,10 +182,10 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
   CobaltExtensionMediaSessionPlaybackState media_session_state =
       PlaybackStateToCobaltExtensionPlaybackState(state);
 
-  if (update_platform_playback_state_callback != NULL &&
-      callback_context != NULL) {
-    update_platform_playback_state_callback(media_session_state,
-                                            callback_context);
+  if (g_update_platform_playback_state_callback != NULL &&
+      g_callback_context != NULL) {
+    g_update_platform_playback_state_callback(media_session_state,
+                                              g_callback_context);
   }
 
   SbMutexRelease(&mutex);
@@ -194,18 +197,14 @@ void OnMediaSessionStateChanged(
 
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
-  void* media_session_client = session_state.callback_context;
 
   SbOnce(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
-  if (playback_state != kNone) {
-    callback_context = media_session_client;
-    update_platform_playback_state_callback =
-        session_state.update_platform_playback_state_callback;
-    invoke_action_callback = session_state.invoke_action_callback;
-  } else if (callback_context == media_session_client) {
-    callback_context = NULL;
+
+  if (playback_state == kNone && g_callback_context != NULL) {
+    g_callback_context = NULL;
   }
+
   SbMutexRelease(&mutex);
 
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
@@ -277,8 +276,25 @@ void OnMediaSessionStateChanged(
       j_artist.Get(), j_album.Get(), j_artwork.Get(), durationInMilliseconds);
 }
 
+void RegisterMediaSessionCallbacks(
+    void* callback_context,
+    CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
+    CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
+        update_platform_playback_state_callback) {
+  SbOnce(&once_flag, OnceInit);
+  SbMutexAcquire(&mutex);
+
+  g_callback_context = callback_context;
+  g_invoke_action_callback = invoke_action_callback;
+  g_update_platform_playback_state_callback =
+      update_platform_playback_state_callback;
+
+  SbMutexRelease(&mutex);
+}
+
 const CobaltExtensionMediaSessionApi kMediaSessionApi = {
-    kCobaltExtensionMediaSessionName, 1, &OnMediaSessionStateChanged};
+    kCobaltExtensionMediaSessionName, 1, &OnMediaSessionStateChanged,
+    &RegisterMediaSessionCallbacks, NULL};
 
 const void* GetMediaSessionApi() {
   return &kMediaSessionApi;

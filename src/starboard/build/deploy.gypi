@@ -82,7 +82,7 @@
         '<(target_deploy_stamp_file)',
       ],
       'action': [
-        'python',
+        'python2',
         '<(make_dirs)',
         '--clean',
         '--stamp=<(target_deploy_stamp_file)',

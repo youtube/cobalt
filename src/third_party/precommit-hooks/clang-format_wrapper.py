@@ -13,9 +13,9 @@ if __name__ == '__main__':
   if system == 'Linux':
     path_to_clang_format += ['linux64', 'clang-format']
   elif system == 'Darwin':
-    path_to_clang_format += ['win', 'clang-format.exe']
-  elif system == 'Windows':
     path_to_clang_format += ['mac', 'clang-format']
+  elif system == 'Windows':
+    path_to_clang_format += ['win', 'clang-format.exe']
   else:
     sys.exit(1)
 
