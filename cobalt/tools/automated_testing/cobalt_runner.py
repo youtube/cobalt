@@ -9,10 +9,10 @@ import logging
 import os
 import re
 import sys
+import thread
 import threading
 import time
 import traceback
-import thread
 
 import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import c_val_names
@@ -26,8 +26,7 @@ RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
 RE_WEBDRIVER_FAILED = re.compile(r'Could not start WebDriver server')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
-    (r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: '
-     r'ID=\S+')
+    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+'
 )
 # Pattern to match Cobalt log line for when a WebModule is has been loaded.
 RE_WEBMODULE_LOADED = re.compile(
@@ -246,12 +245,12 @@ class CobaltRunner(object):
     self.launcher_is_running = True
     try:
       self.WaitForStart()
-    except KeyboardInterrupt as keyboard_interrupt:
+    except KeyboardInterrupt:
       # potentially from thread.interrupt_main(). We will treat as
-      # a timeout regardless.
+      # a timeout regardless
 
       self.Exit(should_fail=True)
-      raise TimeoutException from keyboard_interrupt
+      raise TimeoutException
 
   def __exit__(self, exc_type, exc_value, exc_traceback):
     # The unittest module terminates with a SystemExit
@@ -287,8 +286,8 @@ class CobaltRunner(object):
       self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
     if self.runner_thread.isAlive():
       sys.stderr.write(
-          '***Runner thread still alive after sending graceful shutdown '
-          'command, try again by killing app***\n')
+          '***Runner thread still alive after sending graceful shutdown command, try again by killing app***\n'
+      )
       self.launcher.Kill()
     # Once the write end of the pipe has been closed by the launcher, the reader
     # thread will get EOF and exit.
@@ -329,7 +328,7 @@ class CobaltRunner(object):
       logging.info('Cobalt terminated.')
       if not self.failed and self.success_message:
         print('{}\n'.format(self.success_message))
-        logging.info('%s\n', self.success_message)
+        logging.info('{}\n'.format(self.success_message))
     # pylint: disable=broad-except
     except Exception as ex:
       sys.stderr.write('Exception running Cobalt ' + str(ex))
@@ -371,14 +370,15 @@ class CobaltRunner(object):
     """
     javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
     cval_string = self.ExecuteJavaScript(javascript_code)
-    if cval_string:
+    if cval_string is None:
+      return None
+    else:
       try:
         # Try to parse numbers and booleans.
         return json.loads(cval_string)
       except ValueError:
         # If we can't parse a value, return the cval string as-is.
         return cval_string
-    return None
 
   def GetCvalBatch(self, cval_name_list):
     """Retrieves a batch of cvals.
@@ -465,8 +465,6 @@ class CobaltRunner(object):
     Returns:
       Array of selected elements
     """
-    elements = None
-
     # The retry part below is a temporary workaround to handle command
     # failures during a short window of stale Cobalt WindowDriver
     # after navigation. We only introduced it because of limited time budget
