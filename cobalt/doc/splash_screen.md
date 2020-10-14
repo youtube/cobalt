@@ -49,15 +49,15 @@ The Cobalt splash screen is one of the following, in order of precedence:
      first time.
 
   3. **Build-time fallback splash screen:** If a web cached splash screen is
-     unavailable and command line parameters are not passed by the system, a
-     `gyp_configuration.gypi` fallback splash screen may be used. Porters should
-     set the gypi variable `fallback_splash_screen_url` to the splash screen
-     URL.
+     unavailable and command line parameters are not passed by the system,
+     a CobaltExtensionConfigurationApi fallback splash screen may be used.
+     Porters should set the `CobaltFallbackSplashScreenUrl` value in
+     `configuration.cc` to the splash screen URL.
 
-  4. **Default splash screen:** If no web cached splash screen is
-     available, and command line and `gyp_configuration.gypi` fallbacks are not
-     set, a default splash screen will be used. This is set in `base.gypi` via
-     `fallback_splash_screen_url%` to refer to a black splash screen.
+  4. **Default splash screen:** If no web cached splash screen is available, and
+     command line and CobaltExtensionConfigurationApi fallbacks are not set, a
+     default splash screen will be used. This is set in
+     `configuration_defaults.cc` to refer to a black splash screen.
 
 ## Web-updatability
 
@@ -85,6 +85,40 @@ data that it writes into that directory to persist across process instances.
 Cobalt will also need to read the cached splash screen from the cache directory
 when starting up.
 
+## Topic-specific splash screens
+
+It is possible to specify multiple splash screens for a given Cobalt-based
+application, using a start-up 'topic' to select between the available splash
+screens. This can be useful when an application has multiple entry points that
+require different splash screens. The topic may be specified in the start-up url
+or deeplink as a query parameter. For example,
+`https://www.example.com/path?topic=foo`. If a splash-screen has been specified
+for topic 'foo', it will be used. Otherwise, the topic is ignored. Topic values
+should be URL encoded and limited to alphanumeric characters, hyphens,
+underscores, and percent signs.
+
+There are three ways to specify topic-specific splash screens. These methods mirror
+the types of splash screens listed above, and unless specified, the rules here
+are the same as for non-topic-based splash screens.
+
+  1. **Web cached splash screen:** A custom `rel="<topic>_splashscreen"`
+     attribute on a link element is used to specify a topic-specific splash
+     screen. There can be any number of these elements with different topics, in
+     addition to the topic-neutral `rel="splashscreen"`.
+
+  2. **Command line fallback splash screen:** The command line argument
+     `--fallback_splash_screen_topics` can be used if the cache is unavailable.
+     The argument accepts a list of topic/file parameters. If a file is not a
+     valid URL path, then it will be used as a filename at the path specified by
+     `--fallback_splash_screen_url`. For example,
+     `foo_topic=file:///foo.html&bar=bar.html`.
+
+  3. **Build-time fallback splash screen:** If a web cached splash screen is
+     unavailable and command line parameters are not passed by the system, a
+     CobaltExtensionConfigurationApi fallback splash screen may be used. Porters
+     should set the `CobaltFallbackSplashScreenTopics` value in
+     `configuration.cc` and this value should look like the command line option.
+
 ## Application-specific splash screens
 
 On systems that plan to support multiple Cobalt-based applications, an
@@ -94,9 +128,8 @@ applications. The logic for passing in these different command line arguments to
 the Cobalt binary must be handled by the system.
 
 Alternatively, an application developer may use the default black splash screen
-specified in base.gypi whenever a cached splash screen is not available and rely
-on the web application to specify an application-specific cached splash screen
-otherwise.
+whenever a cached splash screen is not available and rely on the web application
+to specify an application-specific cached splash screen otherwise.
 
 ## Provided embedded resource splash screens
 For convenience, we currently provide the following splash screens as embedded
