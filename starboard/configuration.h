@@ -31,9 +31,6 @@
 #error "You must define STARBOARD in Starboard builds."
 #endif
 
-#define SB_TRUE 1
-#define SB_FALSE 0
-
 // --- Common Defines --------------------------------------------------------
 
 // The minimum API version allowed by this version of the Starboard headers,
@@ -81,6 +78,9 @@
 #define SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated SB_TRUE and SB_FALSE.
+#define SB_TRUE_FALSE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -92,6 +92,14 @@
 #endif
 
 // --- Common Helper Macros --------------------------------------------------
+
+#if SB_API_VERSION < SB_TRUE_FALSE_DEPRECATED_VERSION
+#define SB_TRUE 1
+#define SB_FALSE 0
+#else
+#define SB_TRUE #error "The macro SB_TRUE is deprecated."
+#define SB_FALSE #error "The macro SB_FALSE is deprecated."
+#endif
 
 // Determines a compile-time capability of the system.
 #define SB_CAN(SB_FEATURE) \
