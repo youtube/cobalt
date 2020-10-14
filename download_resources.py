@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,62 +13,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
+import logging
 import os
 import platform
+import stat
 import subprocess
 import sys
+try:
+  import urllib.request as urllib
+except ImportError:
+  import urllib2 as urllib
+
+import tools.download_from_gcs as download_from_gcs
 
 
-def _UseShell():
-  return platform.system() == 'Windows'
-
-
-def DownloadClangFormat():
-  platform_arg = '--platform={}'
+def DownloadClangFormat(force=False):
   clang_format_sha_path = os.path.join('buildtools', '{}', 'clang-format')
 
   system = platform.system()
   if system == 'Linux':
-    platform_arg = platform_arg.format('linux*')
-    clang_format_sha_path = clang_format_sha_path.format('linux64') + '.sha1'
+    clang_format_sha_path = clang_format_sha_path.format('linux64')
   elif system == 'Darwin':
-    platform_arg = platform_arg.format('darwin')
-    clang_format_sha_path = clang_format_sha_path.format('mac') + '.sha1'
+    clang_format_sha_path = clang_format_sha_path.format('mac')
   elif system == 'Windows':
-    platform_arg = platform_arg.format('win32')
-    clang_format_sha_path = clang_format_sha_path.format('win') + '.exe.sha1'
+    clang_format_sha_path = clang_format_sha_path.format('win') + '.exe'
   else:
+    logging.error('Unknown system: %s', system)
     return
 
-  clang_format_cmd = [
-      'download_from_google_storage', '--no_resume', '--no_auth', '--bucket',
-      'chromium-clang-format', platform_arg, '-s', clang_format_sha_path
-  ]
-  subprocess.call(clang_format_cmd, shell=_UseShell())
+  download_from_gcs.MaybeDownloadFileFromGcs('chromium-clang-format',
+                                             clang_format_sha_path + '.sha1',
+                                             clang_format_sha_path, force)
 
 
-def DownloadConformanceTests():
-  conformance_test_cmd = [
-      'download_from_google_storage', '--no_resume', '--no_auth', '--bucket',
-      'cobalt-static-storage', '--num_threads', '8', '-d',
-      'cobalt/demos/content/mse-eme-conformance-tests/media'
-  ]
-  subprocess.call(conformance_test_cmd, shell=_UseShell())
+def DownloadConformanceTests(force=False):
+  conformance_test_dir = 'cobalt/demos/content/mse-eme-conformance-tests/media'
+  download_from_gcs.MaybeDownloadDirectoryFromGcs('cobalt-static-storage',
+                                                  conformance_test_dir,
+                                                  conformance_test_dir, force)
 
 
 def DownloadGerritCommitMsgHook(force=False):
   git_commit_msg_hook_path = os.path.join('.git', 'hooks', 'commit-msg')
-  commit_msg_cmd = [
-      'curl', '-Lo', git_commit_msg_hook_path,
-      'https://gerrit-review.googlesource.com/tools/hooks/commit-msg'
-  ]
 
-  if force or not os.path.exists(git_commit_msg_hook_path):
-    subprocess.call(commit_msg_cmd)
-    try:
-      subprocess.call(['chmod', '+x', git_commit_msg_hook_path])
-    except WindowsError:
-      print('Downloading in CMD, commit-msg already executable.')
+  if not force and os.path.exists(git_commit_msg_hook_path):
+    logging.info('commit-msg hook found, skipping download.')
+    return
+
+  hook_url = 'https://gerrit-review.googlesource.com/tools/hooks/commit-msg'
+  res = urllib.urlopen(hook_url)
+  if not res:
+    logging.error('Could not fetch %s', hook_url)
+    return
+
+  with open(git_commit_msg_hook_path, 'wb') as fd:
+    fd.write(res.read())
+  download_from_gcs.AddExecutableBits(git_commit_msg_hook_path)
+  logging.info('Gerrit commit-msg hook installed.')
 
 
 if __name__ == "__main__":
