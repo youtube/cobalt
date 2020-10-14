@@ -637,7 +637,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 #endif  // ENABLE_DEBUGGER
 
   // Pass down this callback from to Web module.
-  options_.web_module_options.maybe_freeze_callback =
+  options.maybe_freeze_callback =
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
   web_module_.reset(new WebModule(
