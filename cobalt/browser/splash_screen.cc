@@ -98,7 +98,7 @@ SplashScreen::SplashScreen(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,
       base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
-      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      NULL /* can_play_type_handler */, NULL /* media_module */,
       network_module, window_dimensions, resource_provider, layout_refresh_rate,
       web_module_options));
 }

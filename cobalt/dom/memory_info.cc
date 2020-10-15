@@ -45,5 +45,30 @@ uint32 MemoryInfo::used_js_heap_size(
           .used_heap_size);
 }
 
+uint32 MemoryInfo::media_source_size_limit(
+    script::EnvironmentSettings* environment_settings) const {
+  DOMSettings* settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  return settings ? static_cast<uint32>(settings->media_source_size_limit())
+                  : 0u;
+}
+
+uint32 MemoryInfo::total_media_source_size(
+    script::EnvironmentSettings* environment_settings) const {
+  DOMSettings* settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  return settings ? static_cast<uint32>(settings->total_media_source_size())
+                  : 0u;
+}
+
+uint32 MemoryInfo::used_media_source_memory_size(
+    script::EnvironmentSettings* environment_settings) const {
+  DOMSettings* settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  return settings
+             ? static_cast<uint32>(settings->used_media_source_memory_size())
+             : 0u;
+}
+
 }  // namespace dom
 }  // namespace cobalt

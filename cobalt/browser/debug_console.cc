@@ -140,7 +140,7 @@ DebugConsole::DebugConsole(
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       WebModule::CloseCallback(), /* window_close_callback */
       base::Closure(),            /* window_minimize_callback */
-      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      NULL /* can_play_type_handler */, NULL /* media_module */,
       network_module, window_dimensions, resource_provider, layout_refresh_rate,
       web_module_options));
 }
