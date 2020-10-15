@@ -148,11 +148,11 @@
 // Whether the current platform supports on screen keyboard.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
 
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
 // Whether the current platform has speech recognizer.
 #define SB_HAS_SPEECH_RECOGNIZER 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
 
 // --- Media Configuration ---------------------------------------------------
 
@@ -198,9 +198,13 @@ SB_HAS_MMAP 1
 
 // --- User Configuration ----------------------------------------------------
 
-// --- Platform Specific Audits ----------------------------------------------
+// --- Platform Specific Configuration ---------------------------------------
 
 // Whether or not the platform supports socket connection reset.
 #define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
+
+// --- Platform Specific Audits ----------------------------------------------
+
+// --- Platform Specific Quirks ----------------------------------------------
 
 #endif  // STARBOARD_WIN_SHARED_CONFIGURATION_PUBLIC_H_

@@ -18,6 +18,8 @@
 #ifndef STARBOARD_LINUX_X64X11_BLITTERGLES_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_BLITTERGLES_SHARED_CONFIGURATION_PUBLIC_H_
 
+// --- Graphics Configuration ------------------------------------------------
+
 // This configuration supports the blitter API (implemented via GLES).
 #undef SB_HAS_BLITTER
 #define SB_HAS_BLITTER 1
