@@ -19,8 +19,8 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/test/mock_debugger_hooks.h"
@@ -51,10 +51,10 @@ class EventTargetTest : public ::testing::Test {
  protected:
   EventTargetTest()
       : environment_settings_(0, nullptr, nullptr, nullptr, nullptr, nullptr,
-                              nullptr, nullptr, debugger_hooks_, nullptr,
-                              DOMSettings::Options()) {
-        EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-      }
+                              nullptr, nullptr, nullptr, debugger_hooks_,
+                              nullptr, DOMSettings::Options()) {
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+  }
   ~EventTargetTest() override {
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
