@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_MEMORY_INFO_H_
 #define COBALT_DOM_MEMORY_INFO_H_
 
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
@@ -31,6 +32,12 @@ class MemoryInfo : public script::Wrappable {
   uint32 total_js_heap_size(
       script::EnvironmentSettings* environment_settings) const;
   uint32 used_js_heap_size(
+      script::EnvironmentSettings* environment_settings) const;
+  uint32 media_source_size_limit(
+      script::EnvironmentSettings* environment_settings) const;
+  uint32 total_media_source_size(
+      script::EnvironmentSettings* environment_settings) const;
+  uint32 used_media_source_memory_size(
       script::EnvironmentSettings* environment_settings) const;
 
   DEFINE_WRAPPABLE_TYPE(MemoryInfo);

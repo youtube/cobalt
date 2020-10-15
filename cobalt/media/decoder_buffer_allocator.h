@@ -21,15 +21,18 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_resolution.h"
+#include "cobalt/media/decoder_buffer_memory_info.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
+#include "starboard/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public DecoderBuffer::Allocator {
+class DecoderBufferAllocator : public DecoderBuffer::Allocator,
+                               public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() override;
@@ -38,6 +41,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
                        intptr_t context) override;
   void Free(Allocations allocations) override;
   void UpdateVideoConfig(const VideoDecoderConfig& video_config) override;
+  size_t GetAllocatedMemory() const override;
+  size_t GetCurrentMemoryCapacity() const override;
+  size_t GetMaximumMemoryCapacity() const override;
 
  private:
   class ReuseAllocator : public nb::BidirectionalFitReuseAllocator {
@@ -68,6 +74,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   int resolution_width_ = -1;
   int resolution_height_ = -1;
   int bits_per_pixel_ = -1;
+
+  // Monitor memory allocation and use when |using_memory_pool_| is false
+  starboard::atomic_int32_t sbmemory_bytes_used_;
 };
 
 }  // namespace media
