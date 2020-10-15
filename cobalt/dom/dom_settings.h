@@ -22,6 +22,7 @@
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
+#include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/speech/microphone.h"
 
@@ -58,6 +59,7 @@ class DOMSettings : public script::EnvironmentSettings {
               MediaSourceRegistry* media_source_registry,
               Blob::Registry* blob_registry,
               media::CanPlayTypeHandler* can_play_type_handler,
+              const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
               script::JavaScriptEngine* engine,
               script::GlobalEnvironment* global_environment_proxy,
               const base::DebuggerHooks& debugger_hooks,
@@ -90,6 +92,25 @@ class DOMSettings : public script::EnvironmentSettings {
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
+  std::size_t media_source_size_limit() const {
+    return decoder_buffer_memory_info_
+               ? decoder_buffer_memory_info_->GetMaximumMemoryCapacity()
+               : 0;
+  }
+  std::size_t total_media_source_size() const {
+    return decoder_buffer_memory_info_
+               ? decoder_buffer_memory_info_->GetCurrentMemoryCapacity()
+               : 0;
+  }
+  std::size_t used_media_source_memory_size() const {
+    return decoder_buffer_memory_info_
+               ? decoder_buffer_memory_info_->GetAllocatedMemory()
+               : 0;
+  }
+  void set_decoder_buffer_memory_info(
+      const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info) {
+    decoder_buffer_memory_info_ = decoder_buffer_memory_info;
+  }
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
@@ -114,6 +135,7 @@ class DOMSettings : public script::EnvironmentSettings {
   MediaSourceRegistry* media_source_registry_;
   Blob::Registry* blob_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
+  const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalEnvironment* global_environment_;
   const base::DebuggerHooks& debugger_hooks_;
