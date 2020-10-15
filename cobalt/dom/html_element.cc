@@ -1075,6 +1075,7 @@ void HTMLElement::MarkNotDisplayedOnNodeAndDescendants() {
     }
   }
 
+  ReleaseUiNavigationItem();
   MarkNotDisplayedOnDescendants();
 }
 
