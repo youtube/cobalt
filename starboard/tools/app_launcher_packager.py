@@ -24,6 +24,7 @@ import fnmatch
 import logging
 import os
 import shutil
+import string
 import sys
 import tempfile
 
@@ -32,7 +33,6 @@ from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
 # pylint: disable=g-import-not-at-top,g-bad-import-order
-import jinja2
 from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools import port_symlink
@@ -40,15 +40,12 @@ import starboard.tools.platform
 
 # Default python directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
-    ('buildbot', '*.py'),
+    ('buildbot', '_env.py'),  # Only needed for device_server to execute
+    ('buildbot', '__init__.py'),  # Only needed for device_server to execute
+    ('buildbot/device_server', '*.py'),
     ('buildbot/device_server/shared/ssl_certs', '*'),
     ('cobalt', '*.py'),
-    # TODO: Test and possibly prune.
-    ('lbshell', '*.py'),
     ('starboard', '*.py'),
-    # jinja2 required by this app_launcher_packager.py script.
-    ('third_party/jinja2', '*.py'),
-    ('third_party/markupsafe', '*.py'),  # Required by third_party/jinja2
 ]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
@@ -134,10 +131,11 @@ def _WritePlatformsInfo(repo_root, dest_root):
     # Store posix paths even on Windows so MH Linux hosts can use them.
     # The template has code to re-normalize them when used on Windows hosts.
     platforms_map[p] = platform_path.replace('\\', '/')
-  template = jinja2.Template(
+  template = string.Template(
       open(os.path.join(current_dir, 'platform.py.template')).read())
   with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
-    template.stream(platforms_map=platforms_map).dump(f, encoding='utf-8')
+    sub = template.substitute(platforms_map=platforms_map)
+    f.write(sub.encode('utf-8'))
   logging.info('Finished baking in platform info files.')
 
 
@@ -258,9 +256,12 @@ def main(command_args):
       action='store_true',
       help='List to stdout the application resources relative to the current '
       'directory.')
-  parser.add_argument('-v', '--verbose', action='store_true',
-                      help='Enables verbose logging. For more control over the '
-                      "logging level use '--log_level' instead.")
+  parser.add_argument(
+      '-v',
+      '--verbose',
+      action='store_true',
+      help='Enables verbose logging. For more control over the '
+      "logging level use '--log_level' instead.")
   args = parser.parse_args(command_args)
 
   log_level.InitializeLogging(args)
