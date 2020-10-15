@@ -199,6 +199,20 @@
 // --- Media Configuration ---------------------------------------------------
 
 #if SB_API_VERSION < 12
+// Allow ac3 and ec3 support
+#define SB_HAS_AC3_AUDIO 1
+#endif  // SB_API_VERSION < 12
+
+#if SB_API_VERSION < 12
+// Specifies whether this platform updates audio frames asynchronously.  In such
+// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
+// indicate the absolute time that the consumed audio frames are reported.
+// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
+// details.
+#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
+#endif  // SB_API_VERSION <  12
+
+#if SB_API_VERSION < 12
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
@@ -219,24 +233,10 @@
 #endif  // SB_API_VERSION < 12
 
 #if SB_API_VERSION < 12
-// Specifies whether this platform updates audio frames asynchronously.  In such
-// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
-// indicate the absolute time that the consumed audio frames are reported.
-// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
-// details.
-#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
-#endif  // SB_API_VERSION <  12
-
-#if SB_API_VERSION < 12
 // Specifies the stack size for threads created inside media stack.  Set to 0 to
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
-#endif  // SB_API_VERSION < 12
-
-#if SB_API_VERSION < 12
-// Allow ac3 and ec3 support
-#define SB_HAS_AC3_AUDIO 1
 #endif  // SB_API_VERSION < 12
 
 // --- Decoder-only Params ---
