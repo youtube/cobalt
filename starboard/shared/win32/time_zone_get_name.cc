@@ -17,6 +17,7 @@
 #include <string>
 #include <Windows.h>
 
+#include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
@@ -29,9 +30,20 @@ class TimeZoneString {
  private:
   TimeZoneString() {
     DYNAMIC_TIME_ZONE_INFORMATION time_zone_info;
-    GetDynamicTimeZoneInformation(&time_zone_info);
+    DWORD zone_id = GetDynamicTimeZoneInformation(&time_zone_info);
 
-    std::wstring wide_string = time_zone_info.TimeZoneKeyName;
+    std::wstring wide_string;
+    switch (zone_id) {
+      case TIME_ZONE_ID_UNKNOWN:
+      case TIME_ZONE_ID_STANDARD:
+        wide_string = time_zone_info.StandardName;
+        break;
+      case TIME_ZONE_ID_DAYLIGHT:
+        wide_string = time_zone_info.DaylightName;
+        break;
+      default:
+        SB_NOTREACHED();
+    }
     value_ = starboard::shared::win32::wchar_tToUTF8(wide_string.c_str());
   }
   std::string value_;

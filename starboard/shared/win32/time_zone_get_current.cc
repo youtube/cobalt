@@ -26,9 +26,9 @@ SbTimeZone SbTimeZoneGetCurrent() {
   case TIME_ZONE_ID_UNKNOWN:
     return time_zone_info.Bias;
   case TIME_ZONE_ID_STANDARD:
-    return time_zone_info.StandardBias;
+    return time_zone_info.Bias + time_zone_info.StandardBias;
   case TIME_ZONE_ID_DAYLIGHT:
-    return time_zone_info.DaylightBias;
+    return time_zone_info.Bias + time_zone_info.DaylightBias;
   default:
     SB_NOTREACHED();
     return 0;
