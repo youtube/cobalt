@@ -77,8 +77,8 @@ void SpeechSandbox::StartRecognition(
     const dom::DOMSettings::Options& dom_settings_options) {
   std::unique_ptr<script::EnvironmentSettings> environment_settings(
       new dom::DOMSettings(kDOMMaxElementDepth, NULL, network_module_.get(),
-                           NULL, NULL, NULL, NULL, NULL, null_debugger_hooks_,
-                           NULL, dom_settings_options));
+                           NULL, NULL, NULL, NULL, NULL, NULL,
+                           null_debugger_hooks_, NULL, dom_settings_options));
   DCHECK(environment_settings);
 
   speech_recognition_ = new SpeechRecognition(environment_settings.get());
