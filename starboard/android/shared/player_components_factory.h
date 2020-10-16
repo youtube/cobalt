@@ -16,10 +16,16 @@
 #define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
 
 #include <string>
+#include <vector>
 
 #include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
@@ -38,6 +44,75 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+// Tunnel mode is disabled by default.  Set the following variable to true to
+// enable tunnel mode.
+constexpr bool kTunnelModeEnabled = false;
+
+// This class allows us to force int16 sample type when tunnel mode is enabled.
+class AudioRendererSinkTunneled : public ::starboard::shared::starboard::
+                                      player::filter::AudioRendererSinkImpl {
+ public:
+  explicit AudioRendererSinkTunneled(int tunnel_mode_audio_session_id)
+      : AudioRendererSinkImpl(
+            [=](SbTime start_media_time,
+                int channels,
+                int sampling_frequency_hz,
+                SbMediaAudioSampleType audio_sample_type,
+                SbMediaAudioFrameStorageType audio_frame_storage_type,
+                SbAudioSinkFrameBuffers frame_buffers,
+                int frame_buffers_size_in_frames,
+                SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+                SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+                SbAudioSinkPrivate::ErrorFunc error_func,
+                void* context) {
+              SB_DCHECK(tunnel_mode_audio_session_id != -1);
+
+              auto type = static_cast<AudioTrackAudioSinkType*>(
+                  SbAudioSinkPrivate::GetPreferredType());
+
+              return type->Create(
+                  channels, sampling_frequency_hz, audio_sample_type,
+                  audio_frame_storage_type, frame_buffers,
+                  frame_buffers_size_in_frames, update_source_status_func,
+                  consume_frames_func, error_func, start_media_time,
+                  tunnel_mode_audio_session_id, context);
+            }) {}
+
+ private:
+  bool IsAudioSampleTypeSupported(
+      SbMediaAudioSampleType audio_sample_type) const override {
+    // Currently the implementation only supports tunnel mode with int16 audio
+    // samples.
+    return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
+  }
+};
+
+class AudioRendererSinkCallbackStub
+    : public starboard::shared::starboard::player::filter::AudioRendererSink::
+          RenderCallback {
+ public:
+  bool error_occurred() const { return error_occurred_.load(); }
+
+ private:
+  void GetSourceStatus(int* frames_in_buffer,
+                       int* offset_in_frames,
+                       bool* is_playing,
+                       bool* is_eos_reached) override {
+    *frames_in_buffer = *offset_in_frames = 0;
+    *is_playing = true;
+    *is_eos_reached = false;
+  }
+  void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override {
+    SB_DCHECK(frames_consumed == 0);
+  }
+
+  void OnError(bool capability_changed) override {
+    error_occurred_.store(true);
+  }
+
+  atomic_bool error_occurred_;
+};
 
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
@@ -80,6 +155,20 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
+    int tunnel_mode_audio_session_id = -1;
+
+    if (IsTunnelModeSupported(creation_parameters)) {
+      tunnel_mode_audio_session_id =
+          GenerateAudioSessionId(creation_parameters);
+    }
+
+    if (tunnel_mode_audio_session_id == -1) {
+      SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
+    } else {
+      SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
+                   << tunnel_mode_audio_session_id << '.';
+    }
+
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
@@ -108,7 +197,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_sample_info(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
-      audio_renderer_sink->reset(new AudioRendererSinkImpl);
+      if (tunnel_mode_audio_session_id != -1) {
+        *audio_renderer_sink = CreateTunnelModeAudioRendererSink(
+            tunnel_mode_audio_session_id, creation_parameters);
+        if (!*audio_renderer_sink) {
+          tunnel_mode_audio_session_id = -1;
+        }
+      }
+      if (!*audio_renderer_sink) {
+        audio_renderer_sink->reset(new AudioRendererSinkImpl());
+      }
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -122,10 +220,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           creation_parameters.output_mode(),
           creation_parameters.decode_target_graphics_context_provider(),
-          creation_parameters.max_video_capabilities(), error_message));
+          creation_parameters.max_video_capabilities(),
+          tunnel_mode_audio_session_id, error_message));
       if (video_decoder_impl->is_valid()) {
-        video_render_algorithm->reset(
-            new VideoRenderAlgorithm(video_decoder_impl.get()));
+        *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
       } else {
@@ -163,6 +261,117 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     *max_cached_frames =
         min_frames_required * 2 + kDefaultAudioSinkMinFramesPerAppend;
     *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
+  }
+
+  bool IsTunnelModeSupported(const CreationParameters& creation_parameters) {
+    if (!kTunnelModeEnabled) {
+      SB_LOG(INFO) << "Tunnel mode is disabled globally.";
+      return false;
+    }
+
+    if (!SbAudioSinkIsAudioSampleTypeSupported(
+            kSbMediaAudioSampleTypeInt16Deprecated)) {
+      SB_LOG(INFO) << "Disable tunnel mode because int16 sample is required "
+                      "but not supported.";
+      return false;
+    }
+
+    if (creation_parameters.output_mode() != kSbPlayerOutputModePunchOut) {
+      SB_LOG(INFO)
+          << "Disable tunnel mode because output mode is not punchout.";
+      return false;
+    }
+
+    if (creation_parameters.audio_codec() == kSbMediaAudioCodecNone) {
+      SB_LOG(INFO) << "Disable tunnel mode because audio codec is none.";
+      return false;
+    }
+
+    if (creation_parameters.video_codec() == kSbMediaVideoCodecNone) {
+      SB_LOG(INFO) << "Disable tunnel mode because video codec is none.";
+      return false;
+    }
+
+    const char* mime =
+        SupportedVideoCodecToMimeType(creation_parameters.video_codec());
+    if (!mime) {
+      SB_LOG(INFO) << "Disable tunnel mode because "
+                   << creation_parameters.video_codec() << " is not supported.";
+      return false;
+    }
+    JniEnvExt* env = JniEnvExt::Get();
+    ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
+    DrmSystem* drm_system_ptr =
+        static_cast<DrmSystem*>(creation_parameters.drm_system());
+    jobject j_media_crypto =
+        drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
+
+    if (env->CallStaticBooleanMethodOrAbort(
+            "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
+            "(Ljava/lang/String;Z)Z", j_mime.Get(),
+            !!j_media_crypto) == JNI_TRUE) {
+      return true;
+    }
+
+    SB_LOG(INFO) << "Disable tunnel mode because no tunneled decoder for "
+                 << mime << '.';
+    return false;
+  }
+
+  int GenerateAudioSessionId(const CreationParameters& creation_parameters) {
+    SB_DCHECK(IsTunnelModeSupported(creation_parameters));
+
+    JniEnvExt* env = JniEnvExt::Get();
+    ScopedLocalJavaRef<jobject> j_audio_output_manager(
+        env->CallStarboardObjectMethodOrAbort(
+            "getAudioOutputManager",
+            "()Ldev/cobalt/media/AudioOutputManager;"));
+    int tunnel_mode_audio_session_id = env->CallIntMethodOrAbort(
+        j_audio_output_manager.Get(), "generateTunnelModeAudioSessionId",
+        "(I)I", creation_parameters.audio_sample_info().number_of_channels);
+
+    // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
+    // failure, please see the following url for more details:
+    // https://developer.android.com/reference/android/media/AudioManager#generateAudioSessionId()
+    SB_LOG_IF(WARNING, tunnel_mode_audio_session_id == -1)
+        << "Failed to generate audio session id for tunnel mode.";
+
+    return tunnel_mode_audio_session_id;
+  }
+
+  scoped_ptr<AudioRendererSink> CreateTunnelModeAudioRendererSink(
+      int tunnel_mode_audio_session_id,
+      const CreationParameters& creation_parameters) {
+    scoped_ptr<AudioRendererSink> audio_sink(
+        new AudioRendererSinkTunneled(tunnel_mode_audio_session_id));
+    // We need to double check if the audio sink can actually be created.
+    int max_cached_frames, min_frames_per_append;
+    GetAudioRendererParams(creation_parameters, &max_cached_frames,
+                           &min_frames_per_append);
+    AudioRendererSinkCallbackStub callback_stub;
+    std::vector<uint16_t> frame_buffer(
+        max_cached_frames *
+        creation_parameters.audio_sample_info().number_of_channels);
+    uint16_t* frame_buffers[] = {frame_buffer.data()};
+    audio_sink->Start(
+        0, creation_parameters.audio_sample_info().number_of_channels,
+        creation_parameters.audio_sample_info().samples_per_second,
+        kSbMediaAudioSampleTypeInt16Deprecated,
+        kSbMediaAudioFrameStorageTypeInterleaved,
+        reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers),
+        max_cached_frames, &callback_stub);
+    if (audio_sink->HasStarted() && !callback_stub.error_occurred()) {
+      audio_sink->Stop();
+      return audio_sink.Pass();
+    }
+    SB_LOG(WARNING)
+        << "AudioTrack does not support tunnel mode with sample rate:"
+        << creation_parameters.audio_sample_info().samples_per_second
+        << ", channels:"
+        << creation_parameters.audio_sample_info().number_of_channels
+        << ", audio format:" << creation_parameters.audio_codec()
+        << ", and audio buffer frames:" << max_cached_frames;
+    return scoped_ptr<AudioRendererSink>();
   }
 };
 
