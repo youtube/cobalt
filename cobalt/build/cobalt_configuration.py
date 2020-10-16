@@ -40,7 +40,11 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   def GetVariables(self, config_name):
 
     # Use env var to optimize build speed on CI
-    use_fastbuild = '1' if os.environ.get('IS_CI', 0) else '0'
+    try:
+      # Force to int, so it's easy to pass in an override.
+      use_fastbuild = int(os.environ.get('IS_CI', 0))
+    except (ValueError, TypeError):
+      use_fastbuild = 0
 
     variables = {
         # This is used to omit large debuginfo in files on CI environment
