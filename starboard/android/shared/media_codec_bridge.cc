@@ -84,6 +84,19 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFrameRendered(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge,
+    jlong presentation_time_us,
+    jlong render_at_system_time_ns) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
     JniEnvExt* env,
     jobject unused_this,
@@ -181,6 +194,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
+    int tunnel_mode_audio_session_id,
     std::string* error_message) {
   SB_DCHECK(error_message);
 
@@ -232,11 +246,12 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "(JLjava/lang/String;ZZIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
+      "I"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       !!j_media_crypto, require_software_codec, width, height, j_surface,
-      j_media_crypto, j_color_info.Get(),
+      j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
       j_create_media_codec_bridge_result.Get());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
@@ -409,6 +424,10 @@ void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
 
 void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
   handler_->OnMediaCodecOutputFormatChanged();
+}
+
+void MediaCodecBridge::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
+  handler_->OnMediaCodecFrameRendered(frame_timestamp);
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
