@@ -21,8 +21,8 @@
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
                              int64_t bitrate) {
-  // TODO: Add Opus.
-  if (audio_codec != kSbMediaAudioCodecAac) {
+  if (audio_codec != kSbMediaAudioCodecAac &&
+      audio_codec != kSbMediaAudioCodecOpus) {
     return false;
   }
   return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;

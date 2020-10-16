@@ -17,6 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -52,10 +53,20 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
-        using AudioDecoderImpl = ::starboard::shared::win32::AudioDecoder;
+        using AacAudioDecoderImpl = ::starboard::shared::win32::AudioDecoder;
+        using OpusAudioDecoderImpl =
+            ::starboard::shared::opus::OpusAudioDecoder;
 
-        return scoped_ptr<AudioDecoder>(new AudioDecoderImpl(
-            audio_sample_info.codec, audio_sample_info, drm_system));
+        if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
+          return scoped_ptr<AudioDecoder>(new AacAudioDecoderImpl(
+              audio_sample_info.codec, audio_sample_info, drm_system));
+        } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+          return scoped_ptr<AudioDecoder>(
+              new OpusAudioDecoderImpl(audio_sample_info));
+        } else {
+          SB_NOTREACHED();
+        }
+        return scoped_ptr<AudioDecoder>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(

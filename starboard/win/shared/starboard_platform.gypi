@@ -106,6 +106,8 @@
     ],
     'win32_shared_media_player_files': [
       '<@(filter_based_player_sources)',
+      '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.h',
+      '<(DEPTH)/starboard/shared/opus/opus_audio_decoder.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_buffer_budget.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_single_audio_output.cc',
@@ -214,6 +216,7 @@
       'variables': {
         'starboard_platform_dependencies%': [
           '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+          '<(DEPTH)/third_party/opus/opus.gyp:opus',
         ],
       },
       'sources': [
