@@ -241,6 +241,15 @@ typedef struct SbUiNavInterface {
   //
   // Essentially, content items should be drawn at:
   //   [container position] + [content position] - [container content offset]
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  //
+  // Content items may overlap within a container. This can cause obscured items
+  // to be unfocusable. The only rule that needs to be followed is that contents
+  // which are focus items can obscure other contents which are containers, but
+  // not vice versa. The caller must ensure that content focus items do not
+  // overlap other content focus items and content container items do not
+  // overlap other content container items.
+#endif
   void (*set_item_container_item)(SbUiNavItem item, SbUiNavItem container);
 
   // Set the current content offset for the given container. This may be used
