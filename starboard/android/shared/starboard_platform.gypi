@@ -134,6 +134,7 @@
         'media_is_audio_supported.cc',
         'media_is_video_supported.cc',
         'microphone_impl.cc',
+        'player_components_factory.h',
         'player_create.cc',
         'player_destroy.cc',
         'player_get_preferred_output_mode.cc',

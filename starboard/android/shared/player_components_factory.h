@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
+#define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
+
+#include <string>
+
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_render_algorithm.h"
@@ -31,29 +36,46 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
+namespace android {
 namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
 
-namespace {
+class PlayerComponentsFactory : public starboard::shared::starboard::player::
+                                    filter::PlayerComponents::Factory {
+  typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
+  typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
+      AdaptiveAudioDecoder;
+  typedef starboard::shared::starboard::player::filter::AudioDecoder
+      AudioDecoderBase;
+  typedef starboard::shared::starboard::player::filter::AudioRendererSink
+      AudioRendererSink;
+  typedef starboard::shared::starboard::player::filter::AudioRendererSinkImpl
+      AudioRendererSinkImpl;
+  typedef starboard::shared::starboard::player::filter::VideoDecoder
+      VideoDecoderBase;
+  typedef starboard::shared::starboard::player::filter::VideoRenderAlgorithm
+      VideoRenderAlgorithmBase;
+  typedef starboard::shared::starboard::player::filter::VideoRendererSink
+      VideoRendererSink;
 
-const int kAudioSinkFramesAlignment = 256;
-const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-const int kDefaultAudioSinkMaxCachedFrames =
-    8 * kDefaultAudioSinkMinFramesPerAppend;
+  const int kAudioSinkFramesAlignment = 256;
+  const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  const int kDefaultAudioSinkMaxCachedFrames =
+      8 * kDefaultAudioSinkMinFramesPerAppend;
 
-int AlignUp(int value, int alignment) {
-  return (value + alignment - 1) / alignment * alignment;
-}
+  virtual SbDrmSystem GetExtendedDrmSystem(SbDrmSystem drm_system) {
+    return drm_system;
+  }
 
-class PlayerComponentsFactory : public PlayerComponents::Factory {
+  static int AlignUp(int value, int alignment) {
+    return (value + alignment - 1) / alignment * alignment;
+  }
+
   bool CreateSubComponents(
       const CreationParameters& creation_parameters,
-      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioDecoderBase>* audio_decoder,
       scoped_ptr<AudioRendererSink>* audio_renderer_sink,
-      scoped_ptr<VideoDecoder>* video_decoder,
-      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_ptr<VideoDecoderBase>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithmBase>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
@@ -65,27 +87,27 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
         if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-          scoped_ptr<android::shared::AudioDecoder> audio_decoder_impl(
-              new android::shared::AudioDecoder(audio_sample_info.codec,
-                                                audio_sample_info, drm_system));
+          scoped_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
+              audio_sample_info.codec, audio_sample_info, drm_system));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoder>();
+            return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
         } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<opus::OpusAudioDecoder> audio_decoder_impl(
-              new opus::OpusAudioDecoder(audio_sample_info));
+          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+              new OpusAudioDecoder(audio_sample_info));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoder>();
+            return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
         } else {
           SB_NOTREACHED();
         }
-        return scoped_ptr<AudioDecoder>();
+        return scoped_ptr<AudioDecoderBase>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
           creation_parameters.audio_sample_info(),
-          creation_parameters.drm_system(), decoder_creator));
+          GetExtendedDrmSystem(creation_parameters.drm_system()),
+          decoder_creator));
       audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }
 
@@ -95,16 +117,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
 
-      scoped_ptr<android::shared::VideoDecoder> video_decoder_impl(
-          new android::shared::VideoDecoder(
-              creation_parameters.video_codec(),
-              creation_parameters.drm_system(),
-              creation_parameters.output_mode(),
-              creation_parameters.decode_target_graphics_context_provider(),
-              creation_parameters.max_video_capabilities(), error_message));
+      scoped_ptr<VideoDecoder> video_decoder_impl(new VideoDecoder(
+          creation_parameters.video_codec(),
+          GetExtendedDrmSystem(creation_parameters.drm_system()),
+          creation_parameters.output_mode(),
+          creation_parameters.decode_target_graphics_context_provider(),
+          creation_parameters.max_video_capabilities(), error_message));
       if (video_decoder_impl->is_valid()) {
-        video_render_algorithm->reset(new android::shared::VideoRenderAlgorithm(
-            video_decoder_impl.get()));
+        video_render_algorithm->reset(
+            new VideoRenderAlgorithm(video_decoder_impl.get()));
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
       } else {
@@ -145,31 +166,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   }
 };
 
-}  // namespace
-
-// static
-scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return make_scoped_ptr<PlayerComponents::Factory>(
-      new PlayerComponentsFactory);
-}
-
-// static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
-  if (output_mode == kSbPlayerOutputModePunchOut) {
-    return true;
-  }
-
-  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    return !SbDrmSystemIsValid(drm_system);
-  }
-
-  return false;
-}
-
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
 }  // namespace shared
+}  // namespace android
 }  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
