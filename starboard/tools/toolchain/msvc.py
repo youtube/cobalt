@@ -50,17 +50,17 @@ class CompilerBase(object):
     return 'msvc'
 
   def GetRspFilePath(self):
-    return '$out.rsp'
+    return None
 
   def GetRspFileContent(self):
-    return self._command_flags
+    return None
 
   def GetCommand(self, path, extra_flags, flags, shell):
     del extra_flags  # Not used.
     del shell  # Not used.
     self._command_flags = flags
-    return ('{path} /nologo /showIncludes /FC @$out.rsp /c $in /Fo$out '
-            '/Fd$pdbname'.format(path=path))
+    return ('{path} /nologo /showIncludes {flags} /c $in /Fo$out'.format(
+        path=path, flags=flags))
 
   def GetFlags(self, defines, include_dirs, cflags):
     defines = defines + self._gyp_defines
