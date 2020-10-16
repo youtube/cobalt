@@ -38,16 +38,17 @@
       'target_name': 'player_copy_test_data',
       'type': 'none',
       'variables': {
-        'content_test_input_files': ['<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/starboard/shared/starboard/player/testdata *.dmp.sha1 dmp.sha1 dmp)'],
+        'content_test_input_files': ['<!@(python <(DEPTH)/starboard/build/list_dmp_files.py "starboard/shared/starboard/player/testdata")'],
         'content_test_output_subdir': 'starboard/shared/starboard/player/testdata',
-        'download_from_google_storage_path': ['<!@pymod_do_main(starboard.build.gyp_functions find_program download_from_google_storage)'],
+        'depot_tools_path': ['<!@(python <(DEPTH)/build/find_depot_tools_escaped.py)'],
       },
       'actions' : [
         {
           # This action requires depot_tools to be in path
           # (https://cobalt.googlesource.com/depot_tools).
           'action_name': 'player_download_test_data',
-          'action': [ '<(download_from_google_storage_path)',
+          'action': [ 'python',
+                      '<(depot_tools_path)/download_from_google_storage.py',
                       '--no_resume',
                       '--no_auth',
                       '--num_threads', '8',
@@ -55,7 +56,7 @@
                       '-d', '<(DEPTH)/starboard/shared/starboard/player/testdata',
           ],
           'inputs': [],
-          'outputs': ['<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/starboard/shared/starboard/player/testdata *.dmp.sha1 dmp.sha1 dmp)'],
+          'outputs': ['<!@(python <(DEPTH)/starboard/build/list_dmp_files.py "starboard/shared/starboard/player/testdata")'],
         },
       ],
       'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],

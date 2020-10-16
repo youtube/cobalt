@@ -31,7 +31,7 @@
         'system_get_extensions.cc',
         'thread_types_public.h',
         # Include private stubs, if present.
-        '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private/shared/stub *.cc)',
+        '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

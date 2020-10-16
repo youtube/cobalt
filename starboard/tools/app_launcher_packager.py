@@ -273,7 +273,6 @@ def main(command_args):
     finally:
       shutil.rmtree(temp_dir)
   elif args.list:
-    src_files = []
     for src_file in _GetSourceFilesList(REPOSITORY_ROOT):
       # Skip paths with '$' since they won't get through the Ninja generator.
       if '$' in src_file:
@@ -282,15 +281,8 @@ def main(command_args):
       src_file = os.path.relpath(src_file)
       # Forward slashes for gyp, even on Windows.
       src_file = src_file.replace('\\', '/')
-      src_files.append(src_file)
-    out = ' '.join(src_files)
-    return out.strip()
+      print src_file
   return 0
-
-
-def DoMain(argv):
-  """Script main function."""
-  return main(argv)
 
 
 if __name__ == '__main__':

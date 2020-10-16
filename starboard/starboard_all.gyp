@@ -17,7 +17,7 @@
 
 {
   'variables': {
-    'has_platform_tests%': '<!pymod_do_main(starboard.build.gyp_functions file_exists \'<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp\')',
+    'has_platform_tests%' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
   },
   'conditions': [
     # If 'starboard_platform_tests' is not defined by the platform, then an
@@ -81,7 +81,7 @@
           ],
         }, {
           'dependencies': [
-            '<(DEPTH)/starboard/starboard_all.gyp:starboard_platform_tests',
+            'starboard_platform_tests',
           ],
         }],
         ['sb_filter_based_player==1', {

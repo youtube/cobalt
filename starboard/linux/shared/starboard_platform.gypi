@@ -17,7 +17,7 @@
   ],
   'variables': {
     'variables': {
-      'has_cdm%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h)',
+      'has_cdm%': '<!(test -e <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h && echo 1 || echo 0)',
       'has_system_libvpx%' : '<!(pkg-config vpx && echo 1 || echo 0)',
     },
     # This has_cdm gets exported to gyp files that include this one.
