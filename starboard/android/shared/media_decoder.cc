@@ -78,7 +78,8 @@ MediaDecoder::MediaDecoder(Host* host,
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      tunnel_mode_enabled_(false) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -107,16 +108,23 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbDrmSystem drm_system,
                            const SbMediaColorMetadata* color_metadata,
                            bool require_software_codec,
+                           const FrameRenderedCB& frame_rendered_cb,
+                           int tunnel_mode_audio_session_id,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
+      frame_rendered_cb_(frame_rendered_cb),
+      tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
+  SB_DCHECK(frame_rendered_cb_);
+
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, width, height, this, j_output_surface, j_media_crypto,
-      color_metadata, require_software_codec, error_message);
+      color_metadata, require_software_codec, tunnel_mode_audio_session_id,
+      error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
@@ -252,23 +260,35 @@ void MediaDecoder::DecoderThreadFunc() {
           pending_queue_input_buffer_task_ ||
           (!pending_tasks.empty() && !input_buffer_indices.empty());
       bool has_output = !dequeue_output_results.empty();
-      if (!has_input || !has_output) {
+      bool collect_pending_data = false;
+
+      if (tunnel_mode_enabled_) {
+        // We don't explicitly process output in tunnel mode.
+        collect_pending_data = !has_input;
+      } else {
+        collect_pending_data = !has_input || !has_output;
+      }
+
+      if (collect_pending_data) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
                                   &dequeue_output_results);
       }
 
-      if (!dequeue_output_results.empty()) {
-        auto& dequeue_output_result = dequeue_output_results.front();
-        if (dequeue_output_result.index < 0) {
-          host_->RefreshOutputFormat(media_codec_bridge_.get());
-        } else {
-          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                     dequeue_output_result);
+      if (!tunnel_mode_enabled_) {
+        // Output is only processed when tunnel mode is disabled.
+        if (!dequeue_output_results.empty()) {
+          auto& dequeue_output_result = dequeue_output_results.front();
+          if (dequeue_output_result.index < 0) {
+            host_->RefreshOutputFormat(media_codec_bridge_.get());
+          } else {
+            host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                       dequeue_output_result);
+          }
+          dequeue_output_results.erase(dequeue_output_results.begin());
         }
-        dequeue_output_results.erase(dequeue_output_results.begin());
+        host_->Tick(media_codec_bridge_.get());
       }
-      host_->Tick(media_codec_bridge_.get());
 
       bool can_process_input =
           pending_queue_input_buffer_task_ ||
@@ -277,7 +297,11 @@ void MediaDecoder::DecoderThreadFunc() {
         ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices);
       }
 
-      bool ticked = host_->Tick(media_codec_bridge_.get());
+      bool ticked = false;
+      if (!tunnel_mode_enabled_) {
+        // Output is only processed when tunnel mode is disabled.
+        ticked = host_->Tick(media_codec_bridge_.get());
+      }
 
       can_process_input =
           pending_queue_input_buffer_task_ ||
@@ -298,6 +322,7 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
+// TODO: Move this into dtor.
 void MediaDecoder::JoinOnThreads() {
   destroying_.store(true);
   condition_variable_.Signal();
@@ -432,6 +457,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_END_OF_STREAM);
+    host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
   if (status != MEDIA_CODEC_OK) {
@@ -559,6 +585,11 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   ScopedLock scoped_lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
   condition_variable_.Signal();
+}
+
+void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
+  SB_DCHECK(tunnel_mode_enabled_);
+  frame_rendered_cb_(frame_timestamp);
 }
 
 }  // namespace shared

@@ -44,6 +44,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
  public:
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef std::function<void(SbTime)> FrameRenderedCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -52,9 +53,10 @@ class MediaDecoder : private MediaCodecBridge::Handler {
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
+    virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
-    // Host a chance to process when the MediaDecoder is decoding video.
+    // Host a chance to process when the MediaDecoder is decoding.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
@@ -79,6 +81,8 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                SbDrmSystem drm_system,
                const SbMediaColorMetadata* color_metadata,
                bool require_software_codec,
+               const FrameRenderedCB& frame_rendered_cb,
+               int tunnel_mode_audio_session_id,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -152,16 +156,19 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
+  void OnMediaCodecFrameRendered(SbTime frame_timestamp) override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
   Host* host_;
+  DrmSystem* const drm_system_;
+  const FrameRenderedCB frame_rendered_cb_;
+  const bool tunnel_mode_enabled_;
+
   ErrorCB error_cb_;
 
   atomic_bool stream_ended_;
-
-  DrmSystem* drm_system_;
 
   atomic_bool destroying_;
 

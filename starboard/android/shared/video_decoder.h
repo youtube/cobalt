@@ -32,6 +32,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -40,12 +41,16 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+class VideoFrameTracker;
+
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
       private MediaDecoder::Host,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private VideoSurfaceHolder {
  public:
+  typedef ::starboard::shared::starboard::player::filter::VideoRenderAlgorithm
+      VideoRenderAlgorithm;
   typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
       VideoRendererSink;
 
@@ -61,10 +66,12 @@ class VideoDecoder
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
                const char* max_video_capabilities,
+               int tunnel_mode_audio_session_id,
                std::string* error_message);
   ~VideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
+  scoped_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
@@ -77,8 +84,8 @@ class VideoDecoder
   // buffer.
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      override;
+  void WriteInputBuffer(
+      const scoped_refptr<InputBuffer>& input_buffer) override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -97,9 +104,15 @@ class VideoDecoder
 
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
+  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
+
+  void TryToSignalPrerollForTunnelMode();
+  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
+  void OnTunnelModePrerollTimeout();
+  void OnTunnelModeCheckForNeedMoreInput();
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
@@ -121,6 +134,12 @@ class VideoDecoder
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
 
+  const int tunnel_mode_audio_session_id_ = -1;
+  scoped_ptr<VideoFrameTracker> video_frame_tracker_;
+  // Preroll in tunnel mode is handled in this class instead of in the renderer.
+  atomic_bool tunnel_mode_prerolling_{true};
+  atomic_bool tunnel_mode_frame_rendered_;
+
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
   SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
@@ -129,7 +148,7 @@ class VideoDecoder
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
-  starboard::Mutex decode_target_mutex_;
+  Mutex decode_target_mutex_;
 
   // The width and height of the latest decoded frame.
   int32_t frame_width_ = 0;
@@ -145,8 +164,9 @@ class VideoDecoder
   atomic_int32_t number_of_frames_being_decoded_;
   scoped_refptr<Sink> sink_;
 
-  bool first_buffer_received_ = false;
+  int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
+  bool end_of_stream_written_ = false;
   volatile SbTime first_buffer_timestamp_;
   atomic_bool has_new_texture_available_;
 
@@ -154,8 +174,8 @@ class VideoDecoder
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
   // do nothing if not own the surface.
   bool owns_video_surface_ = false;
-  starboard::Mutex surface_destroy_mutex_;
-  starboard::ConditionVariable surface_condition_variable_;
+  Mutex surface_destroy_mutex_;
+  ConditionVariable surface_condition_variable_;
 };
 
 }  // namespace shared
