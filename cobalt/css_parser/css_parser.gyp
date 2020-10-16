@@ -51,6 +51,9 @@
         {
           'rule_name': 'bison',
           'extension': 'y',
+          # Don't run through Cygwin on Windows since we want to use a custom
+          # Bison executable.
+          'msvs_cygwin_shell': 0,
           'outputs': [
             # Tokens and types, included by scanner.
             '<(SHARED_INTERMEDIATE_DIR)/<(_module_dir)/<(RULE_INPUT_ROOT)_generated.h',

@@ -23,6 +23,7 @@
 setlocal
 
 set SCRIPT_DIR=%~dp0
+set SCRIPT_DIR_UNIX=%SCRIPT_DIR:\=/%
 
 :: Locate depot_tool by searching for the location of git.bat.
 for %%F in (git.bat) do set DEPOT_TOOLS_DIR=%%~dp$PATH:F
@@ -45,11 +46,11 @@ if "%GIT_BIN_DIR%" EQU "" (
 :: Full path to the git directory.
 set GIT_BIN_DIR=%DEPOT_TOOLS_DIR%%GIT_BIN_DIR%\bin\
 
-:: Put git from depot_tools in path
-set PATH=%PATH%;%GIT_BIN_DIR%
-
+:: Convert back slashes into Unix-style forward slashes.
 set ARGS=%*
+set ARGS_UNIX=%ARGS:\=/%
 
-python %SCRIPT_DIR%gyp_cobalt %ARGS%
+echo Running gyp_cobalt using git bash, Ctrl+C may not work well...
+%GIT_BIN_DIR%bash.exe -lc "python %SCRIPT_DIR_UNIX%gyp_cobalt %ARGS_UNIX%"
 
 :EOF
