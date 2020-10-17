@@ -21,7 +21,9 @@ export class ErrorLogger extends Component<{}> {
       }
     });
     window.addEventListener('unhandledrejection', (evt: any) => {
-      logError(evt.detail.reason);
+      // In cobalt where bluebird is used, the reason is under evt.detail.reason
+      const reason = evt.reason ?? evt.detail.reason;
+      logError(reason);
     });
   }
 
