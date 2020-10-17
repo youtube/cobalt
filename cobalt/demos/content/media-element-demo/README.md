@@ -1,12 +1,27 @@
 # Cobalt Media Demo
 
-## Get Started
+## Installation
 
-```
-# Install node modules if running for the first time.
+```bash
+# Install node modules
 npm install
+```
+Only needed for the first time.
 
-# Start a server and build the package. Also watch script changes to regenerate
-# script bundles.
+## Development
+
+```bash
+# Start an http server and build the package
 npm start
 ```
+
+It watches script changes and recompiles the script bundle.
+
+
+## Deploy
+```bash
+# Compiles the script bundle.
+npm run build
+```
+
+Copy all files under `dist/` folder to the server.
