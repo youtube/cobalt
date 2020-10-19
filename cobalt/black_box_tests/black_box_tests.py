@@ -34,6 +34,7 @@ from starboard.tools import command_line
 _DISABLED_BLACKBOXTEST_CONFIGS = [
     'android-arm/devel',
     'android-arm64/devel',
+    'android-x86/devel',
     'raspi-0/devel',
 ]
 
