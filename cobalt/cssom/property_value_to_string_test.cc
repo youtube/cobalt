@@ -343,8 +343,8 @@ TEST(PropertyValueToStringTest, TranslateFunction) {
 }
 
 TEST(PropertyValueToStringTest, CobaltUiNavFocusTransformFunction) {
-  CobaltUiNavFocusTransformFunction function;
-  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-focus-transform()");
+  CobaltUiNavFocusTransformFunction function(0.5f, 1.0f);
+  EXPECT_EQ(function.ToString(), "-cobalt-ui-nav-focus-transform(0.5, 1)");
 }
 
 TEST(PropertyValueToStringTest, CobaltUiNavSpotlightTransformFunction) {
@@ -362,8 +362,9 @@ TEST(PropertyValueToStringTest, TransformFunctionListValue) {
   scoped_refptr<TransformFunctionListValue> property(
       new TransformFunctionListValue(std::move(transform_list)));
 
-  EXPECT_EQ(property->ToString(), "translateX(1px) scale(2, 2) rotate(1rad) "
-      "-cobalt-ui-nav-spotlight-transform()");
+  EXPECT_EQ(property->ToString(),
+            "translateX(1px) scale(2, 2) rotate(1rad) "
+            "-cobalt-ui-nav-spotlight-transform()");
 }
 
 TEST(PropertyValueToStringTest, URLValue) {
