@@ -39,26 +39,33 @@ class CobaltUiNavFocusTransformFunction : public TransformFunction {
   // resulting in this transform returning the identity matrix. DOM elements
   // will only ever use progress_to_identity == 0, but intermediate animation
   // frames may use other values.
-  explicit CobaltUiNavFocusTransformFunction(
-      float progress_to_identity = 0.0f);
+  CobaltUiNavFocusTransformFunction(float x_translation_scale,
+                                    float y_translation_scale,
+                                    float progress_to_identity = 0.0f);
 
   void Accept(TransformFunctionVisitor* visitor) const override;
 
+  float x_translation_scale() const { return x_translation_scale_; }
+  float y_translation_scale() const { return y_translation_scale_; }
   float progress_to_identity() const { return progress_to_identity_; }
 
   std::string ToString() const override;
 
   math::Matrix3F ToMatrix(const math::SizeF& used_size,
-      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
-      const override;
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override;
 
   bool operator==(const CobaltUiNavFocusTransformFunction& other) const {
-    return progress_to_identity_ == other.progress_to_identity_;
+    return x_translation_scale_ == other.x_translation_scale_ &&
+           y_translation_scale_ == other.y_translation_scale_ &&
+           progress_to_identity_ == other.progress_to_identity_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(CobaltUiNavFocusTransformFunction);
 
  private:
+  const float x_translation_scale_;
+  const float y_translation_scale_;
   const float progress_to_identity_;
 };
 

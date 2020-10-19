@@ -81,17 +81,24 @@ TEST(PropertyValueIsEqualTest, AbsoluteURLsAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreEqual) {
-  CobaltUiNavFocusTransformFunction function_a;
-  CobaltUiNavFocusTransformFunction function_b;
+  CobaltUiNavFocusTransformFunction function_a(1.0f, 1.0f);
+  CobaltUiNavFocusTransformFunction function_b(1.0f, 1.0f);
 
   EXPECT_TRUE(function_a.Equals(function_b));
 }
 
 TEST(PropertyValueIsEqualTest, CobaltUiNavFocusTransformFunctionsAreNotEqual) {
-  CobaltUiNavFocusTransformFunction function_a(0.0f);
-  CobaltUiNavFocusTransformFunction function_b(1.0f);
+  CobaltUiNavFocusTransformFunction function_a(1.0f, 1.0f, 1.0f);
+  CobaltUiNavFocusTransformFunction function_b(1.0f, 1.0f, 0.0f);
+  CobaltUiNavFocusTransformFunction function_c(1.0f, 2.0f, 1.0f);
+  CobaltUiNavFocusTransformFunction function_d(2.0f, 1.0f, 1.0f);
 
   EXPECT_FALSE(function_a.Equals(function_b));
+  EXPECT_FALSE(function_a.Equals(function_c));
+  EXPECT_FALSE(function_a.Equals(function_d));
+  EXPECT_FALSE(function_b.Equals(function_c));
+  EXPECT_FALSE(function_b.Equals(function_d));
+  EXPECT_FALSE(function_c.Equals(function_d));
 }
 
 TEST(PropertyValueIsEqualTest, CobaltUiNavSpotlightTransformFunctionsAreEqual) {
@@ -166,17 +173,14 @@ TEST(PropertyValueIsEqualTest, IntegersAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, LengthsAreEqual) {
-  scoped_refptr<LengthValue> value_a(
-      new LengthValue(1.5f, kPixelsUnit));
-  scoped_refptr<LengthValue> value_b(
-      new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<LengthValue> value_a(new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<LengthValue> value_b(new LengthValue(1.5f, kPixelsUnit));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, LengthsAreNotEqual) {
-  scoped_refptr<LengthValue> value_a(
-      new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<LengthValue> value_a(new LengthValue(1.5f, kPixelsUnit));
   scoped_refptr<LengthValue> value_b(
       new LengthValue(1.5f, kFontSizesAkaEmUnit));
 

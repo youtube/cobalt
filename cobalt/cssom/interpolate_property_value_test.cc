@@ -133,7 +133,7 @@ TEST(InterpolatePropertyValueTest,
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.emplace_back(new CobaltUiNavFocusTransformFunction);
+      functions.emplace_back(new CobaltUiNavFocusTransformFunction(1.0f, 1.0f));
       return new TransformFunctionListValue(std::move(functions));
     }
   };
@@ -149,6 +149,8 @@ TEST(InterpolatePropertyValueTest,
       dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
           interpolated->value()[0].get());
   ASSERT_TRUE(focus_function);
+  EXPECT_NEAR(focus_function->x_translation_scale(), 1.0f, kErrorEpsilon);
+  EXPECT_NEAR(focus_function->y_translation_scale(), 1.0f, kErrorEpsilon);
   EXPECT_NEAR(focus_function->progress_to_identity(), 0.25f, kErrorEpsilon);
 
   math::Matrix3F value = focus_function->ToMatrix(math::SizeF(), nullptr);
@@ -163,12 +165,14 @@ TEST(InterpolatePropertyValueTest,
   struct MakeSingleFocusTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
-      functions.emplace_back(new CobaltUiNavFocusTransformFunction(0.2f));
+      functions.emplace_back(
+          new CobaltUiNavFocusTransformFunction(1.0f, 2.0f, 0.2f));
       return new TransformFunctionListValue(std::move(functions));
     }
     static scoped_refptr<PropertyValue> End() {
       TransformFunctionListValue::Builder functions;
-      functions.emplace_back(new CobaltUiNavFocusTransformFunction(0.6f));
+      functions.emplace_back(
+          new CobaltUiNavFocusTransformFunction(2.0f, 4.0f, 0.6f));
       return new TransformFunctionListValue(std::move(functions));
     }
   };
@@ -184,6 +188,8 @@ TEST(InterpolatePropertyValueTest,
       dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
           interpolated->value()[0].get());
   ASSERT_TRUE(focus_function);
+  EXPECT_NEAR(focus_function->x_translation_scale(), 1.5f, kErrorEpsilon);
+  EXPECT_NEAR(focus_function->y_translation_scale(), 3.0f, kErrorEpsilon);
   EXPECT_NEAR(focus_function->progress_to_identity(), 0.4f, kErrorEpsilon);
 
   math::Matrix3F value = focus_function->ToMatrix(math::SizeF(), nullptr);
@@ -720,8 +726,7 @@ TEST(InterpolatePropertyValueTest,
           0.75f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
   EXPECT_TRUE(
-      interpolated
-          ->ToMatrix(math::SizeF(), nullptr)
+      interpolated->ToMatrix(math::SizeF(), nullptr)
           .IsNear(math::TranslateMatrix(3.5f, 0.0f) *
                       math::RotateMatrix(-static_cast<float>(M_PI * 3 / 8)) *
                       math::ScaleMatrix(3.5f, 1.75f),
@@ -759,8 +764,7 @@ TEST(InterpolatePropertyValueTest,
       InterpolatePropertyTyped<InterpolatedTransformPropertyValue>(
           0.5f, interpolated, MakeMultipleMismatchedTransform::Start());
 
-  EXPECT_TRUE(next_interpolated
-                  ->ToMatrix(math::SizeF(), nullptr)
+  EXPECT_TRUE(next_interpolated->ToMatrix(math::SizeF(), nullptr)
                   .IsNear(math::RotateMatrix(-static_cast<float>(M_PI / 8)),
                           kErrorEpsilon));
 }
@@ -832,8 +836,8 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
 
-  math::Matrix3F value = interpolated->ToMatrix(
-      math::SizeF(100.0f, 200.0f), nullptr);
+  math::Matrix3F value =
+      interpolated->ToMatrix(math::SizeF(100.0f, 200.0f), nullptr);
 
   EXPECT_NEAR(cos(M_PI / 4), value(0, 0), kErrorEpsilon);
   EXPECT_NEAR(sin(M_PI / 4), value(1, 0), kErrorEpsilon);
