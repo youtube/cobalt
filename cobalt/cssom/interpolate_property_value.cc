@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "base/memory/ptr_util.h"
 #include "cobalt/base/enable_if.h"
@@ -269,11 +270,23 @@ void AnimateTransformFunction::VisitCobaltUiNavFocusTransform(
   // identity matrix when transitioning to transform none. Instead, the
   // focus transform needs to know how close to the identity transform it
   // needs to interpolate its value when evaluated.
-  float progress_to_identity_end =
-      focus_end ? focus_end->progress_to_identity() : 1.0f;
+  float progress_to_identity_end = 1.0f;
+  // Maintain the translation scale values if interpolating to identity since
+  // the interpolation to identity is also phasing out the translation scales.
+  float x_translation_scale_end = focus_function->x_translation_scale();
+  float y_translation_scale_end = focus_function->y_translation_scale();
+  if (focus_end) {
+    progress_to_identity_end = focus_end->progress_to_identity();
+    x_translation_scale_end = focus_end->x_translation_scale();
+    y_translation_scale_end = focus_end->y_translation_scale();
+  }
   animated_.reset(new CobaltUiNavFocusTransformFunction(
-      Lerp(focus_function->progress_to_identity(),
-           progress_to_identity_end, progress_)));
+      Lerp(focus_function->x_translation_scale(), x_translation_scale_end,
+           progress_),
+      Lerp(focus_function->y_translation_scale(), y_translation_scale_end,
+           progress_),
+      Lerp(focus_function->progress_to_identity(), progress_to_identity_end,
+           progress_)));
 }
 
 void AnimateTransformFunction::VisitCobaltUiNavSpotlightTransform(
@@ -289,8 +302,8 @@ void AnimateTransformFunction::VisitCobaltUiNavSpotlightTransform(
   float progress_to_identity_end =
       spotlight_end ? spotlight_end->progress_to_identity() : 1.0f;
   animated_.reset(new CobaltUiNavSpotlightTransformFunction(
-      Lerp(spotlight_function->progress_to_identity(),
-           progress_to_identity_end, progress_)));
+      Lerp(spotlight_function->progress_to_identity(), progress_to_identity_end,
+           progress_)));
 }
 
 // Returns true if two given transform function lists have the same number of
@@ -339,13 +352,11 @@ scoped_refptr<PropertyValue> AnimateTransform(PropertyValue* start_value,
   }
 
   TransformFunctionListValue* start_transform =
-      base::polymorphic_downcast<TransformFunctionListValue*>(
-          start_value);
+      base::polymorphic_downcast<TransformFunctionListValue*>(start_value);
   TransformFunctionListValue* end_transform =
       end_value->Equals(*KeywordValue::GetNone())
           ? NULL
-          : base::polymorphic_downcast<TransformFunctionListValue*>(
-                end_value);
+          : base::polymorphic_downcast<TransformFunctionListValue*>(end_value);
 
   const TransformFunctionListValue::Builder* start_functions =
       &start_transform->value();
@@ -377,8 +388,8 @@ scoped_refptr<PropertyValue> AnimateTransform(PropertyValue* start_value,
     // into a matrix and animate the matrix using the algorithm described here:
     //   https://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
     DCHECK(end_transform);
-    return new InterpolatedTransformPropertyValue(
-        start_transform, end_transform, progress);
+    return new InterpolatedTransformPropertyValue(start_transform,
+                                                  end_transform, progress);
   }
 }
 }  // namespace
@@ -545,7 +556,7 @@ void InterpolateVisitor::VisitTransformPropertyValue(
       // Try to interpolate each transform function in the transform function
       // list. This can only be done if the function types match.
       interpolated_value_ = AnimateTransform(start_transform_property_value,
-          end_value_, progress_);
+                                             end_value_, progress_);
     }
   } else if (end_value_->Equals(*KeywordValue::GetNone())) {
     // Interpolate to identity matrix.
@@ -553,8 +564,7 @@ void InterpolateVisitor::VisitTransformPropertyValue(
     builder.emplace_back(new MatrixFunction(math::Matrix3F::Identity()));
     interpolated_value_ = new InterpolatedTransformPropertyValue(
         start_transform_property_value,
-        new TransformFunctionListValue(std::move(builder)),
-        progress_);
+        new TransformFunctionListValue(std::move(builder)), progress_);
   } else {
     interpolated_value_ = new InterpolatedTransformPropertyValue(
         start_transform_property_value,
