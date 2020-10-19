@@ -117,6 +117,8 @@ class AdbAmMonitorWatcher(object):
       line = CleanLine(self.process.stdout.readline())
       if not line:
         return
+      # Show the crash lines reported by "am monitor".
+      sys.stderr.write(line)
       if re.search(_RE_ADB_AM_MONITOR_ERROR, line):
         self.done_queue.put(_QUEUE_CODE_CRASHED)
         # This log line will wake up the main thread
@@ -311,6 +313,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         'raw',
         '-s',
         '*:F',
+        '*:E',
         'DEBUG:*',
         'System.err:*',
         'starboard:*',
