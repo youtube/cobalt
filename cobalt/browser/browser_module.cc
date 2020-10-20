@@ -1830,7 +1830,8 @@ void BrowserModule::OnMaybeFreeze() {
 #if defined(ENABLE_DEBUGGER)
       debug_console_ready_to_freeze &&
 #endif  // defined(ENABLE_DEBUGGER)
-      web_module_ready_to_freeze) {
+      web_module_ready_to_freeze &&
+      application_state_ == base::kApplicationStateConcealed) {
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
     SB_HAS(CONCEALED_STATE)
     SbSystemRequestFreeze();
