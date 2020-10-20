@@ -27,6 +27,7 @@ struct SbAudioSinkPrivate {
   // When |capability_changed| is true, it hints that the error is caused by a
   // a transisent capability on the platform.  The app should retry playback to
   // recover from the error.
+  // TODO: Allow to pass an error message.
   typedef void (*ErrorFunc)(bool capability_changed, void* context);
 #endif  // SB_API_VERSION >= 12
 
