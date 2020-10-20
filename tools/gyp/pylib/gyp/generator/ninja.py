@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 # Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -1654,8 +1655,21 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     else:
       gyp.msvs_emulation.GenerateEnvironmentFiles(toplevel_build,
           generator_flags, OpenOutput)
-    master_ninja.variable('python', sys.executable)
-    master_ninja.newline()
+
+  # Write python executables to the master ninja.
+  # Let 'python' resolve to what environment is active.
+  # Assume this file is executed using python2.
+  master_ninja.variable('python2', sys.executable)
+  master_ninja.newline()
+
+  # Don't write python3 exectuable until we ensure it's in docker containers.
+  #
+  # python3_executable = 'py -3' if is_windows else 'python3'
+  # cmd = ('{} -c "import os; import sys; '
+  #        'print(os.path.dirname(sys.executable))"').format(python3_executable)
+  # python3_location = subprocess.check_output(cmd, shell=True).strip()
+  # master_ninja.variable('python3', python3_location)
+  # master_ninja.newline()
 
   all_targets = set()
   for build_file in params['build_files']:
