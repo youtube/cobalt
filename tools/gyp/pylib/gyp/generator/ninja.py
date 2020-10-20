@@ -78,7 +78,9 @@ is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
 microsoft_flavors = [
-    'win', 'win-win32', 'win-win32-lib',
+    'win',
+    'win-win32',
+    'win-win32-lib',
 ]
 sony_flavors = []
 
@@ -140,8 +142,7 @@ def StripPrefix(arg, prefix):
 def GetGeneratorVariables(flavor):
   generator_variables = copy.copy(generator_default_variables)
   if GetToolchainOrNone(flavor):
-    GetToolchainOrNone(
-        flavor).SetAdditionalGypVariables(generator_variables)
+    GetToolchainOrNone(flavor).SetAdditionalGypVariables(generator_variables)
   else:
     CalculateVariables(generator_variables, {'flavor': flavor})
   return generator_variables
@@ -779,8 +780,8 @@ class NinjaWriter:
 
         inputs = [self.GypPathToNinja(i, env) for i in inputs]
         outputs = [self.GypPathToNinja(o, env) for o in outputs]
-        extra_bindings.append(('unique_name',
-                               hashlib.md5(outputs[0]).hexdigest()))
+        extra_bindings.append(
+            ('unique_name', hashlib.md5(outputs[0]).hexdigest()))
         self.ninja.build(
             outputs,
             rule_name,
@@ -896,11 +897,11 @@ class NinjaWriter:
     shell = GetShell(self.flavor)
 
     if self.toolset == 'target':
-      toolchain = GetTargetToolchain(self.flavor, spec=spec,
-                                     config_name=config_name)
+      toolchain = GetTargetToolchain(
+          self.flavor, spec=spec, config_name=config_name)
     else:
-      toolchain = GetHostToolchain(self.flavor, spec=spec,
-                                   config_name=config_name)
+      toolchain = GetHostToolchain(
+          self.flavor, spec=spec, config_name=config_name)
 
     defines = config.get('defines', [])
     include_dirs = [
@@ -1008,8 +1009,7 @@ class NinjaWriter:
           gyp_path_to_ninja=self.GypPathToNinja,
           expand_special=self.ExpandSpecial,
           gyp_path_to_unique_output=self.GypPathToUniqueOutput,
-          compute_output_file_name=self.ComputeOutputFileName
-      )
+          compute_output_file_name=self.ComputeOutputFileName)
     else:
       toolchain = GetHostToolchain(
           self.flavor,
@@ -1018,8 +1018,7 @@ class NinjaWriter:
           gyp_path_to_ninja=self.GypPathToNinja,
           expand_special=self.ExpandSpecial,
           gyp_path_to_unique_output=self.GypPathToUniqueOutput,
-          compute_output_file_name=self.ComputeOutputFileName
-      )
+          compute_output_file_name=self.ComputeOutputFileName)
 
     shell = GetShell(self.flavor)
     extra_bindings = []
@@ -1040,8 +1039,8 @@ class NinjaWriter:
       libraries = spec.get(libraries_keyword, []) + config.get(
           libraries_keyword, [])
 
-      ldflags_executable = GetConfigFlags(
-          config, self.toolset, 'ldflags_executable')
+      ldflags_executable = GetConfigFlags(config, self.toolset,
+                                          'ldflags_executable')
       if not ldflags_executable:
         ldflags_executable = GetConfigFlags(config, self.toolset, 'ldflags')
 
@@ -1052,8 +1051,8 @@ class NinjaWriter:
       self.ninja.variable('{0}_flags'.format(rule_name),
                           shell.Join(executable_linker_flags))
     elif target_type == 'shared_library':
-      shared_library_linker = FindFirstInstanceOf(
-          abstract.SharedLibraryLinker, toolchain)
+      shared_library_linker = FindFirstInstanceOf(abstract.SharedLibraryLinker,
+                                                  toolchain)
       assert shared_library_linker, (
           'Toolchain must provide shared library linker '
           'for {0} platform.').format(self.toolset)
@@ -1082,12 +1081,11 @@ class NinjaWriter:
       extra_bindings.append(('soname', os.path.split(output)[1]))
       extra_bindings.append(('dll', output))
       if '/NOENTRY' not in shared_library_linker_flags:
-        extra_bindings.append(('implibflag',
-                               '/IMPLIB:%s' % output + '.lib'))
+        extra_bindings.append(('implibflag', '/IMPLIB:%s' % output + '.lib'))
 
     else:
-      raise Exception('Target type {0} is not supported for target {1}.'
-                      .format(target_type, spec['target_name']))
+      raise Exception('Target type {0} is not supported for target {1}.'.format(
+          target_type, spec['target_name']))
 
     order_only_deps = set()
 
@@ -1147,15 +1145,13 @@ class NinjaWriter:
             self.flavor,
             spec=spec,
             config_name=config_name,
-            gyp_path_to_ninja=self.GypPathToNinja
-        )
+            gyp_path_to_ninja=self.GypPathToNinja)
       else:
         toolchain = GetHostToolchain(
             self.flavor,
             spec=spec,
             config_name=config_name,
-            gyp_path_to_ninja=self.GypPathToNinja
-        )
+            gyp_path_to_ninja=self.GypPathToNinja)
 
       shell = GetShell(self.flavor)
       static_linker = FindFirstInstanceOf(abstract.StaticLinker, toolchain)
@@ -1511,8 +1507,8 @@ def CalculateVariables(default_variables, params):
     default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
     default_variables.setdefault('SHARED_LIB_DIR',
                                  os.path.join('$!PRODUCT_DIR', 'lib'))
-    default_variables.setdefault('LIB_DIR', os.path.join(
-        '$!PRODUCT_DIR', 'obj'))
+    default_variables.setdefault('LIB_DIR',
+                                 os.path.join('$!PRODUCT_DIR', 'obj'))
 
 
 def ComputeOutputDir(params):
@@ -1549,6 +1545,7 @@ def OpenOutput(path, mode='w'):
   except OSError:
     pass
   return open(path, mode)
+
 
 def MaybeWritePathVariable(ninja, tool, toolset):
   if tool.GetPath():
@@ -1654,7 +1651,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
           toplevel_build, generator_flags, OpenOutput)
     else:
       gyp.msvs_emulation.GenerateEnvironmentFiles(toplevel_build,
-          generator_flags, OpenOutput)
+                                                  generator_flags, OpenOutput)
 
   # Write python executables to the master ninja.
   # Let 'python' resolve to what environment is active.
@@ -1762,7 +1759,7 @@ def PerformBuild(data, configurations, params):
   for config in configurations:
     builddir = os.path.join(options.toplevel_dir, 'out', config)
     arguments = ['ninja', '-C', builddir]
-    print 'Building [%s]: %s' % (config, arguments)
+    print('Building [%s]: %s' % (config, arguments))
     subprocess.check_call(arguments)
 
 
@@ -1790,10 +1787,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
         pool = multiprocessing.Pool(len(config_names))
         arglists = []
         for config_name in config_names:
-          arglists.append((target_list, target_dicts, data, params,
-                           config_name))
+          arglists.append(
+              (target_list, target_dicts, data, params, config_name))
           pool.map(CallGenerateOutputForConfig, arglists)
-      except KeyboardInterrupt, e:
+      except KeyboardInterrupt as e:
         pool.terminate()
         raise e
     else:
