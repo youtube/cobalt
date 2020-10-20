@@ -119,6 +119,12 @@ This document records all notable changes made to Cobalt since the last release.
    the comment of `SbMediaCanPlayMimeAndKeySystem()` in `media.h` for more
    details.
 
+ - **Added support for controlling shutdown behavior of graphics system.**
+
+   Cobalt normally clears the framebuffer to opaque black on suspend or exit.
+   This behavior can now be overridden by implementing the cobalt extension
+   function `CobaltExtensionGraphicsApi::ShouldClearFrameOnShutdown`.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**

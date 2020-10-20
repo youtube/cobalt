@@ -102,7 +102,7 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
         // deprecate the submit_even_if_render_tree_is_unchanged.
         false,
 #endif
-        renderer::Pipeline::kClearToBlack, pipeline_options));
+        renderer::Pipeline::kClearAccordingToPlatform, pipeline_options));
   }
 }
 

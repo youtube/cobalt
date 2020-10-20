@@ -23,8 +23,7 @@
 extern "C" {
 #endif
 
-#define kCobaltExtensionGraphicsName \
-  "dev.cobalt.extension.Graphics"
+#define kCobaltExtensionGraphicsName "dev.cobalt.extension.Graphics"
 
 typedef struct CobaltExtensionGraphicsApi {
   // Name should be the string kCobaltExtensionGraphicsName.
@@ -62,6 +61,20 @@ typedef struct CobaltExtensionGraphicsApi {
 
   // Get whether the renderer should support 360 degree video or not.
   bool (*IsMapToMeshEnabled)();
+
+  // The fields below this point were added in version 4 or later.
+
+  // Specify whether the framebuffer should be cleared when the graphics
+  // system is shutdown and color to use for clearing. The graphics system
+  // is shutdown on suspend or exit. The clear color values should be in the
+  // range of [0,1]; color values are only used if this function returns true.
+  //
+  // The default behavior is to clear to opaque black on shutdown unless this
+  // API specifies otherwise.
+  bool (*ShouldClearFrameOnShutdown)(float* clear_color_red,
+                                     float* clear_color_green,
+                                     float* clear_color_blue,
+                                     float* clear_color_alpha);
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus
