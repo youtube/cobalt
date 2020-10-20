@@ -48,9 +48,18 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   @SuppressWarnings("unused")
   @UsedByNative
   AudioTrackBridge createAudioTrackBridge(
-      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
+      int sampleType,
+      int sampleRate,
+      int channelCount,
+      int preferredBufferSizeInBytes,
+      int tunnelModeAudioSessionId) {
     AudioTrackBridge audioTrackBridge =
-        new AudioTrackBridge(sampleType, sampleRate, channelCount, preferredBufferSizeInBytes);
+        new AudioTrackBridge(
+            sampleType,
+            sampleRate,
+            channelCount,
+            preferredBufferSizeInBytes,
+            tunnelModeAudioSessionId);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;
@@ -127,5 +136,30 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
     return AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
+  }
+
+  /** Generate audio session id used by tunneled playback. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  int generateTunnelModeAudioSessionId(int numberOfChannels) {
+    // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
+    // aligns sync header with audio frame size. V1 sync header has alignment
+    // issues for multi-channel audio.
+    if (Build.VERSION.SDK_INT < 28) {
+      // Currently we only support int16 under tunnel mode.
+      final int sampleSizeInBytes = 2;
+      final int frameSizeInBytes = sampleSizeInBytes * numberOfChannels;
+      if (AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE % frameSizeInBytes != 0) {
+        Log.w(
+            TAG,
+            String.format(
+                "Disable tunnel mode due to sampleSizeInBytes (%d) * numberOfChannels (%d) isn't"
+                    + " aligned to AV_SYNC_HEADER_V1_SIZE (%d).",
+                sampleSizeInBytes, numberOfChannels, AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE));
+        return -1;
+      }
+    }
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    return audioManager.generateAudioSessionId();
   }
 }

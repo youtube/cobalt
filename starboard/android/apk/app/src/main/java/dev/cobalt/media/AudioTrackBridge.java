@@ -26,18 +26,45 @@ import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
-// A wrapper of the android AudioTrack class.
-// Android AudioTrack would not start playing until the buffer is fully
-// filled once.
+/**
+ * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
+ * buffer is fully filled once.
+ */
 @UsedByNative
 public class AudioTrackBridge {
+  // Also used by AudioOutputManager.
+  static final int AV_SYNC_HEADER_V1_SIZE = 16;
+
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
 
+  private final boolean tunnelModeEnabled;
+  // The following variables are used only when |tunnelModeEnabled| is true.
+  private ByteBuffer avSyncHeader;
+  private int avSyncPacketBytesRemaining;
+
+  private static int getBytesPerSample(int audioFormat) {
+    switch (audioFormat) {
+      case AudioFormat.ENCODING_PCM_16BIT:
+        return 2;
+      case AudioFormat.ENCODING_PCM_FLOAT:
+        return 4;
+      case AudioFormat.ENCODING_INVALID:
+      default:
+        throw new RuntimeException("Unsupport audio format " + audioFormat);
+    }
+  }
+
   public AudioTrackBridge(
-      int sampleType, int sampleRate, int channelCount, int preferredBufferSizeInBytes) {
+      int sampleType,
+      int sampleRate,
+      int channelCount,
+      int preferredBufferSizeInBytes,
+      int tunnelModeAudioSessionId) {
+    tunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -53,11 +80,40 @@ public class AudioTrackBridge {
         throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
 
-    AudioAttributes attributes =
-        new AudioAttributes.Builder()
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .setUsage(AudioAttributes.USAGE_MEDIA)
-            .build();
+    AudioAttributes attributes;
+    if (tunnelModeEnabled) {
+      // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that aligns sync header
+      // with audio frame size. V1 sync header has alignment issues for multi-channel audio.
+      if (Build.VERSION.SDK_INT < 28) {
+        int frameSize = getBytesPerSample(sampleType) * channelCount;
+        // This shouldn't happen as it should have been checked in
+        // AudioOutputManager.generateTunnelModeAudioSessionId().
+        if (AV_SYNC_HEADER_V1_SIZE % frameSize != 0) {
+          audioTrack = null;
+          String errorMessage =
+              String.format(
+                  "Enable tunnel mode when frame size is unaligned, "
+                      + "sampleType: %d, channel: %d, sync header size: %d.",
+                  sampleType, channelCount, AV_SYNC_HEADER_V1_SIZE);
+          Log.e(TAG, errorMessage);
+          throw new RuntimeException(errorMessage);
+        }
+      }
+      attributes =
+          new AudioAttributes.Builder()
+              .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+              .setFlags(AudioAttributes.FLAG_HW_AV_SYNC)
+              .setUsage(AudioAttributes.USAGE_MEDIA)
+              .build();
+    } else {
+      // TODO: Investigate if we can use |CONTENT_TYPE_MOVIE| for AudioTrack
+      //       used by video playback.
+      attributes =
+          new AudioAttributes.Builder()
+              .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+              .setUsage(AudioAttributes.USAGE_MEDIA)
+              .build();
+    }
     AudioFormat format =
         new AudioFormat.Builder()
             .setEncoding(sampleType)
@@ -66,6 +122,10 @@ public class AudioTrackBridge {
             .build();
 
     int audioTrackBufferSize = preferredBufferSizeInBytes;
+    // TODO: Investigate if this implementation could be refined.
+    // It is not necessary to loop until 0 since there is new implementation based on
+    // AudioTrack.getMinBufferSize(). Especially for tunnel mode, it would fail if audio HAL does
+    // not support tunnel mode and then it is not helpful to retry.
     while (audioTrackBufferSize > 0) {
       try {
         audioTrack =
@@ -74,7 +134,9 @@ public class AudioTrackBridge {
                 format,
                 audioTrackBufferSize,
                 AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE);
+                tunnelModeEnabled
+                    ? tunnelModeAudioSessionId
+                    : AudioManager.AUDIO_SESSION_ID_GENERATE);
       } catch (Exception e) {
         audioTrack = null;
       }
@@ -104,6 +166,8 @@ public class AudioTrackBridge {
       audioTrack.release();
     }
     audioTrack = null;
+    avSyncHeader = null;
+    avSyncPacketBytesRemaining = 0;
   }
 
   @SuppressWarnings("unused")
@@ -144,15 +208,22 @@ public class AudioTrackBridge {
       return;
     }
     audioTrack.flush();
+    avSyncHeader = null;
+    avSyncPacketBytesRemaining = 0;
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private int write(byte[] audioData, int sizeInBytes) {
+  private int write(byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
     }
+
+    if (tunnelModeEnabled) {
+      return writeWithAvSync(audioData, sizeInBytes, presentationTimeInMicroseconds);
+    }
+
     if (Build.VERSION.SDK_INT >= 23) {
       return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
     } else {
@@ -161,12 +232,75 @@ public class AudioTrackBridge {
     }
   }
 
+  private int writeWithAvSync(
+      byte[] audioData, int sizeInBytes, long presentationTimeInMicroseconds) {
+    if (audioTrack == null) {
+      throw new RuntimeException("writeWithAvSync() is called when audioTrack is null.");
+    }
+
+    if (!tunnelModeEnabled) {
+      throw new RuntimeException("writeWithAvSync() is called when tunnelModeEnabled is false.");
+    }
+
+    long presentationTimeInNanoseconds = presentationTimeInMicroseconds * 1000;
+
+    // Android support tunnel mode from 5.0 (API level 21), but the app has to manually write the
+    // sync header before API 23, where the write() function with presentation timestamp is
+    // introduced.
+    // Set the following constant to |false| to test manual sync header writing in API level 23 or
+    // later.  Note that the code to write sync header manually only supports v1 sync header.
+    final boolean useAutoSyncHeaderWrite = false;
+    if (useAutoSyncHeaderWrite && Build.VERSION.SDK_INT >= 23) {
+      ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
+      return audioTrack.write(
+          byteBuffer, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING, presentationTimeInNanoseconds);
+    }
+
+    if (avSyncHeader == null) {
+      avSyncHeader = ByteBuffer.allocate(AV_SYNC_HEADER_V1_SIZE);
+      avSyncHeader.order(ByteOrder.BIG_ENDIAN);
+      avSyncHeader.putInt(0x55550001);
+    }
+
+    if (avSyncPacketBytesRemaining == 0) {
+      avSyncHeader.putInt(4, sizeInBytes);
+      avSyncHeader.putLong(8, presentationTimeInNanoseconds);
+      avSyncHeader.position(0);
+      avSyncPacketBytesRemaining = sizeInBytes;
+    }
+
+    if (avSyncHeader.remaining() > 0) {
+      int ret =
+          audioTrack.write(avSyncHeader, avSyncHeader.remaining(), AudioTrack.WRITE_NON_BLOCKING);
+      if (ret < 0) {
+        avSyncPacketBytesRemaining = 0;
+        return ret;
+      }
+      if (avSyncHeader.remaining() > 0) {
+        return 0;
+      }
+    }
+
+    int sizeToWrite = Math.min(avSyncPacketBytesRemaining, sizeInBytes);
+    ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
+    int ret = audioTrack.write(byteBuffer, sizeToWrite, AudioTrack.WRITE_NON_BLOCKING);
+    if (ret < 0) {
+      avSyncPacketBytesRemaining = 0;
+      return ret;
+    }
+    avSyncPacketBytesRemaining -= ret;
+    return ret;
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
   private int write(float[] audioData, int sizeInFloats) {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to write with NULL audio track.");
       return 0;
+    }
+    if (tunnelModeEnabled) {
+      throw new RuntimeException("Float sample is not supported under tunnel mode.");
     }
     return audioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
   }
