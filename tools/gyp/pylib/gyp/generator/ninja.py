@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 # Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -2100,6 +2101,12 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       master_ninja.variable('python', sys.executable)
       master_ninja.newline()
 
+    # Write python executables to the master ninja.
+    # Let 'python' resolve to what environment is active.
+    # Assume this file is executed using python2.
+    master_ninja.variable('python2', sys.executable)
+    master_ninja.newline()
+
   except NotImplementedError:
     # Fall back to the legacy toolchain.
 
@@ -2234,6 +2241,12 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     else:
       python_path = 'python'
     master_ninja.variable('python', python_path)
+    master_ninja.newline()
+
+    # Write python executables to the master ninja.
+    # Let 'python' resolve to what environment is active.
+    # Assume this file is executed using python2.
+    master_ninja.variable('python2', sys.executable)
     master_ninja.newline()
 
     master_ninja.pool('link_pool', depth=GetDefaultConcurrentLinks())
