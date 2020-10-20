@@ -29,23 +29,22 @@ TEST(ExtensionTest, PlatformService) {
   typedef CobaltExtensionPlatformServiceApi ExtensionApi;
   const char* kExtensionName = kCobaltExtensionPlatformServiceName;
 
-  const ExtensionApi* extension_api = static_cast<const ExtensionApi*>(
-      SbSystemGetExtension(kExtensionName));
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   if (!extension_api) {
     return;
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
-  EXPECT_TRUE(extension_api->Has != NULL);
-  EXPECT_TRUE(extension_api->Open != NULL);
-  EXPECT_TRUE(extension_api->Close != NULL);
-  EXPECT_TRUE(extension_api->Send != NULL);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 3u);
+  EXPECT_NE(extension_api->Has, nullptr);
+  EXPECT_NE(extension_api->Open, nullptr);
+  EXPECT_NE(extension_api->Close, nullptr);
+  EXPECT_NE(extension_api->Send, nullptr);
 
-  const ExtensionApi* second_extension_api = static_cast<const ExtensionApi*>(
-      SbSystemGetExtension(kExtensionName));
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
 }
@@ -54,35 +53,50 @@ TEST(ExtensionTest, Graphics) {
   typedef CobaltExtensionGraphicsApi ExtensionApi;
   const char* kExtensionName = kCobaltExtensionGraphicsName;
 
-  const ExtensionApi* extension_api = static_cast<const ExtensionApi*>(
-      SbSystemGetExtension(kExtensionName));
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   if (!extension_api) {
     return;
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
-  EXPECT_TRUE(extension_api->GetMaximumFrameIntervalInMilliseconds != NULL);
-  if (extension_api->version >= 2) {
-    EXPECT_TRUE(extension_api->GetMinimumFrameIntervalInMilliseconds != NULL);
-  }
-  if (extension_api->version >= 3) {
-    EXPECT_TRUE(extension_api->IsMapToMeshEnabled != NULL);
-  }
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 4u);
 
+  EXPECT_NE(extension_api->GetMaximumFrameIntervalInMilliseconds, nullptr);
   float maximum_frame_interval =
       extension_api->GetMaximumFrameIntervalInMilliseconds();
   EXPECT_FALSE(std::isnan(maximum_frame_interval));
 
   if (extension_api->version >= 2) {
+    EXPECT_NE(extension_api->GetMinimumFrameIntervalInMilliseconds, nullptr);
     float minimum_frame_interval =
-      extension_api->GetMinimumFrameIntervalInMilliseconds();
+        extension_api->GetMinimumFrameIntervalInMilliseconds();
     EXPECT_GT(minimum_frame_interval, 0);
   }
-  const ExtensionApi* second_extension_api = static_cast<const ExtensionApi*>(
-      SbSystemGetExtension(kExtensionName));
+
+  if (extension_api->version >= 3) {
+    EXPECT_NE(extension_api->IsMapToMeshEnabled, nullptr);
+  }
+
+  if (extension_api->version >= 4) {
+    EXPECT_NE(extension_api->ShouldClearFrameOnShutdown, nullptr);
+    float clear_color_r, clear_color_g, clear_color_b, clear_color_a;
+    if (extension_api->ShouldClearFrameOnShutdown(
+            &clear_color_r, &clear_color_g, &clear_color_b, &clear_color_a)) {
+      EXPECT_GE(clear_color_r, 0.0f);
+      EXPECT_LE(clear_color_r, 1.0f);
+      EXPECT_GE(clear_color_g, 0.0f);
+      EXPECT_LE(clear_color_g, 1.0f);
+      EXPECT_GE(clear_color_b, 0.0f);
+      EXPECT_LE(clear_color_b, 1.0f);
+      EXPECT_GE(clear_color_a, 0.0f);
+      EXPECT_LE(clear_color_a, 1.0f);
+    }
+  }
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
 }
@@ -98,18 +112,17 @@ TEST(ExtensionTest, InstallationManager) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_TRUE(extension_api->version == 1 ||
-              extension_api->version == 2 ||
-              extension_api->version == 3) << "Invalid version";
-  EXPECT_TRUE(extension_api->GetCurrentInstallationIndex != NULL);
-  EXPECT_TRUE(extension_api->MarkInstallationSuccessful != NULL);
-  EXPECT_TRUE(extension_api->RequestRollForwardToInstallation != NULL);
-  EXPECT_TRUE(extension_api->GetInstallationPath != NULL);
-  EXPECT_TRUE(extension_api->SelectNewInstallationIndex != NULL);
-  EXPECT_TRUE(extension_api->GetAppKey != NULL);
-  EXPECT_TRUE(extension_api->GetMaxNumberInstallations != NULL);
-  EXPECT_TRUE(extension_api->ResetInstallation != NULL);
-  EXPECT_TRUE(extension_api->Reset != NULL);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 3u);
+  EXPECT_NE(extension_api->GetCurrentInstallationIndex, nullptr);
+  EXPECT_NE(extension_api->MarkInstallationSuccessful, nullptr);
+  EXPECT_NE(extension_api->RequestRollForwardToInstallation, nullptr);
+  EXPECT_NE(extension_api->GetInstallationPath, nullptr);
+  EXPECT_NE(extension_api->SelectNewInstallationIndex, nullptr);
+  EXPECT_NE(extension_api->GetAppKey, nullptr);
+  EXPECT_NE(extension_api->GetMaxNumberInstallations, nullptr);
+  EXPECT_NE(extension_api->ResetInstallation, nullptr);
+  EXPECT_NE(extension_api->Reset, nullptr);
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
@@ -127,29 +140,31 @@ TEST(ExtensionTest, Configuration) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_TRUE(extension_api->version == 1 || extension_api->version == 2);
-  EXPECT_TRUE(extension_api->CobaltUserOnExitStrategy != NULL);
-  EXPECT_TRUE(extension_api->CobaltRenderDirtyRegionOnly != NULL);
-  EXPECT_TRUE(extension_api->CobaltEglSwapInterval != NULL);
-  EXPECT_TRUE(extension_api->CobaltFallbackSplashScreenUrl != NULL);
-  EXPECT_TRUE(extension_api->CobaltEnableQuic != NULL);
-  EXPECT_TRUE(extension_api->CobaltSkiaCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltOffscreenTargetCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltEncodedImageCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltImageCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltLocalTypefaceCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltRemoteTypefaceCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltMeshCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltSoftwareSurfaceCacheSizeInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltImageCacheCapacityMultiplierWhenPlayingVideo != NULL);
-  EXPECT_TRUE(extension_api->CobaltSkiaGlyphAtlasWidth != NULL);
-  EXPECT_TRUE(extension_api->CobaltSkiaGlyphAtlasHeight != NULL);
-  EXPECT_TRUE(extension_api->CobaltJsGarbageCollectionThresholdInBytes != NULL);
-  EXPECT_TRUE(extension_api->CobaltReduceCpuMemoryBy != NULL);
-  EXPECT_TRUE(extension_api->CobaltReduceGpuMemoryBy != NULL);
-  EXPECT_TRUE(extension_api->CobaltGcZeal != NULL);
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_NE(extension_api->CobaltUserOnExitStrategy, nullptr);
+  EXPECT_NE(extension_api->CobaltRenderDirtyRegionOnly, nullptr);
+  EXPECT_NE(extension_api->CobaltEglSwapInterval, nullptr);
+  EXPECT_NE(extension_api->CobaltFallbackSplashScreenUrl, nullptr);
+  EXPECT_NE(extension_api->CobaltEnableQuic, nullptr);
+  EXPECT_NE(extension_api->CobaltSkiaCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltOffscreenTargetCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltEncodedImageCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltImageCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltLocalTypefaceCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltRemoteTypefaceCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltMeshCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltSoftwareSurfaceCacheSizeInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltImageCacheCapacityMultiplierWhenPlayingVideo,
+            nullptr);
+  EXPECT_NE(extension_api->CobaltSkiaGlyphAtlasWidth, nullptr);
+  EXPECT_NE(extension_api->CobaltSkiaGlyphAtlasHeight, nullptr);
+  EXPECT_NE(extension_api->CobaltJsGarbageCollectionThresholdInBytes, nullptr);
+  EXPECT_NE(extension_api->CobaltReduceCpuMemoryBy, nullptr);
+  EXPECT_NE(extension_api->CobaltReduceGpuMemoryBy, nullptr);
+  EXPECT_NE(extension_api->CobaltGcZeal, nullptr);
   if (extension_api->version >= 2) {
-    EXPECT_TRUE(extension_api->CobaltFallbackSplashScreenTopics != NULL);
+    EXPECT_NE(extension_api->CobaltFallbackSplashScreenTopics, nullptr);
   }
 
   const ExtensionApi* second_extension_api =
