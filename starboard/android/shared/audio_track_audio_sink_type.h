@@ -18,6 +18,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <vector>
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -54,6 +55,19 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
+  SbAudioSink Create(
+      int channels,
+      int sampling_frequency_hz,
+      SbMediaAudioSampleType audio_sample_type,
+      SbMediaAudioFrameStorageType audio_frame_storage_type,
+      SbAudioSinkFrameBuffers frame_buffers,
+      int frames_per_channel,
+      SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
+      SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ErrorFunc error_func,
+      SbTime start_time,
+      int tunnel_mode_audio_session_id,
+      void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
@@ -92,6 +106,9 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       int preferred_buffer_size,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::ErrorFunc error_func,
+      SbTime start_media_time,
+      int tunnel_mode_audio_session_id,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -106,8 +123,9 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  int WriteData(JniEnvExt* env, void* buffer, int size, SbTime sync_time);
 
+  // TODO: Add const to the following variables where appropriate.
   Type* type_;
   int channels_;
   int sampling_frequency_hz_;
@@ -116,18 +134,25 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   int frames_per_channel_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   ConsumeFramesFunc consume_frames_func_;
+  SbAudioSinkPrivate::ErrorFunc error_func_;
+  const SbTime start_time_;
+  const int tunnel_mode_audio_session_id_;
+  const int max_frames_per_request_;
+
   void* context_;
-  int last_playback_head_position_;
-  jobject j_audio_track_bridge_;
-  jobject j_audio_data_;
+  int last_playback_head_position_ = 0;
+  jobject j_audio_track_bridge_ = nullptr;
+  jobject j_audio_data_ = nullptr;
 
-  volatile bool quit_;
-  SbThread audio_out_thread_;
+  volatile bool quit_ = false;
+  SbThread audio_out_thread_ = kSbThreadInvalid;
 
-  starboard::Mutex mutex_;
-  double playback_rate_;
+  Mutex mutex_;
+  double playback_rate_ = 1.0;
 
-  int written_frames_;
+  // TODO: Rename to |frames_in_audio_track| and move it into AudioThreadFunc()
+  //       as a local variable.
+  int written_frames_ = 0;
 };
 
 }  // namespace shared
