@@ -79,13 +79,6 @@ DEFINE_GUID(DXVA_ModeVP9_VLD_Profile0,
             0xb8,
             0x9e);
 
-// This structure is used to facilitate creation of decode targets in the
-// appropriate graphics context.
-struct CreateDecodeTargetContext {
-  VideoDecoder* video_decoder;
-  SbDecodeTarget out_decode_target;
-};
-
 scoped_ptr<MediaTransform> CreateVideoTransform(
     const GUID& decoder_guid,
     const GUID& input_guid,
@@ -310,32 +303,19 @@ void VideoDecoder::Reset() {
 }
 
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  // Ensure the decode target is created on the render thread.
-  CreateDecodeTargetContext decode_target_context = {this};
-  graphics_context_provider_->gles_context_runner(
-      graphics_context_provider_, &VideoDecoder::CreateDecodeTargetHelper,
-      &decode_target_context);
+  auto decode_target = CreateDecodeTarget();
 
-  ScopedLock lock(decode_target_lock_);
-  if (SbDecodeTargetIsValid(decode_target_context.out_decode_target)) {
+  if (SbDecodeTargetIsValid(decode_target)) {
     if (SbDecodeTargetIsValid(current_decode_target_)) {
       prev_decode_targets_.emplace_back(current_decode_target_);
     }
-    current_decode_target_ = decode_target_context.out_decode_target;
+    current_decode_target_ = decode_target;
   }
   if (SbDecodeTargetIsValid(current_decode_target_)) {
     // Add a reference for the caller.
     current_decode_target_->AddRef();
   }
   return current_decode_target_;
-}
-
-// static
-void VideoDecoder::CreateDecodeTargetHelper(void* context) {
-  CreateDecodeTargetContext* target_context =
-      static_cast<CreateDecodeTargetContext*>(context);
-  target_context->out_decode_target =
-      target_context->video_decoder->CreateDecodeTarget();
 }
 
 SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
@@ -364,8 +344,6 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
   if (video_sample != nullptr) {
-    ScopedLock target_lock(decode_target_lock_);
-
     // Try reusing the previous decode target to avoid the performance hit of
     // creating a new texture.
     SB_DCHECK(prev_decode_targets_.size() <= kDecodeTargetCacheSize + 1);
@@ -505,8 +483,6 @@ void VideoDecoder::ShutdownCodec() {
 // static
 void VideoDecoder::ReleaseDecodeTargets(void* context) {
   VideoDecoder* this_ptr = static_cast<VideoDecoder*>(context);
-
-  ScopedLock lock(this_ptr->decode_target_lock_);
   while (!this_ptr->prev_decode_targets_.empty()) {
     SbDecodeTargetRelease(this_ptr->prev_decode_targets_.front());
     this_ptr->prev_decode_targets_.pop_front();

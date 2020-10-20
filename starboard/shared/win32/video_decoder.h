@@ -93,7 +93,6 @@ class VideoDecoder
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
   scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
   void DeleteVideoFrame(VideoFrame* video_frame);
-  static void CreateDecodeTargetHelper(void* context);
   SbDecodeTarget CreateDecodeTarget();
 
   void EnsureDecoderThreadRunning();
@@ -143,7 +142,6 @@ class VideoDecoder
   // certain number of frames while prerolling the initial playback.
   int priming_output_count_;
 
-  Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
   std::list<SbDecodeTarget> prev_decode_targets_;
 
