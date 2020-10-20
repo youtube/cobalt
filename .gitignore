@@ -38,6 +38,7 @@
 tags
 Thumbs.db
 v8.log
+/buildbot
 /cobalt/black_box_tests/_certs
 /gyp-mac-tool
 /out
