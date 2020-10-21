@@ -14,13 +14,19 @@
 
 #include "starboard/shared/win32/video_decoder.h"
 
+#include <windows.h>
+
 #include <functional>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/uwp/application_uwp.h"
+#include "starboard/shared/uwp/async_utils.h"
+#include "starboard/shared/uwp/media_hdr_utils.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
 #include "starboard/time.h"
+#include "third_party/angle/include/angle_hdr.h"
 
 // Include this after all other headers to avoid introducing redundant
 // definitions from other header files.
@@ -35,8 +41,12 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
+using ::starboard::shared::uwp::ApplicationUwp;
+using ::starboard::shared::uwp::SetHdrModeUpdateMetadata;
+using ::starboard::shared::uwp::WaitForComplete;
 using std::placeholders::_1;
 using std::placeholders::_2;
+using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 
 // Limit the number of active output samples to control memory usage.
 // NOTE: Higher numbers may result in increased dropped frames when the video
@@ -79,6 +89,19 @@ DEFINE_GUID(DXVA_ModeVP9_VLD_Profile0,
             0xb8,
             0x9e);
 
+DEFINE_GUID(DXVA_ModeVP9_VLD_10bit_Profile2,
+            0xa4c749ef,
+            0x6ecf,
+            0x48aa,
+            0x84,
+            0x48,
+            0x50,
+            0xa7,
+            0xa1,
+            0x16,
+            0x5f,
+            0xf7);
+
 scoped_ptr<MediaTransform> CreateVideoTransform(
     const GUID& decoder_guid,
     const GUID& input_guid,
@@ -104,9 +127,8 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
     hr = media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
                                       ULONG_PTR(device_manager));
     if (FAILED(hr)) {
-      SB_LOG(WARNING)
-          << "Unable to set device manager for d3d aware decoder, "
-             "disabling DXVA.";
+      SB_LOG(WARNING) << "Unable to set device manager for d3d aware decoder, "
+                         "disabling DXVA.";
       hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, FALSE);
       if (FAILED(hr)) {
         SB_LOG(WARNING) << "Unable to disable DXVA.";
@@ -169,12 +191,11 @@ VideoDecoder::VideoDecoder(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-    SbDrmSystem drm_system,
-    bool texture_RGBA)
+    SbDrmSystem drm_system)
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
-      texture_RGBA_(texture_RGBA) {
+      is_hdr_supported_(ApplicationUwp::Get()->IsHdrSupported()) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
@@ -192,42 +213,57 @@ VideoDecoder::VideoDecoder(
 
 VideoDecoder::~VideoDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  if (is_hdr_supported_ && IsHdrAngleModeEnabled()) {
+    SetHdrAngleModeEnabled(false);
+    auto hdmi_display_info = HdmiDisplayInformation::GetForCurrentView();
+    WaitForComplete(hdmi_display_info->SetDefaultDisplayModeAsync());
+  }
   Reset();
   ShutdownCodec();
 }
 
 // static
 bool VideoDecoder::IsHardwareVp9DecoderSupported() {
-  static bool s_queried_ = false;
-  static bool s_supported_;
+  static bool s_first_time_update = true;
+  static bool s_vp9_supported = false;
+  static bool s_is_hdr_supported = false;
 
   const UINT D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED = 0x10;
 
-  if (s_queried_) {
-    return s_supported_;
-  }
+  if (s_first_time_update) {
+    ComPtr<ID3D11Device> d3d11_device;
+    HRESULT hr = D3D11CreateDevice(
+        nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
+        D3D11_SDK_VERSION, d3d11_device.GetAddressOf(), nullptr, nullptr);
+    if (FAILED(hr)) {
+      return false;
+    }
+    ComPtr<ID3D11VideoDevice1> video_device;
+    if (FAILED(d3d11_device.As(&video_device))) {
+      return false;
+    }
+    const DXGI_RATIONAL kFps = {30, 1};  // 30 fps = 30/1
+    const UINT kBitrate = 0;
+    UINT caps_profile_0 = 0;
+    if (SUCCEEDED(video_device->GetVideoDecoderCaps(&DXVA_ModeVP9_VLD_Profile0,
+                                                    3840, 2160, &kFps, kBitrate,
+                                                    NULL, &caps_profile_0))) {
+      s_vp9_supported = caps_profile_0 != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
+    }
 
-  s_queried_ = true;
-  s_supported_ = false;
-
-  ComPtr<ID3D11Device> d3d11_device;
-  HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-                                 nullptr, 0, D3D11_SDK_VERSION,
-                                 d3d11_device.GetAddressOf(), nullptr, nullptr);
-  if (FAILED(hr)) {
-    return s_supported_;
+    UINT caps_profile_2 = 0;
+    if (SUCCEEDED(video_device->GetVideoDecoderCaps(
+            &DXVA_ModeVP9_VLD_10bit_Profile2, 3840, 2160, &kFps, kBitrate, NULL,
+            &caps_profile_2))) {
+      s_is_hdr_supported =
+          caps_profile_2 != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
+    }
+    s_first_time_update = false;
   }
-  ComPtr<ID3D11VideoDevice1> video_device;
-  if (FAILED(d3d11_device.As(&video_device))) {
-    return s_supported_;
-  }
-  const DXGI_RATIONAL kFps = {30, 1};  // 30 fps = 30/1
-  const UINT kBitrate = 0;
-  UINT caps = 0;
-  hr = video_device->GetVideoDecoderCaps(&DXVA_ModeVP9_VLD_Profile0, 3840, 2160,
-                                         &kFps, kBitrate, NULL, &caps);
-  s_supported_ = SUCCEEDED(hr) && caps != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
-  return s_supported_;
+  return ApplicationUwp::Get()->IsHdrSupported()
+             ? s_vp9_supported && s_is_hdr_supported
+             : s_vp9_supported;
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
@@ -260,7 +296,31 @@ void VideoDecoder::WriteInputBuffer(
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(input_buffer);
   SB_DCHECK(decoder_status_cb_);
+  SB_CHECK(error_cb_);
   EnsureDecoderThreadRunning();
+
+  const SbMediaVideoSampleInfo& sample_info = input_buffer->video_sample_info();
+  bool is_hdr_video =
+      sample_info.color_metadata.primaries != kSbMediaPrimaryIdBt709;
+  if (is_hdr_video && !ApplicationUwp::Get()->IsHdrSupported()) {
+    error_cb_(kSbPlayerErrorCapabilityChanged,
+              "HDR sink lost while HDR video playing.");
+    return;
+  }
+#if SB_HAS_QUIRK(HDR_10_PLUS_SUPPORT)
+  if (is_hdr_video && is_hdr_supported_) {
+    SetHdrAngleModeEnabled(true);
+    SetHdrModeUpdateMetadata(sample_info.color_metadata, &current_metadata_);
+  }
+#else   //  SB_HAS_QUIRK(HDR_10_PLUS_SUPPORT)
+  if (is_first_input_) {
+    is_first_input_ = false;
+    if (is_hdr_video && is_hdr_supported_) {
+      SetHdrAngleModeEnabled(true);
+      SetHdrModeUpdateMetadata(sample_info.color_metadata, &current_metadata_);
+    }
+  }
+#endif  // SB_HAS_QUIRK(HDR_10_PLUS_SUPPORT)
 
   ScopedLock lock(thread_lock_);
   thread_events_.emplace_back(
@@ -354,7 +414,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
       if (!hardware_decode_target->Update(
               d3d_device_, video_device_, video_context_, video_enumerator_,
-              video_processor_, video_sample, video_area, texture_RGBA_)) {
+              video_processor_, video_sample, video_area, is_hdr_supported_)) {
         // The cached decode target was not compatible; just release it.
         SbDecodeTargetRelease(decode_target);
         decode_target = kSbDecodeTargetInvalid;
@@ -364,7 +424,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     if (!SbDecodeTargetIsValid(decode_target)) {
       decode_target = new HardwareDecodeTargetPrivate(
           d3d_device_, video_device_, video_context_, video_enumerator_,
-          video_processor_, video_sample, video_area, texture_RGBA_);
+          video_processor_, video_sample, video_area, is_hdr_supported_);
     }
 
     // Release the video_sample before releasing the reset lock.
