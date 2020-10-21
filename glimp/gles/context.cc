@@ -1495,8 +1495,7 @@ void Context::TexImage2D(GLenum target,
 
   // The incoming pixel data should be aligned as the client has specified
   // that it will be.
-  SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
-                          static_cast<uintptr_t>(unpack_alignment_)));
+  SB_DCHECK(nb::IsAligned(pixels, static_cast<size_t>(unpack_alignment_)));
 
   // Determine pitch taking into account glPixelStorei() settings.
   int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
@@ -1578,8 +1577,7 @@ void Context::TexSubImage2D(GLenum target,
 
   // The incoming pixel data should be aligned as the client has specified
   // that it will be.
-  SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
-                          static_cast<uintptr_t>(unpack_alignment_)));
+  SB_DCHECK(nb::IsAligned(pixels, static_cast<size_t>(unpack_alignment_)));
 
   // Determine pitch taking into account glPixelStorei() settings.
   int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);

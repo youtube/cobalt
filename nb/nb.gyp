@@ -36,6 +36,7 @@
       'conditions': [
         ['OS=="starboard"', {
           'sources': [
+            'allocator.cc',
             'allocator.h',
             'analytics/memory_tracker.cc',
             'analytics/memory_tracker.h',
@@ -75,6 +76,7 @@
             'simple_thread.h',
             'simple_profiler.cc',
             'simple_profiler.h',
+            'starboard_aligned_memory_deleter.h',
             'std_allocator.h',
             'string_interner.cc',
             'string_interner.h',
