@@ -17,17 +17,14 @@
 #include "nb/first_fit_reuse_allocator.h"
 
 #include "nb/fixed_no_free_allocator.h"
+#include "nb/pointer_arithmetic.h"
 #include "nb/scoped_ptr.h"
+#include "nb/starboard_aligned_memory_deleter.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-
-inline bool IsAligned(void* ptr, std::size_t boundary) {
-  uintptr_t ptr_as_int = reinterpret_cast<uintptr_t>(ptr);
-  return ptr_as_int % boundary == 0;
-}
 
 class FirstFitReuseAllocatorTest : public ::testing::Test {
  public:
@@ -38,17 +35,17 @@ class FirstFitReuseAllocatorTest : public ::testing::Test {
  protected:
   void ResetAllocator(std::size_t initial_capacity = 0,
                       std::size_t allocation_increment = 0) {
-    nb::scoped_array<uint8_t> buffer(new uint8_t[kBufferSize]);
+    buffer_.reset(static_cast<uint8_t*>(
+        SbMemoryAllocateAligned(nb::Allocator::kMinAlignment, kBufferSize)));
     nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
-        new nb::FixedNoFreeAllocator(buffer.get(), kBufferSize));
+        new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
     allocator_.reset(new nb::FirstFitReuseAllocator(
         fallback_allocator.get(), initial_capacity, allocation_increment));
 
     fallback_allocator_.swap(fallback_allocator);
-    buffer_.swap(buffer);
   }
 
-  nb::scoped_array<uint8_t> buffer_;
+  std::unique_ptr<uint8_t, nb::AlignedMemoryDeleter> buffer_;
   nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
   nb::scoped_ptr<nb::FirstFitReuseAllocator> allocator_;
 };
@@ -62,7 +59,7 @@ TEST_F(FirstFitReuseAllocatorTest, AlignmentCheck) {
     for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
       void* p = allocator_->Allocate(kBlockSizes[j], kAlignments[i]);
       EXPECT_TRUE(p != NULL);
-      EXPECT_EQ(IsAligned(p, kAlignments[i]), true);
+      EXPECT_EQ(nb::IsAligned(p, kAlignments[i]), true);
       allocator_->Free(p);
     }
   }

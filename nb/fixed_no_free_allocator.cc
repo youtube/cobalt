@@ -25,6 +25,7 @@ FixedNoFreeAllocator::FixedNoFreeAllocator(void* memory_start,
                                            std::size_t memory_size)
     : memory_start_(memory_start),
       memory_end_(AsPointer(AsInteger(memory_start) + memory_size)) {
+  SB_CHECK(IsAligned(memory_start, kMinAlignment));
   next_memory_ = memory_start_;
 }
 

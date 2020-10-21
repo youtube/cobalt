@@ -36,6 +36,7 @@ namespace nb {
 // memory and we would like to wrap it in an allocator.
 class FixedNoFreeAllocator : public Allocator {
  public:
+  // Requires aligned memory to at least |nb::kMinAlignment|.
   FixedNoFreeAllocator(void* memory_start, std::size_t memory_size);
   void* Allocate(std::size_t size) { return Allocate(&size, 1, true); }
 

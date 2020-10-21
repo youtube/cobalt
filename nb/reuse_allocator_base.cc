@@ -29,10 +29,6 @@ namespace {
 // Minimum block size to avoid extremely small blocks inside the block list and
 // to ensure that a zero sized allocation will return a non-zero sized block.
 const std::size_t kMinBlockSizeBytes = 16;
-// Using a minimum value for size and alignment keeps things rounded and aligned
-// and help us avoid creating tiny and/or badly misaligned free blocks.  Also
-// ensures even for a 0-byte request will get a unique block.
-const std::size_t kMinAlignment = 16;
 // The max lines of allocation to print inside PrintAllocations().  Set to 0 to
 // print all allocations.
 const int kMaxAllocationLinesToPrint = 0;
