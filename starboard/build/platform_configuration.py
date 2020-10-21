@@ -22,7 +22,7 @@ import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.optional import get_optional_tests
 from starboard.sabi import sabi
-from starboard.tools import ccache
+from starboard.tools import cache
 from starboard.tools import environment
 from starboard.tools import paths
 from starboard.tools import platform
@@ -71,14 +71,16 @@ class PlatformConfiguration(object):
     self._application_configuration = None
     self._application_configuration_search_path = [self._directory]
 
-    # Specifies the build accelerator to be used. Default is ccache.
-    build_accelerator = ccache.Ccache()
+    # Specifies the build accelerator. Default is ccache.
+    build_accelerator = cache.Cache()
     if build_accelerator.Use():
       self.build_accelerator = build_accelerator.GetName()
-      logging.info('Using %sbuild accelerator.', self.build_accelerator)
+      logging.info('Using %s default build accelerator.',
+                   self.build_accelerator)
     else:
       self.build_accelerator = ''
-      logging.info('Not using a build accelerator.')
+      logging.info('Not using %s default build accelerator.',
+                   self.build_accelerator)
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
