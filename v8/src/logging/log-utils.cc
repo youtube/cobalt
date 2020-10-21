@@ -4,10 +4,6 @@
 
 #include "src/logging/log-utils.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/common/log.h"
-#endif
-
 #include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
@@ -15,6 +11,10 @@
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 #include "src/utils/version.h"
+
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -27,10 +27,8 @@ FILE* Log::CreateOutputHandle(const char* file_name) {
   // If we're logging anything, we need to open the log file.
   if (!Log::InitLogAtStart()) {
     return nullptr;
-#ifndef V8_OS_STARBOARD
   } else if (strcmp(file_name, kLogToConsole) == 0) {
     return stdout;
-#endif
   } else if (strcmp(file_name, kLogToTemporaryFile) == 0) {
     return base::OS::OpenTemporaryFile();
   } else {
@@ -41,11 +39,7 @@ FILE* Log::CreateOutputHandle(const char* file_name) {
 Log::Log(Logger* logger, const char* file_name)
     : is_stopped_(false),
       output_handle_(Log::CreateOutputHandle(file_name)),
-#if defined(V8_OS_STARBOARD)
-      os_(output_handle_),
-#else
       os_(output_handle_ == nullptr ? stdout : output_handle_),
-#endif
       format_buffer_(NewArray<char>(kMessageBufferSize)),
       logger_(logger) {
   // --log-all enables all the log flags.

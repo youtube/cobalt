@@ -11,10 +11,6 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/common/log.h"
-#endif  // V8_OS_STARBOARD
-
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
 // https://github.com/tc39/ecmascript_sharedmem
@@ -32,43 +28,43 @@ namespace {
 
 template <typename T>
 inline T ExchangeSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T AddSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T SubSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T AndSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T OrSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 
 template <typename T>
 inline T XorSeqCst(T* p, T value) {
-  SB_NOTREACHED();
+  CHECK(false);
   return 0;
 }
 

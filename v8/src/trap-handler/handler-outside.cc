@@ -19,11 +19,6 @@
 //
 // For the code that runs in the trap handler itself, see handler-inside.cc.
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/system.h"
-#define __builtin_abort SbSystemBreakIntoDebugger
-#endif
-
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,11 +32,6 @@
 
 #if V8_OS_STARBOARD
 #include "src/poems.h"
-#endif
-
-#if defined(V8_OS_STARBOARD)
-#include "starboard/system.h"
-#define abort SbSystemBreakIntoDebugger
 #endif
 
 namespace {

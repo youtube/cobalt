@@ -15,11 +15,9 @@
 #ifndef INCLUDE_V8_H_
 #define INCLUDE_V8_H_
 
-#if !V8_OS_STARBOARD
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#endif // !V8_OS_STARBOARD
 #include <memory>
 #include <utility>
 #include <vector>
