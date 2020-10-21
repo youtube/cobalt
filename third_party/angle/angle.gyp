@@ -55,6 +55,13 @@
                 './src',
                 './src/common/third_party/base',
             ],
+            'msvs_settings':
+            {
+                  'VCCLCompilerTool':
+                  {
+                        'WarnAsError': 'false',
+                  },
+            },
             'direct_dependent_settings':
             {
                 'include_dirs':

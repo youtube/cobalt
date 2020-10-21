@@ -21,6 +21,7 @@ import sys
 
 import config.base
 import starboard.shared.win32.sdk_configuration as win_sdk_configuration
+from starboard.tools import cache
 from starboard.tools.paths import STARBOARD_ROOT
 from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import cmd
@@ -108,8 +109,19 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     return variables
 
   def GetEnvironmentVariables(self):
+    # Specifies sccache as the build accelerator.
+    build_accelerator = cache.Cache(cache.Accelerator.SCCACHE)
+    logging.info('Overriding default build accelerator.')
+    if build_accelerator.Use():
+      self.build_accelerator = build_accelerator.GetName()
+      logging.info('Using %s build accelerator.', self.build_accelerator)
+    else:
+      self.build_accelerator = ''
+      logging.info('Not using %s build accelerator.', self.build_accelerator)
+
     sdk = self.GetSdk()
-    cl = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'cl.exe'))
+    cl = self.build_accelerator + ' ' + _QuotePath(os.path.join(
+             sdk.vs_host_tools_path, 'cl.exe'))
     lib = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'lib.exe'))
     link = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'link.exe'))
     rc = _QuotePath(os.path.join(sdk.windows_sdk_host_tools, 'rc.exe'))

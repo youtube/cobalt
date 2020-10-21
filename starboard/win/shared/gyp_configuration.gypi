@@ -153,9 +153,6 @@
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'DebugInformationFormat': '1',
-                'AdditionalOptions': [
-                '/FS',
-                ],
               },
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'true',
@@ -314,11 +311,6 @@
         # Check for 64-bit portability issues.
         'Detect64BitPortabilityProblems': 'true',
 
-        # Disable Microsoft-specific header dependency tracking.
-        # Incremental linker does not support the Windows metadata included
-        # in .obj files compiled with C++/CX support (/ZW).
-        'MinimalRebuild': 'false',
-
         # Treat warnings as errors.
         'WarnAsError': 'true',
 
@@ -328,7 +320,6 @@
 
         'AdditionalOptions': [
           '/errorReport:none', # Don't send error reports to MS.
-          '/FS', # Force sync PDB updates for parallel compile.
         ],
       },
       'VCLinkerTool': {

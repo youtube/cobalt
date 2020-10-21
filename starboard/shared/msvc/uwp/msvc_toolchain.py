@@ -387,7 +387,6 @@ class MsvsSettings(CompilerSettings):
        prefix='/Z')
     cl('RuntimeTypeInfo', map={'true': '/GR', 'false': '/GR-'})
     cl('EnableFunctionLevelLinking', map={'true': '/Gy', 'false': '/Gy-'})
-    cl('MinimalRebuild', map={'true': '/Gm', 'false': '/Gm-'})
     cl('BufferSecurityCheck', map={'true': '/GS', 'false': '/GS-'})
     cl('BasicRuntimeChecks', map={'1': 's', '2': 'u', '3': '1'}, prefix='/RTC')
     cl('RuntimeLibrary',
