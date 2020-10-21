@@ -944,7 +944,6 @@
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'MinimalRebuild': 'false',
             'BufferSecurityCheck': 'true',
             'EnableFunctionLevelLinking': 'true',
             'RuntimeTypeInfo': 'false',
