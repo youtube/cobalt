@@ -71,7 +71,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#define printf(format) SbLogRaw(format)
+#include "src/poems.h"
 #endif
 
 namespace v8 {

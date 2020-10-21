@@ -5,11 +5,9 @@
 #ifndef V8_UTILS_OSTREAMS_H_
 #define V8_UTILS_OSTREAMS_H_
 
-#if !defined(V8_OS_STARBOARD)
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#endif
 #include <ostream>  // NOLINT
 #include <streambuf>
 

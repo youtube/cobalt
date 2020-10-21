@@ -79,6 +79,10 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -3777,9 +3781,7 @@ void Heap::CollectCodeStatistics() {
 
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
-#ifndef V8_OS_STARBOARD
   isolate()->PrintStack(stdout);
-#endif
 
   for (SpaceIterator it(this); it.HasNext();) {
     it.Next()->Print();

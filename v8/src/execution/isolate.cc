@@ -4,14 +4,10 @@
 
 #include "src/execution/isolate.h"
 
-#if !V8_OS_STARBOARD
 #include <stdlib.h>
-#endif  // V8_OS_STARBOARD
 
 #include <atomic>
-#if !defined(V8_OS_STARBOARD)
 #include <fstream>  // NOLINT(readability/streams)
-#endif
 #include <memory>
 #include <sstream>
 #include <unordered_map>
