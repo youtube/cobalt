@@ -64,7 +64,7 @@ public void onDestroy() {
   getStarboardBridge().onServiceDestroy(this);
   context = null;
   super.onDestroy();
-  Log.i(TAG, "Destorying the Media playback service.");
+  Log.i(TAG, "Destroying the Media playback service.");
 }
 
 public void startService() {
