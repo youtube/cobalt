@@ -682,52 +682,69 @@ public class MediaCodecUtil {
    * Debug utility function that can be locally added to dump information about all decoders on a
    * particular system.
    */
-  @SuppressWarnings("unused")
-  private static void dumpAllDecoders() {
+  public static void dumpAllDecoders() {
+    String decoderDumpString = "";
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {
         continue;
       }
       for (String supportedType : info.getSupportedTypes()) {
         String name = info.getName();
-        CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
-        Log.v(TAG, "==================================================");
-        Log.v(TAG, String.format("name: %s", name));
-        Log.v(TAG, String.format("supportedType: %s", supportedType));
-        Log.v(
-            TAG, String.format("codecBlackList.contains(name): %b", codecBlackList.contains(name)));
-        Log.v(
-            TAG,
+        decoderDumpString +=
             String.format(
-                "FEATURE_SecurePlayback: %b",
-                codecCapabilities.isFeatureSupported(
-                    MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)));
+                "name: %s (%s, %s):",
+                name,
+                supportedType,
+                codecBlackList.contains(name) ? "blacklisted" : "not blacklisted");
+        CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         if (videoCapabilities != null) {
-          Log.v(
-              TAG,
+          decoderDumpString +=
               String.format(
-                  "videoCapabilities.getSupportedWidths(): %s",
-                  videoCapabilities.getSupportedWidths().toString()));
-          Log.v(
-              TAG,
-              String.format(
-                  "videoCapabilities.getSupportedHeights(): %s",
-                  videoCapabilities.getSupportedHeights().toString()));
-          Log.v(
-              TAG,
-              String.format(
-                  "videoCapabilities.getBitrateRange(): %s",
-                  videoCapabilities.getBitrateRange().toString()));
-          Log.v(
-              TAG,
-              String.format(
-                  "videoCapabilities.getSupportedFrameRates(): %s",
-                  videoCapabilities.getSupportedFrameRates().toString()));
+                  "\n\t\t"
+                      + "widths: %s, "
+                      + "heights: %s, "
+                      + "bitrates: %s, "
+                      + "framerates: %s, ",
+                  videoCapabilities.getSupportedWidths().toString(),
+                  videoCapabilities.getSupportedHeights().toString(),
+                  videoCapabilities.getBitrateRange().toString(),
+                  videoCapabilities.getSupportedFrameRates().toString());
         }
-        Log.v(TAG, "==================================================");
-        Log.v(TAG, "");
+        boolean adaptivePlayback =
+            codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
+        boolean securePlayback =
+            codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+        boolean tunneledPlayback =
+            codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+        if (adaptivePlayback || securePlayback || tunneledPlayback) {
+          decoderDumpString +=
+              String.format(
+                  "(%s%s%s",
+                  adaptivePlayback ? "AdaptivePlayback, " : "",
+                  securePlayback ? "SecurePlayback, " : "",
+                  tunneledPlayback ? "TunneledPlayback, " : "");
+          // Remove trailing space and comma
+          decoderDumpString = decoderDumpString.substring(0, decoderDumpString.length() - 2);
+          decoderDumpString += ")";
+        } else {
+          decoderDumpString += " No extra features supported";
+        }
+        decoderDumpString += "\n";
       }
     }
+    Log.v(
+        TAG,
+        String.format(
+            " \n"
+                + "==================================================\n"
+                + "Full list of decoder features: [AdaptivePlayback, SecurePlayback,"
+                + " TunneledPlayback]\n"
+                + "Unsupported features for each codec are not listed\n"
+                + decoderDumpString
+                + "=================================================="));
   }
 }

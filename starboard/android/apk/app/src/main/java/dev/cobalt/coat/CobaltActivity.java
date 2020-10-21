@@ -27,6 +27,7 @@ import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -109,6 +110,9 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onStart() {
+    if (!isReleaseBuild()) {
+      MediaCodecUtil.dumpAllDecoders();
+    }
     if (forceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
