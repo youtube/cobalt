@@ -188,7 +188,7 @@ void VideoDecoder::ReleasePicture(Dav1dPicture* picture) const {
   SB_DCHECK(picture->data[0] < picture->data[1]);
   SB_DCHECK(picture->data[1] < picture->data[2]);
 
-  SbMemoryDeallocate(picture->data[0]);
+  SbMemoryDeallocateAligned(picture->data[0]);
   for (int i = 0; i < 3; ++i) {
     picture->data[i] = NULL;
   }
