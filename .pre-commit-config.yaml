@@ -76,3 +76,9 @@ repos:
         language: python
         files: '^starboard/*.h$'
         stages: [push]
+    -   id: download-resources
+        name: download resources
+        entry: ./download_resources.py
+        language: python
+        stages: [post-checkout]
+        always_run: true
