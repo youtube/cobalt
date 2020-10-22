@@ -1,6 +1,10 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 default_stages: [commit]
+
+default_language_version:
+    python: python3
+
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
     rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
@@ -14,7 +18,7 @@ repos:
     hooks:
     -   id: sync-keyboxes
         name: sync-keyboxes
-        entry: third_party/precommit-hooks/sync_keyboxes_wrapper.py
+        entry: python third_party/precommit-hooks/sync_keyboxes_wrapper.py
         language: python
         stages: [post-checkout]
         always_run: true
@@ -48,37 +52,37 @@ repos:
         exclude: '\.gypi?$'
     -   id: clang-format
         name: clang-format
-        entry: third_party/precommit-hooks/clang-format_wrapper.py
+        entry: python third_party/precommit-hooks/clang-format_wrapper.py
         language: python
         types: [c++]
         args: [-i, -style=file]
     -   id: google-java-format
         name: google-java-format
-        entry: third_party/precommit-hooks/google-java-format_wrapper.py
+        entry: python third_party/precommit-hooks/google-java-format_wrapper.py
         language: python
         types: [java]
         args: [-i]
     -   id: gcheckstyle
         name: gcheckstyle
-        entry: third_party/precommit-hooks/gcheckstyle_wrapper.py
+        entry: python third_party/precommit-hooks/gcheckstyle_wrapper.py
         language: python
         types: [java]
         verbose: true
     -   id: check-copyright-year
         name: check copyright year
-        entry: third_party/precommit-hooks/custom_hooks/check_copyright_year.py
+        entry: python third_party/precommit-hooks/custom_hooks/check_copyright_year.py
         language: python
         types: [file, text]
         stages: [push]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
-        entry: third_party/precommit-hooks/custom_hooks/warn_that_starboard_interface_changed.py
+        entry: python third_party/precommit-hooks/custom_hooks/warn_that_starboard_interface_changed.py
         language: python
         files: '^starboard/*.h$'
         stages: [push]
     -   id: download-resources
         name: download resources
-        entry: ./download_resources.py
+        entry: python ./download_resources.py
         language: python
         stages: [post-checkout]
         always_run: true
