@@ -33,6 +33,8 @@
     {
       'target_name': 'css_grammar',
       'type': 'none',
+      # This target generates header files which may be used by other targets.
+      'hard_dependency': 1,
       'sources': [
         'grammar.h',
         'grammar.y'
