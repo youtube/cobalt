@@ -17,6 +17,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
@@ -32,29 +33,6 @@ int GetDefaultSupportedAudioSamplesPerSecond() {
   const int kDefaultOutputSamplesPerSecond = 48000;
   return SbAudioSinkGetNearestSupportedSampleFrequency(
       kDefaultOutputSamplesPerSecond);
-}
-
-bool IsResetDecoderNecessary(const SbMediaAudioSampleInfo& current_info,
-                             const SbMediaAudioSampleInfo& new_info) {
-  if (current_info.codec != new_info.codec) {
-    return true;
-  }
-  if (current_info.samples_per_second != new_info.samples_per_second) {
-    return true;
-  }
-  if (current_info.number_of_channels != new_info.number_of_channels) {
-    return true;
-  }
-  if (current_info.audio_specific_config_size !=
-      new_info.audio_specific_config_size) {
-    return true;
-  }
-  if (SbMemoryCompare(current_info.audio_specific_config,
-                      new_info.audio_specific_config,
-                      current_info.audio_specific_config_size) != 0) {
-    return true;
-  }
-  return false;
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
@@ -107,8 +85,8 @@ void AdaptiveAudioDecoder::Decode(
     }
     return;
   }
-  if (IsResetDecoderNecessary(input_audio_sample_info_,
-                              input_buffer->audio_sample_info())) {
+  if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+          input_audio_sample_info_, input_buffer->audio_sample_info())) {
     flushing_ = true;
     pending_input_buffer_ = input_buffer;
     pending_consumed_cb_ = consumed_cb;
