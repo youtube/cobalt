@@ -41,6 +41,10 @@ private Context context;
 public void onCreate() {
   super.onCreate();
   Log.i(TAG, "Creating a Media playback foreground service.");
+  if (getStarboardBridge() == null) {
+    Log.e(TAG, "StarboardBridge already destroyed.");
+    return;
+  }
   getStarboardBridge().onServiceStart(this);
   context = getApplicationContext();
 }
@@ -139,6 +143,10 @@ Notification buildNotification() {
 
 @UsedByNative
 protected StarboardBridge getStarboardBridge() {
+  if (getApplication() == null) {
+    Log.e(TAG, "Application already destroyed.");
+    return null;
+  }
   return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
 }
 
