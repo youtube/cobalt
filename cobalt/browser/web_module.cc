@@ -241,11 +241,13 @@ class WebModule::Impl {
   void CancelSynchronousLoads();
 
   void IsReadyToFreeze(volatile bool* is_ready_to_freeze) {
-    if (window_->media_session()->
-        media_session_client() == NULL)
+    if (window_->media_session()->media_session_client() == NULL) {
+      *is_ready_to_freeze = true;
       return;
-    *is_ready_to_freeze = !window_->media_session()->
-        media_session_client()->is_active();
+    }
+
+    *is_ready_to_freeze =
+        !window_->media_session()->media_session_client()->is_active();
   }
 
  private:
