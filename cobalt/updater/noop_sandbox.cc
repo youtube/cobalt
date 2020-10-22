@@ -15,7 +15,12 @@
 // This is a test app for Evergreen that does nothing.
 
 #include "starboard/event.h"
+#include "starboard/system.h"
+#include "starboard/thread.h"
+#include "starboard/time.h"
 
 void SbEventHandle(const SbEvent* event) {
-  // noop
+  // No-op app. Exit after 1s.
+  SbThreadSleep(kSbTimeSecond);
+  SbSystemRequestStop(0);
 }
