@@ -122,7 +122,8 @@ public class VoiceRecognizer {
     this.nativeSpeechRecognizerImpl = nativeSpeechRecognizer;
 
     if (this.audioPermissionRequester.requestRecordAudioPermission(
-        this.nativeSpeechRecognizerImpl)) {
+        this.nativeSpeechRecognizerImpl) &&
+        SpeechRecognizer.isRecognitionAvailable(context)) {
       startRecognitionInternal();
     } else {
       mainHandler.post(
