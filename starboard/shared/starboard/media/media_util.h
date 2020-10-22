@@ -104,6 +104,12 @@ const char* GetTransferIdName(SbMediaTransferId transfer_id);
 const char* GetMatrixIdName(SbMediaMatrixId matrix_id);
 const char* GetRangeIdName(SbMediaRangeId range_id);
 
+//  When this function returns true, usually indicates that the two sample info
+//  cannot be processed by the same audio decoder.
+bool IsAudioSampleInfoSubstantiallyDifferent(
+    const SbMediaAudioSampleInfo& left,
+    const SbMediaAudioSampleInfo& right);
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared
