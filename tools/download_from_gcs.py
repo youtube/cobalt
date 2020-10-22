@@ -34,7 +34,7 @@ def AddExecutableBits(filename):
   os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def ExtractSha1(filename):
+def _ExtractSha1(filename):
   with open(filename, 'rb') as f:
     sha1 = hashlib.sha1()
     buf = f.read(_BUFFER_SIZE)
@@ -54,7 +54,7 @@ def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
     shutil.copyfileobj(res, tmp_file)
 
-  if ExtractSha1(tmp_file.name) != sha1:
+  if _ExtractSha1(tmp_file.name) != sha1:
     logging.error('Local and remote sha1s do not match. Skipping download.')
     return None
 
@@ -97,15 +97,12 @@ def MaybeDownloadDirectoryFromGcs(bucket,
                                   sha1_directory,
                                   output_directory,
                                   force=False):
-  res = True
   for filename in os.listdir(sha1_directory):
     filebase, ext = os.path.splitext(filename)
     if ext == '.sha1':
       filepath = os.path.join(sha1_directory, filename)
       output_filepath = os.path.join(output_directory, filebase)
-      if not MaybeDownloadFileFromGcs(bucket, filepath, output_filepath, force):
-        res = False
-  return res
+      MaybeDownloadFileFromGcs(bucket, filepath, output_filepath, force)
 
 
 if __name__ == "__main__":
