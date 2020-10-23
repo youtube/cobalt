@@ -623,6 +623,7 @@ const char* GetRangeIdName(SbMediaRangeId range_id) {
   return "Invalid";
 }
 
+#if SB_API_VERSION >= 11
 bool IsAudioSampleInfoSubstantiallyDifferent(
     const SbMediaAudioSampleInfo& left,
     const SbMediaAudioSampleInfo& right) {
@@ -634,6 +635,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
                          right.audio_specific_config,
                          left.audio_specific_config_size) != 0;
 }
+#endif  // SB_API_VERSION < 11
 
 }  // namespace media
 }  // namespace starboard
