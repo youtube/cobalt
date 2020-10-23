@@ -82,11 +82,3 @@ repos:
         language: python
         stages: [post-checkout]
         always_run: true
-    -   id: test-download-from-gcs-helper
-        name: test download from gcs helper
-        entry: python
-        language: python
-        pass_filenames: false
-        always_run: true
-        stages: [push]
-        args: [-m, unittest, tools/download_from_gcs_test.py]
