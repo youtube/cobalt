@@ -18,12 +18,20 @@ import hashlib
 import logging
 import os
 import shutil
+import ssl
 import stat
 import tempfile
 try:
   import urllib.request as urllib
 except ImportError:
   import urllib2 as urllib
+
+# ssl.SSLContext (and thus ssl.create_default_context) was introduced in
+# python 2.7.9. depot_tools provides python 2.7.6, so we wrap this import.
+try:
+  from ssl import create_default_context
+except ImportError:
+  create_default_context = lambda: None
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
@@ -34,7 +42,7 @@ def AddExecutableBits(filename):
   os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def _ExtractSha1(filename):
+def ExtractSha1(filename):
   with open(filename, 'rb') as f:
     sha1 = hashlib.sha1()
     buf = f.read(_BUFFER_SIZE)
@@ -46,7 +54,8 @@ def _ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = '{}/{}/{}'.format(_BASE_GCS_URL, bucket, sha1)
-  res = urllib.urlopen(url)
+
+  res = urllib.urlopen(url, context=create_default_context())
   if not res:
     logging.error('Could not reach %s', url)
     return None
@@ -54,7 +63,7 @@ def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
     shutil.copyfileobj(res, tmp_file)
 
-  if _ExtractSha1(tmp_file.name) != sha1:
+  if ExtractSha1(tmp_file.name) != sha1:
     logging.error('Local and remote sha1s do not match. Skipping download.')
     return None
 
@@ -97,12 +106,15 @@ def MaybeDownloadDirectoryFromGcs(bucket,
                                   sha1_directory,
                                   output_directory,
                                   force=False):
+  res = True
   for filename in os.listdir(sha1_directory):
     filebase, ext = os.path.splitext(filename)
     if ext == '.sha1':
       filepath = os.path.join(sha1_directory, filename)
       output_filepath = os.path.join(output_directory, filebase)
-      MaybeDownloadFileFromGcs(bucket, filepath, output_filepath, force)
+      if not MaybeDownloadFileFromGcs(bucket, filepath, output_filepath, force):
+        res = False
+  return res
 
 
 if __name__ == "__main__":
