@@ -65,6 +65,10 @@ public IBinder onBind(Intent intent) {
 
 @Override
 public void onDestroy() {
+  if (getStarboardBridge() == null) {
+    Log.e(TAG, "StarboardBridge already destroyed.");
+    return;
+  }
   getStarboardBridge().onServiceDestroy(this);
   context = null;
   super.onDestroy();
