@@ -244,12 +244,14 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
         msvc.StaticThinLinker(
             path=ar_path,
             arch=arch,
-            gyp_libflags=gyp_libflags
+            gyp_libflags=gyp_libflags,
+            max_concurrent_processes=kwargs.get('max_concurrent_processes', None)
         ),
         msvc.StaticLinker(
             path=ar_path,
             arch=arch,
-            gyp_libflags=gyp_libflags
+            gyp_libflags=gyp_libflags,
+            max_concurrent_processes=kwargs.get('max_concurrent_processes', None)
         ),
         msvc.ExecutableLinker(
             path=ld_path,
