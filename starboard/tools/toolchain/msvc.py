@@ -156,6 +156,7 @@ class StaticLinkerBase(object):
     self._path = common.GetPath('ar', **kwargs)
     self._arch = kwargs.get('arch', 'environment.x64')
     self._gyp_libflags = kwargs.get('gyp_libflags', [])
+    self._max_concurrent_processes = kwargs.get('max_concurrent_processes', None)
 
   def GetPath(self):
     return self._path
@@ -165,8 +166,7 @@ class StaticLinkerBase(object):
     return []
 
   def GetMaxConcurrentProcesses(self):
-    # Run as much concurrent processes as possible.
-    return None
+    return self._max_concurrent_processes
 
   def GetDescription(self):
     return 'LIB $out'
