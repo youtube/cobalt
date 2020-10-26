@@ -29,6 +29,10 @@ _TEST_PATH = os.path.join(
 _TEST_DIRECTORY = 'test_dir'
 _TEST_FILE = 'clang-format.sha1'
 
+logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
+logging.basicConfig(
+    level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
+
 
 def _Sha1sMatch(file_to_read, file_to_hash):
   if not os.path.exists(file_to_read):
