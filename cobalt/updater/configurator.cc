@@ -28,50 +28,35 @@ namespace {
 // Default time constants.
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
-
-#if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const std::set<std::string> valid_channels = {"dev"};
-const std::string kDefaultUpdaterChannel = "dev";
-#elif defined(COBALT_BUILD_TYPE_QA)
 const std::set<std::string> valid_channels = {
-    // Default channel for qa builds
-    "qa",
-    // Test an update with higher version than qa channel
-    "test",
-    // Test an update with mismatched sabi
-    "tmsabi",
-    // Test an update that does nothing
-    "tnoop",
-    // Test an update that crashes
-    "tcrash",
-    // Test an update that fails verification
-    "tfailv",
-    // Test a series of continuous updates with two channels
-    "tseries1", "tseries2",
-};
-const std::string kDefaultUpdaterChannel = "qa";
-#elif defined(COBALT_BUILD_TYPE_GOLD)
-const std::set<std::string> valid_channels = {
-    // Default channel for gold builds
-    "prod",
-    // Channel for dogfooders
+    // Default channel for debug/devel builds.
+    "dev",
+    // Channel for dogfooders.
     "dogfood",
+    // Default channel for gold builds.
+    "prod",
     // Default channel for qa builds. A gold build can switch to this channel to
     // get an official qa build.
     "qa",
-    // Test an update with higher version than prod channel
+    // Test an update with higher version than prod channel.
     "test",
-    // Test an update with mismatched sabi
+    // Test an update with mismatched sabi.
     "tmsabi",
-    // Test an update that does nothing
+    // Test an update that does nothing.
     "tnoop",
-    // Test an update that crashes
+    // Test an update that crashes.
     "tcrash",
-    // Test an update that fails verification
+    // Test an update that fails verification.
     "tfailv",
-    // Test a series of continuous updates with two channels
+    // Test a series of continuous updates with two channels.
     "tseries1", "tseries2",
 };
+
+#if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
+const std::string kDefaultUpdaterChannel = "dev";
+#elif defined(COBALT_BUILD_TYPE_QA)
+const std::string kDefaultUpdaterChannel = "qa";
+#elif defined(COBALT_BUILD_TYPE_GOLD)
 const std::string kDefaultUpdaterChannel = "prod";
 #endif
 
