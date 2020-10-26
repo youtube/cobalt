@@ -40,11 +40,11 @@
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
@@ -225,6 +225,21 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
       gl_norm_coords_to_skia_canvas_coords;
 
   return result;
+}
+
+glm::mat4 ScaleMatrixFor360VideoAdjustment(const SkISize& canvas_size,
+                           const SkIRect& canvas_boundsi) {
+  glm::mat4 scale_matrix(
+      static_cast<float>(canvas_boundsi.width()) / canvas_size.width(), 0, 0, 0,
+      0, static_cast<float>(canvas_boundsi.height()) / canvas_size.height(), 0,
+      0, 0, 0, 1, 0,
+      (canvas_boundsi.width() - canvas_size.width()) /
+          static_cast<float>(canvas_size.width()),
+      (canvas_size.width() - canvas_boundsi.width()) /
+          static_cast<float>(canvas_size.width()),
+      0, 1);
+
+  return scale_matrix;
 }
 
 // Accommodate for the fact that for some image formats, like UYVY, our texture
@@ -534,6 +549,7 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
   image->EnsureInitialized();
 
   SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
+  SkIRect canvas_boundsi = draw_state->render_target->getDeviceClipBounds();
 
   // Flush the Skia draw state to ensure that all previously issued Skia calls
   // are rendered so that the following draw command will appear in the correct
@@ -550,6 +566,7 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
 
   glm::mat4 model_view_projection_matrix =
       ModelViewMatrixSurfaceOriginAdjustment(*current_surface_origin_) *
+      ScaleMatrixFor360VideoAdjustment(canvas_size, canvas_boundsi) *
       draw_state->transform_3d;
 
   SetupGLStateForImageRender(image,
