@@ -164,6 +164,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   } else {
     SB_NOTREACHED();
   }
+  SB_CHECK(j_audio_data_) << "Failed to allocate |j_audio_data_|";
+
   j_audio_data_ = env->ConvertLocalRefToGlobalRef(j_audio_data_);
 
   audio_out_thread_ = SbThreadCreate(
@@ -390,6 +392,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SB_DCHECK(expected_written_frames > 0);
     auto sync_time = start_time_ + accumulated_written_frames * kSbTimeSecond /
                                        sampling_frequency_hz_;
+
+    SB_CHECK(start_position + expected_written_frames <= frames_per_channel_);
     int written_frames = WriteData(
         env,
         IncrementPointerByBytes(frame_buffer_, start_position * channels_ *
