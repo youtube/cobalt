@@ -340,6 +340,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
           Inject(scoped_event.release());
           return true;
         case kStateConcealed:
+          OnSuspend();
           break;
         case kStateFrozen:
         case kStateStopped:
@@ -506,7 +507,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypeFreeze:
       SB_DCHECK(state() == kStateConcealed);
       state_ = kStateFrozen;
-      OnSuspend();
       break;
     case kSbEventTypeUnfreeze:
       SB_DCHECK(state() == kStateFrozen);

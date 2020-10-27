@@ -119,13 +119,11 @@ public abstract class CobaltActivity extends NativeActivity {
     }
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
-    getStarboardBridge().stopMediaPlaybackService();
     super.onStart();
   }
 
   @Override
   protected void onStop() {
-    getStarboardBridge().startMediaPlaybackService();
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
