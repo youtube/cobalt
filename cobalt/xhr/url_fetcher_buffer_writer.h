@@ -74,6 +74,7 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     Type type_;
     bool allow_preallocate_ = true;
     bool capacity_known_ = false;
+    size_t desired_capacity_ = 0;
 
     // This class can be accessed by both network and MainWebModule threads.
     mutable base::Lock lock_;
