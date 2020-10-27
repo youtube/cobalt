@@ -346,7 +346,7 @@
         '<(DEPTH)/starboard/shared/signal/suspend_signals.cc',
         '<(DEPTH)/starboard/shared/signal/suspend_signals.h',
         '<(DEPTH)/starboard/shared/signal/system_request_conceal.cc',
-        '<(DEPTH)/starboard/shared/signal/system_request_freeze.cc',
+        '<(DEPTH)/starboard/shared/signal/system_request_freeze_no_freezedone_callback.cc',
         '<(DEPTH)/starboard/shared/starboard/application.cc',
         '<(DEPTH)/starboard/shared/starboard/application.h',
         '<(DEPTH)/starboard/shared/starboard/audio_sink/audio_sink_create.cc',

@@ -97,6 +97,7 @@ class ApplicationAndroid
   void Teardown() override;
   bool IsStartImmediate() override { return false; }
   void OnResume() override;
+  void OnSuspend() override;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override { return true; }
@@ -133,6 +134,10 @@ class ApplicationAndroid
   void ProcessAndroidCommand();
   void ProcessAndroidInput();
   void ProcessKeyboardInject();
+
+  // Methods to start/stop Media playback service.
+  void StartMediaPlaybackService();
+  void StopMediaPlaybackService();
 };
 
 }  // namespace shared

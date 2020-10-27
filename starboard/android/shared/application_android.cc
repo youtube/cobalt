@@ -193,6 +193,21 @@ void ApplicationAndroid::OnResume() {
   env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
 }
 
+void ApplicationAndroid::OnSuspend() {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+}
+
+void ApplicationAndroid::StartMediaPlaybackService() {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("startMediaPlaybackService", "()V");
+}
+
+void ApplicationAndroid::StopMediaPlaybackService() {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("stopMediaPlaybackService", "()V");
+}
+
 void ApplicationAndroid::ProcessAndroidCommand() {
   JniEnvExt* env = JniEnvExt::Get();
   AndroidCommand cmd;
@@ -234,6 +249,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         if (window_) {
           window_->native_window = native_window_;
         }
+        // Media playback service is tied to UI window being created/destroyed
+        // (rather than to the Activity lifecycle), the service should be
+        // stopped before native window being created.
+        StopMediaPlaybackService();
         // Now that we have the window, signal that the Android UI thread can
         // continue, before we start or resume the Starboard app.
         android_command_condition_.Signal();
@@ -243,8 +262,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
         DispatchStart();
-      } else if (state() == kStateConcealed) {
-        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
+      } else if (state() == kStateConcealed || state() == kStateFrozen) {
+          DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -256,6 +275,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
+        // Media playback service is tied to UI window being created/destroyed
+        // (rather than to the Activity lifecycle). The service should be
+        // started after window being destroyed.
+        StartMediaPlaybackService();
         // Cobalt can't keep running without a window, even if the Activity
         // hasn't stopped yet. DispatchAndDelete() will inject events as needed
         // if we're not already paused.
@@ -333,7 +356,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         DispatchAndDelete(new Event(kSbEventTypeBlur, NULL, NULL));
         break;
       case AndroidCommand::kStop:
-        if (state() != kStateConcealed) {
+        if (state() != kStateConcealed && state() != kStateFrozen) {
           // We usually conceal when losing the window above, but if the window
           // wasn't destroyed (e.g. when Daydream starts) then we still have to
           // conceal when the Activity is stopped.
