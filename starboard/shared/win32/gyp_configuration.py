@@ -183,15 +183,11 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       spec = kwargs['spec']
       config_name = kwargs['config_name']
       compiler_settings = self.GetCompilerSettings(
-          spec,
-          self.GetGeneratorVariables(None)
-      )
+          spec, self.GetGeneratorVariables(None))
       arch = 'environment.' + compiler_settings.GetArch(config_name)
       gyp_defines = gyp_defines + compiler_settings.GetDefines(config_name)
       gyp_include_dirs = compiler_settings.ProcessIncludeDirs(
-          gyp_include_dirs,
-          config_name
-      )
+          gyp_include_dirs, config_name)
       cflags = compiler_settings.GetCflags(config_name)
       cflags_c = compiler_settings.GetCflagsC(config_name)
       cflags_cc = compiler_settings.GetCflagsCC(config_name)
@@ -200,12 +196,13 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
       if 'gyp_path_to_ninja' in kwargs:
         gyp_path_to_ninja = kwargs['gyp_path_to_ninja']
-        libflags = compiler_settings.GetLibFlags(config_name,
-                                                 gyp_path_to_ninja)
+        libflags = compiler_settings.GetLibFlags(config_name, gyp_path_to_ninja)
         gyp_libflags = gyp_libflags + libflags
 
-        keys = ['expand_special', 'gyp_path_to_unique_output',
-                'compute_output_file_name']
+        keys = [
+            'expand_special', 'gyp_path_to_unique_output',
+            'compute_output_file_name'
+        ]
         if all(k in kwargs for k in keys):
           expand_special = kwargs['expand_special']
           gyp_path_to_unique_output = kwargs['gyp_path_to_unique_output']
@@ -218,8 +215,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
               gyp_path_to_ninja=gyp_path_to_ninja,
               expand_special=expand_special,
               manifest_name=manifest_name,
-              is_executable=is_executable
-          )
+              is_executable=is_executable)
           gyp_ldflags = gyp_ldflags + ldflags
 
     return [
@@ -227,42 +223,32 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
             path=cc_path,
             gyp_defines=gyp_defines,
             gyp_include_dirs=gyp_include_dirs,
-            gyp_cflags=gyp_cflags
-        ),
+            gyp_cflags=gyp_cflags),
         msvc.CxxCompiler(
             path=cxx_path,
             gyp_defines=gyp_defines,
             gyp_include_dirs=gyp_include_dirs,
-            gyp_cflags=gyp_cflags_cc
-        ),
+            gyp_cflags=gyp_cflags_cc),
         msvc.AssemblerWithCPreprocessor(
             path=asm_path,
             arch=arch,
             gyp_defines=gyp_defines,
-            gyp_include_dirs=gyp_include_dirs
-        ),
+            gyp_include_dirs=gyp_include_dirs),
         msvc.StaticThinLinker(
             path=ar_path,
             arch=arch,
             gyp_libflags=gyp_libflags,
-            max_concurrent_processes=kwargs.get('max_concurrent_processes', None)
-        ),
+            max_concurrent_processes=kwargs.get('max_concurrent_processes',
+                                                None)),
         msvc.StaticLinker(
             path=ar_path,
             arch=arch,
             gyp_libflags=gyp_libflags,
-            max_concurrent_processes=kwargs.get('max_concurrent_processes', None)
-        ),
-        msvc.ExecutableLinker(
-            path=ld_path,
-            arch=arch,
-            gyp_ldflags=gyp_ldflags
-        ),
+            max_concurrent_processes=kwargs.get('max_concurrent_processes',
+                                                None)),
+        msvc.ExecutableLinker(path=ld_path, arch=arch, gyp_ldflags=gyp_ldflags),
         msvc.SharedLibraryLinker(
-            path=ld_path,
-            arch=arch,
-            gyp_ldflags=gyp_ldflags
-        ),
+            path=ld_path, arch=arch, gyp_ldflags=gyp_ldflags),
         python.Copy(),
         python.Stamp(),
         cmd.Shell(quote=False),
