@@ -234,7 +234,7 @@ void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
   uint32_t untouched_states =
       kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
       kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
-      kPathRendering_GrGLBackendState | kMisc_GrGLBackendState;
+      kPathRendering_GrGLBackendState;
 
   GetFallbackContext()->resetContext(~untouched_states & kAll_GrBackendState);
 }
