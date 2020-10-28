@@ -47,9 +47,10 @@ math::Matrix3F CobaltUiNavFocusTransformFunction::ToMatrix(
   if (used_ui_nav_focus && used_ui_nav_focus->GetFocusTransform(&matrix)) {
     return math::InterpolateMatrices(
         math::Matrix3F::FromValues(
-            matrix.m[0], matrix.m[1], matrix.m[3] * x_translation_scale_,
-            matrix.m[4], matrix.m[5], matrix.m[7] * y_translation_scale_,
-            matrix.m[12], matrix.m[13], matrix.m[15]),
+            // Since the UI is only rendered in 2D, ignore any scaling or
+            // shearing that might be part of a 3D transform.
+            1.0f, 0.0f, matrix.m[3] * x_translation_scale_, 0.0f, 1.0f,
+            matrix.m[7] * y_translation_scale_, 0.0f, 0.0f, 1.0f),
         math::Matrix3F::Identity(), progress_to_identity_);
   }
   return math::Matrix3F::Identity();
