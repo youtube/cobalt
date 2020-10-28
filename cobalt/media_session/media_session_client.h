@@ -114,7 +114,8 @@ class MediaSessionClient {
   // Indicate the media session client is active or not depending on the
   // media session playback state.
   bool is_active() {
-    return platform_playback_state_ != kMediaSessionPlaybackStateNone;
+    return session_state_.actual_playback_state() !=
+        kMediaSessionPlaybackStateNone;
   }
 
   // Set maybe freeze callback.
