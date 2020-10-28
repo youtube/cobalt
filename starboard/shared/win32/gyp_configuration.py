@@ -218,6 +218,8 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
               is_executable=is_executable)
           gyp_ldflags = gyp_ldflags + ldflags
 
+    max_concurrent_linkers = kwargs.get('max_concurrent_processes', None)
+
     return [
         msvc.CCompiler(
             path=cc_path,
@@ -238,17 +240,22 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
             path=ar_path,
             arch=arch,
             gyp_libflags=gyp_libflags,
-            max_concurrent_processes=kwargs.get('max_concurrent_processes',
-                                                None)),
+            max_concurrent_processes=max_concurrent_linkers),
         msvc.StaticLinker(
             path=ar_path,
             arch=arch,
             gyp_libflags=gyp_libflags,
-            max_concurrent_processes=kwargs.get('max_concurrent_processes',
-                                                None)),
-        msvc.ExecutableLinker(path=ld_path, arch=arch, gyp_ldflags=gyp_ldflags),
+            max_concurrent_processes=max_concurrent_linkers),
+        msvc.ExecutableLinker(
+            path=ld_path,
+            arch=arch,
+            gyp_ldflags=gyp_ldflags,
+            max_concurrent_processes=max_concurrent_linkers),
         msvc.SharedLibraryLinker(
-            path=ld_path, arch=arch, gyp_ldflags=gyp_ldflags),
+            path=ld_path,
+            arch=arch,
+            gyp_ldflags=gyp_ldflags,
+            max_concurrent_processes=max_concurrent_linkers),
         python.Copy(),
         python.Stamp(),
         cmd.Shell(quote=False),
