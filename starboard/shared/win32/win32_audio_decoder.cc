@@ -92,11 +92,15 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
       heaac_detected_.store(true);
     }
 
+    const size_t decoded_data_size = std::max(expect_size_in_bytes, data_size);
+
     DecodedAudioPtr data_ptr(
         new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
-                         ConvertToSbTime(win32_timestamp), data_size));
+                         ConvertToSbTime(win32_timestamp), decoded_data_size));
 
     std::copy(data, data + data_size, data_ptr->buffer());
+    std::memset(data_ptr->buffer() + data_size, 0,
+                decoded_data_size - data_size);
 
     output_queue_.push(data_ptr);
     media_buffer->Unlock();
