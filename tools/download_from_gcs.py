@@ -54,8 +54,9 @@ def ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = '{}/{}/{}'.format(_BASE_GCS_URL, bucket, sha1)
+  context = create_default_context()
 
-  res = urllib.urlopen(url, context=create_default_context())
+  res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
   if not res:
     logging.error('Could not reach %s', url)
     return None
