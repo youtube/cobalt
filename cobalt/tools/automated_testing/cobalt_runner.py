@@ -27,8 +27,7 @@ RE_WEBDRIVER_FAILED = re.compile(r'Could not start WebDriver server')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
     (r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: '
-     r'ID=\S+')
-)
+     r'ID=\S+'))
 # Pattern to match Cobalt log line for when a WebModule is has been loaded.
 RE_WEBMODULE_LOADED = re.compile(
     r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
@@ -330,7 +329,11 @@ class CobaltRunner(object):
 
   def ExecuteJavaScript(self, js_code):
     retry_count = 0
-    while retry_count < EXECUTE_JAVASCRIPT_RETRY_LIMIT:
+    while True:
+      if retry_count >= EXECUTE_JAVASCRIPT_RETRY_LIMIT:
+        raise TimeoutException(
+            'Selenium element or window not found in {} tries'.format(
+                EXECUTE_JAVASCRIPT_RETRY_LIMIT))
       retry_count += 1
       try:
         result = self.webdriver.execute_script(js_code)
@@ -338,9 +341,6 @@ class CobaltRunner(object):
               selenium_exceptions.NoSuchWindowException):
         time.sleep(0.2)
         continue
-      except Exception:
-        sys.excepthook(*sys.exc_info())
-        logging.exception("Failed with unexpected exception")
       break
     return result
 
@@ -449,14 +449,16 @@ class CobaltRunner(object):
     Returns:
       Array of selected elements
     """
-    elements = None
-
     # The retry part below is a temporary workaround to handle command
     # failures during a short window of stale Cobalt WindowDriver
     # after navigation. We only introduced it because of limited time budget
     # at the moment, please don't introduce any code that relies on it.
     retry_count = 0
-    while retry_count < FIND_ELEMENT_RETRY_LIMIT:
+    while True:
+      if retry_count >= FIND_ELEMENT_RETRY_LIMIT:
+        raise TimeoutException(
+            'Selenium element or window not found in {} tries'.format(
+                FIND_ELEMENT_RETRY_LIMIT))
       retry_count += 1
       try:
         elements = self.webdriver.find_elements_by_css_selector(css_selector)
@@ -464,11 +466,8 @@ class CobaltRunner(object):
               selenium_exceptions.NoSuchWindowException):
         time.sleep(0.2)
         continue
-      except Exception:
-        sys.excepthook(*sys.exc_info())
-        logging.exception("Failed with unexpected exception")
       break
-    if expected_num is not None and len(elements) != expected_num:
+    if expected_num and len(elements) != expected_num:
       raise CobaltRunner.AssertException(
           'Expected number of element {} is: {}, got {}'.format(
               css_selector, expected_num, len(elements)))
