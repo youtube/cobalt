@@ -1,5 +1,5 @@
 # escape=`
-FROM mcr.microsoft.com/windows/servercore:ltsc2019-amd64
+FROM mcr.microsoft.com/windows:1809
 
 # Dockerfile for image used to install Visual Studio.
 # WARNING: Changes to this file will result in an extremely long image rebuild.
@@ -22,3 +22,8 @@ RUN C:\TEMP\vs_buildtools.exe --quiet --wait --norestart --nocache `
 
 ENV VSINSTALLDIR=C:\\BuildTools
 ENV MSVC_TOOLS_VERSION="14.16.27023"
+
+# TODO: remove this environment variable setting, since it is only needed for
+# manually deploying debug versions of DLLs. This can be removed in favor of a
+# dedicated deployment through gyp/ninja.
+ENV MS_WIN_VERSION="10.0.17763.0"
