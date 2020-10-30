@@ -70,17 +70,19 @@ class PlatformConfiguration(object):
       self._directory = os.path.realpath(os.path.dirname(__file__))
     self._application_configuration = None
     self._application_configuration_search_path = [self._directory]
+    # Default build accelerator is ccache.
+    self.build_accelerator = self.GetBuildAccelerator(cache.Accelerator.CCACHE)
 
-    # Specifies the build accelerator. Default is ccache.
-    build_accelerator = cache.Cache()
+  def GetBuildAccelerator(self, accelerator):
+    """Returns the build accelerator name."""
+    build_accelerator = cache.Cache(accelerator)
+    name = build_accelerator.GetName()
     if build_accelerator.Use():
-      self.build_accelerator = build_accelerator.GetName()
-      logging.info('Using %s default build accelerator.',
-                   self.build_accelerator)
+      logging.info('Using %s build accelerator.', name)
+      return name
     else:
-      self.build_accelerator = ''
-      logging.info('Not using %s default build accelerator.',
-                   self.build_accelerator)
+      logging.info('Not using %s build accelerator.', name)
+      return ''
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -356,7 +358,8 @@ class PlatformConfiguration(object):
     raise NotImplementedError()
 
   def GetPathToSabiJsonFile(self):
-    """Gets the path to the JSON file with Starboard ABI information for the build.
+    """Gets the path to the JSON file with Starboard ABI information for the
+       build.
 
     Examples:
         'starboard/sabi/arm64/sabi-v12.json'

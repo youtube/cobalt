@@ -72,6 +72,9 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     self.vmware = 'vmware' in self.GetVideoProcessorDescription().lower()
     self.sdk_checker_fcn = sdk_checker_fcn
     self.sabi_json_path = sabi_json_path
+    # Sets sccache as build accelerator.
+    self.build_accelerator = self.GetBuildAccelerator(
+        cache.Accelerator.SCCACHE)
 
   def GetSdk(self):
     # Lazy load sdk to avoid any sdk checks running until it is used.
@@ -109,16 +112,6 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     return variables
 
   def GetEnvironmentVariables(self):
-    # Specifies sccache as the build accelerator.
-    build_accelerator = cache.Cache(cache.Accelerator.SCCACHE)
-    logging.info('Overriding default build accelerator.')
-    if build_accelerator.Use():
-      self.build_accelerator = build_accelerator.GetName()
-      logging.info('Using %s build accelerator.', self.build_accelerator)
-    else:
-      self.build_accelerator = ''
-      logging.info('Not using %s build accelerator.', self.build_accelerator)
-
     sdk = self.GetSdk()
     cl = self.build_accelerator + ' ' + _QuotePath(os.path.join(
              sdk.vs_host_tools_path, 'cl.exe'))
