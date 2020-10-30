@@ -21,13 +21,12 @@ is None.
 
 import logging
 import os
-import util
 
 from starboard.tools import build_accelerator
+from starboard.tools import util
 
 
 class Accelerator:
-  # Default build accelerator.
   CCACHE = ('ccache', 'USE_CCACHE')
   # Windows compatible ccache.
   SCCACHE = ('sccache.exe', 'USE_SCCACHE')
@@ -36,7 +35,7 @@ class Accelerator:
 class Cache(build_accelerator.BuildAccelerator):
   """Cache based build accelerator."""
 
-  def __init__(self, accelerator=Accelerator.CCACHE):
+  def __init__(self, accelerator):
     self.binary, self.env_var = accelerator
 
   def GetName(self):
