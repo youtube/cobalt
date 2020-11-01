@@ -49,6 +49,16 @@ navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{
 }).then(function(mediaKeys) {
   var videoElement = document.querySelector('video');
 
+  if (mediaKeys.getMetrics) {
+    console.log('Found getMetrics(), calling it ...');
+    try {
+      mediaKeys.getMetrics();
+      console.log('Calling getMetrics() succeeded.');
+    } catch(e) {
+      console.log('Calling getMetrics() failed.');
+    }
+  }
+
   videoElement.setMediaKeys(mediaKeys);
 
   mediaKeySession = mediaKeys.createSession();
