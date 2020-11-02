@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -154,13 +155,14 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       sent_end_event_(false),
       request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
-  MLOG();
+  LOG(INFO) << "Create HTMLMediaElement with volume " << volume_
+            << ", playback rate " << playback_rate_ << ".";
   ON_INSTANCE_CREATED(HTMLMediaElement);
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
-  MLOG();
+  LOG(INFO) << "Destroy HTMLMediaElement.";
   ClearMediaSource();
   ON_INSTANCE_RELEASED(HTMLMediaElement);
 }
@@ -177,7 +179,7 @@ std::string HTMLMediaElement::src() const {
 
 void HTMLMediaElement::set_src(const std::string& src) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::set_src()");
-  MLOG() << src;
+  LOG(INFO) << "Set src to \"" << src << "\".";
   SetAttribute("src", src);
   ClearMediaPlayer();
   ScheduleLoad();
@@ -212,7 +214,7 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   scoped_refptr<TimeRanges> buffered = new TimeRanges;
 
   if (!player_) {
-    MLOG() << "(empty)";
+    LOG(INFO) << "(empty)";
     return buffered;
   }
 
@@ -347,9 +349,8 @@ bool HTMLMediaElement::seeking() const {
 
 float HTMLMediaElement::current_time(
     script::ExceptionState* exception_state) const {
-
   if (!player_) {
-    MLOG() << 0 << " (because player is NULL)";
+    LOG(INFO) << 0 << " (because player is NULL)";
     return 0;
   }
 
@@ -371,11 +372,10 @@ void HTMLMediaElement::set_current_time(
   // WebMediaPlayer::kReadyStateHaveNothing, then raise an INVALID_STATE_ERR
   // exception.
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing || !player_) {
-    MLOG() << "invalid state error";
+    LOG(ERROR) << "invalid state error";
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
-  MLOG() << "seek to " << time;
   Seek(time);
 }
 
@@ -418,7 +418,8 @@ float HTMLMediaElement::playback_rate() const {
 }
 
 void HTMLMediaElement::set_playback_rate(float rate) {
-  MLOG() << rate;
+  LOG(INFO) << "Change playback rate from " << playback_rate_ << " to " << rate
+            << ".";
 
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
@@ -472,7 +473,7 @@ bool HTMLMediaElement::autoplay() const {
 }
 
 void HTMLMediaElement::set_autoplay(bool autoplay) {
-  MLOG() << autoplay;
+  LOG(INFO) << "Set autoplay to " << autoplay << ".";
   // The value of 'autoplay' is true when the 'autoplay' attribute is present.
   // The value of the attribute is irrelevant.
   if (autoplay) {
@@ -488,6 +489,7 @@ bool HTMLMediaElement::loop() const {
 }
 
 void HTMLMediaElement::set_loop(bool loop) {
+  LOG(INFO) << "Set loop to " << loop << ".";
   // The value of 'loop' is true when the 'loop' attribute is present.
   // The value of the attribute is irrelevant.
   if (loop) {
@@ -499,7 +501,7 @@ void HTMLMediaElement::set_loop(bool loop) {
 
 void HTMLMediaElement::Play() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Play()");
-  MLOG();
+  LOG(INFO) << "Play.";
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
     ScheduleLoad();
@@ -526,7 +528,7 @@ void HTMLMediaElement::Play() {
 
 void HTMLMediaElement::Pause() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Pause()");
-  MLOG();
+  LOG(INFO) << "Pause.";
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
     ScheduleLoad();
@@ -565,7 +567,7 @@ float HTMLMediaElement::volume(script::ExceptionState* exception_state) const {
 
 void HTMLMediaElement::set_volume(float volume,
                                   script::ExceptionState* exception_state) {
-  MLOG() << volume;
+  LOG(INFO) << "Change volume from " << volume_ << " to " << volume << ".";
   if (volume < 0.0f || volume > 1.0f) {
     DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
     return;
@@ -584,7 +586,7 @@ bool HTMLMediaElement::muted() const {
 }
 
 void HTMLMediaElement::set_muted(bool muted) {
-  MLOG() << muted;
+  LOG(INFO) << "Change muted from " << muted_ << " to " << muted << ".";
   if (muted_ != muted) {
     muted_ = muted;
     // Avoid recursion when the player reports volume changes.
@@ -638,13 +640,13 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent()");
-  MLOG() << event->type();
+  LOG(INFO) << "Schedule event " << event->type() << ".";
   event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::CreateMediaPlayer()");
-  MLOG();
+  LOG(INFO) << "Create media player.";
   if (src().empty()) {
     reduced_image_cache_capacity_request_ = base::nullopt;
   } else if (html_element_context()
@@ -901,7 +903,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
 void HTMLMediaElement::ClearMediaPlayer() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ClearMediaPlayer()");
-  MLOG();
+  LOG(INFO) << "Clear media player.";
 
   ClearMediaSource();
 
@@ -1082,6 +1084,8 @@ void HTMLMediaElement::CancelPendingEventsAndCallbacks() {
 void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
   TRACE_EVENT1("cobalt::dom", "HTMLMediaElement::SetReadyState()", "state",
                state);
+  LOG(INFO) << "Set ready state from " << ready_state_ << " to " << state
+            << ".";
   // Set "was_potentially_playing" BEFORE updating ready_state_,
   // PotentiallyPlaying() uses it
   bool was_potentially_playing = PotentiallyPlaying();
@@ -1173,6 +1177,8 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
 }
 
 void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
+  LOG(INFO) << "Set network state from " << network_state_ << " to " << state
+            << ".";
   switch (state) {
     case WebMediaPlayer::kNetworkStateEmpty:
       // Just update the cached state and leave, we can't do anything.
@@ -1208,6 +1214,8 @@ void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
 
 void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
                                        const std::string& message) {
+  LOG(ERROR) << "Set network error " << state << " with message \"" << message
+             << "\".";
   switch (state) {
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
@@ -1235,6 +1243,7 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
 }
 
 void HTMLMediaElement::Seek(float time) {
+  LOG(INFO) << "Seek to " << time << ".";
   // 4.8.9.9 Seeking - continued from set_current_time().
 
   // Check state again as Seek() can be called by HTMLMediaElement internally.
@@ -1318,6 +1327,7 @@ void HTMLMediaElement::Seek(float time) {
 }
 
 void HTMLMediaElement::FinishSeek() {
+  LOG(INFO) << "Finish seek.";
   // 4.8.10.9 Seeking step 14
   seeking_ = false;
 
@@ -1433,7 +1443,6 @@ bool HTMLMediaElement::StoppedDueToErrors() const {
       return true;
     }
   }
-
   return false;
 }
 
@@ -1446,7 +1455,6 @@ void HTMLMediaElement::ConfigureMediaControls() {
 }
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
-  MLOG() << error->code();
   if (error->message().empty()) {
     LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
   } else {
@@ -1532,6 +1540,7 @@ void HTMLMediaElement::TimeChanged(bool eos_played) {
   eos_played |=
       !SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
   if (eos_played) {
+    LOG(INFO) << "End of stream is played.";
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
