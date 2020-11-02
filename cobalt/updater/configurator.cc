@@ -254,5 +254,16 @@ void Configurator::SetUpdaterStatus(const std::string& status) {
   updater_status_ = status;
 }
 
+std::string Configurator::GetPreviousUpdaterStatus() const {
+  base::AutoLock auto_lock(
+      const_cast<base::Lock&>(previous_updater_status_lock_));
+  return previous_updater_status_;
+}
+
+void Configurator::SetPreviousUpdaterStatus(const std::string& status) {
+  base::AutoLock auto_lock(previous_updater_status_lock_);
+  previous_updater_status_ = status;
+}
+
 }  // namespace updater
 }  // namespace cobalt
