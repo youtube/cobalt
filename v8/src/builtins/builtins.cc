@@ -350,8 +350,8 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
     Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags) {
-  DCHECK_NOT_NULL(isolate->embedded_blob());
-  DCHECK_NE(0, isolate->embedded_blob_size());
+  DCHECK_NOT_NULL(isolate->embedded_blob_code());
+  DCHECK_NE(0, isolate->embedded_blob_code_size());
 
   OffHeapTrampolineGenerator generator(isolate);
   CodeDesc desc = generator.Generate(off_heap_entry);
