@@ -156,12 +156,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Whether the current platform supports captions. Implementation is required
-// after Starboard version 11.
-#if SB_API_VERSION < 12
-#define SB_HAS_CAPTIONS 0
-#endif  // SB_API_VERSION < 12
-
 // dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
 // not available should define the following quirk.
 #undef SB_HAS_QUIRK_NO_FFS
