@@ -102,7 +102,7 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
 
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
   if (FLAG_embedded_builtins && !isolate_->serializer_enabled() &&
-      isolate_->embedded_blob() != nullptr) {
+      isolate_->embedded_blob_code() != nullptr) {
 // If builtins are embedded (and we're not generating a snapshot), then
 // every bytecode handler will be off-heap, so there's no point iterating
 // over them.
