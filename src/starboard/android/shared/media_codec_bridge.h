@@ -162,7 +162,8 @@ class MediaCodecBridge {
   // |GetOutputDimensions|.
   jobject j_reused_get_output_format_result_ = NULL;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(MediaCodecBridge);
+  MediaCodecBridge(const MediaCodecBridge&) = delete;
+  void operator=(const MediaCodecBridge&) = delete;
 };
 
 }  // namespace shared

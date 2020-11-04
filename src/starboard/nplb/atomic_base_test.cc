@@ -68,7 +68,8 @@ class TestThread {
 
   SbThread thread_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(TestThread);
+  TestThread(const TestThread&) = delete;
+  void operator=(const TestThread&) = delete;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

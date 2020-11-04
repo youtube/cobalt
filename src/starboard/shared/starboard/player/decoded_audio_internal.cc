@@ -81,10 +81,11 @@ void DecodedAudio::AdjustForSeekTime(int samples_per_second,
 
   if (samples_per_second == 0 || frames_to_remove < 0 ||
       frames_to_remove >= frames()) {
-    SB_LOG(WARNING) << "AdjustForSeekTime failed for seeking_to_time at "
-                    << seeking_to_time << " for samples_per_second "
-                    << samples_per_second << ", and there are " << frames()
-                    << " frames in the DecodedAudio object.";
+    SB_LOG(WARNING) << "AdjustForSeekTime failed for seeking_to_time: "
+                    << seeking_to_time
+                    << ", samples_per_second: " << samples_per_second
+                    << ", timestamp: " << timestamp() << ", and there are "
+                    << frames() << " frames in the DecodedAudio object.";
     return;
   }
 

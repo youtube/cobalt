@@ -31,9 +31,6 @@
 #error "You must define STARBOARD in Starboard builds."
 #endif
 
-#define SB_TRUE 1
-#define SB_FALSE 0
-
 // --- Common Defines --------------------------------------------------------
 
 // The minimum API version allowed by this version of the Starboard headers,
@@ -77,6 +74,13 @@
 // Deprecated the SB_OVERRIDE macro.
 #define SB_OVERRIDE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated the SB_DISALLOW_COPY_AND_ASSIGN macro.
+#define SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated SB_TRUE and SB_FALSE.
+#define SB_TRUE_FALSE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -88,6 +92,14 @@
 #endif
 
 // --- Common Helper Macros --------------------------------------------------
+
+#if SB_API_VERSION < SB_TRUE_FALSE_DEPRECATED_VERSION
+#define SB_TRUE 1
+#define SB_FALSE 0
+#else
+#define SB_TRUE #error "The macro SB_TRUE is deprecated."
+#define SB_FALSE #error "The macro SB_FALSE is deprecated."
+#endif
 
 // Determines a compile-time capability of the system.
 #define SB_CAN(SB_FEATURE) \
@@ -146,11 +158,16 @@ struct CompileAssert {};
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
 
+#if SB_API_VERSION < SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;         \
   void operator=(const TypeName&) = delete
+#else
+#define SB_DISALLOW_COPY_AND_ASSIGN \
+  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
+#endif  // SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION < SB_API_VERSION
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
@@ -598,16 +615,13 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_MAXIMUM_VIDEO_FRAMES)
 #error \
     "SB_MEDIA_MAXIMUM_VIDEO_FRAMES should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbMediaMaximumVideoFrames in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+"versions 12 and later."
 #endif
 
 #if defined(SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES)
 #error \
     "SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES should not be defined in " \
-"Starboard versions 12 and later. Instead, define " \
-"kSbMediaMaximumVideoPrerollFrames in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+"Starboard versions 12 and later."
 #endif
 
 #if defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)

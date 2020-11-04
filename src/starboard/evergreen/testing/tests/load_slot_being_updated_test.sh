@@ -25,7 +25,7 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel installed"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
     error "Failed to download and install the test package"

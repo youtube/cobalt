@@ -145,14 +145,13 @@ bool CanPlay(const media::CanPlayTypeHandler& can_play_type_handler,
 
 Navigator::Navigator(
     script::EnvironmentSettings* settings, const std::string& user_agent,
-    const std::string& language, scoped_refptr<MediaSession> media_session,
+    const std::string& language,
     scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
     script::ScriptValueFactory* script_value_factory)
     : user_agent_(user_agent),
       language_(language),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
-      media_session_(media_session),
       media_devices_(
           new media_capture::MediaDevices(settings, script_value_factory)),
       system_caption_settings_(captions),
@@ -223,8 +222,20 @@ const scoped_refptr<PluginArray>& Navigator::plugins() const {
   return plugins_;
 }
 
-const scoped_refptr<media_session::MediaSession>& Navigator::media_session()
-    const {
+const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
+  if (media_session_ == nullptr) {
+    media_session_ =
+        scoped_refptr<media_session::MediaSession>(new MediaSession());
+
+    if (media_player_factory_ != nullptr) {
+      media_session_->EnsureMediaSessionClient();
+      DCHECK(media_session_->media_session_client());
+      media_session_->media_session_client()
+          ->SetMaybeFreezeCallback(maybe_freeze_callback_);
+      media_session_->media_session_client()
+          ->SetMediaPlayerFactory(media_player_factory_);
+    }
+  }
   return media_session_;
 }
 

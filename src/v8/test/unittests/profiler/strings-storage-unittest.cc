@@ -4,9 +4,7 @@
 
 #include "src/profiler/strings-storage.h"
 
-#if !V8_OS_STARBOARD
 #include <cstdio>
-#endif
 
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -4882,7 +4882,17 @@ transform_function:
   | kCobaltUiNavFocusTransformFunctionToken maybe_whitespace ')'
       maybe_whitespace {
     $<transform_functions>0->emplace_back(
-        new cssom::CobaltUiNavFocusTransformFunction);
+        new cssom::CobaltUiNavFocusTransformFunction(1.0f, 1.0f));
+  }
+  | kCobaltUiNavFocusTransformFunctionToken maybe_whitespace number ')'
+      maybe_whitespace {
+    $<transform_functions>0->emplace_back(
+        new cssom::CobaltUiNavFocusTransformFunction($3, $3));
+  }
+  | kCobaltUiNavFocusTransformFunctionToken maybe_whitespace number comma
+      number ')' maybe_whitespace {
+    $<transform_functions>0->emplace_back(
+        new cssom::CobaltUiNavFocusTransformFunction($3, $5));
   }
   // This Cobalt-specific transform function for hybrid navigation tracks
   // the direction in which focus is moving. This can be used to provide

@@ -53,7 +53,7 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
   ]
 
   copyright_re = re.compile(r'Copyright (?P<created>\d{4})'
-                            r'(?P<current>-\d{4})? (?P<author>[\w\s]+)')
+                            r'(-(?P<current>\d{4}))? (?P<author>[\w\s]+)')
   current_year = datetime.datetime.today().year
 
   for filename in filenames:

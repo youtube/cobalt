@@ -90,7 +90,8 @@ class DynamicSection {
   linker_function_t init_func_;
   linker_function_t fini_func_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DynamicSection);
+  DynamicSection(const DynamicSection&) = delete;
+  void operator=(const DynamicSection&) = delete;
 };
 
 }  // namespace elf_loader

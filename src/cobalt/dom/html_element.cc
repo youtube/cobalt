@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <utility>
 
 #include "base/lazy_instance.h"
 #include "base/message_loop/message_loop_task_runner.h"
@@ -1032,7 +1033,6 @@ void HTMLElement::UpdateComputedStyleRecursively(
   // themselves still need to have their computed style updated, in case the
   // value of display is changed.
   if (computed_style()->display() == cssom::KeywordValue::GetNone()) {
-    ReleaseUiNavigationItem();
     return;
   }
 
@@ -1079,6 +1079,7 @@ void HTMLElement::MarkNotDisplayedOnNodeAndDescendants() {
     }
   }
 
+  ReleaseUiNavigationItem();
   MarkNotDisplayedOnDescendants();
 }
 
@@ -1521,8 +1522,7 @@ HTMLElement::DirState GetStringDirection(const std::string& utf8_string) {
     if (property == U_LEFT_TO_RIGHT) {
       return HTMLElement::kDirLeftToRight;
     }
-    if (property == U_RIGHT_TO_LEFT ||
-        property == U_RIGHT_TO_LEFT_ARABIC) {
+    if (property == U_RIGHT_TO_LEFT || property == U_RIGHT_TO_LEFT_ARABIC) {
       return HTMLElement::kDirRightToLeft;
     }
   }
@@ -1615,11 +1615,11 @@ HTMLElement::DirState HTMLElement::GetUsedDirState() {
     return kDirLeftToRight;
   }
 
-  // Although the spec says to use the parent's directionality, the W3C test
-  // (the-dir-attribute-069.html) says to default to LTR. Chrome follows the
-  // W3C expectation, so follow Chrome. Additional discussion here:
-  //   https://github.com/w3c/i18n-drafts/issues/235
-  // The following code block which implements the spec is left for reference.
+// Although the spec says to use the parent's directionality, the W3C test
+// (the-dir-attribute-069.html) says to default to LTR. Chrome follows the
+// W3C expectation, so follow Chrome. Additional discussion here:
+//   https://github.com/w3c/i18n-drafts/issues/235
+// The following code block which implements the spec is left for reference.
 #if 0
   // Otherwise, the directionality of the element is the same as the element's
   //   parent element's directionality.
@@ -2106,8 +2106,7 @@ void HTMLElement::CollectHTMLMediaElementsRecursively(
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     if (html_element) {
-      HTMLMediaElement* media_html_element =
-          html_element->AsHTMLMediaElement();
+      HTMLMediaElement* media_html_element = html_element->AsHTMLMediaElement();
       if (media_html_element) {
         html_media_elements->push_back(media_html_element);
       }
@@ -2160,7 +2159,7 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
     ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
   }
 
-  if (ui_nav_item_type) {
+  if (ui_nav_item_type && IsDisplayed()) {
     ui_navigation::NativeItemDir ui_nav_item_dir;
     ui_nav_item_dir.is_left_to_right =
         directionality() == kLeftToRightDirectionality;
@@ -2175,12 +2174,7 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
       // The current navigation item isn't of the correct type. Disable it so
       // that callbacks won't be invoked for it. The object will be destroyed
       // when all references to it are released.
-      if (g_ui_nav_focus_ == this) {
-        g_ui_nav_focus_ = nullptr;
-        ui_nav_item_->UnfocusAll();
-      }
-      ui_nav_item_->SetEnabled(false);
-      ui_nav_item_ = nullptr;
+      ReleaseUiNavigationItem();
     }
 
     ui_nav_item_ = new ui_navigation::NavItem(
@@ -2204,12 +2198,7 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
     return false;
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
-    if (g_ui_nav_focus_ == this) {
-      g_ui_nav_focus_ = nullptr;
-      ui_nav_item_->UnfocusAll();
-    }
-    ui_nav_item_->SetEnabled(false);
-    ui_nav_item_ = nullptr;
+    ReleaseUiNavigationItem();
     return false;
   }
 
@@ -2218,13 +2207,6 @@ bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
 
 void HTMLElement::ReleaseUiNavigationItem() {
   if (ui_nav_item_) {
-    // Make sure layout updates this element.
-    InvalidateLayoutBoxesOfNodeAndAncestors();
-    if (ui_nav_item_->IsContainer()) {
-      // Make sure layout updates any focus items that may be in this container.
-      InvalidateLayoutBoxesOfDescendants();
-    }
-
     // Disable the UI navigation item so it won't receive anymore callbacks
     // while being released.
     if (g_ui_nav_focus_ == this) {

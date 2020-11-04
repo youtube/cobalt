@@ -17,9 +17,7 @@
 #ifndef NB_ALLOCATOR_H_
 #define NB_ALLOCATOR_H_
 
-// TODO: Include "starboard/types.h" once legacy platforms are ported to
-// starboard.  Currently including <vector> is used as a platform independent
-// way to introduce std::size_t.
+#include <cstddef>
 #include <vector>
 
 namespace nb {
@@ -31,6 +29,11 @@ namespace nb {
 // through derived classes.
 class Allocator {
  public:
+  // Using a minimum value for alignment keeps things rounded and aligned
+  // and help us avoid creating tiny and/or badly misaligned free blocks.  Also
+  // ensures even for a 0-byte request will get a unique block.
+  static const size_t kMinAlignment;
+
   virtual ~Allocator() {}
 
   // Allocates a range of memory of the given size, without any alignment

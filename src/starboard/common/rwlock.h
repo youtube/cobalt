@@ -68,7 +68,8 @@ class RWLock {
   int32_t readers_;
   bool writing_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(RWLock);
+  RWLock(const RWLock&) = delete;
+  void operator=(const RWLock&) = delete;
 };
 
 class ScopedReadLock {
@@ -80,7 +81,9 @@ class ScopedReadLock {
 
  private:
   RWLock* rw_lock_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ScopedReadLock);
+
+  ScopedReadLock(const ScopedReadLock&) = delete;
+  void operator=(const ScopedReadLock&) = delete;
 };
 
 class ScopedWriteLock {
@@ -92,7 +95,9 @@ class ScopedWriteLock {
 
  private:
   RWLock* rw_lock_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ScopedWriteLock);
+
+  ScopedWriteLock(const ScopedWriteLock&) = delete;
+  void operator=(const ScopedWriteLock&) = delete;
 };
 
 }  // namespace starboard

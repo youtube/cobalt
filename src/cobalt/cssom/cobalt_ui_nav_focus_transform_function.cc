@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/cobalt_ui_nav_focus_transform_function.h"
 
+#include "base/strings/stringprintf.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/math/matrix_interpolation.h"
 
@@ -21,8 +22,11 @@ namespace cobalt {
 namespace cssom {
 
 CobaltUiNavFocusTransformFunction::CobaltUiNavFocusTransformFunction(
+    float x_translation_scale, float y_translation_scale,
     float progress_to_identity)
-    : progress_to_identity_(progress_to_identity) {
+    : x_translation_scale_(x_translation_scale),
+      y_translation_scale_(y_translation_scale),
+      progress_to_identity_(progress_to_identity) {
   traits_ = kTraitIsDynamic | kTraitUsesUiNavFocus;
 }
 
@@ -32,22 +36,22 @@ void CobaltUiNavFocusTransformFunction::Accept(
 }
 
 std::string CobaltUiNavFocusTransformFunction::ToString() const {
-  return "-cobalt-ui-nav-focus-transform()";
+  return base::StringPrintf("-cobalt-ui-nav-focus-transform(%.7g, %.7g)",
+                            x_translation_scale_, y_translation_scale_);
 }
 
 math::Matrix3F CobaltUiNavFocusTransformFunction::ToMatrix(
     const math::SizeF& used_size,
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   ui_navigation::NativeMatrix4 matrix;
-  if (used_ui_nav_focus &&
-      used_ui_nav_focus->GetFocusTransform(&matrix)) {
+  if (used_ui_nav_focus && used_ui_nav_focus->GetFocusTransform(&matrix)) {
     return math::InterpolateMatrices(
         math::Matrix3F::FromValues(
-            matrix.m[ 0], matrix.m[ 1], matrix.m[ 3],
-            matrix.m[ 4], matrix.m[ 5], matrix.m[ 7],
-            matrix.m[12], matrix.m[13], matrix.m[15]),
-        math::Matrix3F::Identity(),
-        progress_to_identity_);
+            // Since the UI is only rendered in 2D, ignore any scaling or
+            // shearing that might be part of a 3D transform.
+            1.0f, 0.0f, matrix.m[3] * x_translation_scale_, 0.0f, 1.0f,
+            matrix.m[7] * y_translation_scale_, 0.0f, 0.0f, 1.0f),
+        math::Matrix3F::Identity(), progress_to_identity_);
   }
   return math::Matrix3F::Identity();
 }

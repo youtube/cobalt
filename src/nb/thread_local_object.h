@@ -77,11 +77,11 @@ class ThreadLocalObject {
     CheckCurrentThreadAllowedToDestruct();
     if (SB_DLOG_IS_ON(FATAL)) {
       SB_DCHECK(entry_set_.size() < 2)
-        << "Logic error: Some threads may still be accessing the objects that "
-        << "are about to be destroyed. Only one object is expected and that "
-        << "should be for the main thread. The caller should ensure that "
-        << "other threads that access this object are externally "
-        << "synchronized.";
+          << "Logic error: Some threads may still be accessing the objects "
+          << "that are about to be destroyed. Only one object is expected "
+          << "and that should be for the main thread. The caller should "
+          << "ensure that other threads that access this object are"
+          << " externally synchronized.";
     }
     // No locking is done because the entries should not be accessed by
     // different threads while this object is shutting down. If access is
@@ -101,20 +101,20 @@ class ThreadLocalObject {
   // Warns if there is a misuse of this object.
   void CheckCurrentThreadAllowedToDestruct() const {
     if (kSbThreadInvalidId == constructing_thread_id_) {
-      return;   // EnableDestructionByAnyThread() called.
+      return;  // EnableDestructionByAnyThread() called.
     }
     const SbThreadId curr_thread_id = SbThreadGetId();
     if (curr_thread_id == constructing_thread_id_) {
-      return;   // Same thread that constructed this.
+      return;  // Same thread that constructed this.
     }
 
     if (SB_DLOG_IS_ON(FATAL)) {
-      SB_DCHECK(false)
-          << "ThreadLocalObject<T> was created in thread "
-          << constructing_thread_id_ << "\nbut was destroyed by "
-          << curr_thread_id << ". If this is intentional then call "
-          << "EnableDestructionByAnyThread() to silence this "
-          << "warning.";
+      SB_DCHECK(false) << "ThreadLocalObject<T> was created in thread "
+                       << constructing_thread_id_ << "\nbut was destroyed by "
+                       << curr_thread_id
+                       << ". If this is intentional then call "
+                       << "EnableDestructionByAnyThread() to silence this "
+                       << "warning.";
     }
   }
 
@@ -158,7 +158,9 @@ class ThreadLocalObject {
   // Returns the pointer if it exists in the current thread, otherwise NULL.
   Type* GetIfExists() const {
     Entry* entry = GetEntryIfExists();
-    if (!entry) { return NULL; }
+    if (!entry) {
+      return NULL;
+    }
     return entry->ptr_;
   }
 
@@ -178,8 +180,7 @@ class ThreadLocalObject {
 
  private:
   struct Entry {
-    Entry(ThreadLocalObject* own, Type* ptr) : owner_(own), ptr_(ptr) {
-    }
+    Entry(ThreadLocalObject* own, Type* ptr) : owner_(own), ptr_(ptr) {}
     ~Entry() {
       ptr_ = NULL;
       owner_ = NULL;
@@ -228,7 +229,8 @@ class ThreadLocalObject {
   // thread that destroyed this object.
   SbThreadId constructing_thread_id_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalObject<Type>);
+  ThreadLocalObject<Type>(const ThreadLocalObject<Type>&) = delete;
+  void operator=(const ThreadLocalObject<Type>&) = delete;
 };
 
 }  // namespace nb

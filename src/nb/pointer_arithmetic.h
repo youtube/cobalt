@@ -61,8 +61,8 @@ T* AlignDown(T* value, uintptr_t alignment) {
 // Helper method for subclasses to determine if a given address or value
 // is aligned or not.
 template <typename T>
-static bool IsAligned(T value, T alignment) {
-  return value % alignment == 0;
+static bool IsAligned(T value, size_t alignment) {
+  return AsInteger(value) % alignment == 0;
 }
 
 }  // namespace nb

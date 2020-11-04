@@ -46,7 +46,8 @@ class ThreadLocalPointer {
 
  private:
   SbThreadLocalKey slot_;
-  SB_DISALLOW_COPY_AND_ASSIGN(ThreadLocalPointer<Type>);
+  ThreadLocalPointer<Type>(const ThreadLocalPointer<Type>&) = delete;
+  void operator=(const ThreadLocalPointer<Type>&) = delete;
 };
 
 }  // namespace nb.

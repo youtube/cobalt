@@ -167,7 +167,6 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
       const base::Closure& window_minimize_callback,
       OnScreenKeyboardBridge* on_screen_keyboard_bridge,
       const scoped_refptr<input::Camera3D>& camera_3d,
-      const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       const OnStartDispatchEventCallback&
           start_tracking_dispatch_event_callback,
       const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
@@ -355,9 +354,9 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
   void set_web_media_player_factory(
-      media::WebMediaPlayerFactory* web_media_player_factory) {
-    html_element_context_->set_web_media_player_factory(
-        web_media_player_factory);
+    media::WebMediaPlayerFactory* web_media_player_factory) {
+  html_element_context_->set_web_media_player_factory(
+      web_media_player_factory);
   }
 
   // Sets the current application state, forwarding on to the
@@ -407,6 +406,9 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   }
 
   bool enable_map_to_mesh() { return enable_map_to_mesh_; }
+
+  const scoped_refptr<media_session::MediaSession>
+      media_session() const;
 
   DEFINE_WRAPPABLE_TYPE(Window);
 

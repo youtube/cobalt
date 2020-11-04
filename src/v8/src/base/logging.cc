@@ -5,14 +5,16 @@
 #include "src/base/logging.h"
 
 #include <cctype>
-#if !V8_OS_STARBOARD
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#endif
 
 #include "src/base/debug/stack_trace.h"
 #include "src/base/platform/platform.h"
+
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
 
 namespace v8 {
 namespace base {
@@ -165,10 +167,8 @@ void V8_Fatal(const char* format, ...) {
   FailureMessage message(format, arguments);
   va_end(arguments);
 
-#if !V8_OS_STARBOARD
   fflush(stdout);
   fflush(stderr);
-#endif
   // Print the formatted message to stdout without cropping the output.
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                            line);
@@ -182,9 +182,7 @@ void V8_Fatal(const char* format, ...) {
 
   if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
 
-#if !V8_OS_STARBOARD
   fflush(stderr);
-#endif
   v8::base::OS::Abort();
 }
 

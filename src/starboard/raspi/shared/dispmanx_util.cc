@@ -49,7 +49,8 @@ class DispmanxAutoUpdate {
  private:
   DISPMANX_UPDATE_HANDLE_T handle_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(DispmanxAutoUpdate);
+  DispmanxAutoUpdate(const DispmanxAutoUpdate&) = delete;
+  void operator=(const DispmanxAutoUpdate&) = delete;
 };
 
 }  // namespace

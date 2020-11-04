@@ -28,6 +28,7 @@
         'speech_sandbox_main.cc',
       ],
       'dependencies': [
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/debug/debug.gyp:console_command_manager',

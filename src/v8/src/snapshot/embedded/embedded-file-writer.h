@@ -6,9 +6,7 @@
 #define V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_
 
 #include <cinttypes>
-#if !defined(V8_OS_STARBOARD)
 #include <cstdio>
-#endif
 #include <cstring>
 
 #include "src/common/globals.h"

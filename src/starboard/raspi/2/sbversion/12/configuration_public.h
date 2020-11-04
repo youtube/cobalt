@@ -131,13 +131,6 @@
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
-// The Raspberry Pi does not apparently align fields in a heap-allocated struct
-// by over 16 bytes.
-#define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1
-
-// The Raspberry Pi does not apparently align stack variables by over 16 bytes.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
@@ -157,5 +150,14 @@
 #if !defined(__GNUC__)
 #error "RasPi builds need a GCC-like compiler (for the moment)."
 #endif
+
+// --- Platform Specific Quirks ----------------------------------------------
+
+// The Raspberry Pi does not apparently align fields in a heap-allocated struct
+// by over 16 bytes.
+#define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1
+
+// The Raspberry Pi does not apparently align stack variables by over 16 bytes.
+#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
 
 #endif  // STARBOARD_RASPI_2_SBVERSION_12_CONFIGURATION_PUBLIC_H_

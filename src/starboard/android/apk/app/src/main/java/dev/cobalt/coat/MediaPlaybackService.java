@@ -41,6 +41,10 @@ private Context context;
 public void onCreate() {
   super.onCreate();
   Log.i(TAG, "Creating a Media playback foreground service.");
+  if (getStarboardBridge() == null) {
+    Log.e(TAG, "StarboardBridge already destroyed.");
+    return;
+  }
   getStarboardBridge().onServiceStart(this);
   context = getApplicationContext();
 }
@@ -61,10 +65,14 @@ public IBinder onBind(Intent intent) {
 
 @Override
 public void onDestroy() {
+  if (getStarboardBridge() == null) {
+    Log.e(TAG, "StarboardBridge already destroyed.");
+    return;
+  }
   getStarboardBridge().onServiceDestroy(this);
   context = null;
   super.onDestroy();
-  Log.i(TAG, "Destorying the Media playback service.");
+  Log.i(TAG, "Destroying the Media playback service.");
 }
 
 public void startService() {
@@ -139,6 +147,10 @@ Notification buildNotification() {
 
 @UsedByNative
 protected StarboardBridge getStarboardBridge() {
+  if (getApplication() == null) {
+    Log.e(TAG, "Application already destroyed.");
+    return null;
+  }
   return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
 }
 

@@ -22,7 +22,7 @@ import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.optional import get_optional_tests
 from starboard.sabi import sabi
-from starboard.tools import ccache
+from starboard.tools import cache
 from starboard.tools import environment
 from starboard.tools import paths
 from starboard.tools import platform
@@ -70,15 +70,19 @@ class PlatformConfiguration(object):
       self._directory = os.path.realpath(os.path.dirname(__file__))
     self._application_configuration = None
     self._application_configuration_search_path = [self._directory]
+    # Default build accelerator is ccache.
+    self.build_accelerator = self.GetBuildAccelerator(cache.Accelerator.CCACHE)
 
-    # Specifies the build accelerator to be used. Default is ccache.
-    build_accelerator = ccache.Ccache()
+  def GetBuildAccelerator(self, accelerator):
+    """Returns the build accelerator name."""
+    build_accelerator = cache.Cache(accelerator)
+    name = build_accelerator.GetName()
     if build_accelerator.Use():
-      self.build_accelerator = build_accelerator.GetName()
-      logging.info('Using %sbuild accelerator.', self.build_accelerator)
+      logging.info('Using %s build accelerator.', name)
+      return name
     else:
-      self.build_accelerator = ''
-      logging.info('Not using a build accelerator.')
+      logging.info('Not using %s build accelerator.', name)
+      return ''
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -354,7 +358,8 @@ class PlatformConfiguration(object):
     raise NotImplementedError()
 
   def GetPathToSabiJsonFile(self):
-    """Gets the path to the JSON file with Starboard ABI information for the build.
+    """Gets the path to the JSON file with Starboard ABI information for the
+       build.
 
     Examples:
         'starboard/sabi/arm64/sabi-v12.json'

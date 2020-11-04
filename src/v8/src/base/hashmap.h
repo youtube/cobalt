@@ -15,27 +15,22 @@
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
 
-#if V8_OS_STARBOARD
-
-#include "starboard/common/string.h"
+#if defined(V8_OS_STARBOARD)
 #include "starboard/memory.h"
-
-#define malloc(x) SbMemoryAllocate(x)
-#define realloc(x, y) SbMemoryReallocate(x, y)
-#define free(x) SbMemoryDeallocate(x)
-#define memcpy(x, y, z) SbMemoryCopy(x, y, z)
-#define calloc(x, y) SbMemoryCalloc(x, y)
-#define strdup(s) SbStringDuplicate(s)
-
-#endif  // V8_OS_STARBOARD
+#endif
 
 namespace v8 {
 namespace base {
 
 class DefaultAllocationPolicy {
  public:
+#if defined(V8_OS_STARBOARD)
+  V8_INLINE void* New(size_t size) { return SbMemoryAllocate(size); }
+  V8_INLINE static void Delete(void* p) { SbMemoryDeallocate(p); }
+#else
   V8_INLINE void* New(size_t size) { return malloc(size); }
   V8_INLINE static void Delete(void* p) { free(p); }
+#endif
 };
 
 template <typename Key, typename Value, class MatchFun, class AllocationPolicy>
@@ -509,14 +504,5 @@ class TemplateHashMap
 
 }  // namespace base
 }  // namespace v8
-
-#if V8_OS_STARBOARD
-#undef malloc
-#undef realloc
-#undef free
-#undef memcpy
-#undef calloc
-#undef strdup
-#endif
 
 #endif  // V8_BASE_HASHMAP_H_

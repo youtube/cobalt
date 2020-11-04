@@ -113,12 +113,8 @@ class PlayerComponents {
       }
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-      SbPlayer player() const {
-        return player_;
-      }
-      SbPlayerOutputMode output_mode() const {
-        return output_mode_;
-      }
+      SbPlayer player() const { return player_; }
+      SbPlayerOutputMode output_mode() const { return output_mode_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
@@ -203,7 +199,8 @@ class PlayerComponents {
         int* min_frames_per_append) const;
 
    private:
-    SB_DISALLOW_COPY_AND_ASSIGN(Factory);
+    Factory(const Factory&) = delete;
+    void operator=(const Factory&) = delete;
   };
 
   PlayerComponents() = default;
@@ -214,7 +211,8 @@ class PlayerComponents {
   virtual VideoRenderer* GetVideoRenderer() = 0;
 
  private:
-  SB_DISALLOW_COPY_AND_ASSIGN(PlayerComponents);
+  PlayerComponents(const PlayerComponents&) = delete;
+  void operator=(const PlayerComponents&) = delete;
 };
 
 }  // namespace filter

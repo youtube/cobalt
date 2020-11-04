@@ -37,8 +37,10 @@ limitations under the License.
       return;
     }
 
-    if (currentChannel == targetChannel) {
-      console.log("update from " + targetChannel + " channel installed");
+    if (status == "Update installed, pending restart") {
+      clearInterval(changeChannel);
+      console.log("update from " + currentChannel + " channel was installed");
+      return;
     }
   }
 

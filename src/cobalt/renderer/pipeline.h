@@ -58,7 +58,12 @@ class Pipeline {
       RasterizationCompleteCallback;
 
   enum ShutdownClearMode {
-    kClearToBlack,
+    // Query CobaltExtensionGraphicsApi's ShouldClearFrameOnShutdown for
+    // shutdown behavior.
+    kClearAccordingToPlatform,
+
+    // Do not clear regardless of what CobaltExtensionGraphicsApi's
+    // ShouldClearFrameOnShutdown specifies.
     kNoClear,
   };
 

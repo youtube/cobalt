@@ -148,6 +148,8 @@ void AlignedFree(void* ptr) {
 #elif V8_LIBC_BIONIC
   // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
   free(ptr);
+#elif V8_OS_STARBOARD
+  SbMemoryDeallocateAligned(ptr);
 #else
   free(ptr);
 #endif

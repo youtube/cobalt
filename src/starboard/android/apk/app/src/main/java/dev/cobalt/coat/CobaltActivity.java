@@ -27,6 +27,7 @@ import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -45,7 +46,9 @@ public abstract class CobaltActivity extends NativeActivity {
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
   private static final String SPLASH_URL_ARG = "--fallback_splash_screen_url=";
+  private static final String SPLASH_TOPICS_ARG = "--fallback_splash_screen_topics=";
   private static final java.lang.String META_DATA_SPLASH_URL = "cobalt.SPLASH_URL";
+  private static final java.lang.String META_DATA_SPLASH_TOPICS = "cobalt.SPLASH_TOPIC";
 
   private static final String FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
       "--force_migration_for_storage_partitioning";
@@ -107,6 +110,9 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onStart() {
+    if (!isReleaseBuild()) {
+      MediaCodecUtil.dumpAllDecoders();
+    }
     if (forceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
@@ -174,7 +180,9 @@ public abstract class CobaltActivity extends NativeActivity {
     boolean hasUrlArg = hasArg(args, URL_ARG);
     // If the splash screen url arg isn't specified, get it from AndroidManifest.xml.
     boolean hasSplashUrlArg = hasArg(args, SPLASH_URL_ARG);
-    if (!hasUrlArg || !hasSplashUrlArg) {
+    // If the splash screen topics arg isn't specified, get it from AndroidManifest.xml.
+    boolean hasSplashTopicsArg = hasArg(args, SPLASH_TOPICS_ARG);
+    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTopicsArg) {
       try {
         ActivityInfo ai =
             getPackageManager()
@@ -190,6 +198,12 @@ public abstract class CobaltActivity extends NativeActivity {
             String splashUrl = ai.metaData.getString(META_DATA_SPLASH_URL);
             if (splashUrl != null) {
               args.add(SPLASH_URL_ARG + splashUrl);
+            }
+          }
+          if (!hasSplashTopicsArg) {
+            String splashTopics = ai.metaData.getString(META_DATA_SPLASH_TOPICS);
+            if (splashTopics != null) {
+              args.add(SPLASH_TOPICS_ARG + splashTopics);
             }
           }
           if (ai.metaData.getBoolean(META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING)) {

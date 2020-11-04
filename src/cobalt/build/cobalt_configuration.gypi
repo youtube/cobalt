@@ -523,10 +523,6 @@
     # further reduced on systems with extremely low memory.
     'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': -1,
 
-    'compiler_flags_host': [
-      '-D__LB_HOST__',  # TODO: Is this still needed?
-    ],
-
     'defines_debug': [
       'ALLOCATOR_STATS_TRACKING',
       'COBALT_BOX_DUMP_ENABLED',

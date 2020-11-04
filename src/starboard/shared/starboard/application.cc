@@ -316,6 +316,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStopped:
           return true;
         case kStateFrozen:
+          OnResume();
           Inject(new Event(kSbEventTypeUnfreeze, NULL, NULL));
           Inject(scoped_event.release());
           return true;

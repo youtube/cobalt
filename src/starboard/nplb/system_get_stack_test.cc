@@ -21,12 +21,14 @@ namespace nplb {
 namespace {
 
 SB_C_NOINLINE int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
-  // This EXPECT_NE is just enough to avoid inlining with optimizations on.
-  // This may not be enough on other platforms, so we'll have to keep an eye on
-  // it.
+  // These EXPECT_NE and EXPECT_LT should be enough to make function complicated
+  // and avoid inlining with optimizations on some platforms. But we'll have to
+  // keep an eye on it as this may not be enough on some other platforms.
   void** const kNullVpp = NULL;
   EXPECT_NE(kNullVpp, out_stack);
-  return SbSystemGetStack(out_stack, stack_size);
+  int ret = SbSystemGetStack(out_stack, stack_size);
+  EXPECT_LT(1, ret);
+  return ret;
 }
 
 SB_C_NOINLINE void WowThatsADeepStack() {

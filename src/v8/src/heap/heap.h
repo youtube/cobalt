@@ -29,9 +29,7 @@
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
 #include "src/utils/allocation.h"
-#if !defined(STARBOARD)
 #include "testing/gtest/include/gtest/gtest_prod.h"
-#endif
 
 namespace v8 {
 

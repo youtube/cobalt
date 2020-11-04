@@ -12,18 +12,19 @@
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 
-#if defined(STARBOARD)
-// These common Starboard API replacements are not needed for evergreen but
-// some builds can not find definitions for free/malloc above Starboard.
+#if defined(V8_OS_STARBOARD)
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
-#define malloc(x) SbMemoryAllocate(x)
-#define realloc(x, y) SbMemoryReallocate(x, y)
-#define free(x) SbMemoryDeallocate(x)
-#define memcpy(x, y, z) SbMemoryCopy(x, y, z)
-#define calloc(x, y) SbMemoryCalloc(x, y)
-#endif
+struct AllocationPolicy {
+  V8_INLINE static void* Malloc(size_t size) { return SbMemoryAllocate(size); }
+  V8_INLINE static void Free(void* p) { SbMemoryDeallocate(p); }
+};
+#else
+struct AllocationPolicy {
+  V8_INLINE static void* Malloc(size_t size) { return malloc(size); }
+  V8_INLINE static void Free(void* p) { return free(p); }
+};
+#endif  // V8_OS_STARBOARD
 
 namespace v8 {
 namespace base {
@@ -50,7 +51,7 @@ class SmallVector {
   }
 
   ~SmallVector() {
-    if (is_big()) free(begin_);
+    if (is_big()) AllocationPolicy::Free(begin_);
   }
 
   SmallVector& operator=(const SmallVector& other) V8_NOEXCEPT {
@@ -58,8 +59,8 @@ class SmallVector {
     size_t other_size = other.size();
     if (capacity() < other_size) {
       // Create large-enough heap-allocated storage.
-      if (is_big()) free(begin_);
-      begin_ = reinterpret_cast<T*>(malloc(sizeof(T) * other_size));
+      if (is_big()) AllocationPolicy::Free(begin_);
+      begin_ = reinterpret_cast<T*>((sizeof(T) * other_size));
       end_of_storage_ = begin_ + other_size;
     }
     memcpy(begin_, other.begin_, sizeof(T) * other_size);
@@ -70,7 +71,7 @@ class SmallVector {
   SmallVector& operator=(SmallVector&& other) V8_NOEXCEPT {
     if (this == &other) return *this;
     if (other.is_big()) {
-      if (is_big()) free(begin_);
+      if (is_big()) AllocationPolicy::Free(begin_);
       begin_ = other.begin_;
       end_ = other.end_;
       end_of_storage_ = other.end_of_storage_;
@@ -164,9 +165,9 @@ class SmallVector {
     size_t in_use = end_ - begin_;
     size_t new_capacity =
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
-    T* new_storage = reinterpret_cast<T*>(malloc(sizeof(T) * new_capacity));
+    T* new_storage = reinterpret_cast<T*>(AllocationPolicy::Malloc(sizeof(T) * new_capacity));
     memcpy(new_storage, begin_, sizeof(T) * in_use);
-    if (is_big()) free(begin_);
+    if (is_big()) AllocationPolicy::Free(begin_);
     begin_ = new_storage;
     end_ = new_storage + in_use;
     end_of_storage_ = new_storage + new_capacity;
@@ -183,13 +184,5 @@ class SmallVector {
 
 }  // namespace base
 }  // namespace v8
-
-#if defined(STARBOARD)
-#undef malloc
-#undef realloc
-#undef free
-#undef memcpy
-#undef calloc
-#endif
 
 #endif  // V8_BASE_SMALL_VECTOR_H_

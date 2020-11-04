@@ -24,12 +24,14 @@
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/extension/graphics.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "nb/memory_scope.h"
+#include "starboard/system.h"
 
 using cobalt::render_tree::Node;
 using cobalt::render_tree::animations::AnimateNode;
@@ -38,6 +40,7 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
+
 #if !defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
 // This default value has been moved from cobalt/build/cobalt_configuration.gypi
 // in favor of the usage of
@@ -74,6 +77,34 @@ void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
   if (base::MessageLoop::current() != message_loop) {
     message_loop->task_runner()->DeleteSoon(FROM_HERE, submission.release());
   }
+}
+
+bool ShouldClearFrameOnShutdown(render_tree::ColorRGBA* out_clear_color) {
+#if SB_API_VERSION >= 11
+  const CobaltExtensionGraphicsApi* graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  if (graphics_extension &&
+      strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
+      graphics_extension->version >= 4) {
+    float r, g, b, a;
+    if (graphics_extension->ShouldClearFrameOnShutdown(&r, &g, &b, &a)) {
+      out_clear_color->set_r(r);
+      out_clear_color->set_g(g);
+      out_clear_color->set_b(b);
+      out_clear_color->set_a(a);
+      return true;
+    }
+    return false;
+  }
+#endif
+
+  // Default is to clear to opaque black.
+  out_clear_color->set_r(0.0f);
+  out_clear_color->set_g(0.0f);
+  out_clear_color->set_b(0.0f);
+  out_clear_color->set_a(1.0f);
+  return true;
 }
 
 }  // namespace
@@ -329,13 +360,13 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
       minimum_frame_interval_milliseconds =
           COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS;
     } else {
-      DLOG(ERROR) <<
-          "COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS and "
-          "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds"
-          "are both defined."
-          "Remove the 'cobalt_minimum_frame_time_in_milliseconds' ";
-          "from ../gyp_configuration.gypi in favor of the usage of "
-          "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
+      DLOG(ERROR)
+          << "COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS and "
+             "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds"
+             "are both defined."
+             "Remove the 'cobalt_minimum_frame_time_in_milliseconds' ";
+      "from ../gyp_configuration.gypi in favor of the usage of "
+      "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
     }
 #else
     if (minimum_frame_interval_milliseconds < 0.0f) {
@@ -373,11 +404,13 @@ void Pipeline::RasterizeCurrentTree() {
   bool is_new_render_tree = submission.render_tree != last_render_tree_;
   bool has_render_tree_changed =
       !last_animations_expired_ || is_new_render_tree;
-  bool force_rasterize = submit_even_if_render_tree_is_unchanged_ ||
-      fps_overlay_update_pending_;
+  bool force_rasterize =
+      submit_even_if_render_tree_is_unchanged_ || fps_overlay_update_pending_;
 
-  float maximum_frame_interval_milliseconds = graphics_context_ ?
-      graphics_context_->GetMaximumFrameIntervalInMilliseconds() : -1.0f;
+  float maximum_frame_interval_milliseconds =
+      graphics_context_
+          ? graphics_context_->GetMaximumFrameIntervalInMilliseconds()
+          : -1.0f;
   if (maximum_frame_interval_milliseconds >= 0.0f) {
     base::TimeDelta max_time_between_rasterize =
         base::TimeDelta::FromMillisecondsD(maximum_frame_interval_milliseconds);
@@ -617,18 +650,18 @@ void Pipeline::ShutdownRasterizerThread() {
   // Shutdown the FPS overlay which may reference render trees.
   fps_overlay_ = base::nullopt;
 
-  // Submit a black fullscreen rect node to clear the display before shutting
+  // Submit a fullscreen rect node to clear the display before shutting
   // down.  This can be helpful if we quit while playing a video via
   // punch-through, which may result in unexpected images/colors appearing for
   // a flicker behind the display.
-  if (render_target_ && (clear_on_shutdown_mode_ == kClearToBlack)) {
-    rasterizer_->Submit(
-        new render_tree::RectNode(
-            math::RectF(render_target_->GetSize()),
-            std::unique_ptr<render_tree::Brush>(
-                new render_tree::SolidColorBrush(
-                    render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))),
-        render_target_);
+  render_tree::ColorRGBA clear_color;
+  if (render_target_ && clear_on_shutdown_mode_ == kClearAccordingToPlatform &&
+      ShouldClearFrameOnShutdown(&clear_color)) {
+    rasterizer_->Submit(new render_tree::RectNode(
+                            math::RectF(render_target_->GetSize()),
+                            std::unique_ptr<render_tree::Brush>(
+                                new render_tree::SolidColorBrush(clear_color))),
+                        render_target_);
   }
 
   // This potential reference to a render tree whose animations may have ended

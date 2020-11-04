@@ -19,9 +19,8 @@
 namespace cobalt {
 namespace media_session {
 
-MediaSession::MediaSession(MediaSessionClient* client)
-    : media_session_client_(client),
-      playback_state_(kMediaSessionPlaybackStateNone),
+MediaSession::MediaSession()
+    : playback_state_(kMediaSessionPlaybackStateNone),
       task_runner_(base::MessageLoop::current()->task_runner()),
       is_change_task_queued_(false),
       last_position_updated_time_(0) {}
@@ -33,6 +32,13 @@ MediaSession::~MediaSession() {
   }
   action_map_.clear();
 }
+
+MediaSession::MediaSession(MediaSessionClient* client)
+    : media_session_client_(client),
+      playback_state_(kMediaSessionPlaybackStateNone),
+      task_runner_(base::MessageLoop::current()->task_runner()),
+      is_change_task_queued_(false),
+      last_position_updated_time_(0) {}
 
 void MediaSession::set_metadata(scoped_refptr<MediaMetadata> value) {
   metadata_ = value;
@@ -75,6 +81,14 @@ void MediaSession::TraceMembers(script::Tracer* tracer) {
 bool MediaSession::IsChangeTaskQueuedForTesting() const {
   DCHECK(task_runner_->BelongsToCurrentThread());
   return is_change_task_queued_;
+}
+
+void MediaSession::EnsureMediaSessionClient() {
+  if (media_session_client_ == nullptr) {
+    media_session_client_ = media_session::MediaSessionClient::Create();
+    DCHECK(media_session_client_);
+    media_session_client_->set_media_session(this);
+  }
 }
 
 void MediaSession::MaybeQueueChangeTask(base::TimeDelta delay) {

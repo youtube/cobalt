@@ -21,6 +21,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_session/media_metadata.h"
 #include "cobalt/media_session/media_position_state.h"
 #include "cobalt/media_session/media_session_action.h"
@@ -58,8 +59,10 @@ class MediaSession : public script::Wrappable {
       ActionMap;
 
  public:
-  explicit MediaSession(MediaSessionClient* client);
+  MediaSession();
   ~MediaSession() override;
+
+  explicit MediaSession(MediaSessionClient* client);
 
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 
@@ -81,6 +84,12 @@ class MediaSession : public script::Wrappable {
   // unit tests.
   bool IsChangeTaskQueuedForTesting() const;
 
+  MediaSessionClient* media_session_client() {
+    return media_session_client_.get();
+  }
+
+  void EnsureMediaSessionClient();
+
  private:
   void MaybeQueueChangeTask(base::TimeDelta delay);
   void OnChanged();
@@ -91,7 +100,7 @@ class MediaSession : public script::Wrappable {
   }
 
   ActionMap action_map_;
-  MediaSessionClient* media_session_client_;
+  std::unique_ptr<MediaSessionClient> media_session_client_;
   scoped_refptr<MediaMetadata> metadata_;
   MediaSessionPlaybackState playback_state_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;

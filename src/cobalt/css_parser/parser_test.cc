@@ -7223,7 +7223,55 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
 TEST_F(ParserTest, ParsesCobaltUiNavFocusTransform) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "transform: -cobalt-ui-nav-focus-transform();",
+          "transform: -cobalt-ui-nav-focus-transform();", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->GetPropertyValue(cssom::kTransformProperty).get());
+  ASSERT_TRUE(transform_list);
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const cssom::CobaltUiNavFocusTransformFunction*>(
+          transform_list->value()[0].get());
+  ASSERT_TRUE(focus_function);
+
+  EXPECT_FLOAT_EQ(1.0f, focus_function->x_translation_scale());
+  EXPECT_FLOAT_EQ(1.0f, focus_function->y_translation_scale());
+}
+
+TEST_F(ParserTest, ParsesCobaltUiNavFocusTransformOneArgument) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "transform: -cobalt-ui-nav-focus-transform(2);", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->GetPropertyValue(cssom::kTransformProperty).get());
+  ASSERT_TRUE(transform_list);
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitIsDynamic));
+  EXPECT_FALSE(transform_list->value().HasTrait(kTraitUsesRelativeUnits));
+  EXPECT_TRUE(transform_list->value().HasTrait(kTraitUsesUiNavFocus));
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::CobaltUiNavFocusTransformFunction* focus_function =
+      dynamic_cast<const cssom::CobaltUiNavFocusTransformFunction*>(
+          transform_list->value()[0].get());
+  ASSERT_TRUE(focus_function);
+
+  EXPECT_FLOAT_EQ(2.0f, focus_function->x_translation_scale());
+  EXPECT_FLOAT_EQ(2.0f, focus_function->y_translation_scale());
+}
+
+TEST_F(ParserTest, ParsesCobaltUiNavFocusTransformTwoArguments) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "transform: -cobalt-ui-nav-focus-transform(0.5, 2);",
           source_location_);
 
   ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
@@ -7240,13 +7288,15 @@ TEST_F(ParserTest, ParsesCobaltUiNavFocusTransform) {
       dynamic_cast<const cssom::CobaltUiNavFocusTransformFunction*>(
           transform_list->value()[0].get());
   ASSERT_TRUE(focus_function);
+
+  EXPECT_FLOAT_EQ(0.5f, focus_function->x_translation_scale());
+  EXPECT_FLOAT_EQ(2.0f, focus_function->y_translation_scale());
 }
 
 TEST_F(ParserTest, ParsesCobaltUiNavSpotlightTransform) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
-          "transform: -cobalt-ui-nav-spotlight-transform();",
-          source_location_);
+          "transform: -cobalt-ui-nav-spotlight-transform();", source_location_);
 
   ASSERT_TRUE(style->IsDeclared(cssom::kTransformProperty));
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
@@ -8532,8 +8582,9 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
-          parser_.ParsePropertyValue("transition-property", "color",
-                                     source_location_)
+          parser_
+              .ParsePropertyValue("transition-property", "color",
+                                  source_location_)
               .get());
   ASSERT_TRUE(property_name_list);
 
@@ -8544,9 +8595,10 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
-          parser_.ParsePropertyValue("transition-property",
-                                     "color, transform , background-color",
-                                     source_location_)
+          parser_
+              .ParsePropertyValue("transition-property",
+                                  "color, transform , background-color",
+                                  source_location_)
               .get());
   ASSERT_TRUE(property_name_list);
 
@@ -8559,8 +8611,9 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
 TEST_F(ParserTest, ParsesTransitionPropertyWithAllValue) {
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
-          parser_.ParsePropertyValue("transition-property", "all",
-                                     source_location_)
+          parser_
+              .ParsePropertyValue("transition-property", "all",
+                                  source_location_)
               .get());
   ASSERT_TRUE(property_name_list.get());
 
@@ -8593,8 +8646,9 @@ TEST_F(ParserTest, ParseUnsupportedTransitionProperty) {
 TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
       dynamic_cast<cssom::TimeListValue*>(
-          parser_.ParsePropertyValue("transition-duration", "1s",
-                                     source_location_).get());
+          parser_
+              .ParsePropertyValue("transition-duration", "1s", source_location_)
+              .get());
   ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(1, time_list_value->value().size());
@@ -8604,9 +8658,10 @@ TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
 TEST_F(ParserTest, ParsesTimeListWithMultipleValues) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
       dynamic_cast<cssom::TimeListValue*>(
-          parser_.ParsePropertyValue("transition-duration",
-                                     "2s, 1ms, 0, 2ms, 3s, 3ms",
-                                     source_location_).get());
+          parser_
+              .ParsePropertyValue("transition-duration",
+                                  "2s, 1ms, 0, 2ms, 3s, 3ms", source_location_)
+              .get());
   ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(6, time_list_value->value().size());
@@ -8621,8 +8676,10 @@ TEST_F(ParserTest, ParsesTimeListWithMultipleValues) {
 TEST_F(ParserTest, ParsesNegativeTimeList) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
       dynamic_cast<cssom::TimeListValue*>(
-          parser_.ParsePropertyValue("transition-duration", "-4s",
-                                     source_location_).get());
+          parser_
+              .ParsePropertyValue("transition-duration", "-4s",
+                                  source_location_)
+              .get());
   ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(1, time_list_value->value().size());
@@ -8780,52 +8837,52 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
 }
 
 TEST_F(ParserTest, AboveRangeCubicBezierP1XParameterProduceError) {
-  EXPECT_CALL(parser_observer_,
-              OnError(
-                  "[object ParserTest]:1:1: error: cubic-bezier control point "
-                  "x values must be in the range [0, 1]."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:1: error: cubic-bezier control point "
+              "x values must be in the range [0, 1]."));
   scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
       "transition-timing-function", "cubic-bezier(2, 0, 0.5, 0)",
       source_location_);
   // Test that the ease function was returned in place of the error function.
   EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
-                                      cssom::TimingFunction::GetEase().get())));
+      cssom::TimingFunction::GetEase().get())));
 }
 TEST_F(ParserTest, BelowRangeCubicBezierP1XParameterProduceError) {
-  EXPECT_CALL(parser_observer_,
-              OnError(
-                  "[object ParserTest]:1:1: error: cubic-bezier control point "
-                  "x values must be in the range [0, 1]."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:1: error: cubic-bezier control point "
+              "x values must be in the range [0, 1]."));
   scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
       "transition-timing-function", "cubic-bezier(-1, 0, 0.5, 0)",
       source_location_);
   // Test that the ease function was returned in place of the error function.
   EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
-                                      cssom::TimingFunction::GetEase().get())));
+      cssom::TimingFunction::GetEase().get())));
 }
 TEST_F(ParserTest, AboveRangeCubicBezierP2XParameterProduceError) {
-  EXPECT_CALL(parser_observer_,
-              OnError(
-                  "[object ParserTest]:1:1: error: cubic-bezier control point "
-                  "x values must be in the range [0, 1]."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:1: error: cubic-bezier control point "
+              "x values must be in the range [0, 1]."));
   scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
       "transition-timing-function", "cubic-bezier(0.5, 0, 2, 0)",
       source_location_);
   // Test that the ease function was returned in place of the error function.
   EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
-                                      cssom::TimingFunction::GetEase().get())));
+      cssom::TimingFunction::GetEase().get())));
 }
 TEST_F(ParserTest, BelowRangeCubicBezierP2XParameterProduceError) {
-  EXPECT_CALL(parser_observer_,
-              OnError(
-                  "[object ParserTest]:1:1: error: cubic-bezier control point "
-                  "x values must be in the range [0, 1]."));
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:1: error: cubic-bezier control point "
+              "x values must be in the range [0, 1]."));
   scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
       "transition-timing-function", "cubic-bezier(0.5, 0, -1, 0)",
       source_location_);
   // Test that the ease function was returned in place of the error function.
   EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
-                                      cssom::TimingFunction::GetEase().get())));
+      cssom::TimingFunction::GetEase().get())));
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
@@ -9156,9 +9213,9 @@ TEST_F(ParserTest,
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
-  EXPECT_CALL(parser_observer_, OnError(
-                                    "[object ParserTest]:1:16: error: "
-                                    "unsupported property value for animation"))
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:16: error: "
+                      "unsupported property value for animation"))
       .Times(AtLeast(1));
 
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
@@ -9187,9 +9244,9 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
-  EXPECT_CALL(parser_observer_, OnError(
-                                    "[object ParserTest]:1:16: error: "
-                                    "unsupported property value for animation"))
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:16: error: "
+                      "unsupported property value for animation"))
       .Times(AtLeast(1));
 
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
@@ -9215,9 +9272,9 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
 
 TEST_F(ParserTest,
        ParsesTransitionShorthandIgnoringErrorButProceedingWithNonError) {
-  EXPECT_CALL(parser_observer_, OnError(
-                                    "[object ParserTest]:1:16: error: "
-                                    "unsupported property value for animation"))
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:16: error: "
+                      "unsupported property value for animation"))
       .Times(AtLeast(1));
 
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
@@ -9737,8 +9794,9 @@ TEST_F(ParserTest, ParsesEmptyMediaQuery) {
 
 TEST_F(ParserTest, ParsesValidMediaQuery) {
   scoped_refptr<cssom::MediaQuery> media_query =
-      parser_.ParseMediaQuery("(max-width: 1024px) and (max-height: 512px)",
-                              source_location_)
+      parser_
+          .ParseMediaQuery("(max-width: 1024px) and (max-height: 512px)",
+                           source_location_)
           .get();
   ASSERT_TRUE(media_query.get());
   // TODO: Update when media query serialization is implemented.
@@ -9754,8 +9812,9 @@ TEST_F(ParserTest, ParsesEmptyMediaList) {
 
 TEST_F(ParserTest, ParsesValidMediaList) {
   scoped_refptr<cssom::MediaList> media_list =
-      parser_.ParseMediaList("(max-width: 1024px), (max-height: 512px)",
-                             source_location_)
+      parser_
+          .ParseMediaList("(max-width: 1024px), (max-height: 512px)",
+                          source_location_)
           .get();
   ASSERT_TRUE(media_list.get());
   ASSERT_EQ(media_list->length(), 2);
@@ -9766,9 +9825,10 @@ TEST_F(ParserTest, ParsesValidMediaList) {
 
 TEST_F(ParserTest, ParsesValidMediaQueryWithIntegers) {
   scoped_refptr<cssom::MediaQuery> media_query =
-      parser_.ParseMediaQuery(
-                 "(color: 8) and (grid:0) and (color) and (scan: progressive)",
-                 source_location_)
+      parser_
+          .ParseMediaQuery(
+              "(color: 8) and (grid:0) and (color) and (scan: progressive)",
+              source_location_)
           .get();
   ASSERT_TRUE(media_query.get());
 

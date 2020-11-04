@@ -353,6 +353,13 @@
             'dependencies': [ 'angle_common' ],
             'includes': [ '../gyp/common_defines.gypi', ],
             'sources': [ '<@(angle_preprocessor_sources)', ],
+            'msvs_settings':
+            {
+                  'VCCLCompilerTool':
+                  {
+                        'WarnAsError': 'false',
+                  },
+            },
         },
         {
             'target_name': 'translator',
@@ -370,10 +377,14 @@
             ],
             'msvs_settings':
             {
-              'VCLibrarianTool':
-              {
-                'AdditionalOptions': ['/ignore:4221']
-              },
+                  'VCCLCompilerTool':
+                  {
+                        'WarnAsError': 'false',
+                  },
+                  'VCLibrarianTool':
+                  {
+                        'AdditionalOptions': ['/ignore:4221'],
+                  },
             },
             'conditions':
             [

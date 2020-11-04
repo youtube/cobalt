@@ -38,8 +38,17 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
                          application_directory)
 
   def GetVariables(self, config_name):
+
+    # Use env var to optimize build speed on CI
+    try:
+      # Force to int, so it's easy to pass in an override.
+      use_fastbuild = int(os.environ.get('IS_CI', 0))
+    except (ValueError, TypeError):
+      use_fastbuild = 0
+
     variables = {
-        'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
+        # This is used to omit large debuginfo in files on CI environment
+        'cobalt_fastbuild': use_fastbuild,
 
         # This is here rather than cobalt_configuration.gypi so that it's
         # available for browser_bindings_gen.gyp.
@@ -119,7 +128,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # Disabled because of: Flaky on buildbot across multiple buildconfigs.
         # Non-reproducible with local runs.
         ('xhr/WebPlatformTest.Run/'
-        'XMLHttpRequest_send_entity_body_get_head_async_htm'),
+         'XMLHttpRequest_send_entity_body_get_head_async_htm'),
         'xhr/WebPlatformTest.Run/XMLHttpRequest_status_error_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_response_json_htm',
         'xhr/WebPlatformTest.Run/XMLHttpRequest_send_redirect_to_non_cors_htm',

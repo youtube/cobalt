@@ -637,7 +637,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 #endif  // ENABLE_DEBUGGER
 
   // Pass down this callback from to Web module.
-  options_.web_module_options.maybe_freeze_callback =
+  options.maybe_freeze_callback =
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
   web_module_.reset(new WebModule(
@@ -1830,7 +1830,8 @@ void BrowserModule::OnMaybeFreeze() {
 #if defined(ENABLE_DEBUGGER)
       debug_console_ready_to_freeze &&
 #endif  // defined(ENABLE_DEBUGGER)
-      web_module_ready_to_freeze) {
+      web_module_ready_to_freeze &&
+      application_state_ == base::kApplicationStateConcealed) {
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
     SB_HAS(CONCEALED_STATE)
     SbSystemRequestFreeze();

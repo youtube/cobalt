@@ -124,7 +124,6 @@ Window::Window(
     const base::Closure& window_minimize_callback,
     OnScreenKeyboardBridge* on_screen_keyboard_bridge,
     const scoped_refptr<input::Camera3D>& camera_3d,
-    const scoped_refptr<MediaSession>& media_session,
     const OnStartDispatchEventCallback& on_start_dispatch_event_callback,
     const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
@@ -168,7 +167,7 @@ Window::Window(
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
-      navigator_(new Navigator(settings, user_agent, language, media_session,
+      navigator_(new Navigator(settings, user_agent, language,
                                captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
@@ -703,6 +702,11 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
   tracer->Trace(on_screen_keyboard_);
+}
+
+const scoped_refptr<media_session::MediaSession>
+    Window::media_session() const {
+  return navigator_->media_session();
 }
 
 void Window::CacheSplashScreen(const std::string& content,

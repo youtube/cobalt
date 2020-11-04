@@ -56,7 +56,8 @@ class SimpleThread {
   SbThread thread_;
   starboard::atomic_bool join_called_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(SimpleThread);
+  SimpleThread(const SimpleThread&) = delete;
+  void operator=(const SimpleThread&) = delete;
 };
 
 }  // namespace nb

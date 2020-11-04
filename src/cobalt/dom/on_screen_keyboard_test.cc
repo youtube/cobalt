@@ -30,7 +30,6 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
-#include "cobalt/media_session/media_session.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
@@ -222,7 +221,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
             base::Closure() /* window_minimize */,
-            on_screen_keyboard_bridge_.get(), NULL, NULL,
+            on_screen_keyboard_bridge_.get(), NULL,
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
             dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),

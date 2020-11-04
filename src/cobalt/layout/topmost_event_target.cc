@@ -241,9 +241,11 @@ void SendStateChangeEnterEvents(
         for (scoped_refptr<dom::Element> element = target_element;
              element != nearest_common_ancestor;
              element = element->parent_element()) {
-          element->DispatchEvent(new dom::PointerEvent(
-              base::Tokens::pointerenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, view, *event_init));
+          if (element) {
+            element->DispatchEvent(new dom::PointerEvent(
+                base::Tokens::pointerenter(), dom::Event::kNotBubbles,
+                dom::Event::kNotCancelable, view, *event_init));
+          }
         }
       }
 
@@ -254,9 +256,11 @@ void SendStateChangeEnterEvents(
       for (scoped_refptr<dom::Element> element = target_element;
            element != nearest_common_ancestor;
            element = element->parent_element()) {
-        element->DispatchEvent(new dom::MouseEvent(
-            base::Tokens::mouseenter(), dom::Event::kNotBubbles,
-            dom::Event::kNotCancelable, view, *event_init));
+        if (element) {
+          element->DispatchEvent(new dom::MouseEvent(
+              base::Tokens::mouseenter(), dom::Event::kNotBubbles,
+              dom::Event::kNotCancelable, view, *event_init));
+        }
       }
     }
   }
