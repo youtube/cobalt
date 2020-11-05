@@ -521,6 +521,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // boxes without requiring a new layout.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
 
+  // Signal whether the UI navigation item may need to be updated.
+  bool ui_nav_needs_update_ = false;
+
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.
   friend class DOMAnimatable;
