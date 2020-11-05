@@ -39,7 +39,7 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 13
+#define SB_MAXIMUM_API_VERSION 14
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
@@ -51,7 +51,7 @@
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-#define SB_RELEASE_CANDIDATE_API_VERSION 12
+// #define SB_RELEASE_CANDIDATE_API_VERSION 13
 
 // --- Experimental Feature Defines ------------------------------------------
 
