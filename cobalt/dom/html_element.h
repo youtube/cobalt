@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -363,10 +364,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return ui_nav_item_;
   }
 
-  // Reset focus on the associated UI navigation item (if any). This is used
-  // when resuming from the conealed state, in case the underlying UI navigation
-  // system was reset during the conceal.
-  void RefocusUiNavItem();
+  // Update the UI navigation system to focus on the relevant navigation item
+  // for this HTML element (if any).
+  void UpdateUiNavigationFocus(bool force_focus);
 
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html50/semantics.html#the-root-element.

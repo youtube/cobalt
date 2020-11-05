@@ -343,6 +343,15 @@ class Document : public Node,
   // Returns whether the computed style is valid after the call.
   bool UpdateComputedStyleOnElementAndAncestor(HTMLElement* element);
 
+  // Called periodically to update the UI navigation system.
+  void UpdateUiNavigation();
+
+  // Track UI navigation system's focus element.
+  const void* ui_nav_focus_element() const { return ui_nav_focus_element_; }
+  void set_ui_nav_focus_element(const void* focus_element) {
+    ui_nav_focus_element_ = focus_element;
+  }
+
   // Manages the clock used by Web Animations.
   //     https://www.w3.org/TR/web-animations
   // This clock is also used for requestAnimationFrame() callbacks, according
@@ -590,6 +599,13 @@ class Document : public Node,
   // Whether or not page lifecycle is currently frozen.
   //   https://wicg.github.io/page-lifecycle/#page-lifecycle
   bool frozenness_;
+
+  // Indicates whether UI navigation focus needs to be updated.
+  bool ui_nav_focus_needs_update_ = false;
+
+  // Track the current focus of UI navigation. This is only an identifier and
+  // not meant to be dereferenced.
+  const void* ui_nav_focus_element_ = nullptr;
 
   scoped_refptr<IntersectionObserverTaskManager>
       intersection_observer_task_manager_;
