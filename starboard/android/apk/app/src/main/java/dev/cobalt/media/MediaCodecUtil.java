@@ -573,17 +573,13 @@ public class MediaCodecUtil {
         }
 
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-        if (frameWidth != 0 && frameHeight != 0) {
-          if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
-            Log.v(
-                TAG,
-                String.format(
-                    "Rejecting %s, reason: width %s is not compatible with height %d",
-                    name, frameWidth, frameHeight));
-            continue;
-          }
-        } else if (frameWidth != 0) {
-          if (!videoCapabilities.getSupportedWidths().contains(frameWidth)) {
+
+        // Disable the improved support check based on more specific APIs, like isSizeSupported() or
+        // areSizeAndRateSupported().  These APIs are theoretically more accurate, but we are unsure
+        // about their level of support on various Android TV platforms.
+        final boolean fallbackToMaximumSupportedCheck = true;
+        if (fallbackToMaximumSupportedCheck) {
+          if (frameWidth != 0 && !videoCapabilities.getSupportedWidths().contains(frameWidth)) {
             Log.v(
                 TAG,
                 String.format(
@@ -591,14 +587,42 @@ public class MediaCodecUtil {
                     name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
             continue;
           }
-        } else if (frameHeight != 0) {
-          if (!videoCapabilities.getSupportedHeights().contains(frameHeight)) {
+          if (frameHeight != 0 && !videoCapabilities.getSupportedHeights().contains(frameHeight)) {
             Log.v(
                 TAG,
                 String.format(
                     "Rejecting %s, reason: supported heights %s does not contain %d",
                     name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
             continue;
+          }
+        } else {
+          if (frameWidth != 0 && frameHeight != 0) {
+            if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
+              Log.v(
+                  TAG,
+                  String.format(
+                      "Rejecting %s, reason: width %s is not compatible with height %d",
+                      name, frameWidth, frameHeight));
+              continue;
+            }
+          } else if (frameWidth != 0) {
+            if (!videoCapabilities.getSupportedWidths().contains(frameWidth)) {
+              Log.v(
+                  TAG,
+                  String.format(
+                      "Rejecting %s, reason: supported widths %s does not contain %d",
+                      name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
+              continue;
+            }
+          } else if (frameHeight != 0) {
+            if (!videoCapabilities.getSupportedHeights().contains(frameHeight)) {
+              Log.v(
+                  TAG,
+                  String.format(
+                      "Rejecting %s, reason: supported heights %s does not contain %d",
+                      name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
+              continue;
+            }
           }
         }
         if (bitrate != 0 && !videoCapabilities.getBitrateRange().contains(bitrate)) {
@@ -609,29 +633,40 @@ public class MediaCodecUtil {
                   name, videoCapabilities.getBitrateRange().toString(), bitrate));
           continue;
         }
-        if (fps != 0) {
-          if (frameHeight != 0 && frameWidth != 0) {
-            if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                      name,
-                      videoCapabilities
-                          .getSupportedFrameRatesFor(frameWidth, frameHeight)
-                          .toString(),
-                      fps));
-              continue;
-            }
-          } else {
-            // At least one of frameHeight or frameWidth is 0
-            if (!videoCapabilities.getSupportedFrameRates().contains(fps)) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                      name, videoCapabilities.getSupportedFrameRates().toString(), fps));
-              continue;
+        if (fallbackToMaximumSupportedCheck) {
+          if (fps != 0 && !videoCapabilities.getSupportedFrameRates().contains(fps)) {
+            Log.v(
+                TAG,
+                String.format(
+                    "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                    name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+            continue;
+          }
+        } else {
+          if (fps != 0) {
+            if (frameHeight != 0 && frameWidth != 0) {
+              if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
+                Log.v(
+                    TAG,
+                    String.format(
+                        "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                        name,
+                        videoCapabilities
+                            .getSupportedFrameRatesFor(frameWidth, frameHeight)
+                            .toString(),
+                        fps));
+                continue;
+              }
+            } else {
+              // At least one of frameHeight or frameWidth is 0
+              if (!videoCapabilities.getSupportedFrameRates().contains(fps)) {
+                Log.v(
+                    TAG,
+                    String.format(
+                        "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                        name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+                continue;
+              }
             }
           }
         }
