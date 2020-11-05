@@ -432,6 +432,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   }
 
   on_layout_callback_.Run();
+  document->UpdateUiNavigation();
 }
 
 LayoutManager::LayoutManager(

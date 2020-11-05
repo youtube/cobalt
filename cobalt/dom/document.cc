@@ -15,6 +15,7 @@
 #include "cobalt/dom/document.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -526,6 +527,11 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 void Document::SetActiveElement(Element* active_element) {
   if (active_element) {
     active_element_ = base::AsWeakPtr(active_element);
+    if (active_element != ui_nav_focus_element_) {
+      // Call UpdateUiNavigationFocus() after UI navigation items have been
+      // updated. This happens during render tree generation from layout.
+      ui_nav_focus_needs_update_ = true;
+    }
   } else {
     active_element_.reset();
   }
@@ -861,6 +867,15 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   return true;
 }
 
+void Document::UpdateUiNavigation() {
+  HTMLElement* active_html_element =
+      active_element() ? active_element()->AsHTMLElement() : nullptr;
+  if (active_html_element && ui_nav_focus_needs_update_) {
+    ui_nav_focus_needs_update_ = false;
+    active_html_element->UpdateUiNavigationFocus(/* force_update */ false);
+  }
+}
+
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -999,10 +1014,11 @@ void Document::OnVisibilityStateChanged(
 
   // Refocus the previously-focused UI navigation item (if any).
   if (visibility_state == page_visibility::kVisibilityStateVisible) {
-    HTMLElement* active_html_element = active_element() ?
-        active_element()->AsHTMLElement() : nullptr;
+    HTMLElement* active_html_element =
+        active_element() ? active_element()->AsHTMLElement() : nullptr;
     if (active_html_element) {
-      active_html_element->RefocusUiNavItem();
+      ui_nav_focus_needs_update_ = false;
+      active_html_element->UpdateUiNavigationFocus(/* force_update */ true);
     }
   }
 }
