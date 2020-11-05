@@ -15,6 +15,7 @@
 #include "cobalt/dom/document.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -528,6 +529,11 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 void Document::SetActiveElement(Element* active_element) {
   if (active_element) {
     active_element_ = base::AsWeakPtr(active_element);
+    if (active_element != ui_nav_focus_element_) {
+      // Call UpdateUiNavigationFocus() after UI navigation items have been
+      // updated. This happens during render tree generation from layout.
+      ui_nav_focus_needs_update_ = true;
+    }
   } else {
     active_element_.reset();
   }
@@ -863,6 +869,15 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   return true;
 }
 
+void Document::UpdateUiNavigation() {
+  HTMLElement* active_html_element =
+      active_element() ? active_element()->AsHTMLElement() : nullptr;
+  if (active_html_element && ui_nav_focus_needs_update_) {
+    ui_nav_focus_needs_update_ = false;
+    active_html_element->UpdateUiNavigationFocus(/* force_update */ false);
+  }
+}
+
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -1000,10 +1015,11 @@ void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
 
   // Refocus the previously-focused UI navigation item (if any).
   if (visibility_state == kVisibilityStateVisible) {
-    HTMLElement* active_html_element = active_element() ?
-        active_element()->AsHTMLElement() : nullptr;
+    HTMLElement* active_html_element =
+        active_element() ? active_element()->AsHTMLElement() : nullptr;
     if (active_html_element) {
-      active_html_element->RefocusUiNavItem();
+      ui_nav_focus_needs_update_ = false;
+      active_html_element->UpdateUiNavigationFocus(/* force_update */ true);
     }
   }
 }
@@ -1024,10 +1040,10 @@ void Document::OnFrozennessChanged(bool is_frozen) {
 void Document::CollectHTMLMediaElements(
     std::vector<HTMLMediaElement*>* html_media_elements) {
   scoped_refptr<HTMLElement> root = html();
-    if (root) {
-      DCHECK_EQ(this, root->parent_node());
-      root->CollectHTMLMediaElementsRecursively(html_media_elements, 0);
-    }
+  if (root) {
+    DCHECK_EQ(this, root->parent_node());
+    root->CollectHTMLMediaElementsRecursively(html_media_elements, 0);
+  }
 }
 
 // Algorithm for 'freeze steps'
@@ -1047,8 +1063,8 @@ void Document::FreezeSteps() {
   // 3. Let elements be all media elements that are shadow-including
   //    documents of doc, in shadow-including tree order.
   //    Note: Cobalt currently only supports one document.
-  std::unique_ptr<std::vector<HTMLMediaElement*>>
-      html_media_elements(new std::vector<HTMLMediaElement*>());
+  std::unique_ptr<std::vector<HTMLMediaElement*>> html_media_elements(
+      new std::vector<HTMLMediaElement*>());
   CollectHTMLMediaElements(html_media_elements.get());
 
   // 4. For each element in elements:
@@ -1074,8 +1090,8 @@ void Document::ResumeSteps() {
   // 1. Let elements be all media elements that are shadow-including
   //    documents of doc, in shadow-including tree order.
   //    Note: Cobalt currently only supports one document.
-  std::unique_ptr<std::vector<HTMLMediaElement*>>
-      html_media_elements(new std::vector<HTMLMediaElement*>());
+  std::unique_ptr<std::vector<HTMLMediaElement*>> html_media_elements(
+      new std::vector<HTMLMediaElement*>());
   CollectHTMLMediaElements(html_media_elements.get());
 
   // 2. For each element in elements:
