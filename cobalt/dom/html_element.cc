@@ -1017,6 +1017,11 @@ void HTMLElement::UpdateComputedStyleRecursively(
   if (!is_valid) {
     UpdateComputedStyle(parent_computed_style_declaration, root_computed_style,
                         style_change_event_time, kAncestorsAreDisplayed);
+  } else if (ui_nav_needs_update_) {
+    if (!UpdateUiNavigationAndReturnIfLayoutBoxesAreValid()) {
+      InvalidateLayoutBoxesOfNodeAndAncestors();
+      InvalidateLayoutBoxesOfDescendants();
+    }
   }
 
   // Do not update computed style for descendants of "display: none" elements,
@@ -1464,6 +1469,9 @@ void HTMLElement::SetTabIndex(const std::string& value) {
   } else {
     tabindex_ = base::nullopt;
   }
+
+  // Changing the tabindex may trigger a UI navigation change.
+  ui_nav_needs_update_ = true;
 }
 
 namespace {
@@ -2089,6 +2097,8 @@ bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
 }
 
 bool HTMLElement::UpdateUiNavigationAndReturnIfLayoutBoxesAreValid() {
+  ui_nav_needs_update_ = false;
+
   base::Optional<ui_navigation::NativeItemType> ui_nav_item_type;
   if (tabindex_ && *tabindex_ <= kUiNavFocusTabIndexThreshold &&
       computed_style()->pointer_events() != cssom::KeywordValue::GetNone()) {
