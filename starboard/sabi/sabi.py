@@ -13,4 +13,4 @@
 # limitations under the License.
 """Source of truth of the default/experimental Starboard API version."""
 
-SB_API_VERSION = 13
+SB_API_VERSION = 12
