@@ -13,8 +13,8 @@
 # limitations under the License.
 {
   'variables': {
-    'has_input_events_filter' : '<!(python <(DEPTH)/build/file_exists.py <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
-    'has_drm_system_extension%': '<!(test -e <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp && echo 1 || echo 0)',
+    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_drm_system_extension%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp)',
   },
   'includes': [
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',

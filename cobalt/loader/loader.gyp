@@ -206,7 +206,7 @@
         '<(input_directory)/splash_screen.js',
         '<(input_directory)/unable_message.html.template',
         '<(input_directory)/update_message.html.template',
-        '<!@(["python", "<(DEPTH)/starboard/tools/find_private_files.py", "<(DEPTH)", "*.html", "cobalt/loader/embedded_resources"])',
+        '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/cobalt/loader/embedded_resources *.html)',
       ],
       'actions': [
         {
