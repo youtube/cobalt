@@ -70,6 +70,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void TeardownAudioDecoder();
   void OnDecoderOutput();
 
+  const SbMediaAudioSampleInfo initial_audio_sample_info_;
   const SbDrmSystem drm_system_;
   const AudioDecoderCreator audio_decoder_creator_;
   const OutputFormatAdjustmentCallback output_adjustment_callback_;
