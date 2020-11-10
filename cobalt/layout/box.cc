@@ -16,7 +16,7 @@
 
 #include <algorithm>
 #include <limits>
-#include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -86,8 +86,8 @@ math::Matrix3F GetCSSTransform(
   cssom::TransformPropertyValue* transform_value =
       base::polymorphic_downcast<cssom::TransformPropertyValue*>(
           transform_property_value);
-  math::Matrix3F css_transform_matrix = transform_value->ToMatrix(
-      used_rect.size(), ui_nav_focus);
+  math::Matrix3F css_transform_matrix =
+      transform_value->ToMatrix(used_rect.size(), ui_nav_focus);
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
@@ -116,8 +116,8 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 #ifdef _DEBUG
   margin_box_offset_from_containing_block_.SetVector(LayoutUnit(),
                                                      LayoutUnit());
-  static_position_offset_from_parent_.SetInsets(
-      LayoutUnit(), LayoutUnit(), LayoutUnit(), LayoutUnit());
+  static_position_offset_from_parent_.SetInsets(LayoutUnit(), LayoutUnit(),
+                                                LayoutUnit(), LayoutUnit());
   static_position_offset_from_containing_block_to_parent_.SetInsets(
       LayoutUnit(), LayoutUnit(), LayoutUnit(), LayoutUnit());
   margin_insets_.SetInsets(LayoutUnit(), LayoutUnit(), LayoutUnit(),
@@ -132,13 +132,9 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 
 Box::~Box() { layout_stat_tracker_->OnBoxDestroyed(); }
 
-bool Box::IsPositioned() const {
-  return computed_style()->IsPositioned();
-}
+bool Box::IsPositioned() const { return computed_style()->IsPositioned(); }
 
-bool Box::IsTransformed() const {
-  return computed_style()->IsTransformed();
-}
+bool Box::IsTransformed() const { return computed_style()->IsTransformed(); }
 
 bool Box::IsAbsolutelyPositioned() const {
   return computed_style()->position() == cssom::KeywordValue::GetAbsolute() ||
@@ -402,14 +398,13 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
           box->margin_box_offset_from_containing_block() +
           box->GetBorderBoxOffsetFromMarginBox();
       transform =
-          GetCSSTransform(
-              box->computed_style()->transform().get(),
-              box->computed_style()->transform_origin().get(),
-              math::RectF(transform_rect_offset.x().toFloat(),
-                          transform_rect_offset.y().toFloat(),
-                          box->GetBorderBoxWidth().toFloat(),
-                          box->GetBorderBoxHeight().toFloat()),
-              box->ComputeUiNavFocusForTransform()) *
+          GetCSSTransform(box->computed_style()->transform().get(),
+                          box->computed_style()->transform_origin().get(),
+                          math::RectF(transform_rect_offset.x().toFloat(),
+                                      transform_rect_offset.y().toFloat(),
+                                      box->GetBorderBoxWidth().toFloat(),
+                                      box->GetBorderBoxHeight().toFloat()),
+                          box->ComputeUiNavFocusForTransform()) *
           transform;
     }
 
@@ -422,9 +417,9 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
     Vector2dLayoutUnit containing_block_offset =
         box->GetContainingBlockOffsetFromItsContentBox(container) +
         container->GetContentBoxOffsetFromMarginBox();
-    transform = math::TranslateMatrix(
-        containing_block_offset.x().toFloat(),
-        containing_block_offset.y().toFloat()) * transform;
+    transform = math::TranslateMatrix(containing_block_offset.x().toFloat(),
+                                      containing_block_offset.y().toFloat()) *
+                transform;
 
     box = container;
   }
@@ -597,10 +592,8 @@ InsetsLayoutUnit Box::GetContentBoxInsetFromContainingBlock(
   LayoutUnit left_inset =
       left() + margin_left() + border_left_width() + padding_left();
   return InsetsLayoutUnit(
-      left_inset,
-      top() + margin_top() + border_top_width() + padding_top(),
-      containing_block->width() - left_inset - width(),
-      LayoutUnit());
+      left_inset, top() + margin_top() + border_top_width() + padding_top(),
+      containing_block->width() - left_inset - width(), LayoutUnit());
 }
 
 LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromContainingBlock() const {
@@ -767,11 +760,6 @@ void Box::RenderAndAnimate(
   const base::Optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
-  // Update the associated UI navigation item with the box's properties.
-  if (ui_nav_item_) {
-    UpdateUiNavigationItem();
-  }
-
   // Update intersection observers for any targets represented by this box.
   if (box_intersection_observer_module_) {
     box_intersection_observer_module_->UpdateIntersectionObservations();
@@ -828,8 +816,7 @@ void Box::RenderAndAnimate(
   // check to see if there is a need to distinguish between content and
   // background.
   if (!overflow_hidden ||
-      (!IsOverflowAnimatedByUiNavigation() &&
-       !outline_is_visible &&
+      (!IsOverflowAnimatedByUiNavigation() && !outline_is_visible &&
        computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
        border_insets_.zero())) {
     // If there's no reason to distinguish between content and background,
@@ -1189,7 +1176,8 @@ int Box::GetZIndex() const {
     return 0;
   } else {
     return base::polymorphic_downcast<cssom::IntegerValue*>(
-               computed_style()->z_index().get())->value();
+               computed_style()->z_index().get())
+        ->value();
   }
 }
 
@@ -1371,9 +1359,9 @@ void SetupMatrixTransformNodeFromCSSStyle(
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_focus,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     MatrixTransformNode::Builder* transform_node_builder) {
-  transform_node_builder->transform = GetCSSTransform(
-      style->transform().get(), style->transform_origin().get(),
-      used_rect, ui_nav_focus);
+  transform_node_builder->transform =
+      GetCSSTransform(style->transform().get(), style->transform_origin().get(),
+                      used_rect, ui_nav_focus);
 }
 
 void SetupMatrixTransformNodeFromCSSTransform(
@@ -1399,7 +1387,8 @@ void SetupFilterNodeFromStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     FilterNode::Builder* filter_node_builder) {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
-                      style->opacity().get())->value();
+                      style->opacity().get())
+                      ->value();
 
   if (opacity < 1.0f) {
     filter_node_builder->opacity_filter.emplace(std::max(0.0f, opacity));
@@ -1515,7 +1504,7 @@ scoped_refptr<ui_navigation::NavItem> Box::ComputeUiNavFocusForTransform()
       base::polymorphic_downcast<cssom::TransformPropertyValue*>(
           computed_style()->transform().get());
   if (!transform_property_value->HasTrait(
-      cssom::TransformFunction::kTraitUsesUiNavFocus)) {
+          cssom::TransformFunction::kTraitUsesUiNavFocus)) {
     return nullptr;
   }
 
@@ -1533,7 +1522,6 @@ void Box::RenderAndAnimateBoxShadow(
     const base::Optional<RoundedCorners>& inner_rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
-
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
     const cssom::PropertyListValue* box_shadow_list =
         base::polymorphic_downcast<const cssom::PropertyListValue*>(
@@ -1917,8 +1905,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     animate_node_builder->Add(
         css_transform_node,
         base::Bind(&ApplyAnimation<MatrixTransformNode>,
-                   base::Bind(&SetupMatrixTransformNodeFromCSSStyle,
-                              used_rect, ui_nav_focus),
+                   base::Bind(&SetupMatrixTransformNodeFromCSSStyle, used_rect,
+                              ui_nav_focus),
                    baked_animation_set, base_style),
         transform_is_dynamic ? base::TimeDelta::Max()
                              : baked_animation_set.end_time());
@@ -1933,18 +1921,16 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
         new MatrixTransformNode(border_node, math::Matrix3F::Identity());
     animate_node_builder->Add(
         css_transform_node,
-        base::Bind(&SetupMatrixTransformNodeFromCSSTransform,
-                   used_rect, ui_nav_focus,
-                   computed_style()->transform(),
+        base::Bind(&SetupMatrixTransformNodeFromCSSTransform, used_rect,
+                   ui_nav_focus, computed_style()->transform(),
                    computed_style()->transform_origin()));
     return css_transform_node;
   }
 
   if (IsTransformed()) {
-    math::Matrix3F matrix =
-        GetCSSTransform(computed_style()->transform().get(),
-                        computed_style()->transform_origin().get(),
-                        used_rect, ui_nav_focus);
+    math::Matrix3F matrix = GetCSSTransform(
+        computed_style()->transform().get(),
+        computed_style()->transform_origin().get(), used_rect, ui_nav_focus);
     if (matrix.IsIdentity()) {
       return border_node;
     } else {
@@ -1976,9 +1962,11 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigationContainer(
   scoped_refptr<CompositionNode> composition_node;
   if (node_to_animate->GetTypeId() == base::GetTypeId<CompositionNode>() &&
       base::polymorphic_downcast<CompositionNode*>(node_to_animate.get())
-          ->data().offset().IsZero()) {
-    composition_node = base::polymorphic_downcast<CompositionNode*>(
-        node_to_animate.get());
+          ->data()
+          .offset()
+          .IsZero()) {
+    composition_node =
+        base::polymorphic_downcast<CompositionNode*>(node_to_animate.get());
   } else {
     composition_node = new CompositionNode(node_to_animate, math::Vector2dF());
   }
@@ -2027,9 +2015,9 @@ void Box::UpdateUiNavigationItem() {
   math::Matrix3F transform =
       GetMarginBoxTransformFromContainingBlock(containing_block) *
       math::TranslateMatrix(border_box_offset.x().toFloat() +
-                            0.5f * border_box_size.width().toFloat(),
+                                0.5f * border_box_size.width().toFloat(),
                             border_box_offset.y().toFloat() +
-                            0.5f * border_box_size.height().toFloat());
+                                0.5f * border_box_size.height().toFloat());
   ui_navigation::NativeMatrix2x3 ui_nav_matrix;
   ui_nav_matrix.m[0] = transform(0, 0);
   ui_nav_matrix.m[1] = transform(0, 1);
@@ -2044,8 +2032,8 @@ void Box::UpdateUiNavigationItem() {
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
-    BaseDirection containing_block_direction,
-    LayoutUnit containing_block_width, LayoutUnit border_box_width,
+    BaseDirection containing_block_direction, LayoutUnit containing_block_width,
+    LayoutUnit border_box_width,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
     const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right) {
   base::Optional<LayoutUnit> maybe_margin_left =
@@ -2075,8 +2063,8 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
   // If there is exactly one value specified as "auto", its used value follows
   // from the equality.
   if (maybe_margin_left &&
-        (!maybe_margin_right ||
-         containing_block_direction == kLeftToRightBaseDirection)) {
+      (!maybe_margin_right ||
+       containing_block_direction == kLeftToRightBaseDirection)) {
     set_margin_left(*maybe_margin_left);
     set_margin_right(containing_block_width - *maybe_margin_left -
                      border_box_width);
