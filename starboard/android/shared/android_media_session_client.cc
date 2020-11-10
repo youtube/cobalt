@@ -201,10 +201,6 @@ void OnMediaSessionStateChanged(
   SbOnce(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
-  if (playback_state == kNone && g_callback_context != NULL) {
-    g_callback_context = NULL;
-  }
-
   SbMutexRelease(&mutex);
 
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
