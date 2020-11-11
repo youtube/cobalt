@@ -87,10 +87,6 @@
                   'include_dirs': [ 'starboard/linux' ],
                   }
                 ],
-                [ 'target_os in ("tvos", "ios", "mac")', {
-                  'include_dirs': [ 'starboard/darwin' ],
-                  }
-                ],
               ],
             }],
             # libevent has platform-specific implementation files.  Since its

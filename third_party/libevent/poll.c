@@ -31,11 +31,11 @@
 #endif
 
 #ifdef STARBOARD
-#if defined LIBEVENT_STARBOARD_HEADER
-#include LIBEVENT_STARBOARD_HEADER
-#else  //  defined LIBEVENT_STARBOARD_HEADER
+#if defined LIBEVENT_PLATFORM_HEADER
+#include LIBEVENT_PLATFORM_HEADER
+#else  //  defined LIBEVENT_PLATFORM_HEADER
 #include "libevent-starboard.h"
-#endif  //  defined LIBEVENT_STARBOARD_HEADER
+#endif  //  defined LIBEVENT_PLATFORM_HEADER
 
 #include <poll.h>
 #include <stdlib.h>
