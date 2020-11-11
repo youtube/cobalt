@@ -51,5 +51,4 @@ v8.log
 .vscode
 .idea
 /venv/*
-!/venv/.gitkeep
 _certs/
