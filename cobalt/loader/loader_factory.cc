@@ -236,6 +236,9 @@ void LoaderFactory::ResumeActiveLoaders(
        iter != active_loaders_.end(); ++iter) {
     (*iter)->Resume(resource_provider);
   }
+
+  // Wait for all loader thread messages to be flushed before returning.
+  load_thread_.message_loop()->task_runner()->WaitForFence();
 }
 
 void LoaderFactory::OnLoaderCreated(Loader* loader) {
