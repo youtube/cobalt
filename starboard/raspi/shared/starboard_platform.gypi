@@ -51,6 +51,8 @@
         '<(DEPTH)/starboard/raspi/shared/configuration.h',
         '<(DEPTH)/starboard/raspi/shared/dispmanx_util.cc',
         '<(DEPTH)/starboard/raspi/shared/dispmanx_util.h',
+        '<(DEPTH)/starboard/raspi/shared/graphics.cc',
+        '<(DEPTH)/starboard/raspi/shared/graphics.h',
         '<(DEPTH)/starboard/raspi/shared/main.cc',
         '<(DEPTH)/starboard/raspi/shared/media_is_video_supported.cc',
         '<(DEPTH)/starboard/raspi/shared/open_max/decode_target_create.cc',
