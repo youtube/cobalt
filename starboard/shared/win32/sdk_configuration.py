@@ -22,6 +22,9 @@ import starboard.shared.win32.sdk.installer as sdk_installer
 
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
 _DEFAULT_MSVC_TOOLS_VERSION = '14.15.26726'
+# Note: the Redist version is relevant only for deployment of DLLs (not actually
+# for building any targets).
+_DEFAULT_MSVC_REDIST_VERSION = '14.15.26706'
 _DEFAULT_WIN_SDK_VERSION = '10.0.17763.0'
 
 
@@ -35,6 +38,13 @@ def _GetMsvcToolVersionForPlatform(platform_name):
     return os.environ['MSVC_TOOLS_VERSION']
   else:
     return _DEFAULT_MSVC_TOOLS_VERSION
+
+
+def _GetMsvcRedistVersionForPlatform(platform_name):
+  if 'MSVC_REDIST_VERSION' in os.environ:
+    return os.environ['MSVC_REDIST_VERSION']
+  else:
+    return _DEFAULT_MSVC_REDIST_VERSION
 
 
 def _SelectBestPath(os_var_name, path):
@@ -136,6 +146,7 @@ class SdkConfiguration:
   def __init__(self, platform_name):
     self.required_sdk_version = _GetWinSdkVersionForPlatform(platform_name)
     self.msvc_tool_version = _GetMsvcToolVersionForPlatform(platform_name)
+    self.msvc_redist_version = _GetMsvcRedistVersionForPlatform(platform_name)
     # Maybe override Windows SDK bin directory with environment variable.
     self.windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath', _DEFAULT_SDK_BIN_DIR)
     self.windows_sdk_host_tools = os.path.join(

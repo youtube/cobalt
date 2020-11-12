@@ -21,11 +21,13 @@ paths are using Unix-style forward flashes.
 """
 
 import argparse
+import logging
 import os
 import posixpath
 import shutil
 import sys
 if os.name == 'nt':
+  import pywintypes
   import win32api
 
 # The name of an environment variable that when set to |'1'|, signals to us
@@ -83,9 +85,12 @@ def CopyFiles(files_to_copy, output_basedir):
     if os.name == 'nt':
       # Some of the files (especially for layout tests) result in very long
       # paths (especially on build machines) such that shutil.copy fails.
-      filename = win32api.GetShortPathName(filename)
-      output_basedir = win32api.GetShortPathName(output_basedir)
-
+      try:
+        filename = win32api.GetShortPathName(filename)
+        output_basedir = win32api.GetShortPathName(output_basedir)
+      except pywintypes.error:
+        logging.error('Failed to get ShortPathName for filename: \"%s\" and output_basedir: \"%s\"', filename, output_basedir)
+        raise
     # In certain cases, files would fail to open on windows if relative paths
     # were provided.  Using absolute paths fixes this.
     filename = os.path.abspath(filename)
@@ -132,10 +137,9 @@ def DoMain(argv):
     if options.output_dir is not None:
       print >> sys.stderr, 'COPY_LOG:', options.output_dir
 
-  escaped_files = [EscapePath(x) for x in options.input_paths]
-  files_to_copy = CalcInputs(escaped_files)
+  files_to_copy = CalcInputs(options.input_paths)
   if options.list_inputs:
-    return '\n'.join([x[0] for x in files_to_copy])
+    return '\n'.join([EscapePath(x[0]) for x in files_to_copy])
 
   if not options.output_dir:
     raise WrongNumberOfArgumentsException('-o required.')
@@ -149,6 +153,10 @@ def DoMain(argv):
 
 
 def main(argv):
+  logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
+  logging.basicConfig(
+      level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
+
   try:
     result = DoMain(argv[1:])
   except WrongNumberOfArgumentsException, e:

@@ -124,8 +124,22 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
 
   def GetVariables(self, configuration):
     variables = super(WinWin32PlatformConfig, self).GetVariables(configuration)
-    # These variables will tell gyp to compile with V8.
+    try:
+        # TODO: Remove this conditional on docker builds.
+        # Currently, only windows containers have consistent installed Redist/
+        # folder versions. Builders on Trygerrit do not (yet) and this breaks
+        # deployment of DLLs. The fix is to first standardize it for all build
+        # environments, before removing this conditional.
+        deploy_dlls = int(os.environ.get('BUILD_IN_DOCKER', 0))
+    except (ValueError, TypeError):
+        deploy_dlls = 0
+
     variables.update({
+        # This controls whether the redistributable debug dlls are copied over
+        # during build step.
+        # This is important for being able to run binaries in within docker.
+        'deploy_dlls': deploy_dlls,
+        # These variables will tell gyp to compile with V8.
         'javascript_engine': 'v8',
     })
     return variables
