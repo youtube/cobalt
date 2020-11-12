@@ -19,6 +19,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key.h"
@@ -108,6 +109,14 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
     SB_LOG(ERROR) << "Could not send Cobalt library information into Crashapd.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
+  }
+
+  auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
+      g_elf_loader.LookupSymbol("GetEvergreenSabiString"));
+
+  if (!CheckSabi(get_evergreen_sabi_string_func)) {
+    SB_LOG(ERROR) << "CheckSabi failed";
+    return;
   }
 
   auto get_user_agent_func = reinterpret_cast<const char* (*)()>(

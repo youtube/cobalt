@@ -109,6 +109,7 @@
       'dependencies': [
         'elf_loader',
         '<(DEPTH)/cobalt/content/fonts/fonts.gyp:copy_font_data',
+        '<(DEPTH)/starboard/elf_loader/sabi_string.gyp:sabi_string',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
         '<@(cobalt_platform_dependencies)',
