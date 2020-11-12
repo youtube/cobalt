@@ -25,6 +25,7 @@
         ['sb_evergreen == 1', {
           'dependencies': [
             '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
+            '<(DEPTH)/starboard/elf_loader/sabi_string.gyp:sabi_string',
             '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
             '<(DEPTH)/third_party/llvm-project/compiler-rt/compiler-rt.gyp:compiler_rt',
             '<(DEPTH)/third_party/llvm-project/libcxx/libcxx.gyp:cxx',

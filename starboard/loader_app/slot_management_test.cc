@@ -19,6 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
@@ -36,6 +37,10 @@ const char kTestAppKey[] = "1234";
 const char kTestApp2Key[] = "ABCD";
 
 void SbEventFake(const SbEvent*) {}
+
+const char* GetEvergreenSabiStringFake() {
+  return "bad";
+}
 
 const char* GetCobaltUserAgentStringFake() {
   return "";
@@ -136,6 +141,10 @@ class SlotManagementTest : public testing::Test {
                 Load(testing::EndsWith(lib), testing::EndsWith(content)))
         .Times(1)
         .WillOnce(testing::Return(true));
+    EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
+        .Times(1)
+        .WillOnce(
+            testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
     EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
         .Times(1)
         .WillOnce(testing::Return(
@@ -269,6 +278,11 @@ TEST_F(SlotManagementTest, AlternativeContent) {
                                    testing::EndsWith("/foo")))
       .Times(1)
       .WillOnce(testing::Return(true));
+  EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
+      .Times(1)
+      .WillOnce(
+          testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
+
   EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
       .Times(1)
       .WillOnce(testing::Return(
@@ -279,6 +293,57 @@ TEST_F(SlotManagementTest, AlternativeContent) {
   ASSERT_EQ(&SbEventFake,
             LoadSlotManagedLibrary(kTestAppKey, "/foo", &library_loader));
 }
+
+TEST_F(SlotManagementTest, BadSabi) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  ImInitialize(3, kTestAppKey);
+  ImReset();
+  ASSERT_EQ(IM_SUCCESS, ImRollForward(1));
+  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
+  ASSERT_EQ(1, ImGetCurrentInstallationIndex());
+  CreateGoodFile(1, kTestAppKey);
+
+  ASSERT_EQ(IM_SUCCESS, ImRollForward(2));
+  ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(2));
+  ASSERT_EQ(2, ImGetCurrentInstallationIndex());
+  CreateGoodFile(2, kTestAppKey);
+
+  ImUninitialize();
+
+  MockLibraryLoader library_loader;
+
+  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot_2_libcobalt_path_),
+                                   testing::EndsWith(slot_2_content_path_)))
+      .Times(1)
+      .WillOnce(testing::Return(true));
+
+  EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
+      .Times(2)
+      .WillOnce(
+          testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiStringFake)))
+      .WillOnce(
+          testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
+
+  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot_1_libcobalt_path_),
+                                   testing::EndsWith(slot_1_content_path_)))
+      .Times(1)
+      .WillOnce(testing::Return(true));
+
+  EXPECT_CALL(library_loader, Resolve("GetCobaltUserAgentString"))
+      .Times(1)
+      .WillOnce(testing::Return(
+          reinterpret_cast<void*>(&GetCobaltUserAgentStringFake)));
+
+  EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
+      .Times(1)
+      .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
+
+  ASSERT_EQ(&SbEventFake,
+            LoadSlotManagedLibrary(kTestAppKey, "", &library_loader));
+}
+
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard
