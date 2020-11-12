@@ -81,7 +81,7 @@
           ],
         }, {
           'dependencies': [
-            '<(DEPTH)/starboard/starboard_all.gyp:starboard_platform_tests',
+            '<(DEPTH)/starboard/starboard_all.gyp:starboard_platform_tests_deploy',
           ],
         }],
         ['sb_filter_based_player==1', {
