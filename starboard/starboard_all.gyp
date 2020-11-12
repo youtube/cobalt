@@ -80,7 +80,7 @@
           ],
         }, {
           'dependencies': [
-            'starboard_platform_tests',
+            'starboard_platform_tests_deploy',
           ],
         }],
         ['sb_filter_based_player==1', {
