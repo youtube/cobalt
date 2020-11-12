@@ -22,6 +22,7 @@
         'slot_management.h',
       ],
       'dependencies': [
+        '<(DEPTH)/starboard/elf_loader/sabi_string.gyp:sabi_string',
         '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
         '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
         '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',

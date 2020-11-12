@@ -43,4 +43,5 @@ class SharedLibraryLinker(clangxx.DynamicLinkerBase,
                      '-nostdlib '
                      '--whole-archive '
                      '--no-whole-archive '
+                     '-u GetEvergreenSabiString '
                      '@$rspfile'.format(lld_path, self.GetPath(), *extra_flags))
