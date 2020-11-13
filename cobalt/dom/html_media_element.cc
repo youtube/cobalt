@@ -1646,8 +1646,13 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
   }
 
   if (!filter) {
+    LOG(WARNING) << "PreferDecodeToTexture() could not find filter "
+                    "property.";
     return false;
   }
+
+  LOG(INFO) << "PreferDecodeToTexture() get filter property: "
+            << filter->ToString() << ".";
 
   const cssom::MapToMeshFunction* map_to_mesh_filter =
       cssom::MapToMeshFunction::ExtractFromFilterList(filter);
