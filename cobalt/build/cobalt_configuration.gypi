@@ -130,6 +130,8 @@
     # Build version number.
     'cobalt_version%': '<(BUILD_NUMBER)',
 
+    'cobalt_licenses_platform%': 'default',
+
     # Deprecated. Implement the CobaltExtensionConfigurationApi function
     # CobaltRasterizerType instead.
     # Defines what kind of rasterizer will be used.  This can be adjusted to

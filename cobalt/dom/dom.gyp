@@ -363,8 +363,8 @@
       ],
       'copies': [
         {
-          'destination': '<(sb_static_contents_output_data_dir)',
-          'files': ['<(static_contents_source_dir)/licenses/'],
+          'destination': '<(sb_static_contents_output_data_dir)/licenses',
+          'files': ['<(static_contents_source_dir)/licenses/platform/<(cobalt_licenses_platform)/licenses_cobalt.txt'],
         },
       ],
       'all_dependent_settings': {
