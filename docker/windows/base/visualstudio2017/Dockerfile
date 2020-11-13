@@ -22,6 +22,7 @@ RUN C:\TEMP\vs_buildtools.exe --quiet --wait --norestart --nocache `
 
 ENV VSINSTALLDIR=C:\\BuildTools
 ENV MSVC_TOOLS_VERSION="14.16.27023"
+ENV MSVC_REDIST_VERSION="14.16.27012"
 
 # TODO: remove this environment variable setting, since it is only needed for
 # manually deploying debug versions of DLLs. This can be removed in favor of a
