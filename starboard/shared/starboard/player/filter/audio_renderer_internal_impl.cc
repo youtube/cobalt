@@ -397,7 +397,9 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
     // Fill silence frames on EOS to ensure keep the audio sink playing.
     auto start_offset =
         (*offset_in_frames + *frames_in_buffer) % max_cached_frames_;
-    auto silence_frames_to_write = max_cached_frames_ - start_offset;
+    auto silence_frames_to_write =
+        std::min(max_cached_frames_ - start_offset,
+                 max_cached_frames_ - *frames_in_buffer);
     SB_DCHECK(start_offset >= 0);
     SB_DCHECK(silence_frames_to_write >= 0);
     SB_DCHECK(start_offset + silence_frames_to_write <= max_cached_frames_);
