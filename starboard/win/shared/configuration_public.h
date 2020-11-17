@@ -26,11 +26,6 @@
 
 // --- Architecture Configuration --------------------------------------------
 
-// Some platforms will not align variables on the stack with an alignment
-// greater than 16 bytes. Platforms where this is the case should define the
-// following quirk.
-#undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -121,11 +116,6 @@
 
 // --- Filesystem Configuration ----------------------------------------------
 
-// On some platforms the file system stores access times at a coarser
-// granularity than other times. When this quirk is defined, we assume the
-// access time is of 1 day precision.
-#undef SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter
@@ -155,10 +145,6 @@
 #define SB_HAS_SPEECH_SYNTHESIS 0
 
 // --- Media Configuration ---------------------------------------------------
-
-// dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
-// not available should define the following quirk.
-#undef SB_HAS_QUIRK_NO_FFS
 
 // --- Memory Configuration --------------------------------------------------
 
