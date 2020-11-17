@@ -108,6 +108,7 @@
         }],
         ['sb_evergreen==1', {
           'dependencies': [
+            '<(DEPTH)/components/update_client/update_client.gyp:cobalt_slot_management_test_deploy',
             '<(DEPTH)/third_party/musl/musl.gyp:musl_unittests',
             '<(DEPTH)/starboard/loader_app/installation_manager.gyp:*',
           ],
