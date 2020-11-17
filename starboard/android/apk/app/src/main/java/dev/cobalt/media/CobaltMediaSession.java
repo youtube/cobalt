@@ -116,7 +116,9 @@ public class CobaltMediaSession
 
   private void setMediaSession() {
     Log.i(TAG, "MediaSession new");
-    mediaSession = new MediaSessionCompat(context, TAG);
+    if (mediaSession == null) {
+      mediaSession = new MediaSessionCompat(context, TAG);
+    }
     mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
     mediaSession.setCallback(
         new MediaSessionCompat.Callback() {
@@ -204,8 +206,12 @@ public class CobaltMediaSession
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
 
-    boolean activating = playbackState != PLAYBACK_STATE_NONE && !mediaSession.isActive();
-    boolean deactivating = playbackState == PLAYBACK_STATE_NONE && mediaSession.isActive();
+    boolean activating = true;
+    boolean deactivating = false;
+    if (mediaSession != null) {
+      activating = playbackState != PLAYBACK_STATE_NONE && !mediaSession.isActive();
+      deactivating = playbackState == PLAYBACK_STATE_NONE && mediaSession.isActive();
+    }
     if (activating) {
       // Resuming or new playbacks land here.
       setMediaSession();
@@ -219,6 +225,7 @@ public class CobaltMediaSession
       // Suspending lands here.
       Log.i(TAG, "MediaSession release");
       mediaSession.release();
+      mediaSession = null;
     }
   }
 
