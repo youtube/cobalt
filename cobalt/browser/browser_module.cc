@@ -1616,6 +1616,38 @@ render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
   return nullptr;
 }
 
+void BrowserModule::InitializeComponents() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeComponents()");
+  InstantiateRendererModule();
+
+  if (media_module_) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
+    media_module_->UpdateSystemWindowAndResourceProvider(
+        system_window_.get(), GetResourceProvider());
+#else
+    media_module_->Resume(GetResourceProvider());
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
+  } else {
+    options_.media_module_options.allow_resume_after_suspend =
+        SbSystemSupportsResume();
+    media_module_.reset(new media::MediaModule(system_window_.get(),
+                                               GetResourceProvider(),
+                                               options_.media_module_options));
+
+    if (web_module_) {
+      web_module_->SetCamera3D(input_device_manager_->camera_3d());
+      web_module_->SetWebMediaPlayerFactory(media_module_.get());
+    }
+  }
+
+  if (web_module_) {
+    web_module_->GetUiNavRoot()->SetContainerWindow(
+        system_window_->GetSbWindow());
+  }
+}
+
 void BrowserModule::InitializeSystemWindow() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   DCHECK(!system_window_);
@@ -1646,28 +1678,7 @@ void BrowserModule::InitializeSystemWindow() {
       // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window_.get());
 
-  InstantiateRendererModule();
-
-  if (media_module_) {
-    media_module_->UpdateSystemWindowAndResourceProvider(
-        system_window_.get(), GetResourceProvider());
-  } else {
-    options_.media_module_options.allow_resume_after_suspend =
-        SbSystemSupportsResume();
-    media_module_.reset(new media::MediaModule(system_window_.get(),
-                                               GetResourceProvider(),
-                                               options_.media_module_options));
-
-    if (web_module_) {
-      web_module_->SetCamera3D(input_device_manager_->camera_3d());
-      web_module_->SetWebMediaPlayerFactory(media_module_.get());
-    }
-  }
-
-  if (web_module_) {
-    web_module_->GetUiNavRoot()->SetContainerWindow(
-        system_window_->GetSbWindow());
-  }
+  InitializeComponents();
 }
 
 void BrowserModule::InstantiateRendererModule() {
@@ -1765,10 +1776,14 @@ void BrowserModule::ConcealInternal() {
   if (media_module_) {
     DCHECK(system_window_);
     window_size_ = system_window_->GetWindowSize();
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
     input_device_manager_.reset();
     system_window_.reset();
     media_module_->UpdateSystemWindowAndResourceProvider(
         NULL, GetResourceProvider());
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
   }
 }
 
@@ -1783,14 +1798,17 @@ void BrowserModule::FreezeInternal() {
 void BrowserModule::RevealInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
   DCHECK(!renderer_module_);
-  DCHECK(!system_window_);
-  InitializeSystemWindow();
-
-  // Propagate the current screen size.
-  UpdateScreenSize();
+  if (!system_window_) {
+    InitializeSystemWindow();
+  } else {
+    InitializeComponents();
+  }
 
   DCHECK(system_window_);
   window_size_ = system_window_->GetWindowSize();
+
+  // Propagate the current screen size.
+  UpdateScreenSize();
 
   // Set resource provider right after render module initialized.
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
@@ -1805,7 +1823,12 @@ void BrowserModule::UnfreezeInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
   // Set the Stub resource provider to media module and to web module
   // at Concealed state.
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
   media_module_->Resume(GetResourceProvider());
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
+
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Unfreeze(GetResourceProvider()));
 }
