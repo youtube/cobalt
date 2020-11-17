@@ -391,6 +391,9 @@ class BrowserModule {
   // Gets the current resource provider.
   render_tree::ResourceProvider* GetResourceProvider();
 
+  // Initialize all components without initializing system window.
+  void InitializeComponents();
+
   // Initializes the system window, and all components that require it.
   void InitializeSystemWindow();
 
