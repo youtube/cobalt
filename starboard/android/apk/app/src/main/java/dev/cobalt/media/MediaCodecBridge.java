@@ -32,6 +32,7 @@ import android.view.Surface;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /** A wrapper of the MediaCodec class. */
 @SuppressWarnings("unused")
@@ -345,15 +346,25 @@ class MediaCodecBridge {
         float whitePointChromaticityX,
         float whitePointChromaticityY,
         float maxMasteringLuminance,
-        float minMasteringLuminance) {
+        float minMasteringLuminance,
+        int maxCll,
+        int maxFall) {
       this.colorRange = colorRange;
       this.colorStandard = colorStandard;
       this.colorTransfer = colorTransfer;
 
+      if (maxCll <= 0) {
+        maxCll = DEFAULT_MAX_CLL;
+      }
+      if (maxFall <= 0) {
+        maxFall = DEFAULT_MAX_FALL;
+      }
+
       // This logic is inspired by
       // https://github.com/google/ExoPlayer/blob/deb9b301b2c7ef66fdd7d8a3e58298a79ba9c619/library/core/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java#L1803.
       byte[] hdrStaticInfoData = new byte[25];
-      ByteBuffer hdrStaticInfo = ByteBuffer.wrap(hdrStaticInfoData);
+      ByteBuffer hdrStaticInfo = ByteBuffer.wrap(hdrStaticInfoData).order(ByteOrder.LITTLE_ENDIAN);
+      ;
       hdrStaticInfo.put((byte) 0);
       hdrStaticInfo.putShort((short) ((primaryRChromaticityX * MAX_CHROMATICITY) + 0.5f));
       hdrStaticInfo.putShort((short) ((primaryRChromaticityY * MAX_CHROMATICITY) + 0.5f));
@@ -365,8 +376,8 @@ class MediaCodecBridge {
       hdrStaticInfo.putShort((short) ((whitePointChromaticityY * MAX_CHROMATICITY) + 0.5f));
       hdrStaticInfo.putShort((short) (maxMasteringLuminance + 0.5f));
       hdrStaticInfo.putShort((short) (minMasteringLuminance + 0.5f));
-      hdrStaticInfo.putShort((short) DEFAULT_MAX_CLL);
-      hdrStaticInfo.putShort((short) DEFAULT_MAX_FALL);
+      hdrStaticInfo.putShort((short) maxCll);
+      hdrStaticInfo.putShort((short) maxFall);
       hdrStaticInfo.rewind();
       this.hdrStaticInfo = hdrStaticInfo;
     }
