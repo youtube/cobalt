@@ -96,3 +96,10 @@ repos:
         always_run: true
         stages: [push]
         args: [-m, unittest, tools/download_from_gcs_test.py]
+    -   id: test-python3-compatibility
+        name: Test Python 3 Compatibility
+        description: Checks that scripts can be run in Python 3
+        entry: python precommit_hooks/python3_check.py
+        language: python
+        types: [python]
+        verbose: true
