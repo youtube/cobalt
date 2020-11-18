@@ -15,6 +15,19 @@
 {
   'targets': [
     {
+      'target_name': 'player',
+      'type': 'static_library',
+      'sources': [
+        '<@(common_player_sources)',
+      ],
+      'defines': [
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
+      ],
+      'includes': ['<(DEPTH)/starboard/shared/starboard/player/common_player_sources.gypi'],
+    },
+    {
       'target_name': 'video_dmp',
       'type': 'static_library',
       'sources': [
@@ -26,7 +39,7 @@
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_reader.h',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
       ],
       'defines': [
         # This allows the tests to include internal only header files.

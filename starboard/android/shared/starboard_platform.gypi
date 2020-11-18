@@ -48,7 +48,11 @@
       'include_dirs': [
         '<(DEPTH)/starboard/android/shared/bionic',
       ],
+      'includes': [
+        '<(DEPTH)/starboard/shared/starboard/player/common_player_sources.gypi',
+      ],
       'sources': [
+        '<@(common_player_sources)',
         '<@(filter_based_player_sources)',
         'accessibility_get_caption_settings.cc',
         'accessibility_get_display_settings.cc',
@@ -404,25 +408,6 @@
         '<(DEPTH)/starboard/shared/starboard/microphone/microphone_read.cc',
         '<(DEPTH)/starboard/shared/starboard/memory.cc',
         '<(DEPTH)/starboard/shared/starboard/new.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/job_queue.h',
-        '<(DEPTH)/starboard/shared/starboard/player/job_thread.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/job_thread.h',
-        '<(DEPTH)/starboard/shared/starboard/player/player_get_current_frame.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_get_info2.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_get_maximum_number_of_samples_per_write.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/player_seek2.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_set_volume.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_worker.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_worker.h',
-        '<(DEPTH)/starboard/shared/starboard/player/player_write_end_of_stream.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_write_sample2.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.h',
         '<(DEPTH)/starboard/shared/starboard/speech_recognizer/speech_recognizer_cancel.cc',
@@ -467,6 +452,14 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/ui_nav_get_interface.cc',
+      ],
+      'sources!': [
+        # Exclude these files from common_player_sources, because they are not used by android
+        '<(DEPTH)/starboard/shared/starboard/player/player_create.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/player_destroy.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/player_set_bounds.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/player_set_playback_rate.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
