@@ -97,7 +97,7 @@ NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
       onscroll_callback_(onscroll_callback),
       nav_item_type_(type),
       nav_item_(GetInterface().create_item(type, &s_callbacks_, this)),
-      enabled_(false) {
+      state_(kStateNew) {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   if (++g_nav_item_count == 1) {
     g_pending_updates = new std::vector<PendingUpdate>();
@@ -107,7 +107,7 @@ NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
 
 NavItem::~NavItem() {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
-  DCHECK(!enabled_);
+  DCHECK(state_ == kStatePendingDelete);
   g_pending_updates->emplace_back(
       nav_item_, base::Bind(GetInterface().destroy_item, nav_item_));
   if (--g_nav_item_count == 0) {
@@ -123,7 +123,7 @@ void NavItem::PerformQueuedUpdates() {
 
 void NavItem::Focus() {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
-  if (enabled_) {
+  if (state_ == kStateEnabled) {
     if (g_pending_updates->empty()) {
       // Immediately update focus if nothing else is queued for update.
       g_pending_focus = kNativeItemInvalid;
@@ -146,16 +146,21 @@ void NavItem::UnfocusAll() {
 
 void NavItem::SetEnabled(bool enabled) {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
-  enabled_ = enabled;
   if (enabled) {
-    g_pending_updates->emplace_back(
-        nav_item_,
-        base::Bind(GetInterface().set_item_enabled, nav_item_, enabled));
+    if (state_ == kStateNew) {
+      state_ = kStateEnabled;
+      g_pending_updates->emplace_back(
+          nav_item_,
+          base::Bind(GetInterface().set_item_enabled, nav_item_, enabled));
+    }
   } else {
-    // Remove any pending changes associated with this item.
-    RemovePendingChangesLocked(nav_item_);
-    // Disable immediately to avoid errant callbacks on this item.
-    GetInterface().set_item_enabled(nav_item_, enabled);
+    if (state_ != kStatePendingDelete) {
+      state_ = kStatePendingDelete;
+      // Remove any pending changes associated with this item.
+      RemovePendingChangesLocked(nav_item_);
+      // Disable immediately to avoid errant callbacks on this item.
+      GetInterface().set_item_enabled(nav_item_, enabled);
+    }
   }
 }
 
