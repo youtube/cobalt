@@ -1758,27 +1758,6 @@
           '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(DEPTH)/v8/BUILD.gn"  "\\"postmortem-metadata.*?sources = ")',
         ],
       },
-      'actions': [
-        {
-          'action_name': 'gen-postmortem-metadata',
-          'inputs': [
-            '<(DEPTH)/v8/tools/gen-postmortem-metadata.py',
-            '<@(heapobject_files)',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
-          ],
-          'action': [
-            'python2',
-            '<(DEPTH)/v8/tools/gen-postmortem-metadata.py',
-            '<@(_outputs)',
-            '<@(heapobject_files)'
-          ],
-        },
-      ],
-      'direct_dependent_settings': {
-        'sources': ['<(SHARED_INTERMEDIATE_DIR)/debug-support.cc', ],
-      },
     },  # postmortem-metadata
   ],
 }
