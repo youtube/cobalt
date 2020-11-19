@@ -13,13 +13,14 @@
 // limitations under the License.
 
 #include "cobalt/media_session/media_session_client.h"
-#include "cobalt/script/sequence.h"
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <string>
 
 #include "base/logging.h"
+#include "cobalt/script/sequence.h"
 #include "starboard/time.h"
 
 using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
@@ -34,14 +35,14 @@ const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
 
 // Guess the media position state for the media session.
 void GuessMediaPositionState(MediaSessionState* session_state,
-    const media::WebMediaPlayer** guess_player,
-    const media::WebMediaPlayer* current_player) {
+                             const media::WebMediaPlayer** guess_player,
+                             const media::WebMediaPlayer* current_player) {
   // Assume the player with the biggest video size is the one controlled by the
   // media session. This isn't perfect, so it's best that the web app set the
   // media position state explicitly.
   if (*guess_player == nullptr ||
       (*guess_player)->GetNaturalSize().GetArea() <
-      current_player->GetNaturalSize().GetArea()) {
+          current_player->GetNaturalSize().GetArea()) {
     *guess_player = current_player;
 
     MediaPositionState position_state;
@@ -56,18 +57,15 @@ void GuessMediaPositionState(MediaSessionState* session_state,
     position_state.set_playback_rate((*guess_player)->GetPlaybackRate());
     position_state.set_position((*guess_player)->GetCurrentTime());
 
-    *session_state = MediaSessionState(
-        session_state->metadata(),
-        SbTimeGetMonotonicNow(),
-        position_state,
-        session_state->actual_playback_state(),
-        session_state->available_actions());
+    *session_state = MediaSessionState(session_state->metadata(),
+                                       SbTimeGetMonotonicNow(), position_state,
+                                       session_state->actual_playback_state(),
+                                       session_state->available_actions());
   }
 }
 }  // namespace
 
-MediaSessionClient::MediaSessionClient(
-    MediaSession* media_session)
+MediaSessionClient::MediaSessionClient(MediaSession* media_session)
     : media_session_(media_session),
       platform_playback_state_(kMediaSessionPlaybackStateNone) {
 #if SB_API_VERSION < 11
@@ -252,18 +250,15 @@ void MediaSessionClient::UpdateMediaSessionState() {
   }
 
   session_state_ = MediaSessionState(
-      metadata,
-      media_session_->last_position_updated_time_,
-      media_session_->media_position_state_,
-      ComputeActualPlaybackState(),
+      metadata, media_session_->last_position_updated_time_,
+      media_session_->media_position_state_, ComputeActualPlaybackState(),
       ComputeAvailableActions());
 
   // Compute the media position state if it's not set in the media session.
   if (!media_session_->media_position_state_ && media_player_factory_) {
     const media::WebMediaPlayer* player = nullptr;
-    media_player_factory_->EnumerateWebMediaPlayers(
-        base::BindRepeating(&GuessMediaPositionState,
-                            &session_state_, &player));
+    media_player_factory_->EnumerateWebMediaPlayers(base::BindRepeating(
+        &GuessMediaPositionState, &session_state_, &player));
 
     // The media duration may be reported as 0 when seeking. Re-query the
     // media session state after a delay.
@@ -294,6 +289,7 @@ void MediaSessionClient::OnMediaSessionStateChanged(
     ext_state.actual_playback_rate = session_state.actual_playback_rate();
     ext_state.current_playback_position =
         session_state.current_playback_position();
+    ext_state.has_position_state = session_state.has_position_state();
     ext_state.actual_playback_state =
         ConvertPlaybackState(session_state.actual_playback_state());
     ConvertMediaSessionActions(session_state.available_actions(),
