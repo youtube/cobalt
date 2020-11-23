@@ -23,13 +23,14 @@
 #endif  // SB_API_VERSION >= 11
 
 void SbLog(SbLogPriority priority, const char* message) {
+  FILE* stream = priority >= kSbLogPriorityError ? stderr : stdout;
 #if SB_API_VERSION < 11
-  fprintf(stderr, "%s", message);
-  fflush(stderr);
+  fprintf(stream, "%s", message);
+  fflush(stream);
 #else   // SB_API_VERSION >= 11
   starboard::shared::starboard::GetLoggingMutex()->Acquire();
-  fprintf(stderr, "%s", message);
-  fflush(stderr);
+  fprintf(stream, "%s", message);
+  fflush(stream);
   starboard::shared::starboard::GetLoggingMutex()->Release();
 #endif  // SB_API_VERSION < 11
 }
