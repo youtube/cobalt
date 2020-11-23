@@ -27,6 +27,8 @@ import android.util.Range;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -745,6 +747,104 @@ public class MediaCodecUtil {
     return "";
   }
 
+  /** Utility class to save the maximum supported resolution and frame rate of a decoder. */
+  static class ResolutionAndFrameRate {
+    public ResolutionAndFrameRate(Integer width, Integer height, Double frameRate) {
+      this.width = width;
+      this.height = height;
+      this.frameRate = frameRate;
+    }
+
+    public boolean isCovered(Integer width, Integer height, Double frameRate) {
+      return this.width >= width && this.height >= height && this.frameRate >= frameRate;
+    }
+
+    public Integer width = -1;
+    public Integer height = -1;
+    public Double frameRate = -1.0;
+  }
+
+  /** Returns a string detailing SDR and HDR capabilities of a decoder. */
+  public static String getSupportedResolutionsAndFrameRates(
+      VideoCapabilities videoCapabilities, boolean isHdrCapable) {
+    ArrayList<ArrayList<Integer>> resolutionList =
+        new ArrayList<>(
+            Arrays.asList(
+                new ArrayList<>(Arrays.asList(7680, 4320)),
+                new ArrayList<>(Arrays.asList(3840, 2160)),
+                new ArrayList<>(Arrays.asList(2560, 1440)),
+                new ArrayList<>(Arrays.asList(1920, 1080)),
+                new ArrayList<>(Arrays.asList(1280, 720))));
+    ArrayList<Double> frameRateList =
+        new ArrayList<>(Arrays.asList(60.0, 59.997, 50.0, 48.0, 30.0, 29.997, 25.0, 24.0, 23.997));
+    ArrayList<ResolutionAndFrameRate> supportedResolutionsAndFrameRates = new ArrayList<>();
+    for (Double frameRate : frameRateList) {
+      for (ArrayList<Integer> resolution : resolutionList) {
+        boolean isResolutionAndFrameRateCovered = false;
+        for (ResolutionAndFrameRate resolutionAndFrameRate : supportedResolutionsAndFrameRates) {
+          if (resolutionAndFrameRate.isCovered(resolution.get(0), resolution.get(1), frameRate)) {
+            isResolutionAndFrameRateCovered = true;
+            break;
+          }
+        }
+        if (videoCapabilities.areSizeAndRateSupported(
+            resolution.get(0), resolution.get(1), frameRate)) {
+          if (!isResolutionAndFrameRateCovered) {
+            supportedResolutionsAndFrameRates.add(
+                new ResolutionAndFrameRate(resolution.get(0), resolution.get(1), frameRate));
+          }
+          continue;
+        }
+        if (isResolutionAndFrameRateCovered) {
+          // This configuration should be covered by a supported configuration, return long form.
+          return getLongFormSupportedResolutionsAndFrameRates(
+              resolutionList, frameRateList, videoCapabilities, isHdrCapable);
+        }
+      }
+    }
+    return convertResolutionAndFrameRatesToString(supportedResolutionsAndFrameRates, isHdrCapable);
+  }
+
+  /**
+   * Like getSupportedResolutionsAndFrameRates(), but returns the full information for each frame
+   * rate and resolution combination.
+   */
+  public static String getLongFormSupportedResolutionsAndFrameRates(
+      ArrayList<ArrayList<Integer>> resolutionList,
+      ArrayList<Double> frameRateList,
+      VideoCapabilities videoCapabilities,
+      boolean isHdrCapable) {
+    ArrayList<ResolutionAndFrameRate> supported = new ArrayList<>();
+    for (Double frameRate : frameRateList) {
+      for (ArrayList<Integer> resolution : resolutionList) {
+        if (videoCapabilities.areSizeAndRateSupported(
+            resolution.get(0), resolution.get(1), frameRate)) {
+          supported.add(
+              new ResolutionAndFrameRate(resolution.get(0), resolution.get(1), frameRate));
+        }
+      }
+    }
+    return convertResolutionAndFrameRatesToString(supported, isHdrCapable);
+  }
+
+  public static String convertResolutionAndFrameRatesToString(
+      ArrayList<ResolutionAndFrameRate> supported, boolean isHdrCapable) {
+    if (supported.isEmpty()) {
+      return "None. ";
+    }
+    String frameRateAndResolutionString = "";
+    for (ResolutionAndFrameRate resolutionAndFrameRate : supported) {
+      frameRateAndResolutionString +=
+          String.format(
+              "[%d x %d, %.3f fps], ",
+              resolutionAndFrameRate.width,
+              resolutionAndFrameRate.height,
+              resolutionAndFrameRate.frameRate);
+    }
+    frameRateAndResolutionString += isHdrCapable ? "hdr/sdr, " : "sdr, ";
+    return frameRateAndResolutionString;
+  }
+
   /**
    * Debug utility function that can be locally added to dump information about all decoders on a
    * particular system.
@@ -759,41 +859,57 @@ public class MediaCodecUtil {
         String name = info.getName();
         decoderDumpString +=
             String.format(
-                "name: %s (%s, %s):",
+                "name: %s (%s, %s): ",
                 name,
                 supportedType,
                 codecBlackList.contains(name) ? "blacklisted" : "not blacklisted");
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
+        String resultName =
+            (codecCapabilities.isFeatureSupported(
+                        MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)
+                    && !name.endsWith(SECURE_DECODER_SUFFIX))
+                ? (name + SECURE_DECODER_SUFFIX)
+                : name;
+        FindVideoDecoderResult findVideoDecoderResult =
+            new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
+        boolean isHdrCapable =
+            isHdrCapableVideoDecoder(codecCapabilities.getMimeType(), findVideoDecoderResult);
         if (videoCapabilities != null) {
+          String frameRateAndResolutionString =
+              getSupportedResolutionsAndFrameRates(videoCapabilities, isHdrCapable);
           decoderDumpString +=
               String.format(
                   "\n\t\t"
                       + "widths: %s, "
                       + "heights: %s, "
                       + "bitrates: %s, "
-                      + "framerates: %s, ",
+                      + "framerates: %s, "
+                      + "supported sizes and framerates: %s",
                   videoCapabilities.getSupportedWidths().toString(),
                   videoCapabilities.getSupportedHeights().toString(),
                   videoCapabilities.getBitrateRange().toString(),
-                  videoCapabilities.getSupportedFrameRates().toString());
+                  videoCapabilities.getSupportedFrameRates().toString(),
+                  frameRateAndResolutionString);
         }
-        boolean adaptivePlayback =
+        boolean isAdaptivePlaybackSupported =
             codecCapabilities.isFeatureSupported(
                 MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
-        boolean securePlayback =
+        boolean isSecurePlaybackSupported =
             codecCapabilities.isFeatureSupported(
                 MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
-        boolean tunneledPlayback =
+        boolean isTunneledPlaybackSupported =
             codecCapabilities.isFeatureSupported(
                 MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
-        if (adaptivePlayback || securePlayback || tunneledPlayback) {
+        if (isAdaptivePlaybackSupported
+            || isSecurePlaybackSupported
+            || isTunneledPlaybackSupported) {
           decoderDumpString +=
               String.format(
                   "(%s%s%s",
-                  adaptivePlayback ? "AdaptivePlayback, " : "",
-                  securePlayback ? "SecurePlayback, " : "",
-                  tunneledPlayback ? "TunneledPlayback, " : "");
+                  isAdaptivePlaybackSupported ? "AdaptivePlayback, " : "",
+                  isSecurePlaybackSupported ? "SecurePlayback, " : "",
+                  isTunneledPlaybackSupported ? "TunneledPlayback, " : "");
           // Remove trailing space and comma
           decoderDumpString = decoderDumpString.substring(0, decoderDumpString.length() - 2);
           decoderDumpString += ")";
