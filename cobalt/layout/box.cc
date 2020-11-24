@@ -1979,6 +1979,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateUiNavigationContainer(
 }
 
 void Box::UpdateUiNavigationItem() {
+  if (!ui_nav_item_) {
+    return;
+  }
+
   // The scrollable overflow region is the union of the border box of all
   // contained boxes.
   //   https://www.w3.org/TR/css-overflow-3/#scrollable-overflow-region
