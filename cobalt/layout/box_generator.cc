@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/trace_event/trace_event.h"
@@ -133,6 +134,7 @@ void BoxGenerator::Visit(dom::Element* element) {
            box_iterator != boxes_.end(); ++box_iterator) {
         Box* box = *box_iterator;
         do {
+          box->SetUiNavItem(html_element->GetUiNavItem());
           box->InvalidateParent();
           box = box->GetSplitSibling();
         } while (box != NULL);
@@ -522,9 +524,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
   // boxes in the paragraph.
   // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Isolates
   if (has_scoped_directional_isolate_) {
-    (*paragraph_)
-        ->AppendCodePoint(
-            Paragraph::kPopDirectionalIsolateCodePoint);
+    (*paragraph_)->AppendCodePoint(Paragraph::kPopDirectionalIsolateCodePoint);
   }
 
   if (paragraph_scoped_) {
@@ -1106,7 +1106,7 @@ scoped_refptr<web_animations::AnimationSet> GetAnimationsForAnonymousBox(
   const web_animations::AnimationSet::InternalSet& animation_set =
       parent_animations->animations();
   const cssom::PropertyKeyVector& properties_set =
-    cssom::GetInheritedAnimatableProperties();
+      cssom::GetInheritedAnimatableProperties();
 
   // Go through all the parent animations and only add those pertaining to
   // inheritable properties.
