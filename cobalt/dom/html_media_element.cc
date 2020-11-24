@@ -311,6 +311,9 @@ script::Handle<script::Promise<void>> HTMLMediaElement::SetMediaKeys(
     // re-create the entire player.
     if (player_) {
       ClearMediaPlayer();
+      // |media_keys_| is used in CreateMediaPlayer(). Reset it before calling
+      // CreateMediaPlayer().
+      media_keys_.reset();
       CreateMediaPlayer();
     }
   }
