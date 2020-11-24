@@ -2102,7 +2102,7 @@ void HTMLElement::UpdateUiNavigation() {
     ui_nav_item_type = ui_navigation::kNativeItemTypeContainer;
   }
 
-  if (ui_nav_item_type && IsDisplayed()) {
+  if (ui_nav_item_type && IsDisplayed() && node_document()) {
     ui_navigation::NativeItemDir ui_nav_item_dir;
     ui_nav_item_dir.is_left_to_right =
         directionality() == kLeftToRightDirectionality;
@@ -2139,10 +2139,8 @@ void HTMLElement::UpdateUiNavigation() {
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
 
-    if (node_document()) {
-      node_document()->AddUiNavigationElement(this);
-      node_document()->set_ui_nav_needs_layout(true);
-    }
+    node_document()->AddUiNavigationElement(this);
+    node_document()->set_ui_nav_needs_layout(true);
     InvalidateLayoutBoxRenderTreeNodes();
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
