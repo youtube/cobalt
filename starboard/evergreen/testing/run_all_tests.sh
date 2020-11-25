@@ -47,9 +47,9 @@ for test in "${TESTS[@]}"; do
 
   info " [ RUN      ] ${TEST_NAME}"
 
-  run_test
-
-  RESULT=$?
+  # Temporarily filter all of the tests until an update is pushed to Omaha that
+  # serves a package capable of Starboard ABI verification.
+  RESULT=2
 
   if [[ "${RESULT}" -eq 0 ]]; then
     info  " [   PASSED ] ${TEST_NAME}"
