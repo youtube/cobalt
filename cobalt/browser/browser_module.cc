@@ -1638,7 +1638,7 @@ void BrowserModule::InitializeComponents() {
 
     if (web_module_) {
       web_module_->SetCamera3D(input_device_manager_->camera_3d());
-      web_module_->SetMediaModule(media_module_.get());
+      web_module_->SetWebMediaPlayerFactory(media_module_.get());
     }
   }
 
@@ -1762,8 +1762,8 @@ void BrowserModule::UpdateScreenSize() {
 
 void BrowserModule::ConcealInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Conceal(GetResourceProvider()));
+  FOR_EACH_OBSERVER(
+      LifecycleObserver, lifecycle_observers_, Conceal(GetResourceProvider()));
 
   ResetResources();
 
@@ -1842,11 +1842,11 @@ void BrowserModule::OnMaybeFreeze() {
     return;
   }
 
-  bool splash_screen_ready_to_freeze =
-      splash_screen_ ? splash_screen_->IsReadyToFreeze() : true;
+  bool splash_screen_ready_to_freeze = splash_screen_ ?
+      splash_screen_->IsReadyToFreeze() : true;
 #if defined(ENABLE_DEBUGGER)
-  bool debug_console_ready_to_freeze =
-      debug_console_ ? debug_console_->IsReadyToFreeze() : true;
+  bool debug_console_ready_to_freeze = debug_console_ ?
+      debug_console_->IsReadyToFreeze() : true;
 #endif  // defined(ENABLE_DEBUGGER)
   bool web_module_ready_to_freeze = web_module_->IsReadyToFreeze();
   if (splash_screen_ready_to_freeze &&

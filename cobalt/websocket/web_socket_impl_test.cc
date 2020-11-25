@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/websocket/web_socket_impl.h"
-
 #include "cobalt/websocket/web_socket.h"
+#include "cobalt/websocket/web_socket_impl.h"
 
 #include <memory>
 #include <vector>
@@ -51,7 +50,7 @@ const int k512KB = 512;
 class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
-      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          null_debugger_hooks_, NULL),
         base_("https://127.0.0.1:1234") {
     network_module_.reset(new network::NetworkModule());
