@@ -50,7 +50,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/can_play_type_handler.h"
-#include "cobalt/media/media_module.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -292,7 +292,7 @@ class WebModule : public LifecycleObserver {
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
-            media::MediaModule* media_module,
+            media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
             const cssom::ViewportSize& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
@@ -371,7 +371,8 @@ class WebModule : public LifecycleObserver {
   void SetSize(const cssom::ViewportSize& viewport_size);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
+  void SetWebMediaPlayerFactory(
+      media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
 
@@ -416,7 +417,7 @@ class WebModule : public LifecycleObserver {
         const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
         media::CanPlayTypeHandler* can_play_type_handler,
-        media::MediaModule* media_module,
+        media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
         const cssom::ViewportSize& window_dimensions,
         render_tree::ResourceProvider* resource_provider,
@@ -430,7 +431,7 @@ class WebModule : public LifecycleObserver {
           window_close_callback(window_close_callback),
           window_minimize_callback(window_minimize_callback),
           can_play_type_handler(can_play_type_handler),
-          media_module(media_module),
+          web_media_player_factory(web_media_player_factory),
           network_module(network_module),
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
@@ -446,7 +447,7 @@ class WebModule : public LifecycleObserver {
     const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
-    media::MediaModule* media_module;
+    media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;
     cssom::ViewportSize window_dimensions;
     render_tree::ResourceProvider* resource_provider;

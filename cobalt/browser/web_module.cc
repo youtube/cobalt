@@ -64,8 +64,6 @@
 #include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/switches.h"
-#include "cobalt/media/decoder_buffer_allocator.h"
-#include "cobalt/media/media_module.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/error_report.h"
 #include "cobalt/script/javascript_engine.h"
@@ -215,7 +213,8 @@ class WebModule::Impl {
 
   void SetSize(cssom::ViewportSize viewport_size);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
+  void SetWebMediaPlayerFactory(
+      media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
 
@@ -404,10 +403,6 @@ class WebModule::Impl {
   // See the documentation in base/memory/weak_ptr.h for details.
   base::WeakPtr<dom::Window> window_weak_;
 
-  // Used only when MediaModule is null
-  std::unique_ptr<media::DecoderBufferMemoryInfo>
-      stub_decoder_buffer_memory_info_;
-
   // Environment Settings object
   std::unique_ptr<dom::DOMSettings> environment_settings_;
 
@@ -594,20 +589,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
-  const media::DecoderBufferMemoryInfo* memory_info = nullptr;
-
-  if (data.media_module) {
-    memory_info = data.media_module->GetDecoderBufferAllocator();
-  } else {
-    stub_decoder_buffer_memory_info_.reset(
-        new media::StubDecoderBufferMemoryInfo);
-    memory_info = stub_decoder_buffer_memory_info_.get();
-  }
-
   environment_settings_.reset(new dom::DOMSettings(
       kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
       media_source_registry_.get(), blob_registry_.get(),
-      data.can_play_type_handler, memory_info, javascript_engine_.get(),
+      data.can_play_type_handler, javascript_engine_.get(),
       global_environment_.get(), debugger_hooks_,
       &mutation_observer_task_manager_, data.options.dom_settings_options));
   DCHECK(environment_settings_);
@@ -650,9 +635,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
-      data.can_play_type_handler, data.media_module, execution_state_.get(),
-      script_runner_.get(), global_environment_->script_value_factory(),
-      media_source_registry_.get(),
+      data.can_play_type_handler, data.web_media_player_factory,
+      execution_state_.get(), script_runner_.get(),
+      global_environment_->script_value_factory(), media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
@@ -702,7 +687,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   window_->navigator()->set_maybefreeze_callback(
       data.options.maybe_freeze_callback);
-  window_->navigator()->set_media_player_factory(data.media_module);
+  window_->navigator()->set_media_player_factory(
+      data.web_media_player_factory);
 
   bool is_concealed =
       (data.initial_application_state == base::kApplicationStateConcealed);
@@ -782,7 +768,6 @@ WebModule::Impl::~Impl() {
   topmost_event_target_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
-  stub_decoder_buffer_memory_info_.reset();
   window_weak_.reset();
   window_->ClearPointerStateForShutdown();
   window_ = NULL;
@@ -1084,11 +1069,9 @@ void WebModule::Impl::SetCamera3D(
   window_->SetCamera3D(camera_3d);
 }
 
-void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
-  SB_DCHECK(media_module);
-  environment_settings_->set_decoder_buffer_memory_info(
-      media_module->GetDecoderBufferAllocator());
-  window_->set_web_media_player_factory(media_module);
+void WebModule::Impl::SetWebMediaPlayerFactory(
+    media::WebMediaPlayerFactory* web_media_player_factory) {
+  window_->set_web_media_player_factory(web_media_player_factory);
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
@@ -1318,7 +1301,8 @@ WebModule::WebModule(
     const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
     media::CanPlayTypeHandler* can_play_type_handler,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    network::NetworkModule* network_module,
     const ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
@@ -1330,9 +1314,9 @@ WebModule::WebModule(
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
-      can_play_type_handler, media_module, network_module, window_dimensions,
-      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, ui_nav_root_,
-      options);
+      can_play_type_handler, web_media_player_factory, network_module,
+      window_dimensions, resource_provider, kDOMMaxElementDepth,
+      layout_refresh_rate, ui_nav_root_, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1592,10 +1576,12 @@ void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
                             base::Unretained(impl_.get()), camera_3d));
 }
 
-void WebModule::SetMediaModule(media::MediaModule* media_module) {
+void WebModule::SetWebMediaPlayerFactory(
+    media::WebMediaPlayerFactory* web_media_player_factory) {
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetMediaModule,
-                            base::Unretained(impl_.get()), media_module));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::SetWebMediaPlayerFactory,
+                 base::Unretained(impl_.get()), web_media_player_factory));
 }
 
 void WebModule::SetImageCacheCapacity(int64_t bytes) {
@@ -1684,8 +1670,8 @@ void WebModule::Focus() {
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Focus, base::Unretained(impl_.get())));
+      FROM_HERE, base::Bind(&WebModule::Impl::Focus,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::ReduceMemory() {
@@ -1716,9 +1702,9 @@ bool WebModule::IsReadyToFreeze() {
 
   volatile bool is_ready_to_freeze = false;
   message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::IsReadyToFreeze,
-                 base::Unretained(impl_.get()), &is_ready_to_freeze));
+      FROM_HERE, base::Bind(&WebModule::Impl::IsReadyToFreeze,
+                            base::Unretained(impl_.get()),
+                            &is_ready_to_freeze));
   return is_ready_to_freeze;
 }
 
