@@ -97,6 +97,17 @@ enum class ServiceError {
   UPDATE_DISABLED = 2,
 };
 
+// These errors are returned with the |kUpdateCheck| error category and indicate
+// an error during an update check.
+#if defined(OS_STARBOARD)
+enum class UpdateCheckError {
+  NONE = 0,
+  // Using 21 that doesn't conflict with the exsiting error codes and stays away
+  // from the other codes below 20.
+  QUICK_ROLL_FORWARD = 21,
+};
+#endif
+
 // These errors are related to serialization, deserialization, and parsing of
 // protocol requests.
 // The begin value for this enum is chosen not to conflict with network errors
