@@ -224,6 +224,14 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     }
 
     if (CobaltQuickUpdate(installation_api, current_version)) {
+      // The last parameter in UpdateCheckFailed below, which is to be passed to
+      // update_check_callback_, indicates a throttling by the update server.
+      // Only non-negative values are valid. Negative values are not trusted
+      // and are ignored.
+      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+                        static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD),
+                        -1);
+
       return;
     }
 
