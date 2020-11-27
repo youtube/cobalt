@@ -294,5 +294,21 @@ void UpdaterModule::ResetInstallations() {
   }
 }
 
+int UpdaterModule::GetInstallationIndex() const {
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager) {
+    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    return -1;
+  }
+  int index = installation_manager->GetCurrentInstallationIndex();
+  if (index == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to get current installation index.";
+    return -1;
+  }
+  return index;
+}
+
 }  // namespace updater
 }  // namespace cobalt
