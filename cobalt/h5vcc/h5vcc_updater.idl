@@ -22,4 +22,6 @@ interface H5vccUpdater {
   DOMString getUpdateStatus();
 
   void resetInstallations();
+
+  unsigned short getInstallationIndex();
 };
