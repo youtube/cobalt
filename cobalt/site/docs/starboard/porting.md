@@ -110,7 +110,7 @@ the following files:
 *   `thread_types_public.h`
 
 We recommend that you copy the files from the Stub reference implementation,
-located at `src/third_party/stub/` to your `binary-variant` directories.
+located at `src/starboard/stub/` to your `binary-variant` directories.
 In this approach, you will essentially start with a clean slate of stub
 interfaces that need to be modified to work with your platform.
 
