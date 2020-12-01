@@ -76,7 +76,7 @@ void MozjsExceptionState::SetException(
 
 void MozjsExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
                                                const char* format,
-                                               va_list arguments) {
+                                               va_list & arguments) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 
