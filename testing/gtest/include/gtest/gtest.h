@@ -1403,6 +1403,9 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4389 /* signed/unsigned mismatch */)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-compare"
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 #endif
   if (expected == actual) {
     return AssertionSuccess();
@@ -1411,6 +1414,8 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4389 /* signed/unsigned mismatch */)
 GTEST_DISABLE_MSC_WARNINGS_POP_()
 #elif defined(__clang__)
 #pragma clang diagnostic pop
+#else
+#pragma GCC diagnostic pop
 #endif
 
   return CmpHelperEQFailure(expected_expression, actual_expression, expected,
