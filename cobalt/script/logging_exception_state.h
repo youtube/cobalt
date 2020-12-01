@@ -31,7 +31,7 @@ class LoggingExceptionState : public ExceptionState {
     LogException(exception->name(), exception->message());
   }
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list arguments) override {
+                            va_list & arguments) override {
     LogException(SimpleExceptionToString(type),
                  base::StringPrintV(format, arguments));
   }
