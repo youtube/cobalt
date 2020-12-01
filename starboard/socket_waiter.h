@@ -34,8 +34,8 @@
 #ifndef STARBOARD_SOCKET_WAITER_H_
 #define STARBOARD_SOCKET_WAITER_H_
 
-#include "starboard/socket.h"
 #include "starboard/export.h"
+#include "starboard/socket.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
@@ -130,8 +130,9 @@ SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
 //   the socket:
 // - If |persistent| is |true|, then |socket| stays registered with |waiter|
 //   until SbSocketWaiterRemove() is called with |waiter| and |socket|.
-// - If |persistent| is |false|, then |socket| is removed after the next call
-//   to |callback|, even if not all registered |interests| became ready.
+// - If |persistent| is |false|, then |socket| is removed before the next call
+//   to |callback|, even if not all registered |interests| became ready,
+//   which allows for adding it again in the |callback|.
 SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  SbSocket socket,
                                  void* context,
