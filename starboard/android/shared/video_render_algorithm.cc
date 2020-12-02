@@ -102,11 +102,8 @@ void VideoRenderAlgorithm::Render(
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
     VideoFrameReleaseTimeHelper() {
   auto* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_context(env->CallStarboardObjectMethodOrAbort(
-      "getApplicationContext", "()Landroid/content/Context;"));
-  j_video_frame_release_time_helper_ =
-      env->NewObjectOrAbort("dev/cobalt/media/VideoFrameReleaseTimeHelper",
-                            "(Landroid/content/Context;)V", j_context.Get());
+  j_video_frame_release_time_helper_ = env->NewObjectOrAbort(
+      "dev/cobalt/media/VideoFrameReleaseTimeHelper", "()V");
   j_video_frame_release_time_helper_ =
       env->ConvertLocalRefToGlobalRef(j_video_frame_release_time_helper_);
   env->CallVoidMethod(j_video_frame_release_time_helper_, "enable", "()V");

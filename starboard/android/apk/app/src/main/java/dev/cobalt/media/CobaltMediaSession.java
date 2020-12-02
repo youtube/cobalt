@@ -31,7 +31,6 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.WindowManager;
 import androidx.annotation.RequiresApi;
-import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 
@@ -102,7 +101,7 @@ public class CobaltMediaSession
     this.activityHolder = activityHolder;
 
     this.volumeListener = volumeListener;
-    artworkLoader = new ArtworkLoader(this, DisplayUtil.getDisplaySize(context));
+    artworkLoader = new ArtworkLoader(this);
     setMediaSession();
   }
 
