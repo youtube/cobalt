@@ -35,6 +35,8 @@ class CryptoEngineLinux : public CryptoEngine {
     return kWidevineMaximumHdcpVersion;
   }
 
+  const char* config_security_level() override { return "L3"; }
+
   // Max buffer size for encoded buffer.
   size_t max_buffer_size() override { return 3840 * 2160 * 2; }
 };
