@@ -41,9 +41,6 @@ class MediaSessionClient {
 
   virtual ~MediaSessionClient();
 
-  // Creates platform-specific instance.
-  static std::unique_ptr<MediaSessionClient> Create();
-
   // Retrieves the singleton MediaSession associated with this client.
   MediaSession* GetMediaSession() { return media_session_; }
 
@@ -57,16 +54,8 @@ class MediaSessionClient {
   // the "guessed playback state"
   // https://wicg.github.io/mediasession/#guessed-playback-state
   // Can be invoked from any thread.
-  void UpdatePlatformCobaltExtensionPlaybackState(
+  void UpdatePlatformPlaybackState(
       CobaltExtensionMediaSessionPlaybackState state);
-
-  // Deprecated - use the alternative
-  // UpdatePlatformCobaltExtensionPlaybackState.
-  // TODO: Delete once platform migrations to CobaltExtensionMediaSessionApi are
-  // complete.
-  void UpdatePlatformPlaybackState(MediaSessionPlaybackState state) {
-    UpdatePlatformCobaltExtensionPlaybackState(ConvertPlaybackState(state));
-  }
 
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
@@ -79,31 +68,10 @@ class MediaSessionClient {
   }
 
   // Invokes a given media session action that takes additional details.
-  void InvokeCobaltExtensionAction(
-      CobaltExtensionMediaSessionActionDetails details) {
+  void InvokeAction(CobaltExtensionMediaSessionActionDetails details) {
     std::unique_ptr<CobaltExtensionMediaSessionActionDetails> details_ptr(
         new CobaltExtensionMediaSessionActionDetails(details));
     InvokeActionInternal(std::move(details_ptr));
-  }
-
-  // Deprecated - use the alternative InvokeCobaltExtensionAction.
-  // TODO: Delete once platform migrations to CobaltExtensionMediaSessionApi are
-  // complete.
-  void InvokeAction(std::unique_ptr<MediaSessionActionDetails> details) {
-    std::unique_ptr<CobaltExtensionMediaSessionActionDetails> ext_details(
-        new CobaltExtensionMediaSessionActionDetails());
-    CobaltExtensionMediaSessionActionDetailsInit(
-        ext_details.get(), ConvertMediaSessionAction(details->action()));
-    if (details->has_seek_offset()) {
-      ext_details->seek_offset = details->seek_offset().value();
-    }
-    if (details->has_seek_time()) {
-      ext_details->seek_time = details->seek_time().value();
-    }
-    if (details->has_fast_seek()) {
-      ext_details->fast_seek = details->fast_seek().value();
-    }
-    InvokeActionInternal(std::move(ext_details));
   }
 
   // Invoked on the browser thread when any metadata, position state, playback

@@ -71,14 +71,10 @@
 
         'experimental/concurrency_debug.cc',
         'experimental/concurrency_debug.h',
+
+        '<(DEPTH)/starboard/shared/media_session/playback_state.cc',
+        '<(DEPTH)/starboard/shared/media_session/playback_state.h',
       ],
-      'conditions': [
-        ['custom_media_session_client==0', {
-          'sources': [
-            '<(DEPTH)/starboard/shared/media_session/stub_playback_state.cc',
-           ],
-        }],
-      ]
     },
   ],
 }

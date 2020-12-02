@@ -183,11 +183,6 @@ if (!defined(enable_in_app_dial)) {
   enable_in_app_dial = false
 }
 
-# Set to true to enable a custom MediaSessionClient.
-if (!defined(enable_custom_media_session_client)) {
-  enable_custom_media_session_client = false
-}
-
 # Set to true to enable H5vccAccountManager.
 if (!defined(enable_account_manager)) {
   enable_account_manager = false

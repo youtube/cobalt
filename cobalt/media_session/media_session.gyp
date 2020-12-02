@@ -29,13 +29,6 @@
         'media_session_state.cc',
         'media_session_state.h',
       ],
-      'conditions': [
-        ['custom_media_session_client == 0', {
-          'sources': [
-            'default_media_session_client.cc',
-          ]
-        }]
-      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',

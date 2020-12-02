@@ -142,7 +142,7 @@ TEST(MediaSessionTest, ActualPlaybackState) {
       ->GetMediaSessionState().actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStatePlaying);
+      kCobaltExtensionMediaSessionPlaying);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, session->mock_session_client()
@@ -161,7 +161,7 @@ TEST(MediaSessionTest, ActualPlaybackState) {
       ->GetMediaSessionState().actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStatePaused);
+      kCobaltExtensionMediaSessionPaused);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, session->mock_session_client()
@@ -174,7 +174,7 @@ TEST(MediaSessionTest, ActualPlaybackState) {
       ->GetMediaSessionState().actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStateNone);
+      kCobaltExtensionMediaSessionNone);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, session->mock_session_client()
@@ -270,7 +270,7 @@ TEST(MediaSessionTest, AvailableActions) {
   EXPECT_EQ(1 << kMediaSessionActionPlay, state.available_actions().to_ulong());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStatePlaying);
+      kCobaltExtensionMediaSessionPlaying);
 
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
@@ -303,7 +303,7 @@ TEST(MediaSessionTest, AvailableActions) {
             state.available_actions().to_ulong());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStatePaused);
+      kCobaltExtensionMediaSessionPaused);
 
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
@@ -327,7 +327,7 @@ TEST(MediaSessionTest, AvailableActions) {
             state.available_actions().to_ulong());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
-      kMediaSessionPlaybackStateNone);
+      kCobaltExtensionMediaSessionNone);
 
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
@@ -346,15 +346,15 @@ TEST(MediaSessionTest, InvokeAction) {
 
   MockCallbackFunction cf;
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
-  std::unique_ptr<MediaSessionActionDetails> details(
-      new MediaSessionActionDetails());
+  CobaltExtensionMediaSessionActionDetails details;
 
   session->SetActionHandler(kMediaSessionActionSeekto, holder);
   EXPECT_CALL(cf, Run(SeekTime(1.2))).WillOnce(Return(CallbackResult<void>()));
 
-  details->set_action(kMediaSessionActionSeekto);
-  details->set_seek_time(1.2);
-  session->mock_session_client()->InvokeAction(std::move(details));
+  CobaltExtensionMediaSessionActionDetailsInit(
+      &details, kCobaltExtensionMediaSessionActionSeekto);
+  details.seek_time = 1.2;
+  session->mock_session_client()->InvokeAction(details);
 }
 
 TEST(MediaSessionTest, SeekDetails) {
@@ -387,21 +387,21 @@ TEST(MediaSessionTest, SeekDetails) {
   CobaltExtensionMediaSessionActionDetailsInit(
       &details, kCobaltExtensionMediaSessionActionSeekto);
   details.seek_time = 1.2;
-  session->mock_session_client()->InvokeCobaltExtensionAction(details);
+  session->mock_session_client()->InvokeAction(details);
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
       .WillOnce(Return(CallbackResult<void>()));
   CobaltExtensionMediaSessionActionDetailsInit(
       &details, kCobaltExtensionMediaSessionActionSeekforward);
   details.seek_offset = 3.4;
-  session->mock_session_client()->InvokeCobaltExtensionAction(details);
+  session->mock_session_client()->InvokeAction(details);
 
   EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
       .WillOnce(Return(CallbackResult<void>()));
   CobaltExtensionMediaSessionActionDetailsInit(
       &details, kCobaltExtensionMediaSessionActionSeekbackward);
   details.seek_offset = 5.6;
-  session->mock_session_client()->InvokeCobaltExtensionAction(details);
+  session->mock_session_client()->InvokeAction(details);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_GE(session->mock_session_client()->GetMediaSessionChangeCount(), 0);
