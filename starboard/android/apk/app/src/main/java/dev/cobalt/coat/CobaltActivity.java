@@ -29,6 +29,7 @@ import android.view.ViewParent;
 import android.widget.FrameLayout;
 import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
@@ -117,6 +118,8 @@ public abstract class CobaltActivity extends NativeActivity {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
+
+    DisplayUtil.cacheDefaultDisplay(this);
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
