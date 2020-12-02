@@ -73,7 +73,6 @@ source_set("starboard") {
     "types.h",
     "user.h",
     "window.h",
-    "//starboard/shared/media_session/playback_state.h",
   ]
 
   private_sources = exec_script("tools/find_private_files.py",

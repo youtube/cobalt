@@ -119,26 +119,6 @@ CobaltExtensionMediaSessionAction PlaybackStateActionToMediaSessionAction(
   return result;
 }
 
-CobaltExtensionMediaSessionPlaybackState
-PlaybackStateToCobaltExtensionPlaybackState(PlaybackState state) {
-  CobaltExtensionMediaSessionPlaybackState result;
-  switch (state) {
-    case kPlaying:
-      result = kCobaltExtensionMediaSessionPlaying;
-      break;
-    case kPaused:
-      result = kCobaltExtensionMediaSessionPaused;
-      break;
-    case kNone:
-      result = kCobaltExtensionMediaSessionNone;
-      break;
-    default:
-      SB_NOTREACHED() << "Unsupported PlaybackState " << state;
-      result = static_cast<CobaltExtensionMediaSessionPlaybackState>(-1);
-  }
-  return result;
-}
-
 SbOnceControl once_flag = SB_ONCE_INITIALIZER;
 SbMutex mutex;
 
@@ -173,19 +153,14 @@ void NativeInvokeAction(jlong action, jlong seek_ms) {
   SbMutexRelease(&mutex);
 }
 
-}  // namespace
-
-void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
+void UpdateActiveSessionPlatformPlaybackState(
+    CobaltExtensionMediaSessionPlaybackState state) {
   SbOnce(&once_flag, OnceInit);
   SbMutexAcquire(&mutex);
 
-  CobaltExtensionMediaSessionPlaybackState media_session_state =
-      PlaybackStateToCobaltExtensionPlaybackState(state);
-
   if (g_update_platform_playback_state_callback != NULL &&
       g_callback_context != NULL) {
-    g_update_platform_playback_state_callback(media_session_state,
-                                              g_callback_context);
+    g_update_platform_playback_state_callback(state, g_callback_context);
   }
 
   SbMutexRelease(&mutex);
@@ -288,9 +263,15 @@ void RegisterMediaSessionCallbacks(
   SbMutexRelease(&mutex);
 }
 
+}  // namespace
+
 const CobaltExtensionMediaSessionApi kMediaSessionApi = {
-    kCobaltExtensionMediaSessionName, 1, &OnMediaSessionStateChanged,
-    &RegisterMediaSessionCallbacks, NULL};
+    kCobaltExtensionMediaSessionName,
+    1,
+    &OnMediaSessionStateChanged,
+    &RegisterMediaSessionCallbacks,
+    NULL,
+    &UpdateActiveSessionPlatformPlaybackState};
 
 const void* GetMediaSessionApi() {
   return &kMediaSessionApi;

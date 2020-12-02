@@ -85,7 +85,7 @@ bool MediaSession::IsChangeTaskQueuedForTesting() const {
 
 void MediaSession::EnsureMediaSessionClient() {
   if (media_session_client_ == nullptr) {
-    media_session_client_ = media_session::MediaSessionClient::Create();
+    media_session_client_ = std::make_unique<MediaSessionClient>();
     DCHECK(media_session_client_);
     media_session_client_->set_media_session(this);
   }

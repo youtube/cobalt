@@ -33,12 +33,10 @@ static_library("common") {
     "state_machine.h",
     "thread_collision_warner.cc",
     "thread_collision_warner.h",
-  ]
 
-  # TODO: get rid of dependence on Cobalt
-  if (!enable_custom_media_session_client) {
-    sources += [ "//starboard/shared/media_session/stub_playback_state.cc" ]
-  }
+    //starboard/shared/media_session/playback_state.cc",
+    //starboard/shared/media_session/playback_state.h",
+  ]
 
   # This must be defined when building Starboard, and must not when building
   # Starboard client code.

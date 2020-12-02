@@ -67,7 +67,6 @@
         'types.h',
         'user.h',
         'window.h',
-        '<(DEPTH)/starboard/shared/media_session/playback_state.h',
         # Include private headers, if present.
         '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)',
       ],
