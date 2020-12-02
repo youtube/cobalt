@@ -281,9 +281,9 @@ bool DecoderBufferAllocator::UpdateAllocationRecord() const {
     new_max_reached = true;
   }
   if (new_max_reached) {
-    SB_LOG(ERROR) << "New Media Buffer Allocation Record: "
-                  << "Max Allocated: " << max_allocated
-                  << "  Max Capacity: " << max_capacity;
+    SB_LOG(INFO) << "New Media Buffer Allocation Record: "
+                 << "Max Allocated: " << max_allocated
+                 << "  Max Capacity: " << max_capacity;
     // TODO: Enable the following line once PrintAllocations() accepts max line
     // as a parameter.
     // reuse_allocator_->PrintAllocations();
@@ -291,10 +291,10 @@ bool DecoderBufferAllocator::UpdateAllocationRecord() const {
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   if (reuse_allocator_->CapacityExceeded()) {
-    SB_LOG(ERROR) << "Cobalt media buffer capacity "
-                  << reuse_allocator_->GetCapacity()
-                  << " exceeded max capacity "
-                  << reuse_allocator_->max_capacity();
+    SB_LOG(WARNING) << "Cobalt media buffer capacity "
+                    << reuse_allocator_->GetCapacity()
+                    << " exceeded max capacity "
+                    << reuse_allocator_->max_capacity();
     return false;
   }
   return true;
