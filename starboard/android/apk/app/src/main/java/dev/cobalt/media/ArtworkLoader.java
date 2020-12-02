@@ -23,6 +23,7 @@ import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.NonNull;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,11 +44,9 @@ public class ArtworkLoader {
 
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final Callback callback;
-  private final Size displaySize;
 
-  public ArtworkLoader(Callback callback, Size displaySize) {
+  public ArtworkLoader(Callback callback) {
     this.callback = callback;
-    this.displaySize = displaySize;
   }
 
   /**
@@ -55,7 +54,7 @@ public class ArtworkLoader {
    * the background, and then when ready the callback will be called with the image.
    */
   public synchronized Bitmap getOrLoadArtwork(MediaImage[] artwork) {
-    MediaImage image = getBestFitImage(artwork);
+    MediaImage image = getBestFitImage(artwork, DisplayUtil.getDisplaySize());
     String url = (image == null) ? "" : image.src;
 
     // Check if this artwork is already loaded or requested.
@@ -76,7 +75,7 @@ public class ArtworkLoader {
    * TV launcher, or any other observer of the MediaSession), so we use display size as the largest
    * useful size on any particular device.
    */
-  private MediaImage getBestFitImage(MediaImage[] artwork) {
+  private MediaImage getBestFitImage(MediaImage[] artwork, Size displaySize) {
     if (artwork == null || artwork.length == 0) {
       return null;
     }
@@ -162,12 +161,13 @@ public class ArtworkLoader {
       }
 
       final Pair<String, Bitmap> urlBitmapPair = Pair.create(url, bitmap);
-      handler.post(new Runnable() {
-        @Override
-        public void run() {
-          onDownloadFinished(urlBitmapPair);
-        }
-      });
+      handler.post(
+          new Runnable() {
+            @Override
+            public void run() {
+              onDownloadFinished(urlBitmapPair);
+            }
+          });
     }
   }
 }
