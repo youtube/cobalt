@@ -187,6 +187,12 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     const uint8_t* v) {
   SB_DCHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
 
+  if (bit_depth > 8) {
+    SB_DCHECK(source_pitch_in_bytes >= width * 2);
+  } else {
+    SB_DCHECK(source_pitch_in_bytes >= width);
+  }
+
   scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
   frame->format_ = kYV12;
   frame->width_ = width;
