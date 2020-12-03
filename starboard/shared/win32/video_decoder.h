@@ -41,7 +41,8 @@ class VideoDecoder
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-               SbDrmSystem drm_system);
+               SbDrmSystem drm_system,
+               bool texture_RGBA = false);
   ~VideoDecoder() override;
 
   // Queries for support without creating the vp9 decoder. The function caches
@@ -56,8 +57,8 @@ class VideoDecoder
   SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   size_t GetMaxNumberOfCachedFrames() const override;
 
-  void WriteInputBuffer(
-      const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
+      override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -144,12 +145,7 @@ class VideoDecoder
   SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
   std::list<SbDecodeTarget> prev_decode_targets_;
 
-  Windows::Graphics::Display::Core::HdmiDisplayHdr2086Metadata
-      current_metadata_ = {};
-#if !SB_HAS_QUIRK(HDR_10_PLUS_SUPPORT)
-  bool is_first_input_ = true;
-#endif  //! SB_HAS_QUIRK(HDR_10_PLUS_SUPPORT)
-  bool is_hdr_supported_ = false;
+  bool texture_RGBA_;
 };
 
 }  // namespace win32
