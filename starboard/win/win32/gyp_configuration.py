@@ -23,6 +23,15 @@ import _env  # pylint: disable=unused-import
 import starboard.shared.win32.gyp_configuration as gyp_configuration
 from starboard.tools.testing import test_filter
 
+try:
+    import gyp.MSVSVersion as MSVSVersion;
+except ImportError:
+    # FIXME: hack to ensure that the MSVSVersion.py file is loaded when not run
+    # as part of gyp invocation.
+    _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
+    sys.path.append(os.path.join(_COBALT_SRC, 'tools', 'gyp', 'pylib'))
+    import gyp.MSVSVersion as MSVSVersion
+
 
 def CreatePlatformConfig():
   try:
@@ -134,6 +143,8 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     except (ValueError, TypeError):
         deploy_dlls = 0
 
+    vs_version = MSVSVersion.SelectVisualStudioVersion(str(gyp_configuration.MSVS_VERSION))
+
     variables.update({
         # This controls whether the redistributable debug dlls are copied over
         # during build step.
@@ -141,6 +152,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         'deploy_dlls': deploy_dlls,
         # These variables will tell gyp to compile with V8.
         'javascript_engine': 'v8',
+        'visual_studio_toolset': vs_version.DefaultToolset()[1:],
     })
     return variables
 

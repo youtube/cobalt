@@ -28,15 +28,6 @@ from starboard.tools.toolchain import cmd
 from starboard.tools.toolchain import msvc
 from starboard.tools.toolchain import python
 
-try:
-    import gyp.MSVSVersion as MSVSVersion;
-except ImportError:
-    # FIXME: hack to ensure that the MSVSVersion.py file is loaded when not run
-    # as part of gyp invocation.
-    _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
-    sys.path.append(os.path.join(_COBALT_SRC, 'tools', 'gyp', 'pylib'))
-    import gyp.MSVSVersion as MSVSVersion
-
 MSVS_VERSION = 2017;
 
 
@@ -113,7 +104,6 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     variables = super(Win32SharedConfiguration,
                       self).GetVariables(configuration)
     compiler_options = ' '.join(self.AdditionalPlatformCompilerOptions())
-    vs_version = MSVSVersion.SelectVisualStudioVersion(str(MSVS_VERSION))
     variables.update({
         'additional_platform_compiler_options': compiler_options,
         'include_path_platform_deploy_gypi': 'starboard/win/win32/platform_deploy.gypi',
@@ -121,7 +111,6 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
         'ucrtbased_dll_path': sdk.ucrtbased_dll_path,
         'visual_studio_base_path': sdk.vs_install_dir,
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
-        'visual_studio_toolset': vs_version.DefaultToolset()[1:],
         'windows_sdk_path': sdk.windows_sdk_path,
         'windows_sdk_version': sdk.required_sdk_version,
     })
