@@ -419,8 +419,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                                  on_encrypted_media_init_data_encountered_cb,
                              const std::string& source_url,
                              const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb,
-                             const SeekCB& seek_cb,
+                             const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
                              const base::Closure& output_mode_change_cb,
@@ -618,6 +617,14 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   player_->GetInfo(&statistics_.video_frames_decoded,
                    &statistics_.video_frames_dropped, &media_time);
+
+  // Guarantee that we report monotonically increasing media time
+  if (media_time.ToSbTime() < last_media_time_) {
+    DLOG(WARNING) << "The new media timestamp player reported ("
+                  << media_time.ToSbTime() << ") is less than the last one ("
+                  << last_media_time_ << ").";
+    media_time = base::TimeDelta::FromMicroseconds(last_media_time_);
+  }
   StoreMediaTime(media_time);
   return media_time;
 }
