@@ -830,7 +830,6 @@ void HTMLElement::OnCSSMutation() {
   Element::RemoveStyleAttribute();
 
   node_document()->OnElementInlineStyleMutation();
-  node_document()->set_ui_nav_needs_layout(true);
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
@@ -1023,6 +1022,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
     UpdateComputedStyle(parent_computed_style_declaration, root_computed_style,
                         style_change_event_time, kAncestorsAreDisplayed);
     UpdateUiNavigation();
+    node_document()->set_ui_nav_needs_layout(true);
   } else if (ui_nav_needs_update_) {
     UpdateUiNavigation();
   }
