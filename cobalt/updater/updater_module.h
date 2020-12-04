@@ -15,6 +15,7 @@
 #ifndef COBALT_UPDATER_UPDATER_MODULE_H_
 #define COBALT_UPDATER_UPDATER_MODULE_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -30,6 +31,61 @@
 
 namespace cobalt {
 namespace updater {
+
+using update_client::ComponentState;
+
+enum class UpdaterStatus {
+  kNewUpdate,
+  kChecking,
+  kUpdateAvailable,
+  kDownloadingDiff,
+  kDownloading,
+  kSlotLocked,
+  kDownloaded,
+  kUpdatingDiff,
+  kUpdating,
+  kUpdated,
+  kUpToDate,
+  kUpdateError,
+  kUninstalled,
+  kRun
+};
+
+// Mapping a component state to an updater status.
+const std::map<ComponentState, UpdaterStatus>
+  component_to_updater_status_map = {
+      {ComponentState::kNew, UpdaterStatus::kNewUpdate},
+      {ComponentState::kChecking, UpdaterStatus::kChecking},
+      {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
+      {ComponentState::kDownloadingDiff, UpdaterStatus::kDownloadingDiff},
+      {ComponentState::kDownloading, UpdaterStatus::kDownloading},
+      {ComponentState::kDownloaded, UpdaterStatus::kDownloaded},
+      {ComponentState::kUpdatingDiff, UpdaterStatus::kUpdatingDiff},
+      {ComponentState::kUpdating, UpdaterStatus::kUpdating},
+      {ComponentState::kUpdated, UpdaterStatus::kUpdated},
+      {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
+      {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
+      {ComponentState::kUninstalled, UpdaterStatus::kUninstalled},
+      {ComponentState::kRun, UpdaterStatus::kRun},
+  };
+
+// Translating an updater status to a status string.
+const std::map<UpdaterStatus, const char*> updater_status_string_map = {
+    {UpdaterStatus::kNewUpdate, "Will check for update soon"},
+    {UpdaterStatus::kChecking, "Checking for update"},
+    {UpdaterStatus::kUpdateAvailable, "Update is available"},
+    {UpdaterStatus::kDownloadingDiff, "Downloading delta update"},
+    {UpdaterStatus::kDownloading, "Downloading update"},
+    {UpdaterStatus::kSlotLocked, "Slot is locked"},
+    {UpdaterStatus::kDownloaded, "Update is downloaded"},
+    {UpdaterStatus::kUpdatingDiff, "Installing delta update"},
+    {UpdaterStatus::kUpdating, "Installing update"},
+    {UpdaterStatus::kUpdated, "Update installed, pending restart"},
+    {UpdaterStatus::kUpToDate, "App is up to date"},
+    {UpdaterStatus::kUpdateError, "Failed to update"},
+    {UpdaterStatus::kUninstalled, "Update uninstalled"},
+    {UpdaterStatus::kRun, "Transitioning..."},
+};
 
 // An interface that observes the updater. It provides notifications when the
 // updater changes status.

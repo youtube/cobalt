@@ -82,7 +82,7 @@ class Configurator : public update_client::Configurator {
   bool IsChannelValid(const std::string& channel);
 
   std::string GetUpdaterStatus() const override;
-  void SetUpdaterStatus(const std::string& status);
+  void SetUpdaterStatus(const std::string& status) override;
 
   std::string GetPreviousUpdaterStatus() const override;
   void SetPreviousUpdaterStatus(const std::string& status) override;
