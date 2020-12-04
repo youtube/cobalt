@@ -79,6 +79,19 @@ DEFINE_GUID(DXVA_ModeVP9_VLD_Profile0,
             0xb8,
             0x9e);
 
+DEFINE_GUID(DXVA_ModeVP9_VLD_10bit_Profile2,
+            0xa4c749ef,
+            0x6ecf,
+            0x48aa,
+            0x84,
+            0x48,
+            0x50,
+            0xa7,
+            0xa1,
+            0x16,
+            0x5f,
+            0xf7);
+
 scoped_ptr<MediaTransform> CreateVideoTransform(
     const GUID& decoder_guid,
     const GUID& input_guid,
@@ -170,11 +183,11 @@ VideoDecoder::VideoDecoder(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
     SbDrmSystem drm_system,
-    bool texture_RGBA)
+    bool is_hdr_supported)
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
-      texture_RGBA_(texture_RGBA) {
+      is_hdr_supported_(is_hdr_supported) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
@@ -197,37 +210,46 @@ VideoDecoder::~VideoDecoder() {
 }
 
 // static
-bool VideoDecoder::IsHardwareVp9DecoderSupported() {
-  static bool s_queried_ = false;
-  static bool s_supported_;
+bool VideoDecoder::IsHardwareVp9DecoderSupported(bool is_hdr_required) {
+  static bool s_first_time_update = true;
+  static bool s_is_vp9_supported = false;
+  static bool s_is_hdr_supported = false;
 
   const UINT D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED = 0x10;
 
-  if (s_queried_) {
-    return s_supported_;
-  }
+  if (s_first_time_update) {
+    ComPtr<ID3D11Device> d3d11_device;
+    HRESULT hr = D3D11CreateDevice(
+        nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
+        D3D11_SDK_VERSION, d3d11_device.GetAddressOf(), nullptr, nullptr);
+    if (FAILED(hr)) {
+      return false;
+    }
+    ComPtr<ID3D11VideoDevice1> video_device;
+    if (FAILED(d3d11_device.As(&video_device))) {
+      return false;
+    }
+    const DXGI_RATIONAL kFps = {30, 1};  // 30 fps = 30/1
+    const UINT kBitrate = 0;
+    UINT caps_profile_0 = 0;
+    if (SUCCEEDED(video_device->GetVideoDecoderCaps(&DXVA_ModeVP9_VLD_Profile0,
+                                                    3840, 2160, &kFps, kBitrate,
+                                                    NULL, &caps_profile_0))) {
+      s_is_vp9_supported =
+          caps_profile_0 != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
+    }
 
-  s_queried_ = true;
-  s_supported_ = false;
-
-  ComPtr<ID3D11Device> d3d11_device;
-  HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-                                 nullptr, 0, D3D11_SDK_VERSION,
-                                 d3d11_device.GetAddressOf(), nullptr, nullptr);
-  if (FAILED(hr)) {
-    return s_supported_;
+    UINT caps_profile_2 = 0;
+    if (SUCCEEDED(video_device->GetVideoDecoderCaps(
+            &DXVA_ModeVP9_VLD_10bit_Profile2, 3840, 2160, &kFps, kBitrate, NULL,
+            &caps_profile_2))) {
+      s_is_hdr_supported =
+          caps_profile_2 != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
+    }
+    s_first_time_update = false;
   }
-  ComPtr<ID3D11VideoDevice1> video_device;
-  if (FAILED(d3d11_device.As(&video_device))) {
-    return s_supported_;
-  }
-  const DXGI_RATIONAL kFps = {30, 1};  // 30 fps = 30/1
-  const UINT kBitrate = 0;
-  UINT caps = 0;
-  hr = video_device->GetVideoDecoderCaps(&DXVA_ModeVP9_VLD_Profile0, 3840, 2160,
-                                         &kFps, kBitrate, NULL, &caps);
-  s_supported_ = SUCCEEDED(hr) && caps != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
-  return s_supported_;
+  return is_hdr_required ? s_is_vp9_supported && s_is_hdr_supported
+                         : s_is_vp9_supported;
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
@@ -262,9 +284,14 @@ void VideoDecoder::WriteInputBuffer(
   SB_DCHECK(decoder_status_cb_);
   EnsureDecoderThreadRunning();
 
-  ScopedLock lock(thread_lock_);
-  thread_events_.emplace_back(
-      new Event{Event::kWriteInputBuffer, input_buffer});
+  if (TryUpdateOutputForHdrVideo(input_buffer->video_sample_info())) {
+    ScopedLock lock(thread_lock_);
+    thread_events_.emplace_back(
+        new Event{Event::kWriteInputBuffer, input_buffer});
+  } else {
+    error_cb_(kSbPlayerErrorCapabilityChanged,
+              "HDR sink lost while HDR video playing.");
+  }
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -354,7 +381,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
       if (!hardware_decode_target->Update(
               d3d_device_, video_device_, video_context_, video_enumerator_,
-              video_processor_, video_sample, video_area, texture_RGBA_)) {
+              video_processor_, video_sample, video_area, is_hdr_supported_)) {
         // The cached decode target was not compatible; just release it.
         SbDecodeTargetRelease(decode_target);
         decode_target = kSbDecodeTargetInvalid;
@@ -364,7 +391,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     if (!SbDecodeTargetIsValid(decode_target)) {
       decode_target = new HardwareDecodeTargetPrivate(
           d3d_device_, video_device_, video_context_, video_enumerator_,
-          video_processor_, video_sample, video_area, texture_RGBA_);
+          video_processor_, video_sample, video_area, is_hdr_supported_);
     }
 
     // Release the video_sample before releasing the reset lock.
@@ -503,7 +530,7 @@ void VideoDecoder::EnsureDecoderThreadRunning() {
 
   if (!SbThreadIsValid(decoder_thread_)) {
     if (!decoder_) {
-      error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
+      error_cb_(kSbPlayerErrorDecode, "Decoder is not valid.");
       return;
     }
     SB_DCHECK(decoder_ != nullptr);

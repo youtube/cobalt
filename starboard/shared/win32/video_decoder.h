@@ -42,13 +42,15 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system,
-               bool texture_RGBA = false);
+               bool is_hdr_supported = false);
   ~VideoDecoder() override;
 
   // Queries for support without creating the vp9 decoder. The function caches
   // the result for the first call.  Note that the first call to this function
   // isn't thread safe and is supposed to be called on startup.
-  static bool IsHardwareVp9DecoderSupported();
+  static bool IsHardwareVp9DecoderSupported(bool is_hdr_required = false);
+
+  bool IsHdrSupported() const { return is_hdr_supported_; }
 
   // Implement VideoDecoder interface.
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -57,8 +59,8 @@ class VideoDecoder
   SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   size_t GetMaxNumberOfCachedFrames() const override;
 
-  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      override;
+  void WriteInputBuffer(
+      const scoped_refptr<InputBuffer>& input_buffer) override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -86,6 +88,14 @@ class VideoDecoder
     ComPtr<IMFSample> video_sample;
   };
 
+  // This function returns false if HDR video is played, but HDR support is
+  // lost. Otherwise it returns true. For inherited class it also updates HDMI
+  // color metadata and sets HDR mode for Angle, if the video stream is HDR
+  // stream.
+  virtual bool TryUpdateOutputForHdrVideo(const SbMediaVideoSampleInfo&) {
+    return true;
+  }
+
   void InitializeCodec();
   void ShutdownCodec();
   static void ReleaseDecodeTargets(void* context);
@@ -102,8 +112,8 @@ class VideoDecoder
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
-  // These variables will be initialized inside ctor or SetHost() and will not
-  // be changed during the life time of this class.
+  // These variables will be initialized inside ctor or Initialize() and will
+  // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
@@ -145,7 +155,7 @@ class VideoDecoder
   SbDecodeTarget current_decode_target_ = kSbDecodeTargetInvalid;
   std::list<SbDecodeTarget> prev_decode_targets_;
 
-  bool texture_RGBA_;
+  bool is_hdr_supported_;
 };
 
 }  // namespace win32
