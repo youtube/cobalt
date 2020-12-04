@@ -89,6 +89,7 @@
         '<(DEPTH)/components/client_update_protocol/client_update_protocol.gyp:client_update_protocol',
         '<(DEPTH)/components/prefs/prefs.gyp:prefs',
         '<(DEPTH)/crypto/crypto.gyp:crypto',
+        '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/starboard/loader_app/app_key_files.gyp:app_key_files',
         '<(DEPTH)/starboard/loader_app/drain_file.gyp:drain_file',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
