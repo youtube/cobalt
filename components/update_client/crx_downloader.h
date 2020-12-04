@@ -21,6 +21,7 @@
 
 #if defined(OS_STARBOARD)
 #include "cobalt/extension/installation_manager.h"
+#include "components/update_client/configurator.h"
 #endif
 
 namespace update_client {
@@ -81,18 +82,30 @@ class CrxDownloader {
   // different urls and different downloaders.
   using ProgressCallback = base::RepeatingCallback<void()>;
 
+#if defined(STARBOARD)
+  using Factory =
+      std::unique_ptr<CrxDownloader> (*)(bool,
+                                         scoped_refptr<Configurator> config);
+#else
   using Factory =
       std::unique_ptr<CrxDownloader> (*)(bool,
                                          scoped_refptr<NetworkFetcherFactory>);
+#endif
 
-  // Factory method to create an instance of this class and build the
-  // chain of responsibility. |is_background_download| specifies that a
-  // background downloader be used, if the platform supports it.
-  // |task_runner| should be a task runner able to run blocking
-  // code such as file IO operations.
+// Factory method to create an instance of this class and build the
+// chain of responsibility. |is_background_download| specifies that a
+// background downloader be used, if the platform supports it.
+// |task_runner| should be a task runner able to run blocking
+// code such as file IO operations.
+#if defined(STARBOARD)
+  static std::unique_ptr<CrxDownloader> Create(
+      bool is_background_download,
+      scoped_refptr<Configurator> config);
+#else
   static std::unique_ptr<CrxDownloader> Create(
       bool is_background_download,
       scoped_refptr<NetworkFetcherFactory> network_fetcher_factory);
+#endif
   virtual ~CrxDownloader();
 
   void set_progress_callback(const ProgressCallback& progress_callback);

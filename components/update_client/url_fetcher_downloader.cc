@@ -19,15 +19,20 @@
 #include "base/task/task_traits.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "base/values.h"
+#if defined(STARBOARD)
+#include "cobalt/updater/updater_module.h"
+#endif
 #include "components/update_client/network.h"
 #include "components/update_client/utils.h"
-
-
 #include "url/gurl.h"
 
 namespace {
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
+
+using cobalt::updater::UpdaterStatus;
+using cobalt::updater::updater_status_string_map;
+
 void CleanupDirectory(base::FilePath& dir) {
   std::stack<std::string> directories;
   base::FileEnumerator file_enumerator(
@@ -59,12 +64,21 @@ const base::TaskTraits kTaskTraits = {
 
 namespace update_client {
 
+#if defined(STARBOARD)
+UrlFetcherDownloader::UrlFetcherDownloader(
+    std::unique_ptr<CrxDownloader> successor,
+    scoped_refptr<Configurator> config)
+    : CrxDownloader(std::move(successor)),
+      config_(config),
+      network_fetcher_factory_(config->GetNetworkFetcherFactory()) {}
+#else
 UrlFetcherDownloader::UrlFetcherDownloader(
     std::unique_ptr<CrxDownloader> successor,
     scoped_refptr<NetworkFetcherFactory> network_fetcher_factory)
     : CrxDownloader(std::move(successor)),
       network_fetcher_factory_(network_fetcher_factory) {
 }
+#endif
 
 UrlFetcherDownloader::~UrlFetcherDownloader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -89,6 +103,8 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
   }
+  config_->SetUpdaterStatus(std::string(
+      updater_status_string_map.find(UpdaterStatus::kSlotLocked)->second));
 
   // Use 15 sec delay to allow for other updaters/loaders to settle down.
   base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(

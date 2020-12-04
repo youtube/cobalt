@@ -734,9 +734,14 @@ void Component::StateDownloadingDiff::DoHandle() {
 
   DCHECK(component.crx_component());
 
+#if defined(STARBOARD)
+  crx_downloader_ = update_context.crx_downloader_factory(
+      component.CanDoBackgroundDownload(), update_context.config);
+#else
   crx_downloader_ = update_context.crx_downloader_factory(
       component.CanDoBackgroundDownload(),
       update_context.config->GetNetworkFetcherFactory());
+#endif
 
   const auto& id = component.id_;
   crx_downloader_->set_progress_callback(
@@ -803,9 +808,14 @@ void Component::StateDownloading::DoHandle() {
 
   DCHECK(component.crx_component());
 
+#if defined(STARBOARD)
+  crx_downloader_ = update_context.crx_downloader_factory(
+      component.CanDoBackgroundDownload(), update_context.config);
+#else
   crx_downloader_ = update_context.crx_downloader_factory(
       component.CanDoBackgroundDownload(),
       update_context.config->GetNetworkFetcherFactory());
+#endif
 
   const auto& id = component.id_;
   crx_downloader_->set_progress_callback(

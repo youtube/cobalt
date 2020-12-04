@@ -54,11 +54,11 @@ const std::set<std::string> valid_channels = {
 };
 
 #if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const const char kDefaultUpdaterChannel[] = "dev";
+const char kDefaultUpdaterChannel[] = "dev";
 #elif defined(COBALT_BUILD_TYPE_QA)
-const const char kDefaultUpdaterChannel[] = "qa";
+const char kDefaultUpdaterChannel[] = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-const const char kDefaultUpdaterChannel[] = "prod";
+const char kDefaultUpdaterChannel[] = "prod";
 #endif
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {

@@ -29,9 +29,14 @@ class NetworkFetcherFactory;
 // Implements a CRX downloader using a NetworkFetcher object.
 class UrlFetcherDownloader : public CrxDownloader {
  public:
+#if defined(STARBOARD)
+  UrlFetcherDownloader(std::unique_ptr<CrxDownloader> successor,
+                       scoped_refptr<Configurator> config);
+#else
   UrlFetcherDownloader(
       std::unique_ptr<CrxDownloader> successor,
       scoped_refptr<NetworkFetcherFactory> network_fetcher_factory);
+#endif
   ~UrlFetcherDownloader() override;
 
  private:
@@ -73,6 +78,7 @@ class UrlFetcherDownloader : public CrxDownloader {
 
 #if defined(OS_STARBOARD)
   CobaltSlotManagement cobalt_slot_management_;
+  scoped_refptr<Configurator> config_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(UrlFetcherDownloader);
