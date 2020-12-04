@@ -18,6 +18,7 @@ from __future__ import print_function
 import imp
 import logging
 import os
+import sys
 
 import _env  # pylint: disable=unused-import
 import starboard.shared.win32.gyp_configuration as gyp_configuration
