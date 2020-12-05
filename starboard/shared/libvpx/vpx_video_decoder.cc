@@ -16,7 +16,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/shared/libvpx/vpx_library_loader.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -38,7 +37,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecVp9);
-  SB_DCHECK(is_vpx_supported());
 }
 
 VideoDecoder::~VideoDecoder() {

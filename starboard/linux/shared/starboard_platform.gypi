@@ -18,7 +18,6 @@
   'variables': {
     'variables': {
       'has_cdm%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h)',
-      'has_system_libvpx%' : '<!(pkg-config vpx && echo 1 || echo 0)',
     },
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
@@ -104,8 +103,6 @@
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait_timed.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wake_up.cc',
-      '<(DEPTH)/starboard/shared/libvpx/vpx_library_loader.cc',
-      '<(DEPTH)/starboard/shared/libvpx/vpx_library_loader.h',
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.cc',
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.h',
       '<(DEPTH)/starboard/shared/linux/byte_swap.cc',
@@ -428,11 +425,6 @@
           '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
           '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
           '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
-        ],
-      }],
-      ['has_system_libvpx==0', {
-        'starboard_platform_dependencies': [
-          '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
         ],
       }],
       ['sb_evergreen_compatible == 1', {

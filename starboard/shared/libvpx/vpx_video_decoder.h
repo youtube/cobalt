@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
-#include <vpx/vpx_codec.h>
-
 #include <queue>
 #include <string>
 
@@ -30,6 +28,8 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
+#include "third_party/libvpx/vpx/vp8dx.h"
+#include "third_party/libvpx/vpx/vpx_decoder.h"
 
 namespace starboard {
 namespace shared {
@@ -50,8 +50,8 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      override;
+  void WriteInputBuffer(
+      const scoped_refptr<InputBuffer>& input_buffer) override;
   void WriteEndOfStream() override;
   void Reset() override;
 
