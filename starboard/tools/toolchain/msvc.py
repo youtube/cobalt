@@ -58,7 +58,6 @@ class CompilerBase(object):
   def GetCommand(self, path, extra_flags, flags, shell):
     del extra_flags  # Not used.
     del shell  # Not used.
-    self._command_flags = flags
     return ('{path} /nologo /showIncludes {flags} /c $in /Fo$out'.format(
         path=path, flags=flags))
 
