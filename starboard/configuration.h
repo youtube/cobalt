@@ -81,6 +81,9 @@
 // Deprecated SB_TRUE and SB_FALSE.
 #define SB_TRUE_FALSE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated SbSystemSort
+#define SB_SYSTEM_SORT_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

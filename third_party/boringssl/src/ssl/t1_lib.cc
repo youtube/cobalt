@@ -188,7 +188,7 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
   assert(CBS_len(&extensions) == 0);
 
   // Sort the extensions and make sure there are no duplicates.
-  OPENSSL_port_qsort(extension_types.data(), extension_types.size(),
+  qsort(extension_types.data(), extension_types.size(),
                      sizeof(uint16_t), compare_uint16_t);
   for (size_t i = 1; i < num_extensions; i++) {
     if (extension_types[i - 1] == extension_types[i]) {
@@ -2749,7 +2749,7 @@ static bool cert_compression_parse_clienthello(SSL_HANDSHAKE *hs,
     }
   }
 
-  OPENSSL_port_qsort(given_alg_ids.data(), given_alg_ids.size(),
+  qsort(given_alg_ids.data(), given_alg_ids.size(),
                      sizeof(uint16_t), compare_uint16_t);
   for (size_t i = 1; i < num_given_alg_ids; i++) {
     if (given_alg_ids[i - 1] == given_alg_ids[i]) {

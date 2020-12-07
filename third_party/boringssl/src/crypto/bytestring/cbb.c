@@ -648,7 +648,7 @@ int CBB_flush_asn1_set_of(CBB *cbb) {
       goto err;
     }
   }
-  OPENSSL_port_qsort(children, num_children, sizeof(CBS), compare_set_of_element);
+  qsort(children, num_children, sizeof(CBS), compare_set_of_element);
 
   // Rewind |cbb| and write the contents back in the new order.
   cbb->base->len = cbb->offset + cbb->pending_len_len;

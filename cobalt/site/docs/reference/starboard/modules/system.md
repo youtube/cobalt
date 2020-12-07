@@ -655,17 +655,6 @@ will be undefined.
 bool SbSystemSignWithCertificationSecretKey(const uint8_t *message, size_t message_size_in_bytes, uint8_t *digest, size_t digest_size_in_bytes)
 ```
 
-### SbSystemSort ###
-
-Sorts an array of elements `base`, with `element_count` elements of
-`element_width` bytes each, using `comparator` as the comparison function.
-
-This function is meant to be a drop-in replacement for `qsort`.
-
-`base`: The array of elements to be sorted. `element_count`: The number of
-elements in the array. `element_width`: The size, in bytes, of each element in
-the array. `comparator`: A value that indicates how the array should be sorted.
-
 #### Declaration ####
 
 ```
@@ -703,4 +692,3 @@ signal-safe on platforms that support signals.
 ```
 bool SbSystemSymbolize(const void *address, char *out_buffer, int buffer_size)
 ```
-
