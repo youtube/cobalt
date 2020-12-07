@@ -60,10 +60,6 @@ static SB_C_INLINE int PoemAbs(int x) {
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
 #undef strtod
 #define strtod(s, o) SbStringParseDouble(s, o)
-
-#undef qsort
-#define qsort(b, ec, ew, c) SbSystemSort(b, ec, ew, c);
-
 #undef abs
 #define abs(x) PoemAbs(x)
 

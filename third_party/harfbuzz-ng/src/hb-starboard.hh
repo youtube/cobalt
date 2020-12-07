@@ -33,7 +33,6 @@
 #define memcpy SbMemoryCopy
 #define memmove SbMemoryMove
 #define memset SbMemorySet
-#define qsort SbSystemSort
 #define snprintf SbStringFormatF
 #define strchr (char *)SbStringFindCharacter
 #define strcmp SbStringCompareAll

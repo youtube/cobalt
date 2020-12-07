@@ -252,7 +252,6 @@
 #define OPENSSL_port_memset SbMemorySet
 #define OPENSSL_port_printf SbLogFormatF
 #define OPENSSL_port_printferr SbLogFormatF
-#define OPENSSL_port_qsort SbSystemSort
 #define OPENSSL_port_realloc SbMemoryReallocate
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase

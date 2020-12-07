@@ -197,6 +197,7 @@
             'src/stdlib/atoi.c',
             'src/stdlib/labs.c',
             'src/stdlib/llabs.c',
+            'src/stdlib/qsort.c',
             'src/stdlib/wcstod.c',
             'src/stdlib/wcstol.c',
             'src/string/strerror_r.c',

@@ -145,14 +145,8 @@
    *
    */
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define ft_qsort  SbSystemSort
-#else
 #include <stdlib.h>
-
 #define ft_qsort  qsort
-#endif
 
   /**************************************************************************
    *

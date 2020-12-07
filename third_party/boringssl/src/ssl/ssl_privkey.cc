@@ -556,7 +556,7 @@ static bool sigalgs_unique(Span<const uint16_t> in_sigalgs) {
     return false;
   }
 
-  OPENSSL_port_qsort(sigalgs.data(), sigalgs.size(), sizeof(uint16_t),
+  qsort(sigalgs.data(), sigalgs.size(), sizeof(uint16_t),
                      compare_uint16_t);
 
   for (size_t i = 1; i < sigalgs.size(); i++) {

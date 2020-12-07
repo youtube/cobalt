@@ -12,13 +12,13 @@
 // Author: Vikas Arora (vikaas.arora@gmail.com)
 //
 
+#include <assert.h>
+#include <stdlib.h>
+
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <assert.h>
-#include <stdlib.h>
 #endif
 
 #include "src/enc/backward_references_enc.h"
