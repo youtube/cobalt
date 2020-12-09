@@ -62,19 +62,17 @@ class HeapObject : public Object {
   DECL_GETTER(synchronized_map_word, MapWord)
   inline void synchronized_set_map_word(MapWord map_word);
 
-  // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
-  // removed as ReadOnlyRoots will be accessible from a global variable. For now
-  // this method exists to help remove GetIsolate/GetHeap from HeapObject, in a
+  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
   // way that doesn't require passing Isolate/Heap down huge call chains or to
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
   // This version is intended to be used for the isolate values produced by
   // i::GetIsolateForPtrCompr(HeapObject) function which may return nullptr.
-  inline ReadOnlyRoots GetReadOnlyRoots(Isolate* isolate) const;
+  inline ReadOnlyRoots GetReadOnlyRoots(const Isolate* isolate) const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+  V8_INLINE bool Is##Type(const Isolate* isolate) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
   IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
@@ -84,9 +82,10 @@ class HeapObject : public Object {
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+#define IS_TYPE_FUNCTION_DECL(Type, Value)              \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;      \
+  V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
@@ -94,7 +93,7 @@ class HeapObject : public Object {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(Isolate* isolate) const;
+  V8_INLINE bool Is##Name(const Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
@@ -190,7 +189,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(ReadOnlyRoots root);
+  void RehashBasedOnMap(Isolate* isolate);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

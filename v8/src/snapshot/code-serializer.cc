@@ -4,15 +4,19 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/version.h"
 
@@ -31,7 +35,8 @@ ScriptData::ScriptData(const byte* data, int length)
 }
 
 CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
-    : Serializer(isolate), source_hash_(source_hash) {
+    : Serializer(isolate, Snapshot::kDefaultSerializerFlags),
+      source_hash_(source_hash) {
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
@@ -61,7 +66,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Handle<String> source(String::cast(script->source()), isolate);
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   cs.reference_map()->AddAttachedReference(
       reinterpret_cast<void*>(source->ptr()));
   ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
@@ -83,7 +88,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
 
 ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   VisitRootPointer(Root::kHandleScope, nullptr,
                    FullObjectSlot(info.location()));
@@ -102,14 +107,14 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
   Address address = obj.address();
-  Page* page = Page::FromAddress(address);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
-  for (Page* p : *read_only_space) {
-    if (p == page) break;
+  for (ReadOnlyPage* page : read_only_space->pages()) {
+    if (chunk == page) break;
     ++chunk_index;
   }
-  uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
+  uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
   SerializerReference back_reference = SerializerReference::BackReference(
       SnapshotSpace::kReadOnlyHeap, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj.ptr()), back_reference);
@@ -197,11 +202,6 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
   }
 #endif  // V8_TARGET_ARCH_ARM
 
-  if (obj.IsBytecodeArray()) {
-    // Clear the stack frame cache if present
-    BytecodeArray::cast(obj).ClearFrameCacheFromSourcePositionTable();
-  }
-
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj.IsMap());
   // There should be no references to the global object embedded.
@@ -228,16 +228,16 @@ void CodeSerializer::SerializeGeneric(HeapObject heap_object) {
 void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
                                               Handle<SharedFunctionInfo> sfi,
                                               bool log_code_creation) {
-  Script script = Script::cast(sfi->script());
-  Handle<Script> script_handle(script, isolate);
+  Handle<Script> script(Script::cast(sfi->script()), isolate);
   String name = ReadOnlyRoots(isolate).empty_string();
-  if (script.name().IsString()) name = String::cast(script.name());
+  if (script->name().IsString()) name = String::cast(script->name());
   Handle<String> name_handle(name, isolate);
 
-  SharedFunctionInfo::ScriptIterator iter(isolate, script);
-  for (SharedFunctionInfo info = iter.Next(); !info.is_null();
-       info = iter.Next()) {
-    if (!info.HasBytecodeArray()) continue;
+  SharedFunctionInfo::ScriptIterator iter(isolate, *script);
+  for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
+       shared_info = iter.Next()) {
+    if (!shared_info.HasBytecodeArray()) continue;
+    Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
 
@@ -245,22 +245,50 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info.GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
     interpreter_data->set_interpreter_trampoline(*code);
 
-    info.set_interpreter_data(*interpreter_data);
+    info->set_interpreter_data(*interpreter_data);
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
-    int line_num = script.GetLineNumber(info.StartPosition()) + 1;
-    int column_num = script.GetColumnNumber(info.StartPosition()) + 1;
+    int line_num = script->GetLineNumber(info->StartPosition()) + 1;
+    int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
             CodeCreateEvent(CodeEventListener::INTERPRETED_FUNCTION_TAG,
-                            *abstract_code, info, *name_handle, line_num,
+                            abstract_code, info, name_handle, line_num,
                             column_num));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM
+
+namespace {
+class StressOffThreadDeserializeThread final : public base::Thread {
+ public:
+  explicit StressOffThreadDeserializeThread(LocalIsolate* local_isolate,
+                                            const SerializedCodeData* scd)
+      : Thread(
+            base::Thread::Options("StressOffThreadDeserializeThread", 2 * MB)),
+        local_isolate_(local_isolate),
+        scd_(scd) {}
+
+  MaybeHandle<SharedFunctionInfo> maybe_result() const { return maybe_result_; }
+
+  void Run() final {
+    MaybeHandle<SharedFunctionInfo> local_maybe_result =
+        ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
+            local_isolate_, scd_, local_isolate_->factory()->empty_string());
+
+    maybe_result_ =
+        local_isolate_->heap()->NewPersistentMaybeHandle(local_maybe_result);
+  }
+
+ private:
+  LocalIsolate* local_isolate_;
+  const SerializedCodeData* scd_;
+  MaybeHandle<SharedFunctionInfo> maybe_result_;
+};
+}  // namespace
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
@@ -273,8 +301,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      isolate, cached_data,
-      SerializedCodeData::SourceHash(source, origin_options),
+      cached_data, SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
@@ -285,8 +312,26 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   // Deserialize.
-  MaybeHandle<SharedFunctionInfo> maybe_result =
-      ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  // TODO(leszeks): Add LocalHeap support to deserializer
+  if (false && FLAG_stress_background_compile) {
+    LocalIsolate local_isolate(isolate);
+
+    StressOffThreadDeserializeThread thread(&local_isolate, &scd);
+    CHECK(thread.Start());
+    thread.Join();
+
+    maybe_result = thread.maybe_result();
+
+    // Fix-up result script source.
+    Handle<SharedFunctionInfo> result;
+    if (maybe_result.ToHandle(&result)) {
+      Script::cast(result->script()).set_source(*source);
+    }
+  } else {
+    maybe_result = ObjectDeserializer::DeserializeSharedFunctionInfo(
+        isolate, &scd, source);
+  }
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
@@ -312,6 +357,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                                              log_code_creation);
 #endif  // V8_TARGET_ARCH_ARM
 
+  bool needs_source_positions = isolate->NeedsSourcePositionsForProfiling();
+
   if (log_code_creation || FLAG_log_function_events) {
     Handle<Script> script(Script::cast(result->script()), isolate);
     Handle<String> name(script->name().IsString()
@@ -326,34 +373,41 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                         result->StartPosition(), result->EndPosition(), *name));
     }
     if (log_code_creation) {
-      Script::InitLineEnds(script);
+      Script::InitLineEnds(isolate, script);
 
-      DisallowHeapAllocation no_gc;
       SharedFunctionInfo::ScriptIterator iter(isolate, *script);
-      for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
+      for (SharedFunctionInfo info = iter.Next(); !info.is_null();
            info = iter.Next()) {
         if (info.is_compiled()) {
-          int line_num = script->GetLineNumber(info.StartPosition()) + 1;
-          int column_num = script->GetColumnNumber(info.StartPosition()) + 1;
-          PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                           info.abstract_code(), info, *name,
-                                           line_num, column_num));
+          Handle<SharedFunctionInfo> shared_info(info, isolate);
+          if (needs_source_positions) {
+            SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate,
+                                                               shared_info);
+          }
+          DisallowGarbageCollection no_gc;
+          int line_num =
+              script->GetLineNumber(shared_info->StartPosition()) + 1;
+          int column_num =
+              script->GetColumnNumber(shared_info->StartPosition()) + 1;
+          PROFILE(isolate,
+                  CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
+                                  handle(shared_info->abstract_code(), isolate),
+                                  shared_info, name, line_num, column_num));
         }
       }
     }
   }
 
-  if (isolate->NeedsSourcePositionsForProfiling()) {
+  if (needs_source_positions) {
     Handle<Script> script(Script::cast(result->script()), isolate);
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate, script);
   }
   return scope.CloseAndEscape(result);
 }
 
-
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
@@ -394,13 +448,11 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + padded_payload_offset, payload->data(),
             static_cast<size_t>(payload->size()));
 
-  Checksum checksum(ChecksummedContent());
-  SetHeaderValue(kChecksumPartAOffset, checksum.a());
-  SetHeaderValue(kChecksumPartBOffset, checksum.b());
+  SetHeaderValue(kChecksumOffset, Checksum(ChecksummedContent()));
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
-    Isolate* isolate, uint32_t expected_source_hash) const {
+    uint32_t expected_source_hash) const {
   if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
   if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
@@ -408,8 +460,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-  uint32_t c1 = GetHeaderValue(kChecksumPartAOffset);
-  uint32_t c2 = GetHeaderValue(kChecksumPartBOffset);
+  uint32_t c = GetHeaderValue(kChecksumOffset);
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
@@ -418,7 +469,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
       POINTER_SIZE_ALIGN(kHeaderSize +
                          GetHeaderValue(kNumReservationsOffset) * kInt32Size);
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-  if (!Checksum(ChecksummedContent()).Check(c1, c2)) return CHECKSUM_MISMATCH;
+  if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
 }
 
@@ -467,11 +518,11 @@ SerializedCodeData::SerializedCodeData(ScriptData* data)
     : SerializedData(const_cast<byte*>(data->data()), data->length()) {}
 
 SerializedCodeData SerializedCodeData::FromCachedData(
-    Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
+    ScriptData* cached_data, uint32_t expected_source_hash,
     SanityCheckResult* rejection_result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   SerializedCodeData scd(cached_data);
-  *rejection_result = scd.SanityCheck(isolate, expected_source_hash);
+  *rejection_result = scd.SanityCheck(expected_source_hash);
   if (*rejection_result != CHECK_SUCCESS) {
     cached_data->Reject();
     return SerializedCodeData(nullptr, 0);

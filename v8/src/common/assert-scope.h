@@ -7,8 +7,11 @@
 
 #include <stdint.h>
 
+#include <memory>
+
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/utils/pointer-with-payload.h"
 
@@ -25,10 +28,10 @@ struct PointerWithPayloadTraits<PerThreadAssertData> {
 };
 
 enum PerThreadAssertType {
+  GARBAGE_COLLECTION_ASSERT,
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
-  DEFERRED_HANDLE_DEREFERENCE_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
   LAST_PER_THREAD_ASSERT_TYPE
 };
@@ -81,8 +84,6 @@ class PerIsolateAssertScope {
   static bool IsAllowed(Isolate* isolate);
 
  private:
-  class DataBit;
-
   Isolate* isolate_;
   uint32_t old_data_;
 
@@ -126,7 +127,17 @@ using DisallowHandleAllocation =
 using AllowHandleAllocation =
     PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
 
-// Scope to document where we do not expect any allocation and GC.
+// Scope to document where we do not expect garbage collections. It differs from
+// DisallowHeapAllocation by also forbiding safepoints.
+using DisallowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, false>;
+
+// Scope to introduce an exception to DisallowGarbageCollection.
+using AllowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, true>;
+
+// Scope to document where we do not expect any allocation and GC. Deprecated
+// and will eventually be removed, use DisallowGarbageCollection instead.
 using DisallowHeapAllocation =
     PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
 #ifdef DEBUG
@@ -147,19 +158,11 @@ using DisallowHandleDereference =
 using AllowHandleDereference =
     PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>;
 
-// Scope to document where we do not expect deferred handles to be dereferenced.
-using DisallowDeferredHandleDereference =
-    PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowDeferredHandleDereference.
-using AllowDeferredHandleDereference =
-    PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, true>;
-
-// Scope to document where we do not expect deferred handles to be dereferenced.
+// Scope to document where we do not expect code dependencies to change.
 using DisallowCodeDependencyChange =
     PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
 
-// Scope to introduce an exception to DisallowDeferredHandleDereference.
+// Scope to introduce an exception to DisallowCodeDependencyChange.
 using AllowCodeDependencyChange =
     PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 
@@ -178,6 +181,28 @@ class DisallowHeapAccessIf {
 
  private:
   base::Optional<DisallowHeapAccess> maybe_disallow_;
+};
+
+// Like MutexGuard but also asserts that no heap allocation happens while
+// we're holding the mutex.
+class NoHeapAllocationMutexGuard {
+ public:
+  explicit NoHeapAllocationMutexGuard(base::Mutex* mutex)
+      : guard_(mutex), mutex_(mutex), no_gc_(new DisallowHeapAllocation()) {}
+
+  void Unlock() {
+    mutex_->Unlock();
+    no_gc_.reset();
+  }
+  void Lock() {
+    mutex_->Lock();
+    no_gc_.reset(new DisallowHeapAllocation());
+  }
+
+ private:
+  base::MutexGuard guard_;
+  base::Mutex* mutex_;
+  std::unique_ptr<DisallowHeapAllocation> no_gc_;
 };
 
 // Per-isolate assert scopes.
@@ -245,10 +270,6 @@ extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
 extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
 extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
 extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
-extern template class PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT,
-                                           false>;
-extern template class PerThreadAssertScope<DEFERRED_HANDLE_DEREFERENCE_ASSERT,
-                                           true>;
 extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT,
                                            false>;
 extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;

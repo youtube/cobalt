@@ -5,9 +5,9 @@
 #ifndef V8_SNAPSHOT_REFERENCES_H_
 #define V8_SNAPSHOT_REFERENCES_H_
 
+#include "src/base/bit-field.h"
 #include "src/base/hashmap.h"
 #include "src/common/assert-scope.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -15,9 +15,8 @@ namespace internal {
 // TODO(goszczycki): Move this somewhere every file in src/snapshot can use it.
 // The spaces suported by the serializer. Spaces after LO_SPACE (NEW_LO_SPACE
 // and CODE_LO_SPACE) are not supported.
-enum class SnapshotSpace {
+enum class SnapshotSpace : byte {
   kReadOnlyHeap = RO_SPACE,
-  kNew = NEW_SPACE,
   kOld = OLD_SPACE,
   kCode = CODE_SPACE,
   kMap = MAP_SPACE,
@@ -154,12 +153,10 @@ class SerializerReference {
   }
 
  private:
-  class SpaceBits : public BitField<SnapshotSpace, 0, kSpaceTagSize> {};
-  class ChunkIndexBits
-      : public BitField<uint32_t, SpaceBits::kNext, 32 - kSpaceTagSize> {};
-  class SpecialValueTypeBits
-      : public BitField<SpecialValueType, SpaceBits::kNext,
-                        32 - kSpaceTagSize> {};
+  using SpaceBits = base::BitField<SnapshotSpace, 0, kSpaceTagSize>;
+  using ChunkIndexBits = SpaceBits::Next<uint32_t, 32 - kSpaceTagSize>;
+  using SpecialValueTypeBits =
+      SpaceBits::Next<SpecialValueType, 32 - kSpaceTagSize>;
 
   // We use two fields to store a reference.
   // In case of a normal back reference, the bitfield_ stores the space and

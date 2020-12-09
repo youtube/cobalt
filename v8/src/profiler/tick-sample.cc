@@ -10,12 +10,14 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
+#include "src/heap/heap-inl.h"  // For Heap::code_range.
 #include "src/logging/counters.h"
+#include "src/profiler/profiler-stats.h"
 #include "src/sanitizer/asan.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
+namespace internal {
 namespace {
 
 bool IsSamePage(i::Address ptr1, i::Address ptr2) {
@@ -78,11 +80,6 @@ bool IsNoFrameRegion(i::Address address) {
   return false;
 }
 
-}  // namespace
-
-namespace internal {
-namespace {
-
 #if defined(USE_SIMULATOR)
 class SimulatorHelper {
  public:
@@ -114,7 +111,7 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
   }
   state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
   state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
   if (!simulator->has_bad_pc()) {
     state->pc = reinterpret_cast<void*>(simulator->get_pc());
   }
@@ -148,16 +145,13 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
 #endif  // USE_SIMULATOR
 
 }  // namespace
-}  // namespace internal
 
-//
-// StackTracer implementation
-//
 DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    const RegisterState& reg_state,
                                    RecordCEntryFrame record_c_entry_frame,
                                    bool update_stats,
-                                   bool use_simulator_reg_state) {
+                                   bool use_simulator_reg_state,
+                                   base::TimeDelta sampling_interval) {
   this->update_stats = update_stats;
   SampleInfo info;
   RegisterState regs = reg_state;
@@ -191,6 +185,8 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   } else {
     tos = nullptr;
   }
+  this->sampling_interval = sampling_interval;
+  timestamp = base::TimeTicks::HighResolutionNow();
 }
 
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
@@ -209,7 +205,11 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
 #if defined(USE_SIMULATOR)
   if (use_simulator_reg_state) {
-    if (!i::SimulatorHelper::FillRegisters(isolate, regs)) return false;
+    if (!i::SimulatorHelper::FillRegisters(isolate, regs)) {
+      i::ProfilerStats::Instance()->AddReason(
+          i::ProfilerStats::Reason::kSimulatorFillRegistersFailed);
+      return false;
+    }
   }
 #else
   USE(use_simulator_reg_state);
@@ -218,18 +218,22 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
   // Check whether we interrupted setup/teardown of a stack frame in JS code.
   // Avoid this check for C++ code, as that would trigger false positives.
+  // TODO(petermarshall): Code range is always null on ia32 so this check for
+  // IsNoFrameRegion will never actually run there.
   if (regs->pc &&
       isolate->heap()->memory_allocator()->code_range().contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.
+    i::ProfilerStats::Instance()->AddReason(
+        i::ProfilerStats::Reason::kNoFrameRegion);
     return false;
   }
 
   i::ExternalCallbackScope* scope = isolate->external_callback_scope();
   i::Address handler = i::Isolate::handler(isolate->thread_local_top());
   // If there is a handler on top of the external callback scope then
-  // we have already entrered JavaScript again and the external callback
+  // we have already entered JavaScript again and the external callback
   // is not the top function.
   if (scope && scope->scope_address() < handler) {
     i::Address* external_callback_entry_ptr =
@@ -245,14 +249,17 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                reinterpret_cast<i::Address>(regs->sp),
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
+
   if (it.done()) return true;
 
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
-    frames[i++] = reinterpret_cast<void*>(isolate->c_function());
+    frames[i] = reinterpret_cast<void*>(isolate->c_function());
+    i++;
   }
+
   i::RuntimeCallTimer* timer =
       isolate->counters()->runtime_call_stats()->current_timer();
   for (; !it.done() && i < frames_limit; it.Advance()) {
@@ -262,6 +269,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
       timer = timer->parent();
     }
     if (i == frames_limit) break;
+
     if (it.frame()->is_interpreted()) {
       // For interpreted frames use the bytecode array pointer as the pc.
       i::InterpretedFrame* frame =
@@ -284,24 +292,13 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
         continue;
       }
     }
-    frames[i++] = reinterpret_cast<void*>(it.frame()->pc());
+    // For arm64, the PC for the frame sometimes doesn't come from the stack,
+    // but from the link register instead. For this reason, we skip
+    // authenticating it.
+    frames[i++] = reinterpret_cast<void*>(it.frame()->unauthenticated_pc());
   }
   sample_info->frames_count = i;
   return true;
-}
-
-namespace internal {
-
-void TickSample::Init(Isolate* isolate, const v8::RegisterState& state,
-                      RecordCEntryFrame record_c_entry_frame, bool update_stats,
-                      bool use_simulator_reg_state,
-                      base::TimeDelta sampling_interval) {
-  v8::TickSample::Init(reinterpret_cast<v8::Isolate*>(isolate), state,
-                       record_c_entry_frame, update_stats,
-                       use_simulator_reg_state);
-  this->sampling_interval = sampling_interval;
-  if (pc == nullptr) return;
-  timestamp = base::TimeTicks::HighResolutionNow();
 }
 
 void TickSample::print() const {

@@ -4,7 +4,11 @@
 
 // Platform-specific code for Starboard goes here. Starboard is the platform
 // abstraction layer for Cobalt, an HTML5 container used mainly by YouTube
+<<<<<<< HEAD
 // apps in the living room.
+=======
+// apps in the livingroom.
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -12,7 +16,10 @@
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
+<<<<<<< HEAD
 #include "starboard/client_porting/eztime/eztime.h"
+=======
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -150,6 +157,40 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
   return result;
 }
 
+<<<<<<< HEAD
+=======
+// The following code was taken from old v8 to deal with rounding up pointers.
+namespace {
+// Compute the 0-relative offset of some absolute value x of type T.
+// This allows conversion of Addresses and integral types into
+// 0-relative int offsets.
+template <typename T>
+constexpr inline intptr_t OffsetFrom(T x) {
+  return x - static_cast<T>(0);
+}
+
+// Compute the absolute value of type T for some 0-relative offset x.
+// This allows conversion of 0-relative int offsets into Addresses and
+// integral types.
+template <typename T>
+constexpr inline T AddressFrom(intptr_t x) {
+  return static_cast<T>(static_cast<T>(0) + x);
+}
+
+template <typename T>
+inline T RoundDown(T x, intptr_t m) {
+  // m must be a power of two.
+  DCHECK(m != 0 && ((m & (m - 1)) == 0));
+  return AddressFrom<T>(OffsetFrom(x) & -m);
+}
+
+template <typename T>
+inline T RoundUpOld(T x, intptr_t m) {
+  return RoundDown<T>(static_cast<T>(x + m - 1), m);
+}
+}  // namespace
+
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
@@ -165,8 +206,12 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 
   // Unmap memory allocated before the aligned base address.
   uint8_t* base = static_cast<uint8_t*>(result);
+<<<<<<< HEAD
   uint8_t* aligned_base = reinterpret_cast<uint8_t*>(
       RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
+=======
+  uint8_t* aligned_base = RoundUpOld(base, alignment);
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
@@ -428,6 +473,10 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 class StarboardTimezoneCache : public TimezoneCache {
  public:
+<<<<<<< HEAD
+=======
+  double DaylightSavingsOffset(double time_ms) override { return 0.0; }
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   void Clear(TimeZoneDetection time_zone_detection) override {}
   ~StarboardTimezoneCache() override {}
 
@@ -441,6 +490,7 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     return SbTimeZoneGetName();
   }
   double LocalTimeOffset(double time_ms, bool is_utc) override {
+<<<<<<< HEAD
     // SbTimeZOneGetCurrent returns an offset west of Greenwich, which has the
     // opposite sign V8 expects.
     // The starboard function returns offset in minutes. We convert to return
@@ -453,6 +503,9 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     bool result = EzTimeValueExplode(&value, kEzTimeZoneLocal, &ez_exploded,
                                      NULL);
     return ez_exploded.tm_isdst > 0 ? 3600 * msPerSecond : 0;
+=======
+    return SbTimeZoneGetCurrent() * 60000.0;
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   }
 
   ~StarboardDefaultTimezoneCache() override {}

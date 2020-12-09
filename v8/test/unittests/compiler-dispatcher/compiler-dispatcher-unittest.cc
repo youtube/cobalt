@@ -12,7 +12,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -70,8 +69,9 @@ class CompilerDispatcherTest : public TestWithNativeContext {
   static base::Optional<CompilerDispatcher::JobId> EnqueueUnoptimizedCompileJob(
       CompilerDispatcher* dispatcher, Isolate* isolate,
       Handle<SharedFunctionInfo> shared) {
+    UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared);
+        test::OuterParseInfoForShared(isolate, shared, &state);
     AstValueFactory* ast_value_factory =
         outer_parse_info->GetOrCreateAstValueFactory();
     AstNodeFactory ast_node_factory(ast_value_factory,
@@ -79,10 +79,11 @@ class CompilerDispatcherTest : public TestWithNativeContext {
 
     const AstRawString* function_name =
         ast_value_factory->GetOneByteString("f");
-    DeclarationScope* script_scope = new (outer_parse_info->zone())
-        DeclarationScope(outer_parse_info->zone(), ast_value_factory);
+    DeclarationScope* script_scope =
+        outer_parse_info->zone()->New<DeclarationScope>(
+            outer_parse_info->zone(), ast_value_factory);
     DeclarationScope* function_scope =
-        new (outer_parse_info->zone()) DeclarationScope(
+        outer_parse_info->zone()->New<DeclarationScope>(
             outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
     function_scope->set_start_position(shared->StartPosition());
     function_scope->set_end_position(shared->EndPosition());
@@ -92,7 +93,7 @@ class CompilerDispatcherTest : public TestWithNativeContext {
         ast_node_factory.NewFunctionLiteral(
             function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
-            FunctionLiteral::kAnonymousExpression,
+            FunctionSyntaxKind::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 
@@ -138,24 +139,12 @@ class MockPlatform : public v8::Platform {
     UNREACHABLE();
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    base::MutexGuard lock(&mutex_);
-    foreground_tasks_.push_back(std::unique_ptr<Task>(task));
-  }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
+  std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_state) override {
     UNREACHABLE();
   }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
-    base::MutexGuard lock(&mutex_);
-    ASSERT_TRUE(idle_task_ == nullptr);
-    idle_task_ = task;
-  }
-
-  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
   double MonotonicallyIncreasingTime() override {
     time_ += time_step_;
@@ -205,7 +194,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), true));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), true));
     sem_.Wait();
   }
 
@@ -216,7 +205,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), false));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), false));
   }
 
   void RunForegroundTasks() {
@@ -290,6 +279,11 @@ class MockPlatform : public v8::Platform {
       platform_->foreground_tasks_.push_back(std::move(task));
     }
 
+    void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+      // The mock platform does not nest tasks.
+      PostTask(std::move(task));
+    }
+
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
       UNREACHABLE();
@@ -303,6 +297,8 @@ class MockPlatform : public v8::Platform {
     }
 
     bool IdleTasksEnabled() override { return true; }
+
+    bool NonNestableTasksEnabled() const override { return false; }
 
    private:
     MockPlatform* platform_;

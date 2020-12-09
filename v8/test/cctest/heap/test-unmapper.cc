@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
+#include <vector>
 
-#include "src/heap/spaces.h"
+#include "src/heap/heap.h"
+#include "src/heap/memory-allocator.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -32,10 +34,6 @@ class MockPlatformForUnmapper : public TestPlatform {
     worker_tasks_.clear();
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    task_ = task;
-  }
-
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     worker_tasks_.push_back(std::move(task));
   }
@@ -53,6 +51,7 @@ class MockPlatformForUnmapper : public TestPlatform {
 };
 
 TEST(EagerUnmappingInCollectAllAvailableGarbage) {
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
   MockPlatformForUnmapper platform;
   Heap* heap = CcTest::heap();

@@ -61,7 +61,7 @@ bool PropertyAccessBuilder::TryBuildStringCheck(
     // Monormorphic string access (ignoring the fact that there are multiple
     // String maps).
     *receiver = *effect =
-        graph()->NewNode(simplified()->CheckString(VectorSlotPair()), *receiver,
+        graph()->NewNode(simplified()->CheckString(FeedbackSource()), *receiver,
                          *effect, control);
     return true;
   }
@@ -74,7 +74,7 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(
   if (HasOnlyNumberMaps(broker, maps)) {
     // Monomorphic number access (we also deal with Smis here).
     *receiver = *effect =
-        graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), *receiver,
+        graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), *receiver,
                          *effect, control);
     return true;
   }
@@ -109,8 +109,8 @@ void PropertyAccessBuilder::BuildCheckMaps(
                              *effect, control);
 }
 
-Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
-                                             Node* control,
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
+                                             Control control,
                                              Handle<HeapObject> value) {
   HeapObjectMatcher m(receiver);
   if (m.Is(value)) return receiver;
@@ -136,13 +136,13 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
     Representation representation) {
   switch (representation.kind()) {
     case Representation::kSmi:
-      return MachineType::RepCompressedTaggedSigned();
+      return MachineRepresentation::kTaggedSigned;
     case Representation::kDouble:
       return MachineRepresentation::kFloat64;
     case Representation::kHeapObject:
-      return MachineType::RepCompressedTaggedPointer();
+      return MachineRepresentation::kTaggedPointer;
     case Representation::kTagged:
-      return MachineType::RepCompressedTagged();
+      return MachineRepresentation::kTagged;
     default:
       UNREACHABLE();
   }
@@ -151,14 +151,6 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
 Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* receiver) {
-  // TODO(neis): Eliminate FastPropertyAt call below by doing the lookup during
-  // acccess info computation. Requires extra care in the case where the
-  // receiver is the holder.
-  AllowCodeDependencyChange dependency_change_;
-  AllowHandleAllocation handle_allocation_;
-  AllowHandleDereference handle_dereference_;
-  AllowHeapAllocation heap_allocation_;
-
   if (!access_info.IsDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
@@ -174,17 +166,110 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     MapRef receiver_map = m.Ref(broker()).map();
     if (std::find_if(access_info.receiver_maps().begin(),
                      access_info.receiver_maps().end(), [&](Handle<Map> map) {
-                       return map.equals(receiver_map.object());
+                       return MapRef(broker(), map).equals(receiver_map);
                      }) == access_info.receiver_maps().end()) {
       // The map of the receiver is not in the feedback, let us bail out.
       return nullptr;
     }
-    holder = Handle<JSObject>::cast(m.Value());
+    holder = m.Ref(broker()).AsJSObject().object();
   }
 
-  Handle<Object> value = JSObject::FastPropertyAt(
-      holder, access_info.field_representation(), access_info.field_index());
-  return jsgraph()->Constant(value);
+  JSObjectRef holder_ref(broker(), holder);
+  base::Optional<ObjectRef> value = holder_ref.GetOwnDataProperty(
+      access_info.field_representation(), access_info.field_index());
+  if (!value.has_value()) {
+    return nullptr;
+  }
+  return jsgraph()->Constant(*value);
+}
+
+Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
+                                                Node* holder,
+                                                FieldAccess& field_access,
+                                                bool is_inobject, Node** effect,
+                                                Node** control) {
+  Node* storage = holder;
+  if (!is_inobject) {
+    storage = *effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
+        storage, *effect, *control);
+  }
+  if (field_access.machine_type.representation() ==
+      MachineRepresentation::kFloat64) {
+    bool const is_heapnumber = !is_inobject || !FLAG_unbox_double_fields;
+    if (is_heapnumber) {
+      if (dependencies() == nullptr) {
+        FieldAccess const storage_access = {kTaggedBase,
+                                            field_access.offset,
+                                            name.object(),
+                                            MaybeHandle<Map>(),
+                                            Type::Any(),
+                                            MachineType::AnyTagged(),
+                                            kPointerWriteBarrier,
+                                            LoadSensitivity::kCritical,
+                                            field_access.const_field_info};
+        storage = *effect =
+            graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                             *effect, *control);
+        // We expect the loaded value to be a heap number here. With
+        // in-place field representation changes it is possible this is a
+        // no longer a heap number without map transitions. If we haven't taken
+        // a dependency on field representation, we should verify the loaded
+        // value is a heap number.
+        storage = *effect = graph()->NewNode(simplified()->CheckHeapObject(),
+                                             storage, *effect, *control);
+        Node* map = *effect =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             storage, *effect, *control);
+        Node* is_heap_number =
+            graph()->NewNode(simplified()->ReferenceEqual(), map,
+                             jsgraph()->HeapNumberMapConstant());
+        *effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kNotAHeapNumber),
+            is_heap_number, *effect, *control);
+      } else {
+        FieldAccess const storage_access = {kTaggedBase,
+                                            field_access.offset,
+                                            name.object(),
+                                            MaybeHandle<Map>(),
+                                            Type::OtherInternal(),
+                                            MachineType::TaggedPointer(),
+                                            kPointerWriteBarrier,
+                                            LoadSensitivity::kCritical,
+                                            field_access.const_field_info};
+        storage = *effect =
+            graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                             *effect, *control);
+      }
+      field_access.offset = HeapNumber::kValueOffset;
+      field_access.name = MaybeHandle<Name>();
+    }
+  }
+  Node* value = *effect = graph()->NewNode(
+      simplified()->LoadField(field_access), storage, *effect, *control);
+  return value;
+}
+
+Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
+    NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
+    Node* receiver, Node** effect, Node** control) {
+  DCHECK_NULL(dependencies());
+  MachineRepresentation const field_representation =
+      ConvertRepresentation(access_info.field_representation());
+
+  FieldAccess field_access = {
+      kTaggedBase,
+      access_info.offset(),
+      name.object(),
+      MaybeHandle<Map>(),
+      access_info.field_type(),
+      MachineType::TypeForRepresentation(field_representation),
+      kFullWriteBarrier,
+      LoadSensitivity::kCritical,
+      ConstFieldInfo::None()};
+  return BuildLoadDataField(name, receiver, field_access,
+                            access_info.is_inobject(), effect, control);
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(
@@ -196,49 +281,22 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     return value;
   }
 
-  FieldIndex const field_index = access_info.field_index();
-  Type const field_type = access_info.field_type();
   MachineRepresentation const field_representation =
       ConvertRepresentation(access_info.field_representation());
   Node* storage = ResolveHolder(access_info, receiver);
-  if (!field_index.is_inobject()) {
-    storage = *effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-        storage, *effect, *control);
-  }
-  PropertyConstness constness = access_info.IsDataConstant()
-                                    ? PropertyConstness::kConst
-                                    : PropertyConstness::kMutable;
+
   FieldAccess field_access = {
       kTaggedBase,
-      field_index.offset(),
+      access_info.field_index().offset(),
       name.object(),
       MaybeHandle<Map>(),
-      field_type,
+      access_info.field_type(),
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
       LoadSensitivity::kCritical,
-      constness};
-  if (field_representation == MachineRepresentation::kFloat64) {
-    if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
-      FieldAccess const storage_access = {
-          kTaggedBase,
-          field_index.offset(),
-          name.object(),
-          MaybeHandle<Map>(),
-          Type::OtherInternal(),
-          MachineType::TypeCompressedTaggedPointer(),
-          kPointerWriteBarrier,
-          LoadSensitivity::kCritical,
-          constness};
-      storage = *effect = graph()->NewNode(
-          simplified()->LoadField(storage_access), storage, *effect, *control);
-      field_access.offset = HeapNumber::kValueOffset;
-      field_access.name = MaybeHandle<Name>();
-    }
-  } else if (field_representation == MachineRepresentation::kTaggedPointer ||
-             field_representation ==
-                 MachineRepresentation::kCompressedPointer) {
+      access_info.GetConstFieldInfo()};
+  if (field_representation == MachineRepresentation::kTaggedPointer ||
+      field_representation == MachineRepresentation::kCompressedPointer) {
     // Remember the map of the field value, if its map is stable. This is
     // used by the LoadElimination to eliminate map checks on the result.
     Handle<Map> field_map;
@@ -250,9 +308,9 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       }
     }
   }
-  Node* value = *effect = graph()->NewNode(
-      simplified()->LoadField(field_access), storage, *effect, *control);
-  return value;
+  return BuildLoadDataField(name, storage, field_access,
+                            access_info.field_index().is_inobject(), effect,
+                            control);
 }
 
 }  // namespace compiler

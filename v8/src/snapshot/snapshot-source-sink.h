@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -37,6 +37,11 @@ class SnapshotByteSource final {
   byte Get() {
     DCHECK(position_ < length_);
     return data_[position_++];
+  }
+
+  byte Peek() const {
+    DCHECK(position_ < length_);
+    return data_[position_];
   }
 
   void Advance(int by) { position_ += by; }
@@ -89,9 +94,8 @@ class SnapshotByteSource final {
   int position() { return position_; }
   void set_position(int position) { position_ = position; }
 
-  std::pair<uint32_t, uint32_t> GetChecksum() const {
-    Checksum checksum(Vector<const byte>(data_, length_));
-    return {checksum.a(), checksum.b()};
+  uint32_t GetChecksum() const {
+    return Checksum(Vector<const byte>(data_, length_));
   }
 
  private:
@@ -102,11 +106,10 @@ class SnapshotByteSource final {
   DISALLOW_COPY_AND_ASSIGN(SnapshotByteSource);
 };
 
-
 /**
  * Sink to write snapshot files to.
  *
- * Subclasses must implement actual storage or i/o.
+ * Users must implement actual storage or i/o.
  */
 class SnapshotByteSink {
  public:
@@ -116,11 +119,6 @@ class SnapshotByteSink {
   ~SnapshotByteSink() = default;
 
   void Put(byte b, const char* description) { data_.push_back(b); }
-
-  void PutSection(int b, const char* description) {
-    DCHECK_LE(b, kMaxUInt8);
-    Put(static_cast<byte>(b), description);
-  }
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);

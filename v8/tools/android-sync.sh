@@ -88,7 +88,6 @@ function sync_dir {
 echo -n "sync to $ANDROID_V8/$OUTDIR/$ARCH_MODE"
 sync_file "$OUTDIR/$ARCH_MODE/cctest"
 sync_file "$OUTDIR/$ARCH_MODE/d8"
-sync_file "$OUTDIR/$ARCH_MODE/natives_blob.bin"
 sync_file "$OUTDIR/$ARCH_MODE/snapshot_blob.bin"
 sync_file "$OUTDIR/$ARCH_MODE/unittests"
 echo ""
@@ -103,8 +102,6 @@ sync_file tools/logreader.js
 sync_file tools/arguments.js
 sync_file tools/tickprocessor.js
 echo ""
-sync_dir tools/profviz
 sync_dir test/intl
 sync_dir test/message
 sync_dir test/mjsunit
-sync_dir test/preparser

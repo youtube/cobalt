@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/ast/modules.h"
+
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/pending-compilation-error-handler.h"
@@ -31,7 +33,7 @@ void SourceTextModuleDescriptor::AddImport(
     const AstRawString* import_name, const AstRawString* local_name,
     const AstRawString* module_request, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
@@ -42,7 +44,7 @@ void SourceTextModuleDescriptor::AddStarImport(
     const AstRawString* local_name, const AstRawString* module_request,
     const Scanner::Location loc, const Scanner::Location specifier_loc,
     Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->local_name = local_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddNamespaceImport(entry, zone);
@@ -56,7 +58,7 @@ void SourceTextModuleDescriptor::AddEmptyImport(
 void SourceTextModuleDescriptor::AddExport(const AstRawString* local_name,
                                            const AstRawString* export_name,
                                            Scanner::Location loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->export_name = export_name;
   entry->local_name = local_name;
   AddRegularExport(entry);
@@ -68,7 +70,7 @@ void SourceTextModuleDescriptor::AddExport(
     const Scanner::Location specifier_loc, Zone* zone) {
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(export_name);
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->export_name = export_name;
   entry->import_name = import_name;
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
@@ -78,21 +80,23 @@ void SourceTextModuleDescriptor::AddExport(
 void SourceTextModuleDescriptor::AddStarExport(
     const AstRawString* module_request, const Scanner::Location loc,
     const Scanner::Location specifier_loc, Zone* zone) {
-  Entry* entry = new (zone) Entry(loc);
+  Entry* entry = zone->New<Entry>(loc);
   entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddSpecialExport(entry, zone);
 }
 
 namespace {
-Handle<Object> ToStringOrUndefined(Isolate* isolate, const AstRawString* s) {
-  return (s == nullptr)
-             ? Handle<Object>::cast(isolate->factory()->undefined_value())
-             : Handle<Object>::cast(s->string());
+template <typename LocalIsolate>
+Handle<PrimitiveHeapObject> ToStringOrUndefined(LocalIsolate* isolate,
+                                                const AstRawString* s) {
+  if (s == nullptr) return isolate->factory()->undefined_value();
+  return s->string();
 }
 }  // namespace
 
+template <typename LocalIsolate>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
-    Isolate* isolate) const {
+    LocalIsolate* isolate) const {
   CHECK(Smi::IsValid(module_request));  // TODO(neis): Check earlier?
   return SourceTextModuleInfoEntry::New(
       isolate, ToStringOrUndefined(isolate, export_name),
@@ -100,9 +104,14 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
       ToStringOrUndefined(isolate, import_name), module_request, cell_index,
       location.beg_pos, location.end_pos);
 }
+template Handle<SourceTextModuleInfoEntry>
+SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const;
+template Handle<SourceTextModuleInfoEntry>
+SourceTextModuleDescriptor::Entry::Serialize(LocalIsolate* isolate) const;
 
+template <typename LocalIsolate>
 Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
-    Isolate* isolate, Zone* zone) const {
+    LocalIsolate* isolate, Zone* zone) const {
   // We serialize regular exports in a way that lets us later iterate over their
   // local names and for each local name immediately access all its export
   // names.  (Regular exports have neither import name nor module request.)
@@ -153,6 +162,10 @@ Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
   }
   return result;
 }
+template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    Isolate* isolate, Zone* zone) const;
+template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    LocalIsolate* isolate, Zone* zone) const;
 
 void SourceTextModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {

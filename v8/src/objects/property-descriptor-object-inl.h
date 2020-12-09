@@ -14,9 +14,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PropertyDescriptorObject, FixedArray)
-CAST_ACCESSOR(PropertyDescriptorObject)
-}
+TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyDescriptorObject)
+}  // namespace internal
 }  // namespace v8
 
 #include "src/objects/object-macros-undef.h"

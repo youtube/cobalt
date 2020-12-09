@@ -9,6 +9,7 @@
 #define V8_BASE_FREE_DELETER_H_
 
 #include <stdlib.h>
+#include <memory>
 
 #if V8_OS_STARBOARD
 #include "starboard/memory.h"

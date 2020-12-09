@@ -200,7 +200,7 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
+  ProfileStackTrace path = {{{&c, 5}}, {{&b, 3}}, {{&a, 1}}};
   tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 
@@ -374,14 +374,15 @@ class TestSetup {
 
 }  // namespace
 
-TEST(RecordTickSample) {
+TEST(SymbolizeTickSample) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -398,7 +399,7 @@ TEST(RecordTickSample) {
   sample1.tos = ToPointer(0x1500);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
   TickSample sample2;
   sample2.pc = ToPointer(0x1925);
   sample2.tos = ToPointer(0x1900);
@@ -406,14 +407,14 @@ TEST(RecordTickSample) {
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
-  generator.RecordTickSample(sample2);
+  generator.SymbolizeTickSample(sample2);
   TickSample sample3;
   sample3.pc = ToPointer(0x1510);
   sample3.tos = ToPointer(0x1500);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
-  generator.RecordTickSample(sample3);
+  generator.SymbolizeTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
   CHECK(profile);
@@ -449,7 +450,8 @@ TEST(SampleIds) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -466,7 +468,7 @@ TEST(SampleIds) {
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample2.pc = ToPointer(0x1925);
@@ -474,14 +476,14 @@ TEST(SampleIds) {
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
-  generator.RecordTickSample(sample2);
+  generator.SymbolizeTickSample(sample2);
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample3.pc = ToPointer(0x1510);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
-  generator.RecordTickSample(sample3);
+  generator.SymbolizeTickSample(sample3);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;
@@ -503,7 +505,8 @@ TEST(NoSamples) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  ProfileGenerator generator(&profiles);
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
@@ -513,7 +516,7 @@ TEST(NoSamples) {
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
-  generator.RecordTickSample(sample1);
+  generator.SymbolizeTickSample(sample1);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;
@@ -669,13 +672,12 @@ static const char* line_number_test_source_profile_time_functions =
 "bar_at_the_second_line();\n"
 "function lazy_func_at_6th_line() {}";
 
-int GetFunctionLineNumber(CpuProfiler& profiler,  // NOLINT(runtime/references)
-                          LocalContext& env,      // NOLINT(runtime/references)
+int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
                           const char* name) {
-  CodeMap* code_map = profiler.generator()->code_map();
+  CodeMap* code_map = profiler->generator()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
+          (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
       code_map->FindEntry(func->abstract_code().InstructionStart());
   if (!func_entry) FATAL("%s", name);
@@ -700,12 +702,12 @@ TEST(LineNumber) {
   profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy;
-  CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(profiler, env, "bar_at_the_second_line"));
+           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, "bar_at_the_second_line"));
   CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(profiler, env, "lazy_func_at_6th_line"));
+           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_6th_line"));
 
   profiler.StopProfiling("LineNumber");
 }

@@ -45,6 +45,14 @@ V8_EXPORT_PRIVATE int32_t float64_to_int64_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t float64_to_uint64_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void float32_to_int64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float32_to_uint64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float64_to_int64_sat_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void float64_to_uint64_sat_wrapper(Address data);
+
 V8_EXPORT_PRIVATE int32_t int64_div_wrapper(Address data);
 
 V8_EXPORT_PRIVATE int32_t int64_mod_wrapper(Address data);
@@ -65,11 +73,39 @@ V8_EXPORT_PRIVATE uint32_t word32_rol_wrapper(Address data);
 
 V8_EXPORT_PRIVATE uint32_t word32_ror_wrapper(Address data);
 
+V8_EXPORT_PRIVATE void word64_rol_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void word64_ror_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
-void memory_copy_wrapper(Address dst, Address src, uint32_t size);
+V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);
 
-void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size);
+V8_EXPORT_PRIVATE void f64x2_floor_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_trunc_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f64x2_nearest_int_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_ceil_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_floor_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_trunc_wrapper(Address data);
+
+V8_EXPORT_PRIVATE void f32x4_nearest_int_wrapper(Address data);
+
+// The return type is {int32_t} instead of {bool} to enforce the compiler to
+// zero-extend the result in the return register.
+int32_t memory_init_wrapper(Address data);
+
+// The return type is {int32_t} instead of {bool} to enforce the compiler to
+// zero-extend the result in the return register.
+int32_t memory_copy_wrapper(Address data);
+
+// The return type is {int32_t} instead of {bool} to enforce the compiler to
+// zero-extend the result in the return register.
+int32_t memory_fill_wrapper(Address data);
 
 using WasmTrapCallbackForTesting = void (*)();
 

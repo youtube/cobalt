@@ -5,9 +5,16 @@
 #include "src/snapshot/deserializer-allocator.h"
 
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
+
+void DeserializerAllocator::Initialize(Heap* heap) {
+  heap_ = heap;
+  roots_ = ReadOnlyRoots(heap);
+}
 
 // We know the space requirements before deserialization and can
 // pre-allocate that reserved space. During deserialization, all we need
@@ -23,12 +30,13 @@ namespace internal {
 Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
   const int space_number = static_cast<int>(space);
   if (space == SnapshotSpace::kLargeObject) {
-    AlwaysAllocateScope scope(heap_);
     // Note that we currently do not support deserialization of large code
     // objects.
-    LargeObjectSpace* lo_space = heap_->lo_space();
+    HeapObject obj;
+    AlwaysAllocateScope scope(heap_);
+    OldLargeObjectSpace* lo_space = heap_->lo_space();
     AllocationResult result = lo_space->AllocateRaw(size);
-    HeapObject obj = result.ToObjectChecked();
+    obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);
     return obj.address();
   } else if (space == SnapshotSpace::kMap) {
@@ -45,35 +53,74 @@ Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
     int chunk_index = current_chunk_[space_number];
     DCHECK_LE(high_water_[space_number], reservation[chunk_index].end);
 #endif
+#ifndef V8_ENABLE_THIRD_PARTY_HEAP
     if (space == SnapshotSpace::kCode)
       MemoryChunk::FromAddress(address)
           ->GetCodeObjectRegistry()
           ->RegisterNewlyAllocatedCodeObject(address);
+#endif
     return address;
   }
 }
 
 Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
+#ifdef DEBUG
+  if (previous_allocation_start_ != kNullAddress) {
+    // Make sure that the previous allocation is initialized sufficiently to
+    // be iterated over by the GC.
+    Address object_address = previous_allocation_start_;
+    Address previous_allocation_end =
+        previous_allocation_start_ + previous_allocation_size_;
+    while (object_address != previous_allocation_end) {
+      int object_size = HeapObject::FromAddress(object_address).Size();
+      DCHECK_GT(object_size, 0);
+      DCHECK_LE(object_address + object_size, previous_allocation_end);
+      object_address += object_size;
+    }
+  }
+#endif
+
   Address address;
   HeapObject obj;
-
-  if (next_alignment_ != kWordAligned) {
+  // TODO(steveblackburn) Note that the third party heap allocates objects
+  // at reservation time, which means alignment must be acted on at
+  // reservation time, not here.   Since the current encoding does not
+  // inform the reservation of the alignment, it must be conservatively
+  // aligned.
+  //
+  // A more general approach will be to avoid reservation altogether, and
+  // instead of chunk index/offset encoding, simply encode backreferences
+  // by index (this can be optimized by applying something like register
+  // allocation to keep the metadata needed to record the in-flight
+  // backreferences minimal).   This has the significant advantage of
+  // abstracting away the details of the memory allocator from this code.
+  // At each allocation, the regular allocator performs allocation,
+  // and a fixed-sized table is used to track and fix all back references.
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    address = AllocateRaw(space, size);
+  } else if (next_alignment_ != kWordAligned) {
     const int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
     address = AllocateRaw(space, reserved);
     obj = HeapObject::FromAddress(address);
     // If one of the following assertions fails, then we are deserializing an
     // aligned object when the filler maps have not been deserialized yet.
     // We require filler maps as padding to align the object.
-    DCHECK(ReadOnlyRoots(heap_).free_space_map().IsMap());
-    DCHECK(ReadOnlyRoots(heap_).one_pointer_filler_map().IsMap());
-    DCHECK(ReadOnlyRoots(heap_).two_pointer_filler_map().IsMap());
-    obj = heap_->AlignWithFiller(obj, size, reserved, next_alignment_);
+    DCHECK(roots_.free_space_map().IsMap());
+    DCHECK(roots_.one_pointer_filler_map().IsMap());
+    DCHECK(roots_.two_pointer_filler_map().IsMap());
+    obj = Heap::AlignWithFiller(roots_, obj, size, reserved, next_alignment_);
     address = obj.address();
     next_alignment_ = kWordAligned;
-    return address;
   } else {
-    return AllocateRaw(space, size);
+    address = AllocateRaw(space, size);
   }
+
+#ifdef DEBUG
+  previous_allocation_start_ = address;
+  previous_allocation_size_ = size;
+#endif
+
+  return address;
 }
 
 void DeserializerAllocator::MoveToNextChunk(SnapshotSpace space) {
@@ -110,7 +157,8 @@ HeapObject DeserializerAllocator::GetObject(SnapshotSpace space,
   if (next_alignment_ != kWordAligned) {
     int padding = Heap::GetFillToAlign(address, next_alignment_);
     next_alignment_ = kWordAligned;
-    DCHECK(padding == 0 || HeapObject::FromAddress(address).IsFiller());
+    DCHECK(padding == 0 ||
+           HeapObject::FromAddress(address).IsFreeSpaceOrFiller());
     address += padding;
   }
   return HeapObject::FromAddress(address);
