@@ -69,6 +69,10 @@ _TESTS_NO_SIGNAL = [
 _TESTS_NEEDING_DEEP_LINK = [
     'deep_links',
 ]
+# The test can only be run on plaforms who supports background mode playback.
+_TESTS_SUPPORTING_BACKGROUND_MODE = [
+    'background_mode_test',
+]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 # Platform configuration and device information parameters.
@@ -135,6 +139,9 @@ def LoadTests(launcher_params):
 
   if launcher.SupportsDeepLink():
     test_targets += _TESTS_NEEDING_DEEP_LINK
+
+  if launcher.SupportsBackgroundMode():
+    test_targets += _TESTS_SUPPORTING_BACKGROUND_MODE
 
   test_suite = unittest.TestSuite()
   for test in test_targets:
