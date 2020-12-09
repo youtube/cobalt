@@ -162,6 +162,9 @@ class AbstractLauncher(object):
   def SupportsSuspendResume(self):
     return False
 
+  def SupportsBackgroundMode(self):
+    return False
+
   # The Send*() functions are guaranteed to resolve sequences of calls (e.g.
   # SendSuspend() followed immediately by SendResume()) in the order that they
   # are sent.
