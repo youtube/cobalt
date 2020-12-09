@@ -134,7 +134,7 @@
   <body class="body">
     <div class="vscroll">
       <div class="hscroll">
-        <div class="focusItem" tabindex="-2" style="transform: translateX(0px)">
+        <div id="start" class="focusItem" tabindex="-2" style="transform: translateX(0px)">
           <div class="focusContent">A0</div>
         </div>
         <div class="focusItem" tabindex="-2" style="transform: translateX(300px)">
@@ -231,4 +231,9 @@
       </div>
     </div>
   </body>
+  <script>
+    window.onload = function() {
+      document.getElementById("start").focus();
+    }
+  </script>
 </html>
