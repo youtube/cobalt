@@ -760,11 +760,7 @@ bool ThreadTicks::IsSupported() {
 #else
   return false;
 #endif
-<<<<<<< HEAD
-#elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-=======
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
 #elif defined(V8_OS_WIN)

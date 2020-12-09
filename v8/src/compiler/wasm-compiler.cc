@@ -5222,59 +5222,9 @@ Node* WasmGraphBuilder::AtomicFence() {
 Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
                                    Node* src, Node* size,
                                    wasm::WasmCodePosition position) {
-<<<<<<< HEAD
-  CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
-  auto m = mcgraph()->machine();
-  auto common = mcgraph()->common();
-  Node* size_null_check =
-      graph()->NewNode(m->Word32Equal(), size, mcgraph()->Int32Constant(0));
-  Node* size_null_branch = graph()->NewNode(common->Branch(BranchHint::kFalse),
-                                            size_null_check, Control());
-
-  Node* size_null_etrue = Effect();
-  Node* size_null_if_false =
-      graph()->NewNode(common->IfFalse(), size_null_branch);
-  SetControl(size_null_if_false);
-
-  Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
-
-  Node* seg_index = Uint32Constant(data_segment_index);
-  Node* src_fail;
-
-  {
-    // Load segment size from WasmInstanceObject::data_segment_sizes.
-    Node* seg_size_array =
-        LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
-    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
-    Node* scaled_index = Uint32ToUintptr(
-        graph()->NewNode(m->Word32Shl(), seg_index, Int32Constant(2)));
-    Node* seg_size = SetEffect(graph()->NewNode(m->Load(MachineType::Uint32()),
-                                                seg_size_array, scaled_index,
-                                                Effect(), Control()));
-    // Bounds check the src index against the segment size.
-    src_fail = BoundsCheckRange(src, &size, seg_size, position);
-  }
-
-  {
-    // Load segment's base pointer from WasmInstanceObject::data_segment_starts.
-    Node* seg_start_array =
-        LOAD_INSTANCE_FIELD(DataSegmentStarts, MachineType::Pointer());
-    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <=
-                  kMaxUInt32 / kSystemPointerSize);
-    Node* scaled_index = Uint32ToUintptr(graph()->NewNode(
-        m->Word32Shl(), seg_index, Int32Constant(kSystemPointerSizeLog2)));
-    Node* seg_start = SetEffect(
-        graph()->NewNode(m->Load(MachineType::Pointer()), seg_start_array,
-                         scaled_index, Effect(), Control()));
-
-    // Convert src index to pointer.
-    src = graph()->NewNode(m->IntAdd(), seg_start, Uint32ToUintptr(src));
-  }
-=======
   // The data segment index must be in bounds since it is required by
   // validation.
   DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_init()));
@@ -7256,12 +7206,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
 #undef COMPARE_SIG_FOR_BUILTIN_F64
 #undef COMPARE_SIG_FOR_BUILTIN_F32_F64
 
-<<<<<<< HEAD
-
-    if (IsClassConstructor(shared.kind())) {
-=======
     if (IsClassConstructor(shared->kind())) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
       // Class constructor will throw anyway.
       return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
     }
@@ -7720,13 +7665,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.set_wasm_runtime_exception_support();
   }
 
-<<<<<<< HEAD
-// API leak
 #if !defined(DISABLE_GRAPHS_STARBOARD)
-  if (info.trace_turbo_json_enabled()) {
-=======
   if (info.trace_turbo_json()) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     TurboCfgFile tcf;
     tcf << AsC1VCompilation(&info);
   }

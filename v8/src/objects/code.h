@@ -283,14 +283,9 @@ class Code : public HeapObject {
   inline void clear_padding();
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
-<<<<<<< HEAD
-  inline void initialize_flags(Kind kind, bool is_turbofanned,
-                               int stack_slots, bool is_off_heap_trampoline);
-=======
   inline void initialize_flags(CodeKind kind, bool has_unwinding_info,
                                bool is_turbofanned, int stack_slots,
                                bool is_off_heap_trampoline);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
   // Convert a target address into a code object.
   static inline Code GetCodeFromTargetAddress(Address address);
@@ -408,23 +403,13 @@ class Code : public HeapObject {
   V(kDataStart, 0)                                                        \
   V(kInstructionSizeOffset, kIntSize)                                     \
   V(kFlagsOffset, kInt32Size)                                             \
-<<<<<<< HEAD
-  V(kBuiltinIndexOffset, kIntSize)                                        \
-  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
-  /* Offsets describing inline metadata tables. */                        \
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   V(kSafepointTableOffsetOffset, kIntSize)                                \
   V(kHandlerTableOffsetOffset, kIntSize)                                  \
   V(kConstantPoolOffsetOffset,                                            \
     FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
   V(kCodeCommentsOffsetOffset, kIntSize)                                  \
-<<<<<<< HEAD
-  V(kUnwindingInfoOffsetOffset, kInt32Size)                               \
-=======
   V(kBuiltinIndexOffset, kIntSize)                                        \
   V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   V(kUnalignedHeaderSize, 0)                                              \
   /* Add padding to align the instruction start following right after */  \
   /* the Code object header. */                                           \
@@ -437,8 +422,7 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-<<<<<<< HEAD
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 24;
 #elif V8_TARGET_ARCH_X64
@@ -454,26 +438,7 @@ class Code : public HeapObject {
       FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 8 : 20)
                                          : (COMPRESS_POINTERS_BOOL ? 12 : 24);
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
-=======
   static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
-#elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 28;
-#elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
-#elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 16;
-#elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 16;
-#elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 16;
-#elif V8_TARGET_ARCH_PPC64
-  static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 12 : 24)
-                                         : (COMPRESS_POINTERS_BOOL ? 16 : 28);
-#elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #else
 #error Unknown architecture.
 #endif
@@ -483,23 +448,15 @@ class Code : public HeapObject {
 
   // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
-<<<<<<< HEAD
-  V(KindField, Kind, 4, _)         \
-=======
   V(HasUnwindingInfoField, bool, 1, _) \
   V(KindField, CodeKind, 4, _)         \
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   V(IsTurbofannedField, bool, 1, _)    \
   V(StackSlotsField, int, 24, _)       \
   V(IsOffHeapTrampoline, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
-<<<<<<< HEAD
-  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 30);
-=======
   STATIC_ASSERT(kCodeKindCount <= KindField::kNumValues);
   STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 31);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 

@@ -156,85 +156,6 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       static_cast<int32_t>(value.type().kind()), bytes);
 }
 
-<<<<<<< HEAD
-MaybeHandle<String> GetLocalName(Isolate* isolate,
-                                 Handle<WasmDebugInfo> debug_info,
-                                 int func_index, int local_index) {
-  DCHECK_LE(0, func_index);
-  DCHECK_LE(0, local_index);
-  if (!debug_info->has_locals_names()) {
-    Handle<WasmModuleObject> module_object(
-        debug_info->wasm_instance().module_object(), isolate);
-    Handle<FixedArray> locals_names = DecodeLocalNames(isolate, module_object);
-    debug_info->set_locals_names(*locals_names);
-  }
-
-  Handle<FixedArray> locals_names(debug_info->locals_names(), isolate);
-  if (func_index >= locals_names->length() ||
-      locals_names->get(func_index).IsUndefined(isolate)) {
-    return {};
-  }
-
-  Handle<FixedArray> func_locals_names(
-      FixedArray::cast(locals_names->get(func_index)), isolate);
-  if (local_index >= func_locals_names->length() ||
-      func_locals_names->get(local_index).IsUndefined(isolate)) {
-    return {};
-  }
-  return handle(String::cast(func_locals_names->get(local_index)), isolate);
-}
-
-class InterpreterHandle {
-  // This was causing cascading build errors when compiling v8 for the older
-  // clang compilers.Some private variables of this class have their move
-  // constructor implicitly deleted. Trying to fix that causes a chain of
-  // deleting the move constructor for multiple classes.
-#if !defined(V8_OS_STARBOARD)
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
-#endif
-  Isolate* isolate_;
-  const WasmModule* module_;
-  WasmInterpreter interpreter_;
-  StepAction next_step_action_ = StepNone;
-  int last_step_stack_depth_ = 0;
-  std::unordered_map<Address, uint32_t> activations_;
-
-  uint32_t StartActivation(Address frame_pointer) {
-    WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
-    uint32_t activation_id = thread->StartActivation();
-    DCHECK_EQ(0, activations_.count(frame_pointer));
-    activations_.insert(std::make_pair(frame_pointer, activation_id));
-    return activation_id;
-  }
-
-  void FinishActivation(Address frame_pointer, uint32_t activation_id) {
-    WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
-    thread->FinishActivation(activation_id);
-    DCHECK_EQ(1, activations_.count(frame_pointer));
-    activations_.erase(frame_pointer);
-  }
-
-  std::pair<uint32_t, uint32_t> GetActivationFrameRange(
-      WasmInterpreter::Thread* thread, Address frame_pointer) {
-    DCHECK_EQ(1, activations_.count(frame_pointer));
-    uint32_t activation_id = activations_.find(frame_pointer)->second;
-    uint32_t num_activations = static_cast<uint32_t>(activations_.size() - 1);
-    uint32_t frame_base = thread->ActivationFrameBase(activation_id);
-    uint32_t frame_limit = activation_id == num_activations
-                               ? thread->GetFrameCount()
-                               : thread->ActivationFrameBase(activation_id + 1);
-    DCHECK_LE(frame_base, frame_limit);
-    DCHECK_LE(frame_limit, thread->GetFrameCount());
-    return {frame_base, frame_limit};
-  }
-
-  static ModuleWireBytes GetBytes(WasmDebugInfo debug_info) {
-    // Return raw pointer into heap. The WasmInterpreter will make its own copy
-    // of this data anyway, and there is no heap allocation in-between.
-    NativeModule* native_module =
-        debug_info.wasm_instance().module_object().native_module();
-    return ModuleWireBytes{native_module->wire_bytes()};
-=======
 MaybeHandle<String> GetLocalNameString(Isolate* isolate,
                                        NativeModule* native_module,
                                        int func_index, int local_index) {
@@ -283,7 +204,6 @@ Address FindNewPC(WasmFrame* frame, WasmCode* wasm_code, int byte_offset,
     DCHECK_EQ(byte_offset, it.source_position().ScriptOffset());
     return wasm_code->instruction_start() + it.code_offset() +
            call_instruction_size;
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   }
 
   DCHECK_EQ(kAfterWasmCall, return_location);

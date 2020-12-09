@@ -320,11 +320,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
-<<<<<<< HEAD
-//   Isolate* isolate or 0 if unicode flag.
-=======
     //   Isolate* isolate.
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #ifdef V8_TARGET_OS_WIN
     DCHECK(rcx == arg_reg_1);
     DCHECK(rdx == arg_reg_2);

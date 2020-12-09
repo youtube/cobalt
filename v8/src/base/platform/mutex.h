@@ -19,10 +19,7 @@
 #if V8_OS_STARBOARD
 #include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
-<<<<<<< HEAD
-=======
 #include "starboard/common/rwlock.h"
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #endif
 
 namespace v8 {

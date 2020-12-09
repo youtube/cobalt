@@ -156,131 +156,6 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
 #define ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
       TYPED_ARRAYS(ELEMENTS_KIND)
 #undef ELEMENTS_KIND
-<<<<<<< HEAD
-    };
-    std::list<Label> labels;
-    for (size_t i = 0; i < elements_kinds.size(); ++i) {
-      labels.emplace_back(this);
-    }
-    std::vector<Label*> label_ptrs;
-    for (Label& label : labels) {
-      label_ptrs.push_back(&label);
-    }
-
-    BIND(&distinguish_types);
-
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-    generator(this);
-#else
-    TypedArrayMapResultGenerator();
-#endif
-
-    if (direction == ForEachDirection::kForward) {
-      k_.Bind(SmiConstant(0));
-    } else {
-      k_.Bind(NumberDec(len()));
-    }
-    CSA_ASSERT(this, IsSafeInteger(k()));
-    TNode<Int32T> elements_kind = LoadMapElementsKind(typed_array_map);
-    Switch(elements_kind, &unexpected_instance_type, elements_kinds.data(),
-           label_ptrs.data(), labels.size());
-
-    size_t i = 0;
-    for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
-      BIND(&*it);
-      Label done(this);
-      source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
-      // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
-      // spec violation. Should go to &throw_detached and throw a TypeError
-      // instead.
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-      VisitAllTypedArrayElements(array_buffer, processor, &done, direction,
-                                 typed_array);
-#else
-      VisitAllTypedArrayElements(array_buffer, &done, direction, typed_array);
-#endif
-      Goto(&done);
-      // No exception, return success
-      BIND(&done);
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-      action(this);
-#else
-      NullPostLoopAction();
-#endif
-      ReturnFromBuiltin(a_.value());
-    }
-  }
-
-  void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-      Node* array_buffer, const CallResultProcessor& processor, Label* detached,
-#else
-      Node* array_buffer, Label* detached,
-#endif
-      ForEachDirection direction, TNode<JSTypedArray> typed_array) {
-    VariableList list({&a_, &k_, &to_}, zone());
-
-    FastLoopBody body = [&](Node* index) {
-      GotoIf(IsDetachedBuffer(CAST(array_buffer)), detached);
-      TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
-      Node* value = LoadFixedTypedArrayElementAsTagged(
-          data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
-      k_.Bind(index);
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-      a_.Bind(processor(this, value, index));
-#else
-      a_.Bind(TypedArrayMapProcessor(value, index));
-#endif
-    };
-    Node* start = SmiConstant(0);
-    Node* end = len_;
-    IndexAdvanceMode advance_mode = IndexAdvanceMode::kPost;
-    int incr = 1;
-    if (direction == ForEachDirection::kReverse) {
-      std::swap(start, end);
-      advance_mode = IndexAdvanceMode::kPre;
-      incr = -1;
-    }
-    BuildFastLoop(list, start, end, body, incr, ParameterMode::SMI_PARAMETERS,
-                  advance_mode);
-  }
-
-  // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  void ArrayBuiltinsAssembler::GenerateArraySpeciesCreate(TNode<Number> len) {
-    Label runtime(this, Label::kDeferred), done(this);
-
-    Node* const original_map = LoadMap(o());
-    GotoIfNot(
-        InstanceTypeEqual(LoadMapInstanceType(original_map), JS_ARRAY_TYPE),
-        &runtime);
-
-    GotoIfNot(IsPrototypeInitialArrayPrototype(context(), original_map),
-              &runtime);
-
-    Node* species_protector = ArraySpeciesProtectorConstant();
-    Node* value =
-        LoadObjectField(species_protector, PropertyCell::kValueOffset);
-    Node* const protector_invalid = SmiConstant(Isolate::kProtectorInvalid);
-    GotoIf(WordEqual(value, protector_invalid), &runtime);
-
-    GotoIfNot(TaggedIsPositiveSmi(len), &runtime);
-    GotoIfNot(
-        IsValidFastJSArrayCapacity(len, CodeStubAssembler::SMI_PARAMETERS),
-        &runtime);
-
-    // We need to be conservative and start with holey because the builtins
-    // that create output arrays aren't guaranteed to be called for every
-    // element in the input array (maybe the callback deletes an element).
-    const ElementsKind elements_kind =
-        GetHoleyElementsKind(GetInitialFastElementsKind());
-    TNode<Context> native_context = LoadNativeContext(context());
-    TNode<Map> array_map =
-        LoadJSArrayElementsMap(elements_kind, native_context);
-    a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len),
-                            nullptr, CodeStubAssembler::SMI_PARAMETERS,
-                            kAllowLargeObjectAllocation));
-
-=======
   };
   std::list<Label> labels;
   for (size_t i = 0; i < elements_kinds.size(); ++i) {
@@ -309,7 +184,6 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
     // instead.
     VisitAllTypedArrayElements(array_buffer, processor, &done, direction,
                                typed_array);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     Goto(&done);
     // No exception, return success
     BIND(&done);
@@ -682,43 +556,7 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       "%TypedArray%.prototype.map",
       &ArrayBuiltinsAssembler::TypedArrayMapResultGenerator,
-<<<<<<< HEAD
-      &ArrayBuiltinsAssembler::TypedArrayMapProcessor,
-      &ArrayBuiltinsAssembler::NullPostLoopAction);
-#else
-      "%TypedArray%.prototype.map",
-        BuiltinResultGenerator(),
-        CallResultProcessor(),
-        PostLoopAction());
-#endif
-}
-
-TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kArg));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Label call_runtime(this), return_true(this), return_false(this);
-
-  GotoIf(TaggedIsSmi(object), &return_false);
-  TNode<Int32T> instance_type = LoadInstanceType(CAST(object));
-
-  GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &return_true);
-
-  // TODO(verwaest): Handle proxies in-place.
-  Branch(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), &call_runtime,
-         &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
-
-  BIND(&call_runtime);
-  Return(CallRuntime(Runtime::kArrayIsArray, context, object));
-=======
       &ArrayBuiltinsAssembler::TypedArrayMapProcessor);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 class ArrayIncludesIndexofAssembler : public CodeStubAssembler {

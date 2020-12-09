@@ -82,12 +82,8 @@ constexpr int kNumRegs = 16;
 const RegList kJSCallerSaved =
 #else
 constexpr RegList kJSCallerSaved =
-<<<<<<< HEAD
 #endif
-    Register::ListOf<rax, rcx, rdx,
-=======
     Register::ListOf(rax, rcx, rdx,
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
                      rbx,  // used as a caller-saved register in JavaScript code
                      rdi);  // callee function
 

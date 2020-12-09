@@ -115,15 +115,9 @@ class GeneratedCode {
 #ifdef USE_SIMULATOR
   // Defined in simulator-base.h.
   Return Call(Args... args) {
-<<<<<<< HEAD
 #if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && !defined(V8_OS_STARBOARD)
     FATAL("Generated code execution not possible during cross-compilation.");
-#endif
-=======
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     return Simulator::current(isolate_)->template Call<Return>(
         reinterpret_cast<Address>(fn_ptr_), args...);
   }
@@ -131,17 +125,10 @@ class GeneratedCode {
 
   DISABLE_CFI_ICALL Return Call(Args... args) {
     // When running without a simulator we call the entry directly.
-<<<<<<< HEAD
 #if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && !defined(V8_OS_STARBOARD)
-    FATAL("Generated code execution not possible during cross-compilation.");
-#endif
-#if V8_OS_AIX
-=======
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
     FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
 #if ABI_USES_FUNCTION_DESCRIPTORS
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
     // FD to ensure correct dispatch to generated code.  The 'volatile'
     // declaration is required to avoid the compiler from not observing the
@@ -153,19 +140,7 @@ class GeneratedCode {
     return fn(args...);
 #else
     return fn_ptr_(args...);
-<<<<<<< HEAD
-#endif  // V8_OS_AIX
-  }
-
-  DISABLE_CFI_ICALL Return CallIrregexp(Args... args) {
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && !defined(V8_OS_STARBOARD)
-    FATAL("Generated code execution not possible during cross-compilation.");
-#endif
-    // When running without a simulator we call the entry directly.
-    return fn_ptr_(args...);
-=======
 #endif  // ABI_USES_FUNCTION_DESCRIPTORS
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   }
 #endif  // USE_SIMULATOR
 

@@ -24,15 +24,6 @@ namespace base {
 
 class DefaultAllocationPolicy {
  public:
-<<<<<<< HEAD
-#if defined(V8_OS_STARBOARD)
-  V8_INLINE void* New(size_t size) { return SbMemoryAllocate(size); }
-  V8_INLINE static void Delete(void* p) { SbMemoryDeallocate(p); }
-#else
-  V8_INLINE void* New(size_t size) { return malloc(size); }
-  V8_INLINE static void Delete(void* p) { free(p); }
-#endif
-=======
   template <typename T, typename TypeTag = T[]>
   V8_INLINE T* NewArray(size_t length) {
     return static_cast<T*>(malloc(length * sizeof(T)));
@@ -41,7 +32,6 @@ class DefaultAllocationPolicy {
   V8_INLINE void DeleteArray(T* p, size_t length) {
     free(p);
   }
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 };
 
 template <typename Key, typename Value, class MatchFun, class AllocationPolicy>

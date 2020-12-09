@@ -8,9 +8,6 @@
 #include <stddef.h>
 #include <memory>
 
-<<<<<<< HEAD
-#include "v8/src/tracing/trace_event_common.h"
-=======
 #if defined(V8_USE_PERFETTO)
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
 #include "src/tracing/trace-categories.h"
@@ -18,7 +15,6 @@
 #include "base/trace_event/common/trace_event_common.h"
 #endif  // !defined(V8_USE_PERFETTO)
 
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"

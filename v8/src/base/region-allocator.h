@@ -170,15 +170,12 @@ class V8_BASE_EXPORT RegionAllocator final {
   void Merge(AllRegionsSet::iterator prev_iter,
              AllRegionsSet::iterator next_iter);
 
-<<<<<<< HEAD
-=======
   FRIEND_TEST(RegionAllocatorTest, AllocateExcluded);
   FRIEND_TEST(RegionAllocatorTest, AllocateRegionRandom);
   FRIEND_TEST(RegionAllocatorTest, Contains);
   FRIEND_TEST(RegionAllocatorTest, FindRegion);
   FRIEND_TEST(RegionAllocatorTest, Fragmentation);
 
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };
 

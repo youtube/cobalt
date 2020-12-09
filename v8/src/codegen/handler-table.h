@@ -18,11 +18,7 @@ class BytecodeArray;
 
 namespace wasm {
 class WasmCode;
-<<<<<<< HEAD
-}
-=======
 }  // namespace wasm
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 // HandlerTable is a byte array containing entries for exception handlers in
 // the code object it is associated with. The tables come in two flavors:

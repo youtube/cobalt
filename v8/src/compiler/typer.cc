@@ -858,11 +858,7 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     min = -V8_INFINITY;
     max = +V8_INFINITY;
   }
-<<<<<<< HEAD
-#ifndef V8_OS_STARBOARD
-=======
 
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   if (FLAG_trace_turbo_loop) {
     StdoutStream{} << std::setprecision(10) << "Loop ("
                    << NodeProperties::GetControlInput(node)->id()
@@ -874,11 +870,7 @@ Type Typer::Visitor::TypeInductionVariablePhi(Node* node) {
                    << " for phi " << node->id() << ": (" << min << ", " << max
                    << ")\n";
   }
-<<<<<<< HEAD
-#endif
-=======
 
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   return Type::Range(min, max, typer_->zone());
 }
 

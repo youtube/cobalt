@@ -102,16 +102,8 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<HeapObject> maybe_allocation_site);
 
  private:
-<<<<<<< HEAD
-  static ElementsKind ElementsKindForInstanceType(InstanceType type);
-
-  void VisitAllTypedArrayElements(Node* array_buffer,
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-=======
   void VisitAllTypedArrayElements(TNode<JSArrayBuffer> array_buffer,
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
                                   const CallResultProcessor& processor,
-#endif
                                   Label* detached, ForEachDirection direction,
                                   TNode<JSTypedArray> typed_array);
 
