@@ -707,12 +707,17 @@ TEST(PreParserScopeAnalysis) {
           shared->uncompiled_data_with_preparse_data().preparse_data(),
           isolate);
 
+      i::UnoptimizedCompileFlags flags =
+          i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+      flags.set_is_lazy_compile(true);
+
       // Parse the lazy function using the scope data.
-      i::ParseInfo using_scope_data(isolate, shared);
-      using_scope_data.set_lazy_compile();
+      i::UnoptimizedCompileState using_scope_state(isolate);
+      i::ParseInfo using_scope_data(isolate, flags, &using_scope_state);
       using_scope_data.set_consumed_preparse_data(
           i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
-      CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
+      CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate,
+                                      i::parsing::ReportStatisticsMode::kYes));
 
       // Verify that we skipped at least one function inside that scope.
       i::DeclarationScope* scope_with_skipped_functions =
@@ -720,13 +725,11 @@ TEST(PreParserScopeAnalysis) {
       CHECK(i::ScopeTestHelper::HasSkippedFunctionInside(
           scope_with_skipped_functions));
 
-      // Do scope allocation (based on the preparsed scope data).
-      CHECK(i::DeclarationScope::Analyze(&using_scope_data));
-
       // Parse the lazy function again eagerly to produce baseline data.
-      i::ParseInfo not_using_scope_data(isolate, shared);
-      not_using_scope_data.set_lazy_compile();
-      CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate));
+      i::UnoptimizedCompileState not_using_scope_state(isolate);
+      i::ParseInfo not_using_scope_data(isolate, flags, &not_using_scope_state);
+      CHECK(i::parsing::ParseFunction(&not_using_scope_data, shared, isolate,
+                                      i::parsing::ReportStatisticsMode::kYes));
 
       // Verify that we didn't skip anything (there's no preparsed scope data,
       // so we cannot skip).
@@ -734,9 +737,6 @@ TEST(PreParserScopeAnalysis) {
           not_using_scope_data.literal()->scope();
       CHECK(!i::ScopeTestHelper::HasSkippedFunctionInside(
           scope_without_skipped_functions));
-
-      // Do normal scope allocation.
-      CHECK(i::DeclarationScope::Analyze(&not_using_scope_data));
 
       // Verify that scope allocation gave the same results when parsing w/ the
       // scope data (and skipping functions), and when parsing without.
@@ -759,11 +759,15 @@ TEST(Regress753896) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(
       "function lazy() { let v = 0; if (true) { var v = 0; } }");
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(isolate, script);
+  i::UnoptimizedCompileState state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  i::ParseInfo info(isolate, flags, &state);
 
   // We don't assert that parsing succeeded or that it failed; currently the
   // error is not detected inside lazy functions, but it might be in the future.
-  i::parsing::ParseProgram(&info, isolate);
+  i::parsing::ParseProgram(&info, script, isolate,
+                           i::parsing::ReportStatisticsMode::kYes);
 }
 
 TEST(ProducingAndConsumingByteData) {

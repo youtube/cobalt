@@ -29,17 +29,17 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(isolate->handle_scope_implementer()->blocks()->empty());
   // Read-only object cache is not yet populated.
   DCHECK(!ro_heap->read_only_object_cache_is_initialized());
-  // Partial snapshot cache is not yet populated.
-  DCHECK(isolate->partial_snapshot_cache()->empty());
+  // Startup object cache is not yet populated.
+  DCHECK(isolate->startup_object_cache()->empty());
   // Builtins are not yet created.
   DCHECK(!isolate->builtins()->is_initialized());
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     ReadOnlyRoots roots(isolate);
 
     roots.Iterate(this);
-    ro_heap->read_only_space()->RepairFreeListsAfterDeserialization();
+    ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
     for (size_t i = 0;; ++i) {
@@ -51,10 +51,11 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
       if (object->IsUndefined(roots)) break;
     }
     DeserializeDeferredObjects();
+    CheckNoArrayBufferBackingStores();
   }
 
   if (FLAG_rehash_snapshot && can_rehash()) {
-    isolate_->heap()->InitializeHashSeed();
+    isolate->heap()->InitializeHashSeed();
     Rehash();
   }
 }

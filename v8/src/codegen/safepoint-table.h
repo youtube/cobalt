@@ -17,7 +17,11 @@ namespace internal {
 
 namespace wasm {
 class WasmCode;
+<<<<<<< HEAD
 }
+=======
+}  // namespace wasm
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 class SafepointEntry {
  public:
@@ -182,7 +186,6 @@ class SafepointTableBuilder {
   explicit SafepointTableBuilder(Zone* zone)
       : deoptimization_info_(zone),
         emitted_(false),
-        last_lazy_safepoint_(0),
         zone_(zone) {}
 
   // Get the offset of the emitted safepoint table in the code.
@@ -190,13 +193,6 @@ class SafepointTableBuilder {
 
   // Define a new safepoint for the current position in the body.
   Safepoint DefineSafepoint(Assembler* assembler, Safepoint::DeoptMode mode);
-
-  // Record deoptimization index for lazy deoptimization for the last
-  // outstanding safepoints.
-  void RecordLazyDeoptimizationIndex(int index);
-  void BumpLastLazySafepointIndex() {
-    last_lazy_safepoint_ = deoptimization_info_.size();
-  }
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
@@ -206,7 +202,8 @@ class SafepointTableBuilder {
   // trampoline field. Calling this function ensures that the safepoint
   // table contains the trampoline PC {trampoline} that replaced the
   // return PC {pc} on the stack.
-  int UpdateDeoptimizationInfo(int pc, int trampoline, int start);
+  int UpdateDeoptimizationInfo(int pc, int trampoline, int start,
+                               unsigned deopt_index);
 
  private:
   struct DeoptimizationInfo {
@@ -218,7 +215,7 @@ class SafepointTableBuilder {
         : pc(pc),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
           trampoline(-1),
-          indexes(new (zone) ZoneChunkList<int>(
+          indexes(zone->New<ZoneChunkList<int>>(
               zone, ZoneChunkList<int>::StartMode::kSmall)) {}
   };
 
@@ -233,7 +230,6 @@ class SafepointTableBuilder {
 
   unsigned offset_;
   bool emitted_;
-  size_t last_lazy_safepoint_;
 
   Zone* zone_;
 

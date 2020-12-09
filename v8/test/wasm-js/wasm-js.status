@@ -3,9 +3,30 @@
 # found in the LICENSE file.
 
 [
+
 [ALWAYS, {
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
-  'limits': [SKIP],
+  # TODO(v8:10556): Remove sub-typing in the reference-types implementation
+  'constructor/instantiate': [FAIL],
+  'instance/constructor': [FAIL],
+  'proposals/js-types/constructor/instantiate': [FAIL],
+  'proposals/js-types/global/constructor': [FAIL],
+  'proposals/js-types/global/value-get-set': [FAIL],
+  'proposals/js-types/instance/constructor': [FAIL],
+
+  'prototypes': [FAIL],
+
+  # Outdated proposals, will work after rebasing.
+  'proposals/reference-types/global/value-get-set': [FAIL],
+  'proposals/reference-types/global/constructor': [FAIL],
+  'proposals/bulk-memory-operations/global/value-get-set': [FAIL],
+  'proposals/bulk-memory-operations/global/constructor': [FAIL],
+
+  # These are slow, and not useful to run for the proposals:
+  'proposals/reference-types/limits': [SKIP],
+  'proposals/bulk-memory-operations/limits': [SKIP],
+  'proposals/js-types/limits': [SKIP],
+  # TODO(wasm): Update memory limit.
+  'limits': [FAIL],
 }], # ALWAYS
 
 ['arch == s390 or arch == s390x or system == aix', {
@@ -14,15 +35,21 @@
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
 
+['mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan', {
+  # Slow, and we always have the same limits anyway.
+  # ODroid bots don't have enough memory to run the test.
+  'limits': [SKIP],
+}],  # mode == debug or simulator_run or variant != default or arch == arm or tsan or msan or asan
+
 ##############################################################################
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   '*': [SKIP],
 }], # lite_mode or variant == jitless
 
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

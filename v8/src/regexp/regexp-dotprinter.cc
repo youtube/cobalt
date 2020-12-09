@@ -114,6 +114,15 @@ void DotPrinterImpl::VisitChoice(ChoiceNode* that) {
   }
 }
 
+void DotPrinterImpl::VisitLoopChoice(LoopChoiceNode* that) {
+  VisitChoice(that);
+}
+
+void DotPrinterImpl::VisitNegativeLookaroundChoice(
+    NegativeLookaroundChoiceNode* that) {
+  VisitChoice(that);
+}
+
 void DotPrinterImpl::VisitText(TextNode* that) {
   Zone* zone = that->zone();
   os_ << "  n" << that << " [label=\"";
@@ -134,7 +143,7 @@ void DotPrinterImpl::VisitText(TextNode* that) {
         if (node->is_negated()) os_ << "^";
         for (int j = 0; j < node->ranges(zone)->length(); j++) {
           CharacterRange range = node->ranges(zone)->at(j);
-          os_ << AsUC16(range.from()) << "-" << AsUC16(range.to());
+          os_ << AsUC32(range.from()) << "-" << AsUC32(range.to());
         }
         os_ << "]";
         break;
@@ -191,7 +200,7 @@ void DotPrinterImpl::VisitAssertion(AssertionNode* that) {
 void DotPrinterImpl::VisitAction(ActionNode* that) {
   os_ << "  n" << that << " [";
   switch (that->action_type_) {
-    case ActionNode::SET_REGISTER:
+    case ActionNode::SET_REGISTER_FOR_LOOP:
       os_ << "label=\"$" << that->data_.u_store_register.reg
           << ":=" << that->data_.u_store_register.value << "\", shape=octagon";
       break;

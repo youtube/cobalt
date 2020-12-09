@@ -42,7 +42,7 @@ constexpr bool kEnableSlowChecks = true;
 #else
 constexpr bool kEnableSlowChecks = false;
 #endif
-}
+}  // namespace
 
 namespace v8 {
 namespace internal {

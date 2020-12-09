@@ -48,7 +48,7 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kSize);
+  Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kHeaderSize);
   Handle<JSObject> weakset_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj), isolate);
   // Do not leak handles for the hash table, it would make entries strong.
@@ -165,6 +165,7 @@ TEST(WeakSet_Shrinking) {
 TEST(WeakSet_Regress2060a) {
   if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
@@ -206,6 +207,7 @@ TEST(WeakSet_Regress2060b) {
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
+  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);

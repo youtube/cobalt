@@ -176,7 +176,7 @@ async function* asyncGeneratorForToString() {}
 assertEquals("async function* asyncGeneratorForToString() {}",
              asyncGeneratorForToString.toString());
 
-assertEquals("async function* () {}", async function*() {}.toString());
+assertEquals("async function*() {}", async function*() {}.toString());
 assertEquals("async function* namedAsyncGeneratorForToString() {}",
              async function* namedAsyncGeneratorForToString() {}.toString());
 
@@ -187,9 +187,9 @@ assertEquals("async *method() { }",
 assertEquals("async *method() { }",
              (new (class { async *method() { } })).method.toString());
 
-assertEquals("async function* anonymous() {\n\n}",
+assertEquals("async function* anonymous(\n) {\n\n}",
              AsyncGeneratorFunction().toString());
-assertEquals("async function* anonymous() {\n\n}",
+assertEquals("async function* anonymous(\n) {\n\n}",
              (new AsyncGeneratorFunction()).toString());
 
 // ----------------------------------------------------------------------------

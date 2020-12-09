@@ -28,7 +28,8 @@ class BranchEliminationTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     machine());
-    GraphReducer graph_reducer(zone(), graph(), tick_counter(), jsgraph.Dead());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker(),
+                               jsgraph.Dead());
     BranchElimination branch_condition_elimination(&graph_reducer, &jsgraph,
                                                    zone());
     graph_reducer.AddReducer(&branch_condition_elimination);
@@ -38,7 +39,6 @@ class BranchEliminationTest : public GraphTest {
  private:
   MachineOperatorBuilder machine_;
 };
-
 
 TEST_F(BranchEliminationTest, NestedBranchSameTrue) {
   // { return (x ? (x ? 1 : 2) : 3; }
@@ -79,7 +79,6 @@ TEST_F(BranchEliminationTest, NestedBranchSameTrue) {
               IsPhi(MachineRepresentation::kWord32, IsInt32Constant(1),
                     IsInt32Constant(2), IsMerge(outer_if_true, IsDead())));
 }
-
 
 TEST_F(BranchEliminationTest, NestedBranchSameFalse) {
   // { return (x ? 1 : (x ? 2 : 3); }
@@ -122,10 +121,9 @@ TEST_F(BranchEliminationTest, NestedBranchSameFalse) {
                     IsInt32Constant(3), IsMerge(IsDead(), outer_if_false)));
 }
 
-
 TEST_F(BranchEliminationTest, BranchAfterDiamond) {
   // { var y = x ? 1 : 2; return y + x ? 3 : 4; }
-  // should not be reduced.
+  // second branch's condition should be replaced with a phi.
   Node* condition = Parameter(0);
 
   Node* branch1 =
@@ -136,7 +134,7 @@ TEST_F(BranchEliminationTest, BranchAfterDiamond) {
   Node* phi1 =
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
                        Int32Constant(1), Int32Constant(2), merge1);
-
+  // Second branch use the same condition.
   Node* branch2 = graph()->NewNode(common()->Branch(), condition, merge1);
   Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
   Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
@@ -144,7 +142,6 @@ TEST_F(BranchEliminationTest, BranchAfterDiamond) {
   Node* phi2 =
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
                        Int32Constant(3), Int32Constant(4), merge1);
-
 
   Node* add = graph()->NewNode(machine()->Int32Add(), phi1, phi2);
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
@@ -154,12 +151,12 @@ TEST_F(BranchEliminationTest, BranchAfterDiamond) {
 
   Reduce();
 
-  // Outer branch should not be rewritten, the inner branch condition should
-  // be true.
-  EXPECT_THAT(branch1, IsBranch(condition, graph()->start()));
-  EXPECT_THAT(branch2, IsBranch(condition, merge1));
+  // The branch condition for branch2 should be a phi with constants.
+  EXPECT_THAT(branch2,
+              IsBranch(IsPhi(MachineRepresentation::kWord32, IsInt32Constant(1),
+                             IsInt32Constant(0), merge1),
+                       merge1));
 }
-
 
 TEST_F(BranchEliminationTest, BranchInsideLoopSame) {
   // if (x) while (x) { return 2; } else { return 1; }
@@ -171,7 +168,6 @@ TEST_F(BranchEliminationTest, BranchInsideLoopSame) {
   Node* outer_branch =
       graph()->NewNode(common()->Branch(), condition, graph()->start());
   Node* outer_if_true = graph()->NewNode(common()->IfTrue(), outer_branch);
-
 
   Node* loop = graph()->NewNode(common()->Loop(1), outer_if_true);
   Node* effect =

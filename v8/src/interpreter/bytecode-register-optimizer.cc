@@ -233,15 +233,20 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   // a vector of register metadata.
   // There is at least one parameter, which is the JS receiver.
   DCHECK_NE(parameter_count, 0);
+#ifdef V8_REVERSE_JSARGS
+  int first_slot_index = parameter_count - 1;
+#else
+  int first_slot_index = 0;
+#endif
   register_info_table_offset_ =
-      -Register::FromParameterIndex(0, parameter_count).index();
+      -Register::FromParameterIndex(first_slot_index, parameter_count).index();
 
   // Initialize register map for parameters, locals, and the
   // accumulator.
   register_info_table_.resize(register_info_table_offset_ +
                               static_cast<size_t>(temporary_base_.index()));
   for (size_t i = 0; i < register_info_table_.size(); ++i) {
-    register_info_table_[i] = new (zone) RegisterInfo(
+    register_info_table_[i] = zone->New<RegisterInfo>(
         RegisterFromRegisterInfoTableIndex(i), NextEquivalenceId(), true, true);
     DCHECK_EQ(register_info_table_[i]->register_value().index(),
               RegisterFromRegisterInfoTableIndex(i).index());
@@ -469,7 +474,7 @@ void BytecodeRegisterOptimizer::GrowRegisterMap(Register reg) {
     register_info_table_.resize(new_size);
     for (size_t i = old_size; i < new_size; ++i) {
       register_info_table_[i] =
-          new (zone()) RegisterInfo(RegisterFromRegisterInfoTableIndex(i),
+          zone()->New<RegisterInfo>(RegisterFromRegisterInfoTableIndex(i),
                                     NextEquivalenceId(), true, false);
     }
   }

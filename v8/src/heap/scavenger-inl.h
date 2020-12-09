@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_SCAVENGER_INL_H_
 #define V8_HEAP_SCAVENGER_INL_H_
 
-#include "src/heap/scavenger.h"
-
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/local-allocator-inl.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/scavenger.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
@@ -97,7 +97,7 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
   // with  page initialization.
   HeapObject heap_object;
   if (object->GetHeapObject(&heap_object)) {
-    MemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
   }
 #endif
 }
@@ -135,8 +135,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation =
-      allocator_.Allocate(NEW_SPACE, object_size, alignment);
+  AllocationResult allocation = allocator_.Allocate(
+      NEW_SPACE, object_size, AllocationOrigin::kGC, alignment);
 
   HeapObject target;
   if (allocation.To(&target)) {
@@ -171,8 +171,8 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation =
-      allocator_.Allocate(OLD_SPACE, object_size, alignment);
+  AllocationResult allocation = allocator_.Allocate(
+      OLD_SPACE, object_size, AllocationOrigin::kGC, alignment);
 
   HeapObject target;
   if (allocation.To(&target)) {
@@ -211,7 +211,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
           FLAG_young_generation_large_objects &&
-          MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
+          BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());
     if (object.synchronized_compare_and_swap_map_word(
@@ -476,13 +476,20 @@ void ScavengeVisitor::VisitPointersImpl(HeapObject host, TSlot start,
   }
 }
 
+int ScavengeVisitor::VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
+  object.YoungMarkExtension();
+  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+  return size;
+}
+
 int ScavengeVisitor::VisitEphemeronHashTable(Map map,
                                              EphemeronHashTable table) {
   // Register table with the scavenger, so it can take care of the weak keys
   // later. This allows to only iterate the tables' values, which are treated
   // as strong independetly of whether the key is live.
   scavenger_->AddEphemeronHashTable(table);
-  for (int i = 0; i < table.Capacity(); i++) {
+  for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
     VisitPointer(table, value_slot);

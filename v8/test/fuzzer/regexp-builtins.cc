@@ -62,8 +62,7 @@ REGEXP_BUILTINS(CASE)
 #undef CASE
 
 v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* s) {
-  return v8::String::NewFromUtf8(isolate, s, v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(isolate, s).ToLocalChecked();
 }
 
 v8::MaybeLocal<v8::Value> CompileRun(v8::Local<v8::Context> context,
@@ -337,8 +336,14 @@ bool ResultsAreIdentical(FuzzerArgs* args) {
   std::string source =
       "assertEquals(fast.exception, slow.exception);\n"
       "assertEquals(fast.result, slow.result);\n"
-      "if (fast.result !== null)\n"
+      "if (fast.result !== null) {\n"
       "  assertEquals(fast.result.groups, slow.result.groups);\n"
+      "  assertEquals(fast.result.indices, slow.result.indices);\n"
+      "  if (fast.result.indices !== undefined) {\n"
+      "    assertEquals(fast.result.indices.groups,\n"
+      "                 slow.result.indices.groups);\n"
+      "  }\n"
+      "}\n"
       "assertEquals(fast.re.lastIndex, slow.re.lastIndex);\n";
 
   v8::Local<v8::Value> result;

@@ -27,12 +27,11 @@ namespace {
 class BlockingCompilationJob : public OptimizedCompilationJob {
  public:
   BlockingCompilationJob(Isolate* isolate, Handle<JSFunction> function)
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
-                                "BlockingCompilationJob",
+      : OptimizedCompilationJob(&info_, "BlockingCompilationJob",
                                 State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
-        info_(&zone_, isolate, shared_, function),
+        info_(&zone_, isolate, shared_, function, CodeKind::OPTIMIZED_FUNCTION),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
@@ -43,7 +42,7 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
   // OptimiziedCompilationJob implementation.
   Status PrepareJobImpl(Isolate* isolate) override { UNREACHABLE(); }
 
-  Status ExecuteJobImpl() override {
+  Status ExecuteJobImpl(RuntimeCallStats* stats) override {
     blocking_.SetValue(true);
     semaphore_.Wait();
     blocking_.SetValue(false);

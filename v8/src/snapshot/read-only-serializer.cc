@@ -16,9 +16,11 @@
 namespace v8 {
 namespace internal {
 
-ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate)
-    : RootsSerializer(isolate, RootIndex::kFirstReadOnlyRoot) {
+ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
+                                       Snapshot::SerializerFlags flags)
+    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {
   STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {
@@ -49,7 +51,8 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   // No active threads.
   CHECK_NULL(isolate()->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(isolate()->handle_scope_implementer()->blocks()->empty());
+  CHECK_IMPLIES(!allow_active_isolate_for_testing(),
+                isolate()->handle_scope_implementer()->blocks()->empty());
 
   ReadOnlyRoots(isolate()).Iterate(this);
 }
@@ -83,12 +86,9 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
     // be saved without problems.
     return false;
   }
-  // Just defer everything except for Map objects until all required roots are
-  // serialized. Some objects may have special alignment requirements, that may
-  // not be fulfilled during deserialization until few first root objects are
-  // serialized. But we must serialize Map objects since deserializer checks
-  // that these root objects are indeed Maps.
-  return !object.IsMap();
+  // Defer objects with special alignment requirements until the filler roots
+  // are serialized.
+  return HeapObject::RequiredAlignment(object.map()) != kWordAligned;
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(

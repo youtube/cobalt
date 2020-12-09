@@ -30,29 +30,38 @@ namespace {
 
 Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                        Handle<JSReceiver> new_target, Handle<Object> length,
-                       bool initialize) {
+                       InitializedFlag initialized) {
+  SharedFlag shared = (*target != target->native_context().array_buffer_fun())
+                          ? SharedFlag::kShared
+                          : SharedFlag::kNotShared;
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  auto array_buffer = Handle<JSArrayBuffer>::cast(result);
+  // Ensure that all fields are initialized because BackingStore::Allocate is
+  // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer
+  // after BackingStore::Allocate because of the spec.
+  array_buffer->Setup(shared, nullptr);
+
   size_t byte_length;
   if (!TryNumberToSize(*length, &byte_length) ||
       byte_length > JSArrayBuffer::kMaxByteLength) {
-    JSArrayBuffer::SetupAsEmpty(Handle<JSArrayBuffer>::cast(result), isolate);
+    // ToNumber failed.
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  SharedFlag shared_flag =
-      (*target == target->native_context().array_buffer_fun())
-          ? SharedFlag::kNotShared
-          : SharedFlag::kShared;
-  if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
-                                          isolate, byte_length, initialize,
-                                          shared_flag)) {
+
+  auto backing_store =
+      BackingStore::Allocate(isolate, byte_length, shared, initialized);
+  if (!backing_store) {
+    // Allocation of backing store failed.
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
   }
-  return *result;
+
+  array_buffer->Attach(std::move(backing_store));
+  return *array_buffer;
 }
 
 }  // namespace
@@ -80,7 +89,8 @@ BUILTIN(ArrayBufferConstructor) {
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
     }
 
-    return ConstructBuffer(isolate, target, new_target, number_length, true);
+    return ConstructBuffer(isolate, target, new_target, number_length,
+                           InitializedFlag::kZeroInitialized);
 }
 
 // This is a helper to construct an ArrayBuffer with uinitialized memory.
@@ -91,36 +101,8 @@ BUILTIN(ArrayBufferConstructor_DoNotInitialize) {
   Handle<JSFunction> target(isolate->native_context()->array_buffer_fun(),
                             isolate);
   Handle<Object> length = args.atOrUndefined(isolate, 1);
-  return ConstructBuffer(isolate, target, target, length, false);
-}
-
-// ES6 section 24.1.4.1 get ArrayBuffer.prototype.byteLength
-BUILTIN(ArrayBufferPrototypeGetByteLength) {
-  const char* const kMethodName = "get ArrayBuffer.prototype.byteLength";
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
-  CHECK_SHARED(false, array_buffer, kMethodName);
-  // TODO(franzih): According to the ES6 spec, we should throw a TypeError
-  // here if the JSArrayBuffer is detached.
-  return *isolate->factory()->NewNumberFromSize(array_buffer->byte_length());
-}
-
-// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
-BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
-  const char* const kMethodName = "get SharedArrayBuffer.prototype.byteLength";
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
-                 "get SharedArrayBuffer.prototype.byteLength");
-  CHECK_SHARED(true, array_buffer, kMethodName);
-  return *isolate->factory()->NewNumberFromSize(array_buffer->byte_length());
-}
-
-// ES6 section 24.1.3.1 ArrayBuffer.isView ( arg )
-BUILTIN(ArrayBufferIsView) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  Object arg = args[1];
-  return isolate->heap()->ToBoolean(arg.IsJSArrayBufferView());
+  return ConstructBuffer(isolate, target, target, length,
+                         InitializedFlag::kUninitialized);
 }
 
 static Object SliceHelper(BuiltinArguments args, Isolate* isolate,

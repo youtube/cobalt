@@ -5,9 +5,9 @@
 #include "src/compiler/map-inference.h"
 
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/vector-slot-pair.h"
 #include "src/objects/map-inl.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -91,9 +91,16 @@ MapHandles const& MapInference::GetMaps() {
   return maps_;
 }
 
-void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
-                                   Node* control,
-                                   const VectorSlotPair& feedback) {
+bool MapInference::Is(Handle<Map> expected_map) {
+  if (!HaveMaps()) return false;
+  const MapHandles& maps = GetMaps();
+  if (maps.size() != 1) return false;
+  return maps[0].equals(expected_map);
+}
+
+void MapInference::InsertMapChecks(JSGraph* jsgraph, Effect* effect,
+                                   Control control,
+                                   const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   CHECK(feedback.IsValid());
   ZoneHandleSet<Map> maps;
@@ -107,12 +114,12 @@ void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
 bool MapInference::RelyOnMapsViaStability(
     CompilationDependencies* dependencies) {
   CHECK(HaveMaps());
-  return RelyOnMapsHelper(dependencies, nullptr, nullptr, nullptr, {});
+  return RelyOnMapsHelper(dependencies, nullptr, nullptr, Control{nullptr}, {});
 }
 
 bool MapInference::RelyOnMapsPreferStability(
-    CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
-    Node* control, const VectorSlotPair& feedback) {
+    CompilationDependencies* dependencies, JSGraph* jsgraph, Effect* effect,
+    Control control, const FeedbackSource& feedback) {
   CHECK(HaveMaps());
   if (Safe()) return false;
   if (RelyOnMapsViaStability(dependencies)) return true;
@@ -121,9 +128,9 @@ bool MapInference::RelyOnMapsPreferStability(
 }
 
 bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
-                                    JSGraph* jsgraph, Node** effect,
-                                    Node* control,
-                                    const VectorSlotPair& feedback) {
+                                    JSGraph* jsgraph, Effect* effect,
+                                    Control control,
+                                    const FeedbackSource& feedback) {
   if (Safe()) return true;
 
   auto is_stable = [this](Handle<Map> map) {

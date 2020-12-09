@@ -7,13 +7,15 @@
 
 #include <map>
 
+#include "src/codegen/external-reference-encoder.h"
 #include "src/execution/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-allocator.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -32,8 +34,8 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Move(from.address(), to.address());
   }
 
-  void CodeDisableOptEvent(AbstractCode code,
-                           SharedFunctionInfo shared) override {}
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override {}
 
   const char* Lookup(Address address) {
     return address_to_name_map_.Lookup(address);
@@ -114,9 +116,10 @@ class CodeAddressMap : public CodeEventLogger {
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
-  void LogRecordedBuffer(AbstractCode code, SharedFunctionInfo,
-                         const char* name, int length) override {
-    address_to_name_map_.Insert(code.address(), name, length);
+  void LogRecordedBuffer(Handle<AbstractCode> code,
+                         MaybeHandle<SharedFunctionInfo>, const char* name,
+                         int length) override {
+    address_to_name_map_.Insert(code->address(), name, length);
   }
 
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
@@ -156,8 +159,7 @@ class ObjectCacheIndexMap {
 
 class Serializer : public SerializerDeserializer {
  public:
-  explicit Serializer(Isolate* isolate);
-  ~Serializer() override;
+  Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
 
   std::vector<SerializedData::Reservation> EncodeReservations() const {
     return allocator_.EncodeReservations();
@@ -174,6 +176,9 @@ class Serializer : public SerializerDeserializer {
   Isolate* isolate() const { return isolate_; }
 
  protected:
+  using PendingObjectReference =
+      std::map<HeapObject, std::vector<int>>::iterator;
+
   class ObjectSerializer;
   class RecursionScope {
    public:
@@ -197,16 +202,23 @@ class Serializer : public SerializerDeserializer {
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
-  void SerializeRootObject(Object object);
+  void SerializeRootObject(FullObjectSlot slot);
 
   void PutRoot(RootIndex root_index, HeapObject object);
-  void PutSmi(Smi smi);
+  void PutSmiRoot(FullObjectSlot slot);
   void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject object);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
+
+  // Emit a marker noting that this slot is a forward reference to the an
+  // object which has not yet been serialized.
+  void PutPendingForwardReferenceTo(PendingObjectReference reference);
+  // Resolve the given previously registered forward reference to the current
+  // object.
+  void ResolvePendingForwardReference(int obj);
 
   // Returns true if the object was successfully serialized as a root.
   bool SerializeRoot(HeapObject obj);
@@ -217,11 +229,18 @@ class Serializer : public SerializerDeserializer {
   // Returns true if the object was successfully serialized as back reference.
   bool SerializeBackReference(HeapObject obj);
 
+  // Returns true if the object was successfully serialized as pending object.
+  bool SerializePendingObject(HeapObject obj);
+
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject obj) const;
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
+  }
+  Maybe<ExternalReferenceEncoder::Value> TryEncodeExternalReference(
+      Address addr) {
+    return external_reference_encoder_.TryEncode(addr);
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
@@ -235,10 +254,18 @@ class Serializer : public SerializerDeserializer {
   Code CopyCode(Code code);
 
   void QueueDeferredObject(HeapObject obj) {
-    DCHECK(reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
-               .is_back_reference());
+    DCHECK(!reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()))
+                .is_valid());
     deferred_objects_.push_back(obj);
   }
+
+  // Register that the the given object shouldn't be immediately serialized, but
+  // will be serialized later and any references to it should be pending forward
+  // references.
+  PendingObjectReference RegisterObjectIsPending(HeapObject obj);
+
+  // Resolve the given pending object reference with the current object.
+  void ResolvePendingObject(PendingObjectReference ref);
 
   void OutputStatistics(const char* name);
 
@@ -259,21 +286,49 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
+  bool allow_unknown_external_references_for_testing() const {
+    return (flags_ & Snapshot::kAllowUnknownExternalReferencesForTesting) != 0;
+  }
+  bool allow_active_isolate_for_testing() const {
+    return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
+  }
+
  private:
+  // Disallow GC during serialization.
+  // TODO(leszeks, v8:10815): Remove this constraint.
+  DisallowHeapAllocation no_gc;
+
   Isolate* isolate_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
-  CodeAddressMap* code_address_map_ = nullptr;
+  std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
   std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
+
+  // Objects which have started being serialized, but haven't yet been allocated
+  // with the allocator, are considered "pending". References to them don't have
+  // an allocation to backref to, so instead they are registered as pending
+  // forward references, which are resolved once the object is allocated.
+  //
+  // Forward references are registered in a deterministic order, and can
+  // therefore be identified by an incrementing integer index, which is
+  // effectively an index into a vector of the currently registered forward
+  // refs. The references in this vector might not be resolved in order, so we
+  // can only clear it (and reset the indices) when there are no unresolved
+  // forward refs remaining.
+  int next_forward_ref_id_ = 0;
+  int unresolved_forward_refs_ = 0;
+  std::map<HeapObject, std::vector<int>> forward_refs_per_pending_object_;
+
   int recursion_depth_ = 0;
+  const Snapshot::SerializerFlags flags_;
   SerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
-  static const int kInstanceTypes = LAST_TYPE + 1;
-  int* instance_type_count_[kNumberOfSpaces];
-  size_t* instance_type_size_[kNumberOfSpaces];
+  static constexpr int kInstanceTypes = LAST_TYPE + 1;
+  std::unique_ptr<int[]> instance_type_count_[kNumberOfSpaces];
+  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -326,9 +381,11 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
+  void OutputExternalReference(Address target, int target_size,
+                               bool sandboxify);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
-  int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();

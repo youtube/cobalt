@@ -10,13 +10,13 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/objects.h"
-#include "src/snapshot/natives.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
@@ -220,7 +220,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
       : name_(name), segment_(segment), align_(align), flags_(flags) {
     if (align_ != 0) {
       DCHECK(base::bits::IsPowerOfTwo(align));
-      align_ = WhichPowerOf2(align_);
+      align_ = base::bits::WhichPowerOfTwo(align_);
     }
   }
 
@@ -570,8 +570,8 @@ class MachO {
 class ELF {
  public:
   explicit ELF(Zone* zone) : sections_(zone) {
-    sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
-    sections_.push_back(new (zone) ELFStringTable(".shstrtab"));
+    sections_.push_back(zone->New<ELFSection>("", ELFSection::TYPE_NULL, 0));
+    sections_.push_back(zone->New<ELFStringTable>(".shstrtab"));
   }
 
   void Write(Writer* w) {
@@ -902,8 +902,7 @@ class CodeDescription {
   LineInfo* lineinfo() const { return lineinfo_; }
 
   bool is_function() const {
-    Code::Kind kind = code_.kind();
-    return kind == Code::OPTIMIZED_FUNCTION;
+    return CodeKindIsOptimizedJSFunction(code_.kind());
   }
 
   bool has_scope_info() const { return !shared_info_.is_null(); }
@@ -974,8 +973,8 @@ class CodeDescription {
 #if defined(__ELF)
 static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
                                size_t text_section_index) {
-  ELFSymbolTable* symtab = new (zone) ELFSymbolTable(".symtab", zone);
-  ELFStringTable* strtab = new (zone) ELFStringTable(".strtab");
+  ELFSymbolTable* symtab = zone->New<ELFSymbolTable>(".symtab", zone);
+  ELFStringTable* strtab = zone->New<ELFStringTable>(".strtab");
 
   // Symbol table should be followed by the linked string table.
   elf->AddSection(symtab);
@@ -1105,25 +1104,22 @@ class DebugInfoSection : public DebugSection {
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(JavaScriptFrameConstants::kLastParameterOffset +
+        w->WriteSLEB128(StandardFrameConstants::kFixedFrameSizeAboveFp +
                         kSystemPointerSize * (params - param - 1));
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
       // See contexts.h for more information.
-      DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 4);
+      DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 3);
       DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
       DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
       DCHECK_EQ(Context::EXTENSION_INDEX, 2);
-      DCHECK_EQ(Context::NATIVE_CONTEXT_INDEX, 3);
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".scope_info");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".previous");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".extension");
-      w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".native_context");
 
       for (int context_slot = 0; context_slot < context_slots; ++context_slot) {
         w->WriteULEB128(current_abbreviation++);
@@ -1139,7 +1135,7 @@ class DebugInfoSection : public DebugSection {
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(JavaScriptFrameConstants::kFunctionOffset);
+        w->WriteSLEB128(StandardFrameConstants::kFunctionOffset);
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
@@ -1695,12 +1691,12 @@ bool UnwindInfoSection::WriteBodyInternal(Writer* w) {
 static void CreateDWARFSections(CodeDescription* desc, Zone* zone,
                                 DebugObject* obj) {
   if (desc->IsLineInfoAvailable()) {
-    obj->AddSection(new (zone) DebugInfoSection(desc));
-    obj->AddSection(new (zone) DebugAbbrevSection(desc));
-    obj->AddSection(new (zone) DebugLineSection(desc));
+    obj->AddSection(zone->New<DebugInfoSection>(desc));
+    obj->AddSection(zone->New<DebugAbbrevSection>(desc));
+    obj->AddSection(zone->New<DebugLineSection>(desc));
   }
 #if V8_TARGET_ARCH_X64
-  obj->AddSection(new (zone) UnwindInfoSection(desc));
+  obj->AddSection(zone->New<UnwindInfoSection>(desc));
 #endif
 }
 
@@ -1792,8 +1788,11 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   MachO mach_o(&zone);
   Writer w(&mach_o);
 
-  mach_o.AddSection(new (&zone) MachOTextSection(
-      kCodeAlignment, desc->CodeStart(), desc->CodeSize()));
+  const uint32_t code_alignment = static_cast<uint32_t>(kCodeAlignment);
+  static_assert(code_alignment == kCodeAlignment,
+                "Unsupported code alignment value");
+  mach_o.AddSection(zone.New<MachOTextSection>(
+      code_alignment, desc->CodeStart(), desc->CodeSize()));
 
   CreateDWARFSections(desc, &zone, &mach_o);
 
@@ -1803,7 +1802,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   ELF elf(&zone);
   Writer w(&elf);
 
-  size_t text_section_index = elf.AddSection(new (&zone) FullHeaderELFSection(
+  size_t text_section_index = elf.AddSection(zone.New<FullHeaderELFSection>(
       ".text", ELFSection::TYPE_NOBITS, kCodeAlignment, desc->CodeStart(), 0,
       desc->CodeSize(), ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 

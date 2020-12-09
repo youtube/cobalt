@@ -8,19 +8,25 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
-#endif
+#endif  // V8_OS_WIN64
 
 namespace v8 {
 namespace internal {
 
 static constexpr char kDefaultEmbeddedVariant[] = "Default";
+
+struct LabelInfo {
+  int offset;
+  std::string name;
+};
 
 // Detailed source-code information about builtins can only be obtained by
 // registration on the isolate during compilation.
@@ -35,11 +41,14 @@ class EmbeddedFileWriterInterface {
   // compiled builtin Code objects with trampolines.
   virtual void PrepareBuiltinSourcePositionMap(Builtins* builtins) = 0;
 
-#if defined(V8_OS_WIN_X64)
+  virtual void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_offset,
+                                          int arguments_adaptor_offset) = 0;
+
+#if defined(V8_OS_WIN64)
   virtual void SetBuiltinUnwindData(
       int builtin_index,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) = 0;
-#endif
+#endif  // V8_OS_WIN64
 };
 
 // Generates the embedded.S file which is later compiled into the final v8
@@ -59,14 +68,17 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
   void PrepareBuiltinSourcePositionMap(Builtins* builtins) override;
 
-#if defined(V8_OS_WIN_X64)
+  void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_create,
+                                  int arguments_adaptor_offset) override;
+
+#if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
       int builtin_index,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
     DCHECK_LT(builtin_index, Builtins::builtin_count);
     unwind_infos_[builtin_index] = unwinding_info;
   }
-#endif
+#endif  // V8_OS_WIN64
 
   void SetEmbeddedFile(const char* embedded_src_path) {
     embedded_src_path_ = embedded_src_path;
@@ -120,6 +132,11 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void WriteExternalFilenames(PlatformEmbeddedFileWriterBase* w) const {
+#ifndef DEBUG
+    // Release builds must not contain debug infos.
+    CHECK_EQ(external_filenames_by_index_.size(), 0);
+#endif
+
     w->Comment(
         "Source positions in the embedded blob refer to filenames by id.");
     w->Comment("Assembly directives here map the id to a filename.");
@@ -166,6 +183,9 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
                     const i::EmbeddedData* blob, const int builtin_id) const;
 
+  void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
+                          std::string name) const;
+
   void WriteInstructionStreams(PlatformEmbeddedFileWriterBase* w,
                                const i::EmbeddedData* blob) const {
     w->Comment("The embedded blob data starts here. It contains the builtin");
@@ -186,9 +206,6 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
                          const i::EmbeddedData* blob) const;
 
 #if defined(V8_OS_WIN_X64)
-  std::string BuiltinsUnwindInfoLabel() const;
-  void WriteUnwindInfo(PlatformEmbeddedFileWriterBase* w,
-                       const i::EmbeddedData* blob) const;
   void WriteUnwindInfoEntry(PlatformEmbeddedFileWriterBase* w,
                             uint64_t rva_start, uint64_t rva_end) const;
 #endif
@@ -207,10 +224,11 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
  private:
   std::vector<byte> source_positions_[Builtins::builtin_count];
+  std::vector<LabelInfo> label_info_[Builtins::builtin_count];
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];
-#endif
+#endif  // V8_OS_WIN64
 
   std::map<const char*, int> external_filenames_;
   std::vector<const char*> external_filenames_by_index_;

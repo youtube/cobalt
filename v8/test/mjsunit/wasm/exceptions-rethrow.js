@@ -21,16 +21,16 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd,
   ]).exportFunc();
   builder.addFunction("rethrow1", kSig_i_i)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,
         kExprCatch,
-          kExprSetLocal, 1,
-          kExprGetLocal, 0,
+          kExprLocalSet, 1,
+          kExprLocalGet, 0,
           kExprI32Eqz,
           kExprIf, kWasmStmt,
-            kExprGetLocal, 1,
+            kExprLocalGet, 1,
             kExprRethrow,
           kExprEnd,
           kExprI32Const, 23,
@@ -51,28 +51,28 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except1 = builder.addException(kSig_v_v);
   let except2 = builder.addException(kSig_v_v);
   builder.addFunction("rethrow_nested", kSig_i_i)
-      .addLocals({except_count: 2})
+      .addLocals(kWasmExnRef, 2)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except2,
         kExprCatch,
-          kExprSetLocal, 2,
+          kExprLocalSet, 2,
           kExprTry, kWasmI32,
             kExprThrow, except1,
           kExprCatch,
-            kExprSetLocal, 1,
-            kExprGetLocal, 0,
+            kExprLocalSet, 1,
+            kExprLocalGet, 0,
             kExprI32Const, 0,
             kExprI32Eq,
             kExprIf, kWasmStmt,
-              kExprGetLocal, 1,
+              kExprLocalGet, 1,
               kExprRethrow,
             kExprEnd,
-            kExprGetLocal, 0,
+            kExprLocalGet, 0,
             kExprI32Const, 1,
             kExprI32Eq,
             kExprIf, kWasmStmt,
-              kExprGetLocal, 2,
+              kExprLocalGet, 2,
               kExprRethrow,
             kExprEnd,
             kExprI32Const, 23,
@@ -93,17 +93,17 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_v);
   builder.addFunction("rethrow_recatch", kSig_i_i)
-      .addLocals({except_count: 1})
+      .addLocals(kWasmExnRef, 1)
       .addBody([
         kExprTry, kWasmI32,
           kExprThrow, except,
         kExprCatch,
-          kExprSetLocal, 1,
+          kExprLocalSet, 1,
           kExprTry, kWasmI32,
-            kExprGetLocal, 0,
+            kExprLocalGet, 0,
             kExprI32Eqz,
             kExprIf, kWasmStmt,
-              kExprGetLocal, 1,
+              kExprLocalGet, 1,
               kExprRethrow,
             kExprEnd,
             kExprI32Const, 42,

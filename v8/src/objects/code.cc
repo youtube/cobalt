@@ -4,6 +4,7 @@
 
 #include <iomanip>
 
+#include "src/execution/isolate-utils.h"
 #include "src/objects/code.h"
 
 #include "src/codegen/assembler-inl.h"
@@ -106,7 +107,6 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
 
   // Unbox handles and relocate.
   Assembler* origin = desc.origin;
-  AllowDeferredHandleDereference embedding_raw_address;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
@@ -163,69 +163,17 @@ Address Code::OffHeapInstructionEnd() const {
          d.InstructionSizeOfBuiltin(builtin_index());
 }
 
-namespace {
-template <typename Code>
-void SetStackFrameCacheCommon(Isolate* isolate, Handle<Code> code,
-                              Handle<SimpleNumberDictionary> cache) {
-  Handle<Object> maybe_table(code->source_position_table(), isolate);
-  if (maybe_table->IsException(isolate) || maybe_table->IsUndefined()) return;
-  if (maybe_table->IsSourcePositionTableWithFrameCache()) {
-    Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
-        ->set_stack_frame_cache(*cache);
-    return;
-  }
-  DCHECK(maybe_table->IsByteArray());
-  Handle<ByteArray> table(Handle<ByteArray>::cast(maybe_table));
-  Handle<SourcePositionTableWithFrameCache> table_with_cache =
-      isolate->factory()->NewSourcePositionTableWithFrameCache(table, cache);
-  code->set_source_position_table(*table_with_cache);
-}
-}  // namespace
-
-// static
-void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                      Handle<SimpleNumberDictionary> cache) {
-  if (abstract_code->IsCode()) {
-    SetStackFrameCacheCommon(
-        abstract_code->GetIsolate(),
-        handle(abstract_code->GetCode(), abstract_code->GetIsolate()), cache);
-  } else {
-    SetStackFrameCacheCommon(
-        abstract_code->GetIsolate(),
-        handle(abstract_code->GetBytecodeArray(), abstract_code->GetIsolate()),
-        cache);
-  }
-}
-
-namespace {
-template <typename Code>
-void DropStackFrameCacheCommon(Code code) {
-  i::Object maybe_table = code.source_position_table();
-  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
-  DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
-  code.set_source_position_table(
-      i::SourcePositionTableWithFrameCache::cast(maybe_table)
-          .source_position_table());
-}
-}  // namespace
-
-void AbstractCode::DropStackFrameCache() {
-  if (IsCode()) {
-    DropStackFrameCacheCommon(GetCode());
-  } else {
-    DropStackFrameCacheCommon(GetBytecodeArray());
-  }
-}
-
 int AbstractCode::SourcePosition(int offset) {
   Object maybe_table = source_position_table();
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
-  int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
   if (IsCode()) offset--;
-  for (SourcePositionTableIterator iterator(source_position_table);
+  int position = 0;
+  for (SourcePositionTableIterator iterator(
+           source_position_table, SourcePositionTableIterator::kJavaScriptOnly,
+           SourcePositionTableIterator::kDontSkipFunctionEntry);
        !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
     position = iterator.source_position().ScriptOffset();
@@ -250,17 +198,6 @@ int AbstractCode::SourceStatementPosition(int offset) {
   return statement_position;
 }
 
-void Code::PrintDeoptLocation(FILE* out, const char* str, Address pc) {
-  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*this, pc);
-  class SourcePosition pos = info.position;
-  if (info.deopt_reason != DeoptimizeReason::kUnknown || pos.IsKnown()) {
-    PrintF(out, "%s", str);
-    OFStream outstr(out);
-    pos.Print(outstr, *this);
-    PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
-  }
-}
-
 bool Code::CanDeoptAt(Address pc) {
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(deoptimization_data());
@@ -275,37 +212,13 @@ bool Code::CanDeoptAt(Address pc) {
   return false;
 }
 
-// Identify kind of code.
-const char* Code::Kind2String(Kind kind) {
-  switch (kind) {
-#define CASE(name) \
-  case name:       \
-    return #name;
-    CODE_KIND_LIST(CASE)
-#undef CASE
-    case NUMBER_OF_KINDS:
-      break;
-  }
-  UNREACHABLE();
-}
-
-// Identify kind of code.
-const char* AbstractCode::Kind2String(Kind kind) {
-  if (kind < AbstractCode::INTERPRETED_FUNCTION)
-    return Code::Kind2String(static_cast<Code::Kind>(kind));
-  if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
-  UNREACHABLE();
-}
-
 bool Code::IsIsolateIndependent(Isolate* isolate) {
-  constexpr int all_real_modes_mask =
-      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-  constexpr int mode_mask = all_real_modes_mask &
-                            ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-                            ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
-                            ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(mode_mask ==
+  static constexpr int kModeMask =
+      RelocInfo::AllRealModesMask() &
+      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+      ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
+      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  STATIC_ASSERT(kModeMask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
@@ -317,11 +230,13 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
-  bool is_process_independent = true;
-  for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_MIPS64)
+  return RelocIterator(*this, kModeMask).done();
+#elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||    \
     defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32)
+  for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. They are later
     // rewritten as pc-relative jumps to the off-heap instruction stream and are
@@ -334,11 +249,72 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       CHECK(target.IsCode());
       if (Builtins::IsIsolateIndependentBuiltin(target)) continue;
     }
+    return false;
+  }
+#else
+#error Unsupported architecture.
 #endif
-    is_process_independent = false;
+  return true;
+}
+
+// Multiple native contexts live on the same heap, and V8 currently
+// draws no clear distinction between native-context-dependent and
+// independent objects. A good guideline is "objects embedded into
+// bytecode are nc-independent", since bytecode is shared between
+// native contexts. Among others, this is the case for ScopeInfo,
+// SharedFunctionInfo, String, etc.
+bool Code::IsNativeContextIndependent(Isolate* isolate) {
+  static constexpr int kModeMask =
+      RelocInfo::AllRealModesMask() &
+      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+      ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) &
+      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
+      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+      ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
+      ~RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) &
+      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  STATIC_ASSERT(kModeMask ==
+                (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                 RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
+                 RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+                 RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+                 RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
+
+  bool is_independent = true;
+  for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
+    if (RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode())) {
+      HeapObject o = it.rinfo()->target_object();
+      // TODO(jgruber,v8:8888): Extend this with further NCI objects,
+      // and define a more systematic
+      // IsNativeContextIndependent<T>() predicate.
+      if (o.IsString()) continue;
+      if (o.IsScopeInfo()) continue;
+      if (o.IsHeapNumber()) continue;
+      if (o.IsBigInt()) continue;
+      if (o.IsSharedFunctionInfo()) continue;
+      if (o.IsArrayBoilerplateDescription()) continue;
+      if (o.IsObjectBoilerplateDescription()) continue;
+      if (o.IsTemplateObjectDescription()) continue;
+      if (o.IsFixedArray()) {
+        // Some uses of FixedArray are valid.
+        // 1. Passed as arg to %DeclareGlobals, contains only strings
+        //    and SFIs.
+        // 2. Passed as arg to %DefineClass. No well defined contents.
+        // .. ?
+        // TODO(jgruber): Consider assigning dedicated instance
+        //    types instead of assuming fixed arrays are okay.
+        continue;
+      }
+      // Other objects are expected to be context-dependent.
+      PrintF("Found native-context-dependent object:\n");
+      o.Print();
+      o.map().Print();
+    }
+    is_independent = false;
   }
 
-  return is_process_independent;
+  return is_independent;
 }
 
 bool Code::Inlines(SharedFunctionInfo sfi) {
@@ -383,7 +359,7 @@ Code Code::OptimizedCodeIterator::Next() {
     }
     current_code_ = next.IsUndefined(isolate_) ? Code() : Code::cast(next);
   } while (current_code_.is_null());
-  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, current_code_.kind());
+  DCHECK(CodeKindCanDeoptimize(current_code_.kind()));
   return current_code_;
 }
 
@@ -410,7 +386,7 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
 #ifdef ENABLE_DISASSEMBLER
 
 const char* Code::GetName(Isolate* isolate) const {
-  if (kind() == BYTECODE_HANDLER) {
+  if (kind() == CodeKind::BYTECODE_HANDLER) {
     return isolate->interpreter()->LookupNameOfBytecodeHandler(*this);
   } else {
     // There are some handlers and ICs that we can also find names for with
@@ -630,11 +606,14 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           break;
         }
 
-        case Translation::ARGUMENTS_ELEMENTS:
-        case Translation::ARGUMENTS_LENGTH: {
+        case Translation::ARGUMENTS_ELEMENTS: {
           CreateArgumentsType arguments_type =
               static_cast<CreateArgumentsType>(iterator.Next());
           os << "{arguments_type=" << arguments_type << "}";
+          break;
+        }
+        case Translation::ARGUMENTS_LENGTH: {
+          os << "{arguments_length}";
           break;
         }
 
@@ -663,8 +642,6 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address begin, size_t size,
                                  Address current_pc) {
   Address end = begin + size;
-  // TODO(mstarzinger): Refactor CodeReference to avoid the
-  // unhandlified->handlified transition.
   AllowHandleAllocation allow_handles;
   DisallowHeapAllocation no_gc;
   HandleScope handle_scope(isolate);
@@ -675,20 +652,20 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 
 }  // namespace
 
-void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
-  Isolate* isolate = GetIsolate();
-  os << "kind = " << Kind2String(kind()) << "\n";
+void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
+                       Address current_pc) {
+  os << "kind = " << CodeKindToString(kind()) << "\n";
   if (name == nullptr) {
     name = GetName(isolate);
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (kind() == OPTIMIZED_FUNCTION) {
+  if (CodeKindIsOptimizedJSFunction(kind())) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
-  os << "address = " << static_cast<const void*>(this) << "\n\n";
+  os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
   if (is_off_heap_trampoline()) {
     int trampoline_size = raw_instruction_size();
@@ -721,8 +698,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
 
   {
     SourcePositionTableIterator it(
-        SourcePositionTableIfCollected(),
-        SourcePositionTableIterator::kJavaScriptOnly);
+        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
     if (!it.done()) {
       os << "Source positions:\n pc offset  position\n";
       for (; !it.done(); it.Advance()) {
@@ -735,7 +711,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   {
-    SourcePositionTableIterator it(SourcePositionTableIfCollected(),
+    SourcePositionTableIterator it(SourcePositionTable(),
                                    SourcePositionTableIterator::kExternalOnly);
     if (!it.done()) {
       os << "External Source positions:\n pc offset  fileid  line\n";
@@ -749,7 +725,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     }
   }
 
-  if (kind() == OPTIMIZED_FUNCTION) {
+  if (CodeKindCanDeoptimize(kind())) {
     DeoptimizationData data =
         DeoptimizationData::cast(this->deoptimization_data());
     data.DeoptimizationDataPrint(os);
@@ -783,9 +759,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   if (has_handler_table()) {
     HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (kind() == OPTIMIZED_FUNCTION) {
+    if (CodeKindIsOptimizedJSFunction(kind()))
       table.HandlerTableReturnPrint(os);
-    }
     os << "\n";
   }
 
@@ -818,8 +793,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
-  SourcePositionTableIterator source_positions(
-      SourcePositionTableIfCollected());
+  SourcePositionTableIterator source_positions(SourcePositionTable());
 
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
@@ -877,6 +851,15 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     table.HandlerTableRangePrint(os);
   }
 #endif
+
+  ByteArray source_position_table = SourcePositionTable();
+  os << "Source Position Table (size = " << source_position_table.length()
+     << ")\n";
+#ifdef OBJECT_PRINT
+  if (source_position_table.length() > 0) {
+    os << Brief(source_position_table) << std::endl;
+  }
+#endif
 }
 
 void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
@@ -891,12 +874,11 @@ void BytecodeArray::MakeOlder() {
   // BytecodeArray is aged in concurrent marker.
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
-  DCHECK_LE(RoundDown(age_addr, kSystemPointerSize) + kSystemPointerSize,
-            address() + Size());
+  DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
-    base::AsAtomic8::Release_CompareAndSwap(reinterpret_cast<byte*>(age_addr),
-                                            age, age + 1);
+    base::AsAtomic8::Relaxed_CompareAndSwap(
+        reinterpret_cast<base::Atomic8*>(age_addr), age, age + 1);
   }
 
   DCHECK_GE(bytecode_age(), kFirstBytecodeAge);
@@ -996,8 +978,7 @@ Handle<DependentCode> DependentCode::EnsureSpace(
   int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
-      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by,
-                                                    AllocationType::kOld));
+      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by));
 }
 
 bool DependentCode::Compact() {
@@ -1020,14 +1001,14 @@ bool DependentCode::Compact() {
 }
 
 bool DependentCode::MarkCodeForDeoptimization(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   if (this->length() == 0 || this->group() > group) {
     // There is no such group.
     return false;
   }
   if (this->group() < group) {
     // The group comes later in the list.
-    return next_link().MarkCodeForDeoptimization(isolate, group);
+    return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation_scope;
@@ -1051,27 +1032,18 @@ bool DependentCode::MarkCodeForDeoptimization(
 }
 
 void DependentCode::DeoptimizeDependentCodeGroup(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   DisallowHeapAllocation no_allocation_scope;
-  bool marked = MarkCodeForDeoptimization(isolate, group);
+  bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
   }
 }
 
 void Code::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
-  if (FLAG_trace_deopt &&
-      (deoptimization_data() != GetReadOnlyRoots().empty_fixed_array())) {
-    DeoptimizationData deopt_data =
-        DeoptimizationData::cast(deoptimization_data());
-    CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
-    PrintF(scope.file(),
-           "[marking dependent code " V8PRIxPTR_FMT
-           " (opt #%d) for deoptimization, reason: %s]\n",
-           ptr(), deopt_data.OptimizationId().value(), reason);
-  }
+  Deoptimizer::TraceMarkForDeoptimization(*this, reason);
 }
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {
@@ -1082,8 +1054,12 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "prototype-check";
     case kPropertyCellChangedGroup:
       return "property-cell-changed";
-    case kFieldOwnerGroup:
-      return "field-owner";
+    case kFieldConstGroup:
+      return "field-const";
+    case kFieldTypeGroup:
+      return "field-type";
+    case kFieldRepresentationGroup:
+      return "field-representation";
     case kInitialMapChangedGroup:
       return "initial-map-changed";
     case kAllocationSiteTenuringChangedGroup:
@@ -1092,16 +1068,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-transition-changed";
   }
   UNREACHABLE();
-}
-
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
 }
 
 }  // namespace internal

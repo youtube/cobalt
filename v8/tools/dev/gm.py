@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -10,14 +10,20 @@ Uses Goma by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
-    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...]
+    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...] [--flag]
 
 All arguments are optional. Most combinations should work, e.g.:
     gm.py ia32.debug x64.release x64.release-my-custom-opts d8
-    gm.py android_arm.release.check
+    gm.py android_arm.release.check --progress=verbose
     gm.py x64 mjsunit/foo cctest/test-bar/*
+
+Flags are passed unchanged to the test runner. They must start with -- and must
+not contain spaces.
 """
 # See HELP below for additional documentation.
+# Note on Python3 compatibility: gm.py itself is Python3 compatible, but
+# run-tests.py, which will be executed by the same binary, is not; hence
+# the hashbang line at the top of this file explicitly requires Python2.
 
 from __future__ import print_function
 import errno
@@ -30,7 +36,8 @@ USE_PTY = "linux" in sys.platform
 if USE_PTY:
   import pty
 
-BUILD_TARGETS_TEST = ["d8", "cctest", "unittests"]
+BUILD_TARGETS_TEST = ["d8", "cctest", "inspector-test", "unittests",
+                      "wasm_api_tests"]
 BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
@@ -51,7 +58,7 @@ DEFAULT_TARGETS = ["d8"]
 # Tests that run-tests.py would run by default that can be run with
 # BUILD_TARGETS_TESTS.
 DEFAULT_TESTS = ["cctest", "debugger", "intl", "message", "mjsunit",
-                 "preparser", "unittests"]
+                 "unittests"]
 # These can be suffixed to any <arch>.<mode> combo, or used standalone,
 # or used as global modifiers (affecting all <arch>.<mode> combos).
 ACTIONS = {
@@ -82,10 +89,11 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
               "message": "d8",
               "mjsunit": "d8",
               "mozilla": "d8",
-              "preparser": "d8",
               "test262": "d8",
               "unittests": "unittests",
               "wasm-api-tests": "wasm_api_tests",
+              "wasm-js": "d8",
+              "wasm-spec-tests": "d8",
               "webkit": "d8"}
 
 OUTDIR = "out"
@@ -165,14 +173,14 @@ def _CallWithOutput(cmd):
   print("# %s" % cmd)
   # The following trickery is required so that the 'cmd' thinks it's running
   # in a real terminal, while this script gets to intercept its output.
-  master, slave = pty.openpty()
-  p = subprocess.Popen(cmd, shell=True, stdin=slave, stdout=slave, stderr=slave)
-  os.close(slave)
+  parent, child = pty.openpty()
+  p = subprocess.Popen(cmd, shell=True, stdin=child, stdout=child, stderr=child)
+  os.close(child)
   output = []
   try:
     while True:
       try:
-        data = os.read(master, 512)
+        data = os.read(parent, 512).decode('utf-8')
       except OSError as e:
         if e.errno != errno.EIO: raise
         break # EIO means EOF on some systems
@@ -183,7 +191,7 @@ def _CallWithOutput(cmd):
         sys.stdout.flush()
         output.append(data)
   finally:
-    os.close(master)
+    os.close(parent)
     p.wait()
   return p.returncode, "".join(output)
 
@@ -219,11 +227,12 @@ def PrepareMksnapshotCmdline(orig_cmdline, path):
   return result
 
 class Config(object):
-  def __init__(self, arch, mode, targets, tests=[]):
+  def __init__(self, arch, mode, targets, tests=[], testrunner_args=[]):
     self.arch = arch
     self.mode = mode
     self.targets = set(targets)
     self.tests = set(tests)
+    self.testrunner_args = testrunner_args
 
   def Extend(self, targets, tests=[]):
     self.targets.update(targets)
@@ -291,6 +300,11 @@ class Config(object):
     return return_code
 
   def RunTests(self):
+    # Special handling for "mkgrokdump": if it was built, run it.
+    if (self.arch == "x64" and self.mode == "release" and
+        "mkgrokdump" in self.targets):
+      _Call("%s/mkgrokdump > tools/v8heapconst.py" %
+            GetPath(self.arch, self.mode))
     if not self.tests: return 0
     if "ALL" in self.tests:
       tests = ""
@@ -298,7 +312,9 @@ class Config(object):
       tests = " ".join(self.tests)
     return _Call('"%s" ' % sys.executable +
                  os.path.join("tools", "run-tests.py") +
-                 " --outdir=%s %s" % (GetPath(self.arch, self.mode), tests))
+                 " --outdir=%s %s %s" % (
+                     GetPath(self.arch, self.mode), tests,
+                     " ".join(self.testrunner_args)))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:
@@ -311,13 +327,15 @@ class ArgumentParser(object):
     self.global_tests = set()
     self.global_actions = set()
     self.configs = {}
+    self.testrunner_args = []
 
   def PopulateConfigs(self, arches, modes, targets, tests):
     for a in arches:
       for m in modes:
         path = GetPath(a, m)
         if path not in self.configs:
-          self.configs[path] = Config(a, m, targets, tests)
+          self.configs[path] = Config(a, m, targets, tests,
+                  self.testrunner_args)
         else:
           self.configs[path].Extend(targets, tests)
 
@@ -339,10 +357,20 @@ class ArgumentParser(object):
     targets = []
     actions = []
     tests = []
-    # Specifying a single unit test looks like "unittests/Foo.Bar".
-    if argstring.startswith("unittests/"):
+    # Special handling for "mkgrokdump": build it for x64.release.
+    if argstring == "mkgrokdump":
+      self.PopulateConfigs(["x64"], ["release"], ["mkgrokdump"], [])
+      return
+    # Specifying a single unit test looks like "unittests/Foo.Bar", test262
+    # tests have names like "S15.4.4.7_A4_T1", don't split these.
+    if argstring.startswith("unittests/") or argstring.startswith("test262/"):
       words = [argstring]
+    elif argstring.startswith("--"):
+      # Pass all other flags to test runner.
+      self.testrunner_args.append(argstring)
+      return
     else:
+      # Assume it's a word like "x64.release" -> split at the dot.
       words = argstring.split('.')
     if len(words) == 1:
       word = words[0]

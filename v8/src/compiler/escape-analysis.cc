@@ -266,8 +266,8 @@ class EscapeAnalysisTracker : public ZoneObject {
 
   VirtualObject* NewVirtualObject(int size) {
     if (next_object_id_ >= kMaxTrackedObjects) return nullptr;
-    return new (zone_)
-        VirtualObject(&variable_states_, next_object_id_++, size);
+    return zone_->New<VirtualObject>(&variable_states_, next_object_id_++,
+                                     size);
   }
 
   SparseSidetable<VirtualObject*> virtual_objects_;
@@ -297,7 +297,7 @@ void EffectGraphReducer::ReduceFrom(Node* node) {
   DCHECK(stack_.empty());
   stack_.push({node, 0});
   while (!stack_.empty()) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* current = stack_.top().node;
     int& input_index = stack_.top().input_index;
     if (input_index < current->InputCount()) {
@@ -412,7 +412,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   State first_input = table_.Get(NodeProperties::GetEffectInput(effect_phi, 0));
   State result = first_input;
   for (std::pair<Variable, Node*> var_value : first_input) {
-    tick_counter_->DoTick();
+    tick_counter_->TickAndMaybeEnterSafepoint();
     if (Node* value = var_value.second) {
       Variable var = var_value.first;
       TRACE("var %i:\n", var.id_);
@@ -736,10 +736,9 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           current->Get(map_field).To(&map)) {
         if (map) {
           Type const map_type = NodeProperties::GetType(map);
-          AllowHandleDereference handle_dereference;
           if (map_type.IsHeapConstant() &&
               params.maps().contains(
-                  Handle<Map>::cast(map_type.AsHeapConstant()->Value()))) {
+                  map_type.AsHeapConstant()->Ref().AsMap().object())) {
             current->MarkForDeletion();
             break;
           }
@@ -830,7 +829,7 @@ EscapeAnalysis::EscapeAnalysis(JSGraph* jsgraph, TickCounter* tick_counter,
           jsgraph->graph(),
           [this](Node* node, Reduction* reduction) { Reduce(node, reduction); },
           tick_counter, zone),
-      tracker_(new (zone) EscapeAnalysisTracker(jsgraph, this, zone)),
+      tracker_(zone->New<EscapeAnalysisTracker>(jsgraph, this, zone)),
       jsgraph_(jsgraph) {}
 
 Node* EscapeAnalysisResult::GetReplacementOf(Node* node) {

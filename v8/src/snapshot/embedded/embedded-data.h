@@ -79,7 +79,11 @@ class EmbeddedData final {
 
   uint32_t AddressForHashing(Address addr) {
     Address start = reinterpret_cast<Address>(code_);
+<<<<<<< HEAD
     DCHECK(IsInRange(addr, start, start + code_size_));
+=======
+    DCHECK(base::IsInRange(addr, start, start + code_size_));
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     return static_cast<uint32_t>(addr - start);
   }
 

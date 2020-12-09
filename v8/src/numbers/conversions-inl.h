@@ -81,7 +81,9 @@ inline float DoubleToFloat32(double x) {
 
 inline double DoubleToInteger(double x) {
   if (std::isnan(x)) return 0;
-  if (!std::isfinite(x) || x == 0) return x;
+  if (!std::isfinite(x)) return x;
+  // ToInteger normalizes -0 to +0.
+  if (x == 0.0) return 0;
   return (x >= 0) ? std::floor(x) : std::ceil(x);
 }
 
@@ -132,7 +134,7 @@ bool IsUint32Double(double value) {
 bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
   const double k2Pow52 = 4503599627370496.0;
   const uint32_t kValidTopBits = 0x43300000;
-  const uint64_t kBottomBitMask = V8_2PART_UINT64_C(0x00000000, FFFFFFFF);
+  const uint64_t kBottomBitMask = 0x0000'0000'FFFF'FFFF;
 
   // Add 2^52 to the double, to place valid uint32 values in the low-significant
   // bits of the exponent, by effectively setting the (implicit) top bit of the

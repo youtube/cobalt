@@ -19,6 +19,10 @@
 #if V8_OS_STARBOARD
 #include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
+<<<<<<< HEAD
+=======
+#include "starboard/common/rwlock.h"
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 #endif
 
 namespace v8 {
@@ -73,6 +77,9 @@ class V8_BASE_EXPORT Mutex final {
   const NativeHandle& native_handle() const {
     return native_handle_;
   }
+
+  V8_INLINE void AssertHeld() const { DCHECK_EQ(1, level_); }
+  V8_INLINE void AssertUnheld() const { DCHECK_EQ(0, level_); }
 
  private:
   NativeHandle native_handle_;
@@ -254,6 +261,8 @@ class V8_BASE_EXPORT SharedMutex final {
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
+#elif V8_OS_STARBOARD
+  using NativeHandle = starboard::RWLock;
 #endif
 
   NativeHandle native_handle_;
@@ -299,6 +308,7 @@ class LockGuard final {
 };
 
 using MutexGuard = LockGuard<Mutex>;
+using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };
 

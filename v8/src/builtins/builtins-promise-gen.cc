@@ -11,6 +11,8 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -18,39 +20,15 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-template <class T>
-using TNode = CodeStubAssembler::TNode<T>;
-using IteratorRecord = TorqueStructIteratorRecord;
-
-Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  Node* const promise_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const promise = Allocate(JSPromise::kSizeWithEmbedderFields);
-  StoreMapNoWriteBarrier(promise, promise_map);
-  StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(promise, JSPromise::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  return promise;
-}
-
-void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
-  STATIC_ASSERT(v8::Promise::kPending == 0);
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOrResultOffset,
-                                 SmiConstant(Smi::zero()));
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
-                                 SmiConstant(Smi::zero()));
-  for (int offset = JSPromise::kSize;
+void PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(
+    TNode<JSPromise> promise) {
+  for (int offset = JSPromise::kHeaderSize;
        offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::zero()));
   }
 }
 
+<<<<<<< HEAD
 Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context) {
   return AllocateAndInitJSPromise(context, UndefinedConstant());
 }
@@ -2707,6 +2685,11 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
+=======
+TNode<HeapObject> PromiseBuiltinsAssembler::AllocateJSPromise(
+    TNode<Context> context) {
+  return Allocate(JSPromise::kSizeWithEmbedderFields);
+>>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 }  // namespace internal

@@ -49,9 +49,9 @@ assertEquals(1, instance.exports.main());
 
 const builder2 = new WasmModuleBuilder();
 sig0 = makeSig([], [kWasmI32]);
-builder2.addFunction(undefined, sig0).addLocals({i64_count: 1}).addBody([
+builder2.addFunction(undefined, sig0).addLocals(kWasmI64, 1).addBody([
   kExprLoop, kWasmI32,     // loop i32
-  kExprGetLocal, 0,        // get_local 3
+  kExprLocalGet, 0,        // get_local 3
   kExprF32SConvertI64,     // f32.sconvert/i64
   kExprI32ReinterpretF32,  // i32.reinterpret/f32
   kExprEnd                 // end
