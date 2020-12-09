@@ -97,15 +97,12 @@ class StdoutStream : public OFStream {
   StdoutStream() : OFStream(nullptr) {}
 #else
   StdoutStream() : OFStream(stdout) {}
-<<<<<<< HEAD
 #endif
-=======
 
  private:
   static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
 
   base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 };
 #endif
 

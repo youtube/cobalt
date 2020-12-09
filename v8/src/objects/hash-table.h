@@ -379,25 +379,7 @@ class V8_EXPORT_PRIVATE ObjectHashTable
       ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>);
 };
 
-<<<<<<< HEAD
-class EphemeronHashTableShape : public ObjectHashTableShape {
- public:
-  static inline RootIndex GetMapRootIndex();
-};
-
-class EphemeronHashTable;
-
-// Cobalt's Raspi linker can't find the template specialization in objects.cc
-// if declaring the tables extern templates here.
-#if !defined(V8_OS_STARBOARD)
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
-#endif
-=======
 EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are

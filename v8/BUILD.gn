@@ -90,17 +90,8 @@ declare_args() {
   # Optimize code for Torque executable, even during a debug build.
   v8_enable_fast_torque = ""
 
-<<<<<<< HEAD
-  # Enable embedded builtins.
-  v8_enable_embedded_builtins = true
-
-  # Enable the registration of unwinding info for Windows/x64.
-  # Cobalt compiles with UWP winrt library that does not support unwinding.
-  v8_win64_unwinding_info = false
-=======
   # Enable the registration of unwinding info for Windows x64 and ARM64.
   v8_win64_unwinding_info = true
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
   # Enable code comments for builtins in the snapshot (impacts performance).
   v8_enable_snapshot_code_comments = false
@@ -3284,7 +3275,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/vector.h",
     "src/utils/version.cc",
     "src/utils/version.h",
-<<<<<<< HEAD
     # No WASM for Cobalt
     # "src/wasm/baseline/liftoff-assembler-defs.h",
     # "src/wasm/baseline/liftoff-assembler.cc",
@@ -3292,15 +3282,7 @@ v8_source_set("v8_base_without_compiler") {
     # "src/wasm/baseline/liftoff-compiler.cc",
     # "src/wasm/baseline/liftoff-compiler.h",
     # "src/wasm/baseline/liftoff-register.h",
-=======
-    "src/wasm/baseline/liftoff-assembler-defs.h",
-    "src/wasm/baseline/liftoff-assembler.cc",
-    "src/wasm/baseline/liftoff-assembler.h",
-    "src/wasm/baseline/liftoff-compiler.cc",
-    "src/wasm/baseline/liftoff-compiler.h",
-    "src/wasm/baseline/liftoff-register.h",
-    "src/wasm/code-space-access.h",
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
+    # "src/wasm/code-space-access.h",
     "src/wasm/compilation-environment.h",
     "src/wasm/decoder.h",
     "src/wasm/function-body-decoder-impl.h",

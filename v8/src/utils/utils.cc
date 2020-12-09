@@ -137,15 +137,6 @@ void StrNCpy(Vector<char> dest, const char* src, size_t n) {
   base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
-<<<<<<< HEAD
-#if !defined(V8_OS_STARBOARD)
-void Flush(FILE* out) { fflush(out); }
-#else
-void Flush(FILE* out) {}
-#endif
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 char* ReadLine(const char* prompt) {
 #if !defined(V8_OS_STARBOARD)
   char* result = nullptr;
@@ -252,25 +243,6 @@ std::string VectorToString(const std::vector<char>& chars) {
   return std::string(chars.begin(), chars.end());
 }
 
-<<<<<<< HEAD
-}  // namespace
-
-std::string ReadFile(const char* filename, bool* exists, bool verbose) {
-#if defined(V8_OS_STARBOARD)
-  return std::string();
-#else
-  std::vector<char> result = ReadCharsFromFile(filename, exists, verbose);
-  return VectorToString(result);
-#endif
-}
-
-std::string ReadFile(FILE* file, bool* exists, bool verbose) {
-  std::vector<char> result = ReadCharsFromFile(file, exists, verbose, "");
-  return VectorToString(result);
-}
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 int WriteCharsToFile(const char* str, int size, FILE* f) {
 #if defined(V8_OS_STARBOARD)
   return 0;
@@ -288,23 +260,6 @@ int WriteCharsToFile(const char* str, int size, FILE* f) {
 #endif
 }
 
-<<<<<<< HEAD
-int AppendChars(const char* filename, const char* str, int size, bool verbose) {
-#if !defined(V8_OS_STARBOARD)
-  FILE* f = base::OS::FOpen(filename, "ab");
-  if (f == nullptr) {
-    if (verbose) {
-      base::OS::PrintError("Cannot open file %s for writing.\n", filename);
-    }
-    return 0;
-  }
-  int written = WriteCharsToFile(str, size, f);
-  fclose(f);
-  return written;
-#else
-  return 0;
-#endif
-=======
 }  // namespace
 
 std::string ReadFile(const char* filename, bool* exists, bool verbose) {
@@ -315,7 +270,6 @@ std::string ReadFile(const char* filename, bool* exists, bool verbose) {
 std::string ReadFile(FILE* file, bool* exists, bool verbose) {
   std::vector<char> result = ReadCharsFromFile(file, exists, verbose, "");
   return VectorToString(result);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 int WriteChars(const char* filename, const char* str, int size, bool verbose) {

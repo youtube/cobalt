@@ -95,43 +95,20 @@ class BackgroundCompileToken {
       : native_module_(native_module) {}
 
   void Cancel() {
-<<<<<<< HEAD
 #if !defined(DISABLE_WASM_STARBOARD)
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(&mutex_);
-#endif
-=======
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         &compilation_scope_mutex_);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
+#endif
     native_module_.reset();
   }
 
  private:
   friend class BackgroundCompileScope;
-<<<<<<< HEAD
-  // Cobalt does not use wasm, disabling this code to remove dependency on
-  // SharedMutex. All wasm code will be removed in a later attempt.
-#if !defined(DISABLE_WASM_STARBOARD)
-  base::SharedMutex mutex_;
-#endif
-  std::weak_ptr<NativeModule> native_module_;
 
   std::shared_ptr<NativeModule> StartScope() {
 #if !defined(DISABLE_WASM_STARBOARD)
-    mutex_.LockShared();
-#endif
-    return native_module_.lock();
-  }
-
-#if defined(DISABLE_WASM_STARBOARD)
-  void ExitScope() {}
-#else
-  void ExitScope() { mutex_.UnlockShared(); }
-#endif
-=======
-
-  std::shared_ptr<NativeModule> StartScope() {
     compilation_scope_mutex_.LockShared();
+#endif
     return native_module_.lock();
   }
 
@@ -175,7 +152,6 @@ class BackgroundCompileToken {
   base::Mutex publish_mutex_;
   std::vector<std::unique_ptr<WasmCode>> publish_queue_;
   bool publisher_running_ = false;
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 };
 
 class CompilationStateImpl;
@@ -222,13 +198,9 @@ enum CompileBaselineOnly : bool {
 // runs empty.
 class CompilationUnitQueues {
  public:
-<<<<<<< HEAD
 #if !defined(DISABLE_WASM_STARBOARD)
-  explicit CompilationUnitQueues(int max_tasks) : queues_((size_t)max_tasks) {
-=======
   explicit CompilationUnitQueues(int max_tasks, int num_declared_functions)
       : queues_(max_tasks), top_tier_priority_units_queues_(max_tasks) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     DCHECK_LT(0, max_tasks);
     for (int task_id = 0; task_id < max_tasks; ++task_id) {
       queues_[task_id].next_steal_task_id = next_task_id(task_id);
@@ -736,41 +708,6 @@ class CompilationStateImpl {
     return wire_bytes_storage_;
   }
 
-<<<<<<< HEAD
-  const std::shared_ptr<BackgroundCompileToken>& background_compile_token()
-      const {
-    return background_compile_token_;
-  }
-
-  double GetCompilationDeadline(double now) {
-    // Execute for at least 50ms. Try to distribute deadlines of different tasks
-    // such that every 5ms one task stops. No task should execute longer than
-    // 200ms though.
-#if !defined(DISABLE_WASM_STARBOARD)
-    constexpr double kMinLimit = 50. / base::Time::kMillisecondsPerSecond;
-    constexpr double kMaxLimit = 200. / base::Time::kMillisecondsPerSecond;
-    constexpr double kGapBetweenTasks = 5. / base::Time::kMillisecondsPerSecond;
-    double min_deadline = now + kMinLimit;
-    double max_deadline = now + kMaxLimit;
-    double next_deadline =
-        next_compilation_deadline_.load(std::memory_order_relaxed);
-    while (true) {
-      double deadline =
-          std::max(min_deadline, std::min(max_deadline, next_deadline));
-      if (next_compilation_deadline_.compare_exchange_weak(
-              next_deadline, deadline + kGapBetweenTasks,
-              std::memory_order_relaxed)) {
-        return deadline;
-      }
-      // Otherwise, retry with the updated {next_deadline}.
-    }
-#else
-    return 0;
-#endif
-  }
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
  private:
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
@@ -1818,25 +1755,16 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   }
 
   // Create a new {NativeModule} first.
-<<<<<<< HEAD
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled, code_size_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
-#if !defined(DISABLE_WASM_STARBOARD)
-  // std::move(uint8_t[]) issue
-  native_module->SetWireBytes(std::move(wire_bytes_copy));
-#endif
-  native_module->SetRuntimeStubs(isolate);
-
-  CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
-=======
   const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
                                                           uses_liftoff);
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
+#if !defined(DISABLE_WASM_STARBOARD)
+  // std::move(uint8_t[] issue)
   native_module->SetWireBytes(std::move(wire_bytes_copy));
+#endif
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
@@ -1846,7 +1774,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
                       export_wrappers_out);
   bool cache_hit = !isolate->wasm_engine()->UpdateNativeModuleCache(
       thrower->error(), &native_module, isolate);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   if (thrower->error()) return {};
 
   if (cache_hit) {
@@ -2005,12 +1932,8 @@ AsyncCompileJob::~AsyncCompileJob() {
 }
 
 void AsyncCompileJob::CreateNativeModule(
-<<<<<<< HEAD
-    std::shared_ptr<const WasmModule> module) {
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-=======
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   // Embedder usage count for declared shared memories.
   if (module->has_shared_memory) {
     isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
@@ -2025,12 +1948,9 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module), code_size_estimate);
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
+#endif
 }
 
-<<<<<<< HEAD
-  if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
-#endif
-=======
 bool AsyncCompileJob::GetOrCreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   native_module_ = isolate_->wasm_engine()->MaybeGetNativeModule(
@@ -2040,7 +1960,6 @@ bool AsyncCompileJob::GetOrCreateNativeModule(
     return false;
   }
   return true;
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 void AsyncCompileJob::PrepareRuntimeObjects() {
@@ -3420,14 +3339,8 @@ size_t CompilationStateImpl::NumOutstandingCompilations() const {
 }
 
 void CompilationStateImpl::SetError() {
-<<<<<<< HEAD
-  bool expected = false;
 #if !defined(DISABLE_WASM_STARBOARD)
-  if (!compile_failed_.compare_exchange_strong(expected, true,
-                                               std::memory_order_relaxed)) {
-=======
   if (compile_failed_.exchange(true, std::memory_order_relaxed)) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     return;  // Already failed before.
   }
 #endif

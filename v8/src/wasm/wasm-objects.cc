@@ -27,21 +27,12 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
-<<<<<<< HEAD
-#include "src/wasm/wasm-text.h"
+#include "src/wasm/wasm-subtyping.h"
+#include "src/wasm/wasm-value.h"
 
 #if defined(V8_OS_STARBOARD)
 #include "src/poems.h"
 #endif
-
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
-  } while (false)
-=======
-#include "src/wasm/wasm-subtyping.h"
-#include "src/wasm/wasm-value.h"
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 #define TRACE_IFT(...)              \
   do {                              \
@@ -1523,14 +1514,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
     SharedFunctionInfo shared = js_function->shared();
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-<<<<<<< HEAD
-        isolate->wasm_engine(), &env, kind, sig, false);
-#if !defined(DISABLE_WASM_STARBOARD)
-    // std::move(uint8_t[]) issue
-=======
         isolate->wasm_engine(), &env, kind, sig, false,
         shared.internal_formal_parameter_count());
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,

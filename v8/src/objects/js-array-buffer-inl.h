@@ -122,21 +122,6 @@ size_t JSArrayBuffer::allocation_length() const {
   if (backing_store() == nullptr) {
     return 0;
   }
-<<<<<<< HEAD
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-#if defined(DISABLE_WASM_STARBOARD)
-    return 0;
-#else
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_length;
-#endif
-  }
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   return byte_length();
 }
 
@@ -144,21 +129,6 @@ void* JSArrayBuffer::allocation_base() const {
   if (backing_store() == nullptr) {
     return nullptr;
   }
-<<<<<<< HEAD
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-#if defined(DISABLE_WASM_STARBOARD)
-    return nullptr;
-#else
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_base;
-#endif
-  }
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   return backing_store();
 }
 

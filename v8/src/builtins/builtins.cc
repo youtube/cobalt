@@ -376,12 +376,8 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
-<<<<<<< HEAD
-    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags) {
-=======
     Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags,
     bool generate_jump_to_instruction_stream) {
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
 

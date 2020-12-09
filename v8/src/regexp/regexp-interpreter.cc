@@ -22,18 +22,16 @@
 #include "unicode/uchar.h"
 #endif  // V8_INTL_SUPPORT
 
-<<<<<<< HEAD
 #if defined(V8_OS_STARBOARD)
 #include "src/poems.h"
 #endif
-=======
+
 // Use token threaded dispatch iff the compiler supports computed gotos and the
 // build argument v8_enable_regexp_interpreter_threaded_dispatch was set.
 #if V8_HAS_COMPUTED_GOTO && \
     defined(V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH)
 #define V8_USE_COMPUTED_GOTO 1
 #endif  // V8_HAS_COMPUTED_GOTO
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 namespace v8 {
 namespace internal {

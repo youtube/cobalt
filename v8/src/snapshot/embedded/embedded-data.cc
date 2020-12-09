@@ -15,19 +15,9 @@ namespace internal {
 
 // static
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
-<<<<<<< HEAD
-  if (FLAG_embedded_builtins) {
-    const Address start =
-        reinterpret_cast<Address>(isolate->embedded_blob_code());
-    return start <= pc && pc < start + isolate->embedded_blob_code_size();
-  } else {
-    return false;
-  }
-=======
   const Address start =
       reinterpret_cast<Address>(isolate->embedded_blob_code());
   return start <= pc && pc < start + isolate->embedded_blob_code_size();
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 // static
@@ -63,10 +53,7 @@ Code InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
 void InstructionStream::CreateOffHeapInstructionStream(
     Isolate* isolate, uint8_t** code, uint32_t* code_size, uint8_t** metadata,
     uint32_t* metadata_size) {
-<<<<<<< HEAD
-=======
   // Create the embedded blob from scratch using the current Isolate's heap.
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   EmbeddedData d = EmbeddedData::FromIsolate(isolate);
 
   // Allocate the backing store that will contain the embedded blob in this
@@ -93,8 +80,6 @@ void InstructionStream::CreateOffHeapInstructionStream(
       allocation_metadata_size, alignment, PageAllocator::kReadWrite));
   CHECK_NOT_NULL(allocated_metadata_bytes);
 
-<<<<<<< HEAD
-=======
   // Copy the embedded blob into the newly allocated backing store. Switch
   // permissions to read-execute since builtin code is immutable from now on
   // and must be executable in case any JS execution is triggered.
@@ -103,7 +88,6 @@ void InstructionStream::CreateOffHeapInstructionStream(
   // the difference between a 'real' embedded build (where the blob is embedded
   // in the binary) and what we are currently setting up here (where the blob is
   // on the native heap).
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   std::memcpy(allocated_code_bytes, d.code(), d.code_size());
   CHECK(SetPermissions(page_allocator, allocated_code_bytes,
                        allocation_code_size, PageAllocator::kReadExecute));
@@ -348,16 +332,10 @@ size_t EmbeddedData::CreateEmbeddedBlobHash() const {
   STATIC_ASSERT(EmbeddedBlobHashOffset() == 0);
   STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
   // Hash the entire blob except the hash field itself.
-<<<<<<< HEAD
-  auto seed = base::hash_range(metadata_ + EmbeddedBlobHashSize(),
-                               metadata_ + metadata_size_);
-  return base::hash_range(seed, code_, code_ + code_size_);
-=======
   Vector<const byte> payload1(metadata_ + EmbeddedBlobHashSize(),
                               metadata_size_ - EmbeddedBlobHashSize());
   Vector<const byte> payload2(code_, code_size_);
   return Checksum(payload1, payload2);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 void EmbeddedData::PrintStatistics() const {

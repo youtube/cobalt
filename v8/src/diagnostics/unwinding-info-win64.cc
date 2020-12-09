@@ -28,13 +28,6 @@ bool CanRegisterUnwindInfoForNonABICompliantCodeRange() {
 
 bool RegisterUnwindInfoForExceptionHandlingOnly() {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
-<<<<<<< HEAD
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-  return !IsWindows8OrGreater() || !FLAG_win64_unwinding_info;
-#else
-  return false;
-#endif
-=======
 #if defined(V8_OS_WIN_ARM64)
   return !FLAG_win64_unwinding_info;
 #else
@@ -47,7 +40,6 @@ v8::UnhandledExceptionCallback unhandled_exception_callback_g = nullptr;
 void SetUnhandledExceptionCallback(
     v8::UnhandledExceptionCallback unhandled_exception_callback) {
   unhandled_exception_callback_g = unhandled_exception_callback;
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 // This function is registered as exception handler for V8-generated code as
@@ -533,42 +525,6 @@ void DeleteGrowableFunctionTable(PVOID dynamic_table) {
 
 }  // namespace
 
-<<<<<<< HEAD
-std::vector<uint8_t> GetUnwindInfoForBuiltinFunctions() {
-  V8UnwindData xdata;
-  return std::vector<uint8_t>(
-      reinterpret_cast<uint8_t*>(&xdata),
-      reinterpret_cast<uint8_t*>(&xdata) + sizeof(xdata));
-}
-
-template <typename Record>
-void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
-  // We assume that the first page of the code range is executable and
-  // committed and reserved to contain PDATA/XDATA.
-
-  // All addresses are 32bit relative offsets to start.
-#if !defined(DISABLE_UNWIND_STARBOARD)
-  record->runtime_function.BeginAddress = 0;
-  record->runtime_function.EndAddress = static_cast<DWORD>(code_size_in_bytes);
-  record->runtime_function.UnwindData = offsetof(Record, unwind_info);
-
-  record->exception_handler = offsetof(Record, exception_thunk);
-
-  // Hardcoded thunk.
-  AssemblerOptions options;
-  options.record_reloc_info_for_serialization = false;
-  MacroAssembler masm(nullptr, options, CodeObjectRequired::kNo,
-                      NewAssemblerBuffer(64));
-  masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
-  masm.jmp(rax);
-  DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  memcpy(&record->exception_thunk[0], masm.buffer_start(),
-         masm.instruction_size());
-#endif
-}
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
 #if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());

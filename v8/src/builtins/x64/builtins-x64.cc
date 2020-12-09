@@ -632,27 +632,15 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Load the number of arguments and setup pointer to the arguments.
     __ movq(rax, r8);
     __ movq(rbx, r9);
-<<<<<<< HEAD
+#ifdef V8_REVERSE_JSARGS
+    __ movq(r9, arg_reg_4);  // Temporarily saving the receiver.
+#endif
 #endif  // V8_TARGET_OS_WIN
 
     // Current stack contents:
     // [rsp + 2 * kSystemPointerSize ... ] : Internal frame
     // [rsp + kSystemPointerSize]          : function
     // [rsp]                         : receiver
-=======
-#ifdef V8_REVERSE_JSARGS
-    __ movq(r9, arg_reg_4);  // Temporarily saving the receiver.
-#endif
-#endif  // V8_TARGET_OS_WIN
-
-    // Current stack contents if V8_REVERSE_JSARGS:
-    // [rsp + kSystemPointerSize]     : Internal frame
-    // [rsp]                          : function
-    // Current stack contents if not V8_REVERSE_JSARGS:
-    // [rsp + 2 * kSystemPointerSize] : Internal frame
-    // [rsp +     kSystemPointerSize] : function
-    // [rsp]                          : receiver
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     // Current register contents:
     // rax : argc
     // rbx : argv

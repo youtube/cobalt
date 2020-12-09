@@ -132,16 +132,14 @@
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
-<<<<<<< HEAD
 #if defined(V8_OS_STARBOARD)
 #include "src/poems.h"
 #endif
-=======
+
 #define TRACE_BS(...)                                     \
   do {                                                    \
     if (i::FLAG_trace_backing_store) PrintF(__VA_ARGS__); \
   } while (false)
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 namespace v8 {
 
@@ -7332,33 +7330,6 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
   return {bytes_vec.begin(), bytes_vec.size()};
 }
 
-<<<<<<< HEAD
-WasmModuleObject::TransferrableModule
-WasmModuleObject::GetTransferrableModule() {
-  if (i::FLAG_wasm_shared_code) {
-    i::Handle<i::WasmModuleObject> obj =
-        i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-    return TransferrableModule(obj->shared_native_module());
-  } else {
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-    CompiledWasmModule compiled_module = GetCompiledModule();
-    OwnedBuffer serialized_module = compiled_module.Serialize();
-    MemorySpan<const uint8_t> wire_bytes_ref =
-        compiled_module.GetWireBytesRef();
-    size_t wire_size = wire_bytes_ref.size();
-    std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
-    memcpy(wire_bytes_copy.get(), wire_bytes_ref.data(), wire_size);
-    return TransferrableModule(std::move(serialized_module),
-                               {std::move(wire_bytes_copy), wire_size});
-#else
-    // The std::move(uint8_t[]) issue
-    return TransferrableModule(OwnedBuffer(), OwnedBuffer());
-#endif
-  }
-}
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
@@ -7512,19 +7483,8 @@ v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
   DCHECK_LE(byte_length_, allocation_length_);
 }
 
-<<<<<<< HEAD
-void WasmMemoryDeleter(void* buffer, size_t lenght, void* info) {
-#if defined(DISABLE_WASM_STARBOARD)
-  CHECK(false);
-#else
-  internal::wasm::WasmEngine* engine =
-      reinterpret_cast<internal::wasm::WasmEngine*>(info);
-  CHECK(engine->memory_tracker()->FreeWasmMemory(nullptr, buffer));
-#endif
-=======
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   return GetContents(true);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 }
 
 void v8::ArrayBuffer::Externalize(
@@ -7832,24 +7792,11 @@ i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
       i_isolate, data, byte_length, i::SharedFlag::kShared, mode);
 
   i::Handle<i::JSArrayBuffer> obj =
-<<<<<<< HEAD
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  bool is_wasm_memory =
-#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-      false;
-#else
-      i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
-#endif
-  i::JSArrayBuffer::Setup(obj, i_isolate,
-                          mode == ArrayBufferCreationMode::kExternalized, data,
-                          byte_length, i::SharedFlag::kShared, is_wasm_memory);
-=======
       i_isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
 
   if (mode == ArrayBufferCreationMode::kExternalized) {
     obj->set_is_external(true);
   }
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   return obj;
 }
 
@@ -9069,25 +9016,6 @@ JSEntryStubs Isolate::GetJSEntryStubs() {
     pair.second->code.length_in_bytes = js_entry.InstructionSize();
   }
 
-  return entry_stubs;
-}
-
-size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
-#if !defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_TARGET_ARCH_ARM)
-  // Not implemented on other platforms.
-  UNREACHABLE();
-#else
-
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-<<<<<<< HEAD
-  unwind_state.embedded_code_range.start =
-      reinterpret_cast<const void*>(isolate->embedded_blob_code());
-  unwind_state.embedded_code_range.length_in_bytes =
-      isolate->embedded_blob_code_size();
-=======
-  std::vector<MemoryRange>* code_pages = isolate->GetCodePages();
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
-
   DCHECK_NOT_NULL(code_pages);
 
   // Copy as many elements into the output vector as we can. If the
@@ -9755,22 +9683,10 @@ bool debug::Script::GetPossibleBreakpoints(
     std::vector<debug::BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-<<<<<<< HEAD
-  if (script->type() == i::Script::TYPE_WASM &&
-      this->SourceMappingURL().IsEmpty()) {
-#if defined(DISABLE_WASM_STARBOARD)
-    return false;
-#else
-    i::WasmModuleObject module_object =
-        i::WasmModuleObject::cast(script->wasm_module_object());
-    return module_object.GetPossibleBreakpoints(start, end, locations);
-#endif
-=======
   if (script->type() == i::Script::TYPE_WASM) {
     i::wasm::NativeModule* native_module = script->wasm_native_module();
     return i::WasmScript::GetPossibleBreakpoints(native_module, start, end,
                                                  locations);
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   }
 
   i::Isolate* isolate = script->GetIsolate();
@@ -9818,17 +9734,6 @@ bool debug::Script::GetPossibleBreakpoints(
 int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-<<<<<<< HEAD
-#if defined(DISABLE_WASM_STARBOARD)
-    return 0;
-#else
-    if (this->SourceMappingURL().IsEmpty()) {
-      return i::WasmModuleObject::cast(script->wasm_module_object())
-                 .GetFunctionOffset(location.GetLineNumber()) +
-             location.GetColumnNumber();
-    }
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     DCHECK_EQ(0, location.GetLineNumber());
     return location.GetColumnNumber();
 #endif

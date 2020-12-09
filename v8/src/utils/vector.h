@@ -238,14 +238,9 @@ class OwnedVector {
 #else
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
-<<<<<<< HEAD
-#endif
-    OwnedVector<T> vec = New(std::distance(begin, end));
-=======
     using non_const_t = typename std::remove_const<T>::type;
     auto vec =
         OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
     std::copy(begin, end, vec.start());
     return vec;
   }

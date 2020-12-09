@@ -248,17 +248,13 @@ void Log::MessageBuilder::AppendRawCharacter(char c) {}
 void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 #endif
 
-<<<<<<< HEAD
 #if defined(V8_OS_STARBOARD)
 void Log::MessageBuilder::WriteToLogFile() {}
 #else
-void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
-#endif
-=======
 void Log::MessageBuilder::WriteToLogFile() {
   log_->os_ << std::endl;
 }
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
+#endif
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(

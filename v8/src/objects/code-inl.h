@@ -322,12 +322,6 @@ CodeKind Code::kind() const {
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
-<<<<<<< HEAD
-void Code::initialize_flags(Kind kind, bool is_turbofanned, int stack_slots,
-                            bool is_off_heap_trampoline) {
-  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
-  uint32_t flags = KindField::encode(kind) |
-=======
 void Code::initialize_flags(CodeKind kind, bool has_unwinding_info,
                             bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
@@ -335,7 +329,6 @@ void Code::initialize_flags(CodeKind kind, bool has_unwinding_info,
   DCHECK(!CodeKindIsInterpretedJSFunction(kind));
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
                    KindField::encode(kind) |
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);

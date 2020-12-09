@@ -298,44 +298,6 @@ bool SharedMutex::TryLockExclusive() {
 
 #elif V8_OS_STARBOARD
 
-<<<<<<< HEAD
-Mutex::Mutex() {
-  SbMutexCreate(&native_handle_);
-}
-
-Mutex::~Mutex() {
-  SbMutexDestroy(&native_handle_);
-}
-
-void Mutex::Lock() {
-  SbMutexAcquire(&native_handle_);
-}
-
-void Mutex::Unlock() {
-  SbMutexRelease(&native_handle_);
-}
-
-RecursiveMutex::RecursiveMutex() {
-}
-
-RecursiveMutex::~RecursiveMutex() {
-
-}
-
-void RecursiveMutex::Lock() {
-  native_handle_.Acquire();
-}
-
-void RecursiveMutex::Unlock() {
-  native_handle_.Release();
-}
-
-bool RecursiveMutex::TryLock() {
-  return native_handle_.AcquireTry();
-}
-
-#endif  // V8_OS_POSIX
-=======
 Mutex::Mutex() { SbMutexCreate(&native_handle_); }
 
 Mutex::~Mutex() { SbMutexDestroy(&native_handle_); }
@@ -369,8 +331,6 @@ void SharedMutex::UnlockExclusive() { native_handle_.ReleaseWriteLock(); }
 bool SharedMutex::TryLockShared() { return false; }
 
 bool SharedMutex::TryLockExclusive() { return false; }
-#endif  // V8_OS_STARBOARD
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 
 }  // namespace base
 }  // namespace v8

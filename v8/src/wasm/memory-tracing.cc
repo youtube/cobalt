@@ -61,17 +61,8 @@ void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
     default:
       SNPrintF(value, "???");
   }
-<<<<<<< HEAD
-  const char* eng = ExecutionTierToString(tier);
-#if V8_OS_STARBOARD
-  SbLogFormatF("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index,
-         position, info->is_store ? " store to" : "load from", info->address,
-         value.begin());
-#else
-=======
   const char* eng =
       tier.has_value() ? ExecutionTierToString(tier.value()) : "?";
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   printf("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index, position,
          info->is_store ? " store to" : "load from", info->address,
          value.begin());

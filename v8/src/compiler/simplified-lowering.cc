@@ -3813,42 +3813,6 @@ class RepresentationSelector {
     node->NullAllInputs();  // The {node} is now dead.
   }
 
-<<<<<<< HEAD
-  void PrintOutputInfo(NodeInfo* info) {
-#ifndef V8_OS_STARBOARD
-    if (FLAG_trace_representation) {
-      StdoutStream{} << info->representation();
-    }
-#endif
-  }
-
-  void PrintRepresentation(MachineRepresentation rep) {
-#ifndef V8_OS_STARBOARD
-    if (FLAG_trace_representation) {
-      StdoutStream{} << rep;
-    }
-#endif
-  }
-
-  void PrintTruncation(Truncation truncation) {
-#ifndef V8_OS_STARBOARD
-    if (FLAG_trace_representation) {
-      StdoutStream{} << truncation.description() << std::endl;
-    }
-#endif
-  }
-
-  void PrintUseInfo(UseInfo info) {
-#ifndef V8_OS_STARBOARD
-    if (FLAG_trace_representation) {
-      StdoutStream{} << info.representation() << ":"
-                     << info.truncation().description();
-    }
-#endif
-  }
-
-=======
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
  private:
   JSGraph* jsgraph_;
   Zone* zone_;                      // Temporary zone.

@@ -1479,13 +1479,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   RpoNumber dominator_;
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_ = -1;     // end index of arch-specific code.
-<<<<<<< HEAD
-  const bool deferred_ = 0;  // Block contains deferred code.
-  const bool handler_;   // Block is a handler entry point.
-=======
   const bool deferred_;       // Block contains deferred code.
   bool handler_;              // Block is a handler entry point.
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
   bool switch_target_ = false;
   bool alignment_ = false;  // insert alignment before this block
   bool needs_frame_ = false;

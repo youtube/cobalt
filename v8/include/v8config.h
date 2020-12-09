@@ -70,11 +70,7 @@
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
 //  V8_OS_QNX           - QNX Neutrino
 //  V8_OS_SOLARIS       - Sun Solaris and OpenSolaris
-<<<<<<< HEAD
-//  V8_OS_STARBOARD     - Starboard (platform abstraction layer for the Cobalt project)
-=======
 //  V8_OS_STARBOARD     - Starboard (platform abstraction for Cobalt)
->>>>>>> 14b418090d26f1aa35e0ca414adc802c9ca25ab7
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
