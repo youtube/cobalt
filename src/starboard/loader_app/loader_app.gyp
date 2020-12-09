@@ -22,6 +22,7 @@
       'system_get_extension_shim.cc',
     ],
     'common_loader_app_dependencies': [
+      '<(DEPTH)/starboard/elf_loader/sabi_string.gyp:sabi_string',
       '<(DEPTH)/starboard/loader_app/app_key.gyp:app_key',
       '<(DEPTH)/starboard/loader_app/installation_manager.gyp:installation_manager',
       '<(DEPTH)/starboard/loader_app/slot_management.gyp:slot_management',

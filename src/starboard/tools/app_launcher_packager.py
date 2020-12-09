@@ -40,12 +40,9 @@ import starboard.tools.platform
 
 # Default python directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
-    ('buildbot', '_env.py'),  # Only needed for device_server to execute
-    ('buildbot', '__init__.py'),  # Only needed for device_server to execute
-    ('buildbot/device_server', '*.py'),
-    ('buildbot/device_server/shared/ssl_certs', '*'),
     ('cobalt', '*.py'),
     ('starboard', '*.py'),
+    ('starboard/tools', 'platform.py.template')
 ]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
@@ -123,7 +120,7 @@ def _WritePlatformsInfo(repo_root, dest_root):
   logging.info('Baking platform info files.')
   current_file = os.path.abspath(__file__)
   current_dir = os.path.dirname(current_file)
-  dest_dir = current_dir.replace(repo_root, dest_root)
+  dest_dir = os.path.join(dest_root, 'starboard', 'tools')
   platforms_map = {}
   for p in starboard.tools.platform.GetAll():
     platform_path = os.path.relpath(

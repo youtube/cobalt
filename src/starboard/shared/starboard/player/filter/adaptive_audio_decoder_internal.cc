@@ -29,18 +29,13 @@ namespace filter {
 using common::ResetAndReturn;
 
 #if SB_API_VERSION >= 11
-int GetDefaultSupportedAudioSamplesPerSecond() {
-  const int kDefaultOutputSamplesPerSecond = 48000;
-  return SbAudioSinkGetNearestSupportedSampleFrequency(
-      kDefaultOutputSamplesPerSecond);
-}
-
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const SbMediaAudioSampleInfo& audio_sample_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : drm_system_(drm_system),
+    : initial_audio_sample_info_(audio_sample_info),
+      drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
       output_number_of_channels_(audio_sample_info.number_of_channels) {
@@ -131,7 +126,7 @@ scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
   SB_DCHECK(first_output_received_ || ret->is_end_of_stream());
   *samples_per_second = first_output_received_
                             ? output_samples_per_second_
-                            : GetDefaultSupportedAudioSamplesPerSecond();
+                            : initial_audio_sample_info_.samples_per_second;
   return ret;
 }
 

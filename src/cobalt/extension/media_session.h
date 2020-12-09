@@ -89,6 +89,7 @@ typedef struct CobaltExtensionMediaSessionState {
   CobaltExtensionMediaMetadata* metadata;
   double actual_playback_rate;
   SbTimeMonotonic current_playback_position;
+  bool has_position_state;
 } CobaltExtensionMediaSessionState;
 
 typedef struct CobaltExtensionMediaSessionApi {
@@ -114,7 +115,7 @@ typedef struct CobaltExtensionMediaSessionApi {
 
   // Destory platform's MediaSessionClient after the Cobalt's
   // MediaSessionClient has been destroyed.
-  void (*DestroyMediaSessionClientCallback) ();
+  void (*DestroyMediaSessionClientCallback)();
 } CobaltExtensionMediaSessionApi;
 
 inline void CobaltExtensionMediaSessionActionDetailsInit(

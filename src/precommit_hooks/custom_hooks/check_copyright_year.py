@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Check that the copyright header line adheres to the required format."""
 
 import datetime
 import os
@@ -92,5 +93,5 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
   return False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   sys.exit(CheckCopyrightYear(sys.argv[1:]))

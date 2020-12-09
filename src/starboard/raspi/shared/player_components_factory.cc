@@ -17,6 +17,7 @@
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 #include "starboard/raspi/shared/video_renderer_sink_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
+#include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -52,12 +53,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
         typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
+        typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoderImpl;
 
-        scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
-            AudioDecoderImpl::Create(audio_sample_info.codec,
-                                     audio_sample_info));
-        if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
-          return audio_decoder_impl.PassAs<AudioDecoder>();
+        if(audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+          scoped_ptr<OpusAudioDecoderImpl> opus_audio_decoder_impl(
+              new OpusAudioDecoderImpl(audio_sample_info));
+          if (opus_audio_decoder_impl && opus_audio_decoder_impl->is_valid()) {
+            return opus_audio_decoder_impl.PassAs<AudioDecoder>();
+          }
+        } else {
+          scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
+              AudioDecoderImpl::Create(audio_sample_info.codec,
+                                      audio_sample_info));
+          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+            return audio_decoder_impl.PassAs<AudioDecoder>();
+          }
         }
         return scoped_ptr<AudioDecoder>();
       };

@@ -29,6 +29,7 @@ import android.view.ViewParent;
 import android.widget.FrameLayout;
 import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
@@ -118,14 +119,14 @@ public abstract class CobaltActivity extends NativeActivity {
       createNewSurfaceView();
     }
 
+    DisplayUtil.cacheDefaultDisplay(this);
+
     getStarboardBridge().onActivityStart(this, keyboardEditor);
-    getStarboardBridge().stopMediaPlaybackService();
     super.onStart();
   }
 
   @Override
   protected void onStop() {
-    getStarboardBridge().startMediaPlaybackService();
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 

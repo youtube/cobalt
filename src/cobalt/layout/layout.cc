@@ -14,6 +14,8 @@
 
 #include "cobalt/layout/layout.h"
 
+#include <utility>
+
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/stop_watch.h"
 #include "cobalt/cssom/computed_style.h"
@@ -25,6 +27,7 @@
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
+#include "cobalt/layout/layout_boxes.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 
@@ -82,8 +85,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
   // Associate the UI navigation root with the initial containing block.
   if (document->window()) {
-    (*initial_containing_block)->SetUiNavItem(
-        document->window()->GetUiNavRoot());
+    (*initial_containing_block)
+        ->SetUiNavItem(document->window()->GetUiNavRoot());
   }
 
   // Generate boxes.
@@ -147,6 +150,25 @@ void UpdateComputedStylesAndLayoutBoxTree(
     (*initial_containing_block)->set_left(LayoutUnit());
     (*initial_containing_block)->set_top(LayoutUnit());
     (*initial_containing_block)->UpdateSize(LayoutParams());
+  }
+
+  // Update all UI navigation elements with the sizes and positions of their
+  // corresponding layout boxes.
+  if (document->ui_nav_needs_layout()) {
+    TRACE_EVENT0("cobalt::layout", "UpdateUiNavigationItems");
+    document->set_ui_nav_needs_layout(false);
+
+    const auto& ui_nav_elements = document->ui_navigation_elements();
+    (*initial_containing_block)->UpdateUiNavigationItem();
+    for (dom::HTMLElement* html_element : ui_nav_elements) {
+      LayoutBoxes* layout_boxes = base::polymorphic_downcast<LayoutBoxes*>(
+          html_element->layout_boxes());
+      if (layout_boxes) {
+        for (Box* box : layout_boxes->boxes()) {
+          box->UpdateUiNavigationItem();
+        }
+      }
+    }
   }
 }
 

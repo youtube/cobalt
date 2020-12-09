@@ -308,13 +308,6 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
                                            0, info);
 
   uint32_t flags = 0;
-  if (!force_deterministic_rendering) {
-    // Distance field fonts are known to result in non-deterministic graphical,
-    // since the output depends on the size of the glyph that enters the atlas
-    // first (which would get re-used for similarly but unequal sized
-    // subsequent glyphs).
-    flags = SkSurfaceProps::kUseDistanceFieldFonts_Flag;
-  }
   SkSurfaceProps skia_surface_props(flags,
                                     SkSurfaceProps::kLegacyFontHost_InitType);
   return SkSurface::MakeFromBackendRenderTarget(

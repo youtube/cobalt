@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Wrapper to check for internal tool sync_keyboxes."""
 
 import sys
 
@@ -22,5 +23,5 @@ except ImportError:
   print('sync_keyboxes.py not found, skipping.')
   sys.exit(0)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   sys.exit(sync_keyboxes.SyncKeyboxesForCurrentBranch())

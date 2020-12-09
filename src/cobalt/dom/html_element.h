@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -363,10 +364,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return ui_nav_item_;
   }
 
-  // Reset focus on the associated UI navigation item (if any). This is used
-  // when resuming from the conealed state, in case the underlying UI navigation
-  // system was reset during the conceal.
-  void RefocusUiNavItem();
+  // Update the UI navigation system to focus on the relevant navigation item
+  // for this HTML element (if any).
+  void UpdateUiNavigationFocus(bool force_focus);
 
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html50/semantics.html#the-root-element.
@@ -424,7 +424,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void ClearRuleMatchingStateInternal(bool invalidate_descendants);
 
   // Update the UI navigation item type for this element.
-  bool UpdateUiNavigationAndReturnIfLayoutBoxesAreValid();
+  void UpdateUiNavigation();
   void ReleaseUiNavigationItem();
 
   // Clear the list of active background images, and notify the animated image
@@ -520,6 +520,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // then query starboard for position data each frame, thus animating the
   // boxes without requiring a new layout.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
+
+  // Signal whether the UI navigation item may need to be updated.
+  bool ui_nav_needs_update_ = false;
 
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.

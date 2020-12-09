@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
@@ -242,6 +243,22 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
           << "Could not send Cobalt library information into Crashapd.";
     } else {
       SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
+    }
+
+    auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
+        library_loader->Resolve("GetEvergreenSabiString"));
+
+    if (!CheckSabi(get_evergreen_sabi_string_func)) {
+      SB_LOG(ERROR) << "CheckSabi failed";
+      // Hard failure. Discard the image and auto rollback, but only if
+      // the current image is not the system image.
+      if (current_installation != 0) {
+        current_installation = RevertBack(current_installation, app_key);
+        continue;
+      } else {
+        // The system image at index 0 failed.
+        return NULL;
+      }
     }
 
     auto get_user_agent_func = reinterpret_cast<const char* (*)()>(

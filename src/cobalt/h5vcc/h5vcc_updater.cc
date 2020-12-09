@@ -14,6 +14,12 @@
 
 #include "cobalt/h5vcc/h5vcc_updater.h"
 
+namespace {
+
+const uint16 kInvalidInstallationIndex = 1000;
+
+}  // namespace
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -50,6 +56,15 @@ void H5vccUpdater::ResetInstallations() {
   if (updater_module_) {
     updater_module_->ResetInstallations();
   }
+}
+
+uint16 H5vccUpdater::GetInstallationIndex() const {
+  if (!updater_module_) {
+    return kInvalidInstallationIndex;
+  }
+  int index = updater_module_->GetInstallationIndex();
+
+  return index == -1 ? kInvalidInstallationIndex : static_cast<uint16>(index);
 }
 
 }  // namespace h5vcc

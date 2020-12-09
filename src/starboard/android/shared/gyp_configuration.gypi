@@ -22,6 +22,7 @@
     'gtest_target_type': 'shared_library',
     'sb_widevine_platform': 'android',
     'sb_enable_benchmark': 1,
+    'cobalt_licenses_platform': 'android',
 
     'gl_type': 'system_gles2',
     'enable_remote_debugging': 0,

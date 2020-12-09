@@ -1428,14 +1428,18 @@ class Isolate final : private HiddenFactory {
   // builtins constants table to remain unchanged from build-time.
   size_t HashIsolateForEmbeddedBlob();
 
-  V8_EXPORT_PRIVATE static const uint8_t* CurrentEmbeddedBlob();
-  V8_EXPORT_PRIVATE static uint32_t CurrentEmbeddedBlobSize();
+  static const uint8_t* CurrentEmbeddedBlobCode();
+  static uint32_t CurrentEmbeddedBlobCodeSize();
+  static const uint8_t* CurrentEmbeddedBlobMetadata();
+  static uint32_t CurrentEmbeddedBlobMetadataSize();
   static bool CurrentEmbeddedBlobIsBinaryEmbedded();
 
   // These always return the same result as static methods above, but don't
   // access the global atomic variable (and thus *might be* slightly faster).
-  const uint8_t* embedded_blob() const;
-  uint32_t embedded_blob_size() const;
+  const uint8_t* embedded_blob_code() const;
+  uint32_t embedded_blob_code_size() const;
+  const uint8_t* embedded_blob_metadata() const;
+  uint32_t embedded_blob_metadata_size() const;
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1829,14 +1833,18 @@ class Isolate final : private HiddenFactory {
   void TearDownEmbeddedBlob();
 
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-  void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
+  void SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
+                       const uint8_t* metadata, uint32_t metadata_size);
 #else
-  void SetEmbeddedBlob(uint8_t* blob, uint32_t blob_size);
+  void SetEmbeddedBlob(uint8_t* code, uint32_t code_size,
+                       uint8_t* metadata, uint32_t metadata_size);
 #endif
   void ClearEmbeddedBlob();
 
-  const uint8_t* embedded_blob_ = nullptr;
-  uint32_t embedded_blob_size_ = 0;
+  const uint8_t* embedded_blob_code_ = nullptr;
+  uint32_t embedded_blob_code_size_ = 0;
+  const uint8_t* embedded_blob_metadata_ = nullptr;
+  uint32_t embedded_blob_metadata_size_ = 0;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
 

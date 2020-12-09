@@ -355,6 +355,9 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
   SbMemoryUnmap(mem_chunk, kMemSize);
   EXPECT_EQ_NO_TRACKING(mem_chunk, mem_reporter()->last_mem_unmap());
   EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
+  // On some platforms, bookkeeping for memory mapping can cost allocations.
+  // Call Clear() explicitly before TearDown() checks number_allocs_;
+  mem_reporter()->Clear();
 }
 #endif  // SB_API_VERSION >= 12 || SB_HAS(MMAP)
 

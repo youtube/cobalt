@@ -29,14 +29,14 @@
 
 package dev.cobalt.media;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
-import android.view.WindowManager;
+import android.view.Display;
 import androidx.annotation.RequiresApi;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.UsedByNative;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
@@ -72,20 +72,9 @@ public final class VideoFrameReleaseTimeHelper {
    * default display's vsync signal.
    */
   @SuppressWarnings("unused")
-  public VideoFrameReleaseTimeHelper() {
-    this(DISPLAY_REFRESH_RATE_UNKNOWN);
-  }
-
-  /**
-   * Constructs an instance that smooths frame release timestamps and aligns them with the default
-   * display's vsync signal.
-   *
-   * @param context A context from which information about the default display can be retrieved.
-   */
-  @SuppressWarnings("unused")
   @UsedByNative
-  public VideoFrameReleaseTimeHelper(Context context) {
-    this(getDefaultDisplayRefreshRate(context));
+  public VideoFrameReleaseTimeHelper() {
+    this(getDefaultDisplayRefreshRate());
   }
 
   private VideoFrameReleaseTimeHelper(double defaultDisplayRefreshRate) {
@@ -220,11 +209,9 @@ public final class VideoFrameReleaseTimeHelper {
     return snappedAfterDiff < snappedBeforeDiff ? snappedAfterNs : snappedBeforeNs;
   }
 
-  private static double getDefaultDisplayRefreshRate(Context context) {
-    WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-    return manager.getDefaultDisplay() != null
-        ? manager.getDefaultDisplay().getRefreshRate()
-        : DISPLAY_REFRESH_RATE_UNKNOWN;
+  private static double getDefaultDisplayRefreshRate() {
+    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
+    return defaultDisplay != null ? defaultDisplay.getRefreshRate() : DISPLAY_REFRESH_RATE_UNKNOWN;
   }
 
   /**

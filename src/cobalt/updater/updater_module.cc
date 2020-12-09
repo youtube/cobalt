@@ -50,8 +50,8 @@ constexpr uint8_t kCobaltPublicKeyHash[] = {
     0x9e, 0x8b, 0x2d, 0x22, 0x65, 0x19, 0xb1, 0xfa, 0xba, 0x02, 0x04,
     0x3a, 0xb2, 0x7a, 0xf6, 0xfe, 0xd5, 0x35, 0xa1, 0x19, 0xd9};
 
-// The map to translate updater status from enum to readable string.
-const std::map<ComponentState, const char*> updater_status_map = {
+// The map to translate update state from ComponentState to readable string.
+const std::map<ComponentState, const char*> update_state_map = {
     {ComponentState::kNew, "Will check for update soon"},
     {ComponentState::kChecking, "Checking for update"},
     {ComponentState::kCanUpdate, "Update is available"},
@@ -78,9 +78,15 @@ namespace updater {
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
-    auto status_iterator = updater_status_map.find(crx_update_item_.state);
-    if (status_iterator == updater_status_map.end()) {
+    auto status_iterator = update_state_map.find(crx_update_item_.state);
+    if (status_iterator == update_state_map.end()) {
       status = "Status is unknown.";
+    } else if (crx_update_item_.state == ComponentState::kUpToDate &&
+               updater_configurator_->GetPreviousUpdaterStatus().compare(
+                   update_state_map.find(ComponentState::kUpdated)->second) ==
+                   0) {
+      status =
+          std::string(update_state_map.find(ComponentState::kUpdated)->second);
     } else {
       status = std::string(status_iterator->second);
     }
@@ -286,6 +292,22 @@ void UpdaterModule::ResetInstallations() {
     SB_LOG(ERROR) << "Updater failed to clean the product directory.";
     return;
   }
+}
+
+int UpdaterModule::GetInstallationIndex() const {
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager) {
+    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    return -1;
+  }
+  int index = installation_manager->GetCurrentInstallationIndex();
+  if (index == IM_EXT_ERROR) {
+    SB_LOG(ERROR) << "Updater failed to get current installation index.";
+    return -1;
+  }
+  return index;
 }
 
 }  // namespace updater

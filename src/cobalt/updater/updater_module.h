@@ -78,6 +78,8 @@ class UpdaterModule {
 
   void ResetInstallations();
 
+  int GetInstallationIndex() const;
+
  private:
   base::Thread updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;

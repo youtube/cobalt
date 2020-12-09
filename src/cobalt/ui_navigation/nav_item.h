@@ -25,14 +25,11 @@ namespace ui_navigation {
 // This wraps a NativeItem to make it ref-counted.
 class NavItem : public base::RefCountedThreadSafe<NavItem> {
  public:
-  NavItem(NativeItemType type,
-          const base::Closure& onblur_callback,
+  NavItem(NativeItemType type, const base::Closure& onblur_callback,
           const base::Closure& onfocus_callback,
           const base::Closure& onscroll_callback);
 
-  NativeItemType GetType() const {
-    return nav_item_type_;
-  }
+  NativeItemType GetType() const { return nav_item_type_; }
 
   bool IsContainer() const {
     return nav_item_type_ == kNativeItemTypeContainer;
@@ -73,7 +70,13 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
 
   NativeItemType nav_item_type_;
   NativeItem nav_item_;
-  bool enabled_;
+
+  enum State {
+    kStateNew,
+    kStateEnabled,
+    kStatePendingDelete,
+  };
+  State state_;
 
   static NativeCallbacks s_callbacks_;
 };

@@ -24,6 +24,7 @@
       'sources': [
         'decoder_buffer_allocator.cc',
         'decoder_buffer_allocator.h',
+        'decoder_buffer_memory_info.h',
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.cc',

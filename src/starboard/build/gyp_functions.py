@@ -73,6 +73,13 @@ class Extensions(object):
   def call(self):
     return getattr(self, self.command)()
 
+  def wrap_windows_path(self):
+    """Fixup a windows-style path by dealing with separators and spaces."""
+    path = os.path.normpath('/'.join(self.argv))
+    ret = path.replace(os.sep, '/')
+    ret = '"' + ret.strip() + '"'
+    return ret
+
   def file_glob(self):
     """Glob files in dir, with pattern glob."""
     args = ExtensionCommandParser(['dir', 'pattern']).parse_args(self.argv)

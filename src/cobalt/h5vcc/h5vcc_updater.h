@@ -44,6 +44,8 @@ class H5vccUpdater : public script::Wrappable {
 
   void ResetInstallations();
 
+  uint16 GetInstallationIndex() const;
+
 #else
   H5vccUpdater() {}
 #endif

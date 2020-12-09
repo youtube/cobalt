@@ -5,6 +5,7 @@
 #include "cobalt/updater/configurator.h"
 
 #include <set>
+#include <utility>
 
 #include "base/version.h"
 #include "cobalt/script/javascript_engine.h"
@@ -53,11 +54,11 @@ const std::set<std::string> valid_channels = {
 };
 
 #if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const std::string kDefaultUpdaterChannel = "dev";
+const const char kDefaultUpdaterChannel[] = "dev";
 #elif defined(COBALT_BUILD_TYPE_QA)
-const std::string kDefaultUpdaterChannel = "qa";
+const const char kDefaultUpdaterChannel[] = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-const std::string kDefaultUpdaterChannel = "prod";
+const const char kDefaultUpdaterChannel[] = "prod";
 #endif
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
@@ -231,7 +232,6 @@ std::string Configurator::GetChannel() const {
 void Configurator::SetChannel(const std::string& updater_channel) {
   base::AutoLock auto_lock(updater_channel_lock_);
   updater_channel_ = updater_channel;
-  persisted_data_->SetUpdaterChannel(GetAppGuid(), updater_channel);
 }
 
 bool Configurator::IsChannelValid(const std::string& channel) {
@@ -252,6 +252,17 @@ std::string Configurator::GetUpdaterStatus() const {
 void Configurator::SetUpdaterStatus(const std::string& status) {
   base::AutoLock auto_lock(updater_status_lock_);
   updater_status_ = status;
+}
+
+std::string Configurator::GetPreviousUpdaterStatus() const {
+  base::AutoLock auto_lock(
+      const_cast<base::Lock&>(previous_updater_status_lock_));
+  return previous_updater_status_;
+}
+
+void Configurator::SetPreviousUpdaterStatus(const std::string& status) {
+  base::AutoLock auto_lock(previous_updater_status_lock_);
+  previous_updater_status_ = status;
 }
 
 }  // namespace updater

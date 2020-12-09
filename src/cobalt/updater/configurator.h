@@ -81,8 +81,11 @@ class Configurator : public update_client::Configurator {
 
   bool IsChannelValid(const std::string& channel);
 
-  std::string GetUpdaterStatus() const;
+  std::string GetUpdaterStatus() const override;
   void SetUpdaterStatus(const std::string& status);
+
+  std::string GetPreviousUpdaterStatus() const override;
+  void SetPreviousUpdaterStatus(const std::string& status) override;
 
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
@@ -98,6 +101,8 @@ class Configurator : public update_client::Configurator {
   SbAtomic32 is_channel_changed_;
   std::string updater_status_;
   base::Lock updater_status_lock_;
+  std::string previous_updater_status_;
+  base::Lock previous_updater_status_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
