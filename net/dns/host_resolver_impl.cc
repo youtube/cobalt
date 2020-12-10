@@ -88,10 +88,14 @@
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
+#endif
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
-
+ 
 namespace net {
 
 namespace {
@@ -957,7 +961,7 @@ class HostResolverImpl::ProcTask {
           base::BindOnce(&ProcTask::StartLookupAttempt,
                          weak_ptr_factory_.GetWeakPtr()),
           params_.unresponsive_delay *
-              std::pow(params_.retry_factor, attempt_number_ - 1));
+              pow(params_.retry_factor, attempt_number_ - 1));
     }
   }
 

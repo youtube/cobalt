@@ -64,6 +64,10 @@
 
 #include "buf.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
+#endif
+
 #ifdef LIBXML_PATTERN_ENABLED
 #define XPATH_STREAMING
 #endif

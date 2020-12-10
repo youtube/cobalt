@@ -13,6 +13,12 @@
 #include "base/rand_util.h"
 #include "base/time/tick_clock.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/types.h"
+#endif
+
 namespace net {
 
 BackoffEntry::BackoffEntry(const BackoffEntry::Policy* policy)
