@@ -170,6 +170,14 @@ bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
   // We expect to start with a delegate, so we can DCHECK it, but any task we
   // run could call Quit and remove it.
   DCHECK(delegate_);
+  if (!delegate_) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    // Abort if this is a QA build to signal that this is unexpected.
+    CHECK(delegate_);
+#endif
+    // Drop the work if there is no delegate for it.
+    return false;
+  }
 
   // Do immediate work.
   bool did_work = delegate_->DoWork();
