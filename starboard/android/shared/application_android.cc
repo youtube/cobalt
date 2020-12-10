@@ -597,6 +597,16 @@ Java_dev_cobalt_coat_StarboardBridge_nativeStopApp(JniEnvExt* env,
   ApplicationAndroid::Get()->Stop(error_level);
 }
 
+void ApplicationAndroid::SendLowMemoryEvent() {
+  Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_CobaltActivity_nativeLowMemoryEvent(JNIEnv* env,
+                                                         jobject unused_clazz) {
+  ApplicationAndroid::Get()->SendLowMemoryEvent();
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
