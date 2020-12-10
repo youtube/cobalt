@@ -90,6 +90,7 @@ class ApplicationAndroid
       const std::vector<std::string>& suggestions,
       int ticket);
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
+  void SendLowMemoryEvent();
 
  protected:
   // --- Application overrides ---
