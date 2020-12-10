@@ -63,7 +63,7 @@ std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
   return result;
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;

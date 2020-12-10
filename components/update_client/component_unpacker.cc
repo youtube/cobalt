@@ -84,7 +84,7 @@ bool ComponentUnpacker::BeginUnzipping() {
   // Mind the reference to non-const type, passed as an argument below.
   base::FilePath& destination = is_delta_ ? unpack_diff_path_ : unpack_path_;
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   if (!base::CreateNewTempDirectory(base::FilePath::StringType(),
                                     &destination)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
@@ -147,7 +147,7 @@ void ComponentUnpacker::EndPatching(UnpackerError error, int extended_error) {
 }
 
 void ComponentUnpacker::EndUnpacking() {
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   if (!unpack_diff_path_.empty())
     base::DeleteFile(unpack_diff_path_, true);
   if (error_ != UnpackerError::kNone && !unpack_path_.empty())

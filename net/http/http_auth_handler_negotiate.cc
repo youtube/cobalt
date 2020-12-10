@@ -92,7 +92,7 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
   //                 method and only constructing when valid.
   std::unique_ptr<HttpAuthHandler> tmp_handler(
       new HttpAuthHandlerNegotiate(http_auth_preferences(), resolver_));
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(STARBOARD)
   if (is_unsupported_ || !allow_gssapi_library_load_)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (!auth_library_->Init()) {
@@ -124,7 +124,7 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
     : auth_system_(prefs),
 #elif defined(OS_WIN)
     : auth_system_(auth_library, "Negotiate", NEGOSSP_NAME, max_token_length),
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(STARBOARD)
     : auth_system_(auth_library, "Negotiate", CHROME_GSS_SPNEGO_MECH_OID_DESC),
 #endif
       resolver_(resolver),

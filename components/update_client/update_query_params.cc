@@ -37,7 +37,7 @@ const char kOs[] =
     "fuchsia";
 #elif defined(OS_OPENBSD)
     "openbsd";
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
     "starboard";
 #else
 #error "unknown os"
@@ -79,7 +79,7 @@ std::string UpdateQueryParams::Get(ProdId prod) {
   return base::StringPrintf(
       "os=%s&arch=%s&os_arch=%s&nacl_arch=%s&prod=%s%s&acceptformat=crx2,crx3",
       kOs, kArch,
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
       base::SysInfo().OperatingSystemArchitecture().c_str(),
 #else
       "",

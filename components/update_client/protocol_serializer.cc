@@ -41,7 +41,7 @@ std::string GetOSVersion() {
   const auto ver = base::win::OSInfo::GetInstance()->version_number();
   return base::StringPrintf("%d.%d.%d.%d", ver.major, ver.minor, ver.build,
                             ver.patch);
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
   // TODO: fill in OS version.
   return "";
 #else
@@ -130,7 +130,7 @@ protocol_request::Request MakeProtocolRequest(
   request.os.platform = os_long_name;
   request.os.version = GetOSVersion();
   request.os.service_pack = GetServicePack();
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // TODO: fill in arch.
   request.os.arch = "";
 #else

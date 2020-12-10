@@ -97,7 +97,7 @@ namespace {
 
 uint32_t ParseHexToken(const TrivialStringPiece& string_piece) {
   char* value_end(const_cast<char*>(string_piece.end));
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   uint64 long_integer =
       SbStringParseUnsignedInteger(string_piece.begin, &value_end, 16);
 #else

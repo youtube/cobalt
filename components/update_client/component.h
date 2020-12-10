@@ -25,7 +25,7 @@
 #include "components/update_client/update_client.h"
 #include "url/gurl.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "cobalt/extension/installation_manager.h"
 #endif
 
@@ -428,7 +428,7 @@ class Component {
 
   base::FilePath crx_path_;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   int installation_index_ = IM_EXT_INVALID_INDEX;
 #endif
 

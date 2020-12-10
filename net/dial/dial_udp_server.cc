@@ -4,7 +4,7 @@
 
 #include "net/dial/dial_udp_server.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/inet_poem.h"
 #else
 #include <arpa/inet.h>
@@ -35,7 +35,7 @@ const int kReadBufferSize = 500 * 1024;
 
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   return IPEndPoint::GetForAllInterfaces(port);
 #else
   SockaddrStorage any_addr;
@@ -47,7 +47,7 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   IPEndPoint addr;
   ignore_result(addr.FromSockAddr(any_addr.addr, any_addr.addr_len));
   return addr;
-#endif  // !defined(OS_STARBOARD)
+#endif  // !defined(STARBOARD)
 }
 
 }  // namespace

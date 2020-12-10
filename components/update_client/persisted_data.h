@@ -50,7 +50,7 @@ class PersistedData {
   // -2 indicates that the |id| has an unknown value of last active date.
   int GetDateLastActive(const std::string& id) const;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // Returns the version of the update that was last successfully unpacked for
   // the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
@@ -81,7 +81,7 @@ class PersistedData {
   // are set.
   void SetDateLastActive(const std::vector<std::string>& ids, int datenum);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // Records the version of the update that is successfully unpacked for
   // the specified |id|.
   void SetLastUnpackedVersion(const std::string& id,

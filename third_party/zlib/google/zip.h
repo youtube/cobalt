@@ -168,7 +168,7 @@ typedef base::RepeatingCallback<std::unique_ptr<WriterDelegate>(
     WriterFactory;
 typedef base::RepeatingCallback<bool(const base::FilePath&)> DirectoryCreator;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 bool UnzipWithFilterAndWriters(const base::FilePath& zip_file,
                                const WriterFactory& writer_factory,
                                const DirectoryCreator& directory_creator,

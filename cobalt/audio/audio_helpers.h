@@ -17,7 +17,7 @@
 
 #include "cobalt/media/base/audio_bus.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"
 #endif
@@ -37,7 +37,7 @@ const float kMaxInt16AsFloat32 = 32767.0f;
 
 const int kStandardOutputSampleRate = 48000;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 // Get the size in bytes of an SbMediaAudioSampleType.
 inline size_t GetStarboardSampleTypeSize(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
@@ -68,7 +68,7 @@ inline size_t GetSampleTypeSize(SampleType sample_type) {
 // an internal SampleType.  If we are not running on starboard or using the
 // starboard media pipeline, then the preferred sample type is always float32.
 inline SampleType GetPreferredOutputSampleType() {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSampleTypeFloat32;
   }
@@ -77,12 +77,12 @@ inline SampleType GetPreferredOutputSampleType() {
       << "At least one starboard audio sample type must be supported if using "
          "starboard media pipeline.";
   return kSampleTypeInt16;
-#else   // defined(OS_STARBOARD)
+#else   // defined(STARBOARD)
   return kSampleTypeFloat32;
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 // The same as GetPreferredOutputSampleType, only as an SbMediaAudioSample
 // rather than an internal SampleType.
 inline SbMediaAudioSampleType GetPreferredOutputStarboardSampleType() {

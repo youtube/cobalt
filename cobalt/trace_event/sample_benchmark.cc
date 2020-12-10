@@ -16,7 +16,7 @@
 #include "build/build_config.h"
 #include "cobalt/trace_event/benchmark.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/thread.h"
 #define usleep(usec) SbThreadSleep(usec)
 #endif

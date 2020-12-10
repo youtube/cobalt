@@ -160,7 +160,7 @@ void CrxDownloader::VerifyResponse(bool is_handled,
   // handling the error.
   result.error = static_cast<int>(CrxDownloaderError::BAD_HASH);
   download_metrics.error = result.error;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   base::DeleteFile(result.response, false);
 #else
   DeleteFileAndEmptyParentDirectory(result.response);
@@ -184,7 +184,7 @@ void CrxDownloader::HandleDownloadError(
 
   download_metrics_.push_back(download_metrics);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
 #endif
 
@@ -212,7 +212,7 @@ void CrxDownloader::HandleDownloadError(
       return;
     }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   }
 #endif
 

@@ -32,7 +32,7 @@ PRTime comparison_time_2 = INT64_C(1373275692441381);   // represented as GMT
 class PRTimeTest : public testing::Test {
  protected:
   void SetUp() override {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     Time local_time = base::test::time_helpers::TestDateToTime(
         base::test::time_helpers::kTimeZoneLocal);
     comparison_time_local_ =

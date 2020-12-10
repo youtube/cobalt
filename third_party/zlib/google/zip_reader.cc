@@ -145,7 +145,7 @@ ZipReader::~ZipReader() {
 bool ZipReader::Open(const base::FilePath& zip_file_path) {
   DCHECK(!zip_file_);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // This function is used by updater to unzip the downloaded update
   // file. The file path is controlled by us, so we are not concerned
   // about the encoding of the path.

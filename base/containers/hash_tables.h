@@ -17,7 +17,7 @@
 
 // Chromium has moved away from compiler specific hash methods and instead uses
 // std::hashes unconditionally. Starboard sadly does not guarantee std::hash.
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(STD_UNORDERED_HASH)
 #define BASE_HASH_DEFINE_LONG_LONG_HASHES 0

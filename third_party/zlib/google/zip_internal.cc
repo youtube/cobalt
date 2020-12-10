@@ -22,12 +22,12 @@
 #include "third_party/zlib/contrib/minizip/iowin32.h"
 #elif defined(OS_POSIX)
 #include "third_party/zlib/contrib/minizip/ioapi.h"
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 #include "third_party/zlib/contrib/minizip/iostarboard.h"
 #endif  // defined(OS_POSIX)
 #endif  // defined(USE_SYSTEM_MINIZIP)
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
@@ -279,7 +279,7 @@ unzFile OpenForUnzipping(const std::string& file_name_utf8) {
   fill_win32_filefunc(&zip_funcs);
   zip_funcs.zopen_file = ZipOpenFunc;
   zip_func_ptrs = &zip_funcs;
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
   zlib_filefunc_def zip_funcs;
   fill_starboard_filefunc(&zip_funcs);
   zip_func_ptrs = &zip_funcs;
@@ -338,7 +338,7 @@ zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag) {
   fill_win32_filefunc(&zip_funcs);
   zip_funcs.zopen_file = ZipOpenFunc;
   zip_func_ptrs = &zip_funcs;
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
   zlib_filefunc_def zip_funcs;
   fill_starboard_filefunc(&zip_funcs);
   zip_func_ptrs = &zip_funcs;

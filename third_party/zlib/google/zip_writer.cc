@@ -185,9 +185,9 @@ bool ZipWriter::FlushEntriesIfNeeded(bool force) {
             file_accessor_->GetLastModifiedTime(absolute_path);
 // Not all platforms provide a mechanism of retrieving the "last modified"
 // timestamp of a file, and thus fail the condition below because the returned
-// value would be |0|. For OS_STARBOARD, simply check if the directory exists or
+// value would be |0|. For STARBOARD, simply check if the directory exists or
 // not and assume the timestamp provided is what is desired.
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
         if (!file_accessor_->DirectoryExists(absolute_path)) {
 #else
         if (last_modified.is_null()) {

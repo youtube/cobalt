@@ -77,7 +77,7 @@ BASE_EXPORT bool DeleteFile(const FilePath& path, bool recursive);
 BASE_EXPORT bool DeleteFileAfterReboot(const FilePath& path);
 #endif
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 // Moves the given path, whether it's a file or a directory.
 // If a simple rename is not possible, such as in the case where the paths are
 // on different volumes, this will attempt to copy and delete. Returns
@@ -350,7 +350,7 @@ BASE_EXPORT bool IsLink(const FilePath& file_path);
 // Returns information about the given file path.
 BASE_EXPORT bool GetFileInfo(const FilePath& file_path, File::Info* info);
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 // Sets the time of the last access and the time of the last modification.
 BASE_EXPORT bool TouchFile(const FilePath& path,
                            const Time& last_accessed,

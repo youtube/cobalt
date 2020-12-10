@@ -13,7 +13,7 @@
 #include <errno.h>
 #endif
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 #endif
@@ -84,7 +84,7 @@ File& File::operator=(File&& other) {
 #if !defined(OS_NACL)
 void File::Initialize(const FilePath& path, uint32_t flags) {
   if (path.ReferencesParent()) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 
 #else
 #if defined(OS_WIN)
@@ -94,7 +94,7 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
 #else
 #error Unsupported platform
 #endif  // defined(OS_WIN)
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
     error_details_ = FILE_ERROR_ACCESS_DENIED;
     return;
   }
