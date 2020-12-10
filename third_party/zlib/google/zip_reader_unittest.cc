@@ -27,7 +27,7 @@
 #include "testing/platform_test.h"
 #include "third_party/zlib/google/zip_internal.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "base/md5.h"
 #include "base/test/scoped_task_environment.h"
 #include "starboard/common/log.h"
@@ -181,7 +181,7 @@ class ZipReaderTest : public PlatformTest {
   }
 
   bool GetTestDataDirectory(base::FilePath* path) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     bool success = base::PathService::Get(base::DIR_TEST_DATA, path);
 #else
     bool success = base::PathService::Get(base::DIR_SOURCE_ROOT, path);
@@ -189,7 +189,7 @@ class ZipReaderTest : public PlatformTest {
     EXPECT_TRUE(success);
     if (!success)
       return false;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     *path = path->AppendASCII("zlib");
 #else
     *path = path->AppendASCII("third_party");
@@ -229,7 +229,7 @@ class ZipReaderTest : public PlatformTest {
 
   base::ScopedTempDir temp_dir_;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   base::test::ScopedTaskEnvironment scoped_task_environment_;
 #else
   base::test::TaskEnvironment task_environment_;
@@ -243,7 +243,7 @@ TEST_F(ZipReaderTest, Open_ValidZipFile) {
 
 // No Starboardized and fully implemented base::PlatformFile implementation is
 // available.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(ZipReaderTest, Open_ValidZipPlatformFile) {
   ZipReader reader;
   FileWrapper zip_fd_wrapper(test_zip_file_, FileWrapper::READ_ONLY);
@@ -281,7 +281,7 @@ TEST_F(ZipReaderTest, Iteration) {
 
 // No Starboardized and fully implemented base::PlatformFile implementation is
 // available.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 // Open the test zip file from a file descriptor, iterate through its contents,
 // and compare that they match the expected contents.
 TEST_F(ZipReaderTest, PlatformFileIteration) {
@@ -662,14 +662,14 @@ class FileWriterDelegateTest : public ::testing::Test {
                                        base::File::FLAG_READ |
                                        base::File::FLAG_WRITE |
                                        base::File::FLAG_TEMPORARY
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
                                        | base::File::FLAG_DELETE_ON_CLOSE
 #endif
                      ));
     ASSERT_TRUE(file_.IsValid());
   }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   void TearDown() override {
     file_.Close();
     ASSERT_TRUE(base::DeleteFile(temp_file_path_, false));

@@ -43,7 +43,7 @@ class NET_EXPORT IPEndPoint {
   int GetSockAddrFamily() const;
 #endif
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   static IPEndPoint GetForAllInterfaces(int port);
 
   bool ToSbSocketAddress(SbSocketAddress* out_address) const WARN_UNUSED_RESULT;

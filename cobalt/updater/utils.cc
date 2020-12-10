@@ -48,7 +48,7 @@ bool GetProductDirectoryPath(base::FilePath* path) {
   constexpr int kPathKey = base::DIR_APP_DATA;
 #endif
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   base::FilePath app_data_dir;
   if (!base::PathService::Get(kPathKey, &app_data_dir)) {
     LOG(ERROR) << "Can't retrieve local app data directory.";

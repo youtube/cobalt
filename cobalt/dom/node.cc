@@ -39,13 +39,13 @@
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/window.h"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #define HANDLE_CORE_DUMP
 #include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace dom {

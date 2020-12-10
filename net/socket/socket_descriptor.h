@@ -11,7 +11,7 @@
 #if defined(OS_WIN)
 #include <winsock2.h>
 #endif  // OS_WIN
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/common/socket.h"
 #include "starboard/types.h"
 #endif

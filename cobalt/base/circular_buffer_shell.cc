@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/memory.h"
 #define malloc SbMemoryAllocate
 #define realloc SbMemoryReallocate

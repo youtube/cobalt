@@ -27,7 +27,7 @@
 
 namespace {
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void CleanupDirectory(base::FilePath& dir) {
   std::stack<std::string> directories;
   base::FileEnumerator file_enumerator(
@@ -70,7 +70,7 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
   SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
@@ -102,7 +102,7 @@ void UrlFetcherDownloader::SelectSlot(const GURL& url) {
 void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
@@ -133,7 +133,7 @@ void UrlFetcherDownloader::CreateDownloadDir() {
                                &download_dir_);
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
   ReportDownloadFailure(url, CrxDownloaderError::GENERIC_ERROR);
 }
@@ -144,11 +144,11 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url,
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 #endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   cobalt_slot_management_.CleanupAllDrainFiles(download_dir_);
 #endif
   Result result;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   result.error = static_cast<int>(error);
 #else
   result.error = -1;
@@ -171,13 +171,13 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   SB_LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
                << " download_dir=" << download_dir_;
 #endif
 
   if (download_dir_.empty()) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     SB_LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
                      "download_dir";
 #endif
@@ -229,7 +229,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
   result.error = error;
   if (!error) {
     result.response = file_path;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     result.installation_index = cobalt_slot_management_.GetInstallationIndex();
 #endif
   }
@@ -247,7 +247,7 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
           << download_time.InMilliseconds() << "ms from " << final_url_.spec()
           << " to " << result.response.value();
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   // Delete the download directory in the error cases.
   if (error && !download_dir_.empty())
     base::PostTaskWithTraits(

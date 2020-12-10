@@ -68,7 +68,7 @@ NetworkModule::~NetworkModule() {
 
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   object_watch_multiplexer_.reset(NULL);
 #endif
   network_system_.reset(NULL);
@@ -100,7 +100,7 @@ void NetworkModule::SetEnableQuic(bool enable_quic) {
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
 #endif
   network_system_ = NetworkSystem::Create(event_dispatcher);

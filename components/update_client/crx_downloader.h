@@ -19,7 +19,7 @@
 #include "base/threading/thread_checker.h"
 #include "url/gurl.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "cobalt/extension/installation_manager.h"
 #endif
 
@@ -61,7 +61,7 @@ class CrxDownloader {
     // Download error: 0 indicates success.
     int error = 0;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     int installation_index = IM_EXT_INVALID_INDEX;
 #endif
 

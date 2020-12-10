@@ -147,7 +147,7 @@ TEST(BreakIteratorTest, BreakWordThai) {
 // Japanese is not shipped on mobile.
 // Cobalt does not support Chinese/Japanese word breaking yet. This feature
 // requires a big dictionary(cjdict.txt) to support.
-#if !(defined(OS_IOS) || defined(OS_ANDROID) || defined(OS_STARBOARD))
+#if !(defined(OS_IOS) || defined(OS_ANDROID) || defined(STARBOARD))
 
 TEST(BreakIteratorTest, BreakWordChinese) {
   // Terms in Traditional Chinese, without spaces in between.

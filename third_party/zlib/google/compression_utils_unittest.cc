@@ -88,7 +88,7 @@ TEST(CompressionUtilsTest, LargeInput) {
   EXPECT_EQ(data, uncompressed_data);
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 // Outputs the duration of GzipCompress() and GzipUncompress() with 32MiB of
 // data.
 TEST(CompressionUtilsTest, OutputCompressionAndDecompressionDuration) {

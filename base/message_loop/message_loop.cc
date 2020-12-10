@@ -631,7 +631,7 @@ bool MessageLoopForUI::IsCurrent() {
   return MessageLoopCurrentForUI::IsSet();
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void MessageLoopForUI::Start() {
   // No Histogram support for UI message loop as it is managed by Starboard.
   static_cast<base::MessagePumpUIStarboard*>(pump_.get())->Start(this);

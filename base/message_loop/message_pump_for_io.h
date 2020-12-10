@@ -37,7 +37,7 @@ using MessagePumpForIO = MessagePumpDefault;
 using MessagePumpForIO = MessagePumpFuchsia;
 #elif defined(OS_POSIX)
 using MessagePumpForIO = MessagePumpLibevent;
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 using MessagePumpForIO = MessagePumpIOStarboard;
 #else
 #error Platform does not define MessagePumpForIO

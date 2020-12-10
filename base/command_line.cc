@@ -221,7 +221,7 @@ bool CommandLine::Init(int argc, const char* const* argv) {
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   current_process_commandline_->InitFromArgv(argc, argv);
 #else
 #error Unsupported platform
@@ -280,7 +280,7 @@ FilePath CommandLine::GetProgram() const {
 void CommandLine::SetProgram(const FilePath& program) {
 #if defined(OS_WIN)
   TrimWhitespace(program.value(), TRIM_ALL, &argv_[0]);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   TrimWhitespaceASCII(program.value(), TRIM_ALL, &argv_[0]);
 #else
 #error Unsupported platform
@@ -305,7 +305,7 @@ std::string CommandLine::GetSwitchValueASCII(
   }
 #if defined(OS_WIN)
   return UTF16ToASCII(value);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   return value;
 #endif
 }

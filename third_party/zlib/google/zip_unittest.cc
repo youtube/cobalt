@@ -165,7 +165,7 @@ class ZipTest : public PlatformTest {
   }
 
   bool GetTestDataDirectory(base::FilePath* path) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     bool success = base::PathService::Get(base::DIR_TEST_DATA, path);
 #else
     bool success = base::PathService::Get(base::DIR_SOURCE_ROOT, path);
@@ -173,7 +173,7 @@ class ZipTest : public PlatformTest {
     EXPECT_TRUE(success);
     if (!success)
       return false;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     *path = path->AppendASCII("zlib");
 #else
     *path = path->AppendASCII("third_party");
@@ -276,7 +276,7 @@ class ZipTest : public PlatformTest {
     EXPECT_EQ(1, base::WriteFile(src_file, "1", 1));
 
 // No Starboardized implementation of base::TouchFile.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
     EXPECT_TRUE(base::TouchFile(src_file, base::Time::Now(), test_mtime));
 #endif
 
@@ -398,7 +398,7 @@ TEST_F(ZipTest, UnzipWithDelegates) {
       test_dir_);
   base::FilePath path;
   ASSERT_TRUE(GetTestDataDirectory(&path));
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   ASSERT_TRUE(zip::UnzipWithFilterAndWriters(
       path.AppendASCII("test.zip"), writer, dir_creator, filter, false));
 #else
@@ -446,7 +446,7 @@ TEST_F(ZipTest, ZipIgnoreHidden) {
 }
 
 // No Starboardized implementation of base::CopyDirectory or base::CopyFile.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(ZipTest, ZipNonASCIIDir) {
   base::FilePath src_dir;
   ASSERT_TRUE(GetTestDataDirectory(&src_dir));
@@ -466,7 +466,7 @@ TEST_F(ZipTest, ZipNonASCIIDir) {
 #endif
 
 // No Starboardized implementation of base::TouchFile.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(ZipTest, ZipTimeStamp) {
   // The dates tested are arbitrary, with some constraints. The zip format can
   // only store years from 1980 to 2107 and an even number of seconds, due to it

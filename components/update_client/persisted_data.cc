@@ -80,7 +80,7 @@ std::string PersistedData::GetPingFreshness(const std::string& id) const {
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 std::string PersistedData::GetLastUnpackedVersion(const std::string& id) const {
   return GetString(id, "version");
 }
@@ -144,7 +144,7 @@ void PersistedData::SetString(const std::string& id,
                     value);
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void PersistedData::SetLastUnpackedVersion(const std::string& id,
                                            const std::string& version) {
   SetString(id, "version", version);

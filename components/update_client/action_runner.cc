@@ -29,7 +29,7 @@
 
 namespace {
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 void CleanupDirectory(base::FilePath& dir) {
   std::stack<std::string> directories;
   base::FileEnumerator file_enumerator(
@@ -123,7 +123,7 @@ void ActionRunner::RunRecoveryCRXElevated(const base::FilePath& crx_path) {
 }
 
 void ActionRunner::RunCommand(const base::CommandLine& cmdline) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   CleanupDirectory(unpack_path_);
 #else
   base::DeleteFile(unpack_path_, true);

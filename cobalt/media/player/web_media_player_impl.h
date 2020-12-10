@@ -69,12 +69,12 @@
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "url/gurl.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 
 #define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace media {

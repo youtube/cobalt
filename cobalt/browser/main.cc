@@ -110,7 +110,7 @@ void HandleStarboardEvent(const SbEvent* starboard_event) {
 
 }  // namespace
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 COBALT_WRAP_MAIN(PreloadApplication, StartApplication, HandleStarboardEvent,
                  StopApplication);
 #else

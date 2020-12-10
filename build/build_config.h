@@ -5,7 +5,6 @@
 // This file adds defines about the platform we're currently building on.
 //  Operating System:
 //    OS_WIN / OS_MACOSX / OS_LINUX / OS_POSIX (MACOSX or LINUX)
-//    OS_STARBOARD
 //  Compiler:
 //    COMPILER_MSVC / COMPILER_GCC
 //  Processor:
@@ -23,7 +22,7 @@
 
 // A set of macros to use for platform detection.
 #if defined(STARBOARD)
-#define OS_STARBOARD 1
+// noop
 #elif defined(__APPLE__)
 #define OS_MACOSX 1
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
@@ -106,7 +105,7 @@
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_IS(32_BIT)
 # define ARCH_CPU_32_BITS 1
@@ -154,7 +153,7 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #  if SB_IS(WCHAR_T_UTF16)
 #    define WCHAR_T_IS_UTF16 1
 #  elif SB_IS(WCHAR_T_UTF32)
@@ -180,7 +179,7 @@
 #error Please add support for your compiler in build/build_config.h
 #endif
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #  if SB_IS(WCHAR_T_UNSIGNED)
 #    define WCHAR_T_IS_UNSIGNED 1
 #  elif SB_IS(WCHAR_T_SIGNED)

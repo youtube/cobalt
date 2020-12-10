@@ -182,7 +182,7 @@ TEST_F(ImportantFileWriterTest, WriteWithObserver) {
 
 // Disable the test as win32 SbFileOpen doesn't fail on relative path
 // like bad/../path.tmp
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
   // Use an invalid file path (relative paths are invalid) to get a
   // FILE_ERROR_ACCESS_DENIED error when trying to write the file.
@@ -332,7 +332,7 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite_FailToSerialize) {
   EXPECT_FALSE(PathExists(writer.path()));
 }
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST_F(ImportantFileWriterTest, WriteFileAtomicallyHistogramSuffixTest) {
   base::HistogramTester histogram_tester;
   EXPECT_FALSE(PathExists(file_));

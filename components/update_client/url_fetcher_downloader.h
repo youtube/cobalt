@@ -17,7 +17,7 @@
 #include "components/update_client/crx_downloader.h"
 #include "components/update_client/update_client_errors.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
 #endif
 
@@ -41,7 +41,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   void CreateDownloadDir();
   void StartURLFetch(const GURL& url);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   void SelectSlot(const GURL& url);
   void ConfirmSlot(const GURL& url);
 #endif
@@ -53,7 +53,7 @@ class UrlFetcherDownloader : public CrxDownloader {
                          int64_t content_length);
   void OnDownloadProgress(int64_t content_length);
   void ReportDownloadFailure(const GURL& url);
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   void ReportDownloadFailure(const GURL& url, CrxDownloaderError error);
 #endif
 
@@ -71,7 +71,7 @@ class UrlFetcherDownloader : public CrxDownloader {
   int response_code_ = -1;
   int64_t total_bytes_ = -1;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   CobaltSlotManagement cobalt_slot_management_;
 #endif
 

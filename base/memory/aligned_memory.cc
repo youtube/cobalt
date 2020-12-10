@@ -20,7 +20,7 @@ void* AlignedAlloc(size_t size, size_t alignment) {
   DCHECK_EQ(alignment & (alignment - 1), 0U);
   DCHECK_EQ(alignment % sizeof(void*), 0U);
   void* ptr = nullptr;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   ptr = SbMemoryAllocateAligned(alignment, size);
 #elif defined(COMPILER_MSVC)
   ptr = _aligned_malloc(size, alignment);

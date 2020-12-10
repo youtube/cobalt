@@ -149,7 +149,7 @@ struct PathData {
     providers = &base_provider_fuchsia;
 #elif defined(OS_POSIX)
     providers = &base_provider_posix;
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
     providers = &base_provider_starboard;
 #endif
   }
@@ -280,7 +280,7 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   }
 
   // We need to have an absolute path.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   if (!is_absolute) {
     file_path = MakeAbsoluteFilePath(file_path);
     if (file_path.empty())
