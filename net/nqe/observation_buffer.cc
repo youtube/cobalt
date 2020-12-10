@@ -15,7 +15,11 @@
 #include "base/time/time.h"
 #include "net/nqe/network_quality_estimator_params.h"
 #include "net/nqe/weighted_observation.h"
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/types.h"
+#endif
 
 namespace net {
 

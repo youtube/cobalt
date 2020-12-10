@@ -14,7 +14,8 @@
 
 #include "cobalt/css_parser/scanner.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #endif
 

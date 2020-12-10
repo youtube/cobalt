@@ -27,8 +27,7 @@ extern "C" {
 
 // Takes floor of a float |f|.  Meant to be a drop-in replacement for |floorf|
 static SB_C_INLINE float PoemSingleFloor(const float f) {
-  double d = (double)f;
-  return SbDoubleFloor(d);
+  return (float)SbDoubleFloor(f);
 }
 
 #ifdef __cplusplus
