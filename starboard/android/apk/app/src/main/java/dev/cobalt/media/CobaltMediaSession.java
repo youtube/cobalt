@@ -117,64 +117,64 @@ public class CobaltMediaSession
     Log.i(TAG, "MediaSession new");
     if (mediaSession == null) {
       mediaSession = new MediaSessionCompat(context, TAG);
+      mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
+      mediaSession.setCallback(
+          new MediaSessionCompat.Callback() {
+            @Override
+            public void onFastForward() {
+              Log.i(TAG, "MediaSession action: FAST FORWARD");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_FAST_FORWARD);
+            }
+
+            @Override
+            public void onPause() {
+              Log.i(TAG, "MediaSession action: PAUSE");
+              nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
+            }
+
+            @Override
+            public void onPlay() {
+              Log.i(TAG, "MediaSession action: PLAY");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
+            }
+
+            @Override
+            public void onRewind() {
+              Log.i(TAG, "MediaSession action: REWIND");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_REWIND);
+            }
+
+            @Override
+            public void onSkipToNext() {
+              Log.i(TAG, "MediaSession action: SKIP NEXT");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+              Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+              Log.i(TAG, "MediaSession action: SEEK " + pos);
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
+            }
+
+            @Override
+            public void onStop() {
+              Log.i(TAG, "MediaSession action: STOP");
+              nativeInvokeAction(PlaybackStateCompat.ACTION_STOP);
+            }
+          });
     }
-    mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
-    mediaSession.setCallback(
-        new MediaSessionCompat.Callback() {
-          @Override
-          public void onFastForward() {
-            Log.i(TAG, "MediaSession action: FAST FORWARD");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_FAST_FORWARD);
-          }
-
-          @Override
-          public void onPause() {
-            Log.i(TAG, "MediaSession action: PAUSE");
-            nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
-          }
-
-          @Override
-          public void onPlay() {
-            Log.i(TAG, "MediaSession action: PLAY");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
-          }
-
-          @Override
-          public void onRewind() {
-            Log.i(TAG, "MediaSession action: REWIND");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_REWIND);
-          }
-
-          @Override
-          public void onSkipToNext() {
-            Log.i(TAG, "MediaSession action: SKIP NEXT");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
-          }
-
-          @Override
-          public void onSkipToPrevious() {
-            Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
-          }
-
-          @Override
-          public void onSeekTo(long pos) {
-            Log.i(TAG, "MediaSession action: SEEK " + pos);
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
-          }
-
-          @Override
-          public void onStop() {
-            Log.i(TAG, "MediaSession action: STOP");
-            nativeInvokeAction(PlaybackStateCompat.ACTION_STOP);
-          }
-        });
     // |metadataBuilder| may still have no fields at this point, yielding empty metadata.
     mediaSession.setMetadata(metadataBuilder.build());
     // |playbackStateBuilder| may still have no fields at this point.
