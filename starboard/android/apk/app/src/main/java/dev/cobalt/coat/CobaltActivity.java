@@ -26,6 +26,7 @@ import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
@@ -220,7 +221,36 @@ public abstract class CobaltActivity extends NativeActivity implements Component
       }
     }
 
+    addCustomProxyArgs(args);
+
     return args.toArray(new String[0]);
+  }
+
+  private static void addCustomProxyArgs(List<String> args) {
+    Pair<String, String> config = detectSystemProxyConfig();
+
+    if (config.first == null || config.second == null) {
+      return;
+    }
+
+    try {
+      int port = Integer.parseInt(config.second);
+      if (port <= 0 || port > 0xFFFF) {
+        return;
+      }
+
+      String customProxy = String.format("--proxy=\"http=http://%s:%d\"", config.first, port);
+      Log.i(TAG, "addCustomProxyArgs: " + customProxy);
+      args.add(customProxy);
+    } catch (NumberFormatException e) {
+      Log.w(TAG, String.format("http.proxyPort: %s is not valid number", config.second), e);
+    }
+  }
+
+  private static Pair<String, String> detectSystemProxyConfig() {
+    String httpHost = System.getProperty("http.proxyHost", null);
+    String httpPort = System.getProperty("http.proxyPort", null);
+    return new Pair<String, String>(httpHost, httpPort);
   }
 
   protected boolean isReleaseBuild() {
