@@ -125,6 +125,7 @@ const int kMmapFdOffset = 0;
 int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
       return PROT_NONE;
     case OS::MemoryPermission::kRead:
       return PROT_READ;
@@ -151,15 +152,12 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
 #if V8_OS_QNX
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
-#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT) && \
-    !defined(V8_OS_IOS)
-    // TODO(jkummerow): using the V8_OS_IOS define is a crude approximation
-    // of the fact that we don't want to set the MAP_JIT flag when
-    // FLAG_jitless == true, as src/base/ doesn't know any flags.
-    // TODO(crbug.com/1117591): This is only needed for code spaces.
-    flags |= MAP_JIT;
-#endif
   }
+#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64 && defined(MAP_JIT)
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
+    flags |= MAP_JIT;
+  }
+#endif
   return flags;
 }
 
@@ -1005,7 +1003,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
     !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (!error) {
@@ -1031,7 +1029,9 @@ void* Stack::GetStackStart() {
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetCurrentStackPosition() { return __builtin_frame_address(0); }
+Stack::StackSlot Stack::GetCurrentStackPosition() {
+  return __builtin_frame_address(0);
+}
 
 #undef LOG_TAG
 #undef MAP_ANONYMOUS

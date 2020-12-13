@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 
 Address Code::SafepointTableAddress() const {
-  return InstructionStart() + safepoint_table_offset();
+  return MetadataStart() + safepoint_table_offset();
 }
 
 int Code::safepoint_table_size() const {
@@ -42,7 +42,7 @@ int Code::safepoint_table_size() const {
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
 Address Code::HandlerTableAddress() const {
-  return InstructionStart() + handler_table_offset();
+  return MetadataStart() + handler_table_offset();
 }
 
 int Code::handler_table_size() const {
@@ -67,8 +67,6 @@ int Code::code_comments_size() const {
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
-
-int Code::ExecutableInstructionSize() const { return safepoint_table_offset(); }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
@@ -95,7 +93,11 @@ void Code::FlushICache() const {
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
+<<<<<<< HEAD
   // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
+=======
+  STATIC_ASSERT(kOnHeapBodyIsContiguous);
+>>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.
@@ -140,27 +142,58 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 
 int Code::OffHeapInstructionSize() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
     return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionStart() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
-    return raw_instruction_start();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index());
 }
 
 Address Code::OffHeapInstructionEnd() const {
   DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr)
-    return raw_instruction_end();
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
   EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionStartOfBuiltin(builtin_index()) +
          d.InstructionSizeOfBuiltin(builtin_index());
+}
+
+int Code::OffHeapMetadataSize() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataSizeOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapMetadataStart() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataStartOfBuiltin(builtin_index());
+}
+
+Address Code::OffHeapMetadataEnd() const {
+  DCHECK(is_off_heap_trampoline());
+  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
+    return raw_instruction_size();
+  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  return d.MetadataStartOfBuiltin(builtin_index()) +
+         d.MetadataSizeOfBuiltin(builtin_index());
 }
 
 int AbstractCode::SourcePosition(int offset) {
@@ -676,8 +709,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
 
   {
-    // Stop before reaching any embedded tables
-    int code_size = ExecutableInstructionSize();
+    int code_size = InstructionSize();
     os << "Instructions (size = " << code_size << ")\n";
     DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
@@ -686,8 +718,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
-                                                  constant_pool_offset());
+      intptr_t* ptr =
+          reinterpret_cast<intptr_t*>(MetadataStart() + constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
@@ -917,6 +949,11 @@ void DependentCode::InstallDependency(Isolate* isolate,
                                       const MaybeObjectHandle& code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
+  if (V8_UNLIKELY(FLAG_trace_code_dependencies)) {
+    StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
+                   << "] on [" << object << "] in group ["
+                   << DependencyGroupName(group) << "]\n";
+  }
   Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
                                  isolate);
   Handle<DependentCode> new_deps =

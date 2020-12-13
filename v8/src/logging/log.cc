@@ -78,11 +78,13 @@ static v8::CodeEventType GetCodeEventTypeForTag(
   }
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
+  // TODO(mythria,jgruber): Use different markers for Turboprop/NCI.
   switch (code.kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
       return shared.optimization_disabled() ? "" : "~";
-    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::TURBOFAN:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
+    case CodeKind::TURBOPROP:
       return "*";
     default:
       return "";
@@ -1003,6 +1005,13 @@ Logger::~Logger() = default;
 
 const LogSeparator Logger::kNext = LogSeparator::kSeparator;
 
+int64_t Logger::Time() {
+  if (V8_UNLIKELY(FLAG_verify_predictable)) {
+    return isolate_->heap()->MonotonicallyIncreasingTimeInMs() * 1000;
+  }
+  return timer_.Elapsed().InMicroseconds();
+}
+
 void Logger::AddCodeEventListener(CodeEventListener* listener) {
   bool result = isolate_->code_event_dispatcher()->AddListener(listener);
   CHECK(result);
@@ -1081,7 +1090,7 @@ void Logger::CurrentTimeEvent() {
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  msg << "current-time" << kNext << timer_.Elapsed().InMicroseconds();
+  msg << "current-time" << kNext << Time();
   msg.WriteToLogFile();
 }
 
@@ -1099,7 +1108,7 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
     case STAMP:
       msg << "timer-event";
   }
-  msg << kNext << name << kNext << timer_.Elapsed().InMicroseconds();
+  msg << kNext << name << kNext << Time();
   msg.WriteToLogFile();
 }
 
@@ -1202,22 +1211,20 @@ namespace {
 void AppendCodeCreateHeader(
     Log::MessageBuilder& msg,  // NOLINT(runtime/references)
     CodeEventListener::LogEventsAndTags tag, CodeKind kind, uint8_t* address,
-    int size, base::ElapsedTimer* timer) {
+    int size, uint64_t time) {
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT]
       << Logger::kNext << kLogEventsNames[tag] << Logger::kNext
-      << static_cast<int>(kind) << Logger::kNext
-      << timer->Elapsed().InMicroseconds() << Logger::kNext
+      << static_cast<int>(kind) << Logger::kNext << time << Logger::kNext
       << reinterpret_cast<void*>(address) << Logger::kNext << size
       << Logger::kNext;
 }
 
 void AppendCodeCreateHeader(
     Log::MessageBuilder& msg,  // NOLINT(runtime/references)
-    CodeEventListener::LogEventsAndTags tag, AbstractCode code,
-    base::ElapsedTimer* timer) {
+    CodeEventListener::LogEventsAndTags tag, AbstractCode code, uint64_t time) {
   AppendCodeCreateHeader(msg, tag, code.kind(),
                          reinterpret_cast<uint8_t*>(code.InstructionStart()),
-                         code.InstructionSize(), timer);
+                         code.InstructionSize(), time);
 }
 
 }  // namespace
@@ -1229,7 +1236,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  AppendCodeCreateHeader(msg, tag, *code, &timer_);
+  AppendCodeCreateHeader(msg, tag, *code, Time());
   msg << name;
   msg.WriteToLogFile();
 }
@@ -1241,7 +1248,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  AppendCodeCreateHeader(msg, tag, *code, &timer_);
+  AppendCodeCreateHeader(msg, tag, *code, Time());
   msg << *name;
   msg.WriteToLogFile();
 }
@@ -1259,7 +1266,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  AppendCodeCreateHeader(msg, tag, *code, &timer_);
+  AppendCodeCreateHeader(msg, tag, *code, Time());
   msg << *script_name << kNext << reinterpret_cast<void*>(shared->address())
       << kNext << ComputeMarker(*shared, *code);
   msg.WriteToLogFile();
@@ -1277,7 +1284,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
     std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
     if (!msg_ptr) return;
     Log::MessageBuilder& msg = *msg_ptr.get();
-    AppendCodeCreateHeader(msg, tag, *code, &timer_);
+    AppendCodeCreateHeader(msg, tag, *code, Time());
     msg << shared->DebugName() << " " << *script_name << ":" << line << ":"
         << column << kNext << reinterpret_cast<void*>(shared->address())
         << kNext << ComputeMarker(*shared, *code);
@@ -1377,7 +1384,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
   Log::MessageBuilder& msg = *msg_ptr.get();
   AppendCodeCreateHeader(msg, tag, CodeKind::WASM_FUNCTION,
                          code->instructions().begin(),
-                         code->instructions().length(), &timer_);
+                         code->instructions().length(), Time());
   DCHECK(!name.empty());
   msg.AppendString(name);
 
@@ -1400,9 +1407,8 @@ void Logger::CallbackEventInternal(const char* prefix, Handle<Name> name,
   Log::MessageBuilder& msg = *msg_ptr.get();
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT] << kNext
       << kLogEventsNames[CodeEventListener::CALLBACK_TAG] << kNext << -2
-      << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(entry_point) << kNext << 1 << kNext << prefix
-      << *name;
+      << kNext << Time() << kNext << reinterpret_cast<void*>(entry_point)
+      << kNext << 1 << kNext << prefix << *name;
   msg.WriteToLogFile();
 }
 
@@ -1425,7 +1431,7 @@ void Logger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  AppendCodeCreateHeader(msg, CodeEventListener::REG_EXP_TAG, *code, &timer_);
+  AppendCodeCreateHeader(msg, CodeEventListener::REG_EXP_TAG, *code, Time());
   msg << *source;
   msg.WriteToLogFile();
 }
@@ -1465,8 +1471,7 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  msg << "code-deopt" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << code->CodeSize() << kNext
+  msg << "code-deopt" << kNext << Time() << kNext << code->CodeSize() << kNext
       << reinterpret_cast<void*>(code->InstructionStart());
 
   std::ostringstream deopt_location;
@@ -1590,11 +1595,16 @@ namespace {
 void AppendFunctionMessage(
     Log::MessageBuilder& msg,  // NOLINT(runtime/references)
     const char* reason, int script_id, double time_delta, int start_position,
-    int end_position, base::ElapsedTimer* timer) {
+    int end_position, uint64_t time) {
   msg << "function" << Logger::kNext << reason << Logger::kNext << script_id
       << Logger::kNext << start_position << Logger::kNext << end_position
-      << Logger::kNext << time_delta << Logger::kNext
-      << timer->Elapsed().InMicroseconds() << Logger::kNext;
+      << Logger::kNext;
+  if (V8_UNLIKELY(FLAG_predictable)) {
+    msg << 0.1;
+  } else {
+    msg << time_delta;
+  }
+  msg << Logger::kNext << time << Logger::kNext;
 }
 }  // namespace
 
@@ -1606,7 +1616,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
   AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
-                        end_position, &timer_);
+                        end_position, Time());
   if (!function_name.is_null()) msg << function_name;
   msg.WriteToLogFile();
 }
@@ -1620,7 +1630,7 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
   AppendFunctionMessage(msg, reason, script_id, time_delta, start_position,
-                        end_position, &timer_);
+                        end_position, Time());
   if (function_name_length > 0) {
     msg.AppendString(function_name, function_name_length, is_one_byte);
   }
@@ -1640,7 +1650,7 @@ void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
   msg << "compilation-cache" << Logger::kNext << action << Logger::kNext
       << cache_type << Logger::kNext << script_id << Logger::kNext
       << sfi.StartPosition() << Logger::kNext << sfi.EndPosition()
-      << Logger::kNext << timer_.Elapsed().InMicroseconds();
+      << Logger::kNext << Time();
   msg.WriteToLogFile();
 }
 
@@ -1667,8 +1677,7 @@ void Logger::ScriptEvent(ScriptEventType type, int script_id) {
       msg << "streaming-compile";
       break;
   }
-  msg << Logger::kNext << script_id << Logger::kNext
-      << timer_.Elapsed().InMicroseconds();
+  msg << Logger::kNext << script_id << Logger::kNext << Time();
   msg.WriteToLogFile();
 }
 
@@ -1742,8 +1751,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
   msg << kLogEventsNames[CodeEventListener::TICK_EVENT] << kNext
-      << reinterpret_cast<void*>(sample->pc) << kNext
-      << timer_.Elapsed().InMicroseconds();
+      << reinterpret_cast<void*>(sample->pc) << kNext << Time();
   if (sample->has_external_callback) {
     msg << kNext << 1 << kNext
         << reinterpret_cast<void*>(sample->external_callback_entry);
@@ -1769,9 +1777,9 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
   int line;
   int column;
   Address pc = isolate_->GetAbstractPC(&line, &column);
-  msg << type << kNext << reinterpret_cast<void*>(pc) << kNext
-      << timer_.Elapsed().InMicroseconds() << kNext << line << kNext << column
-      << kNext << old_state << kNext << new_state << kNext
+  msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << Time()
+      << kNext << line << kNext << column << kNext << old_state << kNext
+      << new_state << kNext
       << AsHex::Address(map.is_null() ? kNullAddress : map->ptr()) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(*key);
@@ -1801,11 +1809,11 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << AsHex::Address(from.is_null() ? kNullAddress : from->ptr())
-      << kNext << AsHex::Address(to.is_null() ? kNullAddress : to->ptr())
-      << kNext << AsHex::Address(pc) << kNext << line << kNext << column
-      << kNext << reason << kNext;
+  msg << "map" << kNext << type << kNext << Time() << kNext
+      << AsHex::Address(from.is_null() ? kNullAddress : from->ptr()) << kNext
+      << AsHex::Address(to.is_null() ? kNullAddress : to->ptr()) << kNext
+      << AsHex::Address(pc) << kNext << line << kNext << column << kNext
+      << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
     if (name_or_sfi->IsName()) {
@@ -1827,8 +1835,7 @@ void Logger::MapCreate(Map map) {
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  msg << "map-create" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << AsHex::Address(map.ptr());
+  msg << "map-create" << kNext << Time() << kNext << AsHex::Address(map.ptr());
   msg.WriteToLogFile();
 }
 
@@ -1838,8 +1845,8 @@ void Logger::MapDetails(Map map) {
   std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return;
   Log::MessageBuilder& msg = *msg_ptr.get();
-  msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << AsHex::Address(map.ptr()) << kNext;
+  msg << "map-details" << kNext << Time() << kNext << AsHex::Address(map.ptr())
+      << kNext;
   if (FLAG_trace_maps_details) {
     std::ostringstream buffer;
     map.PrintMapDetails(buffer);
@@ -2073,22 +2080,17 @@ bool Logger::SetUp(Isolate* isolate) {
 
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
 
-  bool activate_logging = false;
-
-  if (Log::InitLogAtStart()) activate_logging = true;
+  if (Log::InitLogAtStart()) UpdateIsLogging(true);
 
   timer_.Start();
 
   if (FLAG_prof_cpp) {
+    UpdateIsLogging(true);
     profiler_ = std::make_unique<Profiler>(isolate);
-    activate_logging = true;
     profiler_->Engage();
   }
 
-  if (activate_logging) {
-    AddCodeEventListener(this);
-    UpdateIsLogging(true);
-  }
+  if (is_logging_) AddCodeEventListener(this);
 
   return true;
 }
@@ -2174,12 +2176,13 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
   const char* description = "Unknown code from before profiling";
   switch (abstract_code->kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
-    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::TURBOFAN:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
+    case CodeKind::TURBOPROP:
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case CodeKind::STUB:
+    case CodeKind::FOR_TESTING:
       description = "STUB code";
       tag = CodeEventListener::STUB_TAG;
       break;
@@ -2249,7 +2252,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, sfis[i]);
-    if (sfis[i]->function_data().IsInterpreterData()) {
+    if (sfis[i]->function_data(kAcquireLoad).IsInterpreterData()) {
       LogExistingFunction(
           sfis[i],
           Handle<AbstractCode>(
@@ -2299,7 +2302,7 @@ void ExistingCodeLogger::LogExistingFunction(
   } else if (shared->IsApiFunction()) {
     // API function.
     FunctionTemplateInfo fun_data = shared->get_api_func_data();
-    Object raw_call_data = fun_data.call_code();
+    Object raw_call_data = fun_data.call_code(kAcquireLoad);
     if (!raw_call_data.IsUndefined(isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
       Object callback_obj = call_data.callback();
