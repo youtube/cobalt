@@ -38,6 +38,8 @@ class V8_BASE_EXPORT RegionAllocator final {
   };
 
   RegionAllocator(Address address, size_t size, size_t page_size);
+  RegionAllocator(const RegionAllocator&) = delete;
+  RegionAllocator& operator=(const RegionAllocator&) = delete;
   ~RegionAllocator();
 
   // Allocates region of |size| (must be |page_size|-aligned). Returns
@@ -175,8 +177,6 @@ class V8_BASE_EXPORT RegionAllocator final {
   FRIEND_TEST(RegionAllocatorTest, Contains);
   FRIEND_TEST(RegionAllocatorTest, FindRegion);
   FRIEND_TEST(RegionAllocatorTest, Fragmentation);
-
-  DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };
 
 }  // namespace base

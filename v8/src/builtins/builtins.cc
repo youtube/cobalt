@@ -339,7 +339,8 @@ class OffHeapTrampolineGenerator {
  public:
   explicit OffHeapTrampolineGenerator(Isolate* isolate)
       : isolate_(isolate),
-        masm_(isolate, CodeObjectRequired::kYes,
+        masm_(isolate, AssemblerOptions::DefaultForOffHeapTrampoline(isolate),
+              CodeObjectRequired::kYes,
               ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
 
   CodeDesc Generate(Address off_heap_entry, TrampolineType type) {
@@ -351,6 +352,7 @@ class OffHeapTrampolineGenerator {
         masm_.CodeEntry();
         masm_.JumpToInstructionStream(off_heap_entry);
       } else {
+        DCHECK_EQ(type, TrampolineType::kAbort);
         masm_.Trap();
       }
     }
@@ -488,6 +490,7 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+    case Builtins::kGenericJSToWasmWrapper:
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined
     // or are converted to use kCallBuiltinPointer.

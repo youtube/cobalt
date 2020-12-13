@@ -759,6 +759,7 @@ namespace {
 DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
       return PAGE_NOACCESS;
     case OS::MemoryPermission::kRead:
       return PAGE_READONLY;
@@ -1401,7 +1402,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 void OS::AdjustSchedulingParams() {}
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
 #if defined(V8_TARGET_ARCH_X64)
   return reinterpret_cast<void*>(
       reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
@@ -1420,7 +1421,7 @@ void* Stack::GetStackStart() {
 }
 
 // static
-void* Stack::GetCurrentStackPosition() {
+Stack::StackSlot Stack::GetCurrentStackPosition() {
 #if V8_CC_MSVC
   return _AddressOfReturnAddress();
 #else
