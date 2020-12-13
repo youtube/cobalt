@@ -7334,11 +7334,8 @@ CompiledWasmModule::CompiledWasmModule(
 }
 
 OwnedBuffer CompiledWasmModule::Serialize() {
-<<<<<<< HEAD
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-=======
   TRACE_EVENT0("v8.wasm", "wasm.SerializeModule");
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);

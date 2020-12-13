@@ -90,17 +90,10 @@ class CodeDesc {
 
   byte* unwinding_info = nullptr;
   int unwinding_info_size = 0;
-<<<<<<< HEAD
-  int unwinding_info_offset() const {
-    // TODO(jgruber,v8:11036): Remove this function once unwinding_info setup
-    // is more consistent with other metadata tables.
-    return code_comments_offset + code_comments_size;
-=======
   int unwinding_info_offset_relative() const {
     // TODO(jgruber,v8:11036): Remove this function once unwinding_info setup
     // is more consistent with other metadata tables.
     return code_comments_offset_relative() + code_comments_size;
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   }
 
   Assembler* origin = nullptr;

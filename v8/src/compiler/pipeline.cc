@@ -2429,24 +2429,11 @@ struct PrintGraphPhase {
     } else if (info->trace_turbo_graph()) {  // Simple textual RPO.
       UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "-- Graph after " << phase << " -- " << std::endl;
-      os << AsRPO(*graph);
-#endif
-=======
-      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-      tracing_scope.stream()
-          << "-- Graph after " << phase << " -- " << std::endl
-          << AsScheduledGraph(schedule);
-    } else if (info->trace_turbo_graph()) {  // Simple textual RPO.
-      UnparkedScopeIfNeeded scope(data->broker());
-      AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
           << "-- Graph after " << phase << " -- " << std::endl
           << AsRPO(*graph);
->>>>>>> 943d25a90cf6aa96a4811b2f3b54b86f4b4d21ef
+#endif
     }
   }
 };

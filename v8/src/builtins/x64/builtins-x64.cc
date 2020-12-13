@@ -569,14 +569,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 #endif  // V8_TARGET_OS_WIN
 
     // Current stack contents:
-<<<<<<< HEAD
-    // [rsp + 2 * kSystemPointerSize ... ] : Internal frame
-    // [rsp + kSystemPointerSize]          : function
-    // [rsp]                         : receiver
-=======
     // [rsp + kSystemPointerSize]     : Internal frame
     // [rsp]                          : function
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     // Current register contents:
     // rax : argc
     // rbx : argv

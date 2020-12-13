@@ -93,11 +93,7 @@ void Code::FlushICache() const {
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
-<<<<<<< HEAD
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-=======
   STATIC_ASSERT(kOnHeapBodyIsContiguous);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
   // TODO(jgruber,v8:11036): Merge with the above.

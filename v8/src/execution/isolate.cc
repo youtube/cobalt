@@ -118,13 +118,8 @@
 
 extern "C" CONST uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-<<<<<<< HEAD
-extern "C" CONST uint8_t* v8_Default_embedded_blob_metadata_;
-extern "C" uint32_t v8_Default_embedded_blob_metadata_size_;
-=======
-extern "C" const uint8_t* v8_Default_embedded_blob_data_;
+extern "C" CONST uint8_t* v8_Default_embedded_blob_data_;
 extern "C" uint32_t v8_Default_embedded_blob_data_size_;
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 
 namespace v8 {
 namespace internal {
@@ -147,13 +142,8 @@ CONST uint8_t* DefaultEmbeddedBlobCode() {
 uint32_t DefaultEmbeddedBlobCodeSize() {
   return v8_Default_embedded_blob_code_size_;
 }
-<<<<<<< HEAD
-CONST uint8_t* DefaultEmbeddedBlobMetadata() {
-  return v8_Default_embedded_blob_metadata_;
-=======
-const uint8_t* DefaultEmbeddedBlobData() {
+CONST uint8_t* DefaultEmbeddedBlobData() {
   return v8_Default_embedded_blob_data_;
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 }
 uint32_t DefaultEmbeddedBlobDataSize() {
   return v8_Default_embedded_blob_data_size_;
@@ -194,13 +184,8 @@ namespace {
 #endif
 std::atomic<CONST uint8_t*> current_embedded_blob_code_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_code_size_(0);
-<<<<<<< HEAD
-std::atomic<CONST uint8_t*> current_embedded_blob_metadata_(nullptr);
-std::atomic<uint32_t> current_embedded_blob_metadata_size_(0);
-=======
-std::atomic<const uint8_t*> current_embedded_blob_data_(nullptr);
+std::atomic<CONST uint8_t*> current_embedded_blob_data_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_data_size_(0);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 
 // The various workflows around embedded snapshots are fairly complex. We need
 // to support plain old snapshot builds, nosnap builds, and the requirements of
@@ -234,13 +219,8 @@ base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 CONST uint8_t* sticky_embedded_blob_code_ = nullptr;
 uint32_t sticky_embedded_blob_code_size_ = 0;
-<<<<<<< HEAD
-CONST uint8_t* sticky_embedded_blob_metadata_ = nullptr;
-uint32_t sticky_embedded_blob_metadata_size_ = 0;
-=======
-const uint8_t* sticky_embedded_blob_data_ = nullptr;
+CONST uint8_t* sticky_embedded_blob_data_ = nullptr;
 uint32_t sticky_embedded_blob_data_size_ = 0;
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 
 bool enable_embedded_blob_refcounting_ = true;
 int current_embedded_blob_refs_ = 0;
@@ -249,25 +229,13 @@ CONST uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
 uint32_t StickyEmbeddedBlobCodeSize() {
   return sticky_embedded_blob_code_size_;
 }
-<<<<<<< HEAD
-CONST uint8_t* StickyEmbeddedBlobMetadata() {
-  return sticky_embedded_blob_metadata_;
-}
-uint32_t StickyEmbeddedBlobMetadataSize() {
-  return sticky_embedded_blob_metadata_size_;
-}
-
-void SetStickyEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                           CONST uint8_t* metadata, uint32_t metadata_size) {
-=======
-const uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
+CONST uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
 uint32_t StickyEmbeddedBlobDataSize() {
   return sticky_embedded_blob_data_size_;
 }
 
-void SetStickyEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                           const uint8_t* data, uint32_t data_size) {
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
+void SetStickyEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
+                           CONST uint8_t* data, uint32_t data_size) {
   sticky_embedded_blob_code_ = code;
   sticky_embedded_blob_code_size_ = code_size;
   sticky_embedded_blob_data_ = data;
@@ -322,13 +290,8 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   return code == DefaultEmbeddedBlobCode();
 }
 
-<<<<<<< HEAD
 void Isolate::SetEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                              CONST uint8_t* metadata, uint32_t metadata_size) {
-=======
-void Isolate::SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-                              const uint8_t* data, uint32_t data_size) {
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
+                              CONST uint8_t* data, uint32_t data_size) {
   CHECK_NOT_NULL(code);
   CHECK_NOT_NULL(data);
 
@@ -446,13 +409,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     // instruction/metadata size and flags since they change when creating the
     // off-heap trampolines. Other data fields must remain the same.
     STATIC_ASSERT(Code::kInstructionSizeOffset == Code::kDataStart);
-<<<<<<< HEAD
-    STATIC_ASSERT(Code::kFlagsOffset == Code::kInstructionSizeOffsetEnd + 1);
-=======
     STATIC_ASSERT(Code::kMetadataSizeOffset ==
                   Code::kInstructionSizeOffsetEnd + 1);
     STATIC_ASSERT(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     STATIC_ASSERT(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
     static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
 
@@ -3385,13 +3344,8 @@ bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
 void Isolate::InitializeDefaultEmbeddedBlob() {
   CONST uint8_t* code = DefaultEmbeddedBlobCode();
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
-<<<<<<< HEAD
-  CONST uint8_t* metadata = DefaultEmbeddedBlobMetadata();
-  uint32_t metadata_size = DefaultEmbeddedBlobMetadataSize();
-=======
-  const uint8_t* data = DefaultEmbeddedBlobData();
+  CONST uint8_t* data = DefaultEmbeddedBlobData();
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 
 #ifdef V8_MULTI_SNAPSHOTS
   if (!FLAG_untrusted_code_mitigations) {
@@ -3446,16 +3400,8 @@ void Isolate::CreateAndSetEmbeddedBlob() {
     CHECK_EQ(0, current_embedded_blob_refs_);
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
-<<<<<<< HEAD
-    const uint8_t* const_metadata = const_cast<const uint8_t*>(metadata);
-    SetEmbeddedBlob(const_code, code_size, const_metadata, metadata_size);
-#else
-    SetEmbeddedBlob(code, code_size, metadata, metadata_size);
-#endif
-=======
-    const uint8_t* const_data = const_cast<const uint8_t*>(data);
+    CONST uint8_t* const_data = const_cast<const uint8_t*>(data);
     SetEmbeddedBlob(const_code, code_size, const_data, data_size);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     current_embedded_blob_refs_++;
 
     SetStickyEmbeddedBlob(code, code_size, data, data_size);

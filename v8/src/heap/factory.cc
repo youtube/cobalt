@@ -68,21 +68,6 @@
 namespace v8 {
 namespace internal {
 
-<<<<<<< HEAD
-namespace {
-
-int ComputeCodeObjectSize(const CodeDesc& desc) {
-  // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-  int object_size = Code::SizeFor(
-      Code::AlignedBodySizeFor(desc.instr_size + desc.unwinding_info_size));
-  DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
-  return object_size;
-}
-
-}  // namespace
-
-=======
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
                                   CodeKind kind)
     : isolate_(isolate),
@@ -172,14 +157,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     constexpr bool kIsNotOffHeapTrampoline = false;
 
-<<<<<<< HEAD
-    // TODO(jgruber,v8:11036): Distinguish instruction and metadata areas.
-    code->set_raw_instruction_size(code_desc_.instr_size +
-                                   code_desc_.unwinding_info_size);
-=======
     code->set_raw_instruction_size(code_desc_.instruction_size());
     code->set_raw_metadata_size(code_desc_.metadata_size());
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     code->set_relocation_info(*reloc_info);
     code->initialize_flags(kind_, is_turbofanned_, stack_slots_,
                            kIsNotOffHeapTrampoline);
@@ -188,19 +167,11 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->set_code_data_container(*data_container, kReleaseStore);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);
-<<<<<<< HEAD
-    code->set_safepoint_table_offset(code_desc_.safepoint_table_offset);
-    code->set_handler_table_offset(code_desc_.handler_table_offset);
-    code->set_constant_pool_offset(code_desc_.constant_pool_offset);
-    code->set_code_comments_offset(code_desc_.code_comments_offset);
-    code->set_unwinding_info_offset(code_desc_.unwinding_info_offset());
-=======
     code->set_handler_table_offset(code_desc_.handler_table_offset_relative());
     code->set_constant_pool_offset(code_desc_.constant_pool_offset_relative());
     code->set_code_comments_offset(code_desc_.code_comments_offset_relative());
     code->set_unwinding_info_offset(
         code_desc_.unwinding_info_offset_relative());
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 
     // Allow self references to created code object by patching the handle to
     // point to the newly allocated Code object.
