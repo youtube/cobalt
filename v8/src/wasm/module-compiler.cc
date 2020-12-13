@@ -83,80 +83,6 @@ enum class CompileStrategy : uint8_t {
   kDefault = kEager,
 };
 
-<<<<<<< HEAD
-// Background compile jobs hold a shared pointer to this token. The token is
-// used to notify them that they should stop. As soon as they see this (after
-// finishing their current compilation unit), they will stop.
-// This allows to already remove the NativeModule without having to synchronize
-// on background compile jobs.
-class BackgroundCompileToken {
- public:
-  explicit BackgroundCompileToken(
-      const std::shared_ptr<NativeModule>& native_module)
-      : native_module_(native_module) {}
-
-  void Cancel() {
-#if !defined(DISABLE_WASM_STARBOARD)
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(
-        &compilation_scope_mutex_);
-#endif
-    native_module_.reset();
-  }
-
- private:
-  friend class BackgroundCompileScope;
-
-  std::shared_ptr<NativeModule> StartScope() {
-#if !defined(DISABLE_WASM_STARBOARD)
-    compilation_scope_mutex_.LockShared();
-#endif
-    return native_module_.lock();
-  }
-
-  // This private method can only be called via {BackgroundCompileScope}.
-  void SchedulePublishCode(NativeModule* native_module,
-                           std::vector<std::unique_ptr<WasmCode>> codes) {
-    {
-      base::MutexGuard guard(&publish_mutex_);
-      if (publisher_running_) {
-        // Add new code to the queue and return.
-        publish_queue_.reserve(publish_queue_.size() + codes.size());
-        for (auto& c : codes) publish_queue_.emplace_back(std::move(c));
-        return;
-      }
-      publisher_running_ = true;
-    }
-    while (true) {
-      PublishCode(native_module, VectorOf(codes));
-      codes.clear();
-
-      // Keep publishing new code that came in.
-      base::MutexGuard guard(&publish_mutex_);
-      DCHECK(publisher_running_);
-      if (publish_queue_.empty()) {
-        publisher_running_ = false;
-        return;
-      }
-      codes.swap(publish_queue_);
-    }
-  }
-
-  void PublishCode(NativeModule*, Vector<std::unique_ptr<WasmCode>>);
-
-  void ExitScope() { compilation_scope_mutex_.UnlockShared(); }
-
-  // {compilation_scope_mutex_} protects {native_module_}.
-  base::SharedMutex compilation_scope_mutex_;
-  std::weak_ptr<NativeModule> native_module_;
-
-  // {publish_mutex_} protects {publish_queue_} and {publisher_running_}.
-  base::Mutex publish_mutex_;
-  std::vector<std::unique_ptr<WasmCode>> publish_queue_;
-  bool publisher_running_ = false;
-};
-
-=======
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
 class CompilationStateImpl;
 
 class BackgroundCompileScope {
@@ -187,15 +113,6 @@ enum CompileBaselineOnly : bool {
 // runs empty.
 class CompilationUnitQueues {
  public:
-<<<<<<< HEAD
-#if !defined(DISABLE_WASM_STARBOARD)
-  explicit CompilationUnitQueues(int max_tasks, int num_declared_functions)
-      : queues_(max_tasks), top_tier_priority_units_queues_(max_tasks) {
-    DCHECK_LT(0, max_tasks);
-    for (int task_id = 0; task_id < max_tasks; ++task_id) {
-      queues_[task_id].next_steal_task_id = next_task_id(task_id);
-    }
-=======
   // Public API for QueueImpl.
   struct Queue {
     bool ShouldPublish(int num_processed_units) const;
@@ -206,7 +123,6 @@ class CompilationUnitQueues {
     // Add one first queue, to add units to.
     queues_.emplace_back(std::make_unique<QueueImpl>(0));
 
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     for (auto& atomic_counter : num_units_) {
     // API leak
       std::atomic_init(&atomic_counter, size_t{0});
@@ -285,13 +201,6 @@ class CompilationUnitQueues {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
-<<<<<<< HEAD
-#if !defined(DISABLE_WASM_STARBOARD)
-    int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
-    while (!next_queue_to_add.compare_exchange_weak(
-        queue_to_add, next_task_id(queue_to_add), std::memory_order_relaxed)) {
-      // Retry with updated {queue_to_add}.
-=======
     QueueImpl* queue;
     {
       int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
@@ -302,7 +211,6 @@ class CompilationUnitQueues {
         // Retry with updated {queue_to_add}.
       }
       queue = queues_[queue_to_add].get();
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     }
 
     base::MutexGuard guard(&queue->mutex);
@@ -493,12 +401,8 @@ class CompilationUnitQueues {
   }
 
   base::Optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
-<<<<<<< HEAD
-    // Fast-path without locking.
 #if !defined(DISABLE_WASM_STARBOARD)
-=======
     // Fast path without locking.
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
     if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
       return {};
     }
@@ -3393,11 +3297,8 @@ size_t CompilationStateImpl::NumOutstandingCompilations() const {
 }
 
 void CompilationStateImpl::SetError() {
-<<<<<<< HEAD
 #if !defined(DISABLE_WASM_STARBOARD)
-=======
   compile_cancelled_.store(true, std::memory_order_relaxed);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   if (compile_failed_.exchange(true, std::memory_order_relaxed)) {
     return;  // Already failed before.
   }

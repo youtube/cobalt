@@ -1933,15 +1933,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   void SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
-<<<<<<< HEAD
-                       const uint8_t* metadata, uint32_t metadata_size);
+                       const uint8_t* data, uint32_t data_size);
 #else
   void SetEmbeddedBlob(uint8_t* code, uint32_t code_size,
-                       uint8_t* metadata, uint32_t metadata_size);
+                       uint8_t* data, uint32_t data_size);
 #endif
-=======
-                       const uint8_t* data, uint32_t data_size);
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   void ClearEmbeddedBlob();
 
   const uint8_t* embedded_blob_code_ = nullptr;

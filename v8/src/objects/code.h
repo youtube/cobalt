@@ -280,64 +280,6 @@ class Code : public HeapObject {
   // reserved in the code prologue.
   inline int stack_slots() const;
 
-<<<<<<< HEAD
-  // The body of all Code objects has the following layout.
-  //
-  //  +--------------------------+  <-- raw_instruction_start()
-  //  |       instructions       |
-  //  |           ...            |
-  //  +--------------------------+
-  //  |     embedded metadata    |  <-- safepoint_table_offset()
-  //  |           ...            |  <-- handler_table_offset()
-  //  |                          |  <-- constant_pool_offset()
-  //  |                          |  <-- code_comments_offset()
-  //  |                          |  <-- unwinding_info_offset()
-  //  |                          |
-  //  +--------------------------+  <-- raw_instruction_end()
-
-  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
-  // instruction stream where the safepoint table starts.
-  inline int safepoint_table_offset() const;
-  inline void set_safepoint_table_offset(int offset);
-  Address SafepointTableAddress() const;
-  int safepoint_table_size() const;
-  bool has_safepoint_table() const;
-
-  // [handler_table_offset]: The offset in the instruction stream where the
-  // exception handler table starts.
-  inline int handler_table_offset() const;
-  inline void set_handler_table_offset(int offset);
-  Address HandlerTableAddress() const;
-  int handler_table_size() const;
-  bool has_handler_table() const;
-
-  // [constant_pool offset]: Offset of the constant pool.
-  // Valid for FLAG_enable_embedded_constant_pool only
-  inline int constant_pool_offset() const;
-  inline void set_constant_pool_offset(int offset);
-  int constant_pool_size() const;
-  bool has_constant_pool() const;
-
-  // [code_comments_offset]: Offset of the code comment section.
-  inline int code_comments_offset() const;
-  inline void set_code_comments_offset(int offset);
-  inline Address code_comments() const;
-  V8_EXPORT_PRIVATE int code_comments_size() const;
-  V8_EXPORT_PRIVATE bool has_code_comments() const;
-
-  // [unwinding_info_offset]: Offset of the unwinding info section.
-  inline int32_t unwinding_info_offset() const;
-  inline void set_unwinding_info_offset(int32_t offset);
-  inline Address unwinding_info_start() const;
-  inline Address unwinding_info_end() const;
-  inline int unwinding_info_size() const;
-  inline bool has_unwinding_info() const;
-
-  // The size of the executable instruction area, without embedded metadata.
-  int ExecutableInstructionSize() const;
-
-=======
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   // [marked_for_deoptimization]: If CodeKindCanDeoptimize(kind), tells whether
   // the code is going to be deoptimized.
   inline bool marked_for_deoptimization() const;
@@ -404,33 +346,6 @@ class Code : public HeapObject {
   // Convert an entry address into an object.
   static inline Code GetObjectFromEntryAddress(Address location_of_address);
 
-<<<<<<< HEAD
-  // Returns the address of the first instruction.
-  inline Address raw_instruction_start() const;
-
-  // Returns the address of the first instruction. For off-heap code objects
-  // this differs from instruction_start (which would point to the off-heap
-  // trampoline instead).
-  inline Address InstructionStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
-
-  // Returns the address right after the last instruction.
-  inline Address raw_instruction_end() const;
-
-  // Returns the address right after the last instruction. For off-heap code
-  // objects this differs from instruction_end (which would point to the
-  // off-heap trampoline instead).
-  inline Address InstructionEnd() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
-
-  // Returns the (padded) body size, including instructions and metadata.
-  inline int body_size() const;
-  static int AlignedBodySizeFor(int unaligned_body_size) {
-    return RoundUp(unaligned_body_size, kObjectAlignment);
-  }
-
-=======
->>>>>>> 542ae0752488996311b3df011ed4556ade777ca1
   // Returns the size of code and its metadata. This includes the size of code
   // relocation information, deoptimization data.
   inline int SizeIncludingMetadata() const;
