@@ -38,7 +38,10 @@ extern "C" {
 #include "common.h"
 #include "picture.h"
 #include "data.h"
-#include "version.h"
+
+#define DAV1D_API_VERSION_MAJOR 3
+#define DAV1D_API_VERSION_MINOR 1
+#define DAV1D_API_VERSION_PATCH 0
 
 typedef struct Dav1dContext Dav1dContext;
 typedef struct Dav1dRef Dav1dRef;

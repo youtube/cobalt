@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -68,9 +69,10 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
-    : output_mode_(output_mode) {
-  // TODO: Remove this check and implement DecodeToTexture.
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModePunchOut);
+    : output_mode_(output_mode),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
+      decode_target_(kSbDecodeTargetInvalid) {
 #if SB_API_VERSION >= 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
 #else  // SB_API_VERSION >= 11
@@ -106,10 +108,12 @@ void VideoDecoder::WriteInputBuffer(
     ReportError("WriteInputBuffer() was called after WriteEndOfStream().");
     return;
   }
+
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("dav1d_video_decoder"));
     SB_DCHECK(decoder_thread_);
   }
+
   decoder_thread_->job_queue()->Schedule(
       std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
@@ -143,9 +147,15 @@ void VideoDecoder::Reset() {
     // Join the thread to ensure that all callbacks in process are finished.
     decoder_thread_.reset();
   }
+
+  error_occured_ = false;
   stream_ended_ = false;
+
   CancelPendingJobs();
   frames_being_decoded_ = 0;
+
+  ScopedLock lock(decode_target_mutex_);
+  frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
 int VideoDecoder::AllocatePicture(Dav1dPicture* picture) const {
@@ -194,8 +204,23 @@ void VideoDecoder::ReleasePicture(Dav1dPicture* picture) const {
   }
 }
 
+void VideoDecoder::UpdateDecodeTarget_Locked(
+    const scoped_refptr<CpuVideoFrame>& frame) {
+  SbDecodeTarget decode_target = DecodeTargetCreate(
+      decode_target_graphics_context_provider_, frame, decode_target_);
+
+  // Lock only after the post to the renderer thread, to prevent deadlock.
+  decode_target_ = decode_target;
+
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
+  }
+}
+
 void VideoDecoder::ReportError(const std::string& error_message) {
-  SB_LOG(ERROR) << error_message;
+  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+
+  error_occured_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
@@ -229,6 +254,20 @@ void VideoDecoder::TeardownCodec() {
   if (dav1d_context_) {
     dav1d_close(&dav1d_context_);
     dav1d_context_ = NULL;
+  }
+
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    SbDecodeTarget decode_target_to_release;
+    {
+      ScopedLock lock(decode_target_mutex_);
+      decode_target_to_release = decode_target_;
+      decode_target_ = kSbDecodeTargetInvalid;
+    }
+
+    if (SbDecodeTargetIsValid(decode_target_to_release)) {
+      DecodeTargetRelease(decode_target_graphics_context_provider_,
+                          decode_target_to_release);
+    }
   }
 }
 
@@ -385,10 +424,36 @@ bool VideoDecoder::TryToOutputFrames() {
   while (frame && !error_occurred) {
     SB_DCHECK(frames_being_decoded_ > 0);
     --frames_being_decoded_;
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+      ScopedLock lock(decode_target_mutex_);
+      frames_.push(frame);
+    }
     Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
     frame = get_frame_from_dav1d();
   }
   return true;
+}
+
+// When in decode-to-texture mode, this returns the current decoded video frame.
+SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+
+  // We must take a lock here since this function can be called from a
+  // separate thread.
+  ScopedLock lock(decode_target_mutex_);
+  while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
+    frames_.pop();
+  }
+  if (!frames_.empty()) {
+    UpdateDecodeTarget_Locked(frames_.front());
+  }
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    // Make a disposable copy, since the state is internally reused by this
+    // class (to avoid recreating GL objects).
+    return DecodeTargetCopy(decode_target_);
+  } else {
+    return kSbDecodeTargetInvalid;
+  }
 }
 
 }  // namespace libdav1d
