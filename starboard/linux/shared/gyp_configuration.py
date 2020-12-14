@@ -94,6 +94,9 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
         os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'ce_cdm', 'cdm',
                      'include', 'cdm.h'))
 
+    for target, tests in self.__FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+
     if has_cdm:
       return filters
 
@@ -109,5 +112,12 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       'nplb': [
           'SbDrmTest.AnySupportedKeySystems',
           'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
+      ],
+  }
+
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
+      'player_filter_tests': [
+          # libdav1d crashes when fed invalid data
+          'VideoDecoderTests/VideoDecoderTest.*Invalid*',
       ],
   }

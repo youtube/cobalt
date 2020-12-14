@@ -20,7 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
-#include "starboard/shared/libaom/aom_video_decoder.h"
+#include "starboard/shared/libdav1d/dav1d_video_decoder.h"
 #include "starboard/shared/libde265/de265_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
@@ -119,7 +119,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      typedef ::starboard::shared::aom::VideoDecoder Av1VideoDecoderImpl;
+      typedef ::starboard::shared::libdav1d::VideoDecoder Av1VideoDecoderImpl;
       typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
       typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
       typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;

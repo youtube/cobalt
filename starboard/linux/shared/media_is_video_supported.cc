@@ -21,11 +21,9 @@
 #include "starboard/gles.h"
 #endif  // SB_API_VERSION >= 11
 #include "starboard/media.h"
-#include "starboard/shared/libaom/aom_library_loader.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-using starboard::shared::aom::is_aom_supported;
 using starboard::shared::de265::is_de265_supported;
 using starboard::shared::starboard::media::IsSDRVideo;
 
@@ -87,7 +85,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     // just as well as normal video.
   }
 
-  return ((video_codec == kSbMediaVideoCodecAv1 && is_aom_supported()) ||
+  return (video_codec == kSbMediaVideoCodecAv1 ||
           video_codec == kSbMediaVideoCodecH264 ||
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
           (video_codec == kSbMediaVideoCodecVp9)) &&

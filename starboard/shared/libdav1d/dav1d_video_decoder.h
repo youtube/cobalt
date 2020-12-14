@@ -17,11 +17,13 @@
 
 #include "third_party/libdav1d/include/dav1d/dav1d.h"
 
+#include <queue>
 #include <string>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
@@ -56,6 +58,8 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void ReleasePicture(Dav1dPicture* picture) const;
 
  private:
+  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
+      CpuVideoFrame;
   const int kDav1dSuccess = 0;
 
   const int kDav1dPlaneY = 0;
@@ -75,27 +79,43 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   // unrecoverable error occured in dav1d while trying to output frames.
   bool TryToOutputFrames();
 
-  // TODO: Implement DecodeToTexture functionality for libdav1d.
-  SbDecodeTarget GetCurrentDecodeTarget() override {
-    return kSbDecodeTargetInvalid;
-  }
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
-  const SbPlayerOutputMode output_mode_;
-
-  // Working thread to avoid lengthy decoding work block the player thread.
-  scoped_ptr<starboard::player::JobThread> decoder_thread_;
+  void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
   // The following callbacks will be initialized in Initialize() and won't be
   // changed during the life time of this class.
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  Dav1dContext* dav1d_context_ = NULL;
-
-  bool stream_ended_ = false;
   int current_frame_height_ = 0;
   int current_frame_width_ = 0;
   int frames_being_decoded_ = 0;
+  Dav1dContext* dav1d_context_ = NULL;
+
+  bool stream_ended_ = false;
+  bool error_occured_ = false;
+
+  // Working thread to avoid lengthy decoding work block the player thread.
+  scoped_ptr<starboard::player::JobThread> decoder_thread_;
+
+  // Decode-to-texture related state.
+  const SbPlayerOutputMode output_mode_;
+
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider_;
+
+  // If decode-to-texture is enabled, then we store the decode target texture
+  // inside of this |decode_target_| member.
+  SbDecodeTarget decode_target_;
+
+  // GetCurrentDecodeTarget() needs to be called from an arbitrary thread
+  // to obtain the current decode target (which ultimately ends up being a
+  // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
+  // and we do so through this mutex.
+  Mutex decode_target_mutex_;
+
+  std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
 }  // namespace libdav1d
