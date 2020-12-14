@@ -35,6 +35,7 @@
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN64)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
@@ -186,7 +187,7 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   byte* ptr = result.get();
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
-    memcpy(ptr, vec.begin(), vec.size());
+    base::Memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
   return result;
@@ -840,8 +841,8 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   DCHECK_LE(module_->num_declared_functions, max_functions);
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
-    memcpy(new_table.get(), code_table_.get(),
-           module_->num_declared_functions * sizeof(WasmCode*));
+    base::Memcpy(new_table.get(), code_table_.get(),
+                 module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
 
@@ -918,7 +919,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
+  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
+               instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -1043,8 +1045,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int instr_size = desc.instr_size;
 
   CODE_SPACE_WRITE_SCOPE
-  memcpy(dst_code_bytes.begin(), desc.buffer,
-         static_cast<size_t>(desc.instr_size));
+  base::Memcpy(dst_code_bytes.begin(), desc.buffer,
+               static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = dst_code_bytes.begin() - desc.buffer;
@@ -1190,7 +1192,8 @@ WasmCode* NativeModule::AddDeserializedCode(
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
+  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
+               instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
