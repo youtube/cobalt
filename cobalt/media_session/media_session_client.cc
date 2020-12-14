@@ -79,7 +79,7 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
         extension_->version < 1) {
       LOG(WARNING) << "Wrong MediaSession extension supplied";
       extension_ = nullptr;
-    } else {
+    } else if (extension_->RegisterMediaSessionCallbacks != nullptr) {
       extension_->RegisterMediaSessionCallbacks(
           this, &InvokeActionCallback, &UpdatePlatformPlaybackStateCallback);
     }
