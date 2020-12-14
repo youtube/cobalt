@@ -1982,6 +1982,12 @@ v8_header_set("v8_headers") {
   deps = [ ":v8_version" ]
 }
 
+v8_source_set("v8_wrappers") {
+  configs = [ ":internal_config" ]
+
+  sources = [ "src/base/platform/wrappers.h" ]
+}
+
 # This is split out to share basic headers with Torque.
 v8_header_set("v8_shared_internal_headers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
@@ -3828,6 +3834,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
+    ":v8_wrappers",
     "src/inspector:inspector",
   ]
 
@@ -3992,7 +3999,10 @@ v8_source_set("torque_base") {
 
   deps = [ ":v8_shared_internal_headers" ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":v8_libbase",
+    ":v8_wrappers",
+  ]
 
   # The use of exceptions for Torque in violation of the Chromium style-guide
   # is justified by the fact that it is only used from the non-essential
@@ -4115,8 +4125,6 @@ v8_component("v8_libbase") {
     "src/base/platform/semaphore.h",
     "src/base/platform/time.cc",
     "src/base/platform/time.h",
-    "src/base/platform/wrappers.h",
-    "src/base/platform/wrappers_std.cc",
     "src/base/region-allocator.cc",
     "src/base/region-allocator.h",
     "src/base/ring-buffer.h",
@@ -4141,7 +4149,7 @@ v8_component("v8_libbase") {
 
   deps = [ ":v8_headers" ]
 
-  public_deps = []
+  public_deps = [ ":v8_wrappers" ]
 
   data = []
 
@@ -4296,10 +4304,13 @@ v8_component("v8_libplatform") {
 
   public_configs = [ ":libplatform_config" ]
 
+  public_deps = []
+
   deps = [
     ":v8_headers",
     ":v8_libbase",
     ":v8_tracing",
+    ":v8_wrappers",
   ]
 
   if (v8_use_perfetto) {
@@ -4630,6 +4641,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libplatform",
       ":v8_maybe_icu",
       ":v8_tracing",
+      ":v8_wrappers",
       "//build/win:default_exe_manifest",
     ]
   }
@@ -4970,6 +4982,7 @@ v8_executable("d8") {
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_tracing",
+    ":v8_wrappers",
     "//build/win:default_exe_manifest",
   ]
 
@@ -5108,7 +5121,10 @@ v8_fuzzer("json_fuzzer") {
 v8_source_set("multi_return_fuzzer") {
   sources = [ "test/fuzzer/multi-return.cc" ]
 
-  deps = [ ":fuzzer_support" ]
+  deps = [
+    ":fuzzer_support",
+    ":v8_wrappers",
+  ]
 
   configs = [
     ":external_config",
@@ -5122,7 +5138,10 @@ v8_fuzzer("multi_return_fuzzer") {
 v8_source_set("parser_fuzzer") {
   sources = [ "test/fuzzer/parser.cc" ]
 
-  deps = [ ":fuzzer_support" ]
+  deps = [
+    ":fuzzer_support",
+    ":v8_wrappers",
+  ]
 
   configs = [
     ":external_config",
@@ -5139,7 +5158,10 @@ v8_source_set("regexp_builtins_fuzzer") {
     "test/fuzzer/regexp_builtins/mjsunit.js.h",
   ]
 
-  deps = [ ":fuzzer_support" ]
+  deps = [
+    ":fuzzer_support",
+    ":v8_wrappers",
+  ]
 
   configs = [
     ":external_config",
@@ -5153,7 +5175,10 @@ v8_fuzzer("regexp_builtins_fuzzer") {
 v8_source_set("regexp_fuzzer") {
   sources = [ "test/fuzzer/regexp.cc" ]
 
-  deps = [ ":fuzzer_support" ]
+  deps = [
+    ":fuzzer_support",
+    ":v8_wrappers",
+  ]
 
   configs = [
     ":external_config",
@@ -5192,6 +5217,7 @@ v8_source_set("wasm_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
+    ":v8_wrappers",
     ":wasm_test_common",
   ]
 
@@ -5210,6 +5236,7 @@ v8_source_set("wasm_async_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
+    ":v8_wrappers",
     ":wasm_test_common",
   ]
 
@@ -5231,6 +5258,7 @@ v8_source_set("wasm_code_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
+    ":v8_wrappers",
     ":wasm_test_common",
   ]
 
@@ -5272,6 +5300,7 @@ v8_source_set("wasm_compile_fuzzer") {
   deps = [
     ":fuzzer_support",
     ":lib_wasm_fuzzer_common",
+    ":v8_wrappers",
     ":wasm_test_common",
   ]
 
@@ -5289,6 +5318,7 @@ v8_source_set("inspector_fuzzer") {
 
   deps = [
     ":fuzzer_support",
+    ":v8_wrappers",
     "test/inspector:inspector_test",
   ]
 

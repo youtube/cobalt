@@ -12,6 +12,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/macro-assembler.h"
@@ -315,8 +316,7 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
 }
 
 PerfBasicLogger::~PerfBasicLogger() {
-#if !defined(V8_OS_STARBOARD)
-  fclose(perf_output_handle_);
+  base::Fclose(perf_output_handle_);
   perf_output_handle_ = nullptr;
 #endif
 }
@@ -585,8 +585,7 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
 }
 
 LowLevelLogger::~LowLevelLogger() {
-#if !defined(V8_OS_STARBOARD)
-  fclose(ll_output_handle_);
+  base::Fclose(ll_output_handle_);
   ll_output_handle_ = nullptr;
 #endif
 }
