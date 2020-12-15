@@ -927,6 +927,22 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
          " Please see configuration-public.md for more details."
 #endif  // SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if !defined(SB_HAS_COMPACT_10BITS_FRAME)
+#define SB_HAS_COMPACT_10BITS_FRAME 1
+#elif !SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
+#error \
+     "SB_HAS_COMPACT_10BITS_FRAME is required in this API version."
+#endif
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
+#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#error \
+     "SB_HAS(SB_HAS_COMPACT_10BITS_FRAME) requires " \
+     "SB_API_VERSION SB_EXPERIMENTAL_API_VERSION or later."
+#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
+
 // --- Derived Configuration -------------------------------------------------
 
 #if SB_API_VERSION < 12
