@@ -874,8 +874,19 @@ void Document::UpdateUiNavigation() {
       active_element() ? active_element()->AsHTMLElement() : nullptr;
   if (active_html_element && ui_nav_focus_needs_update_) {
     ui_nav_focus_needs_update_ = false;
-    active_html_element->UpdateUiNavigationFocus(/* force_update */ false);
+    active_html_element->UpdateUiNavigationFocus();
   }
+}
+
+bool Document::TrySetUiNavFocusElement(const void* focus_element,
+                                       SbTimeMonotonic time) {
+  if (ui_nav_focus_element_update_time_ > time) {
+    // A later focus update was already issued.
+    return false;
+  }
+  ui_nav_focus_element_update_time_ = time;
+  ui_nav_focus_element_ = focus_element;
+  return true;
 }
 
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
@@ -1019,7 +1030,7 @@ void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
         active_element() ? active_element()->AsHTMLElement() : nullptr;
     if (active_html_element) {
       ui_nav_focus_needs_update_ = false;
-      active_html_element->UpdateUiNavigationFocus(/* force_update */ true);
+      active_html_element->UpdateUiNavigationFocus();
     }
   }
 }
