@@ -4,29 +4,12 @@ title: "Set up your environment - Linux"
 ---
 
 These instructions explain how Linux users set up their Cobalt development
-environment, fetch a copy of the Cobalt code repository, and build a Cobalt
+environment, clone a copy of the Cobalt code repository, and build a Cobalt
 binary. Note that the binary has a graphical client and must be run locally
 on the machine that you are using to view the client. For example, you cannot
 SSH into another machine and run the binary on that machine.
 
 ## Set up your workstation
-
-1.  Choose where you want to put the `depot_tools` directory, which is used
-    by the Cobalt code. An easy option is to put them in `~/depot_tools`.
-    Clone the tools by running the following command:
-
-    ```
-    $ cd ~/
-    $ git clone https://cobalt.googlesource.com/depot_tools
-    ```
-
-1.  Add your `depot_tools` directory to the end of your `PATH` variable.
-    We recommend adding something like this to your `.bashrc` or `.profile`
-    file:
-
-    ```
-    $ PATH=${PATH}:/path/to/depot_tools
-    ```
 
 1.  Run the following command to install packages needed to build and run
     Cobalt on Linux:
@@ -70,6 +53,22 @@ SSH into another machine and run the binary on that machine.
 
     ```
     $ git clone https://cobalt.googlesource.com/cobalt
+    ```
+
+1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
+
+    ```
+    $ cd cobalt
+    $ python -m venv ~/.virtualenvs/cobalt_dev
+    $ source ~/.virtualenvs/cobalt_dev
+    $ pip install -r requirements.txt
+    ```
+
+1.  Install the pre-commit hooks:
+
+    ```
+    $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
+    $ git checkout -b <my-branch-name> origin/COBALT
     ```
 
 ## Build and Run Cobalt

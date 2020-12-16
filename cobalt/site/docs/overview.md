@@ -82,7 +82,7 @@ Starboard's compliance test suite.
 Developers can follow the setup instructions for
 [Linux](/development/setup-linux.html) or
 [RasPi](/development/setup-raspi.html) to set up their Cobalt development
-environment, fetch a copy of the Cobalt code repository, and build a Cobalt
+environment, clone a copy of the Cobalt code repository, and build a Cobalt
 binary. The [Cobalt support](/development/reference/supported-features.html)
 guide lists the HTML elements, CSS properties, CSS selectors, and JavaScript Web
 APIs that developers can use in their Cobalt applications.
