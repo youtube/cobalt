@@ -45,6 +45,7 @@
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -359,7 +360,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Update the UI navigation system to focus on the relevant navigation item
   // for this HTML element (if any).
-  void UpdateUiNavigationFocus(bool force_focus);
+  void UpdateUiNavigationFocus();
 
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html50/semantics.html#the-root-element.
@@ -439,9 +440,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateLayoutBoxes();
 
   // Handle UI navigation events.
-  void OnUiNavBlur();
-  void OnUiNavFocus();
-  void OnUiNavScroll();
+  void OnUiNavBlur(SbTimeMonotonic time);
+  void OnUiNavFocus(SbTimeMonotonic time);
+  void OnUiNavScroll(SbTimeMonotonic time);
 
   bool locked_for_focus_;
 
