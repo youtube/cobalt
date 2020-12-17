@@ -303,8 +303,6 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbDirectoryGetNextTest.SunnyDayStaticContent',
           'SbDirectoryOpenTest.SunnyDayStaticContent',
           'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
-          # Android doesn't currently support specifying a bitrate under 8000
-          'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
 
           # These tests are disabled due to not receiving the kEndOfStream
           # player state update within the specified timeout.
