@@ -78,7 +78,7 @@ repos:
         stages: [push]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
-        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed.py
+        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed_wrapper.py
         language: python
         files: '^starboard/*.h$'
         stages: [push]

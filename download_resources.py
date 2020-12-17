@@ -12,20 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Downloads tools to assist in developing Cobalt."""
 
-import hashlib
 import logging
 import os
 import platform
-import stat
-import subprocess
-import sys
-try:
-  import urllib.request as urllib
-except ImportError:
-  import urllib2 as urllib
 
 import tools.download_from_gcs as download_from_gcs
+
+try:
+  import download_resources_internal
+except ImportError:
+  logging.warning('Skipping internal tools.')
+  download_resources_internal = None
 
 
 def DownloadClangFormat(force=False):
@@ -47,37 +46,12 @@ def DownloadClangFormat(force=False):
                                              clang_format_sha_path, force)
 
 
-def DownloadConformanceTests(force=False):
-  conformance_test_dir = 'cobalt/demos/content/mse-eme-conformance-tests/media'
-  download_from_gcs.MaybeDownloadDirectoryFromGcs('cobalt-static-storage',
-                                                  conformance_test_dir,
-                                                  conformance_test_dir, force)
-
-
-def DownloadGerritCommitMsgHook(force=False):
-  git_commit_msg_hook_path = os.path.join('.git', 'hooks', 'commit-msg')
-
-  if not force and os.path.exists(git_commit_msg_hook_path):
-    logging.info('commit-msg hook found, skipping download.')
-    return
-
-  hook_url = 'https://gerrit-review.googlesource.com/tools/hooks/commit-msg'
-  res = urllib.urlopen(hook_url)
-  if not res:
-    logging.error('Could not fetch %s', hook_url)
-    return
-
-  with open(git_commit_msg_hook_path, 'wb') as fd:
-    fd.write(res.read())
-  download_from_gcs.AddExecutableBits(git_commit_msg_hook_path)
-  logging.info('Gerrit commit-msg hook installed.')
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
   logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
   logging.basicConfig(
       level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
 
   DownloadClangFormat()
-  DownloadConformanceTests()
-  DownloadGerritCommitMsgHook()
+
+  if download_resources_internal:
+    download_resources_internal.main()
