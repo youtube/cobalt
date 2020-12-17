@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,32 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ELF_LOADER_FILE_IMPL_H_
-#define STARBOARD_ELF_LOADER_FILE_IMPL_H_
+#ifndef STARBOARD_ELF_LOADER_LZ4_FILE_IMPL_H_
+#define STARBOARD_ELF_LOADER_LZ4_FILE_IMPL_H_
 
-#include "starboard/elf_loader/file.h"
-#include "starboard/file.h"
+#include <vector>
+
+#include "starboard/elf_loader/file_impl.h"
+#include "third_party/lz4/lib/lz4frame.h"
 
 namespace starboard {
 namespace elf_loader {
 
-// Starboard implementation for reading a file.
-class FileImpl : public File {
+// This class provides opening and reading a file compressed using LZ4 by
+// transparently decompressing the entire file into memory on file open.
+class LZ4FileImpl : public FileImpl {
  public:
-  FileImpl();
-  ~FileImpl() override;
+  LZ4FileImpl();
+  ~LZ4FileImpl();
+
+  // Opens the file specified and decompresses the entire file into memory.
   bool Open(const char* name) override;
+
   bool ReadFromOffset(int64_t offset, char* buffer, int size) override;
-  void Close() override;
 
- protected:
-  SbFile file_;
+ private:
+  // The entire decompressed file.
+  std::vector<char> decompressed_data_;
 
-  FileImpl(const FileImpl&) = delete;
-  void operator=(const FileImpl&) = delete;
+  // The LZ4 decompression context.
+  LZ4F_dctx* lz4f_context_;
 };
 
 }  // namespace elf_loader
 }  // namespace starboard
 
-#endif  // STARBOARD_ELF_LOADER_FILE_IMPL_H_
+#endif  // STARBOARD_ELF_LOADER_LZ4_FILE_IMPL_H_

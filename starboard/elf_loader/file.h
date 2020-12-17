@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ELF_LOADER_FILE_H_
 #define STARBOARD_ELF_LOADER_FILE_H_
 
-#include "starboard/elf_loader/elf.h"
+#include "starboard/types.h"
 
 namespace starboard {
 namespace elf_loader {
