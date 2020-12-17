@@ -46,30 +46,6 @@ static SB_C_INLINE float PoemSingleFloor(const float f) {
 #undef pow
 #define pow(x, y) SbDoubleExponent(x, y)
 
-#undef ceil
-#define ceil(x) ceil(x)
-#undef fmod
-#define fmod(x, y) fmod(x, y)
-#undef modf
-#define modf(x, y) modf(x, y)
-#undef log
-#define log(x) log(x)
-#undef sqrt
-#define sqrt(x) sqrt(x)
-#undef sin
-#define sin(x) sin(x)
-#undef cos
-#define cos(x) cos(x)
-#undef tan
-#define tan(x) tan(x)
-#undef atan
-#define atan(x) atan(x)
-#undef atan2
-#define atan2(x, y) atan2(x, y)
-#undef asin
-#define asin(x) asin(x)
-#undef acos
-#define acos(x) acos(x)
 #endif  // POEM_NO_EMULATION
 
 #endif  // STARBOARD
