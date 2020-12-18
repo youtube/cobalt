@@ -24,6 +24,7 @@ var type = null;
 
 let playlist = getPlaylist();
 let index = 0;
+let defaultSkipTime = 10;
 
 var kAdaptiveAudioChunkSize = 720 * 1024;
 
@@ -92,7 +93,7 @@ function startNextVideo() {
   startAdaptiveVideo();
 }
 
-function main() {
+function checkMediaType() {
   var get_parameters = window.location.search.substr(1).split('&');
   for (var param of get_parameters) {
     splitted = param.split('=');
@@ -104,77 +105,74 @@ function main() {
   if (type != 'audio' && type != 'video') {
     throw "invalid type " + type;
   }
+}
 
+function main() {
+  checkMediaType();
   video = createVideoElement();
   startNextVideo();
+  setUpMediaSessionHandlers();
   updateMetadata();
 }
 
-main();
-
-// MeidaSession
+// MediaSession
 function updateMetadata() {
   let track = playlist[index];
 
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.title,
     artist: track.artist,
-    //artwork: track.artwork
   });
   navigator.mediaSession.playbackState = "playing";
 }
 
-let defaultSkipTime = 10;
-
-navigator.mediaSession.setActionHandler('seekbackward', function(event) {
-  const skipTime = event.seekOffset || defaultSkipTime;
-  video.currentTime = Math.max(video.currentTime - skipTime, 0);
-  updatePositionState();
-});
-
-navigator.mediaSession.setActionHandler('seekforward', function(event) {
-  const skipTime = event.seekOffset || defaultSkipTime;
-  video.currentTime = Math.min(video.currentTime + skipTime, video.duration);
-  updatePositionState();
-});
-
-navigator.mediaSession.setActionHandler('play', function() {
-  log_info('TimeStamp: ' + getTime() + ' seconds' + ' play');
-  video.play();
-  navigator.mediaSession.playbackState = "playing";
-});
-
-navigator.mediaSession.setActionHandler('pause', function() {
-  log_info('TimeStamp: ' + getTime() + ' seconds' + ' pause');
-  video.pause();
-  navigator.mediaSession.playbackState = "paused";
-});
-
-
-try {
-  navigator.mediaSession.setActionHandler('stop', function() {
-    log_info('TimeStamp: ' + getTime() + ' seconds' + ' stop');
-  });
-} catch(error) {
-}
-
-try {
-  navigator.mediaSession.setActionHandler('seekto', function(event) {
-    if (event.fastSeek && ('fastSeek' in video)) {
-      video.fastSeek(event.seekTime);
-      return;
-    }
-    video.currentTime = event.seekTime;
+function setUpMediaSessionHandlers() {
+  navigator.mediaSession.setActionHandler('seekbackward', function(event) {
+    const skipTime = event.seekOffset || defaultSkipTime;
+    video.currentTime = Math.max(video.currentTime - skipTime, 0);
     updatePositionState();
   });
-} catch(error) {
+
+  navigator.mediaSession.setActionHandler('seekforward', function(event) {
+    const skipTime = event.seekOffset || defaultSkipTime;
+    video.currentTime = Math.min(video.currentTime + skipTime, video.duration);
+    updatePositionState();
+  });
+
+  navigator.mediaSession.setActionHandler('play', function() {
+    log_info('TimeStamp: ' + getTime() + ' seconds' + ' play');
+    video.play();
+    navigator.mediaSession.playbackState = "playing";
+  });
+
+  navigator.mediaSession.setActionHandler('pause', function() {
+    log_info('TimeStamp: ' + getTime() + ' seconds' + ' pause');
+    video.pause();
+    navigator.mediaSession.playbackState = "paused";
+  });
+
+  try {
+    navigator.mediaSession.setActionHandler('stop', function() {
+      log_info('TimeStamp: ' + getTime() + ' seconds' + ' stop');
+    });
+  } catch(error) {
+  }
+
+  try {
+    navigator.mediaSession.setActionHandler('seekto', function(event) {
+      if (event.fastSeek && ('fastSeek' in video)) {
+        video.fastSeek(event.seekTime);
+        return;
+      }
+      video.currentTime = event.seekTime;
+      updatePositionState();
+    });
+  } catch(error) {
+  }
 }
 
 function getPlaylist() {
-  return [{
-      title: 'Background mode demo',
-      artist: 'Cobalt',
-    }];
+  return [{title: 'Background mode demo', artist: 'Cobalt',}];
 }
 
 function log_info(message) {
@@ -186,3 +184,4 @@ function getTime() {
   return Math.floor(Date.now() / 1000 | 0);
 }
 
+main();
