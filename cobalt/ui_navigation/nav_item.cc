@@ -169,6 +169,10 @@ void NavItem::SetDir(NativeItemDir dir) {
   GetInterface().set_item_dir(nav_item_, dir);
 }
 
+void NavItem::SetFocusDuration(float seconds) {
+  GetInterface().set_item_focus_duration(nav_item_, seconds);
+}
+
 void NavItem::SetSize(float width, float height) {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   g_pending_updates->emplace_back(

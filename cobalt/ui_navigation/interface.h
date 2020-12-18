@@ -75,6 +75,7 @@ struct NativeInterface {
   void (*set_focus)(NativeItem item);
   void (*set_item_enabled)(NativeItem item, bool enabled);
   void (*set_item_dir)(NativeItem item, NativeItemDir dir);
+  void (*set_item_focus_duration)(NativeItem item, float seconds);
   void (*set_item_size)(NativeItem item, float width, float height);
   void (*set_item_transform)(NativeItem item, const NativeMatrix2x3* transform);
   bool (*get_item_focus_transform)(NativeItem item,
@@ -82,11 +83,9 @@ struct NativeInterface {
   bool (*get_item_focus_vector)(NativeItem item, float* out_x, float* out_y);
   void (*set_item_container_window)(NativeItem item, SbWindow window);
   void (*set_item_container_item)(NativeItem item, NativeItem container);
-  void (*set_item_content_offset)(NativeItem item,
-                                  float content_offset_x,
+  void (*set_item_content_offset)(NativeItem item, float content_offset_x,
                                   float content_offset_y);
-  void (*get_item_content_offset)(NativeItem item,
-                                  float* out_content_offset_x,
+  void (*get_item_content_offset)(NativeItem item, float* out_content_offset_x,
                                   float* out_content_offset_y);
   void (*do_batch_update)(void (*update_function)(void*), void* context);
 };
