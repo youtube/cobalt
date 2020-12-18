@@ -80,6 +80,10 @@ namespace {
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
 const int32 kUiNavFocusTabIndexThreshold = -2;
 
+// This custom data attribute can be used to force UI navigation to remain
+// focused on the element for a specified duration.
+const char kUiNavFocusDurationAttribute[] = "data-cobalt-ui-nav-focus-duration";
+
 void UiNavCallbackHelper(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     base::Callback<void(SbTimeMonotonic)> callback) {
@@ -1277,6 +1281,8 @@ void HTMLElement::OnSetAttribute(const std::string& name,
     SetDir(value);
   } else if (name == "tabindex") {
     SetTabIndex(value);
+  } else if (name == kUiNavFocusDurationAttribute) {
+    SetUiNavFocusDuration(value);
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -1289,6 +1295,8 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
     SetDir("");
   } else if (name == "tabindex") {
     SetTabIndex("");
+  } else if (name == kUiNavFocusDurationAttribute) {
+    SetUiNavFocusDuration("");
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -1482,6 +1490,25 @@ void HTMLElement::SetTabIndex(const std::string& value) {
 
   // Changing the tabindex may trigger a UI navigation change.
   ui_nav_needs_update_ = true;
+}
+
+void HTMLElement::SetUiNavFocusDuration(const std::string& value) {
+  double duration;
+  if (base::StringToDouble(value, &duration)) {
+    ui_nav_focus_duration_ = static_cast<float>(duration);
+    if (!std::isfinite(*ui_nav_focus_duration_) ||
+        *ui_nav_focus_duration_ < 0.0f) {
+      ui_nav_focus_duration_ = 0.0f;
+    }
+    if (ui_nav_item_) {
+      ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);
+    }
+  } else {
+    ui_nav_focus_duration_ = base::nullopt;
+    if (ui_nav_item_) {
+      ui_nav_item_->SetFocusDuration(0.0f);
+    }
+  }
 }
 
 namespace {
@@ -2165,6 +2192,9 @@ void HTMLElement::UpdateUiNavigation() {
             &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
+    if (ui_nav_focus_duration_) {
+      ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);
+    }
 
     node_document()->AddUiNavigationElement(this);
     node_document()->set_ui_nav_needs_layout(true);

@@ -416,6 +416,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Update the cached value of tabindex.
   void SetTabIndex(const std::string& value);
 
+  // Update cached UI navigation focus duration.
+  void SetUiNavFocusDuration(const std::string& value);
+
   // Invalidate the matching rules and rule matching state in this element and
   // its descendants. In the case where this is the the initial invalidation,
   // it will also invalidate the rule matching state of its siblings.
@@ -521,6 +524,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // then query starboard for position data each frame, thus animating the
   // boxes without requiring a new layout.
   scoped_refptr<ui_navigation::NavItem> ui_nav_item_;
+
+  // Specify how long focus should remain on this navigation item once it
+  // becomes focused.
+  base::Optional<float> ui_nav_focus_duration_;
 
   // Signal whether the UI navigation item may need to be updated.
   bool ui_nav_needs_update_ = false;

@@ -168,6 +168,15 @@ typedef struct SbUiNavInterface {
 #endif
   void (*set_item_dir)(SbUiNavItem item, SbUiNavItemDir dir);
 
+#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+  // Set the minimum amount of time the focus item should remain focused once
+  // it becomes focused. This may be used to make important focus items harder
+  // to navigate over. Focus may still be moved before |seconds| has elapsed by
+  // using the set_focus() function.
+  // By default, item focus duration is 0 seconds.
+  void (*set_item_focus_duration)(SbUiNavItem item, float seconds);
+#endif
+
   // Set the interactable size of the specified navigation item. By default,
   // an item's size is (0,0).
   void (*set_item_size)(SbUiNavItem item, float width, float height);
