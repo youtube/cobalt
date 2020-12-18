@@ -44,6 +44,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   void UnfocusAll();
   void SetEnabled(bool enabled);
   void SetDir(NativeItemDir dir);
+  void SetFocusDuration(float seconds);
   void SetSize(float width, float height);
   void SetTransform(const NativeMatrix2x3* transform);
   bool GetFocusTransform(NativeMatrix4* out_transform);
