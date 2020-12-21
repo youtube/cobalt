@@ -23,7 +23,6 @@ import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
 import android.os.Build;
-import android.util.Range;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -734,9 +733,7 @@ public class MediaCodecUtil {
         String name = info.getName();
         AudioCapabilities audioCapabilities =
             info.getCapabilitiesForType(supportedType).getAudioCapabilities();
-        Range<Integer> bitrateRange =
-            Range.create(0, audioCapabilities.getBitrateRange().getUpper());
-        if (!bitrateRange.contains(bitrate)) {
+        if (bitrate != 0 && !audioCapabilities.getBitrateRange().contains(bitrate)) {
           continue;
         }
         return name;
