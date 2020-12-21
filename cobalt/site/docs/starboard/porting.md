@@ -274,7 +274,7 @@ that you copied in step 3:
         *   `target_os` - Set to `linux` if your platform is Linux-based.
             Otherwise, remove this variable.
         *   `gl_type` - Set to `system_gles2` if you are using the system EGL
-            + GLES2 implementation and otherwise set the value to `none`.
+            \+ GLES2 implementation and otherwise set the value to `none`.
         *   `in_app_dial` - Enables (or disables) the DIAL server that runs
             inside Cobalt. (This server only runs when Cobalt is running.)
             The [DIAL protocol](http://www.dial-multiscreen.org/home) enables
