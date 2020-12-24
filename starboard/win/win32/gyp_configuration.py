@@ -87,8 +87,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'SbSystemGetStackTest.SunnyDayStackDirection',
       ],
       'player_filter_tests': [
-          # This test fails on win-win32.
-          'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/2',
           # These tests fail on our VMs for win-win32 builds due to missing
           # or non functioning system video decoders.
           'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/0',
