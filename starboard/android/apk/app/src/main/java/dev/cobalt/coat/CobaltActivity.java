@@ -117,6 +117,7 @@ public abstract class CobaltActivity extends NativeActivity implements Component
   @Override
   protected void onStart() {
     if (!isReleaseBuild()) {
+      getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecUtil.dumpAllDecoders();
     }
     if (forceCreateNewVideoSurfaceView) {
