@@ -52,6 +52,7 @@
         'image/animated_webp_image.h',
         'image/dummy_gif_image_decoder.cc',
         'image/dummy_gif_image_decoder.h',
+        'image/failure_image_decoder.h',
         'image/image_cache.h',
         'image/image_data_decoder.cc',
         'image/image_data_decoder.h',

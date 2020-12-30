@@ -1173,7 +1173,6 @@ void WebModule::Impl::Unfreeze(
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
 
-  // TODO: Investigate the loader_factory and resource_provider issues.
   loader_factory_->Resume(resource_provider);
   SetApplicationState(base::kApplicationStateConcealed);
 }
