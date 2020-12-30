@@ -50,6 +50,28 @@ SB_C_INLINE std::string FormatString(const char* format, ...) {
   return std::string(buffer.data(), expected_size);
 }
 
+SB_C_INLINE std::string HexEncode(const void* data,
+                                  int size,
+                                  const char* delimiter = NULL) {
+  const char kDecToHex[] = "0123456789abcdef";
+
+  std::string result;
+  auto delimiter_size = delimiter ? SbStringGetLength(delimiter) : 0;
+  result.reserve((delimiter_size + 2) * size);
+
+  const uint8_t* data_in_uint8 = static_cast<const uint8_t*>(data);
+
+  for (int i = 0; i < size; ++i) {
+    result += kDecToHex[data_in_uint8[i] / 16];
+    result += kDecToHex[data_in_uint8[i] % 16];
+    if (i != size - 1 && delimiter != nullptr) {
+      result += delimiter;
+    }
+  }
+
+  return result;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_STRING_H_
