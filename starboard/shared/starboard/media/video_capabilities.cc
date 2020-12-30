@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/video_capabilities.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -35,8 +36,8 @@ VideoCapabilities::Rule::Rule(SbMediaVideoCodec codec,
 }
 
 std::string VideoCapabilities::Rule::AsString() const {
-  return FormatString("(%s, %d x %d @ %d fps)", GetCodecName(codec_), width_,
-                      height_, fps_);
+  return FormatString("(%s, %d x %d @ %d fps)", GetMediaVideoCodecName(codec_),
+                      width_, height_, fps_);
 }
 
 bool VideoCapabilities::Rule::CanBeInferredBy(const Rule& that) const {

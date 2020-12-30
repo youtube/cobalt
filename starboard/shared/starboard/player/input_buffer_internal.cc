@@ -19,8 +19,8 @@
 #include <sstream>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
-#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
@@ -133,11 +133,10 @@ std::string InputBuffer::ToString() const {
   }
   if (has_drm_info_) {
     ss << "iv: "
-       << GetHexRepresentation(drm_info_.initialization_vector,
-                               drm_info_.initialization_vector_size)
+       << HexEncode(drm_info_.initialization_vector,
+                    drm_info_.initialization_vector_size)
        << "\nkey_id: "
-       << GetHexRepresentation(drm_info_.identifier, drm_info_.identifier_size)
-       << '\n';
+       << HexEncode(drm_info_.identifier, drm_info_.identifier_size) << '\n';
     ss << "subsamples\n";
     for (int i = 0; i < drm_info_.subsample_count; ++i) {
       ss << "\t" << drm_info_.subsample_mapping[i].clear_byte_count << ", "
@@ -146,8 +145,7 @@ std::string InputBuffer::ToString() const {
   }
   if (!side_data_.empty()) {
     ss << "side data: "
-       << GetHexRepresentation(side_data_.data(),
-                               static_cast<int>(side_data_.size()))
+       << HexEncode(side_data_.data(), static_cast<int>(side_data_.size()))
        << '\n';
   }
   ss << GetMixedRepresentation(data(), size(), 16) << '\n';
