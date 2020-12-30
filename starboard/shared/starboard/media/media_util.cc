@@ -170,7 +170,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
                                fps, decode_to_texture_required)) {
     return false;
   }
-#else  //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#else   //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps,
                                decode_to_texture_required)) {
     return false;
@@ -421,208 +421,6 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   return kSbMediaSupportTypeNotSupported;
 }
 
-const char* GetCodecName(SbMediaAudioCodec codec) {
-  switch (codec) {
-    case kSbMediaAudioCodecNone:
-      return "none";
-    case kSbMediaAudioCodecAac:
-      return "aac";
-#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
-    case kSbMediaAudioCodecAc3:
-      if (!kSbHasAc3Audio) {
-        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
-                        << "enable it, set kSbHasAc3Audio to |true|.";
-        return "invalid";
-      }
-      return "ac3";
-    case kSbMediaAudioCodecEac3:
-      if (!kSbHasAc3Audio) {
-        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
-                        << "enable it, set kSbHasAc3Audio to |true|.";
-        return "invalid";
-      }
-      return "ec3";
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(AC3_AUDIO)
-    case kSbMediaAudioCodecOpus:
-      return "opus";
-    case kSbMediaAudioCodecVorbis:
-      return "vorbis";
-  }
-  SB_NOTREACHED();
-  return "invalid";
-}
-
-const char* GetCodecName(SbMediaVideoCodec codec) {
-  switch (codec) {
-    case kSbMediaVideoCodecNone:
-      return "none";
-    case kSbMediaVideoCodecH264:
-      return "avc";
-    case kSbMediaVideoCodecH265:
-      return "hevc";
-    case kSbMediaVideoCodecMpeg2:
-      return "mpeg2";
-    case kSbMediaVideoCodecTheora:
-      return "theora";
-    case kSbMediaVideoCodecVc1:
-      return "vc1";
-#if SB_API_VERSION < 11
-    case kSbMediaVideoCodecVp10:
-      return "vp10";
-#else   // SB_API_VERSION < 11
-    case kSbMediaVideoCodecAv1:
-      return "av1";
-#endif  // SB_API_VERSION < 11
-    case kSbMediaVideoCodecVp8:
-      return "vp8";
-    case kSbMediaVideoCodecVp9:
-      return "vp9";
-  }
-  SB_NOTREACHED();
-  return "invalid";
-}
-
-const char* GetPrimaryIdName(SbMediaPrimaryId primary_id) {
-  switch (primary_id) {
-    case kSbMediaPrimaryIdReserved0:
-      return "Reserved0";
-    case kSbMediaPrimaryIdBt709:
-      return "Bt709";
-    case kSbMediaPrimaryIdUnspecified:
-      return "Unspecified";
-    case kSbMediaPrimaryIdReserved:
-      return "Reserved";
-    case kSbMediaPrimaryIdBt470M:
-      return "Bt470M";
-    case kSbMediaPrimaryIdBt470Bg:
-      return "Bt470Bg";
-    case kSbMediaPrimaryIdSmpte170M:
-      return "Smpte170M";
-    case kSbMediaPrimaryIdSmpte240M:
-      return "Smpte240M";
-    case kSbMediaPrimaryIdFilm:
-      return "Film";
-    case kSbMediaPrimaryIdBt2020:
-      return "Bt2020";
-    case kSbMediaPrimaryIdSmpteSt4281:
-      return "SmpteSt4281";
-    case kSbMediaPrimaryIdSmpteSt4312:
-      return "SmpteSt4312";
-    case kSbMediaPrimaryIdSmpteSt4321:
-      return "SmpteSt4321";
-    case kSbMediaPrimaryIdUnknown:
-      return "Unknown";
-    case kSbMediaPrimaryIdXyzD50:
-      return "XyzD50";
-    case kSbMediaPrimaryIdCustom:
-      return "Custom";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
-const char* GetTransferIdName(SbMediaTransferId transfer_id) {
-  switch (transfer_id) {
-    case kSbMediaTransferIdReserved0:
-      return "Reserved0";
-    case kSbMediaTransferIdBt709:
-      return "Bt709";
-    case kSbMediaTransferIdUnspecified:
-      return "Unspecified";
-    case kSbMediaTransferIdReserved:
-      return "Reserved";
-    case kSbMediaTransferIdGamma22:
-      return "Gamma22";
-    case kSbMediaTransferIdGamma28:
-      return "Gamma28";
-    case kSbMediaTransferIdSmpte170M:
-      return "Smpte170M";
-    case kSbMediaTransferIdSmpte240M:
-      return "Smpte240M";
-    case kSbMediaTransferIdLinear:
-      return "Linear";
-    case kSbMediaTransferIdLog:
-      return "Log";
-    case kSbMediaTransferIdLogSqrt:
-      return "LogSqrt";
-    case kSbMediaTransferIdIec6196624:
-      return "Iec6196624";
-    case kSbMediaTransferIdBt1361Ecg:
-      return "Bt1361Ecg";
-    case kSbMediaTransferIdIec6196621:
-      return "Iec6196621";
-    case kSbMediaTransferId10BitBt2020:
-      return "10BitBt2020";
-    case kSbMediaTransferId12BitBt2020:
-      return "12BitBt2020";
-    case kSbMediaTransferIdSmpteSt2084:
-      return "SmpteSt2084";
-    case kSbMediaTransferIdSmpteSt4281:
-      return "SmpteSt4281";
-    case kSbMediaTransferIdAribStdB67:
-      return "AribStdB67/HLG";
-    case kSbMediaTransferIdUnknown:
-      return "Unknown";
-    case kSbMediaTransferIdGamma24:
-      return "Gamma24";
-    case kSbMediaTransferIdSmpteSt2084NonHdr:
-      return "SmpteSt2084NonHdr";
-    case kSbMediaTransferIdCustom:
-      return "Custom";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
-const char* GetMatrixIdName(SbMediaMatrixId matrix_id) {
-  switch (matrix_id) {
-    case kSbMediaMatrixIdRgb:
-      return "Rgb";
-    case kSbMediaMatrixIdBt709:
-      return "Bt709";
-    case kSbMediaMatrixIdUnspecified:
-      return "Unspecified";
-    case kSbMediaMatrixIdReserved:
-      return "Reserved";
-    case kSbMediaMatrixIdFcc:
-      return "Fcc";
-    case kSbMediaMatrixIdBt470Bg:
-      return "Bt470Bg";
-    case kSbMediaMatrixIdSmpte170M:
-      return "Smpte170M";
-    case kSbMediaMatrixIdSmpte240M:
-      return "Smpte240M";
-    case kSbMediaMatrixIdYCgCo:
-      return "YCgCo";
-    case kSbMediaMatrixIdBt2020NonconstantLuminance:
-      return "Bt2020NonconstantLuminance";
-    case kSbMediaMatrixIdBt2020ConstantLuminance:
-      return "Bt2020ConstantLuminance";
-    case kSbMediaMatrixIdYDzDx:
-      return "YDzDx";
-    case kSbMediaMatrixIdUnknown:
-      return "Unknown";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
-const char* GetRangeIdName(SbMediaRangeId range_id) {
-  switch (range_id) {
-    case kSbMediaRangeIdUnspecified:
-      return "Unspecified";
-    case kSbMediaRangeIdLimited:
-      return "Limited";
-    case kSbMediaRangeIdFull:
-      return "Full";
-    case kSbMediaRangeIdDerived:
-      return "Derived";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
 #if SB_API_VERSION >= 11
 bool IsAudioSampleInfoSubstantiallyDifferent(
     const SbMediaAudioSampleInfo& left,
@@ -695,69 +493,6 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
   return !(sample_info_1 == sample_info_2);
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaMasteringMetadata& metadata) {
-  os << "r(" << metadata.primary_r_chromaticity_x << ", "
-     << metadata.primary_r_chromaticity_y << "), g("
-     << metadata.primary_g_chromaticity_x << ", "
-     << metadata.primary_g_chromaticity_y << "), b("
-     << metadata.primary_b_chromaticity_x << ", "
-     << metadata.primary_b_chromaticity_y << "), white("
-     << metadata.white_point_chromaticity_x << ", "
-     << metadata.white_point_chromaticity_y << "), luminance("
-     << metadata.luminance_min << " to " << metadata.luminance_max << ")";
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaColorMetadata& metadata) {
-  using starboard::shared::starboard::media::GetPrimaryIdName;
-  using starboard::shared::starboard::media::GetTransferIdName;
-  using starboard::shared::starboard::media::GetMatrixIdName;
-  using starboard::shared::starboard::media::GetRangeIdName;
-  os << metadata.bits_per_channel
-     << " bits, mastering metadata: " << metadata.mastering_metadata
-     << ", primary: " << GetPrimaryIdName(metadata.primaries)
-     << ", transfer: " << GetTransferIdName(metadata.transfer)
-     << ", matrix: " << GetMatrixIdName(metadata.matrix)
-     << ", range: " << GetRangeIdName(metadata.range);
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaVideoSampleInfo& sample_info) {
-  using starboard::shared::starboard::media::GetCodecName;
-#if SB_API_VERSION >= 11
-  os << GetCodecName(sample_info.codec) << ", ";
-#endif  // SB_API_VERSION >= 11
-  if (sample_info.is_key_frame) {
-    os << "key frame, ";
-  }
-  os << sample_info.frame_width << 'x' << sample_info.frame_height << ' ';
-#if SB_API_VERSION >= 11
-  os << '(' << sample_info.color_metadata << ')';
-#else   // SB_API_VERSION >= 11
-  os << '(' << *sample_info.color_metadata << ')';
-#endif  // SB_API_VERSION >= 11
-  return os;
-}
-
-std::string GetHexRepresentation(const uint8_t* data, int size) {
-  const char kBinToHex[] = "0123456789abcdef";
-
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    result += kBinToHex[data[i] / 16];
-    result += kBinToHex[data[i] % 16];
-    if (i != size - 1) {
-      result += ' ';
-    }
-  }
-
-  return result;
-}
-
 std::string GetStringRepresentation(const uint8_t* data, int size) {
   std::string result;
 
@@ -781,13 +516,13 @@ std::string GetMixedRepresentation(const uint8_t* data,
 
   for (int i = 0; i < size; i += bytes_per_line) {
     if (i + bytes_per_line <= size) {
-      result += GetHexRepresentation(data + i, bytes_per_line);
+      result += starboard::HexEncode(data + i, bytes_per_line);
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_per_line);
       result += '\n';
     } else {
       int bytes_left = size - i;
-      result += GetHexRepresentation(data + i, bytes_left);
+      result += starboard::HexEncode(data + i, bytes_left);
       result += std::string((bytes_per_line - bytes_left) * 3, ' ');
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_left);

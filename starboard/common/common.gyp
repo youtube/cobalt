@@ -36,6 +36,8 @@
         'locked_ptr.h',
         'log.cc',
         'log.h',
+        'media.cc',
+        'media.h',
         'move.h',
         'murmurhash2.cc',
         'murmurhash2.h',

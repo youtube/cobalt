@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 
-#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/common/media.h"
 
 namespace starboard {
 namespace shared {
