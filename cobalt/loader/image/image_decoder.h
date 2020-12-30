@@ -117,6 +117,9 @@ class ImageDecoder : public Decoder {
   // Whether or not there is a pending task deleting this decoder on a message
   // loop.
   base::subtle::Atomic32 is_deletion_pending_;
+
+  // Wheter or not we use failure image decoder.
+  bool use_failure_image_decoder_ = false;
 };
 
 }  // namespace image
