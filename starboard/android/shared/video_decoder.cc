@@ -367,7 +367,6 @@ VideoDecoder::GetRenderAlgorithm() {
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(media_decoder_);
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -375,6 +374,14 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+
+  // There's a race condition when suspending the app. If surface view is
+  // destroyed before this function is called, |media_decoder_| could be null
+  // here, in such case is_valid() will return false.
+  if (!is_valid()) {
+    SB_LOG(INFO) << "Trying to call Initialize() when media_decoder_ is null.";
+    return;
+  }
 
   media_decoder_->Initialize(error_cb_);
 }
@@ -445,7 +452,7 @@ void VideoDecoder::WriteInputBuffer(
   // that WriteInputBuffer() is called again when the first WriteInputBuffer()
   // fails, in such case is_valid() will also return false.
   if (!is_valid()) {
-    SB_LOG(INFO) << "Trying to write input buffer when codec is not available.";
+    SB_LOG(INFO) << "Trying to write input buffer when media_decoder_ is null.";
     return;
   }
   media_decoder_->WriteInputBuffer(input_buffer);
@@ -524,7 +531,7 @@ void VideoDecoder::WriteEndOfStream() {
   // WriteInputBuffer() fails, in such case is_valid() will also return false.
   if (!is_valid()) {
     SB_LOG(INFO)
-        << "Trying to write end of stream when codec is not available.";
+        << "Trying to write end of stream when media_decoder_ is null.";
     return;
   }
 
@@ -871,6 +878,15 @@ void VideoDecoder::OnTunnelModePrerollTimeout() {
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+
+  // There's a race condition when suspending the app. If surface view is
+  // destroyed before this function is called, |media_decoder_| could be null
+  // here, in such case is_valid() will return false.
+  if (!is_valid()) {
+    SB_LOG(INFO) << "Trying to call OnTunnelModeCheckForNeedMoreInput() when"
+                 << " media_decoder_ is null.";
+    return;
+  }
 
   if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
