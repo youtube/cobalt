@@ -249,7 +249,7 @@ public class AudioTrackBridge {
     // introduced.
     // Set the following constant to |false| to test manual sync header writing in API level 23 or
     // later.  Note that the code to write sync header manually only supports v1 sync header.
-    final boolean useAutoSyncHeaderWrite = false;
+    final boolean useAutoSyncHeaderWrite = true;
     if (useAutoSyncHeaderWrite && Build.VERSION.SDK_INT >= 23) {
       ByteBuffer byteBuffer = ByteBuffer.wrap(audioData);
       return audioTrack.write(
