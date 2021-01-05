@@ -224,6 +224,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
 void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
   bool was_playing = false;
+  int frames_in_audio_track = 0;
 
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
@@ -278,12 +279,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       }
 
       last_playback_head_position_ = playback_head_position;
-      frames_consumed = std::min(frames_consumed, written_frames_);
+      frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
         SB_DCHECK(frames_consumed >= 0);
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
-        written_frames_ -= frames_consumed;
+        frames_in_audio_track -= frames_consumed;
       }
     }
 
@@ -319,14 +320,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     int start_position =
-        (offset_in_frames + written_frames_) % frames_per_channel_;
+        (offset_in_frames + frames_in_audio_track) % frames_per_channel_;
     int expected_written_frames = 0;
-    if (frames_per_channel_ > offset_in_frames + written_frames_) {
+    if (frames_per_channel_ > offset_in_frames + frames_in_audio_track) {
       expected_written_frames =
-          std::min(frames_per_channel_ - (offset_in_frames + written_frames_),
-                   frames_in_buffer - written_frames_);
+          std::min(frames_per_channel_ - (offset_in_frames + frames_in_audio_track),
+                   frames_in_buffer - frames_in_audio_track);
     } else {
-      expected_written_frames = frames_in_buffer - written_frames_;
+      expected_written_frames = frames_in_buffer - frames_in_audio_track;
     }
 
     expected_written_frames =
@@ -380,7 +381,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
             playback_head_not_changed_duration > kAudioSinkBlockedDuration &&
             tunnel_mode_audio_session_id_ != -1) {
           SB_LOG(INFO) << "Over one second without frames written and consumed";
-          consume_frames_func_(written_frames_, SbTimeGetMonotonicNow(),
+          consume_frames_func_(frames_in_audio_track, SbTimeGetMonotonicNow(),
                                context_);
           error_func_(kSbPlayerErrorCapabilityChanged, context_);
           break;
@@ -399,7 +400,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         << ", expected_written_frames: " << expected_written_frames
         << ", frames_per_channel_: " << frames_per_channel_
         << ", frames_in_buffer: " << frames_in_buffer
-        << ", written_frames_: " << written_frames_
+        << ", frames_in_audio_track: " << frames_in_audio_track
         << ", offset_in_frames: " << offset_in_frames;
 
     int written_frames = WriteData(
@@ -410,8 +411,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SbTime now = SbTimeGetMonotonicNow();
 
     if (written_frames < 0) {
-      // Take all |written_frames_| as consumed since audio track could be dead.
-      consume_frames_func_(written_frames_, now, context_);
+      // Take all |frames_in_audio_track| as consumed since audio track could be dead.
+      consume_frames_func_(frames_in_audio_track, now, context_);
       error_func_(written_frames == kAudioTrackErrorDeadObject
                       ? kSbPlayerErrorCapabilityChanged
                       : kSbPlayerErrorDecode,
@@ -420,12 +421,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     } else if (written_frames > 0) {
       last_written_succeeded_at = now;
     }
-    written_frames_ += written_frames;
+    frames_in_audio_track += written_frames;
     accumulated_written_frames += written_frames;
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
-        written_frames_ * kSbTimeSecond / sampling_frequency_hz_ -
+        frames_in_audio_track * kSbTimeSecond / sampling_frequency_hz_ -
         (now - frames_consumed_at);
     // As long as there is enough data in the buffer, run the loop in lower
     // frequency to avoid taking too much CPU.  Note that the threshold should

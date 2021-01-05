@@ -148,10 +148,6 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
 
   Mutex mutex_;
   double playback_rate_ = 1.0;
-
-  // TODO: Rename to |frames_in_audio_track| and move it into AudioThreadFunc()
-  //       as a local variable.
-  int written_frames_ = 0;
 };
 
 }  // namespace shared
