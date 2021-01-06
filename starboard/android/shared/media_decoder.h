@@ -131,8 +131,6 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void JoinOnThreads();
-
   void TeardownCodec();
 
   void CollectPendingData_Locked(

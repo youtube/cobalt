@@ -134,7 +134,27 @@ MediaDecoder::MediaDecoder(Host* host,
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  JoinOnThreads();
+  destroying_.store(true);
+  condition_variable_.Signal();
+
+  if (SbThreadIsValid(decoder_thread_)) {
+    SbThreadJoin(decoder_thread_, NULL);
+    decoder_thread_ = kSbThreadInvalid;
+  }
+
+  if (is_valid()) {
+    host_->OnFlushing();
+    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
+    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
+    // So that, |dequeue_output_results_| may not be empty. As
+    // DequeueOutputResult is consisted of plain data, it's fine to let
+    // destructor delete |dequeue_output_results_|.
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+    }
+    host_ = NULL;
+  }
 }
 
 void MediaDecoder::Initialize(const ErrorCB& error_cb) {
@@ -320,31 +340,6 @@ void MediaDecoder::DecoderThreadFunc() {
   }
 
   SB_LOG(INFO) << "Destroying decoder thread.";
-}
-
-// TODO: Move this into dtor.
-void MediaDecoder::JoinOnThreads() {
-  destroying_.store(true);
-  condition_variable_.Signal();
-
-  if (SbThreadIsValid(decoder_thread_)) {
-    SbThreadJoin(decoder_thread_, NULL);
-    decoder_thread_ = kSbThreadInvalid;
-  }
-
-  if (is_valid()) {
-    host_->OnFlushing();
-    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
-    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
-    // So that, |dequeue_output_results_| may not be empty. As we call
-    // JoinOnThreads() in destructor and DequeueOutputResult is consisted of
-    // plain data, it's fine to let destructor delete |dequeue_output_results_|.
-    jint status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
-    }
-    host_ = NULL;
-  }
 }
 
 void MediaDecoder::CollectPendingData_Locked(
