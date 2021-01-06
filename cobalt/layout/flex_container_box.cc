@@ -15,6 +15,7 @@
 #include "cobalt/layout/flex_container_box.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "cobalt/cssom/computed_style.h"
@@ -230,6 +231,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
+  set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
+  set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
+  set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
+  set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
+
   if (IsAbsolutelyPositioned()) {
     UpdateWidthAssumingAbsolutelyPositionedBox(
         layout_params.containing_block_direction,
@@ -250,15 +256,15 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   LayoutUnit main_size = LayoutUnit();
   // 4. Determine the main size of the flex container using the rules of the
   // formatting context in which it participates.
+  if (!layout_params.freeze_width) {
+    UpdateContentWidthAndMargins(layout_params.containing_block_direction,
+                                 layout_params.containing_block_size.width(),
+                                 layout_params.shrink_to_fit_width_forced,
+                                 width_depends_on_containing_block, maybe_left,
+                                 maybe_right, maybe_margin_left,
+                                 maybe_margin_right, main_space_, cross_space_);
+  }
   if (main_direction_is_horizontal) {
-    if (!layout_params.freeze_width) {
-      UpdateContentWidthAndMargins(
-          layout_params.containing_block_direction,
-          layout_params.containing_block_size.width(),
-          layout_params.shrink_to_fit_width_forced,
-          width_depends_on_containing_block, maybe_left, maybe_right,
-          maybe_margin_left, maybe_margin_right, main_space_, cross_space_);
-    }
     main_size = width();
   } else {
     if (!layout_params.freeze_height) {
@@ -308,11 +314,6 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   } else {
     set_width(flex_formatting_context.cross_size());
   }
-
-  set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
-  set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
-  set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
-  set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
 
   UpdateRectOfPositionedChildBoxes(child_layout_params, layout_params);
 

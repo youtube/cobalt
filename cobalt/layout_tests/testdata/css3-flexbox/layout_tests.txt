@@ -135,5 +135,6 @@ csswg_flex-shrink-006
 csswg_flex-shrink-007
 csswg_flex-shrink-008
 empty_container_baseline
+flex-container-auto-margins
 flex-items-flexibility
 positioned-containers
