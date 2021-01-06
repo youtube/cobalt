@@ -426,8 +426,19 @@ bool MediaDecoder::ProcessOneInputBuffer(
   if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
     ScopedJavaByteBuffer byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.IsNull() || byte_buffer.capacity() < size) {
-      SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
+    if (byte_buffer.IsNull()) {
+      SB_LOG(ERROR) << "Unable to write to MediaCodec buffer, |byte_buffer| is"
+                    << " null.";
+      // TODO: Stop the decoding loop and call error_cb_ on fatal error.
+      return false;
+    }
+    if (byte_buffer.capacity() < size) {
+      auto error_message = FormatString(
+          "Unable to write to MediaCodec buffer, input buffer size (%d) is"
+          " greater than |byte_buffer.capacity()| (%d).",
+          size, static_cast<int>(byte_buffer.capacity()));
+      SB_LOG(ERROR) << error_message;
+      error_cb_(kSbPlayerErrorDecode, error_message);
       return false;
     }
     byte_buffer.CopyInto(data, size);
@@ -457,7 +468,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   if (status != MEDIA_CODEC_OK) {
     HandleError("queue(Secure)?InputBuffer", status);
-    // TODO: Stop the decoding loop on fatal error.
+    // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_queue_input_buffer_task_);
     pending_queue_input_buffer_task_ = {dequeue_input_result, event};
     return false;
