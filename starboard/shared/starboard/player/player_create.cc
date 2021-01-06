@@ -108,16 +108,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 #if SB_API_VERSION >= 11
-#endif  // SB_API_VERSION >= 11
-#if SB_API_VERSION >= 11
   if (audio_sample_info) {
     SB_DCHECK(audio_sample_info->codec == audio_codec);
   }
 #endif  // SB_API_VERSION >= 11
 
-  if (!sample_deallocate_func || !decoder_status_func || !player_status_func
-      || !player_error_func
-      ) {
+  if (!sample_deallocate_func || !decoder_status_func || !player_status_func ||
+      !player_error_func) {
     return kSbPlayerInvalid;
   }
 
@@ -170,6 +167,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  if (audio_sample_info &&
+      audio_sample_info->number_of_channels > SbAudioSinkGetMaxChannels()) {
+    SB_LOG(ERROR) << "audio_sample_info->number_of_channels exceeds the maximum"
+                  << " number of audio channels supported by this platform.";
+    return kSbPlayerInvalid;
+  }
+
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
@@ -196,9 +200,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
-      decoder_status_func, player_status_func,
-      player_error_func,
-      context, handler.Pass());
+      decoder_status_func, player_status_func, player_error_func, context,
+      handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
