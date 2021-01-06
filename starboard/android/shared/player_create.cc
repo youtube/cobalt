@@ -77,9 +77,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
                << "\", and max video capabilities \"" << max_video_capabilities
                << "\".";
 
-  if (!sample_deallocate_func || !decoder_status_func || !player_status_func
-      || !player_error_func
-      ) {
+  if (!sample_deallocate_func || !decoder_status_func || !player_status_func ||
+      !player_error_func) {
     return kSbPlayerInvalid;
   }
 
@@ -106,6 +105,14 @@ SbPlayer SbPlayerCreate(SbWindow window,
       video_codec == kSbMediaVideoCodecNone) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires at least one audio track or"
                   << " one video track.";
+    return kSbPlayerInvalid;
+  }
+
+  if (has_audio && creation_param->audio_sample_info.number_of_channels >
+                       SbAudioSinkGetMaxChannels()) {
+    SB_LOG(ERROR) << "creation_param->audio_sample_info.number_of_channels"
+                  << " exceeds the maximum number of audio channels supported"
+                  << " by this platform.";
     return kSbPlayerInvalid;
   }
 
