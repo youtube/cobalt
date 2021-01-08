@@ -227,7 +227,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringParseUInt64);
   REGISTER_SYMBOL(SbStringParseUnsignedInteger);
   REGISTER_SYMBOL(SbStringScan);
+#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbSystemBinarySearch);
+#endif
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
   REGISTER_SYMBOL(SbSystemGetConnectionType);

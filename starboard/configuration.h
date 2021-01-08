@@ -84,6 +84,9 @@
 // Deprecated SbSystemSort
 #define SB_SYSTEM_SORT_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated SbSystemBinarySearch
+#define SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

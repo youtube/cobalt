@@ -195,6 +195,7 @@
             'src/stdlib/abs.c',
             'src/stdlib/atof.c',
             'src/stdlib/atoi.c',
+            'src/stdlib/bsearch.c',
             'src/stdlib/labs.c',
             'src/stdlib/llabs.c',
             'src/stdlib/qsort.c',

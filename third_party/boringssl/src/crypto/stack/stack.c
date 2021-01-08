@@ -62,11 +62,6 @@
 
 #include "../internal.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 
 // kMinSize is the number of pointers that will be initially allocated in a new
 // stack.

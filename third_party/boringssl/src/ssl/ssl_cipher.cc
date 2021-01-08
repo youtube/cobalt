@@ -156,11 +156,6 @@
 #include "internal.h"
 #include "../crypto/internal.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 
 namespace bssl {
 

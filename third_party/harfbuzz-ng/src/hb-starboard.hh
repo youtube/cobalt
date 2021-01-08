@@ -28,7 +28,6 @@
 // Micro Posix Emulation
 #undef assert
 #define assert SB_DCHECK
-#define bsearch SbSystemBinarySearch
 #define getenv(x) NULL
 #define memcpy SbMemoryCopy
 #define memmove SbMemoryMove

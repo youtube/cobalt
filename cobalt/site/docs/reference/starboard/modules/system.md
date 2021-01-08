@@ -252,26 +252,6 @@ typedef void(* SbSystemPlatformErrorCallback) (SbSystemPlatformErrorResponse res
 
 ## Functions ##
 
-### SbSystemBinarySearch ###
-
-Binary searches a sorted table `base` of `element_count` objects, each element
-`element_width` bytes in size for an element that `comparator` compares equal to
-`key`.
-
-This function is meant to be a drop-in replacement for `bsearch`.
-
-`key`: The key to search for in the table. `base`: The sorted table of elements
-to be searched. `element_count`: The number of elements in the table.
-`element_width`: The size, in bytes, of each element in the table. `comparator`:
-A value that indicates how the element in the table should compare to the
-specified `key`.
-
-#### Declaration ####
-
-```
-void* SbSystemBinarySearch(const void *key, const void *base, size_t element_count, size_t element_width, SbSystemComparator comparator)
-```
-
 ### SbSystemBreakIntoDebugger ###
 
 Breaks the current program into the debugger, if a debugger is attached. If a

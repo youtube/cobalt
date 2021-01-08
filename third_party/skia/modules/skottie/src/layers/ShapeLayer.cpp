@@ -28,11 +28,6 @@
 #include <algorithm>
 #include <iterator>
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 namespace skottie {
 namespace internal {
 
