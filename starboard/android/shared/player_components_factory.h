@@ -48,6 +48,11 @@ namespace shared {
 // Tunnel mode is disabled by default.  Set the following variable to true to
 // enable tunnel mode.
 constexpr bool kTunnelModeEnabled = false;
+// On some platforms tunnel mode is only supported in the secure pipeline.  Set
+// the following variable to true to force creating a secure pipeline in tunnel
+// mode, even for clear content.
+// TODO: Allow this to be configured per playback at run time from the web app.
+constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkTunneled : public ::starboard::shared::starboard::
@@ -156,8 +161,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(error_message);
 
     int tunnel_mode_audio_session_id = -1;
-
-    if (IsTunnelModeSupported(creation_parameters)) {
+    bool force_secure_pipeline_under_tunnel_mode = false;
+    if (IsTunnelModeSupported(creation_parameters,
+                              &force_secure_pipeline_under_tunnel_mode)) {
       tunnel_mode_audio_session_id =
           GenerateAudioSessionId(creation_parameters);
     }
@@ -215,13 +221,18 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
 
+      if (tunnel_mode_audio_session_id == -1) {
+        force_secure_pipeline_under_tunnel_mode = false;
+      }
+
       scoped_ptr<VideoDecoder> video_decoder_impl(new VideoDecoder(
           creation_parameters.video_codec(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           creation_parameters.output_mode(),
           creation_parameters.decode_target_graphics_context_provider(),
           creation_parameters.max_video_capabilities(),
-          tunnel_mode_audio_session_id, error_message));
+          tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
+          error_message));
       if (video_decoder_impl->is_valid()) {
         *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
         *video_renderer_sink = video_decoder_impl->GetSink();
@@ -263,7 +274,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
   }
 
-  bool IsTunnelModeSupported(const CreationParameters& creation_parameters) {
+  bool IsTunnelModeSupported(const CreationParameters& creation_parameters,
+                             bool* force_secure_pipeline_under_tunnel_mode) {
+    SB_DCHECK(force_secure_pipeline_under_tunnel_mode);
+    *force_secure_pipeline_under_tunnel_mode = false;
+
     if (!kTunnelModeEnabled) {
       SB_LOG(INFO) << "Tunnel mode is disabled globally.";
       return false;
@@ -306,11 +321,23 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     jobject j_media_crypto =
         drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
 
+    bool is_encrypted = !!j_media_crypto;
     if (env->CallStaticBooleanMethodOrAbort(
             "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
-            "(Ljava/lang/String;Z)Z", j_mime.Get(),
-            !!j_media_crypto) == JNI_TRUE) {
+            "(Ljava/lang/String;Z)Z", j_mime.Get(), is_encrypted) == JNI_TRUE) {
       return true;
+    }
+
+    if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
+      const bool kIsEncrypted = true;
+      auto support_tunnel_mode_under_secure_pipeline =
+          env->CallStaticBooleanMethodOrAbort(
+              "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
+              "(Ljava/lang/String;Z)Z", j_mime.Get(), kIsEncrypted) == JNI_TRUE;
+      if (support_tunnel_mode_under_secure_pipeline) {
+        *force_secure_pipeline_under_tunnel_mode = true;
+        return true;
+      }
     }
 
     SB_LOG(INFO) << "Disable tunnel mode because no tunneled decoder for "
@@ -319,7 +346,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   }
 
   int GenerateAudioSessionId(const CreationParameters& creation_parameters) {
-    SB_DCHECK(IsTunnelModeSupported(creation_parameters));
+    bool force_secure_pipeline_under_tunnel_mode = false;
+    SB_DCHECK(IsTunnelModeSupported(creation_parameters,
+                                    &force_secure_pipeline_under_tunnel_mode));
 
     JniEnvExt* env = JniEnvExt::Get();
     ScopedLocalJavaRef<jobject> j_audio_output_manager(
