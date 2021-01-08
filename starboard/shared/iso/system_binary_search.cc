@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 
+#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
 void* SbSystemBinarySearch(const void* key,
                            const void* base,
                            size_t element_count,
@@ -23,3 +24,4 @@ void* SbSystemBinarySearch(const void* key,
                            SbSystemComparator comparator) {
   return bsearch(key, base, element_count, element_width, comparator);
 }
+#endif  // SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
