@@ -121,6 +121,34 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
          Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
 }
 
+void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
+                                     void* context,
+                                     int ticket,
+                                     SbDrmStatus status,
+                                     SbDrmSessionRequestType type,
+                                     const char* error_message,
+                                     const void* session_id,
+                                     int session_id_size,
+                                     const void* content,
+                                     int content_size,
+                                     const char* url) {}
+
+void StubDrmSessionUpdatedFunc(SbDrmSystem drm_system,
+                               void* context,
+                               int ticket,
+                               SbDrmStatus status,
+                               const char* error_message,
+                               const void* session_id,
+                               int session_id_size) {}
+
+void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
+                                          void* context,
+                                          const void* session_id,
+                                          int session_id_size,
+                                          int number_of_keys,
+                                          const SbDrmKeyId* key_ids,
+                                          const SbDrmKeyStatus* key_statuses) {}
+
 }  // namespace
 
 // TODO: Move into a separate file and write unit tests for it.
@@ -306,6 +334,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                                decode_target_graphics_context_provider,
                            const char* max_video_capabilities,
                            int tunnel_mode_audio_session_id,
+                           bool force_secure_pipeline_under_tunnel_mode,
                            std::string* error_message)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -321,6 +350,14 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 
   if (tunnel_mode_audio_session_id != -1) {
     video_frame_tracker_.reset(new VideoFrameTracker);
+  }
+  if (force_secure_pipeline_under_tunnel_mode) {
+    SB_DCHECK(tunnel_mode_audio_session_id != -1);
+    SB_DCHECK(!drm_system_);
+    drm_system_to_enforce_tunnel_mode_.reset(new DrmSystem(
+        nullptr, StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
+        StubDrmSessionKeyStatusesChangedFunc));
+    drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 
   if (require_software_codec_) {

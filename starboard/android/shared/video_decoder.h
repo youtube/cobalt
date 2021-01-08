@@ -67,6 +67,7 @@ class VideoDecoder
                    decode_target_graphics_context_provider,
                const char* max_video_capabilities,
                int tunnel_mode_audio_session_id,
+               bool force_secure_pipeline_under_tunnel_mode,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -135,6 +136,10 @@ class VideoDecoder
   const bool require_software_codec_;
 
   const int tunnel_mode_audio_session_id_ = -1;
+  // On some platforms tunnel mode is only supported in the secure pipeline.  So
+  // we create a dummy drm system to force the video playing in secure pipeline
+  // to enable tunnel mode.
+  scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
   scoped_ptr<VideoFrameTracker> video_frame_tracker_;
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
