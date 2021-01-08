@@ -10,5 +10,9 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
+# This environment variable changes the output log line for Ninja build commands
+# to also print the timing information.
+ENV NINJA_STATUS "[%f/%t] (%es) "
+
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
     ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
