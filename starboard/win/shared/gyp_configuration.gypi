@@ -35,13 +35,20 @@
       ['cobalt_fastbuild==0', {
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'DebugInformationFormat': '1',
+            'DebugInformationFormat': '3',
+            'conditions':[
+              ['cobalt_docker_build==1', {
+                'DebugInformationFormat': '1'
+              }, {
+                'AdditionalOptions': [ '/FS' ],
+              }],
+            ]
           },
           'VCLinkerTool': {
             'GenerateDebugInformation': 'true',
           },
         }
-        }],
+      }],
     ],
   },
 
@@ -152,7 +159,14 @@
           ['cobalt_fastbuild==0', {
             'msvs_settings': {
               'VCCLCompilerTool': {
-                'DebugInformationFormat': '1',
+                'DebugInformationFormat': '3',
+                'conditions': [
+                  'cobalt_docker_build==1', {
+                    'DebugInformationFormat': '1'
+                  }, {
+                    'AdditionalOptions': [ '/FS' ],
+                  }],
+                ],
               },
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'true',
