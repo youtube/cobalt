@@ -455,7 +455,7 @@ static int asn1_string_canon(ASN1_STRING *out, ASN1_STRING *in)
      */
 
     /* Ignore leading spaces */
-    while ((len > 0) && !(*from & 0x80) && OPENSSL_port_isspace(*from)) {
+    while ((len > 0) && !(*from & 0x80) && isspace(*from)) {
         from++;
         len--;
     }
@@ -463,7 +463,7 @@ static int asn1_string_canon(ASN1_STRING *out, ASN1_STRING *in)
     to = from + len;
 
     /* Ignore trailing spaces */
-    while ((len > 0) && !(to[-1] & 0x80) && OPENSSL_port_isspace(to[-1])) {
+    while ((len > 0) && !(to[-1] & 0x80) && isspace(to[-1])) {
         to--;
         len--;
     }
@@ -478,7 +478,7 @@ static int asn1_string_canon(ASN1_STRING *out, ASN1_STRING *in)
             i++;
         }
         /* Collapse multiple spaces */
-        else if (OPENSSL_port_isspace(*from)) {
+        else if (isspace(*from)) {
             /* Copy one space across */
             *to++ = ' ';
             /*
@@ -490,7 +490,7 @@ static int asn1_string_canon(ASN1_STRING *out, ASN1_STRING *in)
                 from++;
                 i++;
             }
-            while (!(*from & 0x80) && OPENSSL_port_isspace(*from));
+            while (!(*from & 0x80) && isspace(*from));
         } else {
             *to++ = OPENSSL_tolower(*from);
             from++;

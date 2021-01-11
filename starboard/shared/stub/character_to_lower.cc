@@ -14,6 +14,8 @@
 
 #include "starboard/character.h"
 
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 int SbCharacterToLower(int c) {
   return c;
 }
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION

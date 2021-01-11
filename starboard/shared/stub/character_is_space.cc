@@ -14,6 +14,8 @@
 
 #include "starboard/character.h"
 
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 bool SbCharacterIsSpace(int c) {
   return false;
 }
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION

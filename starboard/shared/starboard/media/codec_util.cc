@@ -18,7 +18,6 @@
 #include <cctype>
 #include <string>
 
-#include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -60,7 +59,7 @@ bool ReadOneDigitHex(const char* str, T* output) {
     return true;
   }
 
-  if (!SbCharacterIsDigit(str[0])) {
+  if (!isdigit(str[0])) {
     return false;
   }
 
@@ -77,7 +76,7 @@ bool ReadDecimalUntilDot(const char* str, T* output) {
 
   *output = 0;
   while (*str != 0 && *str != '.') {
-    if (!SbCharacterIsDigit(*str)) {
+    if (!isdigit(*str)) {
       return false;
     }
     *output = *output * 10 + (*str - '0');
@@ -93,7 +92,7 @@ template <typename T>
 bool ReadTwoDigitDecimal(const char* str, T* output) {
   SB_DCHECK(str);
 
-  if (!SbCharacterIsDigit(str[0]) || !SbCharacterIsDigit(str[1])) {
+  if (!isdigit(str[0]) || !isdigit(str[1])) {
     return false;
   }
 
@@ -119,8 +118,8 @@ bool VerifyFormat(const char* format, const char* reference) {
     return false;
   }
   for (size_t i = 0; i < reference_size; ++i) {
-    if (SbCharacterIsDigit(reference[i])) {
-      if (!SbCharacterIsDigit(format[i])) {
+    if (isdigit(reference[i])) {
+      if (!isdigit(format[i])) {
         return false;
       }
     } else if (std::isalpha(reference[i])) {
@@ -138,8 +137,7 @@ bool VerifyFormat(const char* format, const char* reference) {
   if (format_size == reference_size) {
     return true;
   }
-  return format[reference_size] != '.' &&
-         !SbCharacterIsDigit(format[reference_size]);
+  return format[reference_size] != '.' && !isdigit(format[reference_size]);
 }
 
 // It works exactly the same as the above function, except that the size of
@@ -292,8 +290,8 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
     return false;
   }
 
-  if (SbStringGetLength(codec) != 11 || !SbCharacterIsHexDigit(codec[9]) ||
-      !SbCharacterIsHexDigit(codec[10])) {
+  if (SbStringGetLength(codec) != 11 || !isxdigit(codec[9]) ||
+      !isxdigit(codec[10])) {
     return false;
   }
 
@@ -412,8 +410,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
     if (codec[0] == 0) {
       return true;
     }
-    if (codec[0] != '.' || !SbCharacterIsHexDigit(codec[1]) ||
-        !SbCharacterIsHexDigit(codec[2])) {
+    if (codec[0] != '.' || !isxdigit(codec[1]) || !isxdigit(codec[2])) {
       return false;
     }
     codec += 3;
@@ -502,7 +499,8 @@ bool ParseVp09Info(const char* codec,
   // 6. Parse chroma subsampling, which we only support 00 and 01.
   // Note that this value is not returned.
   int chroma;
-  if (!ReadTwoDigitDecimal(codec + 14, &chroma) || (chroma != 0 && chroma != 1)) {
+  if (!ReadTwoDigitDecimal(codec + 14, &chroma) ||
+      (chroma != 0 && chroma != 1)) {
     return false;
   }
 
@@ -586,7 +584,7 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
     video_codec_ = video_codec;
   }
 #if SB_API_VERSION >= 11
-  else if(video_codec == kSbMediaVideoCodecAv1) {
+  else if (video_codec == kSbMediaVideoCodecAv1) {
     video_codec_ = video_codec;
   }
 #endif  // SB_API_VERSION >= 11
@@ -680,7 +678,7 @@ bool ParseVideoCodec(const char* codec_string,
   if (SbStringCompare(codec_string, "av01.", 5) == 0) {
 #if SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecVp10;
-#else  // SB_API_VERSION < 11
+#else   // SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecAv1;
 #endif  // SB_API_VERSION < 11
     return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,

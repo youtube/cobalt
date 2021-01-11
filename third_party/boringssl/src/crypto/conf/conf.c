@@ -761,7 +761,7 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
   lstart = list;
   for (;;) {
     if (remove_whitespace) {
-      while (*lstart && OPENSSL_port_isspace((unsigned char)*lstart)) {
+      while (*lstart && isspace((unsigned char)*lstart)) {
         lstart++;
       }
     }
@@ -775,7 +775,7 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
         tmpend = lstart + OPENSSL_port_strlen(lstart) - 1;
       }
       if (remove_whitespace) {
-        while (OPENSSL_port_isspace((unsigned char)*tmpend)) {
+        while (isspace((unsigned char)*tmpend)) {
           tmpend--;
         }
       }

@@ -16,6 +16,8 @@
 
 #include <ctype.h>
 
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 bool SbCharacterIsAlphanumeric(int c) {
   return isalnum(c);
 }
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION

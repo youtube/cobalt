@@ -16,7 +16,6 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_cache_writers.h"
-#include "starboard/character.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +43,7 @@ int GetTestModeForEntry(const std::string& key) {
   // URL corresponding to a registered MockTransaction.  It would be good to
   // have another way to access the test_mode.
   GURL url;
-  if (SbCharacterIsDigit(key[0])) {
+  if (isdigit(key[0])) {
     size_t slash = key.find('/');
     DCHECK(slash != std::string::npos);
     url = GURL(key.substr(slash + 1));
