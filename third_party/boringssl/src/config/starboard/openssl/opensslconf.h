@@ -2,7 +2,6 @@
 /* WARNING: Edited heavily by hand, based on lbshell config. Meant for all
  * starboard platforms. */
 
-#include "starboard/character.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -239,11 +238,6 @@
 #define OPENSSL_port_getenv(x) NULL
 #define OPENSSL_port_gettimeofday EzTimeValueGetNow
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
-#define OPENSSL_port_isalnum SbCharacterIsAlphanumeric
-#define OPENSSL_port_isdigit SbCharacterIsDigit
-#define OPENSSL_port_isspace SbCharacterIsSpace
-#define OPENSSL_port_isupper SbCharacterIsUpper
-#define OPENSSL_port_isxdigit SbCharacterIsHexDigit
 #define OPENSSL_port_malloc SbMemoryAllocate
 #define OPENSSL_port_memchr (unsigned char *)SbMemoryFindByte
 #define OPENSSL_port_memcmp SbMemoryCompare
@@ -268,8 +262,6 @@
 #define OPENSSL_port_strrchr (char *)SbStringFindLastCharacter
 #define OPENSSL_port_strtoul SbStringParseUnsignedInteger
 #define OPENSSL_port_time EzTimeTGetNow
-#define OPENSSL_port_tolower SbCharacterToLower
-#define OPENSSL_port_toupper SbCharacterToUpper
 
 // OPENSSL wrapper functions that aren't defined globally.
 #define OPENSSL_strcmp OPENSSL_port_strcmp

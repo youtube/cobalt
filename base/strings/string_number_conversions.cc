@@ -108,7 +108,7 @@ template<typename CHAR> class WhitespaceHelper {
 template<> class WhitespaceHelper<char> {
  public:
   static bool Invoke(char c) {
-    return 0 != SbCharacterIsSpace(static_cast<unsigned char>(c));
+    return 0 != isspace(static_cast<unsigned char>(c));
   }
 };
 
@@ -448,7 +448,7 @@ bool StringToDouble(const std::string& input, double* output) {
   //  - If the first character is a space, there was leading whitespace
   return errno == 0 && !input.empty() &&
          input.c_str() + input.length() == endptr &&
-         !SbCharacterIsSpace(input[0]);
+         !isspace(input[0]);
 }
 
 // Note: if you need to add String16ToDouble, first ask yourself if it's

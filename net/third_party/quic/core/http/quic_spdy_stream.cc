@@ -274,7 +274,7 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
   QuicConnection::ScopedPacketFlusher flusher(
       spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
 
-  // Write frame header.
+// Write frame header.
 #if defined(STARBOARD)
   // QuicByteCount is not guaranteed to be size_t on some platforms.
   struct IOVEC header_iov = {static_cast<void*>(buffer.get()),
@@ -544,7 +544,7 @@ bool QuicSpdyStream::ParseHeaderStatusCode(const SpdyHeaderBlock& header,
     return false;
   }
   // The remaining two characters must be integers.
-  if (!SbCharacterIsDigit(status[1]) || !SbCharacterIsDigit(status[2])) {
+  if (!isdigit(status[1]) || !isdigit(status[2])) {
     return false;
   }
   return QuicTextUtils::StringToInt(status, status_code);

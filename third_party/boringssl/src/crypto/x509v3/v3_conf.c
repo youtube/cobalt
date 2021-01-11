@@ -235,7 +235,7 @@ static int v3_check_critical(char **value)
     if ((OPENSSL_port_strlen(p) < 9) || OPENSSL_port_strncmp(p, "critical,", 9))
         return 0;
     p += 9;
-    while (OPENSSL_port_isspace((unsigned char)*p))
+    while (isspace((unsigned char)*p))
         p++;
     *value = p;
     return 1;
@@ -255,7 +255,7 @@ static int v3_check_generic(char **value)
     } else
         return 0;
 
-    while (OPENSSL_port_isspace((unsigned char)*p))
+    while (isspace((unsigned char)*p))
         p++;
     *value = p;
     return gen_type;

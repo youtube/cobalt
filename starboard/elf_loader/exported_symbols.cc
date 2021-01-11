@@ -75,6 +75,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbCharacterIsAlphanumeric);
   REGISTER_SYMBOL(SbCharacterIsDigit);
   REGISTER_SYMBOL(SbCharacterIsHexDigit);
@@ -82,6 +83,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbCharacterIsUpper);
   REGISTER_SYMBOL(SbCharacterToLower);
   REGISTER_SYMBOL(SbCharacterToUpper);
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);

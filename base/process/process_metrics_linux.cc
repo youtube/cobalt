@@ -25,7 +25,6 @@
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "starboard/character.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
 
@@ -715,7 +714,7 @@ bool IsValidDiskName(StringPiece candidate) {
 
   // mmcblk[0-9]+ case
   for (size_t i = SbStringGetLength(kMMCName); i < candidate.length(); ++i) {
-    if (!SbCharacterIsDigit(candidate[i]))
+    if (!isdigit(candidate[i]))
       return false;
   }
   return true;

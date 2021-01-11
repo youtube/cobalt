@@ -17,7 +17,6 @@
 #include <locale>
 #include <sstream>
 
-#include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -49,7 +48,7 @@ MimeType::ParamType GetParamTypeByValue(const std::string& value) {
 
 bool ContainsSpace(const std::string& str) {
   for (size_t i = 0; i < str.size(); ++i) {
-    if (SbCharacterIsSpace(str[i])) {
+    if (isspace(str[i])) {
       return true;
     }
   }
@@ -58,10 +57,10 @@ bool ContainsSpace(const std::string& str) {
 }
 
 void Trim(std::string* str) {
-  while (!str->empty() && SbCharacterIsSpace(*str->begin())) {
+  while (!str->empty() && isspace(*str->begin())) {
     str->erase(str->begin());
   }
-  while (!str->empty() && SbCharacterIsSpace(*str->rbegin())) {
+  while (!str->empty() && isspace(*str->rbegin())) {
     str->resize(str->size() - 1);
   }
 }
