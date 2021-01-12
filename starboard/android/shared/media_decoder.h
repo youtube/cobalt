@@ -77,6 +77,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                SbMediaVideoCodec video_codec,
                int width,
                int height,
+               int fps,
                jobject j_output_surface,
                SbDrmSystem drm_system,
                const SbMediaColorMetadata* color_metadata,

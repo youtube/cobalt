@@ -233,7 +233,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.max_video_capabilities(),
           tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
           error_message));
-      if (video_decoder_impl->is_valid()) {
+      if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
+          video_decoder_impl->is_decoder_created()) {
         *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
         *video_renderer_sink = video_decoder_impl->GetSink();
         video_decoder->reset(video_decoder_impl.release());
