@@ -126,7 +126,7 @@ bool ThreadedImageDecoderProxy::Suspend() {
 
 void ThreadedImageDecoderProxy::Resume(
     render_tree::ResourceProvider* resource_provider) {
-  load_message_loop_->task_runner()->PostTask(
+  load_message_loop_->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&ImageDecoder::Resume, base::Unretained(image_decoder_.get()),
                  resource_provider));
