@@ -572,6 +572,7 @@ class MediaCodecBridge {
       boolean requireSoftwareCodec,
       int width,
       int height,
+      int fps,
       Surface surface,
       MediaCrypto crypto,
       ColorInfo colorInfo,
@@ -650,22 +651,44 @@ class MediaCodecBridge {
     VideoCapabilities videoCapabilities = findVideoDecoderResult.videoCapabilities;
     int maxWidth = videoCapabilities.getSupportedWidths().getUpper();
     int maxHeight = videoCapabilities.getSupportedHeights().getUpper();
-    if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-      if (maxHeight >= 4320 && videoCapabilities.isSizeSupported(7680, 4320)) {
-        maxWidth = 7680;
-        maxHeight = 4320;
-      } else if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-        maxWidth = 3840;
-        maxHeight = 2160;
-      } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-        maxWidth = 1920;
-        maxHeight = 1080;
-      } else {
-        Log.e(TAG, "Failed to find a compatible resolution");
-        maxWidth = 1920;
-        maxHeight = 1080;
+    if (fps > 0) {
+      if (!videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+        if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
+          maxWidth = 7680;
+          maxHeight = 4320;
+        } else if (maxHeight >= 2160
+            && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
+          maxWidth = 3840;
+          maxHeight = 2160;
+        } else if (maxHeight >= 1080
+            && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
+          maxWidth = 1920;
+          maxHeight = 1080;
+        } else {
+          Log.e(TAG, "Failed to find a compatible resolution");
+          maxWidth = 1920;
+          maxHeight = 1080;
+        }
+      }
+    } else {
+      if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
+        if (maxHeight >= 4320 && videoCapabilities.isSizeSupported(7680, 4320)) {
+          maxWidth = 7680;
+          maxHeight = 4320;
+        } else if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+          maxWidth = 3840;
+          maxHeight = 2160;
+        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
+          maxWidth = 1920;
+          maxHeight = 1080;
+        } else {
+          Log.e(TAG, "Failed to find a compatible resolution");
+          maxWidth = 1920;
+          maxHeight = 1080;
+        }
       }
     }
+
     if (!bridge.configureVideo(
         mediaFormat,
         surface,

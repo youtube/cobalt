@@ -104,6 +104,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbMediaVideoCodec video_codec,
                            int width,
                            int height,
+                           int fps,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
                            const SbMediaColorMetadata* color_metadata,
@@ -122,7 +123,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, width, height, this, j_output_surface, j_media_crypto,
+      video_codec, width, height, fps, this, j_output_surface, j_media_crypto,
       color_metadata, require_software_codec, tunnel_mode_audio_session_id,
       error_message);
   if (!media_codec_bridge_) {
