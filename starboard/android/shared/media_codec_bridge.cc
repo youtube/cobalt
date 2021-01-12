@@ -189,6 +189,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
     int width,
     int height,
+    int fps,
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
@@ -243,14 +244,14 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       new MediaCodecBridge(handler));
   env->CallStaticVoidMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
-      "(JLjava/lang/String;ZZIILandroid/view/Surface;"
+      "(JLjava/lang/String;ZZIIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
       "I"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      !!j_media_crypto, require_software_codec, width, height, j_surface,
+      !!j_media_crypto, require_software_codec, width, height, fps, j_surface,
       j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
       j_create_media_codec_bridge_result.Get());
 

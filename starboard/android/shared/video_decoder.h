@@ -93,9 +93,9 @@ class VideoDecoder
 
   void SetPlaybackRate(double playback_rate);
 
-  bool is_valid() const { return media_decoder_ != NULL; }
-
   void OnNewTextureAvailable();
+
+  bool is_decoder_created() const { return media_decoder_ != NULL; }
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
@@ -103,6 +103,7 @@ class VideoDecoder
   bool InitializeCodec(std::string* error_message);
   void TeardownCodec();
 
+  void WriteInputBufferInternal(const scoped_refptr<InputBuffer>& input_buffer);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
   void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
@@ -181,6 +182,9 @@ class VideoDecoder
   bool owns_video_surface_ = false;
   Mutex surface_destroy_mutex_;
   ConditionVariable surface_condition_variable_;
+
+  std::deque<const scoped_refptr<InputBuffer>> pending_input_buffers_;
+  int video_fps_ = 0;
 };
 
 }  // namespace shared
