@@ -175,6 +175,10 @@ Standard CPP trick to stringify an evaluated macro definition.
 
 Declare numeric literals of unsigned 64-bit type.
 
+### SB_UI_NAVIGATION2_VERSION ###
+
+Iteration on UI navigation API.
+
 ### SB_UNLIKELY(x) ###
 
 Macro for hinting that an expression is likely to be false.

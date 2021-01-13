@@ -10,7 +10,8 @@ image formats and SbDecodeTargetFormats are supported or not.
 
 All functions in this module are safe to call from any thread at any point in
 time.
-SbImageIsDecodeSupported and SbImageDecode Example
+
+## SbImageIsDecodeSupported and SbImageDecode Example ##
 
 Let's assume that we're on a Blitter platform.
 
@@ -30,7 +31,6 @@ SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
 SbBlitterSurface surface =
     SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
 // Do stuff with surface...
-
 ```
 
 ## Functions ##
@@ -79,4 +79,3 @@ results of this function may be cached indefinitely.
 ```
 bool SbImageIsDecodeSupported(const char *mime_type, SbDecodeTargetFormat format)
 ```
-

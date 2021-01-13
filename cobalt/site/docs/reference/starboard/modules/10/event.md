@@ -4,7 +4,8 @@ title: "Starboard Module Reference: event.h"
 ---
 
 Defines the event system that wraps the Starboard main loop and entry point.
-The Starboard Application Lifecycle
+
+## The Starboard Application Lifecycle ##
 
 ```
     ---------- *
@@ -368,4 +369,3 @@ callback as soon as possible.
 ```
 SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
 ```
-

@@ -12,7 +12,8 @@ An SbDecodeTarget can be passed into any function which decodes video or image
 data. This allows the application to allocate fast graphics memory, and have
 decoding done directly into this memory, avoiding unnecessary memory copies, and
 also avoiding pushing data between CPU and GPU memory unnecessarily.
-SbDecodeTargetFormat
+
+## SbDecodeTargetFormat ##
 
 SbDecodeTargets support several different formats that can be used to decode
 into and render from. Some formats may be easier to decode into, and others may
@@ -20,7 +21,8 @@ be easier to render. Some may take less memory. Each decoder needs to support
 the SbDecodeTargetFormat passed into it, or the decode will produce an error.
 Each decoder provides a way to check if a given SbDecodeTargetFormat is
 supported by that decoder.
-SbDecodeTargetGraphicsContextProvider
+
+## SbDecodeTargetGraphicsContextProvider ##
 
 Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
@@ -34,7 +36,8 @@ needs to execute GLES commands like, for example, glGenTextures().
 
 The primary usage is likely to be the the SbPlayer implementation on some
 platforms.
-SbDecodeTarget Example
+
+## SbDecodeTarget Example ##
 
 Let's say that we are an application and we would like to use the interface
 defined in starboard/image.h to decode an imaginary "image/foo" image type.
@@ -75,7 +78,6 @@ SbMemorySet(&info, 0, sizeof(info));
 SbDecodeTargetGetInfo(target, &info);
 GLuint texture =
     info.planes[kSbDecodeTargetPlaneRGBA].texture;
-
 ```
 
 ## Macros ##
@@ -392,4 +394,3 @@ Starboard implementations, if it is necessary.
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
 ```
-

@@ -7,7 +7,8 @@ Hardware-accelerated cryptography. Platforms should **only** only implement this
 when there are **hardware-accelerated** hardware-accelerated cryptography
 facilities. Applications must fall back to platform-independent CPU-based
 algorithms if the cipher algorithm isn't supported in hardware.
-Tips for Porters
+
+## Tips for Porters ##
 
 You should implement cipher algorithms in this descending order of priority to
 maximize usage for SSL.
@@ -231,4 +232,3 @@ presubmit: allow sb_export mismatch
 ```
 int SbCryptographyTransform(SbCryptographyTransformer transformer, const void *in_data, int in_data_size, void *out_data)
 ```
-

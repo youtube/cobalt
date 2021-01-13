@@ -10,7 +10,8 @@ platforms.
 This API is designed to abstract the differences between GLES implementations
 and versions on different systems, and to remove the requirement for any other
 code to directly pull in and use these system libraries.
-GLES Version
+
+## GLES Version ##
 
 This API has the ability to support GLES 3.0, however platforms are not required
 to support anything beyond GLES 2.0. The caller is responsible for ensuring that
@@ -951,4 +952,3 @@ typedef long int SbGlIntPtr
 
     void (\*glGetInternalformativ)(SbGlEnum target, SbGlEnum internalformat,
     SbGlEnum pname, SbGlSizei bufSize, SbGlInt32\* params);
-

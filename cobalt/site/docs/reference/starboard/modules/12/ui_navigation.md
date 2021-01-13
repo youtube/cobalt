@@ -113,7 +113,8 @@ function pointers must be specified if the platform supports UI navigation.
     This is used to manually force focus on a navigation item of type
     kSbUiNavItemTypeFocus. Any previously focused navigation item should receive
     the blur event. If the item is not transitively a content of the root item,
-    then this does nothing.
+    then this does nothing. Specifying kSbUiNavItemInvalid should remove focus
+    from the UI navigation system.
 *   ` set_item_enabled`
 
     void (\*set_item_enabled)(SbUiNavItem item, bool enabled);
@@ -131,7 +132,16 @@ function pointers must be specified if the platform supports UI navigation.
 
     This specifies directionality for container items. Containers within
     containers do not inherit directionality. Directionality must be specified
-    for each container explicitly.
+    for each container explicitly. This should work even if `item` is disabled.
+*   ` set_item_focus_duration`
+
+    void (\*set_item_focus_duration)(SbUiNavItem item, float seconds);
+
+    Set the minimum amount of time the focus item should remain focused once it
+    becomes focused. This may be used to make important focus items harder to
+    navigate over. Focus may still be moved before `seconds` has elapsed by
+    using the set_focus() function. By default, item focus duration is 0
+    seconds.
 *   ` set_item_size`
 
     void (\*set_item_size)(SbUiNavItem item, float width, float height);
@@ -177,13 +187,13 @@ function pointers must be specified if the platform supports UI navigation.
 
     This attaches the given navigation item (which must be a container) to the
     specified window. Navigation items are only interactable if they are
-    transitively attached to a window.
-
-    A navigation item may only have a SbUiNavItem or SbWindow as its direct
-    container. The navigation item hierarchy is established using
-    set_item_container_item() with the root container attached to a SbWindow
-    using set_item_container_window() to enable interaction with all enabled
-    items in the hierarchy.
+    transitively attached to a window. The native UI engine should never change
+    this navigation item's content offset. It is assumed to be used as a proxy
+    for the system window. A navigation item may only have a SbUiNavItem or
+    SbWindow as its direct container. The navigation item hierarchy is
+    established using set_item_container_item() with the root container attached
+    to a SbWindow using set_item_container_window() to enable interaction with
+    all enabled items in the hierarchy.
 
     If `item` is already registered with a different window, then this will
     unregister it from that window then attach it to the given `window`. It is
@@ -216,7 +226,13 @@ function pointers must be specified if the platform supports UI navigation.
     drawn at position (5,15).
 
     Essentially, content items should be drawn at: [container position] +
-    [content position] - [container content offset]
+    [content position] - [container content offset] Content items may overlap
+    within a container. This can cause obscured items to be unfocusable. The
+    only rule that needs to be followed is that contents which are focus items
+    can obscure other contents which are containers, but not vice versa. The
+    caller must ensure that content focus items do not overlap other content
+    focus items and content container items do not overlap other content
+    container items.
 *   ` set_item_content_offset`
 
     void (\*set_item_content_offset)(SbUiNavItem item, float content_offset_x,
@@ -228,13 +244,25 @@ function pointers must be specified if the platform supports UI navigation.
     Essentially, a content item should be drawn at: [container position] +
     [content position] - [container content offset] If `item` is not a
     container, then this does nothing. By default, the content offset is (0,0).
+    This should update the values returned by get_item_content_offset() even if
+    the `item` is disabled.
 *   ` get_item_content_offset`
 
     void (\*get_item_content_offset)(SbUiNavItem item, float\*
     out_content_offset_x, float\* out_content_offset_y);
 
     Retrieve the current content offset for the navigation item. If `item` is
-    not a container, then the content offset is (0,0).
+    not a container, then the content offset is (0,0). The native UI engine
+    should not change the content offset of a container unless one of its
+    contents (possibly recursively) is focused. This is to allow seemlessly
+    disabling then re-enabling focus items without having their containers
+    change offsets.
+*   ` do_batch_update`
+
+    void (\*do_batch_update)(void (\*update_function)(void \*), void\* context);
+
+    Call `update_function` with `context` to perform a series of UI navigation
+    changes atomically before returning.
 
 ### SbUiNavItemDir ###
 
@@ -303,4 +331,3 @@ Returns whether the given navigation item handle is valid.
 ```
 static bool SbUiNavItemIsValid(SbUiNavItem item)
 ```
-
