@@ -53,16 +53,21 @@ class TestFileDownload(unittest.TestCase):
 
   def setUp(self):
     self.test_file = os.path.join(_TEST_PATH, _TEST_FILE)
-    self.output_file = tempfile.NamedTemporaryFile()
+    self.output_directory = tempfile.TemporaryDirectory()
+    self.output_file = os.path.join(self.output_directory.name, 'output')
     self.bucket = _BUCKET
+
+  def tearDown(self):
+    os.remove(self.output_file)
+    self.output_directory.cleanup()
 
   def downloadFile(self, test_file, output_file):
     return download_from_gcs.MaybeDownloadFileFromGcs(
         self.bucket, sha1_file=test_file, output_file=output_file)
 
   def testDownloadSingleFile(self):
-    self.assertTrue(self.downloadFile(self.test_file, self.output_file.name))
-    self.assertTrue(_Sha1sMatch(self.test_file, self.output_file.name))
+    self.assertTrue(self.downloadFile(self.test_file, self.output_file))
+    self.assertTrue(_Sha1sMatch(self.test_file, self.output_file))
 
 
 class DirectoryDownloadTest(unittest.TestCase):
