@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include "starboard/common/media.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -246,6 +249,15 @@ std::ostream& operator<<(std::ostream& os,
 
   os << metadata.bits_per_channel
      << " bits, mastering metadata: " << metadata.mastering_metadata
+     << ", chroma subsampling horizontal: "
+     << metadata.chroma_subsampling_horizontal
+     << ", chroma subsampling vertical: "
+     << metadata.chroma_subsampling_vertical
+     << ", cb subsampling horizontal: " << metadata.cb_subsampling_horizontal
+     << ", cb subsampling vertical: " << metadata.cb_subsampling_vertical
+     << ", chroma sitting horizontal: " << metadata.chroma_siting_horizontal
+     << ", chroma sitting vertical: " << metadata.chroma_siting_vertical
+     << ", max cll: " << metadata.max_cll << ", max fall: " << metadata.max_fall
      << ", primary: " << GetMediaPrimaryIdName(metadata.primaries)
      << ", transfer: " << GetMediaTransferIdName(metadata.transfer)
      << ", matrix: " << GetMediaMatrixIdName(metadata.matrix)
@@ -258,8 +270,18 @@ std::ostream& operator<<(std::ostream& os,
   using starboard::GetMediaVideoCodecName;
 
 #if SB_API_VERSION >= 11
-  os << GetMediaVideoCodecName(sample_info.codec) << ", ";
+  if (sample_info.codec == kSbMediaVideoCodecNone) {
+    return os;
+  }
+  os << "codec: " << GetMediaVideoCodecName(sample_info.codec) << ", ";
 #endif  // SB_API_VERSION >= 11
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>")
+     << ", max video capabilites: "
+     << (sample_info.max_video_capabilities ? sample_info.max_video_capabilities
+                                            : "<null>")
+     << ", ";
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (sample_info.is_key_frame) {
     os << "key frame, ";
   }
@@ -269,5 +291,32 @@ std::ostream& operator<<(std::ostream& os,
 #else  // SB_API_VERSION >= 11
   os << '(' << *sample_info.color_metadata << ')';
 #endif  // SB_API_VERSION >= 11
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const SbMediaAudioSampleInfo& sample_info) {
+  using starboard::GetMediaAudioCodecName;
+  using starboard::HexEncode;
+
+#if SB_API_VERSION >= 11
+  if (sample_info.codec == kSbMediaAudioCodecNone) {
+    return os;
+  }
+  os << "codec: " << GetMediaAudioCodecName(sample_info.codec) << ", ";
+#endif  // SB_API_VERSION >= 11
+#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>");
+#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  os << "channels: " << sample_info.number_of_channels
+     << ", sample rate: " << sample_info.samples_per_second
+     << ", config: " << sample_info.audio_specific_config_size << " bytes, "
+     << "["
+     << HexEncode(
+            sample_info.audio_specific_config,
+            std::min(static_cast<int>(sample_info.audio_specific_config_size),
+                     16),
+            " ")
+     << (sample_info.audio_specific_config_size > 16 ? " ...]" : " ]");
   return os;
 }

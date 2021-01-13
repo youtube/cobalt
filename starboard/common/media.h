@@ -37,5 +37,7 @@ std::ostream& operator<<(std::ostream& os,
                          const SbMediaColorMetadata& metadata);
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoSampleInfo& sample_info);
+std::ostream& operator<<(std::ostream& os,
+                         const SbMediaAudioSampleInfo& sample_info);
 
 #endif  // STARBOARD_COMMON_MEDIA_H_
