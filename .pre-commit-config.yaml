@@ -31,6 +31,7 @@ repos:
         types: [c++]
         args: [--verbose=4, --quiet]
         exclude: '.*tests?.(cc|h)$'
+        exclude: '^cobalt/bindings/(templates|generated)/'
     -   id: cpplint_test
         name: cpplint_test
         entry: cpplint
