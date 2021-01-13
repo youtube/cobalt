@@ -27,14 +27,19 @@ def _CheckFileForPython3Compatibility(filename: str) -> bool:
     print(f'{filename} is not a valid path, skipping.')
     return False
 
-  temp_file = tempfile.NamedTemporaryFile()
+  temp_directory = tempfile.TemporaryDirectory()
+  temp_file = os.path.join(temp_directory.name, 'cfile')
+  had_errors = False
+
   try:
-    py_compile.compile(filename, cfile=temp_file.name, doraise=True)
-    return False
+    py_compile.compile(filename, cfile=temp_file, doraise=True)
   except py_compile.PyCompileError as e:
     print(e)
     print(f'{filename} is not valid in Python 3, consider updating it.')
-    return True
+    had_errors = True
+
+  temp_directory.cleanup()
+  return had_errors
 
 
 def CheckFilesForPython3Compatibility(files: List[str]) -> bool:
