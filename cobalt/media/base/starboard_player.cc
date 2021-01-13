@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/starboard_utils.h"
+#include "starboard/common/media.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
@@ -189,10 +190,12 @@ void StarboardPlayer::UpdateAudioConfig(
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(audio_config.IsValidConfig());
 
-  LOG(INFO) << "New audio config -- " << audio_config.AsHumanReadableString();
+  LOG(INFO) << "Updated AudioDecoderConfig -- "
+            << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
   audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+  LOG(INFO) << "Converted to SbMediaAudioSampleInfo -- " << audio_sample_info_;
 }
 
 void StarboardPlayer::UpdateVideoConfig(
@@ -200,7 +203,8 @@ void StarboardPlayer::UpdateVideoConfig(
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(video_config.IsValidConfig());
 
-  LOG(INFO) << "New video config -- " << video_config.AsHumanReadableString();
+  LOG(INFO) << "Updated VideoDecoderConfig -- "
+            << video_config.AsHumanReadableString();
 
   video_config_ = video_config;
   video_sample_info_.frame_width =
@@ -221,6 +225,7 @@ void StarboardPlayer::UpdateVideoConfig(
   video_sample_info_.mime = video_config_.mime().c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
 }
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
@@ -574,17 +579,15 @@ void StarboardPlayer::CreatePlayer() {
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
   player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec,
-      drm_system_, has_audio ? &audio_sample_info_ : NULL,
+      window_, video_codec, audio_codec, drm_system_,
+      has_audio ? &audio_sample_info_ : NULL,
 #if SB_API_VERSION >= 11
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
                                            : NULL,
 #endif  // SB_API_VERSION >= 11
       &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
-      &StarboardPlayer::PlayerStatusCB,
-      &StarboardPlayer::PlayerErrorCB,
-      this, output_mode_,
-      get_decode_target_graphics_context_provider_func_.Run());
+      &StarboardPlayer::PlayerStatusCB, &StarboardPlayer::PlayerErrorCB, this,
+      output_mode_, get_decode_target_graphics_context_provider_func_.Run());
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
@@ -681,7 +684,7 @@ void StarboardPlayer::WriteBufferInternal(
     sample_info.drm_info = NULL;
   }
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
-#else  // SB_API_VERSION >= 11
+#else   // SB_API_VERSION >= 11
   video_sample_info_.is_key_frame = buffer->is_key_frame();
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
   SbPlayerSampleInfo sample_info = {
