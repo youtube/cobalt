@@ -1,0 +1,64 @@
+language: cpp
+
+jobs:
+  include:
+    - os: linux
+      env: DEPLOY=true
+      before_script:
+        - meson --unity=on --buildtype=release --strip -Ddebug=true --prefix=$PWD --bindir=$OTS-$TRAVIS_OS_NAME build
+      before_deploy:
+        - ninja -C build install
+        - ninja -C build dist
+        - zip -r $OTS-$TRAVIS_OS_NAME.zip $OTS-$TRAVIS_OS_NAME
+
+    - os: osx
+      env: DEPLOY=true
+      before_script:
+        - meson --unity=on --buildtype=release --strip -Ddebug=true --prefix=$PWD --bindir=$OTS-$TRAVIS_OS_NAME build
+      before_deploy:
+        - ninja -C build install
+        - zip -r $OTS-$TRAVIS_OS_NAME.zip $OTS-$TRAVIS_OS_NAME
+
+    - os: linux
+      compiler: clang
+
+#   - os: linux
+#     before_script:
+#       - meson -Db_sanitize=address,undefined -Db_lundef=false build
+
+addons:
+  apt:
+    packages:
+      - fonts-inconsolata
+      - fonts-takao-gothic
+      - fonts-takao-mincho
+      - fonts-takao-pgothic
+      - python3-pip
+
+install:
+  - export OTS=ots-$(grep -m1 version meson.build | cut -d"'" -f2)
+  - pip3 install setuptools
+  - pip3 install meson==0.55.2 ninja
+
+before_script:
+  - meson build
+
+script:
+  - ninja -C build
+  - ninja -C build test || (cat build/meson-logs/testlog.txt && false)
+
+deploy:
+  provider: releases
+  api_key:
+    - secure: d0bAKmghWHEAdKjZbHrqeLJNg5jilfvl1r6pMUraA35ohgnHhvrcVyqjRyOtUDr08B6PUNyCQkhZNrmJ1YkDZaiMInoJSS5wY1PBRjLY97rJgUZgpsbiVEE2FAUmBjSaPJ1PQd0dLejs59r+CESYNpvV06xrD8AzxVYJ28JkvNA=
+  file:
+    - "${OTS}-${TRAVIS_OS_NAME}.zip"
+    - "build/meson-dist/${OTS}.tar.xz"
+  skip_cleanup: true
+  draft: true
+  overwrite: true
+  tag_name: $TRAVIS_TAG
+  on:
+    tags: true
+    branch: master
+    condition: $DEPLOY = true
