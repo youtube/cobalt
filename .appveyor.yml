@@ -1,0 +1,48 @@
+os: Visual Studio 2015
+
+platform:
+  - x86
+
+environment:
+  matrix:
+    - ARCH: x86
+      PYTHON: "C:\\Python35"
+    - ARCH: x64
+      PYTHON: "C:\\Python35-x64"
+
+skip_branch_with_pr: true
+
+install:
+  - git submodule update --init --recursive
+
+  - set PATH=%cd%;%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - pip install meson==0.55.2 ninja==1.9.0
+
+  - call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %ARCH%
+
+build_script:
+  - ps: $env:OTS_VERSION = C:\cygwin\bin\grep -m1 version meson.build | C:\cygwin\bin\cut --% -d"'" -f2
+  - set ARCHIVE=ots-%OTS_VERSION%-windows
+
+  - meson --buildtype=release --backend=ninja --prefix=%cd% --bindir=%ARCHIVE% build
+  - where link
+  - ninja -C build
+
+test_script:
+  - ninja -C build test
+
+after_build:
+  - ninja -C build install
+  - 7z a %ARCHIVE%.zip %ARCHIVE%
+
+artifacts:
+  - path: /ots-*-windows.zip/
+
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: 8uF1JLOdUAcRegGuwSc+jDEvqKKjD8/xHpy9ElQC8xJhwj+cR5GWEBqegM6Oe+4D
+  draft: true
+  on:
+    APPVEYOR_REPO_TAG: true
+    ARCH: x64
