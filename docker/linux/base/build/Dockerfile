@@ -28,6 +28,7 @@ ENV PATH="${PATH}:/depot_tools" \
     OUTDIR=out \
     DEPOT_TOOLS_UPDATE=0 \
     NINJA_STATUS="[%f/%t %c/sec] " \
+    NINJA_PARALLEL=4 \
     CCACHE_DIR=/root/ccache \
     CCACHE_MAXSIZE=30G
 

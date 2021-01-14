@@ -31,4 +31,4 @@ CMD (test -f /root/.android/debug.keystore \
                -validity 10000 \
     && echo "Generated Android Debug keystore.")) \
     && /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
-    && ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
+    && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
