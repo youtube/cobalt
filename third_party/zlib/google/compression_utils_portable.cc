@@ -29,8 +29,34 @@ const int kZlibMemoryLevel = 8;
 // The expected compressed size is based on the input size factored by
 // internal Zlib constants (e.g. window size, etc) plus the wrapper
 // header size.
-uLongf GZipExpectedCompressedSize(uLongf input_size) {
+uLongf GzipExpectedCompressedSize(uLongf input_size) {
   return kGzipZlibHeaderDifferenceBytes + compressBound(input_size);
+}
+
+// 4 bytes of |input| in LE. See https://tools.ietf.org/html/rfc1952#page-5
+uint32_t GetGzipUncompressedSize(const Bytef* compressed_data, size_t length) {
+  uint32_t size;
+  if (length < sizeof(size))
+    return 0;
+
+  memcpy(&size, &compressed_data[length - sizeof(size)], sizeof(size));
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  return size;
+#else
+  return __builtin_bswap32(size);
+#endif
+}
+
+// The number of window bits determines the type of wrapper to use - see
+// https://cs.chromium.org/chromium/src/third_party/zlib/zlib.h?l=566
+inline int ZlibStreamWrapperType(WrapperType type) {
+  if (type == ZLIB)  // zlib DEFLATE stream wrapper
+    return MAX_WBITS;
+  if (type == GZIP)  // gzip DEFLATE stream wrapper
+    return MAX_WBITS + kWindowBitsToGetGzipHeader;
+  if (type == ZRAW)  // no wrapper, use raw DEFLATE
+    return -MAX_WBITS;
+  return 0;
 }
 
 // This code is taken almost verbatim from third_party/zlib/compress.c. The only
@@ -42,6 +68,21 @@ int GzipCompressHelper(Bytef* dest,
                        uLong source_length,
                        void* (*malloc_fn)(size_t),
                        void (*free_fn)(void*)) {
+  return CompressHelper(GZIP, dest, dest_length, source, source_length,
+                        malloc_fn, free_fn);
+}
+
+// This code is taken almost verbatim from third_party/zlib/compress.c. The only
+// difference is deflateInit2() is called which allows different window bits to
+// be set. > 16 causes a gzip header to be emitted rather than a zlib header,
+// and negative causes no header to emitted.
+int CompressHelper(WrapperType wrapper_type,
+                   Bytef* dest,
+                   uLongf* dest_length,
+                   const Bytef* source,
+                   uLong source_length,
+                   void* (*malloc_fn)(size_t),
+                   void (*free_fn)(void*)) {
   z_stream stream;
 
   // FIXME(cavalcantii): z_const is not defined as 'const'.
@@ -80,17 +121,21 @@ int GzipCompressHelper(Bytef* dest,
     stream.opaque = static_cast<voidpf>(0);
   }
 
-  gz_header gzip_header;
-  memset(&gzip_header, 0, sizeof(gzip_header));
   int err = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                         MAX_WBITS + kWindowBitsToGetGzipHeader,
-                         kZlibMemoryLevel, Z_DEFAULT_STRATEGY);
+                         ZlibStreamWrapperType(wrapper_type), kZlibMemoryLevel,
+                         Z_DEFAULT_STRATEGY);
   if (err != Z_OK)
     return err;
 
-  err = deflateSetHeader(&stream, &gzip_header);
-  if (err != Z_OK)
-    return err;
+  // This has to exist outside of the if statement to prevent it going off the
+  // stack before deflate(), which will use this object.
+  gz_header gzip_header;
+  if (wrapper_type == GZIP) {
+    memset(&gzip_header, 0, sizeof(gzip_header));
+    err = deflateSetHeader(&stream, &gzip_header);
+    if (err != Z_OK)
+      return err;
+  }
 
   err = deflate(&stream, Z_FINISH);
   if (err != Z_STREAM_END) {
@@ -103,13 +148,22 @@ int GzipCompressHelper(Bytef* dest,
   return err;
 }
 
-// This code is taken almost verbatim from third_party/zlib/uncompr.c. The only
-// difference is inflateInit2() is called which sets the window bits to be > 16.
-// That causes a gzip header to be parsed rather than a zlib header.
 int GzipUncompressHelper(Bytef* dest,
                          uLongf* dest_length,
                          const Bytef* source,
                          uLong source_length) {
+    return UncompressHelper(GZIP, dest, dest_length, source, source_length);
+}
+
+// This code is taken almost verbatim from third_party/zlib/uncompr.c. The only
+// difference is inflateInit2() is called which allows different window bits to
+// be set. > 16 causes a gzip header to be emitted rather than a zlib header,
+// and negative causes no header to emitted.
+int UncompressHelper(WrapperType wrapper_type,
+                     Bytef* dest,
+                     uLongf* dest_length,
+                     const Bytef* source,
+                     uLong source_length) {
   z_stream stream;
 
   // FIXME(cavalcantii): z_const is not defined as 'const'.
@@ -126,7 +180,7 @@ int GzipUncompressHelper(Bytef* dest,
   stream.zalloc = static_cast<alloc_func>(0);
   stream.zfree = static_cast<free_func>(0);
 
-  int err = inflateInit2(&stream, MAX_WBITS + kWindowBitsToGetGzipHeader);
+  int err = inflateInit2(&stream, ZlibStreamWrapperType(wrapper_type));
   if (err != Z_OK)
     return err;
 
