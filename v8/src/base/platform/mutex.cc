@@ -155,7 +155,6 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
-#if !defined(STARBOARD)
 SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
 
 SharedMutex::~SharedMutex() {
@@ -194,7 +193,6 @@ bool SharedMutex::TryLockShared() {
 bool SharedMutex::TryLockExclusive() {
   return pthread_rwlock_trywrlock(&native_handle_) == 0;
 }
-#endif  // STARBOARD
 
 #elif V8_OS_WIN
 
@@ -331,6 +329,7 @@ void SharedMutex::UnlockExclusive() { native_handle_.ReleaseWriteLock(); }
 bool SharedMutex::TryLockShared() { return false; }
 
 bool SharedMutex::TryLockExclusive() { return false; }
+#endif  // V8_OS_STARBOARD
 
 }  // namespace base
 }  // namespace v8

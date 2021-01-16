@@ -118,13 +118,13 @@ class CompilationUnitQueues {
     bool ShouldPublish(int num_processed_units) const;
   };
 
+#if !defined(DISABLE_WASM_STARBOARD)
   explicit CompilationUnitQueues(int num_declared_functions)
       : num_declared_functions_(num_declared_functions) {
     // Add one first queue, to add units to.
     queues_.emplace_back(std::make_unique<QueueImpl>(0));
 
     for (auto& atomic_counter : num_units_) {
-    // API leak
       std::atomic_init(&atomic_counter, size_t{0});
     }
 
@@ -199,6 +199,7 @@ class CompilationUnitQueues {
                 Vector<WasmCompilationUnit> top_tier_units,
                 const WasmModule* module) {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
+#if !defined(DISABLE_WASM_STARBOARD)
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
     QueueImpl* queue;

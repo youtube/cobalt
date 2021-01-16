@@ -3401,8 +3401,12 @@ void Isolate::CreateAndSetEmbeddedBlob() {
     CHECK_EQ(0, current_embedded_blob_refs_);
 #if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
-    CONST uint8_t* const_data = const_cast<const uint8_t*>(data);
+    const uint8_t* const_data = const_cast<const uint8_t*>(data);
     SetEmbeddedBlob(const_code, code_size, const_data, data_size);
+#else
+    SetEmbeddedBlob(code, code_size, data, data_size);
+#endif
+
     current_embedded_blob_refs_++;
 
     SetStickyEmbeddedBlob(code, code_size, data, data_size);

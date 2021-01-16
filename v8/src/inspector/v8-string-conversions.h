@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "include/v8config.h"
 // The v8config.h above is needed to turn on V8_OS_STARBOARD
 #if defined(V8_OS_STARBOARD)
 #include "starboard/types.h"

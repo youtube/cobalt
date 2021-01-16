@@ -552,7 +552,6 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
   InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
 
   GenerateIteratingTypedArrayBuiltinBody(
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       "%TypedArray%.prototype.map",
       &ArrayBuiltinsAssembler::TypedArrayMapResultGenerator,
       &ArrayBuiltinsAssembler::TypedArrayMapProcessor);

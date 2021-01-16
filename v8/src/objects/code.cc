@@ -86,8 +86,6 @@ void Code::Relocate(intptr_t delta) {
 }
 
 void Code::FlushICache() const {
-  // TODO(jgruber,v8:11036): This should likely flush only actual instructions,
-  // not metadata.
   FlushInstructionCache(raw_instruction_start(), raw_instruction_size());
 }
 

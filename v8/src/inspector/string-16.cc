@@ -4,10 +4,6 @@
 
 #include "src/inspector/string-16.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>
@@ -45,7 +41,8 @@ int64_t charactersToInteger(const UChar* characters, size_t length,
   buffer.push_back('\0');
 
   char* endptr;
-  int64_t result = static_cast<int64_t>(strtoll(buffer.data(), &endptr, 10));
+  int64_t result =
+      static_cast<int64_t>(std::strtoll(buffer.data(), &endptr, 10));
   if (ok) *ok = !(*endptr);
   return result;
 }

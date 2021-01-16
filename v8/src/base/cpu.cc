@@ -401,54 +401,6 @@ bool CPU::StarboardDetectCPU() {
 
 #endif
 
-#if defined(STARBOARD)
-
-bool CPU::StarboardDetectCPU() {
-#if (SB_API_VERSION >= 11)
-  SbCPUFeatures features;
-  if (!SbCPUFeaturesGet(&features)) {
-    return false;
-  }
-  architecture_ = features.arm.architecture_generation;
-  switch (features.architecture) {
-    case kSbCPUFeaturesArchitectureArm:
-    case kSbCPUFeaturesArchitectureArm64:
-      has_neon_ = features.arm.has_neon;
-      has_thumb2_ = features.arm.has_thumb2;
-      has_vfp_ = features.arm.has_vfp;
-      has_vfp3_ = features.arm.has_vfp3;
-      has_vfp3_d32_ = features.arm.has_vfp3_d32;
-      has_idiva_ = features.arm.has_idiva;
-      break;
-    case kSbCPUFeaturesArchitectureX86:
-    case kSbCPUFeaturesArchitectureX86_64:
-      // Following flags are mandatory for V8
-      has_cmov_ = features.x86.has_cmov;
-      has_sse2_ = features.x86.has_sse2;
-      // These flags are optional
-      has_sse3_ = features.x86.has_sse3;
-      has_ssse3_ = features.x86.has_ssse3;
-      has_sse41_ = features.x86.has_sse41;
-      has_sahf_ = features.x86.has_sahf;
-      has_avx_ = features.x86.has_avx;
-      has_fma3_ = features.x86.has_fma3;
-      has_bmi1_ = features.x86.has_bmi1;
-      has_bmi2_ = features.x86.has_bmi2;
-      has_lzcnt_ = features.x86.has_lzcnt;
-      has_popcnt_ = features.x86.has_popcnt;
-      break;
-    default:
-      return false;
-  }
-
-  return true;
-#else  // SB_API_VERSION >= 11
-  return false;
-#endif
-}
-
-#endif
-
 CPU::CPU()
     : stepping_(0),
       model_(0),

@@ -10,10 +10,6 @@
 #include "src/heap/incremental-marking.h"
 #include "src/objects/heap-object.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 

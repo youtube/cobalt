@@ -39,10 +39,10 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   // V8 EmbedderHeapTracer API
   void RegisterV8References(
       const std::vector<std::pair<void*, void*>>& embedder_fields) override;
-  void TracePrologue() override;
+  void TracePrologue(TraceFlags) override;
   bool AdvanceTracing(double deadline_in_ms) override;
   bool IsTracingDone() override;
-  void TraceEpilogue() override;
+  void TraceEpilogue(TraceSummary* trace_summary) override;
   void EnterFinalPause(EmbedderStackState stack_state) override;
   // IsRootForNonTracingGC provides an opportunity for us to get quickly
   // perished reference deleted in scavenger GCs. But that requires the ability

@@ -318,7 +318,6 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
 PerfBasicLogger::~PerfBasicLogger() {
   base::Fclose(perf_output_handle_);
   perf_output_handle_ = nullptr;
-#endif
 }
 
 void PerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
@@ -587,7 +586,6 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
 LowLevelLogger::~LowLevelLogger() {
   base::Fclose(ll_output_handle_);
   ll_output_handle_ = nullptr;
-#endif
 }
 
 void LowLevelLogger::LogCodeInfo() {

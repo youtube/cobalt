@@ -4,7 +4,7 @@
 
 #include "src/deoptimizer/deoptimizer.h"
 
-// #include <memory>
+#include <memory>
 
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/accessors.h"

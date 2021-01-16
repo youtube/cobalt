@@ -9048,6 +9048,18 @@ JSEntryStubs Isolate::GetJSEntryStubs() {
     pair.second->code.length_in_bytes = js_entry.InstructionSize();
   }
 
+  return entry_stubs;
+}
+
+size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
+#if !defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_TARGET_ARCH_ARM)
+  // Not implemented on other platforms.
+  UNREACHABLE();
+#else
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  std::vector<MemoryRange>* code_pages = isolate->GetCodePages();
+
   DCHECK_NOT_NULL(code_pages);
 
   // Copy as many elements into the output vector as we can. If the
@@ -9779,7 +9791,6 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
   if (script->type() == i::Script::TYPE_WASM) {
     DCHECK_EQ(0, location.GetLineNumber());
     return location.GetColumnNumber();
-#endif
   }
 
   int line = std::max(location.GetLineNumber() - script->line_offset(), 0);

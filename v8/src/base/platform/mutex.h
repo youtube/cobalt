@@ -210,7 +210,6 @@ using LazyRecursiveMutex =
 // only one writer can do so.
 // The SharedMutex class is non-copyable.
 
-#if !defined(STARBOARD)
 class V8_BASE_EXPORT SharedMutex final {
  public:
   SharedMutex();
@@ -266,7 +265,6 @@ class V8_BASE_EXPORT SharedMutex final {
 
   NativeHandle native_handle_;
 };
-#endif  // STARBOARD
 
 // -----------------------------------------------------------------------------
 // LockGuard
@@ -309,7 +307,6 @@ using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };
 
-#if !defined(STARBOARD)
 template <MutexSharedType kIsShared,
           NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class SharedMutexGuard final {
@@ -342,7 +339,6 @@ class SharedMutexGuard final {
     return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
   }
 };
-#endif  // STARBOARD
 
 }  // namespace base
 }  // namespace v8

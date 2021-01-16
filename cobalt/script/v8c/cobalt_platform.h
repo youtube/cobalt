@@ -67,6 +67,11 @@ class CobaltPlatform : public v8::Platform {
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
 
+  std::unique_ptr<v8::JobHandle> PostJob(
+       v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) override {
+     return v8::platform::NewDefaultJobHandle(
+         this, priority, std::move(job_task), NumberOfWorkerThreads());
+  }
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
     default_platform_->CallOnWorkerThread(std::move(task));
   }
@@ -75,18 +80,6 @@ class CobaltPlatform : public v8::Platform {
                                          double delay_in_seconds) {
     default_platform_->CallDelayedOnWorkerThread(std::move(task),
                                                  delay_in_seconds);
-  }
-
-  // Post task on the message loop of the isolate's corresponding
-  // JavaScriptEngine's main thread.
-  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override;
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
-                                     double delay_in_seconds) override;
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  v8::IdleTask* task) override {
-    SB_NOTIMPLEMENTED();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
@@ -128,6 +121,11 @@ class CobaltPlatform : public v8::Platform {
     // TODO: Investigate if we want to enable Idle task and/or non-netable
     // tasks.
     bool IdleTasksEnabled() override { return false; }
+    void PostNonNestableTask(std::unique_ptr<v8::Task> task) override;
+    void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                    double delay_in_seconds) override;
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     // custom helper methods
     void SetTaskRunner(base::SingleThreadTaskRunner* task_runner);

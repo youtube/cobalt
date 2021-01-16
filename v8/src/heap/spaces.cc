@@ -35,10 +35,6 @@
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
