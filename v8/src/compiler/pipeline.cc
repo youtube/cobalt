@@ -1016,7 +1016,7 @@ PipelineStatistics* CreatePipelineStatistics(
   }
 
 #if !defined(DISABLE_GRAPHS_STARBOARD)
-  if (info->trace_turbo_json_enabled()) {
+  if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
     json_of << "{\"function\":\"" << function_name.get() << "\", \"source\":\"";

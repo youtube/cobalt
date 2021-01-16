@@ -84,13 +84,6 @@ V8_INLINE size_t hash_range(Iterator first, Iterator last) {
   return seed;
 }
 
-template <typename Iterator>
-V8_INLINE size_t hash_range(size_t seed, Iterator first, Iterator last) {
-  for (; first != last; ++first) {
-    seed = hash_combine(seed, *first);
-  }
-  return seed;
-}
 
 #define V8_BASE_HASH_VALUE_TRIVIAL(type) \
   V8_INLINE size_t hash_value(type v) { return static_cast<size_t>(v); }

@@ -57,7 +57,6 @@ void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
   printf("%-11s func:%6d+0x%-6x%s %016" PRIuPTR " val: %s\n", eng, func_index,
          position, info->is_store ? " store to" : "load from", info->offset,
          value.begin());
-#endif
 }
 
 }  // namespace wasm

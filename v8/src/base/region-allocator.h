@@ -9,6 +9,7 @@
 
 #include "src/base/address-region.h"
 #include "src/base/utils/random-number-generator.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace base {

@@ -10,8 +10,6 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 
-#include "src/objects/tagged-impl-inl.h"
-
 namespace v8 {
 namespace internal {
 

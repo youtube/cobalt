@@ -16,10 +16,6 @@
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 

@@ -77,12 +77,7 @@ constexpr Register no_reg = Register::no_reg();
 
 constexpr int kNumRegs = 16;
 
-#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-// One particular platform only enable constexpr std::forward in c++14.
-const RegList kJSCallerSaved =
-#else
 constexpr RegList kJSCallerSaved =
-#endif
     Register::ListOf(rax, rcx, rdx,
                      rbx,  // used as a caller-saved register in JavaScript code
                      rdi);  // callee function

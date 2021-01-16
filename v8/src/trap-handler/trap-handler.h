@@ -102,9 +102,9 @@ inline bool IsTrapHandlerEnabled() {
   return g_is_trap_handler_enabled;
 }
 
+#if defined(V8_OS_STARBOARD)
 V8_NOINLINE V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
 
-#if defined(V8_OS_STARBOARD)
 inline bool IsThreadInWasm() {
   SB_NOTREACHED();
   return false;

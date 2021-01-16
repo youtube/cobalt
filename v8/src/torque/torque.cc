@@ -4,7 +4,6 @@
 
 #include "src/torque/source-positions.h"
 #include "src/torque/torque-compiler.h"
-#include <iostream>
 
 namespace v8 {
 namespace internal {
