@@ -39,6 +39,7 @@ int CompressHelper(WrapperType wrapper_type,
                    uLongf* dest_length,
                    const Bytef* source,
                    uLong source_length,
+                   int compression_level,
                    void* (*malloc_fn)(size_t),
                    void (*free_fn)(void*));
 
