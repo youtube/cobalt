@@ -69,20 +69,28 @@ int GzipCompressHelper(Bytef* dest,
                        void* (*malloc_fn)(size_t),
                        void (*free_fn)(void*)) {
   return CompressHelper(GZIP, dest, dest_length, source, source_length,
-                        malloc_fn, free_fn);
+                        Z_DEFAULT_COMPRESSION, malloc_fn, free_fn);
 }
 
 // This code is taken almost verbatim from third_party/zlib/compress.c. The only
 // difference is deflateInit2() is called which allows different window bits to
 // be set. > 16 causes a gzip header to be emitted rather than a zlib header,
 // and negative causes no header to emitted.
+//
+// Compression level can be a number from 1-9, with 1 being the fastest, 9 being
+// the best compression. The default, which the GZIP helper uses, is 6.
 int CompressHelper(WrapperType wrapper_type,
                    Bytef* dest,
                    uLongf* dest_length,
                    const Bytef* source,
                    uLong source_length,
+                   int compression_level,
                    void* (*malloc_fn)(size_t),
                    void (*free_fn)(void*)) {
+  if (compression_level < 1 || compression_level > 9) {
+    compression_level = Z_DEFAULT_COMPRESSION;
+  }
+
   z_stream stream;
 
   // FIXME(cavalcantii): z_const is not defined as 'const'.
@@ -121,7 +129,7 @@ int CompressHelper(WrapperType wrapper_type,
     stream.opaque = static_cast<voidpf>(0);
   }
 
-  int err = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+  int err = deflateInit2(&stream, compression_level, Z_DEFLATED,
                          ZlibStreamWrapperType(wrapper_type), kZlibMemoryLevel,
                          Z_DEFAULT_STRATEGY);
   if (err != Z_OK)
