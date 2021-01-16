@@ -49,21 +49,15 @@ void SetTransformHelper(NativeItem native_item, NativeMatrix2x3 transform) {
   GetInterface().set_item_transform(native_item, &transform);
 }
 
-// This processes all pending updates assuming the update spinlock is locked.
-void ProcessPendingChangesLocked(void* /* context */) {
-  for (size_t i = 0; i < g_pending_updates->size(); ++i) {
-    (*g_pending_updates)[i].closure.Run();
-  }
-  g_pending_updates->clear();
-  if (g_pending_focus != kNativeItemInvalid) {
-    GetInterface().set_focus(g_pending_focus);
-    g_pending_focus = kNativeItemInvalid;
-  }
-}
-
+// This processes all pending updates specified by the given context. The update
+// list should already be locked from modifications by other threads.
 void ProcessPendingChanges(void* context) {
-  starboard::ScopedSpinLock lock(&g_pending_updates_lock);
-  ProcessPendingChangesLocked(context);
+  std::vector<PendingUpdate>* updates =
+      static_cast<std::vector<PendingUpdate>*>(context);
+  for (size_t i = 0; i < updates->size(); ++i) {
+    (*updates)[i].closure.Run();
+  }
+  updates->clear();
 }
 
 // Remove any pending changes associated with the specified item.
@@ -111,14 +105,32 @@ NavItem::~NavItem() {
   g_pending_updates->emplace_back(
       nav_item_, base::Bind(GetInterface().destroy_item, nav_item_));
   if (--g_nav_item_count == 0) {
-    ProcessPendingChangesLocked(nullptr);
+    DCHECK(g_pending_focus == kNativeItemInvalid);
+    ProcessPendingChanges(g_pending_updates);
     delete g_pending_updates;
     g_pending_updates = nullptr;
   }
 }
 
 void NavItem::PerformQueuedUpdates() {
-  GetInterface().do_batch_update(&ProcessPendingChanges, nullptr);
+  std::vector<PendingUpdate> updates_snapshot;
+
+  // Process only the updates that have been queued up to this point. Other
+  // threads may be queueing more updates, and we shouldn't pick them up in this
+  // batch as that may result in them getting processed before async tasks that
+  // may be done by the platform.
+  {
+    starboard::ScopedSpinLock lock(&g_pending_updates_lock);
+    updates_snapshot.swap(*g_pending_updates);
+    if (g_pending_focus != kNativeItemInvalid) {
+      updates_snapshot.emplace_back(
+          g_pending_focus,
+          base::Bind(GetInterface().set_focus, g_pending_focus));
+      g_pending_focus = kNativeItemInvalid;
+    }
+  }
+
+  GetInterface().do_batch_update(&ProcessPendingChanges, &updates_snapshot);
 }
 
 void NavItem::Focus() {
