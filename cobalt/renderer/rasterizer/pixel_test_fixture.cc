@@ -126,8 +126,12 @@ void PixelTest::TestTree(const scoped_refptr<render_tree::Node>& test_tree) {
   std::string current_test_name(
       ::testing::UnitTest::GetInstance()->current_test_info()->name());
 
-  bool results =
-      pixel_tester_->TestTree(test_tree, base::FilePath(current_test_name));
+  TestTree(test_tree, base::FilePath(current_test_name));
+}
+
+void PixelTest::TestTree(const scoped_refptr<render_tree::Node>& test_tree,
+                         const base::FilePath& expected_base_filename) {
+  bool results = pixel_tester_->TestTree(test_tree, expected_base_filename);
   EXPECT_TRUE(results);
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -137,8 +141,28 @@ void PixelTest::TestTree(const scoped_refptr<render_tree::Node>& test_tree) {
     // If the 'rebase' flag is set, we should not run any actual tests but
     // instead output the results of our tests so that they can be used as
     // expected output for subsequent tests.
-    pixel_tester_->Rebaseline(test_tree, base::FilePath(current_test_name));
+    pixel_tester_->Rebaseline(test_tree, expected_base_filename);
   }
+}
+
+std::vector<uint8> PixelTest::GetFileData(const base::FilePath& file_path) {
+  int64 size;
+  std::vector<uint8> image_data;
+
+  bool success = base::GetFileSize(file_path, &size);
+
+  CHECK(success) << "Could not get file size.";
+  CHECK_GT(size, 0);
+
+  image_data.resize(static_cast<size_t>(size));
+
+  int num_of_bytes =
+      base::ReadFile(file_path, reinterpret_cast<char*>(&image_data[0]),
+                     static_cast<int>(size));
+
+  CHECK_EQ(num_of_bytes, static_cast<int>(image_data.size()))
+      << "Could not read '" << file_path.value() << "'.";
+  return image_data;
 }
 
 }  // namespace rasterizer
