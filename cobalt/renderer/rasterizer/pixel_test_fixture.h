@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_PIXEL_TEST_FIXTURE_H_
 #define COBALT_RENDERER_RASTERIZER_PIXEL_TEST_FIXTURE_H_
 
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/math/size_f.h"
@@ -45,6 +47,8 @@ class PixelTest : public testing::Test {
   // to determine the names of output files when a rebase is requested, or when
   // an error mask image is requested.
   void TestTree(const scoped_refptr<render_tree::Node>& test_tree);
+  void TestTree(const scoped_refptr<render_tree::Node>& test_tree,
+                const base::FilePath& expected_base_filename);
 
   const math::Size& output_surface_size() const { return output_surface_size_; }
 
@@ -55,9 +59,9 @@ class PixelTest : public testing::Test {
   static backend::GraphicsSystem* graphics_system_;
   static backend::GraphicsContext* graphics_context_;
 
-  bool IsMapToMeshEnabled() {
-    return pixel_tester_->IsMapToMeshEnabled();
-  }
+  bool IsMapToMeshEnabled() { return pixel_tester_->IsMapToMeshEnabled(); }
+
+  std::vector<uint8> GetFileData(const base::FilePath& file_path);
 
  private:
   base::Optional<RenderTreePixelTester> pixel_tester_;
