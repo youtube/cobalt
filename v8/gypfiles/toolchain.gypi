@@ -62,7 +62,8 @@
     'v8_android_log_stdout%': 0,
 
     # Force disable libstdc++ debug mode.
-    'disable_glibcxx_debug%': 0,
+    # In Cobalt's own testing, this option does not work with V8 8.8 on Linux
+    'disable_glibcxx_debug%': 1,
 
     'v8_enable_backtrace%': 0,
 
@@ -1252,6 +1253,9 @@
             # Enable libstdc++ debugging facilities to help catch problems
             # early, see http://crbug.com/65151 .
             'defines': ['_GLIBCXX_DEBUG=1',],
+          }, {
+            'cflags': ['-U_GLIBCXX_DEBUG'],
+            'cflags_host': ['-U_GLIBCXX_DEBUG'],
           }],
           ['OS=="aix"', {
             'ldflags': [ '-Wl,-bbigtoc' ],
