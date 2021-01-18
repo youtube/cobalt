@@ -2400,11 +2400,15 @@ def ValidateSourcesInTarget(target, target_dict, build_file):
     if len(files) > 1:
       error += '  %s: %s\n' % (basename, ' '.join(files))
 
-  if error:
-    print('static library %s has several files with the same basename:\n' %
-          target + error + 'Some build systems, e.g. MSVC08, '
-          'cannot handle that.')
-    raise GypError('Duplicate basenames in sources section, see list above')
+#  Duplicate basenames are not supported in MSVC08 and libtool on Mac, both of
+#  which Cobalt does not depend on, Chrome removed this gyp check back in the
+#  following CL: https://codereview.chromium.org/344573002/
+
+#  if error:
+#    print('static library %s has several files with the same basename:\n' %
+#          target + error + 'Some build systems, e.g. MSVC08, '
+#          'cannot handle that.')
+#    raise GypError('Duplicate basenames in sources section, see list above')
 
 
 def ValidateRulesInTarget(target, target_dict, extra_sources_for_rules):
