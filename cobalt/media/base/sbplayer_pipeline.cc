@@ -919,6 +919,11 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
 
   {
     base::AutoLock auto_lock(lock_);
+    SB_DCHECK(!player_);
+    // In the extreme case that CreatePlayer() is called when a |player_| is
+    // available, reset the existing player first to reduce the number of active
+    // players.
+    player_.reset();
     player_.reset(new StarboardPlayer(
         task_runner_, get_decode_target_graphics_context_provider_func_,
         audio_config, video_config, window_, drm_system, this,
