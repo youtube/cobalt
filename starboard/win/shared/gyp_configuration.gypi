@@ -161,12 +161,12 @@
               'VCCLCompilerTool': {
                 'DebugInformationFormat': '3',
                 'conditions': [
-                  'cobalt_docker_build==1', {
+                  ['cobalt_docker_build==1', {
                     'DebugInformationFormat': '1'
                   }, {
                     'AdditionalOptions': [ '/FS' ],
                   }],
-                ],
+                ]
               },
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'true',
