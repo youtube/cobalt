@@ -18,14 +18,6 @@
 #ifndef STARBOARD_LINUX_X64X11_SKIA_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_X64X11_SKIA_CONFIGURATION_PUBLIC_H_
 
-// This is not a released configuration, so it should implement the
-// experimental API version to validate trunk's viability.
-#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
-#error \
-    "This platform's sabi.json file is expected to track the experimental " \
-"Starboard API version."
-#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
-
 // Include the X64X11 Linux configuration.
 #include "starboard/linux/x64x11/configuration_public.h"
 
