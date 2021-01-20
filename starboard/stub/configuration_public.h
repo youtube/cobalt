@@ -22,12 +22,6 @@
 #ifndef STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_STUB_CONFIGURATION_PUBLIC_H_
 
-#if SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
-#error \
-    "This platform's sabi.json file is expected to track the experimental " \
-"Starboard API version."
-#endif  // SB_API_VERSION != SB_EXPERIMENTAL_API_VERSION
-
 // --- Architecture Configuration --------------------------------------------
 
 // Some platforms will not align variables on the stack with an alignment
