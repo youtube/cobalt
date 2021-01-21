@@ -97,6 +97,11 @@ int GetBytesPerSample(SbMediaAudioSampleType sample_type);
 SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
                                            const char* key_system);
 
+std::string GetStringRepresentation(const uint8_t* data, int size);
+std::string GetMixedRepresentation(const uint8_t* data,
+                                   int size,
+                                   int bytes_per_line);
+
 #if SB_API_VERSION >= 11
 //  When this function returns true, usually indicates that the two sample info
 //  cannot be processed by the same audio decoder.
@@ -119,10 +124,5 @@ bool operator!=(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2);
 bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2);
-
-std::string GetStringRepresentation(const uint8_t* data, int size);
-std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line);
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
