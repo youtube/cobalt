@@ -425,6 +425,47 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   return kSbMediaSupportTypeNotSupported;
 }
 
+std::string GetStringRepresentation(const uint8_t* data, int size) {
+  std::string result;
+
+  for (int i = 0; i < size; ++i) {
+    if (std::isspace(data[i])) {
+      result += ' ';
+    } else if (std::isprint(data[i])) {
+      result += data[i];
+    } else {
+      result += '?';
+    }
+  }
+
+  return result;
+}
+
+std::string GetMixedRepresentation(const uint8_t* data,
+                                   int size,
+                                   int bytes_per_line) {
+  std::string result;
+
+  for (int i = 0; i < size; i += bytes_per_line) {
+    if (i + bytes_per_line <= size) {
+      result += ::starboard::HexEncode(data + i, bytes_per_line);
+      result += " | ";
+      result += GetStringRepresentation(data + i, bytes_per_line);
+      result += '\n';
+    } else {
+      int bytes_left = size - i;
+      result += ::starboard::HexEncode(data + i, bytes_left);
+      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
+      result += " | ";
+      result += GetStringRepresentation(data + i, bytes_left);
+      result += std::string(bytes_per_line - bytes_left, ' ');
+      result += '\n';
+    }
+  }
+
+  return result;
+}
+
 #if SB_API_VERSION >= 11
 bool IsAudioSampleInfoSubstantiallyDifferent(
     const SbMediaAudioSampleInfo& left,
@@ -495,45 +536,4 @@ bool operator!=(const SbMediaColorMetadata& metadata_1,
 bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
   return !(sample_info_1 == sample_info_2);
-}
-
-std::string GetStringRepresentation(const uint8_t* data, int size) {
-  std::string result;
-
-  for (int i = 0; i < size; ++i) {
-    if (std::isspace(data[i])) {
-      result += ' ';
-    } else if (std::isprint(data[i])) {
-      result += data[i];
-    } else {
-      result += '?';
-    }
-  }
-
-  return result;
-}
-
-std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line) {
-  std::string result;
-
-  for (int i = 0; i < size; i += bytes_per_line) {
-    if (i + bytes_per_line <= size) {
-      result += starboard::HexEncode(data + i, bytes_per_line);
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_per_line);
-      result += '\n';
-    } else {
-      int bytes_left = size - i;
-      result += starboard::HexEncode(data + i, bytes_left);
-      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
-      result += " | ";
-      result += GetStringRepresentation(data + i, bytes_left);
-      result += std::string(bytes_per_line - bytes_left, ' ');
-      result += '\n';
-    }
-  }
-
-  return result;
 }

@@ -148,7 +148,7 @@ std::string InputBuffer::ToString() const {
        << HexEncode(side_data_.data(), static_cast<int>(side_data_.size()))
        << '\n';
   }
-  ss << GetMixedRepresentation(data(), size(), 16) << '\n';
+  ss << media::GetMixedRepresentation(data(), size(), 16) << '\n';
   return ss.str();
 }
 
