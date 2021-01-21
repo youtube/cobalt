@@ -49,6 +49,8 @@ const std::set<std::string> valid_channels = {
     "tcrash",
     // Test an update that fails verification.
     "tfailv",
+    // Test an update that works for one app only.
+    "t1app",
     // Test a series of continuous updates with two channels.
     "tseries1", "tseries2",
 };
