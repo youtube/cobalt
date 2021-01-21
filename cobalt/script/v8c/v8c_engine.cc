@@ -100,7 +100,20 @@ void ErrorMessageListener(v8::Local<v8::Message> message,
   for (int i = 0; i < stack->GetFrameCount(); ++i) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(isolate, i);
     description += "\n";
-    description += *v8::String::Utf8Value(isolate, frame->GetScriptName());
+    v8::String::Utf8Value function_name(isolate, frame->GetFunctionName());
+    v8::String::Utf8Value script_name(isolate, frame->GetScriptName());
+    if (*script_name) {
+      description += *script_name;
+    } else {
+      description += "unknown";
+    }
+    if (*function_name) {
+      description += "(";
+      description += *function_name;
+      description += ")";
+    } else {
+      description += "(unknown)";
+    }
     description += ":";
     description += std::to_string(frame->GetLineNumber());
     description += ":";
