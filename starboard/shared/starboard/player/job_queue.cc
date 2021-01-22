@@ -175,18 +175,12 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_DCHECK(owner);
 
   ScopedLock scoped_lock(mutex_);
-  // std::multimap::erase() doesn't return an iterator until C++11.  So this has
-  // to be done in a nested loop to delete multiple occurrences of |job|.
-  bool should_keep_running = true;
-  while (should_keep_running) {
-    should_keep_running = false;
-    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
-         iter != time_to_job_record_map_.end(); ++iter) {
-      if (iter->second.owner == owner) {
-        time_to_job_record_map_.erase(iter);
-        should_keep_running = true;
-        break;
-      }
+  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+       iter != time_to_job_record_map_.end();) {
+    if (iter->second.owner == owner) {
+      iter = time_to_job_record_map_.erase(iter);
+    } else {
+      ++iter;
     }
   }
 }
