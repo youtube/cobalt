@@ -30,13 +30,23 @@ namespace rasterizer {
 
 namespace {
 
-int IsNotAlphaNumeric(char c) { return !std::isalnum(c); }
-
 struct GetLottieTestName {
   std::string operator()(
       const ::testing::TestParamInfo<base::FilePath>& filepath) const {
     std::string name = filepath.param.BaseName().value();
-    std::replace_if(name.begin(), name.end(), IsNotAlphaNumeric, '_');
+    for (size_t i = 0; i < name.size(); ++i) {
+      char ch = name[i];
+      if (ch >= 'A' && ch <= 'Z') {
+        continue;
+      }
+      if (ch >= 'a' && ch <= 'z') {
+        continue;
+      }
+      if (ch >= '0' && ch <= '9') {
+        continue;
+      }
+      name[i] = '_';
+    }
     return name;
   }
 };
@@ -64,6 +74,9 @@ std::vector<base::FilePath> EnumerateLottieTestData() {
 }
 
 }  // namespace
+
+// Blitter does not support Skottie.
+#if !SB_HAS(BLITTER)
 
 class LottiePixelTest : public PixelTest,
                         public testing::WithParamInterface<base::FilePath> {};
@@ -95,6 +108,8 @@ TEST_P(LottiePixelTest, Run) {
 INSTANTIATE_TEST_CASE_P(LottieCoveragePixelTest, LottiePixelTest,
                         ::testing::ValuesIn(EnumerateLottieTestData()),
                         GetLottieTestName());
+
+#endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
 }  // namespace renderer
