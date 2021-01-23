@@ -987,15 +987,15 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
     pipeline_statistics->BeginPhaseKind("V8.TFInitializing");
   }
 
-    if (info->trace_turbo_json()) { 
 #if !defined(DISABLE_GRAPHS_STARBOARD)
+  if (info->trace_turbo_json()) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     json_of << "{\"function\" : ";
     JsonPrintFunctionSource(json_of, -1, info->GetDebugName(), script, isolate,
                             info->shared_info());
     json_of << ",\n\"phases\":[";
-#endif
   }
+#endif
 
   return pipeline_statistics;
 }
@@ -1038,8 +1038,8 @@ PipelineStatistics* CreatePipelineStatistics(
       insert_comma = true;
     }
     json_of << "],\n\"phases\":[";
-#endif
   }
+#endif
 
   return pipeline_statistics;
 }
@@ -3285,11 +3285,13 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   data.InitializeFrameData(nullptr);
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info.trace_turbo_json()) {
     TurboJsonFile json_of(&info, std::ios_base::trunc);
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
+#endif
 
   PipelineImpl pipeline(&data);
   if (use_mid_tier_register_allocator) {
@@ -3690,11 +3692,13 @@ void PipelineImpl::AllocateRegistersForTopTier(
               ->RangesDefinedInDeferredStayInDeferred());
   }
 
+#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info()->trace_turbo_json() && !data->MayHaveUnverifiableGraph()) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VRegisterAllocationData(
         "PreAllocation", data->top_tier_register_allocation_data());
   }
+#endif
 
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
 
@@ -3737,6 +3741,7 @@ void PipelineImpl::AllocateRegistersForTopTier(
     tcf << AsC1VRegisterAllocationData(
         "CodeGen", data->top_tier_register_allocation_data());
   }
+#endif
 
   data->DeleteRegisterAllocationZone();
 }
@@ -3778,7 +3783,6 @@ void PipelineImpl::AllocateRegistersForMidTier(
     verifier->VerifyAssignment("End of regalloc pipeline.");
     verifier->VerifyGapMoves();
   }
-#endif
 
   data->DeleteRegisterAllocationZone();
 }
