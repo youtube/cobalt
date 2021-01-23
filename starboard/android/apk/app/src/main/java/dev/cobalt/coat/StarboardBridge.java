@@ -418,7 +418,7 @@ public class StarboardBridge {
   /** Returns Java layer implementation for AndroidUserAuthorizer */
   @SuppressWarnings("unused")
   @UsedByNative
-  UserAuthorizer getUserAuthorizer() {
+  public UserAuthorizer getUserAuthorizer() {
     return userAuthorizer;
   }
 
