@@ -31,12 +31,16 @@
 // Author: kenton@google.com (Kenton Varda)
 
 #ifdef STARBOARD
+#ifdef INLINE_POEM_NAMESPACE
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#else   // INLINE_POEM_NAMESPACE
 #include <string.h>
 #include "starboard/common/string.h"
 #undef __builtin_strlen
 #define __builtin_strlen SbStringGetLength
 #undef strlen
 #define strlen SbStringGetLength
+#endif  // INLINE_POEM_NAMESPACE
 #endif  // STARBOARD
 
 #include <google/protobuf/stubs/common.h>

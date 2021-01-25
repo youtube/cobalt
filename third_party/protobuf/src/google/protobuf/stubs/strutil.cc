@@ -30,6 +30,12 @@
 
 // from google3/strings/strutil.cc
 
+#ifdef STARBOARD
+#ifdef INLINE_POEM_NAMESPACE
+#include "starboard/client_porting/poem/string_leaks_poem.h"
+#endif  // INLINE_POEM_NAMESPACE
+#endif  // STARBOARD
+
 #ifndef STARBOARD
 
 #include <stdio.h>
@@ -56,10 +62,12 @@
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 
+#ifndef INLINE_POEM_NAMESPACE
 #undef __builtin_strlen
 #define __builtin_strlen SbStringGetLength
 #undef strlen
 #define strlen SbStringGetLength
+#endif  // INLINE_POEM_NAMESPACE
 
 // We avoid using poems here because a subsequent #include of math.h may
 // result, on some platforms, of the indirect inclusion of stdlib.h, which
