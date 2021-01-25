@@ -47,6 +47,7 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
           test_filter.FILTER_ALL
       ],
       'renderer_test': [
+          'LottieCoveragePixelTest*skottie_matte_blendmode_json',
           'PixelTest.YUV422UYVYImageScaledUpSupport',
           'PixelTest.YUV422UYVYImageScaledAndTranslated',
       ],
