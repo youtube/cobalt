@@ -51,8 +51,7 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
 
 static void DeallocateSampleFunc(SbPlayer player,
                                  void* context,
-                                 const void* sample_buffer) {
-}
+                                 const void* sample_buffer) {}
 
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(
     const VideoDmpReader::AudioAccessUnit& audio_unit) {
@@ -139,6 +138,69 @@ VideoDmpReader::VideoDmpReader(
 }
 
 VideoDmpReader::~VideoDmpReader() {}
+
+std::string VideoDmpReader::audio_mime_type() const {
+  if (dmp_info_.audio_codec == kSbMediaAudioCodecNone) {
+    return "";
+  }
+  std::stringstream ss;
+  switch (dmp_info_.audio_codec) {
+    case kSbMediaAudioCodecAac:
+      ss << "audio/mp4; codecs=\"mp4a.40.2\";";
+      break;
+    case kSbMediaAudioCodecOpus:
+      ss << "audio/webm; codecs=\"opus\";";
+      break;
+    case kSbMediaAudioCodecAc3:
+      ss << "audio/mp4; codecs=\"ac-3\";";
+      break;
+    case kSbMediaAudioCodecEac3:
+      ss << "audio/mp4; codecs=\"ec-3\";";
+      break;
+    default:
+      SB_NOTREACHED();
+  }
+  ss << " channels=" << dmp_info_.audio_sample_info.number_of_channels;
+  return ss.str();
+}
+
+std::string VideoDmpReader::video_mime_type() {
+  if (dmp_info_.video_codec == kSbMediaVideoCodecNone) {
+    return "";
+  }
+  // TODO: Support HDR
+  std::stringstream ss;
+  switch (dmp_info_.video_codec) {
+    case kSbMediaVideoCodecH264:
+      ss << "video/mp4; codecs=\"avc1.4d402a\";";
+      break;
+    case kSbMediaVideoCodecVp9:
+      ss << "video/webm; codecs=\"vp9\";";
+      break;
+#if SB_API_VERSION < 11
+    case kSbMediaVideoCodecVp10:
+#else   // SB_API_VERSION < 11
+    case kSbMediaVideoCodecAv1:
+#endif  // SB_API_VERSION < 11
+      ss << "video/mp4; codecs=\"av01.0.08M.08\";";
+      break;
+    default:
+      SB_NOTREACHED();
+  }
+  if (number_of_video_buffers() > 0) {
+    const auto& video_sample_info =
+        GetPlayerSampleInfo(kSbMediaTypeVideo, 0).video_sample_info;
+#if SB_API_VERSION >= 11
+    ss << "width=" << video_sample_info.frame_width
+       << "; height=" << video_sample_info.frame_height << ";";
+#else   // SB_API_VERSION >= 11
+    ss << "width=" << video_sample_info->frame_width
+       << "; height=" << video_sample_info->frame_height << ";";
+#endif  // SB_API_VERSION >= 11
+  }
+  ss << " framerate=" << dmp_info_.video_fps;
+  return ss.str();
+}
 
 SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
                                                        size_t index) {

@@ -72,13 +72,6 @@ SbPlayer CallSbPlayerCreate(
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaVideoCodec codec);
 
-bool IsMediaConfigSupported(SbMediaVideoCodec video_codec,
-                            SbMediaAudioCodec audio_codec,
-                            SbDrmSystem drm_system,
-                            const SbMediaAudioSampleInfo* audio_sample_info,
-                            const char* max_video_capabilities,
-                            SbPlayerOutputMode output_mode);
-
 }  // namespace nplb
 }  // namespace starboard
 

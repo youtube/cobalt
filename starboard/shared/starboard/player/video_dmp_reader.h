@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -109,10 +110,12 @@ class VideoDmpReader {
     return dmp_info_.audio_sample_info;
   }
   int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
+  std::string audio_mime_type() const;
 
   SbMediaVideoCodec video_codec() const { return dmp_info_.video_codec; }
   int64_t video_bitrate() const { return dmp_info_.video_bitrate; }
   int video_fps() const { return dmp_info_.video_fps; }
+  std::string video_mime_type();
 
   size_t number_of_audio_buffers() const {
     return dmp_info_.audio_access_units_size;
