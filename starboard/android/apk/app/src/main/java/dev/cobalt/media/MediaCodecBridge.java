@@ -672,10 +672,7 @@ class MediaCodecBridge {
       }
     } else {
       if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-        if (maxHeight >= 4320 && videoCapabilities.isSizeSupported(7680, 4320)) {
-          maxWidth = 7680;
-          maxHeight = 4320;
-        } else if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
           maxWidth = 3840;
           maxHeight = 2160;
         } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
