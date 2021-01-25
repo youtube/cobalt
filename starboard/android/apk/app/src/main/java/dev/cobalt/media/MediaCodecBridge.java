@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -671,18 +671,16 @@ class MediaCodecBridge {
         }
       }
     } else {
-      if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-        if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
-          maxWidth = 3840;
-          maxHeight = 2160;
-        } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
-          maxWidth = 1920;
-          maxHeight = 1080;
-        } else {
-          Log.e(TAG, "Failed to find a compatible resolution");
-          maxWidth = 1920;
-          maxHeight = 1080;
-        }
+      if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+        maxWidth = 3840;
+        maxHeight = 2160;
+      } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
+        maxWidth = 1920;
+        maxHeight = 1080;
+      } else {
+        Log.e(TAG, "Failed to find a compatible resolution");
+        maxWidth = 1920;
+        maxHeight = 1080;
       }
     }
 
