@@ -108,7 +108,7 @@ services:
   linux-x64x11-clang-3-6-prebuilt:
     <<: *common-definitions
     <<: *build-volumes
-    image: gcr.io/cobalt-buildbot-gcr/build-cobalt-linux-x64x11-clang-3-6
+    image: gcr.io/cobalt-buildbot-gcr/build-cobalt-linux-x64x11-clang-3-6:1.2
     environment:
       - PLATFORM=linux-x64x11-clang-3-6
       - CONFIG=${CONFIG:-debug}
