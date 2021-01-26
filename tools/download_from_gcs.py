@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Downloads files from Google Cloud Storage given corresponding sha1s."""
 
 import argparse
 import hashlib
 import logging
 import os
 import shutil
-import ssl
 import stat
 import tempfile
 try:
@@ -39,7 +39,7 @@ _BUFFER_SIZE = 2 * 1024 * 1024
 
 def AddExecutableBits(filename):
   st = os.stat(filename)
-  os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+  os.chmod(filename, st.st_mode | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
 
 def ExtractSha1(filename):
@@ -118,7 +118,7 @@ def MaybeDownloadDirectoryFromGcs(bucket,
   return res
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
   logging.basicConfig(
       level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
