@@ -16,11 +16,10 @@
 
 function run_command() {
   if [[ $# -ne 1 ]]; then
-    error " run_command only accepts a single argument"
+    log "error" " run_command only accepts a single argument"
     return 1
   fi
 
   # We want to capture the standard output from the command.
   echo "$(eval "${1}")"
 }
-

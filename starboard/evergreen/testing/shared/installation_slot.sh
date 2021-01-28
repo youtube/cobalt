@@ -27,7 +27,7 @@
 #   The current installation slot number, otherwise "".
 function get_current_installation_slot() {
   if [[ $# -ne 1 ]]; then
-    error " get_current_installation_slot only accepts a single argument"
+    log "error" " get_current_installation_slot only accepts a single argument"
     return 1
   fi
 
@@ -37,4 +37,3 @@ function get_current_installation_slot() {
     sed -n "s/.*current_installation=\([0-9]\+\).*/\1/p" \
       "${LOG_PATH}/${1}" | ${TAIL} -1)"
 }
-

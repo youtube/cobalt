@@ -33,10 +33,9 @@ function run_test() {
   TIMEOUT="${OLD_TIMEOUT}"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to validate alternating channels"
+    log "error" "Failed to validate alternating channels"
     return 1
   fi
 
   return 0
 }
-

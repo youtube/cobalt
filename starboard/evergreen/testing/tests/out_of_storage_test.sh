@@ -46,7 +46,7 @@ function run_test() {
   OLD_TIMEOUT="${TIMEOUT}"
   TIMEOUT=300
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, error code is 12"
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, log "error" code is 12"
 
   # Remove the symbolic link.
   run_command "rm -f ${STORAGE_DIR}" 1> /dev/null
@@ -57,7 +57,7 @@ function run_test() {
   fi
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to run out of storage"
+    log "error" "Failed to run out of storage"
     return 1
   fi
 
@@ -65,4 +65,3 @@ function run_test() {
 
   return 0
 }
-

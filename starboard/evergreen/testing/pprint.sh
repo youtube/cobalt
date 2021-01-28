@@ -23,19 +23,27 @@ function pprint() {
   fi
 
   # This command uses ANSI escape codes to attempt to output colored text. For
-  # more information see https://en.wikipedia.org/wiki/ANSI_escape_code.
+  # more INFOrmation see https://en.wikipedia.org/wiki/ANSI_escape_code.
   echo "$arg" "\033[0;${1}m${2}\033[0m" >&2
 }
 
-function info() {
-  pprint 32 "${1}"
+function log() {
+  if [[ $# -lt 2 ]]; then
+    echo "log requires a level and message"
+  else
+    case "${1}" in
+      # green
+      "info")
+        pprint 32 "${2}"
+        ;;
+      # yellow
+      "warning")
+        pprint 33 "${2}"
+        ;;
+      # red
+      "error")
+        pprint 31 "${2}"
+        ;;
+    esac
+  fi
 }
-
-function warn() {
-  pprint 33 "${1}"
-}
-
-function error() {
-  pprint 31 "${1}"
-}
-

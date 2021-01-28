@@ -25,7 +25,7 @@ ID="id"
 TAIL="tail"
 
 if [[ -z "${RASPI_ADDR}" ]]; then
-  info " Please set the environment variable 'RASPI_ADDR'"
+  log "info" " Please set the environment variable 'RASPI_ADDR'"
   exit 1
 fi
 
@@ -67,4 +67,3 @@ if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
     fi
   fi
 fi
-
