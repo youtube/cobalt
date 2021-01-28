@@ -15,7 +15,7 @@
 # limitations under the License.
 
 if [[ ! -d "/tmp/" ]]; then
-  error "The '/tmp/' directory is required for log files"
+  log "error" "The '/tmp/' directory is required for log files"
   exit 1
 fi
 
@@ -24,7 +24,6 @@ LOG_PATH="/tmp/youtube_test_logs/$(date +%s%3N)"
 mkdir -p "${LOG_PATH}" &> /dev/null
 
 if [[ ! -d "${LOG_PATH}" ]]; then
-  error "Failed to create directory at '${LOG_PATH}'"
+  log "error" "Failed to create directory at '${LOG_PATH}'"
   exit 1
 fi
-

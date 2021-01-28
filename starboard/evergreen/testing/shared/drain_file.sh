@@ -28,7 +28,7 @@
 #   Path to a valid drain file, otherwise "".
 function get_temporary_drain_file_path() {
   if [[ $# -ne 1 ]]; then
-    error " get_temporary_drain_file_path only accepts a single argument"
+    log "error" " get_temporary_drain_file_path only accepts a single argument"
     return 1
   fi
 
@@ -38,4 +38,3 @@ function get_temporary_drain_file_path() {
     sed -n "s/.*Created drain file at '\(.*d_\)[A-Za-z0-9+/=]\{32,\}\(_[0-9]\{8,\}\).*/\1TEST\2/p" \
       "${LOG_PATH}/${1}" | ${TAIL} -1)"
 }
-
