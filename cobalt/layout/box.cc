@@ -1994,8 +1994,10 @@ void Box::UpdateUiNavigationItem() {
   // containing blocks.
   scoped_refptr<ui_navigation::NavItem> ui_nav_container;
   const ContainerBox* containing_block;
+  const Box* prev_containing_block = this;
   for (containing_block = GetContainingBlock(); containing_block != nullptr;
-       containing_block = containing_block->GetContainingBlock()) {
+       prev_containing_block = containing_block,
+      containing_block = containing_block->GetContainingBlock()) {
     if (containing_block->ui_nav_item_ &&
         containing_block->ui_nav_item_->IsContainer()) {
       ui_nav_container = containing_block->ui_nav_item_;
@@ -2013,11 +2015,26 @@ void Box::UpdateUiNavigationItem() {
   ui_nav_item_->SetSize(border_box_size.width().toFloat(),
                         border_box_size.height().toFloat());
 
+  // GetMarginBoxTransformFromContainingBlock() doesn't properly handle the
+  // descendant of the containing block if it uses 'position: relative' -- it
+  // just assumes the padding box is used instead of the content box in this
+  // case. Workaround the issue here.
+  //   https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+  Vector2dLayoutUnit containing_block_offset;
+  if (containing_block) {
+    containing_block_offset =
+        prev_containing_block->GetContainingBlockOffsetFromItsContentBox(
+            containing_block) +
+        containing_block->GetContentBoxOffsetFromMarginBox();
+  }
+
   // Get the border box's transform relative to its containing item. This
   // dictates the center of the border box relative to its container.
   Vector2dLayoutUnit border_box_offset = GetBorderBoxOffsetFromMarginBox();
   math::Matrix3F transform =
       GetMarginBoxTransformFromContainingBlock(containing_block) *
+      math::TranslateMatrix(containing_block_offset.x().toFloat(),
+                            containing_block_offset.y().toFloat()) *
       math::TranslateMatrix(border_box_offset.x().toFloat() +
                                 0.5f * border_box_size.width().toFloat(),
                             border_box_offset.y().toFloat() +
