@@ -16,7 +16,7 @@
 
 function delete_file() {
   if [[ $# -ne 1 ]]; then
-    error " delete_file only accepts a single argument"
+    log "error" " delete_file only accepts a single argument"
     return 1
   fi
 
@@ -25,4 +25,3 @@ function delete_file() {
   eval "rm -f \"\"${1}\"\"" 1> /dev/null
   return 0
 }
-

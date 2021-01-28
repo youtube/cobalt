@@ -28,21 +28,21 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to download and install the test package"
+    log "error" "Failed to download and install the test package"
     return 1
   fi
 
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to run the downloaded installation"
+    log "error" "Failed to run the downloaded installation"
     return 1
   fi
 
   SLOT="$(get_current_installation_slot "${TEST_NAME}.1.log")"
 
   if [[ -z "${SLOT}" ]]; then
-    error "Failed to evaluate the current installation slot"
+    log "error" "Failed to evaluate the current installation slot"
     return 1
   fi
 
@@ -55,10 +55,9 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "AdoptInstallation: current_installation=${SLOT}"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to adopt installation"
+    log "error" "Failed to adopt installation"
     return 1
   fi
 
   return 0
 }
-

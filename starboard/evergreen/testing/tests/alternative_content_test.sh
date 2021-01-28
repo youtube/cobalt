@@ -28,17 +28,16 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to download and install the test package"
+    log "error" "Failed to download and install the test package"
     return 1
   fi
 
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date" "--content=${CONTENT}"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to find 'App is up to date' indicating failure"
+    log "error" "Failed to find 'App is up to date' indicating failure"
     return 1
   fi
 
   return 0
 }
-

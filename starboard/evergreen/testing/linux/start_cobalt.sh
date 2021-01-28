@@ -30,7 +30,7 @@ TIMEOUT=150
 #   0 if the provided pattern was found in the logs, otherwise 1.
 function start_cobalt() {
   if [[ $# -lt 3 ]]; then
-    error " start_cobalt missing args"
+    log "error" " start_cobalt missing args"
     return 1
   fi
 
@@ -41,31 +41,31 @@ function start_cobalt() {
 
   stop_cobalt
 
-  echo " Starting Cobalt with:"
-  echo "  --url=${URL}"
-  echo "  --content=${CONTENT}"
+  log "info" " Starting Cobalt with:"
+  log "info" "  --url=${URL}"
+  log "info" "  --content=${CONTENT}"
 
   for arg in $ARGS; do
-    echo "  ${arg}"
+    log "info" "  ${arg}"
   done
 
-  echo " Logs will be output to '${LOG_PATH}/${LOG}'"
+  log "info" " Logs will be output to '${LOG_PATH}/${LOG}'"
 
   eval "${OUT}/loader_app --url=\"\"${URL}\"\" --content=${CONTENT} ${ARGS} 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
 
   LOADER=$!
 
-  echo " Cobalt process ID is ${LOADER}"
+  log "info" " Cobalt process ID is ${LOADER}"
 
-  echo " Waiting up to ${TIMEOUT} seconds for \"${PAT}\" to be logged"
+  log "info" " Waiting up to ${TIMEOUT} seconds for \"${PAT}\" to be logged"
 
   wait_and_watch "${PAT}" "${LOG_PATH}/${LOG}"
 
   FOUND=$?
 
-  echo " Finished after ${WAITED} seconds"
+  log "info" " Finished after ${WAITED} seconds"
 
-  echo " Stopping with 'kill -9 ${LOADER}'"
+  log "info" " Stopping with 'kill -9 ${LOADER}'"
 
   kill -9 "${LOADER}" 1> /dev/null
 
@@ -77,4 +77,3 @@ function start_cobalt() {
 
   return 1
 }
-

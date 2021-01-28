@@ -35,30 +35,30 @@ FAILED=()
 PASSED=()
 SKIPPED=()
 
-info " [==========] Deploying Cobalt."
+log "info" " [==========] Deploying Cobalt."
 
 deploy_cobalt "${DIR}/${1}"
 
-info " [==========] Running ${#TESTS[@]} tests."
+log "info" " [==========] Running ${#TESTS[@]} tests."
 
 # Loop over all of the tests found in the current directory and run them.
 for test in "${TESTS[@]}"; do
   source $test "${DIR}/${1}"
 
-  info " [ RUN      ] ${TEST_NAME}"
+  log "info" " [ RUN      ] ${TEST_NAME}"
 
   run_test
 
   RESULT=$?
 
   if [[ "${RESULT}" -eq 0 ]]; then
-    info  " [   PASSED ] ${TEST_NAME}"
+    log "info"  " [   PASSED ] ${TEST_NAME}"
     PASSED+=("${TEST_NAME}")
   elif [[ "${RESULT}" -eq 1 ]]; then
-    error " [   FAILED ] ${TEST_NAME}"
+    log "error" " [   FAILED ] ${TEST_NAME}"
     FAILED+=("$TEST_NAME")
   elif [[ "${RESULT}" -eq 2 ]]; then
-    warn " [  SKIPPED ] ${TEST_NAME}"
+    log "warning" " [  SKIPPED ] ${TEST_NAME}"
     SKIPPED+=("$TEST_NAME")
   fi
 
@@ -67,44 +67,44 @@ for test in "${TESTS[@]}"; do
   COUNT=$((COUNT + 1))
 done
 
-info " [==========] ${COUNT} tests ran."
+log "info" " [==========] ${COUNT} tests ran."
 
 # Output the number of passed tests.
 if [[ "${#PASSED[@]}" -eq 1 ]]; then
-  info " [  PASSED  ] 1 test."
+  log "info" " [  PASSED  ] 1 test."
 elif [[ "${#PASSED[@]}" -gt 1 ]]; then
-  info " [  PASSED  ] ${#PASSED[@]} tests."
+  log "info" " [  PASSED  ] ${#PASSED[@]} tests."
 fi
 
 # Output the number of skipped tests.
 if [[ "${#SKIPPED[@]}" -eq 1 ]]; then
-  warn " [  SKIPPED ] 1 test, listed below:"
+  log "warning" " [  SKIPPED ] 1 test, listed below:"
 elif [[ "${#SKIPPED[@]}" -gt 1 ]]; then
-  warn " [  SKIPPED ] ${#SKIPPED[@]} tests, listed below:"
+  log "warning" " [  SKIPPED ] ${#SKIPPED[@]} tests, listed below:"
 fi
 
 # Output each of the skipped tests.
 for test in "${SKIPPED[@]}"; do
-  warn " [  SKIPPED ] ${test}"
+  log "warning" " [  SKIPPED ] ${test}"
 done
 
 # Output the number of failed tests.
 if [[ "${#FAILED[@]}" -eq 1 ]]; then
-  error " [  FAILED  ] 1 test, listed below:"
+  log "error" " [  FAILED  ] 1 test, listed below:"
 elif [[ "${#FAILED[@]}" -gt 1 ]]; then
-  error " [  FAILED  ] ${#FAILED[@]} tests, listed below:"
+  log "error" " [  FAILED  ] ${#FAILED[@]} tests, listed below:"
 fi
 
 # Output each of the failed tests.
 for test in "${FAILED[@]}"; do
-  error " [  FAILED  ] ${test}"
+  log "error" " [  FAILED  ] ${test}"
 done
 
-info " [==========] Cleaning up."
+log "info" " [==========] Cleaning up."
 
 clean_up
 
-info " [==========] Finished."
+log "info" " [==========] Finished."
 
 if [[ "${#FAILED[@]}" -eq 0 ]]; then
   exit 0

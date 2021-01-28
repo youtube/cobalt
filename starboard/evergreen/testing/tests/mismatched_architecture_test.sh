@@ -28,22 +28,21 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.0.log" "update from tmsabi channel was installed"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to download and install the tmsabi package"
+    log "error" "Failed to download and install the tmsabi package"
     return 1
   fi
 
   start_cobalt "file:///tests/${TEST_FILE}?channel=tmsabi" "${TEST_NAME}.1.log" "Failed to load(ed)? ELF header"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to recognize architecture mismatch"
+    log "error" "Failed to recognize architecture mismatch"
     return 1
   fi
 
   if ! grep -Eq "RevertBack current_installation=[0-9]+" "${LOG_PATH}/${TEST_NAME}.1.log"; then
-    error "Failed to revert after mismatched download"
+    log "error" "Failed to revert after mismatched download"
     return 1
   fi
 
   return 0
 }
-

@@ -16,7 +16,7 @@
 
 function deploy_cobalt() {
   if [[ -z "${OUT}" ]]; then
-    info "Please set the environment variable 'OUT'"
+    log "info" "Please set the environment variable 'OUT'"
     exit 1
   fi
 
@@ -61,4 +61,3 @@ function deploy_cobalt() {
 
   echo " Successfully deployed!"
 }
-

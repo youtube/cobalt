@@ -24,17 +24,17 @@ fi
 
 source $DIR/pprint.sh
 
-info " [==========] Preparing Cobalt."
+log "info" " [==========] Preparing Cobalt."
 
 if [[ $# -ne 1 ]]; then
-  error "A platform must be provided"
+  log "error" "A platform must be provided"
   exit 1
 fi
 
 PLATFORMS=("linux" "raspi")
 
 if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]] && [[ ! -d "${DIR}/${1}" ]]; then
-  error "The platform provided must be one of the following: ${PLATFORMS[*]}"
+  log "error" "The platform provided must be one of the following: ${PLATFORMS[*]}"
   exit 1
 fi
 
@@ -60,10 +60,9 @@ SCRIPTS=("${DIR}/shared/app_key.sh"           \
 
 for script in "${SCRIPTS[@]}"; do
   if [[ ! -f "${script}" ]]; then
-    error "The script '${script}' is required"
+    log "error" "The script '${script}' is required"
     exit 1
   fi
 
   source $script "${DIR}/${1}"
 done
-

@@ -24,7 +24,7 @@ TEST_FILE="test.html"
 
 function wait_and_force_race_condition() {
   if [[ $# -ne 3 ]]; then
-    error " wait_and_force_race_condition requires a pattern, a path and a filename"
+    log "error" " wait_and_force_race_condition requires a pattern, a path and a filename"
     return 1
   fi
 
@@ -47,14 +47,14 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file at"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to create a drain file for the test package"
+    log "error" "Failed to create a drain file for the test package"
     return 1
   fi
 
   FILENAME="$(get_temporary_drain_file_path "${TEST_NAME}.0.log")"
 
   if [[ -z "${FILENAME}" ]]; then
-    error "Failed to evaluate a temporary drain file path"
+    log "error" "Failed to evaluate a temporary drain file path"
     return 1
   fi
 
@@ -65,10 +65,9 @@ function run_test() {
   start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "failed to lock slot"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to recognize another update is updating slot"
+    log "error" "Failed to recognize another update is updating slot"
     return 1
   fi
 
   return 0
 }
-
