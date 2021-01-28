@@ -21,6 +21,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 namespace shared {
@@ -28,34 +29,37 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class StubVideoDecoder : public VideoDecoder {
+class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
   StubVideoDecoder() {}
+  ~StubVideoDecoder() { Reset(); }
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
 
   size_t GetPrerollFrameCount() const override;
-
   SbTime GetPrerollTimeout() const override;
-
   size_t GetMaxNumberOfCachedFrames() const override;
 
   void WriteInputBuffer(
       const scoped_refptr<InputBuffer>& input_buffer) override;
-
   void WriteEndOfStream() override;
-
   void Reset() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
+  void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
+  void DecodeEndOfStream();
+
   DecoderStatusCB decoder_status_cb_;
   media::VideoSampleInfo video_sample_info_;
 
+  scoped_ptr<starboard::player::JobThread> decoder_thread_;
   // std::set<> keeps frame timestamps sorted in ascending order.
-  std::set<SbTime> output_event_frame_times_;
+  std::set<SbTime> output_frame_timestamps_;
+  // Used to determine when to send kBufferFull in DecodeOneBuffer().
+  int total_input_count_ = 0;
 };
 
 }  // namespace filter

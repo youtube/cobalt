@@ -22,6 +22,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 namespace shared {
@@ -33,26 +34,33 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   StubAudioDecoder(SbMediaAudioCodec audio_codec,
                    const SbMediaAudioSampleInfo& audio_sample_info);
+  ~StubAudioDecoder() { Reset(); }
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const ConsumedCB& consumed_cb) override;
-
   void WriteEndOfStream() override;
-
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
-
   void Reset() override;
 
  private:
+  void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer,
+                       const ConsumedCB& consumed_cb);
+  void DecodeEndOfStream();
+
   OutputCB output_cb_;
+  ErrorCB error_cb_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioCodec audio_codec_;
   starboard::media::AudioSampleInfo audio_sample_info_;
-  bool stream_ended_;
+
+  scoped_ptr<starboard::player::JobThread> decoder_thread_;
+  Mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
+  // Used to determine when to send multiple DecodedAudios in DecodeOneBuffer().
+  int total_input_count_ = 0;
 };
 
 }  // namespace filter
