@@ -41,17 +41,68 @@ StubAudioDecoder::StubAudioDecoder(
     const SbMediaAudioSampleInfo& audio_sample_info)
     : sample_type_(GetSupportedSampleType()),
       audio_codec_(audio_codec),
-      audio_sample_info_(audio_sample_info),
-      stream_ended_(false) {}
+      audio_sample_info_(audio_sample_info) {}
 
 void StubAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
+  SB_DCHECK(BelongsToCurrentThread());
+
   output_cb_ = output_cb;
+  error_cb_ = error_cb;
 }
 
 void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
                               const ConsumedCB& consumed_cb) {
+  SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
+
+  if (!decoder_thread_) {
+    decoder_thread_.reset(new JobThread("stub_audio_decoder"));
+  }
+  decoder_thread_->job_queue()->Schedule(std::bind(
+      &StubAudioDecoder::DecodeOneBuffer, this, input_buffer, consumed_cb));
+}
+
+void StubAudioDecoder::WriteEndOfStream() {
+  SB_DCHECK(BelongsToCurrentThread());
+  if (decoder_thread_) {
+    decoder_thread_->job_queue()->Schedule(
+        std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
+    return;
+  }
+  decoded_audios_.push(new DecodedAudio());
+  output_cb_();
+}
+
+scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  *samples_per_second = audio_sample_info_.samples_per_second;
+  ScopedLock lock(decoded_audios_mutex_);
+  if (decoded_audios_.empty()) {
+    return scoped_refptr<DecodedAudio>();
+  }
+  auto result = decoded_audios_.front();
+  decoded_audios_.pop();
+  return result;
+}
+
+void StubAudioDecoder::Reset() {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  decoder_thread_.reset();
+  last_input_buffer_ = NULL;
+  total_input_count_ = 0;
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  CancelPendingJobs();
+}
+
+void StubAudioDecoder::DecodeOneBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer,
+    const ConsumedCB& consumed_cb) {
+  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   // Values to represent what kind of dummy audio to fill the decoded audio
   // we produce with.
@@ -61,48 +112,79 @@ void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   };
   // Can be set locally to fill with different types.
   const FillType fill_type = kSilence;
+  const int kMaxInputBeforeMultipleDecodedAudios = 4;
 
   if (last_input_buffer_) {
-    SbTime diff = input_buffer->timestamp() - last_input_buffer_->timestamp();
-    SB_DCHECK(diff >= 0);
+    SbTime total_output_duration =
+        input_buffer->timestamp() - last_input_buffer_->timestamp();
+    if (total_output_duration < 0) {
+      SB_DLOG(ERROR) << "Total output duration " << total_output_duration
+                     << " is invalid.";
+      error_cb_(kSbPlayerErrorDecode, "Total output duration is less than 0.");
+      return;
+    }
     size_t sample_size =
         sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
-    size_t size = diff * audio_sample_info_.samples_per_second * sample_size *
-                  audio_sample_info_.number_of_channels / kSbTimeSecond;
-    size -= size % (sample_size * audio_sample_info_.number_of_channels);
+    size_t total_frame_size = total_output_duration *
+                              audio_sample_info_.samples_per_second /
+                              kSbTimeSecond;
     if (audio_codec_ == kSbMediaAudioCodecAac) {
-      // Frame size for AAC is fixed at 1024, so fake the output size such that
-      // number of frames matches up.
-      size = sample_size * audio_sample_info_.number_of_channels * 1024;
+      // Frame size for AAC is fixed at 1024 samples.
+      total_frame_size = 1024;
     }
 
-    decoded_audios_.push(
-        new DecodedAudio(audio_sample_info_.number_of_channels, sample_type_,
-                         kSbMediaAudioFrameStorageTypeInterleaved,
-                         last_input_buffer_->timestamp(), size));
+    // Send 3 decoded audio objects on every 5th call to DecodeOneBuffer().
+    int num_decoded_audio_objects =
+        total_input_count_ % kMaxInputBeforeMultipleDecodedAudios == 0 ? 3 : 1;
+    size_t output_frame_size = total_frame_size / num_decoded_audio_objects;
+    size_t output_byte_size =
+        output_frame_size * sample_size * audio_sample_info_.number_of_channels;
 
-    if (fill_type == kSilence) {
-      SbMemorySet(decoded_audios_.back()->buffer(), 0, size);
-    } else {
-      SB_DCHECK(fill_type == kWave);
-      for (int i = 0; i < size / sample_size; ++i) {
-        if (sample_size == 2) {
-          *(reinterpret_cast<int16_t*>(decoded_audios_.back()->buffer()) + i) =
-              i;
-        } else {
-          SB_DCHECK(sample_size == 4);
-          *(reinterpret_cast<float*>(decoded_audios_.back()->buffer()) + i) =
-              ((i % 1024) - 512) / 512.0f;
+    for (int i = 0; i < num_decoded_audio_objects; ++i) {
+      SbTime timestamp =
+          last_input_buffer_->timestamp() +
+          ((total_output_duration / num_decoded_audio_objects) * i);
+      // Calculate the output frame size of the last decoded audio object, which
+      // may be larger than the rest.
+      if (i == num_decoded_audio_objects - 1 && num_decoded_audio_objects > 1) {
+        output_frame_size = total_frame_size -
+                            (num_decoded_audio_objects - 1) * output_frame_size;
+        output_byte_size = output_frame_size * sample_size *
+                           audio_sample_info_.number_of_channels;
+      }
+      scoped_refptr<DecodedAudio> decoded_audio(
+          new DecodedAudio(audio_sample_info_.number_of_channels, sample_type_,
+                           kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
+                           output_byte_size));
+
+      if (fill_type == kSilence) {
+        SbMemorySet(decoded_audio.get()->buffer(), 0, output_byte_size);
+      } else {
+        SB_DCHECK(fill_type == kWave);
+        for (int j = 0; j < output_byte_size / sample_size; ++j) {
+          if (sample_size == 2) {
+            *(reinterpret_cast<int16_t*>(decoded_audio.get()->buffer()) + j) =
+                j;
+          } else {
+            SB_DCHECK(sample_size == 4);
+            *(reinterpret_cast<float*>(decoded_audio.get()->buffer()) + j) =
+                ((j % 1024) - 512) / 512.0f;
+          }
         }
       }
+      ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(decoded_audio);
+      decoder_thread_->job_queue()->Schedule(output_cb_);
     }
-    Schedule(output_cb_);
   }
-  Schedule(consumed_cb);
+  decoder_thread_->job_queue()->Schedule(consumed_cb);
   last_input_buffer_ = input_buffer;
+  total_input_count_++;
 }
 
-void StubAudioDecoder::WriteEndOfStream() {
+void StubAudioDecoder::DecodeEndOfStream() {
+  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+
   if (last_input_buffer_) {
     // There won't be a next pts, so just guess that the decoded size is
     // 4 times the encoded size.
@@ -116,35 +198,16 @@ void StubAudioDecoder::WriteEndOfStream() {
       // number of frames matches up.
       fake_size = sample_size * audio_sample_info_.number_of_channels * 1024;
     }
+    ScopedLock lock(decoded_audios_mutex_);
     decoded_audios_.push(
         new DecodedAudio(audio_sample_info_.number_of_channels, sample_type_,
                          kSbMediaAudioFrameStorageTypeInterleaved,
                          last_input_buffer_->timestamp(), fake_size));
-    Schedule(output_cb_);
+    decoder_thread_->job_queue()->Schedule(output_cb_);
   }
+  ScopedLock lock(decoded_audios_mutex_);
   decoded_audios_.push(new DecodedAudio());
-  stream_ended_ = true;
-  Schedule(output_cb_);
-}
-
-scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
-  scoped_refptr<DecodedAudio> result;
-  if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
-    decoded_audios_.pop();
-  }
-  *samples_per_second = audio_sample_info_.samples_per_second;
-  return result;
-}
-
-void StubAudioDecoder::Reset() {
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  stream_ended_ = false;
-  last_input_buffer_ = NULL;
-
-  CancelPendingJobs();
+  decoder_thread_->job_queue()->Schedule(output_cb_);
 }
 
 }  // namespace filter
