@@ -333,6 +333,7 @@ void VideoDecoderTestFixture::DrainOutputs(bool* error_occurred,
                     event.frame->timestamp());
         }
         decoded_frames_.push_back(event.frame);
+        SB_DCHECK(!outstanding_inputs_.empty());
         ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
                                     event.frame->timestamp()));
         outstanding_inputs_.erase(outstanding_inputs_.begin());

@@ -180,6 +180,10 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
 }
 
 void AdaptiveAudioDecoder::OnDecoderOutput() {
+  if (!BelongsToCurrentThread()) {
+    Schedule(std::bind(&AdaptiveAudioDecoder::OnDecoderOutput, this));
+    return;
+  }
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
