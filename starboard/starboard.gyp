@@ -53,7 +53,7 @@
         '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
       ],
       'conditions': [
-        ['sb_crashpad_enabled == 1', {
+        ['sb_evergreen_compatible == 1', {
           'dependencies': [
             '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
           ],

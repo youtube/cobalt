@@ -15,6 +15,7 @@
 #ifndef THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
 
+#define CRASHPAD_ANNOTATION_DEFAULT_LENGTH 64
 #define USER_AGENT_STRING_MAX_SIZE 2048
 
 #ifdef __cplusplus
@@ -24,6 +25,8 @@ extern "C" {
 // Annotations that Evergreen will add to Crashpad for more detailed crash
 // reports.
 typedef struct CrashpadAnnotations {
+  char product[CRASHPAD_ANNOTATION_DEFAULT_LENGTH];
+  char version[CRASHPAD_ANNOTATION_DEFAULT_LENGTH];
   char user_agent_string[USER_AGENT_STRING_MAX_SIZE];
 } CrashpadAnnotations;
 

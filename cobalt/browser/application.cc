@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
@@ -62,6 +63,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
@@ -74,6 +76,10 @@
 #include "starboard/configuration.h"
 #include "starboard/system.h"
 #include "url/gurl.h"
+
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/utils.h"
+#endif
 
 using cobalt::cssom::ViewportSize;
 
@@ -155,8 +161,8 @@ int GetRemoteDebuggingPort() {
 
 #if defined(ENABLE_WEBDRIVER)
 int GetWebDriverPort() {
-  // The default port on which the webdriver server should listen for incoming
-  // connections.
+// The default port on which the webdriver server should listen for incoming
+// connections.
 #if defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   const int kDefaultWebDriverPort = SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT;
 #else
@@ -520,6 +526,56 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
+#if SB_API_VERSION >= 11
+bool AddCrashHandlerAnnotations() {
+  auto crash_handler_extension =
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
+  if (!crash_handler_extension) {
+    LOG(INFO) << "No crash handler extension, not sending annotations.";
+    return false;
+  }
+
+  auto platform_info = cobalt::browser::GetUserAgentPlatformInfoFromSystem();
+  std::string user_agent =
+      cobalt::browser::CreateUserAgentString(platform_info);
+  std::string version = "";
+#if SB_IS(EVERGREEN)
+  version = cobalt::updater::GetCurrentEvergreenVersion();
+  std::string product = "Cobalt_Evergreen";
+#else
+  std::string product = "Cobalt";
+#endif
+  if (version.empty()) {
+    base::StringAppendF(&version, "%s.%s-%s",
+                        platform_info.cobalt_version.c_str(),
+                        platform_info.cobalt_build_version_number.c_str(),
+                        platform_info.build_configuration.c_str());
+  }
+
+  user_agent.push_back('\0');
+  product.push_back('\0');
+  version.push_back('\0');
+
+  CrashpadAnnotations crashpad_annotations;
+  SbMemorySet(&crashpad_annotations, sizeof(CrashpadAnnotations), 0);
+  SbStringCopy(crashpad_annotations.user_agent_string, user_agent.c_str(),
+               USER_AGENT_STRING_MAX_SIZE);
+  SbStringCopy(crashpad_annotations.product, product.c_str(),
+               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  SbStringCopy(crashpad_annotations.version, version.c_str(),
+               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  bool result = static_cast<const CobaltExtensionCrashHandlerApi*>(
+                    crash_handler_extension)
+                    ->OverrideCrashpadAnnotations(&crashpad_annotations);
+  if (result) {
+    LOG(INFO) << "Sent annotations to crash handler";
+  } else {
+    LOG(ERROR) << "Could not send annotations to crash handler.";
+  }
+  return result;
+}
+#endif  // SB_API_VERSION >= 11
+
 }  // namespace
 
 // Helper stub to disable histogram tracking in StatisticsRecorder
@@ -692,8 +748,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   if (command_line->HasSwitch(
           browser::switches::kForceMigrationForStoragePartitioning) ||
       partition_key == default_key) {
-    storage_manager_options.savegame_options.fallback_to_default_id =
-        true;
+    storage_manager_options.savegame_options.fallback_to_default_id = true;
   }
 
   // User can specify an extra search path entry for files loaded via file://.
@@ -770,8 +825,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   security_flags.csp_header_policy = csp::kCSPRequired;
 #endif  // defined(COBALT_FORCE_CSP)
 
-  network_module_options.https_requirement =
-      security_flags.https_requirement;
+  network_module_options.https_requirement = security_flags.https_requirement;
   options.web_module_options.require_csp = security_flags.csp_header_policy;
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
@@ -785,8 +839,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
-      storage_manager_.get(), &event_dispatcher_,
-      network_module_options));
+      storage_manager_.get(), &event_dispatcher_, network_module_options));
+
+#if SB_API_VERSION >= 11
+  AddCrashHandlerAnnotations();
+#endif
 
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
@@ -807,7 +864,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
 
-  // Register event callbacks.
+// Register event callbacks.
 #if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
@@ -902,15 +959,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 }
 
 Application::~Application() {
-  // explicitly reset here because the destruction of the object is complex
-  // and involves a thread join. If this were to hang the app then having
-  // the destruction at this point gives a real file-line number and a place
-  // for the debugger to land.
+// explicitly reset here because the destruction of the object is complex
+// and involves a thread join. If this were to hang the app then having
+// the destruction at this point gives a real file-line number and a place
+// for the debugger to land.
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   memory_tracker_tool_.reset(NULL);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-  // Unregister event callbacks.
+// Unregister event callbacks.
 #if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
