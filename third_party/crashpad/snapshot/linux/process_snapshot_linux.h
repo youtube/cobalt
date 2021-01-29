@@ -71,7 +71,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //! \param[in] evergreen_information_address An address sent to the handler
   //!     server that points to a populated EvergreenInfo struct.
   //! \param[in] annotations_address An address sent to the handler server that
-  //!     that points to a populated EvergreenAnnotations struct.
+  //!     that points to a populated CrashpadAnnotations struct.
   //!
   //! \return `true` if the snapshot could be created, `false` otherwise with
   //!     an appropriate message logged.

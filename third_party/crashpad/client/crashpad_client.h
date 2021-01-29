@@ -40,6 +40,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/elf_loader/evergreen_info.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 #endif
 
 namespace crashpad {
@@ -392,11 +393,11 @@ class CrashpadClient {
   //! \brief Sends mapping info to the handler
   //!
   //! A handler must have already been installed before calling this method.
-  //! \param[in] annotations A EvergreenAnnotations struct, whose information
+  //! \param[in] annotations A CrashpadAnnotations struct, whose information
   //!     was created on Evergreen startup.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  static bool SendAnnotationsToHandler(EvergreenAnnotations annotations);
+  static bool SendAnnotationsToHandler(CrashpadAnnotations annotations);
 #endif
 
   //! \brief Requests that the handler capture a dump even though there hasn't

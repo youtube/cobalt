@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/crashpad/wrapper/wrapper.h"
+#ifndef THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
+#define THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_
 
-namespace third_party {
-namespace crashpad {
-namespace wrapper {
+#define USER_AGENT_STRING_MAX_SIZE 2048
 
-void InstallCrashpadHandler() {}
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
-  return false;
-}
+// Annotations that Evergreen will add to Crashpad for more detailed crash
+// reports.
+typedef struct CrashpadAnnotations {
+  char user_agent_string[USER_AGENT_STRING_MAX_SIZE];
+} CrashpadAnnotations;
 
-bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
-  return false;
-}
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
-}  // namespace wrapper
-}  // namespace crashpad
-}  // namespace third_party
+#endif  // THIRD_PARTY_CRASHPAD_WRAPPER_ANNOTATIONS_H_

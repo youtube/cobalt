@@ -58,7 +58,7 @@ class ExceptionHandlerClient {
   bool SendEvergreenInfo(
       const ExceptionHandlerProtocol::ClientInformation& info);
 
-  //! \brief Sends EvergreenAnnotations to the ExceptionHandlerServer.
+  //! \brief Sends CrashpadAnnotations to the ExceptionHandlerServer.
   //!
   //! \param[in] info Information to about this client.
   //! \return `true` on success or `false` on failure.
