@@ -58,7 +58,7 @@ class ExceptionHandlerProtocol {
     VMAddress evergreen_information_address;
 
     //! \brief The address in the client's address space of an
-    //!     EvergreenAnnotations struct, or 0 if there is no such struct.
+    //!     CrashpadAnnotations struct, or 0 if there is no such struct.
     VMAddress annotations_address;
 #endif
 

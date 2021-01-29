@@ -16,6 +16,7 @@
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
 #include "starboard/elf_loader/evergreen_info.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 
 namespace third_party {
 namespace crashpad {
@@ -25,7 +26,7 @@ void InstallCrashpadHandler();
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
-bool AddAnnotationsToCrashpad(EvergreenAnnotations annotations);
+bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations);
 
 }  // namespace wrapper
 }  // namespace crashpad
