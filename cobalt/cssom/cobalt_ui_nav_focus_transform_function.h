@@ -31,7 +31,9 @@ class TransformFunctionVisitor;
 // queries the closest hybrid navigation focus item (i.e. this element or
 // an ancestor element with tabindex set appropriately). If that navigation
 // item does not have focus, or the system does not provide interaction
-// animations, then this transform function will evaluate to identity.
+// animations, then this transform function will evaluate to identity. If
+// no ancestor is a hybrid navigation focus item, then the currently-focused
+// item (which may be in a different subtree) is queried.
 class CobaltUiNavFocusTransformFunction : public TransformFunction {
  public:
   // |progress_to_identity| is used to support transitions to or from CSS

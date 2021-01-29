@@ -79,6 +79,13 @@ void RemovePendingChangesLocked(NativeItem nav_item) {
 
 }  // namespace
 
+// Use an atomic to track the currently-focused item. Don't use a mutex or
+// spinlock in GetGlobalFocusTransform() / GetGlobalFocusVector() and
+// OnBlur() / OnFocus() since this can result in a deadlock if the starboard
+// implementation uses a lock of its own for the NativeItem.
+SbAtomicPtr NavItem::s_focused_nav_item_(
+    reinterpret_cast<intptr_t>(kNativeItemInvalid));
+
 NativeCallbacks NavItem::s_callbacks_ = {
     &NavItem::OnBlur, &NavItem::OnFocus, &NavItem::OnScroll,
 };
@@ -92,6 +99,10 @@ NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
       nav_item_type_(type),
       nav_item_(GetInterface().create_item(type, &s_callbacks_, this)),
       state_(kStateNew) {
+  static_assert(sizeof(s_focused_nav_item_) == sizeof(NativeItem),
+                "Size mismatch");
+  static_assert(sizeof(s_focused_nav_item_) == sizeof(intptr_t),
+                "Size mismatch");
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   if (++g_nav_item_count == 1) {
     g_pending_updates = new std::vector<PendingUpdate>();
@@ -102,6 +113,8 @@ NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
 NavItem::~NavItem() {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   DCHECK(state_ == kStatePendingDelete);
+  DCHECK(SbAtomicNoBarrier_LoadPtr(&s_focused_nav_item_) !=
+         reinterpret_cast<intptr_t>(nav_item_));
   g_pending_updates->emplace_back(
       nav_item_, base::Bind(GetInterface().destroy_item, nav_item_));
   if (--g_nav_item_count == 0) {
@@ -173,6 +186,9 @@ void NavItem::SetEnabled(bool enabled) {
       // Disable immediately to avoid errant callbacks on this item.
       GetInterface().set_item_enabled(nav_item_, enabled);
     }
+    SbAtomicNoBarrier_CompareAndSwapPtr(
+        &s_focused_nav_item_, reinterpret_cast<intptr_t>(nav_item_),
+        reinterpret_cast<intptr_t>(kNativeItemInvalid));
   }
 }
 
@@ -237,8 +253,33 @@ void NavItem::GetContentOffset(float* out_x, float* out_y) {
 }
 
 // static
+bool NavItem::GetGlobalFocusTransform(NativeMatrix4* out_transform) {
+  starboard::ScopedSpinLock lock(&g_pending_updates_lock);
+  NativeItem focused_item = reinterpret_cast<NativeItem>(
+      SbAtomicNoBarrier_LoadPtr(&s_focused_nav_item_));
+  if (focused_item == kNativeItemInvalid) {
+    return false;
+  }
+  return GetInterface().get_item_focus_transform(focused_item, out_transform);
+}
+
+// static
+bool NavItem::GetGlobalFocusVector(float* out_x, float* out_y) {
+  starboard::ScopedSpinLock lock(&g_pending_updates_lock);
+  NativeItem focused_item = reinterpret_cast<NativeItem>(
+      SbAtomicNoBarrier_LoadPtr(&s_focused_nav_item_));
+  if (focused_item == kNativeItemInvalid) {
+    return false;
+  }
+  return GetInterface().get_item_focus_vector(focused_item, out_x, out_y);
+}
+
+// static
 void NavItem::OnBlur(NativeItem item, void* callback_context) {
   NavItem* this_ptr = static_cast<NavItem*>(callback_context);
+  SbAtomicNoBarrier_CompareAndSwapPtr(
+      &s_focused_nav_item_, reinterpret_cast<intptr_t>(this_ptr->nav_item_),
+      reinterpret_cast<intptr_t>(kNativeItemInvalid));
   if (!this_ptr->onblur_callback_.is_null()) {
     this_ptr->onblur_callback_.Run();
   }
@@ -247,6 +288,8 @@ void NavItem::OnBlur(NativeItem item, void* callback_context) {
 // static
 void NavItem::OnFocus(NativeItem item, void* callback_context) {
   NavItem* this_ptr = static_cast<NavItem*>(callback_context);
+  SbAtomicNoBarrier_StorePtr(&s_focused_nav_item_,
+                             reinterpret_cast<intptr_t>(this_ptr->nav_item_));
   if (!this_ptr->onfocus_callback_.is_null()) {
     this_ptr->onfocus_callback_.Run();
   }
