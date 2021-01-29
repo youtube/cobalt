@@ -85,13 +85,12 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
   for (auto video_filename : kVideoTestFiles) {
     VideoDmpReader dmp_reader(ResolveTestFileName(video_filename).c_str());
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-
+    if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                        "")) {
+      continue;
+    }
     for (auto output_mode : kOutputModes) {
-      if (!IsOutputModeSupported(output_mode, dmp_reader.video_codec())) {
-        continue;
-      }
-      if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
-                                         "")) {
+      if (IsOutputModeSupported(output_mode, dmp_reader.video_codec())) {
         test_configs.push_back(
             std::make_tuple(kEmptyName, video_filename, output_mode));
       }
