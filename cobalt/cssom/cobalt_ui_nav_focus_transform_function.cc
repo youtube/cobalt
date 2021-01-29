@@ -44,7 +44,9 @@ math::Matrix3F CobaltUiNavFocusTransformFunction::ToMatrix(
     const math::SizeF& used_size,
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   ui_navigation::NativeMatrix4 matrix;
-  if (used_ui_nav_focus && used_ui_nav_focus->GetFocusTransform(&matrix)) {
+  if ((used_ui_nav_focus && used_ui_nav_focus->GetFocusTransform(&matrix)) ||
+      (!used_ui_nav_focus &&
+       ui_navigation::NavItem::GetGlobalFocusTransform(&matrix))) {
     return math::InterpolateMatrices(
         math::Matrix3F::FromValues(
             // Since the UI is only rendered in 2D, ignore any scaling or
