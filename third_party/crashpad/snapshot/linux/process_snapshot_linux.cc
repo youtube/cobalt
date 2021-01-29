@@ -20,7 +20,7 @@
 #include "util/linux/exception_information.h"
 
 #if defined(STARBOARD)
-#include "starboard/elf_loader/evergreen_info.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 #endif
 
 namespace crashpad {
@@ -70,9 +70,9 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
     return false;
   }
 
-  EvergreenAnnotations annotations;
+  CrashpadAnnotations annotations;
   if (!memory_range_.Read(
-          annotations_address, sizeof(EvergreenAnnotations), &annotations)) {
+          annotations_address, sizeof(CrashpadAnnotations), &annotations)) {
     LOG(ERROR) << "Could not read annotations";
   } else {
     AddAnnotation("user_agent_string",

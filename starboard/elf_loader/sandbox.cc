@@ -24,6 +24,7 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "starboard/thread_types.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 
 starboard::elf_loader::ElfLoader g_elf_loader;
@@ -78,10 +79,10 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
-    EvergreenAnnotations cobalt_version_info;
-    SbMemorySet(&cobalt_version_info, sizeof(EvergreenAnnotations), 0);
+    CrashpadAnnotations cobalt_version_info;
+    SbMemorySet(&cobalt_version_info, sizeof(CrashpadAnnotations), 0);
     SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
-                 EVERGREEN_USER_AGENT_MAX_SIZE);
+                 USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
         cobalt_version_info);
     SB_DLOG(INFO) << "Added user agent string to Crashpad.";
