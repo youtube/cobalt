@@ -15,7 +15,9 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
+#include "cobalt/extension/crash_handler.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
@@ -35,6 +37,9 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::shared::GetConfigurationApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionCrashHandlerName) == 0) {
+    return starboard::common::GetCrashHandlerApi();
   }
   return NULL;
 }

@@ -77,6 +77,8 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
   } else {
     AddAnnotation("user_agent_string",
                   std::string(annotations.user_agent_string));
+    AddAnnotation("prod", std::string(annotations.product));
+    AddAnnotation("ver", std::string(annotations.version));
   }
 
   system_.Initialize(&process_reader_, &snapshot_time_);
