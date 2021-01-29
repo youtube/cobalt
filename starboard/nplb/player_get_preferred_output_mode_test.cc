@@ -45,6 +45,43 @@ TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
   ASSERT_NE(output_mode, kSbPlayerOutputModeInvalid);
 }
 
+TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
+  const SbMediaAudioCodec kAudioCodecs[] = {
+      kSbMediaAudioCodecNone, kSbMediaAudioCodecAac,  kSbMediaAudioCodecAc3,
+      kSbMediaAudioCodecEac3, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
+  };
+  const SbMediaVideoCodec kVideoCodecs[] = {
+    kSbMediaVideoCodecNone,
+    kSbMediaVideoCodecH264,
+    kSbMediaVideoCodecH265,
+    kSbMediaVideoCodecMpeg2,
+    kSbMediaVideoCodecTheora,
+    kSbMediaVideoCodecVc1,
+#if SB_API_VERSION < 11
+    kSbMediaVideoCodecVp10,
+#else   // SB_API_VERSION < 11
+    kSbMediaVideoCodecAv1,
+#endif  // SB_API_VERSION < 11
+    kSbMediaVideoCodecVp8,
+    kSbMediaVideoCodecVp9,
+  };
+  const SbPlayerOutputMode kOutputModes[] = {
+      kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut,
+      kSbPlayerOutputModeInvalid,
+  };
+
+  for (SbMediaAudioCodec audio_codec : kAudioCodecs) {
+    for (SbMediaVideoCodec video_codec : kVideoCodecs) {
+      for (SbPlayerOutputMode output_mode : kOutputModes) {
+        auto creation_param =
+            CreatePlayerCreationParam(audio_codec, video_codec);
+        creation_param.output_mode = output_mode;
+        SbPlayerGetPreferredOutputMode(&creation_param);
+      }
+    }
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

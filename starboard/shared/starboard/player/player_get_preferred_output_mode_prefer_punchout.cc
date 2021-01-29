@@ -71,7 +71,9 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return output_modes_to_check[1];
   }
 
-  SB_NOTREACHED();
+  SB_LOG(WARNING) << "creation_param->video_sample_info.codec ("
+                  << creation_param->video_sample_info.codec
+                  << ") is not supported";
   return kSbPlayerOutputModeInvalid;
 }
 
