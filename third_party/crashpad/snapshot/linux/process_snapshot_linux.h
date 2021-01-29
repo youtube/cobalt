@@ -121,7 +121,8 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //! android_set_abort_message() function. Contrast this with module
   //! annotations, which are under the control of the process being snapshotted.
   void AddAnnotation(const std::string& key, const std::string& value) {
-    annotations_simple_map_[key] = value;
+    if (annotations_simple_map_.find(key) == annotations_simple_map_.end())
+      annotations_simple_map_[key] = value;
   }
 
   //! \brief Returns options from CrashpadInfo structures found in modules in
