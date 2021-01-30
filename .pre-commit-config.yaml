@@ -104,3 +104,9 @@ repos:
         language: python
         types: [python]
         verbose: true
+    -   id: check-bug-in-commit-message
+        name: Check Bug In Commit Message
+        description: Checks for a tracking bug in a commit message
+        entry: python precommit_hooks/check_bug_in_description_wrapper.py
+        language: python
+        stages: [push]
