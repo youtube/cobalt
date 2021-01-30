@@ -17,8 +17,11 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioRouting;
+import android.media.AudioRouting.OnRoutingChangedListener;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
@@ -27,6 +30,8 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
@@ -45,6 +50,10 @@ public class AudioTrackBridge {
   // The following variables are used only when |tunnelModeEnabled| is true.
   private ByteBuffer avSyncHeader;
   private int avSyncPacketBytesRemaining;
+
+  private AtomicBoolean newAudioDeviceAdded = new AtomicBoolean(false);
+  private AudioDeviceInfo currentRoutedDevice;
+  private OnRoutingChangedListener onRoutingChangedListener;
 
   private static int getBytesPerSample(int audioFormat) {
     switch (audioFormat) {
@@ -150,11 +159,33 @@ public class AudioTrackBridge {
     Log.i(
         TAG,
         String.format(
-            "AudioTrack created with buffer size %d (prefered: %d).  The minimum buffer size is"
+            "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
                 + " %d.",
             audioTrackBufferSize,
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
+    if (Build.VERSION.SDK_INT >= 24) {
+      currentRoutedDevice = audioTrack.getRoutedDevice();
+      onRoutingChangedListener =
+          new AudioRouting.OnRoutingChangedListener() {
+            @Override
+            public void onRoutingChanged(AudioRouting router) {
+              AudioDeviceInfo newRoutedDevice = router.getRoutedDevice();
+              if (currentRoutedDevice == null && newRoutedDevice != null) {
+                if (!areAudioDevicesEqual(currentRoutedDevice, newRoutedDevice)) {
+                  Log.v(
+                      TAG,
+                      String.format(
+                          "New audio device %s added to AudioTrackAudioSink.",
+                          newRoutedDevice.getProductName()));
+                  newAudioDeviceAdded.set(true);
+                }
+              }
+              currentRoutedDevice = newRoutedDevice;
+            }
+          };
+      audioTrack.addOnRoutingChangedListener(onRoutingChangedListener, null);
+    }
   }
 
   public Boolean isAudioTrackValid() {
@@ -163,6 +194,9 @@ public class AudioTrackBridge {
 
   public void release() {
     if (audioTrack != null) {
+      if (Build.VERSION.SDK_INT >= 24) {
+        audioTrack.removeOnRoutingChangedListener(onRoutingChangedListener);
+      }
       audioTrack.release();
     }
     audioTrack = null;
@@ -343,7 +377,7 @@ public class AudioTrackBridge {
     if (Build.VERSION.SDK_INT >= 24) {
       return getUnderrunCountV24();
     }
-    // The funtion getUnderrunCount() is added in API level 24.
+    // The function getUnderrunCount() is added in API level 24.
     return 0;
   }
 
@@ -354,5 +388,27 @@ public class AudioTrackBridge {
       return 0;
     }
     return audioTrack.getUnderrunCount();
+  }
+
+  @RequiresApi(23)
+  private boolean areAudioDevicesEqual(AudioDeviceInfo device1, AudioDeviceInfo device2) {
+    if (device1.getId() == device2.getId()
+        && device1.getType() == device2.getType()
+        && device1.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+      // This is a workaround for the emulator, which triggers an error callback when switching
+      // between devices with different hash codes that are otherwise identical.
+      return Arrays.equals(device1.getChannelCounts(), device2.getChannelCounts())
+          && Arrays.equals(device1.getChannelIndexMasks(), device2.getChannelIndexMasks())
+          && Arrays.equals(device1.getChannelMasks(), device2.getChannelMasks())
+          && Arrays.equals(device1.getEncodings(), device2.getEncodings())
+          && Arrays.equals(device1.getSampleRates(), device2.getSampleRates())
+          && device1.getProductName().equals(device2.getProductName());
+    }
+    return device1.equals(device2);
+  }
+
+  @UsedByNative
+  private boolean getAndResetHasNewAudioDeviceAdded() {
+    return newAudioDeviceAdded.getAndSet(false);
   }
 }

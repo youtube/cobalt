@@ -240,6 +240,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   while (!quit_) {
     int playback_head_position = 0;
     SbTime frames_consumed_at = 0;
+    bool new_audio_device_added = env->CallBooleanMethodOrAbort(
+        j_audio_track_bridge_, "getAndResetHasNewAudioDeviceAdded", "()Z");
+    if (new_audio_device_added) {
+      SB_LOG(INFO) << "New audio device added.";
+      error_func_(kSbPlayerErrorCapabilityChanged, context_);
+      break;
+    }
 
     if (was_playing) {
       ScopedLocalJavaRef<jobject> j_audio_timestamp(
@@ -323,9 +330,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         (offset_in_frames + frames_in_audio_track) % frames_per_channel_;
     int expected_written_frames = 0;
     if (frames_per_channel_ > offset_in_frames + frames_in_audio_track) {
-      expected_written_frames =
-          std::min(frames_per_channel_ - (offset_in_frames + frames_in_audio_track),
-                   frames_in_buffer - frames_in_audio_track);
+      expected_written_frames = std::min(
+          frames_per_channel_ - (offset_in_frames + frames_in_audio_track),
+          frames_in_buffer - frames_in_audio_track);
     } else {
       expected_written_frames = frames_in_buffer - frames_in_audio_track;
     }
@@ -360,34 +367,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                   sync_time);
       }
 
-      // While WriteData() returns kAudioTrackErrorDeadObject on dead object,
-      // getAudioTimestamp() doesn't, it just no longer updates its return
-      // value.  If the dead object error occurs when there isn't any audio data
-      // to write, there is no way to detect it by checking the return value of
-      // getAudioTimestamp().  Instead, we have to check if its return value has
-      // been changed during a certain period of time, to detect the underlying
-      // dead object error.
-      // Note that dead object would occur while switching audio end points in
-      // tunnel mode.  Under non-tunnel mode, the Android native AudioTrack will
-      // handle audio track dead object automatically if the new end point can
-      // support current audio format.
-      // TODO: Investigate to handle this error in non-tunnel mode.
-      if (tunnel_mode_audio_session_id_ != -1 &&
-          last_written_succeeded_at != -1) {
-        const SbTime kAudioSinkBlockedDuration = kSbTimeSecond;
-        auto time_since_last_written_success =
-            SbTimeGetMonotonicNow() - last_written_succeeded_at;
-        if (time_since_last_written_success > kAudioSinkBlockedDuration &&
-            playback_head_not_changed_duration > kAudioSinkBlockedDuration &&
-            tunnel_mode_audio_session_id_ != -1) {
-          SB_LOG(INFO) << "Over one second without frames written and consumed";
-          consume_frames_func_(frames_in_audio_track, SbTimeGetMonotonicNow(),
-                               context_);
-          error_func_(kSbPlayerErrorCapabilityChanged, context_);
-          break;
-        }
-      }
-
       SbThreadSleep(10 * kSbTimeMillisecond);
       continue;
     }
@@ -411,7 +390,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SbTime now = SbTimeGetMonotonicNow();
 
     if (written_frames < 0) {
-      // Take all |frames_in_audio_track| as consumed since audio track could be dead.
+      // Take all |frames_in_audio_track| as consumed since audio track could be
+      // dead.
       consume_frames_func_(frames_in_audio_track, now, context_);
       error_func_(written_frames == kAudioTrackErrorDeadObject
                       ? kSbPlayerErrorCapabilityChanged
