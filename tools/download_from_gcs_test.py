@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,11 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import argparse
-import hashlib
+"""Tests downloading individual and directory resources from GCS."""
 import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -50,6 +48,7 @@ def _Sha1sMatch(file_to_read, file_to_hash):
 
 
 class TestFileDownload(unittest.TestCase):
+  """Download a single file from GCS and verify it."""
 
   def setUp(self):
     self.test_file = os.path.join(_TEST_PATH, _TEST_FILE)
@@ -61,16 +60,17 @@ class TestFileDownload(unittest.TestCase):
     os.remove(self.output_file)
     self.output_directory.cleanup()
 
-  def downloadFile(self, test_file, output_file):
+  def download_file(self, test_file, output_file):
     return download_from_gcs.MaybeDownloadFileFromGcs(
         self.bucket, sha1_file=test_file, output_file=output_file)
 
   def testDownloadSingleFile(self):
-    self.assertTrue(self.downloadFile(self.test_file, self.output_file))
+    self.assertTrue(self.download_file(self.test_file, self.output_file))
     self.assertTrue(_Sha1sMatch(self.test_file, self.output_file))
 
 
 class DirectoryDownloadTest(unittest.TestCase):
+  """Download files from GCS using a directory of sha files."""
 
   def setUp(self):
     self.test_directory = os.path.join(_TEST_PATH, _TEST_DIRECTORY)
@@ -80,7 +80,7 @@ class DirectoryDownloadTest(unittest.TestCase):
   def tearDown(self):
     self.output_directory.cleanup()
 
-  def downloadFiles(self, test_directory, output_directory):
+  def download_files(self, test_directory, output_directory):
     return download_from_gcs.MaybeDownloadDirectoryFromGcs(
         self.bucket,
         sha1_directory=test_directory,
@@ -88,7 +88,7 @@ class DirectoryDownloadTest(unittest.TestCase):
 
   def testDownloadMultipleFiles(self):
     self.assertTrue(
-        self.downloadFiles(self.test_directory, self.output_directory.name))
+        self.download_files(self.test_directory, self.output_directory.name))
 
     sha1_files = list(os.listdir(self.test_directory))
     output_files = list(os.listdir(self.output_directory.name))
