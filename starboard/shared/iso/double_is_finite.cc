@@ -19,6 +19,8 @@
 
 #include "starboard/common/log.h"
 
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
 bool SbDoubleIsFinite(const double d) {
   return (fpclassify(d) != FP_INFINITE);
 }
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION

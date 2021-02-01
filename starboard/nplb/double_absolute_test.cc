@@ -17,6 +17,8 @@
 #include "starboard/double.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -27,10 +29,12 @@ TEST(SbDoubleAbsoluteTest, SunnyDay) {
   EXPECT_EQ(0, SbDoubleAbsolute(0));
   EXPECT_FALSE(SbDoubleIsFinite(
       SbDoubleAbsolute(std::numeric_limits<double>::infinity())));
-  EXPECT_TRUE(SbDoubleIsNan(SbDoubleAbsolute(
-      std::numeric_limits<double>::quiet_NaN())));
+  EXPECT_TRUE(SbDoubleIsNan(
+      SbDoubleAbsolute(std::numeric_limits<double>::quiet_NaN())));
 }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION

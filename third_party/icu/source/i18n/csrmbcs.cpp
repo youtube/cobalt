@@ -12,11 +12,7 @@
 #include "csmatch.h"
 #include "csrmbcs.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/math_poem.h"
-#else
 #include <math.h>
-#endif
 
 U_NAMESPACE_BEGIN
 

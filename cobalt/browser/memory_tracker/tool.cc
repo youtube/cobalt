@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/memory_tracker/tool.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <map>
 #include <memory>
@@ -36,7 +37,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/double.h"
 #include "starboard/file.h"
 
 namespace cobalt {
@@ -377,7 +377,7 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       double num_mins = 1.0;
       if (!tool_arg.empty()) {
         if (!base::StringToDouble(tool_arg, &num_mins) ||
-            SbDoubleIsNan(num_mins) || num_mins <= 0) {
+            std::isnan(num_mins) || num_mins <= 0) {
           num_mins = 1.0;
         }
       }

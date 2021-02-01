@@ -17,7 +17,6 @@
 #include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/numeric_types_test_interface.h"
-#include "starboard/double.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -51,7 +50,8 @@ class LargeIntegerTypeBindingsTest : public NumericTypeBindingsTest<T> {};
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
                          UnsignedLongTypeTest, LongLongTypeTest,
-                         UnsignedLongLongTypeTest, DoubleTypeTest> NumericTypes;
+                         UnsignedLongLongTypeTest, DoubleTypeTest>
+    NumericTypes;
 
 typedef ::testing::Types<LongLongTypeTest, UnsignedLongLongTypeTest>
     LargeIntegerTypes;
@@ -60,13 +60,15 @@ TYPED_TEST_CASE(LargeIntegerTypeBindingsTest, LargeIntegerTypes);
 #else
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
-                         UnsignedLongTypeTest, DoubleTypeTest> NumericTypes;
+                         UnsignedLongTypeTest, DoubleTypeTest>
+    NumericTypes;
 #endif  // ENGINE_SUPPORTS_INT64
 // Not including long longs in IntegerTypes, due to different casting
 // behaviours.
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
-                         UnsignedLongTypeTest> IntegerTypes;
+                         UnsignedLongTypeTest>
+    IntegerTypes;
 
 typedef ::testing::Types<DoubleTypeTest, UnrestrictedDoubleTypeTest>
     FloatingPointTypes;
@@ -80,9 +82,9 @@ bool IsNan(T number) {
 #pragma warning(push)
 // On Windows isnan() returns an int.
 // warning C4800: 'int' : forcing value to bool 'true' or 'false'
-#pragma warning(disable:4800)
+#pragma warning(disable : 4800)
 #endif
-  return SbDoubleIsNan(number);
+  return std::isnan(number);
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

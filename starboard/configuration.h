@@ -90,6 +90,9 @@
 // Deprecated Starboard character APIs
 #define SB_CHARACTER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated Starboard double APIs
+#define SB_DOUBLE_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
