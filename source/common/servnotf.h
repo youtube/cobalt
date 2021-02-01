@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2014, International Business Machines Corporation and    *
@@ -103,7 +105,7 @@ public:
     
 protected: 
     /**
-     * Subclasses implement this to return TRUE if the listener is
+     * Subclasses implement this to return true if the listener is
      * of the appropriate type.
      */
     virtual UBool acceptsListener(const EventListener& l) const = 0;

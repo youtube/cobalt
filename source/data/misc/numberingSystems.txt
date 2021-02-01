@@ -1,13 +1,13 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/numberingSystems.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 numberingSystems:table(nofallback){
     numberingSystems{
+        adlm{
+            algorithmic:int{0}
+            desc{"𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙"}
+            radix:int{10}
+        }
         ahom{
             algorithmic:int{0}
             desc{"𑜰𑜱𑜲𑜳𑜴𑜵𑜶𑜷𑜸𑜹"}
@@ -43,6 +43,11 @@ numberingSystems:table(nofallback){
             desc{"০১২৩৪৫৬৭৮৯"}
             radix:int{10}
         }
+        bhks{
+            algorithmic:int{0}
+            desc{"𑱐𑱑𑱒𑱓𑱔𑱕𑱖𑱗𑱘𑱙"}
+            radix:int{10}
+        }
         brah{
             algorithmic:int{0}
             desc{"𑁦𑁧𑁨𑁩𑁪𑁫𑁬𑁭𑁮𑁯"}
@@ -68,6 +73,11 @@ numberingSystems:table(nofallback){
             desc{"०१२३४५६७८९"}
             radix:int{10}
         }
+        diak{
+            algorithmic:int{0}
+            desc{"𑥐𑥑𑥒𑥓𑥔𑥕𑥖𑥗𑥘𑥙"}
+            radix:int{10}
+        }
         ethi{
             algorithmic:int{1}
             desc{"%ethiopic"}
@@ -81,6 +91,16 @@ numberingSystems:table(nofallback){
         geor{
             algorithmic:int{1}
             desc{"%georgian"}
+            radix:int{10}
+        }
+        gong{
+            algorithmic:int{0}
+            desc{"𑶠𑶡𑶢𑶣𑶤𑶥𑶦𑶧𑶨𑶩"}
+            radix:int{10}
+        }
+        gonm{
+            algorithmic:int{0}
+            desc{"𑵐𑵑𑵒𑵓𑵔𑵕𑵖𑵗𑵘𑵙"}
             radix:int{10}
         }
         grek{
@@ -143,6 +163,11 @@ numberingSystems:table(nofallback){
             desc{"𖭐𖭑𖭒𖭓𖭔𖭕𖭖𖭗𖭘𖭙"}
             radix:int{10}
         }
+        hmnp{
+            algorithmic:int{0}
+            desc{"𞅀𞅁𞅂𞅃𞅄𞅅𞅆𞅇𞅈𞅉"}
+            radix:int{10}
+        }
         java{
             algorithmic:int{0}
             desc{"꧐꧑꧒꧓꧔꧕꧖꧗꧘꧙"}
@@ -156,6 +181,11 @@ numberingSystems:table(nofallback){
         jpanfin{
             algorithmic:int{1}
             desc{"ja/SpelloutRules/%spellout-cardinal-financial"}
+            radix:int{10}
+        }
+        jpanyear{
+            algorithmic:int{1}
+            desc{"ja/SpelloutRules/%spellout-numbering-year-latn"}
             radix:int{10}
         }
         kali{
@@ -268,6 +298,11 @@ numberingSystems:table(nofallback){
             desc{"꧰꧱꧲꧳꧴꧵꧶꧷꧸꧹"}
             radix:int{10}
         }
+        newa{
+            algorithmic:int{0}
+            desc{"𑑐𑑑𑑒𑑓𑑔𑑕𑑖𑑗𑑘𑑙"}
+            radix:int{10}
+        }
         nkoo{
             algorithmic:int{0}
             desc{"߀߁߂߃߄߅߆߇߈߉"}
@@ -288,6 +323,11 @@ numberingSystems:table(nofallback){
             desc{"𐒠𐒡𐒢𐒣𐒤𐒥𐒦𐒧𐒨𐒩"}
             radix:int{10}
         }
+        rohg{
+            algorithmic:int{0}
+            desc{"𐴰𐴱𐴲𐴳𐴴𐴵𐴶𐴷𐴸𐴹"}
+            radix:int{10}
+        }
         roman{
             algorithmic:int{1}
             desc{"%roman-upper"}
@@ -301,6 +341,11 @@ numberingSystems:table(nofallback){
         saur{
             algorithmic:int{0}
             desc{"꣐꣑꣒꣓꣔꣕꣖꣗꣘꣙"}
+            radix:int{10}
+        }
+        segment{
+            algorithmic:int{0}
+            desc{"🯰🯱🯲🯳🯴🯵🯶🯷🯸🯹"}
             radix:int{10}
         }
         shrd{
@@ -376,6 +421,11 @@ numberingSystems:table(nofallback){
         wara{
             algorithmic:int{0}
             desc{"𑣠𑣡𑣢𑣣𑣤𑣥𑣦𑣧𑣨𑣩"}
+            radix:int{10}
+        }
+        wcho{
+            algorithmic:int{0}
+            desc{"𞋰𞋱𞋲𞋳𞋴𞋵𞋶𞋷𞋸𞋹"}
             radix:int{10}
         }
     }

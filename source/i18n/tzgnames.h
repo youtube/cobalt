@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2011-2012, International Business Machines Corporation and    *
@@ -44,7 +46,7 @@ public:
     static TimeZoneGenericNames* createInstance(const Locale& locale, UErrorCode& status);
 
     virtual UBool operator==(const TimeZoneGenericNames& other) const;
-    virtual UBool operator!=(const TimeZoneGenericNames& other) const {return !operator==(other);};
+    virtual UBool operator!=(const TimeZoneGenericNames& other) const {return !operator==(other);}
     virtual TimeZoneGenericNames* clone() const;
 
     UnicodeString& getDisplayName(const TimeZone& tz, UTimeZoneGenericNameType type,

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/rbnf/af.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 af{
     RBNFRules{
         OrdinalRules{
@@ -26,7 +21,7 @@ af{
             "10: =%spellout-numbering=;",
             "%spellout-numbering-year:",
             "-x: min >>;",
-            "x.x: =#,###0.#=;",
+            "x.x: =0.0=;",
             "0: =%spellout-numbering=;",
             "1100/100: << >%%2d-year>;",
             "10000: =%spellout-numbering=;",
@@ -95,5 +90,4 @@ af{
             "1000000000000000000: =#,##0=.;",
         }
     }
-    Version{"2.1.19.14"}
 }

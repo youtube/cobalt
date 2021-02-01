@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/dsb.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 dsb{
     AuxExemplarCharacters{
         "[á à ă â å ä ã ą ā æ ç ď đ é è ĕ ê ë ė ę ē ğ í ì ĭ î ï İ ī ı ĺ ľ ň ñ ò ŏ ô ö"
@@ -16,9 +11,10 @@ dsb{
         "ž ź]"
     }
     ExemplarCharactersIndex{"[A B C Č Ć D E F G H {Ch} I J K Ł L M N O P Q R S Š Ś T U V W X Y Z Ž Ź]"}
+    ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0 1 2 3 4 5 6 7 8 9]"}
     ExemplarCharactersPunctuation{
-        "[\\- ‐ – — , ; \\: ! ? . … ' ‘ ’ ‚ \u0022 “ „ « » ( ) \\[ \\] \\{ \\} § @ * "
-        "/ \\& #]"
+        "[\\- ‐ ‑ – — , ; \\: ! ? . … ' ‘ ’ ‚ \u0022 “ „ « » ( ) \\[ \\] \\{ \\} § @ "
+        "* / \\& #]"
     }
     NumberElements{
         latn{
@@ -201,7 +197,6 @@ dsb{
         }
         minimumGroupingDigits{"1"}
     }
-    Version{"2.1.19.14"}
     calendar{
         generic{
             DateTimePatterns{
@@ -312,6 +307,10 @@ dsb{
                 "dopołdnja",
                 "wótpołdnja",
             }
+            AmPmMarkersAbbr{
+                "dopołdnja",
+                "wótpołdnja",
+            }
             AmPmMarkersNarrow{
                 "dop.",
                 "wótp.",
@@ -352,6 +351,7 @@ dsb{
                 MEd{"E, d.M."}
                 MMM{"LLL"}
                 MMMEd{"E, d. MMM"}
+                MMMMd{"d MMMM"}
                 MMMd{"d. MMM"}
                 Md{"d.M."}
                 d{"d"}
@@ -364,6 +364,7 @@ dsb{
                 yMEd{"E, d.M.y"}
                 yMMM{"MMM y"}
                 yMMMEd{"E, d. MMM y"}
+                yMMMM{"LLLL y"}
                 yMMMd{"d. MMM y"}
                 yMd{"d.M.y"}
                 yQQQ{"QQQ y"}

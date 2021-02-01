@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -6,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  unisetspan.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -63,8 +65,8 @@ public:
 
     /*
      * Do the strings need to be checked in span() etc.?
-     * @return TRUE if strings need to be checked (call span() here),
-     *         FALSE if not (use a BMPSet for best performance).
+     * @return true if strings need to be checked (call span() here),
+     *         false if not (use a BMPSet for best performance).
      */
     inline UBool needsStringSpanUTF16();
     inline UBool needsStringSpanUTF8();

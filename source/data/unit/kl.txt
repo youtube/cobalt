@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/kl.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 kl{
-    Version{"2.1.19.28"}
     durationUnits{
         hm{"h:mm"}
         hms{"h:mm:ss"}
@@ -17,8 +11,8 @@ kl{
         length{
             fathom{
                 dnam{"fm"}
-                one{"{0} fm"}
-                other{"{0} fm"}
+                one{"{0} fth"}
+                other{"{0} fth"}
             }
             furlong{
                 dnam{"fur"}
@@ -45,8 +39,8 @@ kl{
         length{
             fathom{
                 dnam{"fm"}
-                one{"{0} fm"}
-                other{"{0} fm"}
+                one{"{0} fth"}
+                other{"{0} fth"}
             }
             furlong{
                 dnam{"fur"}
@@ -63,7 +57,7 @@ kl{
             }
         }
         pressure{
-            inch-hg{
+            inch-ofhg{
                 one{"{0} inHg"}
                 other{"{0} inHg"}
             }
@@ -99,8 +93,8 @@ kl{
         length{
             fathom{
                 dnam{"fm"}
-                one{"{0} fm"}
-                other{"{0} fm"}
+                one{"{0} fth"}
+                other{"{0} fth"}
             }
             furlong{
                 dnam{"fur"}
@@ -117,7 +111,7 @@ kl{
             }
         }
         pressure{
-            inch-hg{
+            inch-ofhg{
                 one{"{0} inHg"}
                 other{"{0} inHg"}
             }

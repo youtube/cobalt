@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/pl.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 pl{
     Countries{
         001{"świat"}
@@ -37,6 +32,7 @@ pl{
         151{"Europa Wschodnia"}
         154{"Europa Północna"}
         155{"Europa Zachodnia"}
+        202{"Afryka Subsaharyjska"}
         419{"Ameryka Łacińska"}
         AC{"Wyspa Wniebowstąpienia"}
         AD{"Andora"}
@@ -46,9 +42,8 @@ pl{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antyle Holenderskie"}
         AO{"Angola"}
-        AQ{"Antarktyka"}
+        AQ{"Antarktyda"}
         AR{"Argentyna"}
         AS{"Samoa Amerykańskie"}
         AT{"Austria"}
@@ -67,7 +62,7 @@ pl{
         BJ{"Benin"}
         BL{"Saint-Barthélemy"}
         BM{"Bermudy"}
-        BN{"Brunei Darussalam"}
+        BN{"Brunei"}
         BO{"Boliwia"}
         BQ{"Niderlandy Karaibskie"}
         BR{"Brazylia"}
@@ -89,7 +84,7 @@ pl{
         CM{"Kamerun"}
         CN{"Chiny"}
         CO{"Kolumbia"}
-        CP{"Clipperton"}
+        CP{"Wyspa Clippertona"}
         CR{"Kostaryka"}
         CU{"Kuba"}
         CV{"Republika Zielonego Przylądka"}
@@ -113,9 +108,10 @@ pl{
         ES{"Hiszpania"}
         ET{"Etiopia"}
         EU{"Unia Europejska"}
+        EZ{"strefa euro"}
         FI{"Finlandia"}
         FJ{"Fidżi"}
-        FK{"Falklandy"}
+        FK{"Falklandy (Malwiny)"}
         FM{"Mikronezja"}
         FO{"Wyspy Owcze"}
         FR{"Francja"}
@@ -188,7 +184,7 @@ pl{
         MF{"Saint-Martin"}
         MG{"Madagaskar"}
         MH{"Wyspy Marshalla"}
-        MK{"Macedonia"}
+        MK{"Macedonia Północna"}
         ML{"Mali"}
         MM{"Mjanma (Birma)"}
         MN{"Mongolia"}
@@ -232,7 +228,7 @@ pl{
         PW{"Palau"}
         PY{"Paragwaj"}
         QA{"Katar"}
-        QO{"Oceania inne"}
+        QO{"Oceania — wyspy dalekie"}
         RE{"Reunion"}
         RO{"Rumunia"}
         RS{"Serbia"}
@@ -258,7 +254,7 @@ pl{
         SV{"Salwador"}
         SX{"Sint Maarten"}
         SY{"Syria"}
-        SZ{"Suazi"}
+        SZ{"Eswatini"}
         TA{"Tristan da Cunha"}
         TC{"Turks i Caicos"}
         TD{"Czad"}
@@ -279,6 +275,7 @@ pl{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"Dalekie Wyspy Mniejsze Stanów Zjednoczonych"}
+        UN{"Organizacja Narodów Zjednoczonych"}
         US{"Stany Zjednoczone"}
         UY{"Urugwaj"}
         UZ{"Uzbekistan"}
@@ -291,6 +288,8 @@ pl{
         VU{"Vanuatu"}
         WF{"Wallis i Futuna"}
         WS{"Samoa"}
+        XA{"Pseudoakcenty"}
+        XB{"Pseudodwukierunkowe"}
         XK{"Kosowo"}
         YE{"Jemen"}
         YT{"Majotta"}
@@ -300,14 +299,16 @@ pl{
         ZZ{"Nieznany region"}
     }
     Countries%short{
-        GB{"GB"}
+        GB{"Wlk. Bryt."}
+        UN{"ONZ"}
         US{"USA"}
     }
     Countries%variant{
+        CD{"Kongo (DRK)"}
         CG{"Republika Konga"}
         CI{"Wybrzeże Kości Słoniowej"}
-        FK{"Falklandy (Malwiny)"}
+        CZ{"Republika Czeska"}
+        SZ{"Suazi"}
         TL{"Timor-Leste"}
     }
-    Version{"2.1.19.14"}
 }

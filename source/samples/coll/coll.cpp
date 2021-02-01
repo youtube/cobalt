@@ -1,8 +1,14 @@
-/********************************************************************
+/*************************************************************************
+ *
+ *   © 2016 and later: Unicode, Inc. and others.
+ *   License & terms of use: http://www.unicode.org/copyright.html
+ *
+ *************************************************************************
+ *************************************************************************
  * COPYRIGHT:
  * Copyright (C) 2002-2006 IBM, Inc.   All Rights Reserved.
  *
- ********************************************************************/
+ *************************************************************************/
 
 /** 
  * This program demos string collation
@@ -19,7 +25,7 @@ const char gHelpString[] =
     "-lower           Lower case first\n"
     "-upper           Upper case first\n"
     "-case            Enable separate case level\n"
-    "-level n         Sort level, 1 to 5, for Primary, Secndary, Tertiary, Quaternary, Identical\n"
+    "-level n         Sort level, 1 to 5, for Primary, Secondary, Tertiary, Quaternary, Identical\n"
 	"-source string   Source string for comparison\n"
 	"-target string   Target string for comparison\n"
     "Example coll -rules \\u0026b\\u003ca -source a -target b\n"
@@ -41,13 +47,13 @@ const char gHelpString[] =
  */
 char * opt_locale     = "en_US";
 char * opt_rules      = 0;
-UBool  opt_help       = FALSE;
-UBool  opt_norm       = FALSE;
-UBool  opt_french     = FALSE;
-UBool  opt_shifted    = FALSE;
-UBool  opt_lower      = FALSE;
-UBool  opt_upper      = FALSE;
-UBool  opt_case       = FALSE;
+UBool  opt_help       = false;
+UBool  opt_norm       = false;
+UBool  opt_french     = false;
+UBool  opt_shifted    = false;
+UBool  opt_lower      = false;
+UBool  opt_upper      = false;
+UBool  opt_case       = false;
 int    opt_level      = 0;
 char * opt_source     = "abc";
 char * opt_target     = "abd";
@@ -91,14 +97,14 @@ UBool processOptions(int argc, const char **argv, OptSpec opts[])
             if (strcmp(pOpt->name, pArgName) == 0) {
                 switch (pOpt->type) {
                 case OptSpec::FLAG:
-                    *(UBool *)(pOpt->pVar) = TRUE;
+                    *(UBool *)(pOpt->pVar) = true;
                     break;
                 case OptSpec::STRING:
                     argNum ++;
                     if (argNum >= argc) {
                         fprintf(stderr, "value expected for \"%s\" option.\n", 
 							    pOpt->name);
-                        return FALSE;
+                        return false;
                     }
                     *(const char **)(pOpt->pVar) = argv[argNum];
                     break;
@@ -107,7 +113,7 @@ UBool processOptions(int argc, const char **argv, OptSpec opts[])
                     if (argNum >= argc) {
                         fprintf(stderr, "value expected for \"%s\" option.\n", 
 							    pOpt->name);
-                        return FALSE;
+                        return false;
                     }
                     char *endp;
                     int i = strtol(argv[argNum], &endp, 0);
@@ -115,7 +121,7 @@ UBool processOptions(int argc, const char **argv, OptSpec opts[])
                         fprintf(stderr, 
 							    "integer value expected for \"%s\" option.\n", 
 								pOpt->name);
-                        return FALSE;
+                        return false;
                     }
                     *(int *)(pOpt->pVar) = i;
                 }
@@ -125,10 +131,10 @@ UBool processOptions(int argc, const char **argv, OptSpec opts[])
         if (pOpt->name == 0)
         {
             fprintf(stderr, "Unrecognized option \"%s\"\n", pArgName);
-            return FALSE;
+            return false;
         }
     }
-	return TRUE;
+	return true;
 }
 
 /**
@@ -169,7 +175,7 @@ UBool processCollator()
     }
 	if (U_FAILURE(status)) {
         fprintf(stderr, "Collator creation failed.: %d\n", status);
-        return FALSE;
+        return false;
     }
     if (status == U_USING_DEFAULT_WARNING) {
         fprintf(stderr, "Warning, U_USING_DEFAULT_WARNING for %s\n", 
@@ -222,14 +228,14 @@ UBool processCollator()
             break;
         default:
             fprintf(stderr, "-level param must be between 1 and 5\n");
-            return FALSE;
+            return false;
         }
     }
     if (U_FAILURE(status)) {
         fprintf(stderr, "Collator attribute setting failed.: %d\n", status);
-        return FALSE;
+        return false;
     }
-	return TRUE;
+	return true;
 }
 
 /** 
@@ -238,12 +244,12 @@ UBool processCollator()
  */
 int main(int argc, const char** argv) 
 {
-    if (processOptions(argc, argv, opts) != TRUE || opt_help) {
+    if (!static_cast<bool>(processOptions(argc, argv, opts)) || static_cast<bool>(opt_help)) {
         printf(gHelpString);
         return -1;
     }
 
-    if (processCollator() != TRUE) {
+    if (!static_cast<bool>(processCollator())) {
 		fprintf(stderr, "Error creating collator for comparison\n");
 		return -1;
 	}

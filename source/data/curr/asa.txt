@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/asa.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 asa{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ asa{
         }
         MRO{
             "MRO",
+            "ugwiya ya Moritania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "ugwiya ya Moritania",
         }
         MUR{
@@ -186,6 +185,10 @@ asa{
         }
         STD{
             "STD",
+            "dobra ya Thao Tome na Principe (1977–2017)",
+        }
+        STN{
+            "STN",
             "dobra ya Thao Tome na Principe",
         }
         SZL{
@@ -233,5 +236,4 @@ asa{
             "dola ya Dhimbabwe",
         }
     }
-    Version{"2.1.19.14"}
 }

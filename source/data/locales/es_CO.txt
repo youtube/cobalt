@@ -1,21 +1,12 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_CO.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_CO{
     %%Parent{"es_419"}
     NumberElements{
         latn{
-            miscPatterns{
-                range{"de {0} a {1}"}
-            }
             patterns{
                 currencyFormat{"¤ #,##0.00"}
-                percentFormat{"#,##0%"}
             }
             symbols{
                 decimal{","}
@@ -23,7 +14,6 @@ es_CO{
             }
         }
     }
-    Version{"2.1.20.32"}
     calendar{
         generic{
             DateTimePatterns{
@@ -43,10 +33,6 @@ es_CO{
             }
             availableFormats{
                 GyMMMEd{"E, d MMM 'de' y G"}
-                yyyyMMM{"MMM 'de' y G"}
-                yyyyMMMEd{"EEE, d 'de' MMM 'de' y G"}
-                yyyyMMMd{"d 'de' MMM 'de' y G"}
-                yyyyQQQ{"QQQ 'de' y G"}
             }
             intervalFormats{
                 M{
@@ -123,21 +109,34 @@ es_CO{
                 "d/MM/y",
                 "d/MM/yy",
                 "{1}, {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} 'a' 'las' {0}",
+                "{1} 'a' 'las' {0}",
                 "{1}, {0}",
                 "{1}, {0}",
             }
             availableFormats{
                 GyMMM{"MMM 'de' y G"}
                 GyMMMEd{"E, d MMM 'de' y G"}
+                H{"H"}
+                Hm{"H:mm"}
+                Hms{"H:mm:ss"}
                 MMMEd{"E, d 'de' MMM"}
                 MMMd{"d 'de' MMM"}
                 MMMdd{"d 'de' MMM"}
-                yMMM{"MMM 'de' y"}
-                yMMMd{"d 'de' MMM 'de' y"}
+                yMEd{"EEE, d/M/y"}
             }
             dayNames{
+                format{
+                    narrow{
+                        "D",
+                        "L",
+                        "M",
+                        "M",
+                        "J",
+                        "V",
+                        "S",
+                    }
+                }
                 stand-alone{
                     narrow{
                         "d",
@@ -152,17 +151,18 @@ es_CO{
             }
             dayPeriod{
                 format{
-                    narrow{
-                        evening1{"p. m."}
-                        morning2{"a. m."}
-                        night1{"p. m."}
+                    abbreviated{
+                        evening1{"de la tarde"}
+                        morning2{"de la mañana"}
+                        night1{"de la noche"}
+                        noon{"m."}
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        noon{"m."}
+                    }
                     narrow{
-                        evening1{"p. m."}
-                        morning2{"a. m."}
-                        night1{"p. m."}
                         noon{"m."}
                     }
                 }
@@ -280,11 +280,6 @@ es_CO{
                     }
                 }
             }
-        }
-    }
-    fields{
-        dayperiod{
-            dn{"a. m./p. m."}
         }
     }
 }

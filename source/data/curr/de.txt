@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/de.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 de{
     Currencies{
         ADP{
@@ -102,7 +97,7 @@ de{
         }
         BAM{
             "BAM",
-            "Bosnien und Herzegowina Konvertierbare Mark",
+            "Konvertible Mark Bosnien und Herzegowina",
         }
         BAN{
             "BAN",
@@ -162,7 +157,7 @@ de{
         }
         BOB{
             "BOB",
-            "Bolivanischer Boliviano",
+            "Bolivianischer Boliviano",
         }
         BOL{
             "BOL",
@@ -224,9 +219,13 @@ de{
             "BYB",
             "Belarus-Rubel (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "Weißrussischer Rubel",
+        }
         BYR{
             "BYR",
-            "Weißrussischer Rubel",
+            "Weißrussischer Rubel (2000–2016)",
         }
         BZD{
             "BZD",
@@ -263,6 +262,10 @@ de{
         CLP{
             "CLP",
             "Chilenischer Peso",
+        }
+        CNH{
+            "CNH",
+            "Renminbi-Yuan (Offshore)",
         }
         CNX{
             "CNX",
@@ -302,7 +305,7 @@ de{
         }
         CVE{
             "CVE",
-            "Kap-Verde-Escudo",
+            "Cabo-Verde-Escudo",
         }
         CYP{
             "CYP",
@@ -682,6 +685,10 @@ de{
         }
         MRO{
             "MRO",
+            "Mauretanischer Ouguiya (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Mauretanischer Ouguiya",
         }
         MTL{
@@ -782,7 +789,7 @@ de{
         }
         PEN{
             "PEN",
-            "Peruanischer Neuer Sol",
+            "Peruanischer Sol",
         }
         PES{
             "PES",
@@ -790,7 +797,7 @@ de{
         }
         PGK{
             "PGK",
-            "Papua-Neuguineischer Kina",
+            "Papua-neuguineischer Kina",
         }
         PHP{
             "PHP",
@@ -882,7 +889,7 @@ de{
         }
         SHP{
             "SHP",
-            "St. Helena-Pfund",
+            "St.-Helena-Pfund",
         }
         SIT{
             "SIT",
@@ -914,6 +921,10 @@ de{
         }
         STD{
             "STD",
+            "São-toméischer Dobra (1977–2017)",
+        }
+        STN{
+            "STN",
             "São-toméischer Dobra",
         }
         SUR{
@@ -974,7 +985,7 @@ de{
         }
         TTD{
             "TTD",
-            "Trinidad und Tobago-Dollar",
+            "Trinidad-und-Tobago-Dollar",
         }
         TWD{
             "NT$",
@@ -1034,6 +1045,10 @@ de{
         }
         VEF{
             "VEF",
+            "Venezolanischer Bolívar (2008–2018)",
+        }
+        VES{
+            "VES",
             "Venezolanischer Bolívar",
         }
         VND{
@@ -1198,6 +1213,7 @@ de{
         }
     }
     Currencies%narrow{
+        AFN{"؋"}
         AOA{"Kz"}
         ARS{"$"}
         AUD{"$"}
@@ -1210,7 +1226,7 @@ de{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1228,6 +1244,8 @@ de{
         FJD{"$"}
         FKP{"Fl£"}
         GBP{"£"}
+        GEL{"₾"}
+        GHS{"₵"}
         GIP{"£"}
         GNF{"F.G."}
         GTQ{"Q"}
@@ -1268,6 +1286,7 @@ de{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"L"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"F.Rw"}
@@ -1277,7 +1296,7 @@ de{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"SYP"}
         THB{"฿"}
         TOP{"T$"}
@@ -1391,8 +1410,8 @@ de{
             other{"Bosnien und Herzegowina Dinar (1992–1994)"}
         }
         BAM{
-            one{"Bosnien und Herzegowina Konvertierbare Mark"}
-            other{"Bosnien und Herzegowina Konvertierbare Mark"}
+            one{"Konvertible Mark Bosnien und Herzegowina"}
+            other{"Konvertible Mark Bosnien und Herzegowina"}
         }
         BAN{
             one{"Bosnien und Herzegowina Neuer Dinar (1994–1997)"}
@@ -1451,7 +1470,7 @@ de{
             other{"Brunei-Dollar"}
         }
         BOB{
-            one{"Bolivanischer Boliviano"}
+            one{"Bolivianischer Boliviano"}
             other{"Bolivianische Bolivianos"}
         }
         BOL{
@@ -1514,9 +1533,13 @@ de{
             one{"Belarus-Rubel (1994–1999)"}
             other{"Belarus-Rubel (1994–1999)"}
         }
-        BYR{
+        BYN{
             one{"Weißrussischer Rubel"}
             other{"Weißrussische Rubel"}
+        }
+        BYR{
+            one{"Weißrussischer Rubel (2000–2016)"}
+            other{"Weißrussische Rubel (2000–2016)"}
         }
         BZD{
             one{"Belize-Dollar"}
@@ -1553,6 +1576,10 @@ de{
         CLP{
             one{"Chilenischer Peso"}
             other{"Chilenische Pesos"}
+        }
+        CNH{
+            one{"Renminbi-Yuan (Offshore)"}
+            other{"Renminbi-Yuan (Offshore)"}
         }
         CNX{
             one{"Dollar der Chinesischen Volksbank"}
@@ -1591,8 +1618,8 @@ de{
             other{"Kubanische Pesos"}
         }
         CVE{
-            one{"Kap-Verde-Escudo"}
-            other{"Kap-Verde-Escudos"}
+            one{"Cabo-Verde-Escudo"}
+            other{"Cabo-Verde-Escudos"}
         }
         CYP{
             one{"Zypern Pfund"}
@@ -1704,7 +1731,7 @@ de{
         }
         GIP{
             one{"Gibraltar-Pfund"}
-            other{"Gibraltar Pfund"}
+            other{"Gibraltar-Pfund"}
         }
         GMD{
             one{"Gambia-Dalasi"}
@@ -1971,6 +1998,10 @@ de{
             other{"Macao-Pataca"}
         }
         MRO{
+            one{"Mauretanischer Ouguiya (1973–2017)"}
+            other{"Mauretanische Ouguiya (1973–2017)"}
+        }
+        MRU{
             one{"Mauretanischer Ouguiya"}
             other{"Mauretanische Ouguiya"}
         }
@@ -2071,16 +2102,16 @@ de{
             other{"Peruanische Inti"}
         }
         PEN{
-            one{"Peruanischer Neuer Sol"}
-            other{"Peruanische Neue Sol"}
+            one{"Peruanischer Sol"}
+            other{"Peruanische Sol"}
         }
         PES{
             one{"Peruanischer Sol (1863–1965)"}
             other{"Peruanische Sol (1863–1965)"}
         }
         PGK{
-            one{"Papua-Neuguineischer Kina"}
-            other{"Papua-Neuguineische Kina"}
+            one{"Papua-neuguineischer Kina"}
+            other{"Papua-neuguineischer Kina"}
         }
         PHP{
             one{"Philippinischer Peso"}
@@ -2171,8 +2202,8 @@ de{
             other{"Singapur-Dollar"}
         }
         SHP{
-            one{"St. Helena-Pfund"}
-            other{"St. Helena-Pfund"}
+            one{"St.-Helena-Pfund"}
+            other{"St.-Helena-Pfund"}
         }
         SIT{
             one{"Slowenischer Tolar"}
@@ -2203,8 +2234,12 @@ de{
             other{"Südsudanesische Pfund"}
         }
         STD{
+            one{"São-toméischer Dobra (1977–2017)"}
+            other{"São-toméische Dobra (1977–2017)"}
+        }
+        STN{
             one{"São-toméischer Dobra"}
-            other{"São-toméische Dobra"}
+            other{"São-toméische Dobras"}
         }
         SUR{
             one{"Sowjetische Rubel"}
@@ -2263,8 +2298,8 @@ de{
             other{"Türkische Lira"}
         }
         TTD{
-            one{"Trinidad und Tobago-Dollar"}
-            other{"Trinidad und Tobago-Dollar"}
+            one{"Trinidad-und-Tobago-Dollar"}
+            other{"Trinidad-und-Tobago-Dollar"}
         }
         TWD{
             one{"Neuer Taiwan-Dollar"}
@@ -2323,6 +2358,10 @@ de{
             other{"Venezolanische Bolívares (1871–2008)"}
         }
         VEF{
+            one{"Venezolanischer Bolívar (2008–2018)"}
+            other{"Venezolanische Bolívares (2008–2018)"}
+        }
+        VES{
             one{"Venezolanischer Bolívar"}
             other{"Venezolanische Bolívares"}
         }
@@ -2491,5 +2530,4 @@ de{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.72"}
 }

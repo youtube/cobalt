@@ -1,19 +1,14 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sl.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sl{
     Keys{
         calendar{"koledar"}
+        cf{"oblika zapisa valute"}
         colAlternate{"Razvrščanje s prezrtimi znaki"}
         colBackwards{"Razvrščanje z obratnimi naglasi"}
         colCaseFirst{"Razvrščanje velike črke/male črke"}
         colCaseLevel{"Razvrščanje, občutljivo na velike/male črke"}
-        colHiraganaQuaternary{"Razvrščanje kana"}
         colNormalization{"Normalizirano razvrščanje"}
         colNumeric{"Številsko razvrščanje"}
         colStrength{"Moč razvrščanja"}
@@ -25,8 +20,7 @@ sl{
         numbers{"številke"}
         timezone{"Časovni pas"}
         va{"Različica območnih nastavitev"}
-        variableTop{"Razvrščanje kot simboli"}
-        x{"Private-Use"}
+        x{"Zasebna-uporaba"}
     }
     Languages{
         aa{"afarščina"}
@@ -51,7 +45,7 @@ sl{
         ar{"arabščina"}
         ar_001{"sodobna standardna arabščina"}
         arc{"aramejščina"}
-        arn{"aravkanščina"}
+        arn{"mapudungunščina"}
         arp{"arapaščina"}
         arw{"aravaščina"}
         as{"asamščina"}
@@ -89,6 +83,7 @@ sl{
         ca{"katalonščina"}
         cad{"kadoščina"}
         car{"karibski jezik"}
+        ccp{"chakma"}
         ce{"čečenščina"}
         ceb{"sebuanščina"}
         cgg{"čigajščina"}
@@ -107,6 +102,7 @@ sl{
         cop{"koptščina"}
         cr{"krijščina"}
         crh{"krimska tatarščina"}
+        crs{"sejšelska francoska kreolščina"}
         cs{"češčina"}
         csb{"kašubščina"}
         cu{"stara cerkvena slovanščina"}
@@ -132,6 +128,7 @@ sl{
         dyo{"jola-fonjiščina"}
         dyu{"diula"}
         dz{"dzonka"}
+        dzg{"dazaga"}
         ebu{"embujščina"}
         ee{"evenščina"}
         efi{"efiščina"}
@@ -142,17 +139,19 @@ sl{
         en{"angleščina"}
         en_AU{"avstralska angleščina"}
         en_CA{"kanadska angleščina"}
-        en_GB{"angleščina (VB)"}
-        en_US{"angleščina (ZDA)"}
+        en_GB{"britanska angleščina"}
+        en_US{"ameriška angleščina"}
         enm{"srednja angleščina"}
         eo{"esperanto"}
         es{"španščina"}
         es_419{"latinskoameriška španščina"}
-        es_ES{"iberska španščina"}
+        es_ES{"evropska španščina"}
+        es_MX{"mehiška španščina"}
         et{"estonščina"}
         eu{"baskovščina"}
         ewo{"evondovščina"}
         fa{"perzijščina"}
+        fa_AF{"darijščina"}
         fan{"fangijščina"}
         fat{"fantijščina"}
         ff{"fulščina"}
@@ -164,12 +163,13 @@ sl{
         fr{"francoščina"}
         fr_CA{"kanadska francoščina"}
         fr_CH{"švicarska francoščina"}
+        frc{"cajunska francoščina"}
         frm{"srednja francoščina"}
         fro{"stara francoščina"}
         frr{"severna frizijščina"}
         frs{"vzhodna frizijščina"}
         fur{"furlanščina"}
-        fy{"frizijščina"}
+        fy{"zahodna frizijščina"}
         ga{"irščina"}
         gaa{"ga"}
         gag{"gagavščina"}
@@ -191,11 +191,12 @@ sl{
         gu{"gudžaratščina"}
         guz{"gusijščina"}
         gv{"manščina"}
+        gwi{"gvičin"}
         ha{"havščina"}
         hai{"haidščina"}
         haw{"havajščina"}
         he{"hebrejščina"}
-        hi{"hindujščina"}
+        hi{"hindijščina"}
         hil{"hiligajnonščina"}
         hit{"hetitščina"}
         hmn{"hmonščina"}
@@ -209,6 +210,7 @@ sl{
         hz{"herero"}
         ia{"interlingva"}
         iba{"ibanščina"}
+        ibb{"ibibijščina"}
         id{"indonezijščina"}
         ie{"interlingve"}
         ig{"igboščina"}
@@ -227,16 +229,18 @@ sl{
         jpr{"judovska perzijščina"}
         jrb{"judovska arabščina"}
         jv{"javanščina"}
-        ka{"gruzinščina"}
+        ka{"gruzijščina"}
         kaa{"karakalpaščina"}
         kab{"kabilščina"}
         kac{"kačinščina"}
+        kaj{"jju"}
         kam{"kambaščina"}
         kaw{"kavi"}
         kbd{"kabardinščina"}
         kcg{"tjapska nigerijščina"}
         kde{"makondščina"}
         kea{"zelenortskootoška kreolščina"}
+        kfo{"koro"}
         kg{"kongovščina"}
         kha{"kasi"}
         kho{"kotanščina"}
@@ -244,11 +248,12 @@ sl{
         ki{"kikujščina"}
         kj{"kvanjama"}
         kk{"kazaščina"}
+        kkj{"kako"}
         kl{"grenlandščina"}
         kln{"kalenjinščina"}
         km{"kmerščina"}
         kmb{"kimbundu"}
-        kn{"kanada"}
+        kn{"kanareščina"}
         ko{"korejščina"}
         koi{"komi-permjaščina"}
         kok{"konkanščina"}
@@ -259,8 +264,9 @@ sl{
         krl{"karelščina"}
         kru{"kuruk"}
         ks{"kašmirščina"}
-        ksb{"shambala"}
+        ksb{"šambala"}
         ksf{"bafia"}
+        ksh{"kölnsko narečje"}
         ku{"kurdščina"}
         kum{"kumiščina"}
         kut{"kutenajščina"}
@@ -280,15 +286,16 @@ sl{
         ln{"lingala"}
         lo{"laoščina"}
         lol{"mongo"}
+        lou{"louisianska kreolščina"}
         loz{"lozi"}
-        lrc{"severnolurijščina"}
+        lrc{"severna lurijščina"}
         lt{"litovščina"}
         lu{"luba-katanga"}
         lua{"luba-lulua"}
         lui{"luisenščina"}
         lun{"lunda"}
         luo{"luo"}
-        lus{"lushai"}
+        lus{"mizojščina"}
         luy{"luhijščina"}
         lv{"latvijščina"}
         mad{"madurščina"}
@@ -302,7 +309,7 @@ sl{
         men{"mende"}
         mer{"meru"}
         mfe{"morisjenščina"}
-        mg{"malagaščina"}
+        mg{"malgaščina"}
         mga{"srednja irščina"}
         mgh{"makuva-meto"}
         mgo{"meta"}
@@ -322,12 +329,14 @@ sl{
         mt{"malteščina"}
         mua{"mundang"}
         mul{"več jezikov"}
+        mus{"creekovščina"}
         mwl{"mirandeščina"}
         mwr{"marvarščina"}
         my{"burmanščina"}
         myv{"erzjanščina"}
         mzn{"mazanderanščina"}
         na{"naurujščina"}
+        nan{"min nan kitajščina"}
         nap{"napolitanščina"}
         naq{"khoekhoe"}
         nb{"knjižna norveščina"}
@@ -336,12 +345,14 @@ sl{
         nds_NL{"nizka saščina"}
         ne{"nepalščina"}
         new{"nevarščina"}
+        ng{"ndonga"}
         nia{"niaščina"}
         niu{"niuejščina"}
         nl{"nizozemščina"}
         nl_BE{"flamščina"}
         nmg{"kwasio"}
         nn{"novonorveščina"}
+        nnh{"ngiemboonščina"}
         no{"norveščina"}
         nog{"nogajščina"}
         non{"stara nordijščina"}
@@ -359,7 +370,7 @@ sl{
         oc{"okcitanščina"}
         oj{"anašinabščina"}
         om{"oromo"}
-        or{"orijščina"}
+        or{"odijščina"}
         os{"osetinščina"}
         osa{"osage"}
         ota{"otomanska turščina"}
@@ -368,16 +379,18 @@ sl{
         pam{"pampanščina"}
         pap{"papiamentu"}
         pau{"palavanščina"}
+        pcm{"nigerijski pidžin"}
         peo{"stara perzijščina"}
         phn{"feničanščina"}
         pi{"palijščina"}
         pl{"poljščina"}
         pon{"ponpejščina"}
+        prg{"stara pruščina"}
         pro{"stara provansalščina"}
         ps{"paštunščina"}
         pt{"portugalščina"}
         pt_BR{"brazilska portugalščina"}
-        pt_PT{"iberska portugalščina"}
+        pt_PT{"evropska portugalščina"}
         qu{"kečuanščina"}
         quc{"quiche"}
         raj{"radžastanščina"}
@@ -389,16 +402,19 @@ sl{
         ro_MD{"moldavščina"}
         rof{"rombo"}
         rom{"romščina"}
+        root{"rootščina"}
         ru{"ruščina"}
         rup{"aromunščina"}
         rw{"ruandščina"}
         rwk{"rwa"}
         sa{"sanskrt"}
+        sad{"sandavščina"}
         sah{"jakutščina"}
         sam{"samaritanska aramejščina"}
         saq{"samburščina"}
         sas{"sasaščina"}
         sat{"santalščina"}
+        sba{"ngambajščina"}
         sbp{"sangujščina"}
         sc{"sardinščina"}
         scn{"sicilijanščina"}
@@ -414,7 +430,7 @@ sl{
         sh{"srbohrvaščina"}
         shi{"tahelitska berberščina"}
         shn{"šanščina"}
-        si{"singalščina"}
+        si{"sinhalščina"}
         sid{"sidamščina"}
         sk{"slovaščina"}
         sl{"slovenščina"}
@@ -422,14 +438,16 @@ sl{
         sma{"južna samijščina"}
         smj{"luleška samijščina"}
         smn{"inarska samijščina"}
-        sms{"samijščina Skolt"}
+        sms{"skoltska samijščina"}
         sn{"šonščina"}
+        snk{"soninke"}
         so{"somalščina"}
         sq{"albanščina"}
         sr{"srbščina"}
         srn{"surinamska kreolščina"}
         srr{"sererščina"}
         ss{"svazijščina"}
+        ssy{"saho"}
         st{"sesoto"}
         su{"sundanščina"}
         suk{"sukuma"}
@@ -437,8 +455,8 @@ sl{
         sux{"sumerščina"}
         sv{"švedščina"}
         sw{"svahili"}
+        sw_CD{"kongoški svahili"}
         swb{"šikomor"}
-        swc{"svahili (Kongo)"}
         syc{"klasična sirščina"}
         syr{"sirščina"}
         ta{"tamilščina"}
@@ -462,7 +480,8 @@ sl{
         tog{"malavijska tongščina"}
         tpi{"tok pisin"}
         tr{"turščina"}
-        ts{"tsonga"}
+        trv{"taroko"}
+        ts{"congščina"}
         tsi{"tsimščina"}
         tt{"tatarščina"}
         tum{"tumbukščina"}
@@ -471,22 +490,23 @@ sl{
         twq{"tasawaq"}
         ty{"tahitščina"}
         tyv{"tuvinščina"}
-        tzm{"tamašek (srednji atlas)"}
+        tzm{"tamašek (Srednji Atlas)"}
         udm{"udmurtščina"}
         ug{"ujgurščina"}
         uga{"ugaritski jezik"}
         uk{"ukrajinščina"}
         umb{"umbundščina"}
-        und{"neznan ali neveljaven jezik"}
+        und{"neznan jezik"}
         ur{"urdujščina"}
         uz{"uzbeščina"}
         vai{"vajščina"}
         ve{"venda"}
         vi{"vietnamščina"}
-        vo{"volapuk"}
+        vo{"volapik"}
         vot{"votjaščina"}
         vun{"vunjo"}
         wa{"valonščina"}
+        wae{"walser"}
         wal{"valamščina"}
         war{"varajščina"}
         was{"vašajščina"}
@@ -497,6 +517,8 @@ sl{
         xog{"sogščina"}
         yao{"jaojščina"}
         yap{"japščina"}
+        yav{"jangben"}
+        ybb{"jembajščina"}
         yi{"jidiš"}
         yo{"jorubščina"}
         yue{"kantonščina"}
@@ -512,10 +534,12 @@ sl{
         zxx{"brez jezikoslovne vsebine"}
         zza{"zazajščina"}
     }
+    Languages%menu{
+        yue{"kitajščina (kantonščina)"}
+        zh{"kitajščina (mandarinščina)"}
+    }
     Languages%short{
         az{"azerščina"}
-        en_GB{"angleščina (ZK)"}
-        en_US{"angleščina (ZDA)"}
     }
     Scripts{
         Arab{"arabski"}
@@ -532,7 +556,6 @@ sl{
         Bugi{"buginski"}
         Buhd{"buhidski"}
         Cans{"poenotena zlogovna pisava kanadskih staroselcev"}
-        Cham{"Cham"}
         Cher{"čerokeški"}
         Cirt{"kirt"}
         Copt{"koptski"}
@@ -552,18 +575,20 @@ sl{
         Grek{"grški"}
         Gujr{"gudžaratski"}
         Guru{"gurmuki"}
+        Hanb{"han + bopomofo"}
         Hang{"hangul"}
         Hani{"kanji"}
         Hano{"hanunski"}
-        Hans{"poenostavljena pisava han"}
-        Hant{"tradicionalna pisava han"}
+        Hans{"poenostavljena pisava"}
+        Hant{"tradicionalna pisava"}
         Hebr{"hebrejski"}
         Hira{"hiragana"}
         Hmng{"pahavhmonska zlogovna pisava"}
-        Hrkt{"katakana ali hiragana"}
+        Hrkt{"japonska zlogovnica"}
         Hung{"staroogrski"}
         Inds{"induški"}
         Ital{"staroitalski"}
+        Jamo{"jamo"}
         Java{"javanski"}
         Jpan{"japonski"}
         Kali{"karenski"}
@@ -634,6 +659,7 @@ sl{
         Xsux{"sumersko-akadski klinopis"}
         Zinh{"podedovan"}
         Zmth{"matematična znamenja"}
+        Zsye{"čustvenček"}
         Zsym{"simboli"}
         Zxxx{"nenapisano"}
         Zyyy{"splošno"}
@@ -659,10 +685,17 @@ sl{
             indian{"indijanski koledar"}
             islamic{"islamski koledar"}
             islamic-civil{"islamski civilni koledar"}
+            islamic-rgsa{"islamski koledar ( Saudova Arabija, opazovalni)"}
+            islamic-tbla{"islamski koledar (tabelarni, astronomska epoha)"}
+            islamic-umalqura{"islamski koledar Umm al-Qura"}
             iso8601{"koledar ISO-8601"}
             japanese{"japonski koledar"}
             persian{"perzijski koledar"}
-            roc{"kitajski državni koledar"}
+            roc{"koledar Minguo"}
+        }
+        cf{
+            account{"oblika zapisa valute v računovodstvu"}
+            standard{"standardna oblika zapisa valute"}
         }
         colAlternate{
             non-ignorable{"Razvrščanje simbolov"}
@@ -681,10 +714,6 @@ sl{
             no{"Razvrščanje ne glede na velike/male črke"}
             yes{"Razvrščanje ob upoštevanju velikih/malih črk"}
         }
-        colHiraganaQuaternary{
-            no{"Razvrščanje kana ločeno"}
-            yes{"Razvrščanje kana različno"}
-        }
         colNormalization{
             no{"Razvrščanje brez normaliziranja"}
             yes{"Normalizirano razvrščanje Unicode"}
@@ -702,8 +731,11 @@ sl{
         }
         collation{
             big5han{"razvrščanje po sistemu tradicionalne kitajščine - Big5"}
+            compat{"prej uporabljeno razvrščanje za združljivost"}
             dictionary{"Vrstni red razvrščanja v slovarju"}
             ducet{"Privzeto razvrščanje Unicode"}
+            emoji{"razvrščanje čustvenčkov"}
+            eor{"evropska pravila razvrščanja"}
             gb2312han{"razvrščanje po sistemu poenostavljene kitajščine - GB2312"}
             phonebook{"razvrščanje po abecedi"}
             phonetic{"Fonetično razvrščanje"}
@@ -715,6 +747,12 @@ sl{
             stroke{"razvrščanje po zaporedju pisanja pismenk"}
             traditional{"razvrščanje po tradicionalnem sistemu"}
             unihan{"Razvrščanje koren-poteza"}
+            zhuyin{"Razvrščanje po pismenkah Zhuyin"}
+        }
+        d0{
+            fwidth{"Polna širina"}
+            hwidth{"Polovična širina"}
+            npinyin{"Številsko"}
         }
         hc{
             h11{"12-urni sistem (0–11)"}
@@ -727,22 +765,33 @@ sl{
             normal{"Običajni slog preloma vrstic"}
             strict{"Strogi slog preloma vrstic"}
         }
+        m0{
+            bgn{"BGN"}
+            ungegn{"UNGEGN"}
+        }
         ms{
             metric{"metrični sistem"}
             uksystem{"imperialni merski sistem"}
             ussystem{"merski sistem Združenih držav"}
         }
         numbers{
+            ahom{"števke ahom"}
             arab{"arabskoindijske števke"}
             arabext{"razširjene arabskoindijske števke"}
             armn{"armenske številke"}
             armnlow{"armenske majhne številke"}
-            beng{"Bengalske števke"}
+            bali{"balinezijske števke"}
+            beng{"bengalske števke"}
+            brah{"brahmi števke"}
+            cakm{"čakma števke"}
+            cham{"Cham števke"}
+            cyrl{"cirilične številke"}
             deva{"devangarske števke"}
-            ethi{"Etiopijske številke"}
+            ethi{"etiopijske številke"}
             finance{"Finančne številke"}
             fullwide{"števke polne širine"}
             geor{"gruzijske številke"}
+            gonm{"Masaram gondi števke"}
             grek{"grške številke"}
             greklow{"grške male številke"}
             gujr{"gudžaratske števke"}
@@ -753,26 +802,56 @@ sl{
             hant{"tradicionalne kitajske številke"}
             hantfin{"tradicionalne kitajske finančne številke"}
             hebr{"hebrejske številke"}
+            hmng{"Pahawh Hmong števke"}
+            java{"javanske števke"}
             jpan{"japonske številke"}
             jpanfin{"japonske finančne številke"}
+            kali{"Kayah Li števke"}
             khmr{"kmerske števke"}
-            knda{"Kanaredske števke"}
+            knda{"kanaredske števke"}
+            lana{"Tai Tham Hora števke"}
+            lanatham{"Tai Tham Tham števke"}
             laoo{"laoške števke"}
             latn{"zahodne števke"}
+            lepc{"Lepcha števke"}
+            limb{"Limbu števke"}
+            mathbold{"Krepke matematične števke"}
+            mathdbl{"dvojno prečrtane matematične števke"}
+            mathmono{"matematične števke z enim prostorom"}
+            mathsanb{"matematične krepke Sans-Serif števke"}
+            mathsans{"matematične Sans-Serif števke"}
             mlym{"malajalamske števke"}
+            modi{"Modi števke"}
             mong{"Mongolske števke"}
+            mroo{"Mro števke"}
+            mtei{"Meetei Mayek števke"}
             mymr{"mjanmarske števke"}
+            mymrshan{"mjanmarske shan števke"}
+            mymrtlng{"mjanmarske števke Tai Laing"}
             native{"Domače števke"}
+            nkoo{"N’Ko števke"}
+            olck{"Ol Chiki števke"}
             orya{"orijske števke"}
+            osma{"osmanijske števke"}
             roman{"rimske številke"}
             romanlow{"rimske male številke"}
-            taml{"tamilske številke"}
+            saur{"Saurashtra števke"}
+            shrd{"Sharada števke"}
+            sind{"Khudawadi števke"}
+            sinh{"Sinhala Lith števke"}
+            sora{"Sora Sompeng števke"}
+            sund{"sundijske števke"}
+            takr{"Takri števke"}
+            talu{"Nove Tai Lue števke"}
+            taml{"tradicionalne tamilske številke"}
             tamldec{"tamilske števke"}
             telu{"teluške števke"}
             thai{"tajske števke"}
             tibt{"tibetanske števke"}
+            tirh{"Tirhuta števke"}
             traditional{"Tradicionalne številke"}
             vaii{"Številke vai"}
+            wara{"Warang Citi števke"}
         }
     }
     Variants{
@@ -805,10 +884,28 @@ sl{
         VALENCIA{"valencijski pravopis"}
         WADEGILE{"romanizacija Wade-Giles"}
     }
-    Version{"2.1.19.14"}
+    characterLabelPattern{
+        all{"{0} – vse"}
+        category-list{"{0}: {1}"}
+        compatibility{"{0} – združljivost"}
+        enclosed{"{0} – vključeno"}
+        extended{"{0} – razširjeno"}
+        historic{"{0} – zgodovinsko"}
+        miscellaneous{"{0} – razno"}
+        other{"{0} – drugo"}
+        scripts{"pisave – {0}"}
+        strokes{
+            few{"{0} poteze"}
+            one{"{0} poteza"}
+            other{"{0} potez"}
+            two{"{0} potezi"}
+        }
+        subscript{"podpisano {0}"}
+        superscript{"nadpisano {0}"}
+    }
     codePatterns{
         language{"Jezik: {0}"}
-        script{"{0}"}
+        script{"Pisava: {0}"}
         territory{"Regija: {0}"}
     }
     localeDisplayPattern{

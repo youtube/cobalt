@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/seh.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 seh{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ seh{
         }
         MRO{
             "MRO",
+            "Ouguiya da Mauritânia (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ouguiya da Mauritânia",
         }
         MUR{
@@ -190,6 +189,10 @@ seh{
         }
         STD{
             "STD",
+            "Dobra de São Tomé e Príncipe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Dobra de São Tomé e Príncipe",
         }
         SZL{
@@ -237,5 +240,4 @@ seh{
             "Dólar do Zimbábue",
         }
     }
-    Version{"2.1.19.14"}
 }

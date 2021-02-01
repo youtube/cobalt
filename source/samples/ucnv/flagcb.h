@@ -1,4 +1,7 @@
-/* Copyright (c) 2000 IBM, Inc. and Others. 
+/* © 2016 and later: Unicode, Inc. and others.
+   License & terms of use: http://www.unicode.org/copyright.html
+
+   Copyright (c) 2000 IBM, Inc. and Others. 
    FLAGCB.H - interface to 'flagging' callback which 
    simply marks the fact that the callback was called. 
 */

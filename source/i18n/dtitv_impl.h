@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-* Copyright (C) 2007-2008,2014, International Business Machines Corporation and
+* Copyright (C) 2007-2016, International Business Machines Corporation and
 * others. All Rights Reserved.
 *******************************************************************************
 *
@@ -30,6 +32,7 @@
 #define RIGHT_CURLY_BRACKET ((UChar)0x007D)
 #define SPACE             ((UChar)0x0020)
 #define EN_DASH           ((UChar)0x2013)
+#define SOLIDUS           ((UChar)0x002F)
 
 #define DIGIT_ZERO        ((UChar)0x0030)
 #define DIGIT_ONE         ((UChar)0x0031)
@@ -61,11 +64,13 @@
 #define LOW_Z             ((UChar)0x007A)
 
 #define CAP_A             ((UChar)0x0041)
+#define CAP_B             ((UChar)0x0042)
 #define CAP_C             ((UChar)0x0043)
 #define CAP_D             ((UChar)0x0044)
 #define CAP_E             ((UChar)0x0045)
 #define CAP_F             ((UChar)0x0046)
 #define CAP_G             ((UChar)0x0047)
+#define CAP_J             ((UChar)0x004A)
 #define CAP_H             ((UChar)0x0048)
 #define CAP_K             ((UChar)0x004B)
 #define CAP_L             ((UChar)0x004C)
@@ -85,7 +90,7 @@
 #define MAX_E_COUNT      5
 #define MAX_M_COUNT      5
 //#define MAX_INTERVAL_INDEX 4
-#define MAX_POSITIVE_INT  56632;
+#define MAX_POSITIVE_INT  56632
 
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

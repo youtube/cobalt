@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2011, International Business Machines
@@ -321,7 +323,7 @@ CompoundTransliterator& CompoundTransliterator::operator=(
 /**
  * Transliterator API.
  */
-Transliterator* CompoundTransliterator::clone(void) const {
+CompoundTransliterator* CompoundTransliterator::clone() const {
     return new CompoundTransliterator(*this);
 }
 

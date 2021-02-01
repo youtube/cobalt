@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
-* Copyright (C) 2003-2013, International Business Machines Corporation
+* Copyright (C) 2003-2016, International Business Machines Corporation
 * and others. All Rights Reserved.
 ******************************************************************************
 *
@@ -17,6 +19,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "cmemory.h"
 #include "umutex.h"
 #include <float.h>
 #include "gregoimp.h" // Math
@@ -152,7 +155,7 @@ U_NAMESPACE_BEGIN
 * @internal
 */
 HebrewCalendar::HebrewCalendar(const Locale& aLocale, UErrorCode& success)
-:   Calendar(TimeZone::createDefault(), aLocale, success)
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 
 {
     setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
@@ -166,7 +169,7 @@ const char *HebrewCalendar::getType() const {
     return "hebrew";
 }
 
-Calendar* HebrewCalendar::clone() const {
+HebrewCalendar* HebrewCalendar::clone() const {
     return new HebrewCalendar(*this);
 }
 
@@ -390,7 +393,8 @@ int32_t HebrewCalendar::startOfYear(int32_t year, UErrorCode &status)
     int32_t day = CalendarCache::get(&gCache, year, status);
 
     if (day == 0) {
-        int32_t months = (235 * year - 234) / 19;           // # of months before year
+        // # of months before year
+        int32_t months = (int32_t)ClockMath::floorDivide((235 * (int64_t)year - 234), (int64_t)19);
 
         int64_t frac = (int64_t)months * MONTH_FRACT + BAHARAD;  // Fractional part of day #
         day  = months * 29 + (int32_t)(frac / DAY_PARTS);        // Whole # part of calculation
@@ -563,8 +567,8 @@ void HebrewCalendar::validateField(UCalendarDateFields field, UErrorCode &status
 */
 void HebrewCalendar::handleComputeFields(int32_t julianDay, UErrorCode &status) {
     int32_t d = julianDay - 347997;
-    double m = ((d * (double)DAY_PARTS)/ (double) MONTH_PARTS);         // Months (approx)
-    int32_t year = (int32_t)( ((19. * m + 234.) / 235.) + 1.);     // Years (approx)
+    double m = ClockMath::floorDivide((d * (double)DAY_PARTS), (double) MONTH_PARTS);  // Months (approx)
+    int32_t year = (int32_t)(ClockMath::floorDivide((19. * m + 234.), 235.) + 1.);     // Years (approx)
     int32_t ys  = startOfYear(year, status);                   // 1st day of year
     int32_t dayOfYear = (d - ys);
 
@@ -580,7 +584,7 @@ void HebrewCalendar::handleComputeFields(int32_t julianDay, UErrorCode &status) 
     UBool isLeap = isLeapYear(year);
 
     int32_t month = 0;
-    int32_t momax = sizeof(MONTH_START) / (3 * sizeof(MONTH_START[0][0]));
+    int32_t momax = UPRV_LENGTHOF(MONTH_START);
     while (month < momax && dayOfYear > (  isLeap ? LEAP_MONTH_START[month][type] : MONTH_START[month][type] ) ) {
         month++;
     }

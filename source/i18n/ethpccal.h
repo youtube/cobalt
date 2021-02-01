@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2003 - 2013, International Business Machines Corporation and  *
@@ -139,7 +141,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone() const;
+    virtual EthiopicCalendar* clone() const;
 
     /**
      * return the calendar type, "ethiopic"

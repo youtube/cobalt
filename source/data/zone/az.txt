@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/az.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 az{
-    Version{"2.1.19.83"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abican"}
@@ -259,7 +253,7 @@ az{
             ec{"Kayman"}
         }
         "America:Chicago"{
-            ec{"Cikaqo"}
+            ec{"Çikaqo"}
         }
         "America:Chihuahua"{
             ec{"Çihuahua"}
@@ -308,6 +302,9 @@ az{
         }
         "America:El_Salvador"{
             ec{"Salvador"}
+        }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
         }
         "America:Fortaleza"{
             ec{"Fortaleza"}
@@ -510,6 +507,9 @@ az{
         "America:Puerto_Rico"{
             ec{"Puerto Riko"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Reyni Çayı"}
         }
@@ -529,7 +529,7 @@ az{
             ec{"Rio Branko"}
         }
         "America:Santa_Isabel"{
-            ec{"Santa Isabel"}
+            ec{"Santa İzabel"}
         }
         "America:Santarem"{
             ec{"Santarem"}
@@ -550,7 +550,7 @@ az{
             ec{"Sitka"}
         }
         "America:St_Barthelemy"{
-            ec{"San Bartolomey"}
+            ec{"Sent-Bartelemi"}
         }
         "America:St_Johns"{
             ec{"Sent Cons"}
@@ -595,13 +595,13 @@ az{
             ec{"Uaythors"}
         }
         "America:Winnipeg"{
-            ec{"Vinipeq"}
+            ec{"Vinnipeq"}
         }
         "America:Yakutat"{
             ec{"Yakutat"}
         }
         "America:Yellowknife"{
-            ec{"Yelounayf"}
+            ec{"Yellounayf"}
         }
         "Antarctica:Casey"{
             ec{"Keysi"}
@@ -660,6 +660,9 @@ az{
         "Asia:Ashgabat"{
             ec{"Aşqabat"}
         }
+        "Asia:Atyrau"{
+            ec{"Atırau"}
+        }
         "Asia:Baghdad"{
             ec{"Bağdad"}
         }
@@ -672,6 +675,9 @@ az{
         "Asia:Bangkok"{
             ec{"Banqkok"}
         }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
+        }
         "Asia:Beirut"{
             ec{"Beyrut"}
         }
@@ -679,10 +685,10 @@ az{
             ec{"Bişkek"}
         }
         "Asia:Brunei"{
-            ec{"Brunei"}
+            ec{"Bruney"}
         }
         "Asia:Calcutta"{
-            ec{"Kolkata"}
+            ec{"Kəlkətə"}
         }
         "Asia:Chita"{
             ec{"Çita"}
@@ -707,6 +713,9 @@ az{
         }
         "Asia:Dushanbe"{
             ec{"Düşənbə"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famaqusta"}
         }
         "Asia:Gaza"{
             ec{"Qəza"}
@@ -775,7 +784,7 @@ az{
             ec{"Muskat"}
         }
         "Asia:Nicosia"{
-            ec{"Nikosia"}
+            ec{"Nikosiya"}
         }
         "Asia:Novokuznetsk"{
             ec{"Novokuznetsk"}
@@ -832,7 +841,7 @@ az{
             ec{"Srednekolımsk"}
         }
         "Asia:Taipei"{
-            ec{"Taipei"}
+            ec{"Taybey"}
         }
         "Asia:Tashkent"{
             ec{"Daşkənd"}
@@ -848,6 +857,9 @@ az{
         }
         "Asia:Tokyo"{
             ec{"Tokyo"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulanbator"}
@@ -877,7 +889,7 @@ az{
             ec{"Azor"}
         }
         "Atlantic:Bermuda"{
-            ec{"Bermuda"}
+            ec{"Bermud adaları"}
         }
         "Atlantic:Canary"{
             ec{"Kanar"}
@@ -934,10 +946,13 @@ az{
             ec{"Melburn"}
         }
         "Australia:Perth"{
-            ec{"Perth"}
+            ec{"Pert"}
         }
         "Australia:Sydney"{
             ec{"Sidney"}
+        }
+        "Etc:UTC"{
+            ls{"Koordinasiya edilmiş ümumdünya vaxtı"}
         }
         "Etc:Unknown"{
             ec{"Naməlum Şəhər"}
@@ -947,6 +962,9 @@ az{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Həştərxan"}
         }
         "Europe:Athens"{
             ec{"Afina"}
@@ -983,7 +1001,7 @@ az{
             ld{"İrlandiya Yay Vaxtı"}
         }
         "Europe:Gibraltar"{
-            ec{"Gibraltar"}
+            ec{"Cəbəli-Tariq"}
         }
         "Europe:Guernsey"{
             ec{"Gernzey"}
@@ -995,7 +1013,7 @@ az{
             ec{"Men Adası"}
         }
         "Europe:Istanbul"{
-            ec{"Istanbul"}
+            ec{"İstanbul"}
         }
         "Europe:Jersey"{
             ec{"Cersi"}
@@ -1005,6 +1023,9 @@ az{
         }
         "Europe:Kiev"{
             ec{"Kiyev"}
+        }
+        "Europe:Kirov"{
+            ec{"Kirov"}
         }
         "Europe:Lisbon"{
             ec{"Lissabon"}
@@ -1064,6 +1085,9 @@ az{
         "Europe:Sarajevo"{
             ec{"Sarayevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1071,7 +1095,7 @@ az{
             ec{"Skopye"}
         }
         "Europe:Sofia"{
-            ec{"Sofia"}
+            ec{"Sofiya"}
         }
         "Europe:Stockholm"{
             ec{"Stokholm"}
@@ -1082,8 +1106,11 @@ az{
         "Europe:Tirane"{
             ec{"Tirana"}
         }
+        "Europe:Ulyanovsk"{
+            ec{"Ulyanovsk"}
+        }
         "Europe:Uzhgorod"{
-            ec{"Ujgorod"}
+            ec{"Ujqorod"}
         }
         "Europe:Vaduz"{
             ec{"Vaduts"}
@@ -1095,7 +1122,7 @@ az{
             ec{"Vyana"}
         }
         "Europe:Vilnius"{
-            ec{"Vilnyus"}
+            ec{"Vilnüs"}
         }
         "Europe:Volgograd"{
             ec{"Volqoqrad"}
@@ -1149,7 +1176,7 @@ az{
             ec{"Apia"}
         }
         "Pacific:Auckland"{
-            ec{"Aukland"}
+            ec{"Oklənd"}
         }
         "Pacific:Bougainville"{
             ec{"Buqanvil"}
@@ -1242,7 +1269,7 @@ az{
             ec{"Rarotonqa"}
         }
         "Pacific:Saipan"{
-            ec{"Saipan"}
+            ec{"Saypan"}
         }
         "Pacific:Tahiti"{
             ec{"Tahiti"}
@@ -1680,7 +1707,9 @@ az{
             ls{"Niue Vaxtı"}
         }
         "meta:Norfolk"{
-            ls{"Norfolk Adası Vaxtı"}
+            ld{"Norfolk Adası Yay Vaxtı"}
+            lg{"Norfolk Adası Vaxtı"}
+            ls{"Norfolk Adası Standart Vaxtı"}
         }
         "meta:Noronha"{
             ld{"Fernando de Noronya Yay Vaxtı"}
@@ -1727,9 +1756,9 @@ az{
             ls{"Feniks Adaları Vaxtı"}
         }
         "meta:Pierre_Miquelon"{
-            ld{"San Pier və Mikelon Yay Vaxtı"}
-            lg{"San Pier və Mikelon Vaxtı"}
-            ls{"San Pier və Mikelon Standart Vaxtı"}
+            ld{"Müqəddəs Pyer və Mikelon Yay Vaxtı"}
+            lg{"Müqəddəs Pyer və Mikelon Vaxtı"}
+            ls{"Müqəddəs Pyer və Mikelon Standart Vaxtı"}
         }
         "meta:Pitcairn"{
             ls{"Pitkern Vaxtı"}
@@ -1737,8 +1766,11 @@ az{
         "meta:Ponape"{
             ls{"Ponape Vaxtı"}
         }
+        "meta:Pyongyang"{
+            ls{"Pxenyan Vaxtı"}
+        }
         "meta:Reunion"{
-            ls{"Reunion Vaxtı"}
+            ls{"Reyunyon"}
         }
         "meta:Rothera"{
             ls{"Rotera Vaxtı"}

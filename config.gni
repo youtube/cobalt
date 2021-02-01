@@ -5,12 +5,12 @@
 declare_args() {
   # Tells icu to load an external data file rather than rely on the icudata
   # being linked directly into the binary.
-  #
-  # This flag is a bit confusing. As of this writing, icu.gyp set the value to
-  # 0 but common.gypi sets the value to 1 for most platforms (and the 1 takes
-  # precedence).
-  #
-  # TODO(GYP) We'll probably need to enhance this logic to set the value to
-  # true or false in similar circumstances.
   icu_use_data_file = true
+
+  # If true, compile icu into a standalone static library. Currently this is
+  # only useful on Chrome OS.
+  icu_disable_thin_archive = false
 }
+
+# Set to true if icu is being built from the Fuchsia tree.
+icu_is_in_fuchsia = defined(is_fuchsia_tree) && is_fuchsia_tree

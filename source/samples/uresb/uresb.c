@@ -1,12 +1,18 @@
 /*
 *******************************************************************************
 *
+*   © 2016 and later: Unicode, Inc. and others.
+*   License & terms of use: http://www.unicode.org/copyright.html
+*
+*******************************************************************************
+*******************************************************************************
+*
 *   Copyright (C) 1999-2007, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  uresb.c
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -49,7 +55,7 @@ static const char *resPath = NULL;
 static const int32_t indentsize = 4;
 static UFILE *outerr = NULL;
 static int32_t truncsize = URESB_DEFAULTTRUNC;
-static UBool trunc = FALSE;
+static UBool trunc = false;
 
 const UChar baderror[] = { 0x0042, 0x0041, 0x0044, 0x0000 };
 
@@ -70,7 +76,7 @@ static UOption options[]={
     UOPTION_VERBOSE
 };
 
-static UBool VERBOSE = FALSE;
+static UBool VERBOSE = false;
 
 extern int
 main(int argc, char* argv[]) {
@@ -128,18 +134,18 @@ main(int argc, char* argv[]) {
     }
 
     if(options[5].doesOccur) {
-        trunc = TRUE;
+        trunc = true;
         if(options[5].value != NULL) {
             truncsize = atoi(options[5].value); /* user defined printable size */
         } else {
             truncsize = URESB_DEFAULTTRUNC; /* we'll use default omitting size */
         }
     } else {
-        trunc = FALSE;
+        trunc = false;
     }
 
     if(options[6].doesOccur) {
-        VERBOSE = TRUE;
+        VERBOSE = true;
     }
 
     outerr = u_finit(stderr, locale, encoding);

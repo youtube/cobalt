@@ -1,4 +1,6 @@
 ## pkgdataMakefile.in for ICU data
+## Copyright (C) 2016 and later: Unicode, Inc. and others.
+## License & terms of use: http://www.unicode.org/copyright.html
 ## Copyright (c) 2008-2012, International Business Machines Corporation and
 ## others. All Rights Reserved.
 
@@ -14,6 +16,7 @@ include $(top_builddir)/icudefs.mk
 
 OUTPUTFILE=icupkg.inc
 MIDDLE_SO_TARGET=
+PKGDATA_TRAILING_SPACE=" "
 
 all : clean 
 	@echo GENCCODE_ASSEMBLY_TYPE=$(GENCCODE_ASSEMBLY) >> $(OUTPUTFILE)
@@ -33,7 +36,6 @@ all : clean
 	@echo ARFLAGS=$(ARFLAGS) >> $(OUTPUTFILE)
 	@echo RANLIB=$(RANLIB) >> $(OUTPUTFILE)
 	@echo INSTALL_CMD=$(INSTALL) >> $(OUTPUTFILE)
-
 
 clean : 
 	$(RMV) $(OUTPUTFILE)
