@@ -1,6 +1,12 @@
 /*
 *******************************************************************************
 *
+*     © 2016 and later: Unicode, Inc. and others.
+*     License & terms of use: http://www.unicode.org/copyright.html
+*
+*******************************************************************************
+*******************************************************************************
+*
 *     Copyright (C) 2002-2011, International Business Machines
 *     Corporation and others.    All Rights Reserved.
 *
@@ -16,6 +22,11 @@
 #include <stdlib.h>
 
 static UFILE *out;
+
+using icu::CharacterIterator;
+using icu::StringCharacterIterator;
+using icu::UCharCharacterIterator;
+using icu::UnicodeString;
 
 void printUnicodeString(const UnicodeString &s)
 {
@@ -48,7 +59,7 @@ void Test::TestUChariter() {
     const UChar *testText = testString.getTerminatedBuffer();
 
     UCharCharacterIterator iter(testText, u_strlen(testText));
-    UCharCharacterIterator* test2 = (UCharCharacterIterator*)iter.clone();
+    UCharCharacterIterator* test2 = iter.clone();
 
     u_fprintf(out, "testText = %s", testChars);
 
@@ -115,7 +126,7 @@ void Test::TestStringiter() {
     const UChar *testText    = testString.getTerminatedBuffer();
 
     StringCharacterIterator iter(testText, u_strlen(testText));
-    StringCharacterIterator* test2 = (StringCharacterIterator*)iter.clone();
+    StringCharacterIterator* test2 = iter.clone();
 
     if (iter != *test2 ) {
         u_fprintf(out, "clone() or equals() failed: Two clones tested unequal\n");

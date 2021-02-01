@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *                                                                            *
@@ -6,7 +8,7 @@
 *                                                                            *
 ******************************************************************************
 *   file name:  ucln_io.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -14,13 +16,14 @@
 *   created by: George Rhoten
 */
 
+#include "unicode/utypes.h"
 #include "mutex.h"
 #include "ucln.h"
 #include "ucln_io.h"
 #include "uassert.h"
 
 #ifndef U_IO_IMPLEMENTATION
-#error U_IO_IMPLEMENTATION not set - must be set for all ICU source files in io/ - see http://userguide.icu-project.org/howtouseicu
+#error U_IO_IMPLEMENTATION not set - must be set for all ICU source files in io/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 
@@ -33,7 +36,7 @@ static const char copyright[] = U_COPYRIGHT_STRING;
 
 static cleanupFunc *gCleanupFunctions[UCLN_IO_COUNT];
 
-static UBool io_cleanup(void)
+static UBool U_CALLCONV io_cleanup(void)
 {
     int32_t libType = UCLN_IO_START;
 
@@ -66,4 +69,3 @@ void ucln_io_registerCleanup(ECleanupIOType type,
     ucln_registerAutomaticCleanup();
 #endif
 }
-

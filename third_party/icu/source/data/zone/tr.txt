@@ -1,16 +1,10 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/tr.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 tr{
-    Version{"2.1.19.17"}
     zoneStrings{
         "Africa:Abidjan"{
-            ec{"Abican"}
+            ec{"Abidjan"}
         }
         "Africa:Accra"{
             ec{"Akra"}
@@ -154,7 +148,7 @@ tr{
             ec{"Porto-Novo"}
         }
         "Africa:Sao_Tome"{
-            ec{"São Tomé"}
+            ec{"Sao Tome"}
         }
         "Africa:Tripoli"{
             ec{"Trablus"}
@@ -247,7 +241,7 @@ tr{
             ec{"Cancun"}
         }
         "America:Caracas"{
-            ec{"Karakas"}
+            ec{"Caracas"}
         }
         "America:Catamarca"{
             ec{"Catamarca"}
@@ -308,6 +302,9 @@ tr{
         }
         "America:El_Salvador"{
             ec{"El Salvador"}
+        }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
         }
         "America:Fortaleza"{
             ec{"Fortaleza"}
@@ -442,7 +439,7 @@ tr{
             ec{"Metlakatla"}
         }
         "America:Mexico_City"{
-            ec{"Meksiko City"}
+            ec{"Mexico City"}
         }
         "America:Miquelon"{
             ec{"Miquelon"}
@@ -510,6 +507,9 @@ tr{
         "America:Puerto_Rico"{
             ec{"Porto Riko"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -550,7 +550,7 @@ tr{
             ec{"Sitka"}
         }
         "America:St_Barthelemy"{
-            ec{"Saint Barthélemy"}
+            ec{"Saint Barthelemy"}
         }
         "America:St_Johns"{
             ec{"St. John’s"}
@@ -660,6 +660,9 @@ tr{
         "Asia:Ashgabat"{
             ec{"Aşkabat"}
         }
+        "Asia:Atyrau"{
+            ec{"Atırav"}
+        }
         "Asia:Baghdad"{
             ec{"Bağdat"}
         }
@@ -671,6 +674,9 @@ tr{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Beyrut"}
@@ -685,7 +691,7 @@ tr{
             ec{"Kalküta"}
         }
         "Asia:Chita"{
-            ec{"Chita"}
+            ec{"Çita"}
         }
         "Asia:Choibalsan"{
             ec{"Çoybalsan"}
@@ -707,6 +713,9 @@ tr{
         }
         "Asia:Dushanbe"{
             ec{"Duşanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Gazimağusa"}
         }
         "Asia:Gaza"{
             ec{"Gazze"}
@@ -801,6 +810,9 @@ tr{
         "Asia:Qatar"{
             ec{"Katar"}
         }
+        "Asia:Qostanay"{
+            ec{"Kostanay"}
+        }
         "Asia:Qyzylorda"{
             ec{"Kızılorda"}
         }
@@ -848,6 +860,9 @@ tr{
         }
         "Asia:Tokyo"{
             ec{"Tokyo"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulan Batur"}
@@ -939,6 +954,9 @@ tr{
         "Australia:Sydney"{
             ec{"Sidney"}
         }
+        "Etc:UTC"{
+            ls{"Eş Güdümlü Evrensel Zaman"}
+        }
         "Etc:Unknown"{
             ec{"Bilinmeyen Şehir"}
         }
@@ -947,6 +965,9 @@ tr{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrahan"}
         }
         "Europe:Athens"{
             ec{"Atina"}
@@ -1006,6 +1027,9 @@ tr{
         "Europe:Kiev"{
             ec{"Kiev"}
         }
+        "Europe:Kirov"{
+            ec{"Kirov"}
+        }
         "Europe:Lisbon"{
             ec{"Lizbon"}
         }
@@ -1064,8 +1088,11 @@ tr{
         "Europe:Sarajevo"{
             ec{"Saraybosna"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
-            ec{"Akmescit"}
+            ec{"Simferopol"}
         }
         "Europe:Skopje"{
             ec{"Üsküp"}
@@ -1081,6 +1108,9 @@ tr{
         }
         "Europe:Tirane"{
             ec{"Tiran"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Ulyanovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Ujgorod"}
@@ -1143,7 +1173,7 @@ tr{
             ec{"Mayotte"}
         }
         "Indian:Reunion"{
-            ec{"Réunion"}
+            ec{"Reunion"}
         }
         "Pacific:Apia"{
             ec{"Apia"}
@@ -1370,9 +1400,9 @@ tr{
             ls{"Orta Avustralya Standart Saati"}
         }
         "meta:Australia_CentralWestern"{
-            ld{"İçbatı Avustralya Yaz Saati"}
-            lg{"İçbatı Avustralya Saati"}
-            ls{"İçbatı Avustralya Standart Saati"}
+            ld{"İç Batı Avustralya Yaz Saati"}
+            lg{"İç Batı Avustralya Saati"}
+            ls{"İç Batı Avustralya Standart Saati"}
         }
         "meta:Australia_Eastern"{
             ld{"Doğu Avustralya Yaz Saati"}
@@ -1400,7 +1430,7 @@ tr{
             ls{"Bangladeş Standart Saati"}
         }
         "meta:Bhutan"{
-            ls{"Bhutan Saati"}
+            ls{"Butan Saati"}
         }
         "meta:Bolivia"{
             ls{"Bolivya Saati"}
@@ -1493,7 +1523,7 @@ tr{
             ls{"Doğu Avrupa Standart Saati"}
         }
         "meta:Europe_Further_Eastern"{
-            ls{"Daha Doğu Avrupa Saati"}
+            ls{"İleri Doğu Avrupa Saati"}
         }
         "meta:Europe_Western"{
             ld{"Batı Avrupa Yaz Saati"}
@@ -1724,7 +1754,9 @@ tr{
             ls{"Niue Saati"}
         }
         "meta:Norfolk"{
-            ls{"Norfolk Adası Saati"}
+            ld{"Norfolk Adası Yaz Saati"}
+            lg{"Norfolk Adası Saati"}
+            ls{"Norfolk Adası Standart Saati"}
         }
         "meta:Noronha"{
             ld{"Fernando de Noronha Yaz Saati"}
@@ -1783,6 +1815,9 @@ tr{
         }
         "meta:Ponape"{
             ls{"Ponape Saati"}
+        }
+        "meta:Pyongyang"{
+            ls{"Pyongyang Saati"}
         }
         "meta:Qyzylorda"{
             ld{"Kızılorda Yaz Saati"}

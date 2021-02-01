@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/collation/de_AT.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 de_AT{
-    Version{"2.1.19.14"}
     collations{
         phonebook{
             Sequence{
@@ -16,7 +10,7 @@ de_AT{
                 "&u<ü<<<Ü"
                 "&ss<ß<<<ẞ"
             }
-            Version{"28"}
+            Version{"38"}
         }
     }
 }

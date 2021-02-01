@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2001-2012, International Business Machines Corporation
@@ -57,7 +59,7 @@ StringMatcher::~StringMatcher() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringMatcher::clone() const {
+StringMatcher* StringMatcher::clone() const {
     return new StringMatcher(*this);
 }
 

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2014, International Business Machines Corporation and    *
@@ -25,7 +27,6 @@
 
 U_NAMESPACE_BEGIN
 
-static UMutex llock = U_MUTEX_INITIALIZER;
 ICULocaleService::ICULocaleService()
   : fallbackLocale(Locale::getDefault())
 {
@@ -263,6 +264,7 @@ ICULocaleService::validateFallbackLocale() const
 {
     const Locale&     loc    = Locale::getDefault();
     ICULocaleService* ncThis = (ICULocaleService*)this;
+    static UMutex llock;
     {
         Mutex mutex(&llock);
         if (loc != fallbackLocale) {

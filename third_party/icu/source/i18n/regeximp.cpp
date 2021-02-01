@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //   Copyright (C) 2012 International Business Machines Corporation
 //   and others. All rights reserved.
@@ -18,8 +20,7 @@
 U_NAMESPACE_BEGIN
 
 CaseFoldingUTextIterator::CaseFoldingUTextIterator(UText &text) :
-   fUText(text), fcsp(NULL), fFoldChars(NULL), fFoldLength(0) {
-   fcsp = ucase_getSingleton();
+   fUText(text), fFoldChars(NULL), fFoldLength(0) {
 }
 
 CaseFoldingUTextIterator::~CaseFoldingUTextIterator() {}
@@ -34,7 +35,7 @@ UChar32 CaseFoldingUTextIterator::next() {
         if (originalC == U_SENTINEL) {
             return originalC;
         }
-        fFoldLength = ucase_toFullFolding(fcsp, originalC, &fFoldChars, U_FOLD_CASE_DEFAULT);
+        fFoldLength = ucase_toFullFolding(originalC, &fFoldChars, U_FOLD_CASE_DEFAULT);
         if (fFoldLength >= UCASE_MAX_STRING_LENGTH || fFoldLength < 0) {
             // input code point folds to a single code point, possibly itself.
             // See comment in ucase.h for explanation of return values from ucase_toFullFoldings.
@@ -64,8 +65,7 @@ UBool CaseFoldingUTextIterator::inExpansion() {
 
 
 CaseFoldingUCharIterator::CaseFoldingUCharIterator(const UChar *chars, int64_t start, int64_t limit) :
-   fChars(chars), fIndex(start), fLimit(limit), fcsp(NULL), fFoldChars(NULL), fFoldLength(0) {
-   fcsp = ucase_getSingleton();
+   fChars(chars), fIndex(start), fLimit(limit), fFoldChars(NULL), fFoldLength(0) {
 }
 
 
@@ -83,7 +83,7 @@ UChar32 CaseFoldingUCharIterator::next() {
         }
         U16_NEXT(fChars, fIndex, fLimit, originalC);
 
-        fFoldLength = ucase_toFullFolding(fcsp, originalC, &fFoldChars, U_FOLD_CASE_DEFAULT);
+        fFoldLength = ucase_toFullFolding(originalC, &fFoldChars, U_FOLD_CASE_DEFAULT);
         if (fFoldLength >= UCASE_MAX_STRING_LENGTH || fFoldLength < 0) {
             // input code point folds to a single code point, possibly itself.
             // See comment in ucase.h for explanation of return values from ucase_toFullFoldings.

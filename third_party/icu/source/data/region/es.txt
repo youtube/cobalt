@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es{
     Countries{
         001{"Mundo"}
@@ -37,6 +32,7 @@ es{
         151{"Europa oriental"}
         154{"Europa septentrional"}
         155{"Europa occidental"}
+        202{"África subsahariana"}
         419{"Latinoamérica"}
         AC{"Isla de la Ascensión"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ es{
         AI{"Anguila"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antillas Neerlandesas"}
         AO{"Angola"}
         AQ{"Antártida"}
         AR{"Argentina"}
@@ -54,9 +49,9 @@ es{
         AT{"Austria"}
         AU{"Australia"}
         AW{"Aruba"}
-        AX{"Islas Åland"}
+        AX{"Islas Aland"}
         AZ{"Azerbaiyán"}
-        BA{"Bosnia-Herzegovina"}
+        BA{"Bosnia y Herzegovina"}
         BB{"Barbados"}
         BD{"Bangladés"}
         BE{"Bélgica"}
@@ -81,9 +76,9 @@ es{
         CC{"Islas Cocos"}
         CD{"República Democrática del Congo"}
         CF{"República Centroafricana"}
-        CG{"República del Congo"}
+        CG{"Congo"}
         CH{"Suiza"}
-        CI{"Costa de Marfil"}
+        CI{"Côte d’Ivoire"}
         CK{"Islas Cook"}
         CL{"Chile"}
         CM{"Camerún"}
@@ -96,7 +91,7 @@ es{
         CW{"Curazao"}
         CX{"Isla de Navidad"}
         CY{"Chipre"}
-        CZ{"República Checa"}
+        CZ{"Chequia"}
         DE{"Alemania"}
         DG{"Diego García"}
         DJ{"Yibuti"}
@@ -113,9 +108,10 @@ es{
         ES{"España"}
         ET{"Etiopía"}
         EU{"Unión Europea"}
+        EZ{"zona del euro"}
         FI{"Finlandia"}
         FJ{"Fiyi"}
-        FK{"Islas Malvinas"}
+        FK{"Islas Malvinas (Islas Falkland)"}
         FM{"Micronesia"}
         FO{"Islas Feroe"}
         FR{"Francia"}
@@ -188,7 +184,7 @@ es{
         MF{"San Martín"}
         MG{"Madagascar"}
         MH{"Islas Marshall"}
-        MK{"Macedonia"}
+        MK{"Macedonia del Norte"}
         ML{"Mali"}
         MM{"Myanmar (Birmania)"}
         MN{"Mongolia"}
@@ -258,8 +254,8 @@ es{
         SV{"El Salvador"}
         SX{"Sint Maarten"}
         SY{"Siria"}
-        SZ{"Suazilandia"}
-        TA{"Tristán da Cunha"}
+        SZ{"Esuatini"}
+        TA{"Tristán de Acuña"}
         TC{"Islas Turcas y Caicos"}
         TD{"Chad"}
         TF{"Territorios Australes Franceses"}
@@ -267,7 +263,7 @@ es{
         TH{"Tailandia"}
         TJ{"Tayikistán"}
         TK{"Tokelau"}
-        TL{"Timor Oriental"}
+        TL{"Timor-Leste"}
         TM{"Turkmenistán"}
         TN{"Túnez"}
         TO{"Tonga"}
@@ -279,6 +275,7 @@ es{
         UA{"Ucrania"}
         UG{"Uganda"}
         UM{"Islas menores alejadas de EE. UU."}
+        UN{"Naciones Unidas"}
         US{"Estados Unidos"}
         UY{"Uruguay"}
         UZ{"Uzbekistán"}
@@ -291,6 +288,8 @@ es{
         VU{"Vanuatu"}
         WF{"Wallis y Futuna"}
         WS{"Samoa"}
+        XA{"Pseudoacentos"}
+        XB{"Pseudobidi"}
         XK{"Kosovo"}
         YE{"Yemen"}
         YT{"Mayotte"}
@@ -304,10 +303,11 @@ es{
         US{"EE. UU."}
     }
     Countries%variant{
-        CD{"Congo (República Democrática del Congo)"}
+        CD{"Congo (RDC)"}
         CG{"Congo (República)"}
-        FK{"Islas Malvinas (Islas Falkland)"}
-        MK{"Macedonia (ERYM)"}
+        CI{"Costa de Marfil"}
+        CZ{"República Checa"}
+        SZ{"Suazilandia"}
+        TL{"Timor Oriental"}
     }
-    Version{"2.1.20.15"}
 }

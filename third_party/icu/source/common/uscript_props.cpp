@@ -1,10 +1,12 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-*   Copyright (C) 2013-2015, International Business Machines
+*   Copyright (C) 2013-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  uscript_props.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -32,7 +34,7 @@ namespace {
 const int32_t UNKNOWN = 1 << 21;
 const int32_t EXCLUSION = 2 << 21;
 const int32_t LIMITED_USE = 3 << 21;
-const int32_t ASPIRATIONAL = 4 << 21;
+// st int32_t ASPIRATIONAL = 4 << 21; -- not used any more since Unicode 10
 const int32_t RECOMMENDED = 5 << 21;
 
 // Bits 31..24: Single-bit flags
@@ -70,10 +72,10 @@ const int32_t SCRIPT_PROPS[] = {
     0x0EA5 | RECOMMENDED | LB_LETTERS,  // Laoo
     0x004C | RECOMMENDED | CASED,  // Latn
     0x0D15 | RECOMMENDED,  // Mlym
-    0x1826 | ASPIRATIONAL,  // Mong
+    0x1826 | EXCLUSION,  // Mong
     0x1000 | RECOMMENDED | LB_LETTERS,  // Mymr
     0x168F | EXCLUSION,  // Ogam
-    0x10308 | EXCLUSION,  // Ital
+    0x10300 | EXCLUSION,  // Ital
     0x0B15 | RECOMMENDED,  // Orya
     0x16A0 | EXCLUSION,  // Runr
     0x0D85 | RECOMMENDED,  // Sinh
@@ -83,8 +85,8 @@ const int32_t SCRIPT_PROPS[] = {
     0x078C | RECOMMENDED | RTL,  // Thaa
     0x0E17 | RECOMMENDED | LB_LETTERS,  // Thai
     0x0F40 | RECOMMENDED,  // Tibt
-    0x14C0 | ASPIRATIONAL,  // Cans
-    0xA288 | ASPIRATIONAL | LB_LETTERS,  // Yiii
+    0x14C0 | LIMITED_USE,  // Cans
+    0xA288 | LIMITED_USE | LB_LETTERS,  // Yiii
     0x1703 | EXCLUSION,  // Tglg
     0x1723 | EXCLUSION,  // Hano
     0x1743 | EXCLUSION,  // Buhd
@@ -103,7 +105,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x10A00 | EXCLUSION | RTL,  // Khar
     0xA800 | LIMITED_USE,  // Sylo
     0x1980 | LIMITED_USE | LB_LETTERS,  // Talu
-    0x2D5E | ASPIRATIONAL,  // Tfng
+    0x2D30 | LIMITED_USE,  // Tfng
     0x103A0 | EXCLUSION,  // Xpeo
     0x1B05 | LIMITED_USE,  // Bali
     0x1BC0 | LIMITED_USE,  // Batk
@@ -130,12 +132,12 @@ const int32_t SCRIPT_PROPS[] = {
     0x0840 | LIMITED_USE | RTL,  // Mand
     0,
     0x10980 | EXCLUSION | RTL,  // Mero
-    0x07D8 | LIMITED_USE | RTL,  // Nkoo
+    0x07CA | LIMITED_USE | RTL,  // Nkoo
     0x10C00 | EXCLUSION | RTL,  // Orkh
     0x1036B | EXCLUSION,  // Perm
     0xA840 | EXCLUSION,  // Phag
     0x10900 | EXCLUSION | RTL,  // Phnx
-    0x16F00 | ASPIRATIONAL,  // Plrd
+    0x16F00 | LIMITED_USE,  // Plrd
     0,
     0,
     0,
@@ -147,7 +149,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x12000 | EXCLUSION,  // Xsux
     0,
     0xFDD0 | UNKNOWN,  // Zzzz
-    0x102B7 | EXCLUSION,  // Cari
+    0x102A0 | EXCLUSION,  // Cari
     0x304B | RECOMMENDED | LB_LETTERS,  // Jpan
     0x1A20 | LIMITED_USE | LB_LETTERS,  // Lana
     0x10280 | EXCLUSION,  // Lyci
@@ -164,7 +166,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x11103 | LIMITED_USE,  // Cakm
     0xAC00 | RECOMMENDED,  // Kore
     0x11083 | EXCLUSION,  // Kthi
-    0x10AC1 | EXCLUSION | RTL,  // Mani
+    0x10AD8 | EXCLUSION | RTL,  // Mani
     0x10B60 | EXCLUSION | RTL,  // Phli
     0x10B8F | EXCLUSION | RTL,  // Phlp
     0,
@@ -174,7 +176,7 @@ const int32_t SCRIPT_PROPS[] = {
     0,
     0,
     0xA6A0 | LIMITED_USE,  // Bamu
-    0xA4E8 | LIMITED_USE,  // Lisu
+    0xA4D0 | LIMITED_USE,  // Lisu
     0,
     0x10A60 | EXCLUSION | RTL,  // Sarb
     0x16AE6 | EXCLUSION,  // Bass
@@ -193,11 +195,11 @@ const int32_t SCRIPT_PROPS[] = {
     0,
     0,
     0x16A4F | EXCLUSION,  // Mroo
-    0,
+    0x1B1C4 | EXCLUSION | LB_LETTERS,  // Nshu
     0x11183 | EXCLUSION,  // Shrd
     0x110D0 | EXCLUSION,  // Sora
     0x11680 | EXCLUSION,  // Takr
-    0,
+    0x18229 | EXCLUSION | LB_LETTERS,  // Tang
     0,
     0x14400 | EXCLUSION,  // Hluw
     0x11208 | EXCLUSION,  // Khoj
@@ -210,6 +212,32 @@ const int32_t SCRIPT_PROPS[] = {
     0x1128F | EXCLUSION,  // Mult
     0x11AC0 | EXCLUSION,  // Pauc
     0x1158E | EXCLUSION,  // Sidd
+    0x1E909 | LIMITED_USE | RTL | CASED,  // Adlm
+    0x11C0E | EXCLUSION,  // Bhks
+    0x11C72 | EXCLUSION,  // Marc
+    0x11412 | LIMITED_USE,  // Newa
+    0x104B5 | LIMITED_USE | CASED,  // Osge
+    0x5B57 | RECOMMENDED | LB_LETTERS,  // Hanb
+    0x1112 | RECOMMENDED,  // Jamo
+    0,
+    0x11D10 | EXCLUSION,  // Gonm
+    0x11A5C | EXCLUSION,  // Soyo
+    0x11A0B | EXCLUSION,  // Zanb
+    0x1180B | EXCLUSION,  // Dogr
+    0x11D71 | LIMITED_USE,  // Gong
+    0x11EE5 | EXCLUSION,  // Maka
+    0x16E40 | EXCLUSION | CASED,  // Medf
+    0x10D12 | LIMITED_USE | RTL,  // Rohg
+    0x10F42 | EXCLUSION | RTL,  // Sogd
+    0x10F19 | EXCLUSION | RTL,  // Sogo
+    0x10FF1 | EXCLUSION | RTL,  // Elym
+    0x1E108 | LIMITED_USE,  // Hmnp
+    0x119CE | EXCLUSION,  // Nand
+    0x1E2E1 | LIMITED_USE,  // Wcho
+    0x10FBF | EXCLUSION | RTL,  // Chrs
+    0x1190C | EXCLUSION,  // Diak
+    0x18C65 | EXCLUSION | LB_LETTERS,  // Kits
+    0x10E88 | EXCLUSION | RTL,  // Yezi
     // End copy-paste from parsescriptmetadata.py
 };
 

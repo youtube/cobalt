@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2009-2015, International Business Machines Corporation and
@@ -22,17 +24,8 @@ U_NAMESPACE_BEGIN
 FieldPositionHandler::~FieldPositionHandler() {
 }
 
-void
-FieldPositionHandler::addAttribute(int32_t, int32_t, int32_t) {
-}
-
-void
-FieldPositionHandler::shiftLast(int32_t) {
-}
-
-UBool
-FieldPositionHandler::isRecording(void) const {
-  return FALSE;
+void FieldPositionHandler::setShift(int32_t delta) {
+  fShift = delta;
 }
 
 
@@ -47,9 +40,10 @@ FieldPositionOnlyHandler::~FieldPositionOnlyHandler() {
 
 void
 FieldPositionOnlyHandler::addAttribute(int32_t id, int32_t start, int32_t limit) {
-  if (pos.getField() == id) {
-    pos.setBeginIndex(start);
-    pos.setEndIndex(limit);
+  if (pos.getField() == id && (!acceptFirstOnly || !seenFirst)) {
+    seenFirst = TRUE;
+    pos.setBeginIndex(start + fShift);
+    pos.setEndIndex(limit + fShift);
   }
 }
 
@@ -66,15 +60,25 @@ FieldPositionOnlyHandler::isRecording(void) const {
   return pos.getField() != FieldPosition::DONT_CARE;
 }
 
+void FieldPositionOnlyHandler::setAcceptFirstOnly(UBool acceptFirstOnly) {
+  this->acceptFirstOnly = acceptFirstOnly;
+}
+
 
 // utility subclass FieldPositionIteratorHandler
 
 FieldPositionIteratorHandler::FieldPositionIteratorHandler(FieldPositionIterator* posIter,
                                                            UErrorCode& _status)
-    : iter(posIter), vec(NULL), status(_status) {
+    : iter(posIter), vec(NULL), status(_status), fCategory(UFIELD_CATEGORY_UNDEFINED) {
   if (iter && U_SUCCESS(status)) {
     vec = new UVector32(status);
   }
+}
+
+FieldPositionIteratorHandler::FieldPositionIteratorHandler(
+    UVector32* vec,
+    UErrorCode& status)
+    : iter(nullptr), vec(vec), status(status), fCategory(UFIELD_CATEGORY_UNDEFINED) {
 }
 
 FieldPositionIteratorHandler::~FieldPositionIteratorHandler() {
@@ -88,11 +92,12 @@ FieldPositionIteratorHandler::~FieldPositionIteratorHandler() {
 
 void
 FieldPositionIteratorHandler::addAttribute(int32_t id, int32_t start, int32_t limit) {
-  if (iter && U_SUCCESS(status) && start < limit) {
+  if (vec && U_SUCCESS(status) && start < limit) {
     int32_t size = vec->size();
+    vec->addElement(fCategory, status);
     vec->addElement(id, status);
-    vec->addElement(start, status);
-    vec->addElement(limit, status);
+    vec->addElement(start + fShift, status);
+    vec->addElement(limit + fShift, status);
     if (!U_SUCCESS(status)) {
       vec->setSize(size);
     }

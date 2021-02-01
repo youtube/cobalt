@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1997-2014, International Business Machines
+*   Copyright (C) 1997-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  loclikely.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -17,17 +19,31 @@
 *   that then do not depend on resource bundle code and likely-subtags data.
 */
 
+<<<<<<< HEAD
 #include "starboard/client_porting/poem/string_poem.h"
+=======
+#include "unicode/bytestream.h"
+>>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/utypes.h"
 #include "unicode/locid.h"
 #include "unicode/putil.h"
+#include "unicode/uchar.h"
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
 #include "unicode/uscript.h"
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "ulocimp.h"
 #include "ustr_imp.h"
+
+/**
+ * These are the canonical strings for unknown languages, scripts and regions.
+ **/
+static const char* const unknownLanguage = "und";
+static const char* const unknownScript = "Zzzz";
+static const char* const unknownRegion = "ZZ";
 
 /**
  * This function looks for the localeID in the likelySubtags resource.
@@ -48,9 +64,22 @@ findLikelySubtags(const char* localeID,
         int32_t resLen = 0;
         const UChar* s = NULL;
         UErrorCode tmpErr = U_ZERO_ERROR;
-        UResourceBundle* subtags = ures_openDirect(NULL, "likelySubtags", &tmpErr);
+        icu::LocalUResourceBundlePointer subtags(ures_openDirect(NULL, "likelySubtags", &tmpErr));
         if (U_SUCCESS(tmpErr)) {
-            s = ures_getStringByKey(subtags, localeID, &resLen, &tmpErr);
+            icu::CharString und;
+            if (localeID != NULL) {
+                if (*localeID == '\0') {
+                    localeID = unknownLanguage;
+                } else if (*localeID == '_') {
+                    und.append(unknownLanguage, *err);
+                    und.append(localeID, *err);
+                    if (U_FAILURE(*err)) {
+                        return NULL;
+                    }
+                    localeID = und.data();
+                }
+            }
+            s = ures_getStringByKey(subtags.getAlias(), localeID, &resLen, &tmpErr);
 
             if (U_FAILURE(tmpErr)) {
                 /*
@@ -67,10 +96,13 @@ findLikelySubtags(const char* localeID,
             }
             else {
                 u_UCharsToChars(s, buffer, resLen + 1);
+                if (resLen >= 3 &&
+                    uprv_strnicmp(buffer, unknownLanguage, 3) == 0 &&
+                    (resLen == 3 || buffer[3] == '_')) {
+                    uprv_memmove(buffer, buffer + 3, resLen - 3 + 1);
+                }
                 result = buffer;
             }
-
-            ures_close(subtags);
         } else {
             *err = tmpErr;
         }
@@ -94,9 +126,10 @@ appendTag(
     const char* tag,
     int32_t tagLength,
     char* buffer,
-    int32_t* bufferLength) {
+    int32_t* bufferLength,
+    UBool withSeparator) {
 
-    if (*bufferLength > 0) {
+    if (withSeparator) {
         buffer[*bufferLength] = '_';
         ++(*bufferLength);
     }
@@ -108,13 +141,6 @@ appendTag(
 
     *bufferLength += tagLength;
 }
-
-/**
- * These are the canonical strings for unknown languages, scripts and regions.
- **/
-static const char* const unknownLanguage = "und";
-static const char* const unknownScript = "Zzzz";
-static const char* const unknownRegion = "ZZ";
 
 /**
  * Create a tag string from the supplied parameters.  The lang, script and region
@@ -145,12 +171,10 @@ static const char* const unknownRegion = "ZZ";
  * @param trailing Any trailing data to append to the new tag.
  * @param trailingLength The length of the trailing data.
  * @param alternateTags A string containing any alternate tags.
- * @param tag The output buffer.
- * @param tagCapacity The capacity of the output buffer.
+ * @param sink The output sink receiving the tag string.
  * @param err A pointer to a UErrorCode for error reporting.
- * @return The length of the tag string, which may be greater than tagCapacity, or -1 on error.
  **/
-static int32_t U_CALLCONV
+static void U_CALLCONV
 createTagStringWithAlternates(
     const char* lang,
     int32_t langLength,
@@ -161,16 +185,13 @@ createTagStringWithAlternates(
     const char* trailing,
     int32_t trailingLength,
     const char* alternateTags,
-    char* tag,
-    int32_t tagCapacity,
+    icu::ByteSink& sink,
     UErrorCode* err) {
 
     if (U_FAILURE(*err)) {
         goto error;
     }
-    else if (tag == NULL ||
-             tagCapacity <= 0 ||
-             langLength >= ULOC_LANG_CAPACITY ||
+    else if (langLength >= ULOC_LANG_CAPACITY ||
              scriptLength >= ULOC_SCRIPT_CAPACITY ||
              regionLength >= ULOC_COUNTRY_CAPACITY) {
         goto error;
@@ -184,7 +205,6 @@ createTagStringWithAlternates(
          **/
         char tagBuffer[ULOC_FULLNAME_CAPACITY];
         int32_t tagLength = 0;
-        int32_t capacityRemaining = tagCapacity;
         UBool regionAppended = FALSE;
 
         if (langLength > 0) {
@@ -192,18 +212,14 @@ createTagStringWithAlternates(
                 lang,
                 langLength,
                 tagBuffer,
-                &tagLength);
+                &tagLength,
+                /*withSeparator=*/FALSE);
         }
         else if (alternateTags == NULL) {
             /*
-             * Append the value for an unknown language, if
+             * Use the empty string for an unknown language, if
              * we found no language.
              */
-            appendTag(
-                unknownLanguage,
-                (int32_t)uprv_strlen(unknownLanguage),
-                tagBuffer,
-                &tagLength);
         }
         else {
             /*
@@ -224,21 +240,17 @@ createTagStringWithAlternates(
             }
             else if (alternateLangLength == 0) {
                 /*
-                 * Append the value for an unknown language, if
+                 * Use the empty string for an unknown language, if
                  * we found no language.
                  */
-                appendTag(
-                    unknownLanguage,
-                    (int32_t)uprv_strlen(unknownLanguage),
-                    tagBuffer,
-                    &tagLength);
             }
             else {
                 appendTag(
                     alternateLang,
                     alternateLangLength,
                     tagBuffer,
-                    &tagLength);
+                    &tagLength,
+                    /*withSeparator=*/FALSE);
             }
         }
 
@@ -247,7 +259,8 @@ createTagStringWithAlternates(
                 script,
                 scriptLength,
                 tagBuffer,
-                &tagLength);
+                &tagLength,
+                /*withSeparator=*/TRUE);
         }
         else if (alternateTags != NULL) {
             /*
@@ -271,7 +284,8 @@ createTagStringWithAlternates(
                     alternateScript,
                     alternateScriptLength,
                     tagBuffer,
-                    &tagLength);
+                    &tagLength,
+                    /*withSeparator=*/TRUE);
             }
         }
 
@@ -280,7 +294,8 @@ createTagStringWithAlternates(
                 region,
                 regionLength,
                 tagBuffer,
-                &tagLength);
+                &tagLength,
+                /*withSeparator=*/TRUE);
 
             regionAppended = TRUE;
         }
@@ -305,61 +320,35 @@ createTagStringWithAlternates(
                     alternateRegion,
                     alternateRegionLength,
                     tagBuffer,
-                    &tagLength);
+                    &tagLength,
+                    /*withSeparator=*/TRUE);
 
                 regionAppended = TRUE;
             }
         }
 
-        {
-            const int32_t toCopy =
-                tagLength >= tagCapacity ? tagCapacity : tagLength;
-
-            /**
-             * Copy the partial tag from our internal buffer to the supplied
-             * target.
-             **/
-            uprv_memcpy(
-                tag,
-                tagBuffer,
-                toCopy);
-
-            capacityRemaining -= toCopy;
-        }
+        /**
+         * Copy the partial tag from our internal buffer to the supplied
+         * target.
+         **/
+        sink.Append(tagBuffer, tagLength);
 
         if (trailingLength > 0) {
-            if (*trailing != '@' && capacityRemaining > 0) {
-                tag[tagLength++] = '_';
-                --capacityRemaining;
-                if (capacityRemaining > 0 && !regionAppended) {
+            if (*trailing != '@') {
+                sink.Append("_", 1);
+                if (!regionAppended) {
                     /* extra separator is required */
-                    tag[tagLength++] = '_';
-                    --capacityRemaining;
+                    sink.Append("_", 1);
                 }
             }
 
-            if (capacityRemaining > 0) {
-                /*
-                 * Copy the trailing data into the supplied buffer.  Use uprv_memmove, since we
-                 * don't know if the user-supplied buffers overlap.
-                 */
-                const int32_t toCopy =
-                    trailingLength >= capacityRemaining ? capacityRemaining : trailingLength;
-
-                uprv_memmove(
-                    &tag[tagLength],
-                    trailing,
-                    toCopy);
-            }
+            /*
+             * Copy the trailing data into the supplied buffer.
+             */
+            sink.Append(trailing, trailingLength);
         }
 
-        tagLength += trailingLength;
-
-        return u_terminateChars(
-                    tag,
-                    tagCapacity,
-                    tagLength,
-                    err);
+        return;
     }
 
 error:
@@ -373,8 +362,6 @@ error:
         U_SUCCESS(*err)) {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
     }
-
-    return -1;
 }
 
 /**
@@ -398,12 +385,10 @@ error:
  * @param regionLength The length of the region tag.
  * @param trailing Any trailing data to append to the new tag.
  * @param trailingLength The length of the trailing data.
- * @param tag The output buffer.
- * @param tagCapacity The capacity of the output buffer.
+ * @param sink The output sink receiving the tag string.
  * @param err A pointer to a UErrorCode for error reporting.
- * @return The length of the tag string, which may be greater than tagCapacity.
  **/
-static int32_t U_CALLCONV
+static void U_CALLCONV
 createTagString(
     const char* lang,
     int32_t langLength,
@@ -413,11 +398,10 @@ createTagString(
     int32_t regionLength,
     const char* trailing,
     int32_t trailingLength,
-    char* tag,
-    int32_t tagCapacity,
+    icu::ByteSink& sink,
     UErrorCode* err)
 {
-    return createTagStringWithAlternates(
+    createTagStringWithAlternates(
                 lang,
                 langLength,
                 script,
@@ -427,8 +411,7 @@ createTagString(
                 trailing,
                 trailingLength,
                 NULL,
-                tag,
-                tagCapacity,
+                sink,
                 err);
 }
 
@@ -485,8 +468,7 @@ parseTagString(
         goto error;
     }
 
-    subtagLength = ulocimp_getLanguage(position, lang, *langLength, &position);
-    u_terminateChars(lang, *langLength, subtagLength, err);
+    subtagLength = ulocimp_getLanguage(position, &position, *err).extract(lang, *langLength, *err);
 
     /*
      * Note that we explicit consider U_STRING_NOT_TERMINATED_WARNING
@@ -500,21 +482,14 @@ parseTagString(
     *langLength = subtagLength;
 
     /*
-     * If no language was present, use the value of unknownLanguage
-     * instead.  Otherwise, move past any separator.
+     * If no language was present, use the empty string instead.
+     * Otherwise, move past any separator.
      */
-    if (*langLength == 0) {
-        uprv_strcpy(
-            lang,
-            unknownLanguage);
-        *langLength = (int32_t)uprv_strlen(lang);
-    }
-    else if (_isIDSeparator(*position)) {
+    if (_isIDSeparator(*position)) {
         ++position;
     }
 
-    subtagLength = ulocimp_getScript(position, script, *scriptLength, &position);
-    u_terminateChars(script, *scriptLength, subtagLength, err);
+    subtagLength = ulocimp_getScript(position, &position, *err).extract(script, *scriptLength, *err);
 
     if(U_FAILURE(*err)) {
         goto error;
@@ -538,8 +513,7 @@ parseTagString(
         }    
     }
 
-    subtagLength = ulocimp_getCountry(position, region, *regionLength, &position);
-    u_terminateChars(region, *regionLength, subtagLength, err);
+    subtagLength = ulocimp_getCountry(position, &position, *err).extract(region, *regionLength, *err);
 
     if(U_FAILURE(*err)) {
         goto error;
@@ -576,7 +550,7 @@ error:
     goto exit;
 }
 
-static int32_t U_CALLCONV
+static UBool U_CALLCONV
 createLikelySubtagsString(
     const char* lang,
     int32_t langLength,
@@ -586,17 +560,14 @@ createLikelySubtagsString(
     int32_t regionLength,
     const char* variants,
     int32_t variantsLength,
-    char* tag,
-    int32_t tagCapacity,
-    UErrorCode* err)
-{
+    icu::ByteSink& sink,
+    UErrorCode* err) {
     /**
      * ULOC_FULLNAME_CAPACITY will provide enough capacity
      * that we can build a string that contains the language,
      * script and region code without worrying about overrunning
      * the user-supplied buffer.
      **/
-    char tagBuffer[ULOC_FULLNAME_CAPACITY];
     char likelySubtagsBuffer[ULOC_FULLNAME_CAPACITY];
 
     if(U_FAILURE(*err)) {
@@ -610,25 +581,28 @@ createLikelySubtagsString(
 
         const char* likelySubtags = NULL;
 
-        createTagString(
-            lang,
-            langLength,
-            script,
-            scriptLength,
-            region,
-            regionLength,
-            NULL,
-            0,
-            tagBuffer,
-            sizeof(tagBuffer),
-            err);
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink sink(&tagBuffer);
+            createTagString(
+                lang,
+                langLength,
+                script,
+                scriptLength,
+                region,
+                regionLength,
+                NULL,
+                0,
+                sink,
+                err);
+        }
         if(U_FAILURE(*err)) {
             goto error;
         }
 
         likelySubtags =
             findLikelySubtags(
-                tagBuffer,
+                tagBuffer.data(),
                 likelySubtagsBuffer,
                 sizeof(likelySubtagsBuffer),
                 err);
@@ -640,7 +614,7 @@ createLikelySubtagsString(
             /* Always use the language tag from the
                maximal string, since it may be more
                specific than the one provided. */
-            return createTagStringWithAlternates(
+            createTagStringWithAlternates(
                         NULL,
                         0,
                         NULL,
@@ -650,9 +624,9 @@ createLikelySubtagsString(
                         variants,
                         variantsLength,
                         likelySubtags,
-                        tag,
-                        tagCapacity,
+                        sink,
                         err);
+            return TRUE;
         }
     }
 
@@ -663,25 +637,28 @@ createLikelySubtagsString(
 
         const char* likelySubtags = NULL;
 
-        createTagString(
-            lang,
-            langLength,
-            script,
-            scriptLength,
-            NULL,
-            0,
-            NULL,
-            0,
-            tagBuffer,
-            sizeof(tagBuffer),
-            err);
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink sink(&tagBuffer);
+            createTagString(
+                lang,
+                langLength,
+                script,
+                scriptLength,
+                NULL,
+                0,
+                NULL,
+                0,
+                sink,
+                err);
+        }
         if(U_FAILURE(*err)) {
             goto error;
         }
 
         likelySubtags =
             findLikelySubtags(
-                tagBuffer,
+                tagBuffer.data(),
                 likelySubtagsBuffer,
                 sizeof(likelySubtagsBuffer),
                 err);
@@ -693,7 +670,7 @@ createLikelySubtagsString(
             /* Always use the language tag from the
                maximal string, since it may be more
                specific than the one provided. */
-            return createTagStringWithAlternates(
+            createTagStringWithAlternates(
                         NULL,
                         0,
                         NULL,
@@ -703,9 +680,9 @@ createLikelySubtagsString(
                         variants,
                         variantsLength,
                         likelySubtags,
-                        tag,
-                        tagCapacity,
+                        sink,
                         err);
+            return TRUE;
         }
     }
 
@@ -716,25 +693,28 @@ createLikelySubtagsString(
 
         const char* likelySubtags = NULL;
 
-        createTagString(
-            lang,
-            langLength,
-            NULL,
-            0,
-            region,
-            regionLength,
-            NULL,
-            0,
-            tagBuffer,
-            sizeof(tagBuffer),
-            err);
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink sink(&tagBuffer);
+            createTagString(
+                lang,
+                langLength,
+                NULL,
+                0,
+                region,
+                regionLength,
+                NULL,
+                0,
+                sink,
+                err);
+        }
         if(U_FAILURE(*err)) {
             goto error;
         }
 
         likelySubtags =
             findLikelySubtags(
-                tagBuffer,
+                tagBuffer.data(),
                 likelySubtagsBuffer,
                 sizeof(likelySubtagsBuffer),
                 err);
@@ -746,7 +726,7 @@ createLikelySubtagsString(
             /* Always use the language tag from the
                maximal string, since it may be more
                specific than the one provided. */
-            return createTagStringWithAlternates(
+            createTagStringWithAlternates(
                         NULL,
                         0,
                         script,
@@ -756,9 +736,9 @@ createLikelySubtagsString(
                         variants,
                         variantsLength,
                         likelySubtags,
-                        tag,
-                        tagCapacity,
+                        sink,
                         err);
+            return TRUE;
         }
     }
 
@@ -768,25 +748,28 @@ createLikelySubtagsString(
     {
         const char* likelySubtags = NULL;
 
-        createTagString(
-            lang,
-            langLength,
-            NULL,
-            0,
-            NULL,
-            0,
-            NULL,
-            0,
-            tagBuffer,
-            sizeof(tagBuffer),
-            err);
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink sink(&tagBuffer);
+            createTagString(
+                lang,
+                langLength,
+                NULL,
+                0,
+                NULL,
+                0,
+                NULL,
+                0,
+                sink,
+                err);
+        }
         if(U_FAILURE(*err)) {
             goto error;
         }
 
         likelySubtags =
             findLikelySubtags(
-                tagBuffer,
+                tagBuffer.data(),
                 likelySubtagsBuffer,
                 sizeof(likelySubtagsBuffer),
                 err);
@@ -798,7 +781,7 @@ createLikelySubtagsString(
             /* Always use the language tag from the
                maximal string, since it may be more
                specific than the one provided. */
-            return createTagStringWithAlternates(
+            createTagStringWithAlternates(
                         NULL,
                         0,
                         script,
@@ -808,17 +791,13 @@ createLikelySubtagsString(
                         variants,
                         variantsLength,
                         likelySubtags,
-                        tag,
-                        tagCapacity,
+                        sink,
                         err);
+            return TRUE;
         }
     }
 
-    return u_terminateChars(
-                tag,
-                tagCapacity,
-                0,
-                err);
+    return FALSE;
 
 error:
 
@@ -826,34 +805,32 @@ error:
         *err = U_ILLEGAL_ARGUMENT_ERROR;
     }
 
-    return -1;
+    return FALSE;
 }
 
-#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) \
-    {   int32_t count = 0; \
-        int32_t i; \
-        for (i = 0; i < trailingLength; i++) { \
-            if (trailing[i] == '-' || trailing[i] == '_') { \
-                count = 0; \
-                if (count > 8) { \
-                    goto error; \
-                } \
-            } else if (trailing[i] == '@') { \
-                break; \
-            } else if (count > 8) { \
+#define CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength) UPRV_BLOCK_MACRO_BEGIN { \
+    int32_t count = 0; \
+    int32_t i; \
+    for (i = 0; i < trailingLength; i++) { \
+        if (trailing[i] == '-' || trailing[i] == '_') { \
+            count = 0; \
+            if (count > 8) { \
                 goto error; \
-            } else { \
-                count++; \
             } \
+        } else if (trailing[i] == '@') { \
+            break; \
+        } else if (count > 8) { \
+            goto error; \
+        } else { \
+            count++; \
         } \
-    }
+    } \
+} UPRV_BLOCK_MACRO_END
 
-static int32_t
-_uloc_addLikelySubtags(const char*    localeID,
-         char* maximizedLocaleID,
-         int32_t maximizedLocaleIDCapacity,
-         UErrorCode* err)
-{
+static UBool
+_uloc_addLikelySubtags(const char* localeID,
+                       icu::ByteSink& sink,
+                       UErrorCode* err) {
     char lang[ULOC_LANG_CAPACITY];
     int32_t langLength = sizeof(lang);
     char script[ULOC_SCRIPT_CAPACITY];
@@ -863,14 +840,12 @@ _uloc_addLikelySubtags(const char*    localeID,
     const char* trailing = "";
     int32_t trailingLength = 0;
     int32_t trailingIndex = 0;
-    int32_t resultLength = 0;
+    UBool success = FALSE;
 
     if(U_FAILURE(*err)) {
         goto error;
     }
-    else if (localeID == NULL ||
-             maximizedLocaleID == NULL ||
-             maximizedLocaleIDCapacity <= 0) {
+    if (localeID == NULL) {
         goto error;
     }
 
@@ -901,7 +876,7 @@ _uloc_addLikelySubtags(const char*    localeID,
 
     CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength);
 
-    resultLength =
+    success =
         createLikelySubtagsString(
             lang,
             langLength,
@@ -911,55 +886,39 @@ _uloc_addLikelySubtags(const char*    localeID,
             regionLength,
             trailing,
             trailingLength,
-            maximizedLocaleID,
-            maximizedLocaleIDCapacity,
+            sink,
             err);
 
-    if (resultLength == 0) {
+    if (!success) {
         const int32_t localIDLength = (int32_t)uprv_strlen(localeID);
 
         /*
          * If we get here, we need to return localeID.
          */
-        uprv_memcpy(
-            maximizedLocaleID,
-            localeID,
-            localIDLength <= maximizedLocaleIDCapacity ? 
-                localIDLength : maximizedLocaleIDCapacity);
-
-        resultLength =
-            u_terminateChars(
-                maximizedLocaleID,
-                maximizedLocaleIDCapacity,
-                localIDLength,
-                err);
+        sink.Append(localeID, localIDLength);
     }
 
-    return resultLength;
+    return success;
 
 error:
 
     if (!U_FAILURE(*err)) {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
     }
-
-    return -1;
+    return FALSE;
 }
 
-static int32_t
-_uloc_minimizeSubtags(const char*    localeID,
-         char* minimizedLocaleID,
-         int32_t minimizedLocaleIDCapacity,
-         UErrorCode* err)
-{
-    /**
-     * ULOC_FULLNAME_CAPACITY will provide enough capacity
-     * that we can build a string that contains the language,
-     * script and region code without worrying about overrunning
-     * the user-supplied buffer.
-     **/
-    char maximizedTagBuffer[ULOC_FULLNAME_CAPACITY];
-    int32_t maximizedTagBufferLength = sizeof(maximizedTagBuffer);
+// Add likely subtags to the sink
+// return true if the value in the sink is produced by a match during the lookup
+// return false if the value in the sink is the same as input because there are
+// no match after the lookup.
+static UBool _ulocimp_addLikelySubtags(const char*, icu::ByteSink&, UErrorCode*);
+
+static void
+_uloc_minimizeSubtags(const char* localeID,
+                      icu::ByteSink& sink,
+                      UErrorCode* err) {
+    icu::CharString maximizedTagBuffer;
 
     char lang[ULOC_LANG_CAPACITY];
     int32_t langLength = sizeof(lang);
@@ -970,13 +929,12 @@ _uloc_minimizeSubtags(const char*    localeID,
     const char* trailing = "";
     int32_t trailingLength = 0;
     int32_t trailingIndex = 0;
+    UBool successGetMax = FALSE;
 
     if(U_FAILURE(*err)) {
         goto error;
     }
-    else if (localeID == NULL ||
-             minimizedLocaleID == NULL ||
-             minimizedLocaleIDCapacity <= 0) {
+    else if (localeID == NULL) {
         goto error;
     }
 
@@ -1009,33 +967,60 @@ _uloc_minimizeSubtags(const char*    localeID,
 
     CHECK_TRAILING_VARIANT_SIZE(trailing, trailingLength);
 
-    createTagString(
-        lang,
-        langLength,
-        script,
-        scriptLength,
-        region,
-        regionLength,
-        NULL,
-        0,
-        maximizedTagBuffer,
-        maximizedTagBufferLength,
-        err);
+    {
+        icu::CharString base;
+        {
+            icu::CharStringByteSink baseSink(&base);
+            createTagString(
+                lang,
+                langLength,
+                script,
+                scriptLength,
+                region,
+                regionLength,
+                NULL,
+                0,
+                baseSink,
+                err);
+        }
+
+        /**
+         * First, we need to first get the maximization
+         * from AddLikelySubtags.
+         **/
+        {
+            icu::CharStringByteSink maxSink(&maximizedTagBuffer);
+            successGetMax = _ulocimp_addLikelySubtags(base.data(), maxSink, err);
+        }
+    }
+
     if(U_FAILURE(*err)) {
         goto error;
     }
 
-    /**
-     * First, we need to first get the maximization
-     * from AddLikelySubtags.
-     **/
-    maximizedTagBufferLength =
-        uloc_addLikelySubtags(
-            maximizedTagBuffer,
-            maximizedTagBuffer,
-            maximizedTagBufferLength,
-            err);
+    if (!successGetMax) {
+        /**
+         * If we got here, return the locale ID parameter unchanged.
+         **/
+        const int32_t localeIDLength = (int32_t)uprv_strlen(localeID);
+        sink.Append(localeID, localeIDLength);
+        return;
+    }
 
+    // In the following, the lang, script, region are referring to those in
+    // the maximizedTagBuffer, not the one in the localeID.
+    langLength = sizeof(lang);
+    scriptLength = sizeof(script);
+    regionLength = sizeof(region);
+    parseTagString(
+        maximizedTagBuffer.data(),
+        lang,
+        &langLength,
+        script,
+        &scriptLength,
+        region,
+        &regionLength,
+        err);
     if(U_FAILURE(*err)) {
         goto error;
     }
@@ -1044,9 +1029,9 @@ _uloc_minimizeSubtags(const char*    localeID,
      * Start first with just the language.
      **/
     {
-        char tagBuffer[ULOC_FULLNAME_CAPACITY];
-
-        const int32_t tagBufferLength =
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink tagSink(&tagBuffer);
             createLikelySubtagsString(
                 lang,
                 langLength,
@@ -1056,19 +1041,20 @@ _uloc_minimizeSubtags(const char*    localeID,
                 0,
                 NULL,
                 0,
-                tagBuffer,
-                sizeof(tagBuffer),
+                tagSink,
                 err);
+        }
 
         if(U_FAILURE(*err)) {
             goto error;
         }
-        else if (uprv_strnicmp(
-                    maximizedTagBuffer,
-                    tagBuffer,
-                    tagBufferLength) == 0) {
+        else if (!tagBuffer.isEmpty() &&
+                 uprv_strnicmp(
+                    maximizedTagBuffer.data(),
+                    tagBuffer.data(),
+                    tagBuffer.length()) == 0) {
 
-            return createTagString(
+            createTagString(
                         lang,
                         langLength,
                         NULL,
@@ -1077,9 +1063,9 @@ _uloc_minimizeSubtags(const char*    localeID,
                         0,
                         trailing,
                         trailingLength,
-                        minimizedLocaleID,
-                        minimizedLocaleIDCapacity,
+                        sink,
                         err);
+            return;
         }
     }
 
@@ -1088,9 +1074,9 @@ _uloc_minimizeSubtags(const char*    localeID,
      **/
     if (regionLength > 0) {
 
-        char tagBuffer[ULOC_FULLNAME_CAPACITY];
-
-        const int32_t tagBufferLength =
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink tagSink(&tagBuffer);
             createLikelySubtagsString(
                 lang,
                 langLength,
@@ -1100,19 +1086,20 @@ _uloc_minimizeSubtags(const char*    localeID,
                 regionLength,
                 NULL,
                 0,
-                tagBuffer,
-                sizeof(tagBuffer),
+                tagSink,
                 err);
+        }
 
         if(U_FAILURE(*err)) {
             goto error;
         }
-        else if (uprv_strnicmp(
-                    maximizedTagBuffer,
-                    tagBuffer,
-                    tagBufferLength) == 0) {
+        else if (!tagBuffer.isEmpty() &&
+                 uprv_strnicmp(
+                    maximizedTagBuffer.data(),
+                    tagBuffer.data(),
+                    tagBuffer.length()) == 0) {
 
-            return createTagString(
+            createTagString(
                         lang,
                         langLength,
                         NULL,
@@ -1121,9 +1108,9 @@ _uloc_minimizeSubtags(const char*    localeID,
                         regionLength,
                         trailing,
                         trailingLength,
-                        minimizedLocaleID,
-                        minimizedLocaleIDCapacity,
+                        sink,
                         err);
+            return;
         }
     }
 
@@ -1132,10 +1119,10 @@ _uloc_minimizeSubtags(const char*    localeID,
      * since trying with all three subtags would only yield the
      * maximal version that we already have.
      **/
-    if (scriptLength > 0 && regionLength > 0) {
-        char tagBuffer[ULOC_FULLNAME_CAPACITY];
-
-        const int32_t tagBufferLength =
+    if (scriptLength > 0) {
+        icu::CharString tagBuffer;
+        {
+            icu::CharStringByteSink tagSink(&tagBuffer);
             createLikelySubtagsString(
                 lang,
                 langLength,
@@ -1145,19 +1132,20 @@ _uloc_minimizeSubtags(const char*    localeID,
                 0,
                 NULL,
                 0,
-                tagBuffer,
-                sizeof(tagBuffer),
+                tagSink,
                 err);
+        }
 
         if(U_FAILURE(*err)) {
             goto error;
         }
-        else if (uprv_strnicmp(
-                    maximizedTagBuffer,
-                    tagBuffer,
-                    tagBufferLength) == 0) {
+        else if (!tagBuffer.isEmpty() &&
+                 uprv_strnicmp(
+                    maximizedTagBuffer.data(),
+                    tagBuffer.data(),
+                    tagBuffer.length()) == 0) {
 
-            return createTagString(
+            createTagString(
                         lang,
                         langLength,
                         script,
@@ -1166,29 +1154,28 @@ _uloc_minimizeSubtags(const char*    localeID,
                         0,
                         trailing,
                         trailingLength,
-                        minimizedLocaleID,
-                        minimizedLocaleIDCapacity,
+                        sink,
                         err);
+            return;
         }
     }
 
     {
         /**
-         * If we got here, return the locale ID parameter.
+         * If we got here, return the max + trail.
          **/
-        const int32_t localeIDLength = (int32_t)uprv_strlen(localeID);
-
-        uprv_memcpy(
-            minimizedLocaleID,
-            localeID,
-            localeIDLength <= minimizedLocaleIDCapacity ? 
-                localeIDLength : minimizedLocaleIDCapacity);
-
-        return u_terminateChars(
-                    minimizedLocaleID,
-                    minimizedLocaleIDCapacity,
-                    localeIDLength,
+        createTagString(
+                    lang,
+                    langLength,
+                    script,
+                    scriptLength,
+                    region,
+                    regionLength,
+                    trailing,
+                    trailingLength,
+                    sink,
                     err);
+        return;
     }
 
 error:
@@ -1196,10 +1183,6 @@ error:
     if (!U_FAILURE(*err)) {
         *err = U_ILLEGAL_ARGUMENT_ERROR;
     }
-
-    return -1;
-
-
 }
 
 static UBool
@@ -1230,59 +1213,99 @@ do_canonicalize(const char*    localeID,
 }
 
 U_CAPI int32_t U_EXPORT2
-uloc_addLikelySubtags(const char*    localeID,
-         char* maximizedLocaleID,
-         int32_t maximizedLocaleIDCapacity,
-         UErrorCode* err)
-{
+uloc_addLikelySubtags(const char* localeID,
+                      char* maximizedLocaleID,
+                      int32_t maximizedLocaleIDCapacity,
+                      UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
+    icu::CheckedArrayByteSink sink(
+            maximizedLocaleID, maximizedLocaleIDCapacity);
+
+    ulocimp_addLikelySubtags(localeID, sink, status);
+    int32_t reslen = sink.NumberOfBytesAppended();
+
+    if (U_FAILURE(*status)) {
+        return sink.Overflowed() ? reslen : -1;
+    }
+
+    if (sink.Overflowed()) {
+        *status = U_BUFFER_OVERFLOW_ERROR;
+    } else {
+        u_terminateChars(
+                maximizedLocaleID, maximizedLocaleIDCapacity, reslen, status);
+    }
+
+    return reslen;
+}
+
+static UBool
+_ulocimp_addLikelySubtags(const char* localeID,
+                          icu::ByteSink& sink,
+                          UErrorCode* status) {
     char localeBuffer[ULOC_FULLNAME_CAPACITY];
 
-    if (!do_canonicalize(
-        localeID,
-        localeBuffer,
-        sizeof(localeBuffer),
-        err)) {
-        return -1;
+    if (do_canonicalize(localeID, localeBuffer, sizeof localeBuffer, status)) {
+        return _uloc_addLikelySubtags(localeBuffer, sink, status);
     }
-    else {
-        return _uloc_addLikelySubtags(
-                    localeBuffer,
-                    maximizedLocaleID,
-                    maximizedLocaleIDCapacity,
-                    err);
-    }    
+    return FALSE;
+}
+
+U_CAPI void U_EXPORT2
+ulocimp_addLikelySubtags(const char* localeID,
+                         icu::ByteSink& sink,
+                         UErrorCode* status) {
+    _ulocimp_addLikelySubtags(localeID, sink, status);
 }
 
 U_CAPI int32_t U_EXPORT2
-uloc_minimizeSubtags(const char*    localeID,
-         char* minimizedLocaleID,
-         int32_t minimizedLocaleIDCapacity,
-         UErrorCode* err)
-{
+uloc_minimizeSubtags(const char* localeID,
+                     char* minimizedLocaleID,
+                     int32_t minimizedLocaleIDCapacity,
+                     UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
+    icu::CheckedArrayByteSink sink(
+            minimizedLocaleID, minimizedLocaleIDCapacity);
+
+    ulocimp_minimizeSubtags(localeID, sink, status);
+    int32_t reslen = sink.NumberOfBytesAppended();
+
+    if (U_FAILURE(*status)) {
+        return sink.Overflowed() ? reslen : -1;
+    }
+
+    if (sink.Overflowed()) {
+        *status = U_BUFFER_OVERFLOW_ERROR;
+    } else {
+        u_terminateChars(
+                minimizedLocaleID, minimizedLocaleIDCapacity, reslen, status);
+    }
+
+    return reslen;
+}
+
+U_CAPI void U_EXPORT2
+ulocimp_minimizeSubtags(const char* localeID,
+                        icu::ByteSink& sink,
+                        UErrorCode* status) {
     char localeBuffer[ULOC_FULLNAME_CAPACITY];
 
-    if (!do_canonicalize(
-        localeID,
-        localeBuffer,
-        sizeof(localeBuffer),
-        err)) {
-        return -1;
+    if (do_canonicalize(localeID, localeBuffer, sizeof localeBuffer, status)) {
+        _uloc_minimizeSubtags(localeBuffer, sink, status);
     }
-    else {
-        return _uloc_minimizeSubtags(
-                    localeBuffer,
-                    minimizedLocaleID,
-                    minimizedLocaleIDCapacity,
-                    err);
-    }    
 }
 
 // Pairs of (language subtag, + or -) for finding out fast if common languages
 // are LTR (minus) or RTL (plus).
-static const char* LANG_DIR_STRING =
+static const char LANG_DIR_STRING[] =
         "root-en-es-pt-zh-ja-ko-de-fr-it-ar+he+fa+ru-nl-pl-th-tr-";
 
-// Implemented here because this calls uloc_addLikelySubtags().
+// Implemented here because this calls ulocimp_addLikelySubtags().
 U_CAPI UBool U_EXPORT2
 uloc_isRightToLeft(const char *locale) {
     UErrorCode errorCode = U_ZERO_ERROR;
@@ -1295,26 +1318,30 @@ uloc_isRightToLeft(const char *locale) {
         errorCode = U_ZERO_ERROR;
         char lang[8];
         int32_t langLength = uloc_getLanguage(locale, lang, UPRV_LENGTHOF(lang), &errorCode);
-        if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING ||
-                langLength == 0) {
+        if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING) {
             return FALSE;
         }
-        const char* langPtr = uprv_strstr(LANG_DIR_STRING, lang);
-        if (langPtr != NULL) {
-            switch (langPtr[langLength]) {
-            case '-': return FALSE;
-            case '+': return TRUE;
-            default: break;  // partial match of a longer code
+        if (langLength > 0) {
+            const char* langPtr = uprv_strstr(LANG_DIR_STRING, lang);
+            if (langPtr != NULL) {
+                switch (langPtr[langLength]) {
+                case '-': return FALSE;
+                case '+': return TRUE;
+                default: break;  // partial match of a longer code
+                }
             }
         }
         // Otherwise, find the likely script.
         errorCode = U_ZERO_ERROR;
-        char likely[ULOC_FULLNAME_CAPACITY];
-        (void)uloc_addLikelySubtags(locale, likely, UPRV_LENGTHOF(likely), &errorCode);
+        icu::CharString likely;
+        {
+            icu::CharStringByteSink sink(&likely);
+            ulocimp_addLikelySubtags(locale, sink, &errorCode);
+        }
         if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING) {
             return FALSE;
         }
-        scriptLength = uloc_getScript(likely, script, UPRV_LENGTHOF(script), &errorCode);
+        scriptLength = uloc_getScript(likely.data(), script, UPRV_LENGTHOF(script), &errorCode);
         if (U_FAILURE(errorCode) || errorCode == U_STRING_NOT_TERMINATED_WARNING ||
                 scriptLength == 0) {
             return FALSE;
@@ -1332,3 +1359,56 @@ Locale::isRightToLeft() const {
 }
 
 U_NAMESPACE_END
+
+// The following must at least allow for rg key value (6) plus terminator (1).
+#define ULOC_RG_BUFLEN 8
+
+U_CAPI int32_t U_EXPORT2
+ulocimp_getRegionForSupplementalData(const char *localeID, UBool inferRegion,
+                                     char *region, int32_t regionCapacity, UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    char rgBuf[ULOC_RG_BUFLEN];
+    UErrorCode rgStatus = U_ZERO_ERROR;
+
+    // First check for rg keyword value
+    int32_t rgLen = uloc_getKeywordValue(localeID, "rg", rgBuf, ULOC_RG_BUFLEN, &rgStatus);
+    if (U_FAILURE(rgStatus) || rgLen != 6) {
+        rgLen = 0;
+    } else {
+        // rgBuf guaranteed to be zero terminated here, with text len 6
+        char *rgPtr = rgBuf;
+        for (; *rgPtr!= 0; rgPtr++) {
+            *rgPtr = uprv_toupper(*rgPtr);
+        }
+        rgLen = (uprv_strcmp(rgBuf+2, "ZZZZ") == 0)? 2: 0;
+    }
+
+    if (rgLen == 0) {
+        // No valid rg keyword value, try for unicode_region_subtag
+        rgLen = uloc_getCountry(localeID, rgBuf, ULOC_RG_BUFLEN, status);
+        if (U_FAILURE(*status)) {
+            rgLen = 0;
+        } else if (rgLen == 0 && inferRegion) {
+            // no unicode_region_subtag but inferRegion TRUE, try likely subtags
+            rgStatus = U_ZERO_ERROR;
+            icu::CharString locBuf;
+            {
+                icu::CharStringByteSink sink(&locBuf);
+                ulocimp_addLikelySubtags(localeID, sink, &rgStatus);
+            }
+            if (U_SUCCESS(rgStatus)) {
+                rgLen = uloc_getCountry(locBuf.data(), rgBuf, ULOC_RG_BUFLEN, status);
+                if (U_FAILURE(*status)) {
+                    rgLen = 0;
+                }
+            }
+        }
+    }
+
+    rgBuf[rgLen] = 0;
+    uprv_strncpy(region, rgBuf, regionCapacity);
+    return u_terminateChars(region, regionCapacity, rgLen, status);
+}
+

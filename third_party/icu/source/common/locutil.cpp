@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2002-2014, International Business Machines Corporation and
@@ -11,6 +13,7 @@
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/resbund.h"
+#include "unicode/uenum.h"
 #include "cmemory.h"
 #include "ustrfmt.h"
 #include "locutil.h"
@@ -229,15 +232,14 @@ LocaleUtility::getAvailableLocaleNames(const UnicodeString& bundleID)
             CharString cbundleID;
             cbundleID.appendInvariantChars(bundleID, status);
             const char* path = cbundleID.isEmpty() ? NULL : cbundleID.data();
-            UEnumeration *uenum = ures_openAvailableLocales(path, &status);
+            icu::LocalUEnumerationPointer uenum(ures_openAvailableLocales(path, &status));
             for (;;) {
-                const UChar* id = uenum_unext(uenum, NULL, &status);
+                const UChar* id = uenum_unext(uenum.getAlias(), NULL, &status);
                 if (id == NULL) {
                     break;
                 }
                 htp->put(UnicodeString(id), (void*)htp, status);
             }
-            uenum_close(uenum);
             if (U_FAILURE(status)) {
                 delete htp;
                 return NULL;

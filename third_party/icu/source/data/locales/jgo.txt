@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/jgo.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 jgo{
     AuxExemplarCharacters{"[e o q r x]"}
     ExemplarCharacters{
@@ -18,7 +13,8 @@ jgo{
         "[A B C D Ɛ F G H I J K L M N Ŋ Ɔ P {Pf} S {Sh} T {Ts} U Ʉ {Ʉ\u0308} V W Ẅ Y "
         "Z Ꞌ]"
     }
-    ExemplarCharactersPunctuation{"[\\- , ; \\: ! ? . ‹ › « »]"}
+    ExemplarCharactersNumbers{"[\\- ‑ , . % ‰ + 0 1 2 3 4 5 6 7 8 9]"}
+    ExemplarCharactersPunctuation{"[\\- ‑ , ; \\: ! ? . ‹ › « »]"}
     MoreInformation{"?"}
     NumberElements{
         default{"latn"}
@@ -44,7 +40,6 @@ jgo{
         }
         native{"latn"}
     }
-    Version{"2.1.19.94"}
     calendar{
         generic{
             DateTimePatterns{
@@ -74,6 +69,10 @@ jgo{
         }
         gregorian{
             AmPmMarkers{
+                "mbaꞌmbaꞌ",
+                "ŋka mbɔ́t nji",
+            }
+            AmPmMarkersAbbr{
                 "mbaꞌmbaꞌ",
                 "ŋka mbɔ́t nji",
             }

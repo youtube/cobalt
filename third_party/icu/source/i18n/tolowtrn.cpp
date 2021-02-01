@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2007, International Business Machines
@@ -56,7 +58,7 @@ LowercaseTransliterator::LowercaseTransliterator(const LowercaseTransliterator& 
 /**
  * Transliterator API.
  */
-Transliterator* LowercaseTransliterator::clone(void) const {
+LowercaseTransliterator* LowercaseTransliterator::clone() const {
     return new LowercaseTransliterator(*this);
 }
 

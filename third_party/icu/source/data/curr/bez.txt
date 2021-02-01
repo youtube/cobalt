@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/bez.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 bez{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ bez{
         }
         MRO{
             "MRO",
+            "Lupila lwa Humolitania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Lupila lwa Humolitania",
         }
         MUR{
@@ -182,6 +181,10 @@ bez{
         }
         STD{
             "STD",
+            "Lupila lwa Husaotome na Huprinisipe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Lupila lwa Husaotome na Huprinisipe",
         }
         SZL{
@@ -229,5 +232,4 @@ bez{
             "Lupila lwa Huzimbabwe",
         }
     }
-    Version{"2.1.19.14"}
 }

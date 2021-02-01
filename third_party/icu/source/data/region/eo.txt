@@ -1,21 +1,16 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/eo.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 eo{
     Countries{
+        001{"Mondo"}
         AD{"Andoro"}
-        AE{"Unuiĝintaj Arabaj Emirlandos"}
+        AE{"Unuiĝintaj Arabaj Emirlandoj"}
         AF{"Afganujo"}
         AG{"Antigvo-Barbudo"}
         AI{"Angvilo"}
         AL{"Albanujo"}
         AM{"Armenujo"}
-        AN{"Nederlandaj Antiloj"}
         AO{"Angolo"}
         AQ{"Antarkto"}
         AR{"Argentino"}
@@ -136,7 +131,6 @@ eo{
         MD{"Moldavujo"}
         MG{"Madagaskaro"}
         MH{"Marŝaloj"}
-        MK{"Makedonujo"}
         ML{"Malio"}
         MM{"Mjanmao"}
         MN{"Mongolujo"}
@@ -233,5 +227,4 @@ eo{
         ZM{"Zambio"}
         ZW{"Zimbabvo"}
     }
-    Version{"2.1.19.14"}
 }

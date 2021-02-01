@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ko.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ko{
-    Version{"2.1.19.94"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"아비장"}
@@ -196,7 +190,7 @@ ko{
             ec{"산루이스"}
         }
         "America:Argentina:Tucuman"{
-            ec{"뚜꾸만"}
+            ec{"투쿠만"}
         }
         "America:Argentina:Ushuaia"{
             ec{"우수아이아"}
@@ -309,6 +303,9 @@ ko{
         "America:El_Salvador"{
             ec{"엘살바도르"}
         }
+        "America:Fort_Nelson"{
+            ec{"포트 넬슨"}
+        }
         "America:Fortaleza"{
             ec{"포르탈레자"}
         }
@@ -349,25 +346,25 @@ ko{
             ec{"에르모시요"}
         }
         "America:Indiana:Knox"{
-            ec{"인디애나주 녹스"}
+            ec{"인디애나주, 녹스"}
         }
         "America:Indiana:Marengo"{
-            ec{"인디애나주, 마렝고"}
+            ec{"인디애나주, 머렝고"}
         }
         "America:Indiana:Petersburg"{
             ec{"인디애나주, 피츠버그"}
         }
         "America:Indiana:Tell_City"{
-            ec{"인디아나주, 텔시티"}
+            ec{"인디애나주, 텔시티"}
         }
         "America:Indiana:Vevay"{
-            ec{"비비"}
+            ec{"인디애나주, 비비"}
         }
         "America:Indiana:Vincennes"{
-            ec{"인디아나주, 뱅센"}
+            ec{"인디애나주, 빈센스"}
         }
         "America:Indiana:Winamac"{
-            ec{"인디아나주, 워너맥"}
+            ec{"인디애나주, 위너맥"}
         }
         "America:Indianapolis"{
             ec{"인디애나폴리스"}
@@ -481,7 +478,7 @@ ko{
             ec{"중부, 노스다코타"}
         }
         "America:North_Dakota:New_Salem"{
-            ec{"노스 다코타주, 뉴살렘"}
+            ec{"노스다코타주, 뉴살렘"}
         }
         "America:Ojinaga"{
             ec{"오히나가"}
@@ -505,10 +502,13 @@ ko{
             ec{"포트오브스페인"}
         }
         "America:Porto_Velho"{
-            ec{"포르투벨류"}
+            ec{"포르토벨료"}
         }
         "America:Puerto_Rico"{
             ec{"푸에르토리코"}
+        }
+        "America:Punta_Arenas"{
+            ec{"푼타아레나스"}
         }
         "America:Rainy_River"{
             ec{"레이니강"}
@@ -541,7 +541,7 @@ ko{
             ec{"산토도밍고"}
         }
         "America:Sao_Paulo"{
-            ec{"상파울로"}
+            ec{"상파울루"}
         }
         "America:Scoresbysund"{
             ec{"스코레스바이선드"}
@@ -556,16 +556,16 @@ ko{
             ec{"세인트존스"}
         }
         "America:St_Kitts"{
-            ec{"세인트 키츠"}
+            ec{"세인트키츠"}
         }
         "America:St_Lucia"{
-            ec{"세인트 루시아"}
+            ec{"세인트루시아"}
         }
         "America:St_Thomas"{
-            ec{"세인트 토마스"}
+            ec{"세인트토마스"}
         }
         "America:St_Vincent"{
-            ec{"세인트 빈센트"}
+            ec{"세인트빈센트"}
         }
         "America:Swift_Current"{
             ec{"스위프트커런트"}
@@ -660,6 +660,9 @@ ko{
         "Asia:Ashgabat"{
             ec{"아슈하바트"}
         }
+        "Asia:Atyrau"{
+            ec{"아티라우"}
+        }
         "Asia:Baghdad"{
             ec{"바그다드"}
         }
@@ -671,6 +674,9 @@ ko{
         }
         "Asia:Bangkok"{
             ec{"방콕"}
+        }
+        "Asia:Barnaul"{
+            ec{"바르나울"}
         }
         "Asia:Beirut"{
             ec{"베이루트"}
@@ -707,6 +713,9 @@ ko{
         }
         "Asia:Dushanbe"{
             ec{"두샨베"}
+        }
+        "Asia:Famagusta"{
+            ec{"파마구스타"}
         }
         "Asia:Gaza"{
             ec{"가자"}
@@ -801,6 +810,9 @@ ko{
         "Asia:Qatar"{
             ec{"카타르"}
         }
+        "Asia:Qostanay"{
+            ec{"코스타나이"}
+        }
         "Asia:Qyzylorda"{
             ec{"키질로르다"}
         }
@@ -848,6 +860,9 @@ ko{
         }
         "Asia:Tokyo"{
             ec{"도쿄"}
+        }
+        "Asia:Tomsk"{
+            ec{"톰스크"}
         }
         "Asia:Ulaanbaatar"{
             ec{"울란바토르"}
@@ -939,6 +954,9 @@ ko{
         "Australia:Sydney"{
             ec{"시드니"}
         }
+        "Etc:UTC"{
+            ls{"협정 세계시"}
+        }
         "Etc:Unknown"{
             ec{"알 수 없는 장소"}
         }
@@ -947,6 +965,9 @@ ko{
         }
         "Europe:Andorra"{
             ec{"안도라"}
+        }
+        "Europe:Astrakhan"{
+            ec{"아스트라한"}
         }
         "Europe:Athens"{
             ec{"아테네"}
@@ -980,7 +1001,7 @@ ko{
         }
         "Europe:Dublin"{
             ec{"더블린"}
-            ld{"아일랜드 시간"}
+            ld{"아일랜드 표준시"}
         }
         "Europe:Gibraltar"{
             ec{"지브롤터"}
@@ -1005,6 +1026,9 @@ ko{
         }
         "Europe:Kiev"{
             ec{"키예프"}
+        }
+        "Europe:Kirov"{
+            ec{"키로프"}
         }
         "Europe:Lisbon"{
             ec{"리스본"}
@@ -1064,6 +1088,9 @@ ko{
         "Europe:Sarajevo"{
             ec{"사라예보"}
         }
+        "Europe:Saratov"{
+            ec{"사라토프"}
+        }
         "Europe:Simferopol"{
             ec{"심페로폴"}
         }
@@ -1081,6 +1108,9 @@ ko{
         }
         "Europe:Tirane"{
             ec{"티라나"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"울리야노프스크"}
         }
         "Europe:Uzhgorod"{
             ec{"우주고로트"}
@@ -1290,7 +1320,7 @@ ko{
             ls{"알래스카 표준시"}
         }
         "meta:Almaty"{
-            ld{"알마티 서머 타임"}
+            ld{"알마티 하계 표준시"}
             lg{"알마티 표준 시간"}
             ls{"알마티 표준 표준시"}
         }
@@ -1300,27 +1330,27 @@ ko{
             ls{"아마존 표준시"}
         }
         "meta:America_Central"{
-            ld{"묵미 중부 하계 표준시"}
-            lg{"묵미 중부 시간"}
-            ls{"묵미 중부 표준시"}
+            ld{"북미 중부 하계 표준시"}
+            lg{"북미 중부 시간"}
+            ls{"북미 중부 표준시"}
         }
         "meta:America_Eastern"{
-            ld{"묵미 동부 하계 표준시"}
-            lg{"묵미 동부 시간"}
-            ls{"묵미 동부 표준시"}
+            ld{"북미 동부 하계 표준시"}
+            lg{"북미 동부 시간"}
+            ls{"북미 동부 표준시"}
         }
         "meta:America_Mountain"{
-            ld{"묵미 로키 산맥 하계 표준시"}
-            lg{"묵미 로키 산맥 시간"}
+            ld{"북미 로키 산맥 하계 표준시"}
+            lg{"북미 로키 산맥 시간"}
             ls{"북미 로키 산맥 표준시"}
         }
         "meta:America_Pacific"{
             ld{"북미 태평양 하계 표준시"}
-            lg{"묵미 태평양 시간"}
-            ls{"묵미 태평양 표준시"}
+            lg{"북미 태평양 시간"}
+            ls{"북미 태평양 표준시"}
         }
         "meta:Anadyr"{
-            ld{"아나디리 서머 타임"}
+            ld{"아나디리 하계 표준시"}
             lg{"아나디리 시간"}
             ls{"아나디리 표준시"}
         }
@@ -1330,12 +1360,12 @@ ko{
             ls{"아피아 표준시"}
         }
         "meta:Aqtau"{
-            ld{"악타우 서머 타임"}
+            ld{"악타우 하계 표준시"}
             lg{"악타우 표준 시간"}
             ls{"악타우 표준 표준시"}
         }
         "meta:Aqtobe"{
-            ld{"악퇴베 서머 타임"}
+            ld{"악퇴베 하계 표준시"}
             lg{"악퇴베 표준 시간"}
             ls{"악퇴베 표준 표준시"}
         }
@@ -1360,9 +1390,9 @@ ko{
             ls{"아르메니아 표준시"}
         }
         "meta:Atlantic"{
-            ld{"북미 대서양 하계 표준시"}
-            lg{"북미 대서양 시간"}
-            ls{"북미 대서양 표준시"}
+            ld{"대서양 하계 표준시"}
+            lg{"대서양 시간"}
+            ls{"대서양 표준시"}
         }
         "meta:Australia_Central"{
             ld{"호주 중부 하계 표준시"}
@@ -1456,7 +1486,7 @@ ko{
             ls{"콜롬비아 표준시"}
         }
         "meta:Cook"{
-            ld{"쿡 제도 절반 서머 타임"}
+            ld{"쿡 제도 절반 하계 표준시"}
             lg{"쿡 제도 시간"}
             ls{"쿡 제도 표준시"}
         }
@@ -1483,9 +1513,9 @@ ko{
             ls{"에콰도르 시간"}
         }
         "meta:Europe_Central"{
-            ld{"중부 유럽 하계 표준시"}
-            lg{"중부 유럽 시간"}
-            ls{"중부 유럽 표준시"}
+            ld{"중부유럽 하계 표준시"}
+            lg{"중부유럽 시간"}
+            ls{"중부유럽 표준시"}
         }
         "meta:Europe_Eastern"{
             ld{"동유럽 하계 표준시"}
@@ -1493,7 +1523,7 @@ ko{
             ls{"동유럽 표준시"}
         }
         "meta:Europe_Further_Eastern"{
-            ls{"극동 유럽 표준시"}
+            ls{"극동유럽 표준시"}
         }
         "meta:Europe_Western"{
             ld{"서유럽 하계 표준시"}
@@ -1506,7 +1536,7 @@ ko{
             ls{"포클랜드 제도 표준시"}
         }
         "meta:Fiji"{
-            ld{"피지 서머 타임"}
+            ld{"피지 하계 표준시"}
             lg{"피지 시간"}
             ls{"피지 표준시"}
         }
@@ -1526,9 +1556,9 @@ ko{
             ls{"감비에 시간"}
         }
         "meta:Georgia"{
-            ld{"그루지아 하계 표준시"}
-            lg{"그루지아 시간"}
-            ls{"그루지아 표준시"}
+            ld{"조지아 하계 표준시"}
+            lg{"조지아 시간"}
+            ls{"조지아 표준시"}
         }
         "meta:Gilbert_Islands"{
             ls{"길버트 제도 시간"}
@@ -1603,7 +1633,7 @@ ko{
             ls{"일본 표준시"}
         }
         "meta:Kamchatka"{
-            ld{"페트로파블롭스크-캄차츠키 서머 타임"}
+            ld{"페트로파블롭스크-캄차츠키 하계 표준시"}
             lg{"페트로파블롭스크-캄차츠키 시간"}
             ls{"페트로파블롭스크-캄차츠키 표준시"}
         }
@@ -1614,9 +1644,9 @@ ko{
             ls{"서부 카자흐스탄 시간"}
         }
         "meta:Korea"{
-            ld{"한국 하계 표준시"}
-            lg{"한국 시간"}
-            ls{"한국 표준시"}
+            ld{"대한민국 하계 표준시"}
+            lg{"대한민국 시간"}
+            ls{"대한민국 표준시"}
         }
         "meta:Kosrae"{
             ls{"코스라에섬 시간"}
@@ -1638,7 +1668,7 @@ ko{
             ls{"로드 하우 표준시"}
         }
         "meta:Macau"{
-            ld{"마카오 서머 타임"}
+            ld{"마카오 하계 표준시"}
             lg{"마카오 시간"}
             ls{"마카오 표준 시간"}
         }
@@ -1718,7 +1748,9 @@ ko{
             ls{"니우에 시간"}
         }
         "meta:Norfolk"{
-            ls{"노퍽섬 시간"}
+            ld{"노퍽섬 하계 표준시"}
+            lg{"노퍽섬 시간"}
+            ls{"노퍽섬 표준시"}
         }
         "meta:Noronha"{
             ld{"페르난도 데 노로냐 하계 표준시"}
@@ -1775,8 +1807,11 @@ ko{
         "meta:Ponape"{
             ls{"포나페 시간"}
         }
+        "meta:Pyongyang"{
+            ls{"평양 시간"}
+        }
         "meta:Qyzylorda"{
-            ld{"키질로르다 서머 타임"}
+            ld{"키질로르다 하계 표준시"}
             lg{"키질로르다 시간"}
             ls{"키질로르다 표준 시간"}
         }
@@ -1792,7 +1827,7 @@ ko{
             ls{"사할린 표준시"}
         }
         "meta:Samara"{
-            ld{"사마라 서머 타임"}
+            ld{"사마라 하계 표준시"}
             lg{"사마라 시간"}
             ls{"사마라 표준시"}
         }
@@ -1834,7 +1869,7 @@ ko{
             ls{"토켈라우 시간"}
         }
         "meta:Tonga"{
-            ld{"통가 서머 타임"}
+            ld{"통가 하계 표준시"}
             lg{"통가 시간"}
             ls{"통가 표준시"}
         }
@@ -1860,7 +1895,7 @@ ko{
             ls{"우즈베키스탄 표준시"}
         }
         "meta:Vanuatu"{
-            ld{"바누아투 서머 타임"}
+            ld{"바누아투 하계 표준시"}
             lg{"바누아투 시간"}
             ls{"바누아투 표준시"}
         }

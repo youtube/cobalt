@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/dje.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 dje{
     Countries{
         AD{"Andoora"}
@@ -15,7 +10,6 @@ dje{
         AI{"Angiiya"}
         AL{"Albaani"}
         AM{"Armeeni"}
-        AN{"Hollandu Antiiyey Laboo"}
         AO{"Angoola"}
         AR{"Argentine"}
         AS{"Ameriki Samoa"}
@@ -133,7 +127,6 @@ dje{
         MD{"Moldovi"}
         MG{"Madagascar"}
         MH{"Maršal gungey"}
-        MK{"Maacedooni"}
         ML{"Maali"}
         MM{"Maynamar"}
         MN{"Mongooli"}
@@ -233,5 +226,4 @@ dje{
         ZM{"Zambi"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

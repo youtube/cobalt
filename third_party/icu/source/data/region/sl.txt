@@ -1,14 +1,9 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sl.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sl{
     Countries{
-        001{"Svet"}
+        001{"svet"}
         002{"Afrika"}
         003{"Severna Amerika"}
         005{"Južna Amerika"}
@@ -37,6 +32,7 @@ sl{
         151{"Vzhodna Evropa"}
         154{"Severna Evropa"}
         155{"Zahodna Evropa"}
+        202{"podsaharska Afrika"}
         419{"Latinska Amerika"}
         AC{"Otok Ascension"}
         AD{"Andora"}
@@ -46,7 +42,6 @@ sl{
         AI{"Angvila"}
         AL{"Albanija"}
         AM{"Armenija"}
-        AN{"Nizozemski Antili"}
         AO{"Angola"}
         AQ{"Antarktika"}
         AR{"Argentina"}
@@ -80,7 +75,7 @@ sl{
         CA{"Kanada"}
         CC{"Kokosovi otoki"}
         CD{"Demokratična republika Kongo"}
-        CF{"Centralnoafriška republika"}
+        CF{"Srednjeafriška republika"}
         CG{"Kongo - Brazzaville"}
         CH{"Švica"}
         CI{"Slonokoščena obala"}
@@ -113,9 +108,10 @@ sl{
         ES{"Španija"}
         ET{"Etiopija"}
         EU{"Evropska unija"}
+        EZ{"evroobmočje"}
         FI{"Finska"}
         FJ{"Fidži"}
-        FK{"Falklandski otoki"}
+        FK{"Falklandski otoki (Malvini)"}
         FM{"Mikronezija"}
         FO{"Ferski otoki"}
         FR{"Francija"}
@@ -130,7 +126,7 @@ sl{
         GL{"Grenlandija"}
         GM{"Gambija"}
         GN{"Gvineja"}
-        GP{"Gvadalupe"}
+        GP{"Guadeloupe"}
         GQ{"Ekvatorialna Gvineja"}
         GR{"Grčija"}
         GS{"Južna Georgia in Južni Sandwichevi otoki"}
@@ -188,7 +184,7 @@ sl{
         MF{"Saint Martin"}
         MG{"Madagaskar"}
         MH{"Marshallovi otoki"}
-        MK{"Makedonija"}
+        MK{"Severna Makedonija"}
         ML{"Mali"}
         MM{"Mjanmar (Burma)"}
         MN{"Mongolija"}
@@ -258,16 +254,16 @@ sl{
         SV{"Salvador"}
         SX{"Sint Maarten"}
         SY{"Sirija"}
-        SZ{"Svazi"}
+        SZ{"Esvatini"}
         TA{"Tristan da Cunha"}
-        TC{"Otočji Turks in Caicos"}
+        TC{"Otoki Turks in Caicos"}
         TD{"Čad"}
         TF{"Francosko južno ozemlje"}
         TG{"Togo"}
         TH{"Tajska"}
         TJ{"Tadžikistan"}
         TK{"Tokelau"}
-        TL{"Vzhodni Timor"}
+        TL{"Timor-Leste"}
         TM{"Turkmenistan"}
         TN{"Tunizija"}
         TO{"Tonga"}
@@ -278,7 +274,8 @@ sl{
         TZ{"Tanzanija"}
         UA{"Ukrajina"}
         UG{"Uganda"}
-        UM{"Druga ameriška ozemlja v Tihem oceanu"}
+        UM{"Stranski zunanji otoki Združenih držav"}
+        UN{"Združeni narodi"}
         US{"Združene države Amerike"}
         UY{"Urugvaj"}
         UZ{"Uzbekistan"}
@@ -291,6 +288,8 @@ sl{
         VU{"Vanuatu"}
         WF{"Wallis in Futuna"}
         WS{"Samoa"}
+        XA{"psevdonaglasi"}
+        XB{"psevdobidi"}
         XK{"Kosovo"}
         YE{"Jemen"}
         YT{"Mayotte"}
@@ -301,14 +300,15 @@ sl{
     }
     Countries%short{
         GB{"ZK"}
+        UN{"ZN"}
         US{"ZDA"}
     }
     Countries%variant{
         CD{"Kongo (Demokratična republika Kongo)"}
         CG{"Kongo (Republika)"}
         CI{"Côte d’Ivoire"}
-        FK{"Falklandski otoki (Malvini)"}
-        MK{"Makedonija (FYROM)"}
+        CZ{"Češka republika"}
+        SZ{"Svazi"}
+        TL{"Vzhodni Timor"}
     }
-    Version{"2.1.19.14"}
 }

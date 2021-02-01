@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2008-2013, International Business Machines Corporation and
@@ -32,7 +34,7 @@
 #include "uhash.h"
 
 static UHashtable* gGenderInfoCache = NULL;
-static UMutex gGenderMetaLock = U_MUTEX_INITIALIZER;
+
 static const char* gNeutralStr = "neutral";
 static const char* gMailTaintsStr = "maleTaints";
 static const char* gMixedNeutralStr = "mixedNeutral";
@@ -98,6 +100,7 @@ const GenderInfo* GenderInfo::getInstance(const Locale& locale, UErrorCode& stat
     return NULL;
   }
 
+  static UMutex gGenderMetaLock;
   const GenderInfo* result = NULL;
   const char* key = locale.getName();
   {
@@ -159,7 +162,7 @@ const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& sta
   if (s == NULL) {
     return &gObjs[NEUTRAL];
   }
-  char type_str[256];
+  char type_str[256] = "";
   u_UCharsToChars(s, type_str, resLen + 1);
   if (uprv_strcmp(type_str, gNeutralStr) == 0) {
     return &gObjs[NEUTRAL];

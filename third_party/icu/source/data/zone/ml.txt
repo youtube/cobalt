@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ml.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ml{
-    Version{"2.1.19.77"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"അബിദ്‌ജാൻ‌"}
@@ -40,7 +34,7 @@ ml{
             ec{"ബ്ലാണ്ടെയർ‌"}
         }
         "Africa:Brazzaville"{
-            ec{"ബ്രാസവില്ലി"}
+            ec{"ബ്രാസവിൽ"}
         }
         "Africa:Bujumbura"{
             ec{"ബുജും‌ബുര"}
@@ -67,7 +61,7 @@ ml{
             ec{"ദിജിബൗട്ടി"}
         }
         "Africa:Douala"{
-            ec{"ഡൌല"}
+            ec{"ഡൗല"}
         }
         "Africa:El_Aaiun"{
             ec{"എൽ‌ ഐയുൻ‌"}
@@ -148,7 +142,7 @@ ml{
             ec{"നൗവാക്‌ഷോട്ട്"}
         }
         "Africa:Ouagadougou"{
-            ec{"ഔഗാദൌഗൌ"}
+            ec{"ഔഗാദൗഗൗ"}
         }
         "Africa:Porto-Novo"{
             ec{"പോർ‌ട്ടോ-നോവോ"}
@@ -241,7 +235,7 @@ ml{
             ec{"കേംബ്രിഡ്‌ജ് ബേ"}
         }
         "America:Campo_Grande"{
-            ec{"ക്യാന്പോ ഗ്രാൻഡെ"}
+            ec{"ക്യാമ്പോ ഗ്രാൻഡെ"}
         }
         "America:Cancun"{
             ec{"കാൻകൂൺ"}
@@ -265,7 +259,7 @@ ml{
             ec{"ചിഹ്വാഹ"}
         }
         "America:Coral_Harbour"{
-            ec{"ആത്തികോക്കൺ"}
+            ec{"ഏറ്റികോക്കൺ"}
         }
         "America:Cordoba"{
             ec{"കോർഡോബ"}
@@ -308,6 +302,9 @@ ml{
         }
         "America:El_Salvador"{
             ec{"എൽ സാൽ‌വദോർ"}
+        }
+        "America:Fort_Nelson"{
+            ec{"ഫോർട്ട് നെൽസൺ"}
         }
         "America:Fortaleza"{
             ec{"ഫോർട്ടലീസ"}
@@ -352,7 +349,7 @@ ml{
             ec{"നോക്സ്, ഇൻഡ്യാന"}
         }
         "America:Indiana:Marengo"{
-            ec{"മരെങ്കോ, ഇൻഡ്യാനാ"}
+            ec{"മരെങ്കോ, ഇൻഡ്യാന"}
         }
         "America:Indiana:Petersburg"{
             ec{"പീറ്റേഴ്സ്ബർഗ്, ഇൻഡ്യാന"}
@@ -388,7 +385,7 @@ ml{
             ec{"ജൂനോ"}
         }
         "America:Kentucky:Monticello"{
-            ec{"മോണ്ടിസെല്ലോ, കെൻറക്കി"}
+            ec{"മോണ്ടിസെല്ലോ, കെന്റക്കി"}
         }
         "America:Kralendijk"{
             ec{"കാർലൻഡിജെക്ക്"}
@@ -427,7 +424,7 @@ ml{
             ec{"മറ്റാമൊറോസ്"}
         }
         "America:Mazatlan"{
-            ec{"മാസറ്റ്ലാൻ"}
+            ec{"മസറ്റ്‌ലാൻ"}
         }
         "America:Mendoza"{
             ec{"മെൻഡോസ"}
@@ -510,6 +507,9 @@ ml{
         "America:Puerto_Rico"{
             ec{"പ്യൂർട്ടോ റിക്കോ"}
         }
+        "America:Punta_Arenas"{
+            ec{"പുന്റ അരീനസ്"}
+        }
         "America:Rainy_River"{
             ec{"റെയ്നി റിവർ"}
         }
@@ -532,10 +532,10 @@ ml{
             ec{"സാന്ത ഇസബേൽ"}
         }
         "America:Santarem"{
-            ec{"സാൻററെം"}
+            ec{"സാന്ററെം"}
         }
         "America:Santiago"{
-            ec{"സാൻറിയാഗോ"}
+            ec{"സാന്റിയാഗോ"}
         }
         "America:Santo_Domingo"{
             ec{"സാന്തോ ഡോമിംഗോ"}
@@ -553,7 +553,7 @@ ml{
             ec{"സെൻറ് ബർത്തലെമി"}
         }
         "America:St_Johns"{
-            ec{"സെന്റ്. ജോൺസ്"}
+            ec{"സെന്റ് ജോൺസ്"}
         }
         "America:St_Kitts"{
             ec{"സെന്റ് കിറ്റ്സ്"}
@@ -562,13 +562,13 @@ ml{
             ec{"സെൻറ് ലൂസിയ"}
         }
         "America:St_Thomas"{
-            ec{"സെൻറ്. തോമസ്"}
+            ec{"സെന്റ് തോമസ്"}
         }
         "America:St_Vincent"{
-            ec{"സെൻറ് വിൻ‌സെൻറ്"}
+            ec{"സെന്റ് വിൻസെന്റ്"}
         }
         "America:Swift_Current"{
-            ec{"സ്വിഫ്റ്റ് കറൻറ്"}
+            ec{"സ്വിഫ്‌റ്റ് കറന്റ്"}
         }
         "America:Tegucigalpa"{
             ec{"ടെഗൂസിഗാൽപ"}
@@ -583,7 +583,7 @@ ml{
             ec{"തിയുവാന"}
         }
         "America:Toronto"{
-            ec{"ടൊറണ്ടോ"}
+            ec{"ടൊറന്റോ"}
         }
         "America:Tortola"{
             ec{"ടോർ‌ട്ടോള"}
@@ -660,6 +660,9 @@ ml{
         "Asia:Ashgabat"{
             ec{"ആഷ്‌ഗാബട്ട്"}
         }
+        "Asia:Atyrau"{
+            ec{"അറ്റിറോ"}
+        }
         "Asia:Baghdad"{
             ec{"ബാഗ്‌ദാദ്"}
         }
@@ -671,6 +674,9 @@ ml{
         }
         "Asia:Bangkok"{
             ec{"ബാങ്കോക്ക്"}
+        }
+        "Asia:Barnaul"{
+            ec{"ബർണോൽ"}
         }
         "Asia:Beirut"{
             ec{"ബെയ്‌റൂട്ട്"}
@@ -707,6 +713,9 @@ ml{
         }
         "Asia:Dushanbe"{
             ec{"ദുഷൻ‌ബെ"}
+        }
+        "Asia:Famagusta"{
+            ec{"ഫാമഗുസ്‌റ്റ"}
         }
         "Asia:Gaza"{
             ec{"ഗാസ"}
@@ -790,16 +799,19 @@ ml{
             ec{"ഓറൽ"}
         }
         "Asia:Phnom_Penh"{
-            ec{"നാം പെൻ"}
+            ec{"ഫെനോം പെൻ"}
         }
         "Asia:Pontianak"{
-            ec{"പൊൻറിയാനക്"}
+            ec{"പൊന്റിയാനക്"}
         }
         "Asia:Pyongyang"{
             ec{"പ്യോംഗ്‌യാംഗ്"}
         }
         "Asia:Qatar"{
             ec{"ഖത്തർ"}
+        }
+        "Asia:Qostanay"{
+            ec{"കോസ്റ്റനേ"}
         }
         "Asia:Qyzylorda"{
             ec{"ഖിസിലോർഡ"}
@@ -820,7 +832,7 @@ ml{
             ec{"സമർക്കന്ദ്"}
         }
         "Asia:Seoul"{
-            ec{"സിയോൾ"}
+            ec{"സോൾ"}
         }
         "Asia:Shanghai"{
             ec{"ഷാങ്‌ഹായി"}
@@ -835,7 +847,7 @@ ml{
             ec{"തായ്‌പെയ്"}
         }
         "Asia:Tashkent"{
-            ec{"താഷ്‌ക്കൻറ്"}
+            ec{"താഷ്‌ക്കന്റ്"}
         }
         "Asia:Tbilisi"{
             ec{"തിബിലിസി"}
@@ -848,6 +860,9 @@ ml{
         }
         "Asia:Tokyo"{
             ec{"ടോക്കിയോ"}
+        }
+        "Asia:Tomsk"{
+            ec{"ടോംസ്ക്"}
         }
         "Asia:Ulaanbaatar"{
             ec{"ഉലാൻബാത്തർ"}
@@ -939,6 +954,9 @@ ml{
         "Australia:Sydney"{
             ec{"സിഡ്നി"}
         }
+        "Etc:UTC"{
+            ls{"കോർഡിനേറ്റഡ് യൂണിവേഴ്‌സൽ ടൈം"}
+        }
         "Etc:Unknown"{
             ec{"അജ്ഞാത നഗരം"}
         }
@@ -947,6 +965,9 @@ ml{
         }
         "Europe:Andorra"{
             ec{"അണ്ടോറ"}
+        }
+        "Europe:Astrakhan"{
+            ec{"അസ്‌ട്രഖാൻ"}
         }
         "Europe:Athens"{
             ec{"ഏതൻ‌സ്"}
@@ -1006,6 +1027,9 @@ ml{
         "Europe:Kiev"{
             ec{"കീവ്"}
         }
+        "Europe:Kirov"{
+            ec{"കിറോ"}
+        }
         "Europe:Lisbon"{
             ec{"ലിസ്‌ബൺ‌"}
         }
@@ -1064,6 +1088,9 @@ ml{
         "Europe:Sarajevo"{
             ec{"സരയേവോ"}
         }
+        "Europe:Saratov"{
+            ec{"സരാറ്റോവ്"}
+        }
         "Europe:Simferopol"{
             ec{"സിംഫെറോപോൾ"}
         }
@@ -1081,6 +1108,9 @@ ml{
         }
         "Europe:Tirane"{
             ec{"ടിരാനെ"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"ഉല്ല്യാനോവ്‌സ്‌ക്"}
         }
         "Europe:Uzhgorod"{
             ec{"ഉസ്ഗൊറോഡ്"}
@@ -1149,13 +1179,13 @@ ml{
             ec{"ആപിയ"}
         }
         "Pacific:Auckland"{
-            ec{"ഓക്ക്‌‌ലാൻറ്"}
+            ec{"ഓക്ക്‌ലാന്റ്"}
         }
         "Pacific:Bougainville"{
             ec{"ബോഗൺവില്ലെ"}
         }
         "Pacific:Chatham"{
-            ec{"ചാതം"}
+            ec{"ചാത്തം"}
         }
         "Pacific:Easter"{
             ec{"ഈസ്റ്റർ"}
@@ -1233,7 +1263,7 @@ ml{
             ec{"പിറ്റ്കയിൻ‌"}
         }
         "Pacific:Ponape"{
-            ec{"പൊനാപ്"}
+            ec{"പോൺപെ"}
         }
         "Pacific:Port_Moresby"{
             ec{"പോർട്ട് മോഴ്‌സ്ബൈ"}
@@ -1422,7 +1452,7 @@ ml{
             ls{"ചമോറോ സ്റ്റാൻഡേർഡ് സമയം"}
         }
         "meta:Chatham"{
-            ld{"ചാതം വേനൽക്കാല സമയം"}
+            ld{"ചാത്തം ഗ്രീഷ്‌മകാല സമയം"}
             lg{"ചാത്തം സമയം"}
             ls{"ചാത്തം സ്റ്റാൻഡേർഡ് സമയം"}
         }
@@ -1722,7 +1752,9 @@ ml{
             ls{"ന്യൂയി സമയം"}
         }
         "meta:Norfolk"{
-            ls{"നോർഫാക്ക് ദ്വീപുകൾ സമയം"}
+            ld{"നോർഫാക്ക് ദ്വീപ് ഡേലൈറ്റ് സമയം"}
+            lg{"നോർഫാക്ക് ദ്വീപ് സമയം"}
+            ls{"നോർഫാക്ക് ദ്വീപ് സ്റ്റാൻഡേർഡ് സമയം"}
         }
         "meta:Noronha"{
             ld{"ഫെർണാഡോ ഡി നൊറോൻഹ ഗ്രീഷ്‌മകാല സമയം"}
@@ -1782,6 +1814,9 @@ ml{
         "meta:Ponape"{
             ls{"പൊനാപ്പ് സമയം"}
         }
+        "meta:Pyongyang"{
+            ls{"പ്യോംഗ്‌യാംഗ് സമയം"}
+        }
         "meta:Qyzylorda"{
             ld{"ഖിസിലോർഡ വേനൽക്കാല സമയം"}
             lg{"ഖിസിലോർഡ സമയം"}
@@ -1804,7 +1839,7 @@ ml{
             ls{"സമാറ സ്റ്റാൻഡേർഡ് സമയം"}
         }
         "meta:Samoa"{
-            ld{"സമോവാ വേനൽക്കാല സമയം"}
+            ld{"സമോവാ ഗ്രീഷ്‌മകാല സമയം"}
             lg{"സമോവ സമയം"}
             ls{"സമോവ സ്റ്റാൻഡേർഡ് സമയം"}
         }

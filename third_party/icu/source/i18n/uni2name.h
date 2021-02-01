@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2007, International Business Machines
@@ -46,7 +48,7 @@ class UnicodeNameTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual Transliterator* clone(void) const;
+    virtual UnicodeNameTransliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

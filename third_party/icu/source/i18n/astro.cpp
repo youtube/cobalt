@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /************************************************************************
  * Copyright (C) 1996-2012, International Business Machines Corporation
  * and others. All Rights Reserved.
@@ -70,7 +72,7 @@ static inline UBool isINVALID(double d) {
   return(uprv_isNaN(d));
 }
 
-static UMutex ccLock = U_MUTEX_INITIALIZER;
+static icu::UMutex ccLock;
 
 U_CDECL_BEGIN
 static UBool calendar_astro_cleanup(void) {

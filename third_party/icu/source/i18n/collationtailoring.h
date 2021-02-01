@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2013-2014, International Business Machines
@@ -48,7 +50,7 @@ struct U_I18N_API CollationTailoring : public SharedObject {
     virtual ~CollationTailoring();
 
     /**
-     * Returns TRUE if the constructor could not initialize properly.
+     * Returns true if the constructor could not initialize properly.
      */
     UBool isBogus() { return settings == NULL; }
 
@@ -90,7 +92,7 @@ private:
     CollationTailoring(const CollationTailoring &other);
 };
 
-struct CollationCacheEntry : public SharedObject {
+struct U_I18N_API CollationCacheEntry : public SharedObject {
     CollationCacheEntry(const Locale &loc, const CollationTailoring *t)
             : validLocale(loc), tailoring(t) {
         if(t != NULL) {

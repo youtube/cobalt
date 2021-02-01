@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sg.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sg{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ sg{
         }
         MRO{
             "MRO",
+            "ugîya tî Moritanïi (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "ugîya tî Moritanïi",
         }
         MUR{
@@ -182,6 +181,10 @@ sg{
         }
         STD{
             "STD",
+            "dôbra tî Sâô Tomë na Prinsîpe (1977–2017)",
+        }
+        STN{
+            "STN",
             "dôbra tî Sâô Tomë na Prinsîpe",
         }
         SZL{
@@ -229,5 +232,4 @@ sg{
             "dolära tî Zimbäbwe",
         }
     }
-    Version{"2.1.19.17"}
 }

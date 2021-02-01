@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -24,7 +26,7 @@
 #include "unicode/utf16.h"
 
 #define UFMT_DEFAULT_BUFFER_SIZE 128
-#define MAX_UCHAR_BUFFER_SIZE(buffer) (sizeof(buffer)/(U16_MAX_LENGTH*sizeof(UChar)))
+#define MAX_UCHAR_BUFFER_SIZE(buffer) ((int32_t)(sizeof(buffer)/(U16_MAX_LENGTH*sizeof(UChar))))
 #define MAX_UCHAR_BUFFER_NEEDED(strLen) ((strLen+1)*U16_MAX_LENGTH*sizeof(UChar))
 
 /** 
@@ -80,7 +82,7 @@ ufmt_digitvalue(UChar c);
  * Determine if a UChar is a digit for a specified radix.
  * @param c The UChar to check.
  * @param radix The desired radix.
- * @return TRUE if <TT>c</TT> is a digit in <TT>radix</TT>, FALSE otherwise.
+ * @return true if <TT>c</TT> is a digit in <TT>radix</TT>, false otherwise.
  */
 UBool
 ufmt_isdigit(UChar     c,
@@ -93,7 +95,7 @@ ufmt_isdigit(UChar     c,
  * the number of UChars written to <TT>buffer</TT>.
  * @param value The value to be converted
  * @param radix The desired radix
- * @param uselower TRUE means lower case will be used, FALSE means upper case
+ * @param uselower true means lower case will be used, false means upper case
  * @param minDigits The minimum number of digits for for the formatted number,
  * which will be padded with zeroes. -1 means do not pad.
  */

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/hr.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 hr{
     Currencies{
         ADP{
@@ -224,9 +219,13 @@ hr{
             "BYB",
             "bjeloruska nova rublja (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "bjeloruski rubalj",
+        }
         BYR{
             "BYR",
-            "bjeloruska rublja",
+            "bjeloruska rublja (2000–2016)",
         }
         BZD{
             "BZD",
@@ -263,6 +262,10 @@ hr{
         CLP{
             "CLP",
             "čileanski pezo",
+        }
+        CNH{
+            "CNH",
+            "kineski juan (offshore)",
         }
         CNX{
             "CNX",
@@ -542,7 +545,7 @@ hr{
         }
         KHR{
             "KHR",
-            "kambođanski rijal",
+            "kambodžanski rijal",
         }
         KMF{
             "KMF",
@@ -650,7 +653,7 @@ hr{
         }
         MGA{
             "MGA",
-            "madagaskarski ariary",
+            "malgaški arijari",
         }
         MGF{
             "MGF",
@@ -682,6 +685,10 @@ hr{
         }
         MRO{
             "MRO",
+            "mauritanijska ouguja (1973. – 2017.)",
+        }
+        MRU{
+            "MRU",
             "mauritanijska ouguja",
         }
         MTL{
@@ -782,11 +789,11 @@ hr{
         }
         PEN{
             "PEN",
-            "peruanski novi sol",
+            "peruanski sol",
         }
         PES{
             "PES",
-            "peruanski sol",
+            "peruanski sol (1863–1965)",
         }
         PGK{
             "PGK",
@@ -838,7 +845,7 @@ hr{
         }
         RUB{
             "RUB",
-            "ruska rublja",
+            "ruski rubalj",
         }
         RUR{
             "RUR",
@@ -850,7 +857,7 @@ hr{
         }
         SAR{
             "SAR",
-            "saudijski rial",
+            "saudijski rijal",
         }
         SBD{
             "SBD",
@@ -914,6 +921,10 @@ hr{
         }
         STD{
             "STD",
+            "dobra Svetog Tome i Principa (1977–2017)",
+        }
+        STN{
+            "STN",
             "dobra Svetog Tome i Principa",
         }
         SUR{
@@ -1034,6 +1045,10 @@ hr{
         }
         VEF{
             "VEF",
+            "venezuelanski bolivar (2008. – 2018.)",
+        }
+        VES{
+            "VES",
             "venezuelanski bolivar",
         }
         VND{
@@ -1046,7 +1061,7 @@ hr{
         }
         VUV{
             "VUV",
-            "vanuatuški vatu",
+            "vanuatski vatu",
         }
         WST{
             "WST",
@@ -1142,7 +1157,7 @@ hr{
         }
         YER{
             "YER",
-            "jemenski rial",
+            "jemenski rijal",
         }
         YUD{
             "YUD",
@@ -1198,9 +1213,12 @@ hr{
         }
     }
     Currencies%narrow{
+        AFN{"؋"}
+        AMD{"֏"}
         AOA{"Kz"}
         ARS{"$"}
         AUD{"$"}
+        AZN{"₼"}
         BAM{"KM"}
         BBD{"$"}
         BDT{"৳"}
@@ -1210,7 +1228,7 @@ hr{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1228,6 +1246,8 @@ hr{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
+        GHS{"GH₵"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -1268,6 +1288,7 @@ hr{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"lei"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"RF"}
@@ -1277,7 +1298,7 @@ hr{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1305,7 +1326,7 @@ hr{
         }
         AED{
             few{"UAE dirhama"}
-            one{"UAE diram"}
+            one{"UAE dirham"}
             other{"UAE dirhama"}
         }
         AFA{
@@ -1563,10 +1584,15 @@ hr{
             one{"bjeloruska nova rublja (1994–1999)"}
             other{"bjeloruskih novih rublji (1994–1999)"}
         }
+        BYN{
+            few{"bjeloruska rublja"}
+            one{"bjeloruski rubalj"}
+            other{"bjeloruskih rubalja"}
+        }
         BYR{
-            few{"bjeloruske rublje"}
-            one{"bjeloruska rublja"}
-            other{"bjeloruskih rublji"}
+            few{"bjeloruske rublje (2000–2016)"}
+            one{"bjeloruska rublja (2000–2016)"}
+            other{"bjeloruskih rublji (2000–2016)"}
         }
         BZD{
             few{"belizeanska dolara"}
@@ -1612,6 +1638,11 @@ hr{
             few{"čileanska peza"}
             one{"čileanski pezo"}
             other{"čileanskih peza"}
+        }
+        CNH{
+            few{"kineska juana (offshore)"}
+            one{"kineski juan (offshore)"}
+            other{"kineskih juana (offshore)"}
         }
         CNX{
             few{"kineska narodna dolara"}
@@ -1849,9 +1880,9 @@ hr{
             other{"gvajanskih dolara"}
         }
         HKD{
-            few{"honkonška dolara"}
-            one{"honkonški dolar"}
-            other{"honkonških dolara"}
+            few{"hongkonška dolara"}
+            one{"hongkonški dolar"}
+            other{"hongkonških dolara"}
         }
         HNL{
             few{"honduraške lempire"}
@@ -1959,9 +1990,9 @@ hr{
             other{"kirgijskih soma"}
         }
         KHR{
-            few{"kambođanska rijala"}
-            one{"kambođanski rijal"}
-            other{"kambođanskih rijala"}
+            few{"kambodžanska rijala"}
+            one{"kambodžanski rijal"}
+            other{"kambodžanskih rijala"}
         }
         KMF{
             few{"komorska franka"}
@@ -2089,9 +2120,9 @@ hr{
             other{"moldavskih leja"}
         }
         MGA{
-            few{"madagaskarska ariarija"}
-            one{"madagaskarski ariary"}
-            other{"madagaskarskih ariarija"}
+            few{"malgaška arijarija"}
+            one{"malgaški arijari"}
+            other{"malgaških arijarija"}
         }
         MGF{
             few{"madagaskarska franka"}
@@ -2129,6 +2160,11 @@ hr{
             other{"makaoških pataka"}
         }
         MRO{
+            few{"mauritanijske ouguje (1973. – 2017.)"}
+            one{"mauritanijska ouguja (1973. – 2017.)"}
+            other{"mauritanijskih ouguja (1973. – 2017.)"}
+        }
+        MRU{
             few{"mauritanijske ouguje"}
             one{"mauritanijska ouguja"}
             other{"mauritanijskih ouguja"}
@@ -2254,14 +2290,14 @@ hr{
             other{"peruanskih inti"}
         }
         PEN{
-            few{"peruanska nova sola"}
-            one{"peruanski novi sol"}
-            other{"peruanskih novih sola"}
-        }
-        PES{
             few{"peruanska sola"}
             one{"peruanski sol"}
             other{"peruanskih sola"}
+        }
+        PES{
+            few{"peruanska sola (1863–1965)"}
+            one{"peruanski sol (1863–1965)"}
+            other{"peruanskih sola (1863–1965)"}
         }
         PGK{
             few{"kine Papue Nove Gvineje"}
@@ -2324,9 +2360,9 @@ hr{
             other{"srpskih dinara"}
         }
         RUB{
-            few{"ruske rublje"}
-            one{"ruska rublja"}
-            other{"ruskih rublji"}
+            few{"ruska rublja"}
+            one{"ruski rubalj"}
+            other{"ruskih rubalja"}
         }
         RUR{
             few{"ruske rublje (1991.–1998.)"}
@@ -2419,6 +2455,11 @@ hr{
             other{"južnosudanskih funti"}
         }
         STD{
+            few{"dobre Svetog Tome i Principa (1977–2017)"}
+            one{"dobra Svetog Tome i Principa (1977–2017)"}
+            other{"dobri Svetog Tome i Principa (1977–2017)"}
+        }
+        STN{
             few{"dobre Svetog Tome i Principa"}
             one{"dobra Svetog Tome i Principa"}
             other{"dobri Svetog Tome i Principa"}
@@ -2569,6 +2610,11 @@ hr{
             other{"venezuelanskih bolivara (1871.–2008.)"}
         }
         VEF{
+            few{"venezuelanska bolivara (2008. – 2018.)"}
+            one{"venezuelanski bolivar (2008. – 2018.)"}
+            other{"venezuelanskih bolivara (2008. – 2018.)"}
+        }
+        VES{
             few{"venezuelanska bolivara"}
             one{"venezuelanski bolivar"}
             other{"venezuelanskih bolivara"}
@@ -2694,9 +2740,9 @@ hr{
             other{"obračunskih jedinica ADB"}
         }
         XXX{
-            few{"nepoznata valuta"}
-            one{"nepoznata valuta"}
-            other{"nepoznata valuta"}
+            few{"(nepoznata valuta)"}
+            one{"(nepoznata valuta)"}
+            other{"(nepoznata valuta)"}
         }
         YDD{
             few{"jemenska dinara"}
@@ -2779,5 +2825,4 @@ hr{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.14"}
 }

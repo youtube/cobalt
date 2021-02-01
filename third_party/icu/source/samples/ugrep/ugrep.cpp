@@ -1,4 +1,10 @@
-/**************************************************************************
+/*************************************************************************
+*
+*   © 2016 and later: Unicode, Inc. and others.
+*   License & terms of use: http://www.unicode.org/copyright.html
+*
+**************************************************************************
+**************************************************************************
 *
 *   Copyright (C) 2002-2010, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -10,7 +16,7 @@
 //   ugrep  - an ICU sample program illustrating the use of ICU Regular Expressions.
 //
 //            The use of the ICU Regex API all occurs within the main()
-//            function.  The rest of the code deals with with opening files,
+//            function.  The rest of the code deals with opening files,
 //            encoding conversions, printing results, etc.
 //
 //            This is not a full-featured grep program.  The command line options
@@ -29,14 +35,15 @@
 #include "unicode/ucnv.h"
 #include "unicode/uclean.h"
 
+using namespace icu;
 
 //
-//  The following variables contain paramters that may be set from the command line.
+//  The following variables contain parameters that may be set from the command line.
 //
 const char *pattern = NULL;     // The regular expression
 int        firstFileNum;        //  argv index of the first file name
-UBool      displayFileName = FALSE;
-UBool      displayLineNum  = FALSE;
+UBool      displayFileName = false;
+UBool      displayLineNum  = false;
 
 
 //
@@ -86,10 +93,10 @@ void readFile(const char *name);
 //
 //------------------------------------------------------------------------------------------
 int main(int argc, const char** argv) {
-    UBool     matchFound = FALSE;
+    UBool     matchFound = false;
 
     //
-    //  Process the commmand line options.
+    //  Process the command line options.
     //
     processOptions(argc, argv);
 
@@ -134,10 +141,10 @@ int main(int argc, const char** argv) {
         //  Loop through the lines of a file, trying to match the regex pattern on each.
         //
         for (nextLine(0); lineStart<fileLen; nextLine(lineEnd)) {
-            UnicodeString s(FALSE, ucharBuf+lineStart, lineEnd-lineStart);
+            UnicodeString s(false, ucharBuf+lineStart, lineEnd-lineStart);
             matcher->reset(s);
             if (matcher->find()) {
-                matchFound = TRUE;
+                matchFound = true;
                 printMatch();
             }
         }
@@ -164,14 +171,14 @@ int main(int argc, const char** argv) {
 //   doOptions          Run through the command line options, and set
 //                      the global variables accordingly.
 //
-//                      exit without returning if an error occured and
+//                      exit without returning if an error occurred and
 //                      ugrep should not proceed further.
 //
 //------------------------------------------------------------------------------------------
 void processOptions(int argc, const char **argv) {
     int            optInd;
-    UBool          doUsage   = FALSE;
-    UBool          doVersion = FALSE;
+    UBool          doUsage   = false;
+    UBool          doVersion = false;
     const char    *arg;
 
 
@@ -180,14 +187,14 @@ void processOptions(int argc, const char **argv) {
         
         /* version info */
         if(strcmp(arg, "-V") == 0 || strcmp(arg, "--version") == 0) {
-            doVersion = TRUE;
+            doVersion = true;
         }
         /* usage info */
         else if(strcmp(arg, "--help") == 0) {
-            doUsage = TRUE;
+            doUsage = true;
         }
         else if(strcmp(arg, "-n") == 0 || strcmp(arg, "--line-number") == 0) {
-            displayLineNum = TRUE;
+            displayLineNum = true;
         }
         /* POSIX.1 says all arguments after -- are not options */
         else if(strcmp(arg, "--") == 0) {
@@ -198,7 +205,7 @@ void processOptions(int argc, const char **argv) {
         /* unrecognized option */
         else if(strncmp(arg, "-", strlen("-")) == 0) {
             printf("ugrep: invalid option -- %s\n", arg+1);
-            doUsage = TRUE;
+            doUsage = true;
         }
         /* done with options */
         else {
@@ -227,7 +234,7 @@ void processOptions(int argc, const char **argv) {
 
     if (remainingArgs > 2) {
         // More than one file to be processed.   Display file names with match output.
-        displayFileName = TRUE;
+        displayFileName = true;
     }
 
     pattern      = argv[optInd];
@@ -284,7 +291,7 @@ void readFile(const char *name) {
     //   Read in the file
     //
     charBuf    = (char *)realloc(charBuf, rawFileLen+1);   // Need error checking...
-    int t = fread(charBuf, 1, rawFileLen, file);
+    int t = static_cast<int>(fread(charBuf, 1, rawFileLen, file));
     if (t != rawFileLen)  {
         fprintf(stderr, "Error reading file \"%s\"\n", fileName);
         fclose(file);
@@ -365,7 +372,7 @@ void readFile(const char *name) {
 //
 //   nextLine           Advance the line index variables, starting at the
 //                      specified position in the input file buffer, by
-//                      scanning forwrd until the next end-of-line.
+//                      scanning forward until the next end-of-line.
 //
 //                      Need to take into account all of the possible Unicode
 //                      line ending sequences.
