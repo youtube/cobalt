@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/mua.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 mua{
     Countries{
         AD{"andorra"}
@@ -15,7 +10,6 @@ mua{
         AI{"anguiya"}
         AL{"albaniya"}
         AM{"armeniya"}
-        AN{"Sǝr ma kasǝŋ ma laŋne"}
         AO{"angola"}
         AR{"argentiniya"}
         AS{"samoa Amerika"}
@@ -134,7 +128,6 @@ mua{
         MD{"Moldoviya"}
         MG{"Madagaskar"}
         MH{"Sǝr Marshall ma laŋne"}
-        MK{"Macedoniya"}
         ML{"Sǝr Mali"}
         MM{"Sǝr Myanmar"}
         MN{"Mongoliya"}
@@ -234,5 +227,4 @@ mua{
         ZM{"Zambiya"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

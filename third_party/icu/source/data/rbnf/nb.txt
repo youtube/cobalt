@@ -1,14 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/rbnf/nb.xml
-// *
-// ***************************************************************************
-/**
- * ICU <specials> source: <path>/xml/rbnf/nb.xml
- */
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 nb{
     RBNFRules{
         SpelloutRules{
@@ -16,7 +8,7 @@ nb{
             "&[last primary ignorable ] << ' ' << ',' << '-' << '\u00AD';",
             "%spellout-numbering-year:",
             "-x: minus >>;",
-            "x.x: =#,###0.#=;",
+            "x.x: =0.0=;",
             "0: =%spellout-numbering=;",
             "1100/100: <<\u00ADhundre[ og >>];",
             "10000: =%spellout-numbering=;",
@@ -317,5 +309,4 @@ nb{
             "1: er =%spellout-ordinal-plural=;",
         }
     }
-    Version{"2.1.19.35"}
 }

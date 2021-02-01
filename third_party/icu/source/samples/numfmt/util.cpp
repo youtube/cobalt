@@ -1,13 +1,22 @@
 /********************************************************************
+ *   © 2016 and later: Unicode, Inc. and others.
+ *   License & terms of use: http://www.unicode.org/copyright.html
+ *************************************************************************
+ *************************************************************************
  * COPYRIGHT:
- * Copyright (c) 1999-2003,2009, International Business Machines Corporation and
+ * Copyright (c) 1999-2009, International Business Machines Corporation and
  * others. All Rights Reserved.
- ********************************************************************/
+ *************************************************************************/
+
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 
 #include "unicode/unistr.h"
 #include "unicode/fmtable.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+using namespace icu;
 
 enum {
     U_SPACE=0x20,
@@ -89,10 +98,15 @@ UnicodeString formattableToString(const Formattable& f) {
             return UnicodeString(buf, "");
         }
     case Formattable::kLong:
+        {
+            char buf[256];
+            sprintf(buf, "%" PRId32 "L", f.getLong());
+            return UnicodeString(buf, "");
+        }
     case Formattable::kInt64:
         {
             char buf[256];
-            sprintf(buf, "%ldL", f.getLong());
+            sprintf(buf, "%" PRId64 "L", f.getInt64());
             return UnicodeString(buf, "");
         }
     case Formattable::kString:

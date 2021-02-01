@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
  * Copyright (C) 2003-2013, International Business Machines Corporation
@@ -228,7 +230,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual Calendar* clone() const;
+  virtual IslamicCalendar* clone() const;
 
  private:
   /**
@@ -393,7 +395,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
 
 
   /**
-   * Returns TRUE because the Islamic Calendar does have a default century
+   * Returns true because the Islamic Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;
@@ -417,7 +419,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * are considered to fall within so that its start date is 80 years
    * before the current time.
    */
-  static void  initializeSystemDefaultCentury(void);
+  static void U_CALLCONV initializeSystemDefaultCentury(void);
 };
 
 U_NAMESPACE_END

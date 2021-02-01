@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sv.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sv{
-    Version{"2.1.19.94"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ sv{
         "America:El_Salvador"{
             ec{"El Salvador"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -442,7 +439,7 @@ sv{
             ec{"Metlakatla"}
         }
         "America:Mexico_City"{
-            ec{"Mexico City"}
+            ec{"Mexiko City"}
         }
         "America:Miquelon"{
             ec{"Miquelon"}
@@ -509,6 +506,9 @@ sv{
         }
         "America:Puerto_Rico"{
             ec{"Puerto Rico"}
+        }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
         }
         "America:Rainy_River"{
             ec{"Rainy River"}
@@ -643,7 +643,7 @@ sv{
             ec{"Aden"}
         }
         "Asia:Almaty"{
-            ec{"Alma-Ata"}
+            ec{"Almaty"}
         }
         "Asia:Amman"{
             ec{"Amman"}
@@ -660,6 +660,9 @@ sv{
         "Asia:Ashgabat"{
             ec{"Asjchabad"}
         }
+        "Asia:Atyrau"{
+            ec{"Atyrau"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdad"}
         }
@@ -671,6 +674,9 @@ sv{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Beirut"}
@@ -707,6 +713,9 @@ sv{
         }
         "Asia:Dushanbe"{
             ec{"Dusjanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagusta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -801,6 +810,9 @@ sv{
         "Asia:Qatar"{
             ec{"Qatar"}
         }
+        "Asia:Qostanay"{
+            ec{"Kostanaj"}
+        }
         "Asia:Qyzylorda"{
             ec{"Qyzylorda"}
         }
@@ -848,6 +860,9 @@ sv{
         }
         "Asia:Tokyo"{
             ec{"Tokyo"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulaanbaatar"}
@@ -939,6 +954,10 @@ sv{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"koordinerad universell tid"}
+            ss{"UTC"}
+        }
         "Etc:Unknown"{
             ec{"okänd stad"}
         }
@@ -947,6 +966,9 @@ sv{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrakhan"}
         }
         "Europe:Athens"{
             ec{"Aten"}
@@ -1006,6 +1028,9 @@ sv{
         "Europe:Kiev"{
             ec{"Kiev"}
         }
+        "Europe:Kirov"{
+            ec{"Kirov"}
+        }
         "Europe:Lisbon"{
             ec{"Lissabon"}
         }
@@ -1064,6 +1089,9 @@ sv{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1081,6 +1109,9 @@ sv{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Uljanovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Uzjhorod"}
@@ -1189,6 +1220,9 @@ sv{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
+            sd{"Honolulusommartid"}
+            sg{"Honolulutid"}
+            ss{"Honolulunormaltid"}
         }
         "Pacific:Johnston"{
             ec{"Johnstonatollen"}
@@ -1654,9 +1688,9 @@ sv{
             ls{"Lord Howe, normaltid"}
         }
         "meta:Macau"{
-            ld{"Macausommartid"}
-            lg{"Macautid"}
-            ls{"Macaunormaltid"}
+            ld{"Macaosommartid"}
+            lg{"Macaotid"}
+            ls{"Macaonormaltid"}
         }
         "meta:Macquarie"{
             ls{"Macquarietid"}
@@ -1734,7 +1768,9 @@ sv{
             ls{"Niuetid"}
         }
         "meta:Norfolk"{
-            ls{"Norfolköns tid"}
+            ld{"Norfolköns, sommartid"}
+            lg{"Norfolköns tid"}
+            ls{"Norfolköns, normaltid"}
         }
         "meta:Noronha"{
             ld{"Fernando de Noronha, sommartid"}
@@ -1793,6 +1829,9 @@ sv{
         }
         "meta:Ponape"{
             ls{"Ponapetid"}
+        }
+        "meta:Pyongyang"{
+            ls{"Pyongyangtid"}
         }
         "meta:Qyzylorda"{
             ld{"Qyzylordasommartid"}

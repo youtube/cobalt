@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1999-2015, International Business Machines
+*   Copyright (C) 1999-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  icuinfo.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -56,6 +58,12 @@ static void do_init() {
     }
 }
 
+static void do_cleanup() {
+  if (icuInitted) {
+    u_cleanup();
+    icuInitted = FALSE;
+  }
+}
 
 void cmd_millis()
 {
@@ -82,6 +90,12 @@ void cmd_version(UBool /* noLoad */, UErrorCode &errorCode)
         errorCode=U_INTERNAL_PROGRAM_ERROR;
     }
 
+#if defined(_MSC_VER)
+// Ignore warning 4127, conditional expression is constant. This is intentional below.
+#pragma warning(push)
+#pragma warning(disable: 4127)
+#endif
+
     if(U_SIZEOF_WCHAR_T==sizeof(wchar_t)) {
       //printf("U_SIZEOF_WCHAR_T: %d\n", U_SIZEOF_WCHAR_T);
     } else {
@@ -105,6 +119,10 @@ void cmd_version(UBool /* noLoad */, UErrorCode &errorCode)
                 U_CHARSET_FAMILY, charsetFamily);
         errorCode=U_INTERNAL_PROGRAM_ERROR;
     }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
     printf("\n\nICU Initialization returned: %s\n", u_errorName(initStatus));
     
@@ -217,7 +235,7 @@ main(int argc, char* argv[]) {
     UBool didSomething = FALSE;
     
     /* preset then read command line options */
-    argc=u_parseArgs(argc, argv, sizeof(options)/sizeof(options[0]), options);
+    argc=u_parseArgs(argc, argv, UPRV_LENGTHOF(options), options);
 
     /* error handling, printing usage message */
     if(argc<0) {
@@ -282,6 +300,8 @@ main(int argc, char* argv[]) {
     if(!didSomething) {
       cmd_version(FALSE, errorCode);  /* at least print the version # */
     }
+
+    do_cleanup();
 
     return U_FAILURE(errorCode);
 }

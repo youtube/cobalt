@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-* Copyright (C) 2012-2014, International Business Machines
+* Copyright (C) 2012-2016, International Business Machines
 * Corporation and others.  All Rights Reserved.
 *******************************************************************************
 * utf8collationiterator.h
@@ -19,6 +21,7 @@
 #include "cmemory.h"
 #include "collation.h"
 #include "collationdata.h"
+#include "collationiterator.h"
 #include "normalizer2impl.h"
 
 U_NAMESPACE_BEGIN
@@ -51,7 +54,7 @@ protected:
      * together with a bogus code point. The caller will ignore that code point.
      *
      * Special values may be returned for surrogate code points, which are also illegal in UTF-8,
-     * but the caller will treat them like U+FFFD because forbidSurrogateCodePoints() returns TRUE.
+     * but the caller will treat them like U+FFFD because forbidSurrogateCodePoints() returns true.
      *
      * Valid lead surrogates are returned from inside a normalized text segment,
      * where handleGetTrailSurrogate() will return the matching trail surrogate.
@@ -114,7 +117,7 @@ private:
 
     /**
      * Extends the FCD text segment forward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool nextSegment(UErrorCode &errorCode);
 
@@ -125,7 +128,7 @@ private:
 
     /**
      * Extends the FCD text segment backward or normalizes around pos.
-     * @return TRUE if success
+     * @return true if success
      */
     UBool previousSegment(UErrorCode &errorCode);
 

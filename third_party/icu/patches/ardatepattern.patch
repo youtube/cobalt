@@ -1,0 +1,13 @@
+diff --git a/source/data/locales/ar.txt b/source/data/locales/ar.txt
+index 59f887be..c69dc3a4 100644
+--- a/source/data/locales/ar.txt
++++ b/source/data/locales/ar.txt
+@@ -740,7 +740,7 @@ ar{
+                 "{1} في {0}",
+                 "{1} في {0}",
+                 "{1}, {0}",
+-                "{1}, {0}",
++                "{1} {0}",
+             }
+             appendItems{
+                 Timezone{"{0} {1}"}

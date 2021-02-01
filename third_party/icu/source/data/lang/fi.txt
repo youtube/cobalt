@@ -1,20 +1,15 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fi{
     Keys{
         calendar{"kalenteri"}
-        colAlternate{"symbolien lajittelu"}
+        cf{"valuuttojen esitysmuoto"}
+        colAlternate{"symbolit ohittava lajittelu"}
         colBackwards{"painomerkkien lajittelu"}
         colCaseFirst{"isojen ja pienten kirjainten järjestys"}
         colCaseLevel{"aakkoslajien lajittelu"}
-        colHiraganaQuaternary{"kana-merkkien lajittelu"}
-        colNormalization{"lajittelun normalisointi"}
+        colNormalization{"normalisoitu lajittelu"}
         colNumeric{"numeroiden lajittelu"}
         colStrength{"lajittelun taso"}
         collation{"lajittelujärjestys"}
@@ -25,7 +20,6 @@ fi{
         numbers{"numerot"}
         timezone{"aikavyöhyke"}
         va{"maavalinnan muunnelma"}
-        variableTop{"lajittelu symboleina"}
         x{"yksityiskäyttö"}
     }
     Languages{
@@ -45,7 +39,7 @@ fi{
         akk{"akkadi"}
         akz{"alabama"}
         ale{"aleutti"}
-        aln{"geg"}
+        aln{"gegi"}
         alt{"altai"}
         am{"amhara"}
         an{"aragonia"}
@@ -58,6 +52,7 @@ fi{
         aro{"araona"}
         arp{"arapaho"}
         arq{"algerianarabia"}
+        ars{"arabia – najd"}
         arw{"arawak"}
         ary{"marokonarabia"}
         arz{"egyptinarabia"}
@@ -115,6 +110,7 @@ fi{
         car{"karibi"}
         cay{"cayuga"}
         cch{"atsam"}
+        ccp{"chakma"}
         ce{"tšetšeeni"}
         ceb{"cebuano"}
         cgg{"kiga"}
@@ -128,12 +124,13 @@ fi{
         chp{"chipewyan"}
         chr{"cherokee"}
         chy{"cheyenne"}
-        ckb{"sorani"}
+        ckb{"soranî"}
         co{"korsika"}
         cop{"kopti"}
         cps{"capiznon"}
         cr{"cree"}
         crh{"krimintataari"}
+        crs{"seychellienkreoli"}
         cs{"tšekki"}
         csb{"kašubi"}
         cu{"kirkkoslaavi"}
@@ -185,7 +182,8 @@ fi{
         eu{"baski"}
         ewo{"ewondo"}
         ext{"extremadura"}
-        fa{"farsi"}
+        fa{"persia"}
+        fa_AF{"dari"}
         fan{"fang"}
         fat{"fanti"}
         ff{"fulani"}
@@ -198,7 +196,7 @@ fi{
         fr{"ranska"}
         fr_CA{"kanadanranska"}
         fr_CH{"sveitsinranska"}
-        frc{"cajun"}
+        frc{"cajunranska"}
         frm{"keskiranska"}
         fro{"muinaisranska"}
         frp{"arpitaani"}
@@ -345,6 +343,7 @@ fi{
         ln{"lingala"}
         lo{"lao"}
         lol{"mongo"}
+        lou{"louisianankreoli"}
         loz{"lozi"}
         lrc{"pohjoisluri"}
         lt{"liettua"}
@@ -392,7 +391,7 @@ fi{
         ms{"malaiji"}
         mt{"malta"}
         mua{"mundang"}
-        mul{"monia kieliä"}
+        mul{"useita kieliä"}
         mus{"creek"}
         mwl{"mirandeesi"}
         mwr{"marwari"}
@@ -449,6 +448,7 @@ fi{
         pap{"papiamentu"}
         pau{"palau"}
         pcd{"picardi"}
+        pcm{"nigerianpidgin"}
         pdc{"pennsylvaniansaksa"}
         pdt{"plautdietsch"}
         peo{"muinaispersia"}
@@ -545,8 +545,8 @@ fi{
         sux{"sumeri"}
         sv{"ruotsi"}
         sw{"swahili"}
+        sw_CD{"kingwana"}
         swb{"komori"}
-        swc{"kingwana"}
         syc{"muinaissyyria"}
         syr{"syyria"}
         szl{"sleesia"}
@@ -594,7 +594,7 @@ fi{
         uga{"ugarit"}
         uk{"ukraina"}
         umb{"mbundu"}
-        und{"määrittämätön kieli"}
+        und{"tuntematon kieli"}
         ur{"urdu"}
         uz{"uzbekki"}
         vai{"vai"}
@@ -635,29 +635,32 @@ fi{
         zen{"zenaga"}
         zgh{"vakioitu tamazight"}
         zh{"kiina"}
-        zh_Hans{"yksinkertaistettu kiina"}
-        zh_Hant{"perinteinen kiina"}
         zu{"zulu"}
         zun{"zuni"}
         zxx{"ei kielellistä sisältöä"}
         zza{"zaza"}
     }
+    Languages%long{
+        zh_Hans{"mandariinikiina (yksinkertaistettu)"}
+        zh_Hant{"mandariinikiina (perinteinen)"}
+    }
+    Languages%menu{
+        ckb{"kurdi – soranî"}
+        yue{"kiina (kantonin)"}
+        zh{"kiina (mandariini)"}
+    }
     Languages%secondary{
         crh{"kriminturkki"}
-        fa{"persia"}
         kl{"grönlanti"}
         lad{"juutalaisespanja"}
     }
-    Languages%short{
-        az{"azeri"}
-        en_GB{"englanti (Britannia)"}
-        en_US{"englanti (USA)"}
-    }
     Scripts{
+        Adlm{"fulanin adlam-aakkosto"}
         Afak{"afaka"}
         Aghb{"kaukasianalbanialainen"}
         Ahom{"ahom"}
         Arab{"arabialainen"}
+        Aran{"nastaliq"}
         Armi{"valtakunnanaramealainen"}
         Armn{"armenialainen"}
         Avst{"avestalainen"}
@@ -666,6 +669,7 @@ fi{
         Bass{"bassa"}
         Batk{"batakilainen"}
         Beng{"bengalilainen"}
+        Bhks{"sanskritin bhaiksuki-aakkosto"}
         Blis{"bliss-symbolit"}
         Bopo{"bopomofo"}
         Brah{"brahmi"}
@@ -677,41 +681,50 @@ fi{
         Cari{"kaarialainen"}
         Cham{"tšamilainen"}
         Cher{"cherokeelainen"}
+        Chrs{"horemzi"}
         Cirt{"cirth"}
         Copt{"koptilainen"}
         Cprt{"muinaiskyproslainen"}
         Cyrl{"kyrillinen"}
         Cyrs{"kyrillinen muinaiskirkkoslaavimuunnelma"}
         Deva{"devanagari"}
+        Diak{"dives akuru"}
+        Dogr{"dogri"}
         Dsrt{"deseret"}
         Dupl{"Duployén pikakirjoitus"}
         Egyd{"egyptiläinen demoottinen"}
         Egyh{"egyptiläinen hieraattinen"}
         Egyp{"egyptiläiset hieroglyfit"}
         Elba{"elbasanilainen"}
+        Elym{"elymealainen"}
         Ethi{"etiopialainen"}
         Geok{"muinaisgeorgialainen"}
         Geor{"georgialainen"}
         Glag{"glagoliittinen"}
+        Gong{"gondin gunjala"}
+        Gonm{"masaram-gondi"}
         Goth{"goottilainen"}
         Gran{"grantha"}
         Grek{"kreikkalainen"}
         Gujr{"gudžaratilainen"}
         Guru{"gurmukhi"}
+        Hanb{"kiinan han ja bopomofo"}
         Hang{"hangul"}
         Hani{"kiinalainen han"}
         Hano{"hanunoolainen"}
-        Hans{"yksinkertaistettu han"}
-        Hant{"perinteinen han"}
+        Hans{"yksinkertaistettu"}
+        Hant{"perinteinen"}
         Hatr{"hatralainen"}
         Hebr{"heprealainen"}
         Hira{"hiragana"}
         Hluw{"anatolialaiset hieroglyfit"}
         Hmng{"pahawh hmong"}
-        Hrkt{"hiragana tai katakana"}
+        Hmnp{"hmongin nyiakeng puachue"}
+        Hrkt{"japanin tavumerkistöt"}
         Hung{"muinaisunkarilainen"}
         Inds{"induslainen"}
         Ital{"muinaisitalialainen"}
+        Jamo{"korean hangulin jamo-elementit"}
         Java{"jaavalainen"}
         Jpan{"japanilainen"}
         Jurc{"džurtšen"}
@@ -720,6 +733,7 @@ fi{
         Khar{"kharosthi"}
         Khmr{"khmeriläinen"}
         Khoj{"khojki"}
+        Kits{"kitaanin pieni merkistö"}
         Knda{"kannadalainen"}
         Kore{"korealainen"}
         Kpel{"kpelle"}
@@ -738,9 +752,12 @@ fi{
         Lyci{"lyykialainen"}
         Lydi{"lyydialainen"}
         Mahj{"mahajanilainen"}
+        Maka{"makassar"}
         Mand{"mandealainen"}
         Mani{"manikealainen"}
+        Marc{"tiibetiläinen marchan-kirjoitus"}
         Maya{"maya-hieroglyfit"}
+        Medf{"medefaidrin"}
         Mend{"mende"}
         Merc{"meroiittinen kursiivikirjoitus"}
         Mero{"meroiittinen"}
@@ -752,8 +769,10 @@ fi{
         Mtei{"meitei"}
         Mult{"multanilainen"}
         Mymr{"burmalainen"}
+        Nand{"nandinagari"}
         Narb{"muinaispohjoisarabialainen"}
         Nbat{"nabatealainen"}
+        Newa{"newarin newa-tavukirjoitus"}
         Nkgb{"naxi geba"}
         Nkoo{"n’ko"}
         Nshu{"nüshu"}
@@ -761,6 +780,7 @@ fi{
         Olck{"ol chiki"}
         Orkh{"orkhon"}
         Orya{"orijalainen"}
+        Osge{"osagen aakkosto"}
         Osma{"osmanjalainen"}
         Palm{"palmyralainen"}
         Pauc{"zotuallai"}
@@ -772,7 +792,9 @@ fi{
         Phnx{"foinikialainen"}
         Plrd{"Pollardin foneettinen"}
         Prti{"piirtokirjoitusparthialainen"}
+        Qaag{"burmalainen zawgyi-toteutus"}
         Rjng{"rejang"}
+        Rohg{"rohinjalainen hanifi"}
         Roro{"rongorongo"}
         Runr{"riimukirjoitus"}
         Samr{"samarianaramealainen"}
@@ -785,7 +807,10 @@ fi{
         Sidd{"siddham-tavukirjoitus"}
         Sind{"khudabadi"}
         Sinh{"sinhalilainen"}
+        Sogd{"sogdialainen"}
+        Sogo{"muinaissogdialainen"}
         Sora{"sorang sompeng"}
+        Soyo{"soyombo-kirjaimisto"}
         Sund{"sundalainen"}
         Sylo{"syloti nagri"}
         Syrc{"syyrialainen"}
@@ -811,12 +836,16 @@ fi{
         Vaii{"vailainen"}
         Visp{"näkyvä puhe"}
         Wara{"varang kshiti"}
+        Wcho{"wancholainen"}
         Wole{"woleai"}
         Xpeo{"muinaispersialainen"}
         Xsux{"sumerilais-akkadilainen nuolenpääkirjoitus"}
+        Yezi{"jesidi"}
         Yiii{"yiläinen"}
+        Zanb{"zanabazar-neliökirjaimisto"}
         Zinh{"peritty"}
         Zmth{"matemaattinen"}
+        Zsye{"emoji-symbolit"}
         Zsym{"symbolit"}
         Zxxx{"kirjoittamaton"}
         Zyyy{"määrittämätön"}
@@ -830,8 +859,8 @@ fi{
         Visp{"Visible Speech"}
     }
     Scripts%stand-alone{
-        Hans{"kiinalainen yksinkertaistettu han"}
-        Hant{"kiinalainen perinteinen han"}
+        Hans{"yksinkertaistettu han"}
+        Hant{"perinteinen han"}
     }
     Scripts%variant{
         Arab{"persialaisarabialainen"}
@@ -857,6 +886,10 @@ fi{
             persian{"persialainen kalenteri"}
             roc{"Kiinan tasavallan kalenteri"}
         }
+        cf{
+            account{"valuuttojen laskentatoimen esitysmuoto"}
+            standard{"valuuttojen vakioesitysmuoto"}
+        }
         colAlternate{
             non-ignorable{"symbolit huomioiva lajittelu"}
             shifted{"symbolit ohittava lajittelu"}
@@ -874,12 +907,8 @@ fi{
             no{"isojen ja pienten kirjainten lajittelu yhdessä"}
             yes{"isojen ja pienten kirjainten lajittelu erikseen"}
         }
-        colHiraganaQuaternary{
-            no{"kana-merkkien lajittelu erillisinä"}
-            yes{"kana-merkkien lajittelu tyypin mukaan"}
-        }
         colNormalization{
-            no{"lajittelu ilman normalisoinrtia"}
+            no{"lajittelu ilman normalisointia"}
             yes{"lajittelu Unicode-normalisoituna"}
         }
         colNumeric{
@@ -916,6 +945,11 @@ fi{
             unihan{"radikaali- ja piirtojärjestys"}
             zhuyin{"zhuyin-järjestys"}
         }
+        d0{
+            fwidth{"ideogrammin levyinen"}
+            hwidth{"ideogrammin puolikkaan levyinen"}
+            npinyin{"numeerinen muunnos"}
+        }
         hc{
             h11{"12 tunnin järjestelmä (0–11)"}
             h12{"12 tunnin järjestelmä (1–12)"}
@@ -927,12 +961,17 @@ fi{
             normal{"normaali rivinvaihto"}
             strict{"tarkka rivinvaihto"}
         }
+        m0{
+            bgn{"BGN-latinaistus"}
+            ungegn{"UNGEGN-latinaistus"}
+        }
         ms{
             metric{"metrijärjestelmä"}
             uksystem{"brittiläinen mittajärjestelmä"}
             ussystem{"yhdysvaltalainen mittajärjestelmä"}
         }
         numbers{
+            ahom{"ahom-numerot"}
             arab{"arabialaiset numerot"}
             arabext{"laajennetut arabialaiset numerot"}
             armn{"armenialaiset numerot"}
@@ -942,11 +981,15 @@ fi{
             brah{"brahmilaiset numerot"}
             cakm{"chakmalaiset numerot"}
             cham{"cham-numerot"}
+            cyrl{"kyrilliset numerot"}
             deva{"devanagarinumerot"}
+            diak{"dives akuru -numerot"}
             ethi{"etiopialaiset numerot"}
             finance{"talousnumerot"}
             fullwide{"ideografin levyiset numerot"}
             geor{"georgialaiset numerot"}
+            gong{"gondin gunjala-numerot"}
+            gonm{"gondin masaram-numerot"}
             grek{"kreikkalaiset numerot"}
             greklow{"kreikkalaiset piennumerot"}
             gujr{"gudžaratilaiset numerot"}
@@ -957,6 +1000,8 @@ fi{
             hant{"perinteiset kiinalaiset numerot"}
             hantfin{"perinteiset kiinalaiset talousnumerot"}
             hebr{"heprealaiset numerot"}
+            hmng{"pahawh hmong -numerot"}
+            hmnp{"hmongin nyiakeng puachue -numerot"}
             java{"jaavalaiset numerot"}
             jpan{"japanilaiset numerot"}
             jpanfin{"japanilaiset talousnumerot"}
@@ -969,20 +1014,31 @@ fi{
             latn{"länsimaiset numerot"}
             lepc{"lepchanumerot"}
             limb{"limbunumerot"}
+            mathbold{"matemaattiset lihavoidut numerot"}
+            mathdbl{"matemaattiset kaksoislyöntinumerot"}
+            mathmono{"matemaattiset tasalevyiset numerot"}
+            mathsanb{"matemaattiset pääteviivattomat lihavoidut numerot"}
+            mathsans{"matemaattiset pääteviivattomat numerot"}
             mlym{"malajalamilaiset numerot"}
+            modi{"modi-numerot"}
             mong{"mongolialaiset numerot"}
+            mroo{"mro-numerot"}
             mtei{"meetei mayek -numerot"}
             mymr{"burmalaiset numerot"}
             mymrshan{"myanmarin shan-numerot"}
+            mymrtlng{"myanmarin tai laing -numerot"}
             native{"kielen omat numerot"}
             nkoo{"n’ko-numerot"}
             olck{"ol chiki -numerot"}
             orya{"orijalaiset numerot"}
             osma{"osmanjalaiset numerot"}
+            rohg{"hanifilaisen rohingyan numerot"}
             roman{"roomalaiset numerot"}
             romanlow{"roomalaiset piennumerot"}
             saur{"saurashtra-numerot"}
-            shrd{"šarida-numerot"}
+            shrd{"šarada-numerot"}
+            sind{"khutabadi-numerot"}
+            sinh{"sinhalan lith-numerot"}
             sora{"sora sompeng -numerot"}
             sund{"sundalaiset numerot"}
             takr{"takri-numerot"}
@@ -992,8 +1048,11 @@ fi{
             telu{"telugulaiset numerot"}
             thai{"thainumerot"}
             tibt{"tiibetiläiset numerot"}
+            tirh{"tirhuta-numerot"}
             traditional{"perinteiset numerot"}
             vaii{"vai-numerot"}
+            wara{"varang kshiti -numerot"}
+            wcho{"wancholaiset numerot"}
         }
     }
     Variants{
@@ -1003,48 +1062,77 @@ fi{
         1959ACAD{"valkovenäjän virallinen oikeinkirjoitus"}
         1994{"sloveenin resian murteen yhdenmukaistettu oikeinkirjoitus"}
         1996{"saksan uusi oikeinkirjoitus"}
+        ABL1943{"portugalin oikeinkirjoitus 1943"}
+        AKUAPEM{"akanin akuapem-murre"}
         ALALC97{"amerikkalainen kirjastolatinaistus 1997"}
         ALUKU{"alukun kreolimurre"}
+        AO1990{"portugalin oikeinkirjoitussopimus 1990"}
+        ARANES{"oksitaanin Aranin laakson variantti"}
         AREVELA{"itäarmenialainen"}
         AREVMDA{"länsiarmenialainen"}
+        ASANTE{"akanin asante-variantti"}
+        AUVERN{"oksitaanin Auvergnen variantti"}
         BAKU1926{"yhtenäistetty turkkilainen latinalainen aakkosto"}
         BALANKA{"aniin balankalaismurre"}
         BARLA{"kapverdenkreolin barlaventolainen murreryhmä"}
+        BASICENG{"Ogdenin perusenglanti"}
         BAUDDHA{"sanskriitin buddhalainen sekamuoto"}
         BISCAYAN{"baskin biskajalaismurre"}
         BISKE{"sloveenin resian San Giorgion/Bilan alamurre"}
         BOHORIC{"sloveenin Bohorič-aakkosto"}
         BOONT{"englannin boontling-murre"}
+        BORNHOLM{"Bornholmin murre"}
+        CISAUP{"oksitaanin luoteisitalialainen variantti"}
+        COLB1945{"portugalin oikeinkirjoitus 1945"}
+        CORNU{"englannin cornu-murre"}
+        CREISS{"oksitaanin Croissantin variantti"}
         DAJNKO{"sloveenin Dajnko-aakkosto"}
         EKAVSK{"serbian ekavialainen ääntämys"}
         EMODENG{"varhaisnykyenglanti"}
         FONIPA{"kansainvälinen foneettinen aakkosto IPA"}
+        FONKIRSH{"Kirshenbaumin foneettinen aakkosto"}
+        FONNAPA{"pohjoisamerikkalainen foneettinen aakkosto NAPA"}
         FONUPA{"uralilainen foneettinen aakkosto UPA"}
         FONXSAMP{"foneettinen X-SAMPA-merkistö"}
+        GASCON{"oksitaanin Gasconyn variantti"}
+        GRCLASS{"oksitaanin klassinen ortografia"}
+        GRITAL{"oksitaanin italialaisvaikutteinen ortografia"}
+        GRMISTR{"oksitaanin Mistral-vaikutteinen ortografia"}
         HEPBURN{"japanin Hepburn-latinaistus"}
         HOGNORSK{"norjan högnorsk"}
-        IJEKAVSK{"serbian ijekavialainen ääntämiys"}
+        HSISTEMO{"esperanton h-kirjoitus"}
+        IJEKAVSK{"serbian ijekavialainen ääntämys"}
         ITIHASA{"sanskriitin eeppinen muoto"}
+        IVANCHOV{"bulgarian 1899 ortografia"}
         JAUER{"retoromaanin jauer-murre"}
         JYUTPING{"kantoninkiinan jyutping-latinaistus"}
         KKCOR{"kornin yleiskirjoitus"}
         KOCIEWIE{"puolan kociewielainen murre"}
-        KSCOR{"kornin standardikirjoitus"}
+        KSCOR{"kornin Kernowek-ortografia"}
         LAUKIKA{"klassinen sanskriitti"}
+        LEMOSIN{"oksitaanin Limousin-alueen variantti"}
+        LENGADOC{"oksitaanin lengadocian variantti"}
         LIPAW{"sloveenin resian Lipovazin/Lipovecin alamurre"}
         LUNA1918{"venäjän ortografia 1918"}
         METELKO{"sloveenin Metelko-aakkosto"}
         MONOTON{"monotoninen kreikka"}
         NDYUKA{"ndyukan kreolimurre"}
         NEDIS{"sloveenin natisonen murre"}
+        NEWFOUND{"englannin newfoundlandilaismurre"}
+        NICARD{"oksitaanin Nizzan variantti"}
         NJIVA{"sloveenin resian Gnivan/Njivan alamurre"}
         NULIK{"nykyvolapük"}
         OSOJS{"sloveenin resian Oseaccon/Osojanen alamurre"}
+        OXENDICT{"englannin Oxfordin sanakirjan oikeinkirjoitus"}
+        PAHAWH2{"pahawh-hmongin tavukirjoituksen toinen vaihe"}
+        PAHAWH3{"pahawh-hmongin tavukirjoituksen kolmas vaihe"}
+        PAHAWH4{"pahawh-hmongin tavukirjoituksen viimeinen vaihe"}
         PAMAKA{"pamakan kreolimurre"}
         PETR1708{"venäjän Pietarin siviiliaakkosto 1708"}
         PINYIN{"kiinan pinyin-latinaistus"}
         POLYTON{"polytoninen kreikka"}
         POSIX{"tietokonemäärittely POSIX"}
+        PROVENC{"provensaali"}
         PUTER{"retoromaanin puter-muoto"}
         REVISED{"uudistettu oikeinkirjoitus"}
         RIGIK{"klassinen volapük"}
@@ -1053,8 +1141,10 @@ fi{
         SAAHO{"afarin saho-murre"}
         SCOTLAND{"skotlanninenglanti"}
         SCOUSE{"englannin scouse-murre"}
+        SIMPLE{"yksinkertaistettu kielimuoto"}
         SOLBA{"sloveenin resian Stolvizzan/Solbican alamurre"}
         SOTAV{"kapverdenkreolin sotaventolainen murreryhmä"}
+        SPANGLIS{"spanglish"}
         SURMIRAN{"retoromaanin surmiran-muoto"}
         SURSILV{"retoromaanin sursilvan-muoto"}
         SUTSILV{"retoromaanin sutsilvan-muoto"}
@@ -1066,12 +1156,30 @@ fi{
         VAIDIKA{"sanskriitin veda-murre"}
         VALENCIA{"katalaanin valencian murre"}
         VALLADER{"reoromaanin vallader-muoto"}
+        VIVARAUP{"oksitaanin vivaro-alpiininen variantti"}
         WADEGILE{"kiinan Wade-Giles-latinaistus"}
+        XSISTEMO{"esperanton x-kirjoitus"}
     }
     Variants%secondary{
         FONUPA{"suomalais-ugrilainen tarkekirjoitus"}
     }
-    Version{"2.1.19.14"}
+    characterLabelPattern{
+        all{"{0} – kaikki"}
+        category-list{"{0}: {1}"}
+        compatibility{"{0} – yhteensopivuus"}
+        enclosed{"{0} – ympäröity"}
+        extended{"{0} – laajennettu"}
+        historic{"{0} – historiallinen"}
+        miscellaneous{"{0} – sekalaiset"}
+        other{"{0} – muut"}
+        scripts{"kirjoitusjärjestelmät – {0}"}
+        strokes{
+            one{"{0} piirtoviiva"}
+            other{"{0} piirtoviivaa"}
+        }
+        subscript{"alaindeksi {0}"}
+        superscript{"yläindeksi {0}"}
+    }
     codePatterns{
         language{"kieli: {0}"}
         script{"kirjoitusjärjestelmä: {0}"}

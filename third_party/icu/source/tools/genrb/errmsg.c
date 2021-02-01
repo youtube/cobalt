@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -19,6 +21,7 @@
 #include <stdio.h>
 #include "cstring.h"
 #include "errmsg.h"
+#include "toolutil.h"
 
 U_CFUNC void error(uint32_t linenumber, const char *msg, ...)
 {

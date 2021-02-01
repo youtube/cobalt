@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/mr.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 mr{
-    Version{"2.1.19.53"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"अबिद्जान"}
@@ -193,7 +187,7 @@ mr{
             ec{"सान जुआन"}
         }
         "America:Argentina:San_Luis"{
-            ec{"सॅन लुईस"}
+            ec{"सान ल्युइस"}
         }
         "America:Argentina:Tucuman"{
             ec{"टुकुमान"}
@@ -277,7 +271,7 @@ mr{
             ec{"क्रेस्टन"}
         }
         "America:Cuiaba"{
-            ec{"कुइबा"}
+            ec{"कुयाबा"}
         }
         "America:Curacao"{
             ec{"क्युरासाओ"}
@@ -309,6 +303,9 @@ mr{
         "America:El_Salvador"{
             ec{"एल साल्वाडोर"}
         }
+        "America:Fort_Nelson"{
+            ec{"फोर्ट नेल्सन"}
+        }
         "America:Fortaleza"{
             ec{"फोर्टालेझा"}
         }
@@ -334,7 +331,7 @@ mr{
             ec{"ग्वाटेमाला"}
         }
         "America:Guayaquil"{
-            ec{"गुआयाक्विल"}
+            ec{"गयाक्विल"}
         }
         "America:Guyana"{
             ec{"गयाना"}
@@ -510,6 +507,9 @@ mr{
         "America:Puerto_Rico"{
             ec{"प्युएर्तो रिको"}
         }
+        "America:Punta_Arenas"{
+            ec{"पुंता अरीनास"}
+        }
         "America:Rainy_River"{
             ec{"रेनी नदी"}
         }
@@ -660,6 +660,9 @@ mr{
         "Asia:Ashgabat"{
             ec{"अश्गाबात"}
         }
+        "Asia:Atyrau"{
+            ec{"अतिरॉ"}
+        }
         "Asia:Baghdad"{
             ec{"बगदाद"}
         }
@@ -671,6 +674,9 @@ mr{
         }
         "Asia:Bangkok"{
             ec{"बँकॉक"}
+        }
+        "Asia:Barnaul"{
+            ec{"बर्नौल"}
         }
         "Asia:Beirut"{
             ec{"बैरुत"}
@@ -707,6 +713,9 @@ mr{
         }
         "Asia:Dushanbe"{
             ec{"दुशान्बे"}
+        }
+        "Asia:Famagusta"{
+            ec{"फॅमगुस्ता"}
         }
         "Asia:Gaza"{
             ec{"गाझा"}
@@ -801,6 +810,9 @@ mr{
         "Asia:Qatar"{
             ec{"कतार"}
         }
+        "Asia:Qostanay"{
+            ec{"कोस्टाने"}
+        }
         "Asia:Qyzylorda"{
             ec{"किझीलोर्डा"}
         }
@@ -848,6 +860,9 @@ mr{
         }
         "Asia:Tokyo"{
             ec{"टोकियो"}
+        }
+        "Asia:Tomsk"{
+            ec{"तोमसक"}
         }
         "Asia:Ulaanbaatar"{
             ec{"उलानबातर"}
@@ -939,6 +954,9 @@ mr{
         "Australia:Sydney"{
             ec{"सिडनी"}
         }
+        "Etc:UTC"{
+            ls{"समन्वित वैश्विक वेळ"}
+        }
         "Etc:Unknown"{
             ec{"अज्ञात शहर"}
         }
@@ -947,6 +965,9 @@ mr{
         }
         "Europe:Andorra"{
             ec{"अँडोरा"}
+        }
+        "Europe:Astrakhan"{
+            ec{"आस्त्राखान"}
         }
         "Europe:Athens"{
             ec{"अथेन्स"}
@@ -992,7 +1013,7 @@ mr{
             ec{"हेलसिंकी"}
         }
         "Europe:Isle_of_Man"{
-            ec{"आइल ऑफ मॅन"}
+            ec{"आयल ऑफ मॅन"}
         }
         "Europe:Istanbul"{
             ec{"इस्तंबूल"}
@@ -1005,6 +1026,9 @@ mr{
         }
         "Europe:Kiev"{
             ec{"कीव"}
+        }
+        "Europe:Kirov"{
+            ec{"किरोव"}
         }
         "Europe:Lisbon"{
             ec{"लिस्बन"}
@@ -1064,6 +1088,9 @@ mr{
         "Europe:Sarajevo"{
             ec{"साराजेव्हो"}
         }
+        "Europe:Saratov"{
+            ec{"सारातोव"}
+        }
         "Europe:Simferopol"{
             ec{"सिम्फरोपोल"}
         }
@@ -1081,6 +1108,9 @@ mr{
         }
         "Europe:Tirane"{
             ec{"टिराने"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"उल्यानोव्स्क"}
         }
         "Europe:Uzhgorod"{
             ec{"उझहोरोड"}
@@ -1110,7 +1140,7 @@ mr{
             ec{"झापोरोझे"}
         }
         "Europe:Zurich"{
-            ec{"झुरिच"}
+            ec{"झुरिक"}
         }
         "Indian:Antananarivo"{
             ec{"अंटानानारिवो"}
@@ -1296,7 +1326,7 @@ mr{
         }
         "meta:Amazon"{
             ld{"अ‍ॅमेझॉन उन्हाळी वेळ"}
-            lg{"अॅमेझॉन वेळ"}
+            lg{"अ‍ॅमेझॉन वेळ"}
             ls{"अ‍ॅमेझॉन प्रमाण वेळ"}
         }
         "meta:America_Central"{
@@ -1490,7 +1520,7 @@ mr{
             ls{"पूर्व युरोपियन प्रमाण वेळ"}
         }
         "meta:Europe_Further_Eastern"{
-            ls{"अग्र पुर्व यूरोपीयन वेळ"}
+            ls{"अग्र-पौर्वात्य युरोपीयन वेळ"}
         }
         "meta:Europe_Western"{
             ld{"पश्चिम युरोपियन उन्हाळी वेळ"}
@@ -1722,7 +1752,9 @@ mr{
             ls{"न्युए वेळ"}
         }
         "meta:Norfolk"{
-            ls{"नॉरफोक बेट वेळ"}
+            ld{"नॉरफोक बेट सूर्यप्रकाश वेळ"}
+            lg{"नॉरफोक बेट वेळ"}
+            ls{"नॉरफोक बेट प्रमाण वेळ"}
         }
         "meta:Noronha"{
             ld{"फर्नांडो दी नोरोन्हा उन्हाळी वेळ"}
@@ -1772,15 +1804,18 @@ mr{
             ls{"‍फोनिक्स बेटे वेळ"}
         }
         "meta:Pierre_Miquelon"{
-            ld{"सेंट पियर आणि मिक्वेलोन सूर्यप्रकाश वेळ"}
+            ld{"सेंट पियरे आणि मिक्वेलोन सूर्यप्रकाश वेळ"}
             lg{"सेंट पियर आणि मिक्वेलोन वेळ"}
-            ls{"सेंट पियर आणि मिक्वेलोन प्रमाण वेळ"}
+            ls{"सेंट पियरे आणि मिक्वेलोन प्रमाण वेळ"}
         }
         "meta:Pitcairn"{
             ls{"पिटकैर्न वेळ"}
         }
         "meta:Ponape"{
             ls{"पोनॅपे वेळ"}
+        }
+        "meta:Pyongyang"{
+            ls{"प्योंगयांग वेळ"}
         }
         "meta:Qyzylorda"{
             ld{"क़िझीलोर्डा ग्रीष्मकालीन वेळ"}

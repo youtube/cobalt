@@ -1,7 +1,9 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /* ------------------------------------------------------------------ */
 /* decNumber package local type, tuning, and macro definitions        */
 /* ------------------------------------------------------------------ */
-/* Copyright (c) IBM Corporation, 2000-2012.   All rights reserved.   */
+/* Copyright (c) IBM Corporation, 2000-2016.   All rights reserved.   */
 /*                                                                    */
 /* This software is made available under the terms of the             */
 /* ICU License -- ICU 1.8.1 and later.                                */
@@ -30,7 +32,11 @@
 #if !defined(STARBOARD)
   #include <stdlib.h>         /* for abs                              */
   #include <string.h>         /* for memset, strcpy                   */
+<<<<<<< HEAD
 #endif
+=======
+  #include "decContext.h"
+>>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
   /* Conditional code flag -- set this to match hardware platform     */
   #if !defined(DECLITEND)
@@ -165,7 +171,9 @@
 
   /* Set DECDPUNMAX -- the maximum integer that fits in DECDPUN       */
   /* digits, and D2UTABLE -- the initializer for the D2U table        */
-  #if   DECDPUN==1
+  #ifndef DECDPUN
+    // no-op
+  #elif   DECDPUN==1
     #define DECDPUNMAX 9
     #define D2UTABLE {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,  \
                       18,19,20,21,22,23,24,25,26,27,28,29,30,31,32, \
@@ -211,7 +219,7 @@
     #define D2UTABLE {0,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,3,3,3,  \
                       3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,  \
                       5,5,6,6,6,6}
-  #elif defined(DECDPUN)
+  #else
     #error DECDPUN must be in the range 1-9
   #endif
 
@@ -227,9 +235,9 @@
 
   /* D2U -- return the number of Units needed to hold d digits        */
   /* (runtime version, with table lookaside for small d)              */
-  #if DECDPUN==8
+  #if defined(DECDPUN) && DECDPUN==8
     #define D2U(d) ((unsigned)((d)<=DECMAXD2U?d2utable[d]:((d)+7)>>3))
-  #elif DECDPUN==4
+  #elif defined(DECDPUN) && DECDPUN==4
     #define D2U(d) ((unsigned)((d)<=DECMAXD2U?d2utable[d]:((d)+3)>>2))
   #else
     #define D2U(d) ((d)<=DECMAXD2U?d2utable[d]:((d)+DECDPUN-1)/DECDPUN)
@@ -256,7 +264,7 @@
   /* 2,000,000,000 (as is needed for negative exponents of            */
   /* subnormals).  The unsigned integer pow is used as a temporary    */
   /* variable. */
-  #define TODIGIT(u, cut, c, pow) {       \
+  #define TODIGIT(u, cut, c, pow) UPRV_BLOCK_MACRO_BEGIN { \
     *(c)='0';                             \
     pow=DECPOWERS[cut]*2;                 \
     if ((u)>pow) {                        \
@@ -269,7 +277,7 @@
     if ((u)>=pow) {(u)-=pow; *(c)+=2;}    \
     pow/=2;                               \
     if ((u)>=pow) {(u)-=pow; *(c)+=1;}    \
-    }
+    } UPRV_BLOCK_MACRO_END
 
   /* ---------------------------------------------------------------- */
   /* Definitions for fixed-precision modules (only valid after        */

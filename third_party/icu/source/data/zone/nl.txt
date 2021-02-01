@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/nl.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 nl{
-    Version{"2.1.19.96"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ nl{
         "America:El_Salvador"{
             ec{"El Salvador"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -510,6 +507,9 @@ nl{
         "America:Puerto_Rico"{
             ec{"Puerto Rico"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -553,19 +553,19 @@ nl{
             ec{"Saint-Barthélemy"}
         }
         "America:St_Johns"{
-            ec{"St. John’s"}
+            ec{"Saint John’s"}
         }
         "America:St_Kitts"{
-            ec{"St. Kitts"}
+            ec{"Saint Kitts"}
         }
         "America:St_Lucia"{
-            ec{"St. Lucia"}
+            ec{"Saint Lucia"}
         }
         "America:St_Thomas"{
-            ec{"St. Thomas"}
+            ec{"Saint Thomas"}
         }
         "America:St_Vincent"{
-            ec{"St. Vincent"}
+            ec{"Saint Vincent"}
         }
         "America:Swift_Current"{
             ec{"Swift Current"}
@@ -660,6 +660,9 @@ nl{
         "Asia:Ashgabat"{
             ec{"Asjchabad"}
         }
+        "Asia:Atyrau"{
+            ec{"Atıraw"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdad"}
         }
@@ -671,6 +674,9 @@ nl{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Beiroet"}
@@ -688,7 +694,7 @@ nl{
             ec{"Chita"}
         }
         "Asia:Choibalsan"{
-            ec{"Choibalsan"}
+            ec{"Tsjojbalsan"}
         }
         "Asia:Colombo"{
             ec{"Colombo"}
@@ -707,6 +713,9 @@ nl{
         }
         "Asia:Dushanbe"{
             ec{"Doesjanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagusta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -790,7 +799,7 @@ nl{
             ec{"Oral"}
         }
         "Asia:Phnom_Penh"{
-            ec{"Phnom-Penh"}
+            ec{"Phnom Penh"}
         }
         "Asia:Pontianak"{
             ec{"Pontianak"}
@@ -800,6 +809,9 @@ nl{
         }
         "Asia:Qatar"{
             ec{"Qatar"}
+        }
+        "Asia:Qostanay"{
+            ec{"Qostanay"}
         }
         "Asia:Qyzylorda"{
             ec{"Qyzylorda"}
@@ -848,6 +860,9 @@ nl{
         }
         "Asia:Tokyo"{
             ec{"Tokio"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulaanbaatar"}
@@ -939,6 +954,10 @@ nl{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"gecoördineerde wereldtijd"}
+            ss{"UTC"}
+        }
         "Etc:Unknown"{
             ec{"onbekende stad"}
         }
@@ -947,6 +966,9 @@ nl{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrakhan"}
         }
         "Europe:Athens"{
             ec{"Athene"}
@@ -980,7 +1002,7 @@ nl{
         }
         "Europe:Dublin"{
             ec{"Dublin"}
-            ld{"Ierse zomertijd"}
+            ld{"Ierse standaardtijd"}
         }
         "Europe:Gibraltar"{
             ec{"Gibraltar"}
@@ -1005,6 +1027,9 @@ nl{
         }
         "Europe:Kiev"{
             ec{"Kiev"}
+        }
+        "Europe:Kirov"{
+            ec{"Kirov"}
         }
         "Europe:Lisbon"{
             ec{"Lissabon"}
@@ -1064,6 +1089,9 @@ nl{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1081,6 +1109,9 @@ nl{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Ulyanovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Oezjhorod"}
@@ -1189,6 +1220,9 @@ nl{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
+            sd{"HDT"}
+            sg{"HST"}
+            ss{"HST"}
         }
         "Pacific:Johnston"{
             ec{"Johnston"}
@@ -1288,6 +1322,9 @@ nl{
             ld{"Alaska-zomertijd"}
             lg{"Alaska-tijd"}
             ls{"Alaska-standaardtijd"}
+            sd{"AKDT"}
+            sg{"AKT"}
+            ss{"AKST"}
         }
         "meta:Almaty"{
             ld{"Alma-Ata-zomertijd"}
@@ -1303,21 +1340,33 @@ nl{
             ld{"Central-zomertijd"}
             lg{"Central-tijd"}
             ls{"Central-standaardtijd"}
+            sd{"CDT"}
+            sg{"CT"}
+            ss{"CST"}
         }
         "meta:America_Eastern"{
             ld{"Eastern-zomertijd"}
             lg{"Eastern-tijd"}
             ls{"Eastern-standaardtijd"}
+            sd{"EDT"}
+            sg{"ET"}
+            ss{"EST"}
         }
         "meta:America_Mountain"{
             ld{"Mountain-zomertijd"}
             lg{"Mountain-tijd"}
             ls{"Mountain-standaardtijd"}
+            sd{"MDT"}
+            sg{"MT"}
+            ss{"MST"}
         }
         "meta:America_Pacific"{
             ld{"Pacific-zomertijd"}
             lg{"Pacific-tijd"}
             ls{"Pacific-standaardtijd"}
+            sd{"PDT"}
+            sg{"PT"}
+            ss{"PST"}
         }
         "meta:Anadyr"{
             ld{"Anadyr-zomertijd"}
@@ -1363,6 +1412,9 @@ nl{
             ld{"Atlantic-zomertijd"}
             lg{"Atlantic-tijd"}
             ls{"Atlantic-standaardtijd"}
+            sd{"ADT"}
+            sg{"AT"}
+            ss{"AST"}
         }
         "meta:Australia_Central"{
             ld{"Midden-Australische zomertijd"}
@@ -1527,6 +1579,7 @@ nl{
         }
         "meta:GMT"{
             ls{"Greenwich Mean Time"}
+            ss{"GMT"}
         }
         "meta:Galapagos"{
             ls{"Galapagoseilandse tijd"}
@@ -1565,6 +1618,9 @@ nl{
             ld{"Hawaii-Aleoetische zomertijd"}
             lg{"Hawaii-Aleoetische tijd"}
             ls{"Hawaii-Aleoetische standaardtijd"}
+            sd{"HADT"}
+            sg{"HAT"}
+            ss{"HAST"}
         }
         "meta:Hong_Kong"{
             ld{"Hongkongse zomertijd"}
@@ -1733,7 +1789,9 @@ nl{
             ls{"Niuese tijd"}
         }
         "meta:Norfolk"{
-            ls{"Norfolkeilandse tijd"}
+            ld{"Norfolkeilandse zomertijd"}
+            lg{"Norfolkeilandse tijd"}
+            ls{"Norfolkeilandse standaardtijd"}
         }
         "meta:Noronha"{
             ld{"Fernando de Noronha-zomertijd"}
@@ -1792,6 +1850,9 @@ nl{
         }
         "meta:Ponape"{
             ls{"Pohnpei-tijd"}
+        }
+        "meta:Pyongyang"{
+            ls{"Pyongyang-tijd"}
         }
         "meta:Qyzylorda"{
             ld{"Qyzylorda-zomertijd"}

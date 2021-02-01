@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/lv.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 lv{
-    Version{"2.1.19.19"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidžana"}
@@ -238,7 +232,7 @@ lv{
             ec{"Buenosairesa"}
         }
         "America:Cambridge_Bay"{
-            ec{"Keimbridžbeja"}
+            ec{"Kembridžbeja"}
         }
         "America:Campo_Grande"{
             ec{"Kampugrandi"}
@@ -308,6 +302,9 @@ lv{
         }
         "America:El_Salvador"{
             ec{"Salvadora"}
+        }
+        "America:Fort_Nelson"{
+            ec{"Fortnelsona"}
         }
         "America:Fortaleza"{
             ec{"Fortaleza"}
@@ -510,6 +507,9 @@ lv{
         "America:Puerto_Rico"{
             ec{"Puertoriko"}
         }
+        "America:Punta_Arenas"{
+            ec{"Puntaarenasa"}
+        }
         "America:Rainy_River"{
             ec{"Reinirivera"}
         }
@@ -660,6 +660,9 @@ lv{
         "Asia:Ashgabat"{
             ec{"Ašgabata"}
         }
+        "Asia:Atyrau"{
+            ec{"Atirau"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdāde"}
         }
@@ -671,6 +674,9 @@ lv{
         }
         "Asia:Bangkok"{
             ec{"Bangkoka"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaula"}
         }
         "Asia:Beirut"{
             ec{"Beirūta"}
@@ -707,6 +713,9 @@ lv{
         }
         "Asia:Dushanbe"{
             ec{"Dušanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagusta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -801,6 +810,9 @@ lv{
         "Asia:Qatar"{
             ec{"Katara"}
         }
+        "Asia:Qostanay"{
+            ec{"Kostanaja"}
+        }
         "Asia:Qyzylorda"{
             ec{"Kizilorda"}
         }
@@ -848,6 +860,9 @@ lv{
         }
         "Asia:Tokyo"{
             ec{"Tokija"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomska"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulanbatora"}
@@ -939,6 +954,9 @@ lv{
         "Australia:Sydney"{
             ec{"Sidneja"}
         }
+        "Etc:UTC"{
+            ls{"Universālais koordinētais laiks"}
+        }
         "Etc:Unknown"{
             ec{"nezināma pilsēta"}
         }
@@ -947,6 +965,9 @@ lv{
         }
         "Europe:Andorra"{
             ec{"Andora"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrahaņa"}
         }
         "Europe:Athens"{
             ec{"Atēnas"}
@@ -1006,6 +1027,9 @@ lv{
         "Europe:Kiev"{
             ec{"Kijeva"}
         }
+        "Europe:Kirov"{
+            ec{"Kirova"}
+        }
         "Europe:Lisbon"{
             ec{"Lisabona"}
         }
@@ -1064,6 +1088,9 @@ lv{
         "Europe:Sarajevo"{
             ec{"Sarajeva"}
         }
+        "Europe:Saratov"{
+            ec{"Saratova"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopole"}
         }
@@ -1081,6 +1108,9 @@ lv{
         }
         "Europe:Tirane"{
             ec{"Tirāna"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Uļjanovska"}
         }
         "Europe:Uzhgorod"{
             ec{"Užhoroda"}
@@ -1122,7 +1152,7 @@ lv{
             ec{"Ziemsvētku sala"}
         }
         "Indian:Cocos"{
-            ec{"Kokosa sala"}
+            ec{"Kokosu (Kīlinga) sala"}
         }
         "Indian:Comoro"{
             ec{"Komoras"}
@@ -1152,7 +1182,7 @@ lv{
             ec{"Oklenda"}
         }
         "Pacific:Bougainville"{
-            ec{"Bugeinvile"}
+            ec{"Bugenvila sala"}
         }
         "Pacific:Chatham"{
             ec{"Četema"}
@@ -1399,7 +1429,7 @@ lv{
             ls{"Kaboverdes ziemas laiks"}
         }
         "meta:Chamorro"{
-            ls{"Čamoro standarta laiks"}
+            ls{"Čamorra ziemas laiks"}
         }
         "meta:Chatham"{
             ld{"Četemas vasaras laiks"}
@@ -1425,7 +1455,7 @@ lv{
             ls{"Ziemsvētku salas laiks"}
         }
         "meta:Cocos"{
-            ls{"Kokosa salu laiks"}
+            ls{"Kokosu (Kīlinga) salu laiks"}
         }
         "meta:Colombia"{
             ld{"Kolumbijas vasaras laiks"}
@@ -1487,9 +1517,9 @@ lv{
             ss{"WET"}
         }
         "meta:Falkland"{
-            ld{"Folklenda salu vasaras laiks"}
-            lg{"Folklenda salu laiks"}
-            ls{"Folklenda salu ziemas laiks"}
+            ld{"Folklenda (Malvinu) salu vasaras laiks"}
+            lg{"Folklenda (Malvinu) salu laiks"}
+            ls{"Folklenda (Malvinu) salu ziemas laiks"}
         }
         "meta:Fiji"{
             ld{"Fidži vasaras laiks"}
@@ -1497,10 +1527,10 @@ lv{
             ls{"Fidži ziemas laiks"}
         }
         "meta:French_Guiana"{
-            ls{"Franču Gviānas laiks"}
+            ls{"Francijas Gviānas laiks"}
         }
         "meta:French_Southern"{
-            ls{"Francijas Dienidjūru un Antarktikas teritorijas laiks"}
+            ls{"Francijas Dienvidjūru un Antarktikas teritorijas laiks"}
         }
         "meta:GMT"{
             ls{"Griničas laiks"}
@@ -1635,7 +1665,7 @@ lv{
             ls{"Malaizijas laiks"}
         }
         "meta:Maldives"{
-            ls{"Maldīvu salu laiks"}
+            ls{"Maldīvijas laiks"}
         }
         "meta:Marquesas"{
             ls{"Marķīza salu laiks"}
@@ -1696,10 +1726,12 @@ lv{
             ls{"Ņūfaundlendas ziemas laiks"}
         }
         "meta:Niue"{
-            ls{"Niue laiks"}
+            ls{"Niues laiks"}
         }
         "meta:Norfolk"{
-            ls{"Norfolkas salas laiks"}
+            ld{"Norfolkas salas vasaras laiks"}
+            lg{"Norfolkas salas laiks"}
+            ls{"Norfolkas salas ziemas laiks"}
         }
         "meta:Noronha"{
             ld{"Fernandu di Noroņas vasaras laiks"}
@@ -1755,6 +1787,9 @@ lv{
         }
         "meta:Ponape"{
             ls{"Ponapē laiks"}
+        }
+        "meta:Pyongyang"{
+            ls{"Phenjanas laiks"}
         }
         "meta:Reunion"{
             ls{"Reinjonas laiks"}

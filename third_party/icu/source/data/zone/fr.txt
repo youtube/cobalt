@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fr.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fr{
-    Version{"2.1.20.4"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ fr{
         "America:El_Salvador"{
             ec{"El Salvador"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -510,6 +507,9 @@ fr{
         "America:Puerto_Rico"{
             ec{"Porto Rico"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -556,7 +556,7 @@ fr{
             ec{"Saint-Jean de Terre-Neuve"}
         }
         "America:St_Kitts"{
-            ec{"Saint-Kitts"}
+            ec{"Saint-Christophe"}
         }
         "America:St_Lucia"{
             ec{"Sainte-Lucie"}
@@ -660,6 +660,9 @@ fr{
         "Asia:Ashgabat"{
             ec{"Achgabat"}
         }
+        "Asia:Atyrau"{
+            ec{"Atyraou"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdad"}
         }
@@ -671,6 +674,9 @@ fr{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Beyrouth"}
@@ -707,6 +713,9 @@ fr{
         }
         "Asia:Dushanbe"{
             ec{"Douchanbé"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagouste"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -801,6 +810,9 @@ fr{
         "Asia:Qatar"{
             ec{"Qatar"}
         }
+        "Asia:Qostanay"{
+            ec{"Kostanaï"}
+        }
         "Asia:Qyzylorda"{
             ec{"Kzyl Orda"}
         }
@@ -849,6 +861,9 @@ fr{
         "Asia:Tokyo"{
             ec{"Tokyo"}
         }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
+        }
         "Asia:Ulaanbaatar"{
             ec{"Oulan-Bator"}
         }
@@ -886,7 +901,7 @@ fr{
             ec{"Cap-Vert"}
         }
         "Atlantic:Faeroe"{
-            ec{"Féroé"}
+            ec{"Îles Féroé"}
         }
         "Atlantic:Madeira"{
             ec{"Madère"}
@@ -939,6 +954,9 @@ fr{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"Temps universel coordonné"}
+        }
         "Etc:Unknown"{
             ec{"ville inconnue"}
         }
@@ -947,6 +965,9 @@ fr{
         }
         "Europe:Andorra"{
             ec{"Andorre"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrakhan"}
         }
         "Europe:Athens"{
             ec{"Athènes"}
@@ -1006,6 +1027,9 @@ fr{
         "Europe:Kiev"{
             ec{"Kiev"}
         }
+        "Europe:Kirov"{
+            ec{"Kirov"}
+        }
         "Europe:Lisbon"{
             ec{"Lisbonne"}
         }
@@ -1064,6 +1088,9 @@ fr{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1081,6 +1108,9 @@ fr{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Oulianovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Oujgorod"}
@@ -1713,7 +1743,9 @@ fr{
             ls{"heure de Nioué"}
         }
         "meta:Norfolk"{
-            ls{"heure de l’île Norfolk"}
+            ld{"heure d’été de l’île Norfolk"}
+            lg{"heure de l’île Norfolk"}
+            ls{"heure normale de l’île Norfolk"}
         }
         "meta:Noronha"{
             ld{"heure d’été de Fernando de Noronha"}
@@ -1773,8 +1805,11 @@ fr{
         "meta:Ponape"{
             ls{"heure de l’île de Pohnpei"}
         }
+        "meta:Pyongyang"{
+            ls{"heure de Pyongyang"}
+        }
         "meta:Reunion"{
-            ls{"heure de la Réunion"}
+            ls{"heure de La Réunion"}
         }
         "meta:Rothera"{
             ls{"heure de Rothera"}

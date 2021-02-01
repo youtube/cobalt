@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1999-2015, International Business Machines
+*   Copyright (C) 1999-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
 *   file name:  udata.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -33,6 +35,7 @@ might have to #include some other header
 #include "cstring.h"
 #include "mutex.h"
 #include "putilimp.h"
+#include "restrace.h"
 #include "uassert.h"
 #include "ucln_cmn.h"
 #include "ucmndata.h"
@@ -84,7 +87,7 @@ U_NAMESPACE_USE
 /*
  *  Forward declarations
  */
-static UDataMemory *udata_findCachedData(const char *path);
+static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err);
 
 /***********************************************************************
 *
@@ -115,8 +118,13 @@ static u_atomic_int32_t gHaveTriedToLoadCommonData = ATOMIC_INT32_T_INITIALIZER(
 static UHashtable  *gCommonDataCache = NULL;  /* Global hash table of opened ICU data files.  */
 static icu::UInitOnce gCommonDataCacheInitOnce = U_INITONCE_INITIALIZER;
 
+#if !defined(ICU_DATA_DIR_WINDOWS)
 static UDataFileAccess  gDataFileAccess = UDATA_DEFAULT_ACCESS;  // Access not synchronized.
                                                                  // Modifying is documented as thread-unsafe.
+#else
+// If we are using the Windows data directory, then look in one spot only.
+static UDataFileAccess  gDataFileAccess = UDATA_NO_FILES;
+#endif
 
 static UBool U_CALLCONV
 udata_cleanup(void)
@@ -139,13 +147,13 @@ udata_cleanup(void)
 }
 
 static UBool U_CALLCONV
-findCommonICUDataByName(const char *inBasename)
+findCommonICUDataByName(const char *inBasename, UErrorCode &err)
 {
     UBool found = FALSE;
     int32_t i;
 
-    UDataMemory  *pData = udata_findCachedData(inBasename);
-    if (pData == NULL)
+    UDataMemory  *pData = udata_findCachedData(inBasename, err);
+    if (U_FAILURE(err) || pData == NULL)
         return FALSE;
 
     {
@@ -207,6 +215,8 @@ setCommonICUData(UDataMemory *pData,     /*  The new common data.  Belongs to ca
     return didUpdate;
 }
 
+#if !defined(ICU_DATA_DIR_WINDOWS)
+
 static UBool
 setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCode) {
     UDataMemory tData;
@@ -215,6 +225,8 @@ setCommonICUDataPointer(const void *pData, UBool /*warn*/, UErrorCode *pErrorCod
     udata_checkCommonData(&tData, pErrorCode);
     return setCommonICUData(&tData, FALSE, pErrorCode);
 }
+
+#endif
 
 static const char *
 findBasename(const char *path) {
@@ -275,40 +287,41 @@ static void U_CALLCONV DataCacheElement_deleter(void *pDCEl) {
     uprv_free(pDCEl);                  /* delete 'this'          */
 }
 
-static void udata_initHashTable() {
-    UErrorCode err = U_ZERO_ERROR;
+static void U_CALLCONV udata_initHashTable(UErrorCode &err) {
     U_ASSERT(gCommonDataCache == NULL);
     gCommonDataCache = uhash_open(uhash_hashChars, uhash_compareChars, NULL, &err);
     if (U_FAILURE(err)) {
-        // TODO: handle errors better.
-        gCommonDataCache = NULL;
+       return;
     }
-    if (gCommonDataCache != NULL) {
-        uhash_setValueDeleter(gCommonDataCache, DataCacheElement_deleter);
-        ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
-    }
+    U_ASSERT(gCommonDataCache != NULL);
+    uhash_setValueDeleter(gCommonDataCache, DataCacheElement_deleter);
+    ucln_common_registerCleanup(UCLN_COMMON_UDATA, udata_cleanup);
 }
 
  /*   udata_getCacheHashTable()
   *     Get the hash table used to store the data cache entries.
   *     Lazy create it if it doesn't yet exist.
   */
-static UHashtable *udata_getHashTable() {
-    umtx_initOnce(gCommonDataCacheInitOnce, &udata_initHashTable);
+static UHashtable *udata_getHashTable(UErrorCode &err) {
+    umtx_initOnce(gCommonDataCacheInitOnce, &udata_initHashTable, err);
     return gCommonDataCache;
 }
 
 
 
-static UDataMemory *udata_findCachedData(const char *path)
+static UDataMemory *udata_findCachedData(const char *path, UErrorCode &err)
 {
     UHashtable        *htable;
     UDataMemory       *retVal = NULL;
     DataCacheElement  *el;
     const char        *baseName;
 
+    htable = udata_getHashTable(err);
+    if (U_FAILURE(err)) {
+        return NULL;
+    }
+
     baseName = findBasename(path);   /* Cache remembers only the base name, not the full path. */
-    htable = udata_getHashTable();
     umtx_lock(NULL);
     el = (DataCacheElement *)uhash_get(htable, baseName);
     umtx_unlock(NULL);
@@ -316,7 +329,7 @@ static UDataMemory *udata_findCachedData(const char *path)
         retVal = el->item;
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, retVal);
+    fprintf(stderr, "Cache: [%s] -> %p\n", baseName, (void*) retVal);
 #endif
     return retVal;
 }
@@ -330,6 +343,7 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
     DataCacheElement *oldValue = NULL;
     UErrorCode        subErr = U_ZERO_ERROR;
 
+    htable = udata_getHashTable(*pErr);
     if (U_FAILURE(*pErr)) {
         return NULL;
     }
@@ -362,7 +376,6 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
 
     /* Stick the new DataCacheElement into the hash table.
     */
-    htable = udata_getHashTable();
     umtx_lock(NULL);
     oldValue = (DataCacheElement *)uhash_get(htable, path);
     if (oldValue != NULL) {
@@ -379,7 +392,7 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
 
 #ifdef UDATA_DEBUG
     fprintf(stderr, "Cache: [%s] <<< %p : %s. vFunc=%p\n", newElement->name, 
-    newElement->item, u_errorName(subErr), newElement->item->vFuncs);
+    (void*) newElement->item, u_errorName(subErr), (void*) newElement->item->vFuncs);
 #endif
 
     if (subErr == U_USING_DEFAULT_WARNING || U_FAILURE(subErr)) {
@@ -400,9 +413,6 @@ static UDataMemory *udata_cacheDataItem(const char *path, UDataMemory *item, UEr
  *                                                                      *
  *----------------------------------------------------------------------*/
 
-#define U_DATA_PATHITER_BUFSIZ  128        /* Size of local buffer for paths         */
-                                           /*   Overflow causes malloc of larger buf */
-
 U_NAMESPACE_BEGIN
 
 class UDataPathIterator
@@ -417,7 +427,8 @@ private:
     const char *path;                              /* working path (u_icudata_Dir) */
     const char *nextPath;                          /* path following this one */
     const char *basename;                          /* item's basename (icudt22e_mt.res)*/
-    const char *suffix;                            /* item suffix (can be null) */
+
+    StringPiece suffix;                            /* item suffix (can be null) */
 
     uint32_t    basenameLen;                       /* length of basename */
 
@@ -431,13 +442,15 @@ private:
 };
 
 /**
- * @param iter  The iterator to be initialized. Its current state does not matter. 
- * @param path  The full pathname to be iterated over.  If NULL, defaults to U_ICUDATA_NAME 
- * @param pkg   Package which is being searched for, ex "icudt28l".  Will ignore leave directories such as /icudt28l 
- * @param item  Item to be searched for.  Can include full path, such as /a/b/foo.dat 
- * @param suffix  Optional item suffix, if not-null (ex. ".dat") then 'path' can contain 'item' explicitly.
- *               Ex:   'stuff.dat' would be found in '/a/foo:/tmp/stuff.dat:/bar/baz' as item #2.   
- *                     '/blarg/stuff.dat' would also be found.
+ * @param iter    The iterator to be initialized. Its current state does not matter.
+ * @param inPath  The full pathname to be iterated over.  If NULL, defaults to U_ICUDATA_NAME 
+ * @param pkg     Package which is being searched for, ex "icudt28l".  Will ignore leaf directories such as /icudt28l 
+ * @param item    Item to be searched for.  Can include full path, such as /a/b/foo.dat 
+ * @param inSuffix  Optional item suffix, if not-null (ex. ".dat") then 'path' can contain 'item' explicitly.
+ *             Ex:   'stuff.dat' would be found in '/a/foo:/tmp/stuff.dat:/bar/baz' as item #2.   
+ *                   '/blarg/stuff.dat' would also be found.
+ *  Note: inSuffix may also be the 'item' being searched for as well, (ex: "ibm-5348_P100-1997.cnv"), in which case 
+ *        the 'item' parameter is often the same as pkg. (Though sometimes might have a tree part as well, ex: "icudt62l-curr").
  */
 UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
                                      const char *item, const char *inSuffix, UBool doCheckLastFour,
@@ -473,7 +486,7 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
         nextPath = itemPath.data();
     }
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, inSuffix);
+    fprintf(stderr, "SUFFIX=%s [%p]\n", inSuffix, (void*) inSuffix);
 #endif
 
     /** Suffix  **/
@@ -488,12 +501,11 @@ UDataPathIterator::UDataPathIterator(const char *inPath, const char *pkg,
     /* pathBuffer will hold the output path strings returned by this iterator */
 
 #ifdef UDATA_DEBUG
-    fprintf(stderr, "%p: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
-            iter,
+    fprintf(stderr, "0: init %s -> [path=%s], [base=%s], [suff=%s], [itempath=%s], [nextpath=%s], [checklast4=%s]\n",
             item,
             path,
             basename,
-            suffix,
+            suffix.data(),
             itemPath.data(),
             nextPath,
             checkLastFour?"TRUE":"false");
@@ -549,7 +561,7 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
         fprintf(stderr, "rest of path (IDD) = %s\n", currentPath);
         fprintf(stderr, "                     ");
         { 
-            uint32_t qqq;
+            int32_t qqq;
             for(qqq=0;qqq<pathLen;qqq++)
             {
                 fprintf(stderr, " ");
@@ -565,12 +577,12 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
 
         if(checkLastFour == TRUE && 
            (pathLen>=4) &&
-           uprv_strncmp(pathBuffer.data() +(pathLen-4), suffix, 4)==0 && /* suffix matches */
+           uprv_strncmp(pathBuffer.data() +(pathLen-4), suffix.data(), 4)==0 && /* suffix matches */
            uprv_strncmp(findBasename(pathBuffer.data()), basename, basenameLen)==0  && /* base matches */
            uprv_strlen(pathBasename)==(basenameLen+4)) { /* base+suffix = full len */
 
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "Have %s file on the path: %s\n", suffix, pathBuffer.data());
+            fprintf(stderr, "Have %s file on the path: %s\n", suffix.data(), pathBuffer.data());
 #endif
             /* do nothing */
         }
@@ -601,8 +613,13 @@ const char *UDataPathIterator::next(UErrorCode *pErrorCode)
             /* + basename */
             pathBuffer.append(packageStub.data()+1, packageStub.length()-1, *pErrorCode);
 
-            if(*suffix)  /* tack on suffix */
+            if (!suffix.empty())  /* tack on suffix */
             {
+                if (suffix.length() > 4) {
+                    // If the suffix is actually an item ("ibm-5348_P100-1997.cnv") and not an extension (".res")
+                    // then we need to ensure that the path ends with a separator.
+                    pathBuffer.ensureEndsWithFileSeparator(*pErrorCode);
+                }
                 pathBuffer.append(suffix, *pErrorCode);
             }
         }
@@ -626,12 +643,15 @@ U_NAMESPACE_END
 
 /*----------------------------------------------------------------------*
  *                                                                      *
- *  Add a static reference to the common data  library                  *
+ *  Add a static reference to the common data library                   *
  *   Unless overridden by an explicit udata_setCommonData, this will be *
  *      our common data.                                                *
  *                                                                      *
  *----------------------------------------------------------------------*/
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
 extern "C" const ICU_Data_Header U_DATA_API U_ICUDATA_ENTRY_POINT;
+#endif
 
 /*
  * This would be a good place for weak-linkage declarations of
@@ -679,6 +699,8 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             if(gCommonICUDataArray[commonDataIndex] != NULL) {
                 return gCommonICUDataArray[commonDataIndex];
             }
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
             int32_t i;
             for(i = 0; i < commonDataIndex; ++i) {
                 if(gCommonICUDataArray[i]->pHeader == &U_ICUDATA_ENTRY_POINT.hdr) {
@@ -686,6 +708,7 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
                     return NULL;
                 }
             }
+#endif
         }
 
         /* Add the linked-in data to the list. */
@@ -701,11 +724,14 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
             setCommonICUDataPointer(uprv_getICUData_conversion(), FALSE, pErrorCode);
         }
         */
+#if !defined(ICU_DATA_DIR_WINDOWS)
+// When using the Windows system data, we expect only a single data file.
         setCommonICUDataPointer(&U_ICUDATA_ENTRY_POINT.hdr, FALSE, pErrorCode);
         {
             Mutex lock;
             return gCommonICUDataArray[commonDataIndex];
         }
+#endif
     }
 
 
@@ -724,18 +750,18 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
 #ifdef UDATA_DEBUG
         fprintf(stderr, "ocd: no basename in %s, bailing.\n", path);
 #endif
-        *pErrorCode=U_FILE_ACCESS_ERROR;
+        if (U_SUCCESS(*pErrorCode)) {
+            *pErrorCode=U_FILE_ACCESS_ERROR;
+        }
         return NULL;
     }
 
    /* Is the requested common data file already open and cached?                     */
    /*   Note that the cache is keyed by the base name only.  The rest of the path,   */
    /*     if any, is not considered.                                                 */
-   {
-        UDataMemory  *dataToReturn = udata_findCachedData(inBasename);
-        if (dataToReturn != NULL) {
-            return dataToReturn;
-        }
+    UDataMemory  *dataToReturn = udata_findCachedData(inBasename, *pErrorCode);
+    if (dataToReturn != NULL || U_FAILURE(*pErrorCode)) {
+        return dataToReturn;
     }
 
     /* Requested item is not in the cache.
@@ -744,15 +770,18 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
 
     UDataPathIterator iter(u_getDataDirectory(), inBasename, path, ".dat", TRUE, pErrorCode);
 
-    while((UDataMemory_isLoaded(&tData)==FALSE) && (pathBuffer = iter.next(pErrorCode)) != NULL)
+    while ((UDataMemory_isLoaded(&tData)==FALSE) && (pathBuffer = iter.next(pErrorCode)) != NULL)
     {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "ocd: trying path %s - ", pathBuffer);
 #endif
-        uprv_mapFile(&tData, pathBuffer);
+        uprv_mapFile(&tData, pathBuffer, pErrorCode);
 #ifdef UDATA_DEBUG
         fprintf(stderr, "%s\n", UDataMemory_isLoaded(&tData)?"LOADED":"not loaded");
 #endif
+    }
+    if (U_FAILURE(*pErrorCode)) {
+        return NULL;
     }
 
 #if defined(OS390_STUBDATA) && defined(OS390BATCH)
@@ -762,10 +791,13 @@ openCommonData(const char *path,          /*  Path from OpenChoice?          */
         uprv_strncpy(ourPathBuffer, path, 1019);
         ourPathBuffer[1019]=0;
         uprv_strcat(ourPathBuffer, ".dat");
-        uprv_mapFile(&tData, ourPathBuffer);
+        uprv_mapFile(&tData, ourPathBuffer, pErrorCode);
     }
 #endif
 
+    if (U_FAILURE(*pErrorCode)) {
+        return NULL;
+    }
     if (!UDataMemory_isLoaded(&tData)) {
         /* no common data */
         *pErrorCode=U_FILE_ACCESS_ERROR;
@@ -810,7 +842,7 @@ static UBool extendICUData(UErrorCode *pErr)
      * Use a specific mutex to avoid nested locks of the global mutex.
      */
 #if MAP_IMPLEMENTATION==MAP_STDIO
-    static UMutex extendICUDataMutex = U_MUTEX_INITIALIZER;
+    static UMutex extendICUDataMutex;
     umtx_lock(&extendICUDataMutex);
 #endif
     if(!umtx_loadAcquire(gHaveTriedToLoadCommonData)) {
@@ -841,7 +873,7 @@ static UBool extendICUData(UErrorCode *pErr)
         umtx_storeRelease(gHaveTriedToLoadCommonData, 1);
     }
 
-    didUpdate = findCommonICUDataByName(U_ICUDATA_NAME);  /* Return 'true' when a racing writes out the extended                        */
+    didUpdate = findCommonICUDataByName(U_ICUDATA_NAME, *pErr);  /* Return 'true' when a racing writes out the extended                 */
                                                           /* data after another thread has failed to see it (in openCommonData), so     */
                                                           /* extended data can be examined.                                             */
                                                           /* Also handles a race through here before gHaveTriedToLoadCommonData is set. */
@@ -850,7 +882,7 @@ static UBool extendICUData(UErrorCode *pErr)
     umtx_unlock(&extendICUDataMutex);
 #endif
     return didUpdate;               /* Return true if ICUData pointer was updated.   */
-                                    /*   (Could potentialy have been done by another thread racing */
+                                    /*   (Could potentially have been done by another thread racing */
                                     /*   us through here, but that's fine, we still return true    */
                                     /*   so that current thread will also examine extended data.   */
 }
@@ -976,12 +1008,12 @@ static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
     /* init path iterator for individual files */
     UDataPathIterator iter(dataPath, pkgName, path, tocEntryPathSuffix, FALSE, pErrorCode);
 
-    while((pathBuffer = iter.next(pErrorCode)))
+    while ((pathBuffer = iter.next(pErrorCode)) != NULL)
     {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "UDATA: trying individual file %s\n", pathBuffer);
 #endif
-        if(uprv_mapFile(&dataMemory, pathBuffer))
+        if (uprv_mapFile(&dataMemory, pathBuffer, pErrorCode))
         {
             pEntryData = checkDataItem(dataMemory.pHeader, isAcceptable, context, type, name, subErrorCode, pErrorCode);
             if (pEntryData != NULL) {
@@ -997,7 +1029,7 @@ static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
                 return pEntryData;
             }
 
-            /* the data is not acceptable, or some error occured.  Either way, unmap the memory */
+            /* the data is not acceptable, or some error occurred.  Either way, unmap the memory */
             udata_close(&dataMemory);
 
             /* If we had a nasty error, bail out completely.  */
@@ -1049,13 +1081,13 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
             /* look up the data piece in the common data */
             pHeader=pCommonData->vFuncs->Lookup(pCommonData, tocEntryName, &length, subErrorCode);
 #ifdef UDATA_DEBUG
-            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, pHeader, u_errorName(*subErrorCode));
+            fprintf(stderr, "%s: pHeader=%p - %s\n", tocEntryName, (void*) pHeader, u_errorName(*subErrorCode));
 #endif
 
             if(pHeader!=NULL) {
                 pEntryData = checkDataItem(pHeader, isAcceptable, context, type, name, subErrorCode, pErrorCode);
 #ifdef UDATA_DEBUG
-                fprintf(stderr, "pEntryData=%p\n", pEntryData);
+                fprintf(stderr, "pEntryData=%p\n", (void*) pEntryData);
 #endif
                 if (U_FAILURE(*pErrorCode)) {
                     return NULL;
@@ -1065,6 +1097,11 @@ static UDataMemory *doLoadFromCommonData(UBool isICUData, const char * /*pkgName
                     return pEntryData;
                 }
             }
+        }
+        // If we failed due to being out-of-memory, then stop early and report the error.
+        if (*subErrorCode == U_MEMORY_ALLOCATION_ERROR) {
+            *pErrorCode = *subErrorCode;
+            return NULL;
         }
         /* Data wasn't found.  If we were looking for an ICUData item and there is
          * more data available, load it and try again,
@@ -1142,6 +1179,9 @@ doOpenChoice(const char *path, const char *type, const char *name,
     UBool               isICUData = FALSE;
 
 
+    FileTracer::traceOpen(path, type, name);
+
+
     /* Is this path ICU data? */
     if(path == NULL ||
        !strcmp(path, U_ICUDATA_ALIAS) ||  /* "ICUDATA" */
@@ -1154,6 +1194,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
 
     /* Windows:  try "foo\bar" and "foo/bar" */
     /* remap from alternate path char to the main one */
+<<<<<<< HEAD
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
       CharString altSepPath;
       if (path) {
@@ -1166,6 +1207,18 @@ doOpenChoice(const char *path, const char *type, const char *name,
 #if defined(UDATA_DEBUG)
           fprintf(stderr, "Changed path from [%s] to [%s]\n", path,
                   altSepPath.s);
+=======
+    CharString altSepPath;
+    if(path) {
+        if(uprv_strchr(path,U_FILE_ALT_SEP_CHAR) != NULL) {
+            altSepPath.append(path, *pErrorCode);
+            char *p;
+            while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR)) != NULL) {
+                *p = U_FILE_SEP_CHAR;
+            }
+#if defined (UDATA_DEBUG)
+            fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.s);
+>>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #endif
           path = altSepPath.data();
         }
@@ -1244,16 +1297,22 @@ doOpenChoice(const char *path, const char *type, const char *name,
         tocEntryName.append(".", *pErrorCode).append(type, *pErrorCode);
         tocEntryPath.append(".", *pErrorCode).append(type, *pErrorCode);
     }
-    tocEntryPathSuffix = tocEntryPath.data()+tocEntrySuffixIndex; /* suffix starts here */
+    // The +1 is for the U_FILE_SEP_CHAR that is always appended above.
+    tocEntryPathSuffix = tocEntryPath.data() + tocEntrySuffixIndex + 1; /* suffix starts here */
 
 #ifdef UDATA_DEBUG
     fprintf(stderr, " tocEntryName = %s\n", tocEntryName.data());
     fprintf(stderr, " tocEntryPath = %s\n", tocEntryName.data());
 #endif
 
+#if !defined(ICU_DATA_DIR_WINDOWS)
     if(path == NULL) {
         path = COMMON_DATA_NAME; /* "icudt26e" */
     }
+#else
+    // When using the Windows system data, we expects only a single data file.
+    path = COMMON_DATA_NAME; /* "icudt26e" */
+#endif
 
     /************************ Begin loop looking for ind. files ***************/
 #ifdef UDATA_DEBUG
@@ -1264,7 +1323,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
     dataPath = u_getDataDirectory();
 
     /****    Time zone individual files override  */
-    if (isTimeZoneFile(name, type) && isICUData) {
+    if (isICUData && isTimeZoneFile(name, type)) {
         const char *tzFilesDir = u_getTimeZoneFilesDirectory(pErrorCode);
         if (tzFilesDir[0] != 0) {
 #ifdef UDATA_DEBUG

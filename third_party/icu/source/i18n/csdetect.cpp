@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
- *   Copyright (C) 2005-2015, International Business Machines
+ *   Copyright (C) 2005-2016, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  */
@@ -28,8 +30,6 @@
 #include "csrucode.h"
 #include "csr2022.h"
 
-#define ARRAY_SIZE(array) (sizeof array / sizeof array[0])
-
 #define NEW_ARRAY(type,count) (type *) uprv_malloc((count) * sizeof(type))
 #define DELETE_ARRAY(array) uprv_free((void *) (array))
 
@@ -37,9 +37,9 @@ U_NAMESPACE_BEGIN
 
 struct CSRecognizerInfo : public UMemory {
     CSRecognizerInfo(CharsetRecognizer *recognizer, UBool isDefaultEnabled)
-        : recognizer(recognizer), isDefaultEnabled(isDefaultEnabled) {};
+        : recognizer(recognizer), isDefaultEnabled(isDefaultEnabled) {}
 
-    ~CSRecognizerInfo() {delete recognizer;};
+    ~CSRecognizerInfo() {delete recognizer;}
 
     CharsetRecognizer *recognizer;
     UBool isDefaultEnabled;
@@ -48,7 +48,7 @@ struct CSRecognizerInfo : public UMemory {
 U_NAMESPACE_END
 
 static icu::CSRecognizerInfo **fCSRecognizers = NULL;
-static icu::UInitOnce gCSRecognizersInitOnce;
+static icu::UInitOnce gCSRecognizersInitOnce = U_INITONCE_INITIALIZER;
 static int32_t fCSRecognizers_size = 0;
 
 U_CDECL_BEGIN
@@ -121,7 +121,7 @@ static void U_CALLCONV initRecognizers(UErrorCode &status) {
         new CSRecognizerInfo(new CharsetRecog_IBM420_ar_ltr(), FALSE)
 #endif
     };
-    int32_t rCount = ARRAY_SIZE(tempArray);
+    int32_t rCount = UPRV_LENGTHOF(tempArray);
 
     fCSRecognizers = NEW_ARRAY(CSRecognizerInfo *, rCount);
 

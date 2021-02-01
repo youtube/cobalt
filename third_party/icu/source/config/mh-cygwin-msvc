@@ -1,4 +1,6 @@
 ## Cygwin with Microsoft Visual C++ compiler specific setup
+## Copyright (C) 2016 and later: Unicode, Inc. and others.
+## License & terms of use: http://www.unicode.org/copyright.html
 ## Copyright (c) 2001-2013, International Business Machines Corporation and
 ## others. All Rights Reserved.
 
@@ -21,6 +23,10 @@ else
 ## Make sure that the static libraries can be built
 STATICCPPFLAGS = -DU_STATIC_IMPLEMENTATION
 endif
+
+## ICU requires a minimum target of Windows 7, and WINVER is not set to this by default.
+## https://msdn.microsoft.com/en-us/library/aa383745.aspx
+CPPFLAGS += -DWINVER=0x0601 -D_WIN32_WINNT=0x0601
 
 ## Flags for position independent code
 SHAREDLIBCFLAGS = 
@@ -45,8 +51,9 @@ endif
 # /EHsc enables exception handling
 # /Zc:wchar_t makes wchar_t a native type. Required for C++ ABI compatibility.
 # -D_CRT_SECURE_NO_DEPRECATE is needed to quiet warnings about using standard C functions.
-CFLAGS+=-GF -nologo
-CXXFLAGS+=-GF -nologo -EHsc -Zc:wchar_t
+# -utf-8 set source file encoding to utf-8.
+CFLAGS+=-GF -nologo -utf-8
+CXXFLAGS+=-GF -nologo -EHsc -Zc:wchar_t -utf-8
 CPPFLAGS+=-D_CRT_SECURE_NO_DEPRECATE
 DEFS+=-DWIN32 -DCYGWINMSVC
 LDFLAGS+=-nologo
@@ -114,14 +121,13 @@ LIBCTESTFW=	$(top_builddir)/tools/ctestfw/$(LIBICU)$(CTESTFW_STUBNAME)$(ICULIBSU
 LIBICUTOOLUTIL=	$(LIBDIR)/$(LIBICU)$(TOOLUTIL_STUBNAME)$(ICULIBSUFFIX).lib
 
 ## These are the library specific LDFLAGS
-LDFLAGSICUDT+=	-base:"0x4ad00000" -NOENTRY# The NOENTRY option is required for creating a resource-only DLL.
-LDFLAGSICUUC=	-base:"0x4a800000"# in-uc = 1MB
-LDFLAGSICUI18N=	-base:"0x4a900000"# io-in = 2MB
-LDFLAGSICUIO=	-base:"0x4ab00000"# le-io = 1MB
-LDFLAGSICULE=	-base:"0x4ac00000"# lx-le = 512KB
-LDFLAGSICULX=	-base:"0x4ac80000"
+LDFLAGSICUDT+=	-NOENTRY# The NOENTRY option is required for creating a resource-only DLL.
+LDFLAGSICUUC=# Unused for now.
+LDFLAGSICUI18N=# Unused for now.
+LDFLAGSICUIO=# Unused for now.
+LDFLAGSICULX=# Unused for now.
 LDFLAGSCTESTFW=# Unused for now.
-LDFLAGSICUTOOLUTIL=	-base:"0x4ac00000"# Same as layout. Layout and tools probably won't mix.
+LDFLAGSICUTOOLUTIL=# Unused for now.
 
 # The #M# is used to delete lines for icu-config
 # Current full path directory.

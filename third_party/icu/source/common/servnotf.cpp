@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2012, International Business Machines Corporation and    *
@@ -20,7 +22,7 @@ U_NAMESPACE_BEGIN
 EventListener::~EventListener() {}
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EventListener)
 
-static UMutex notifyLock = U_MUTEX_INITIALIZER;
+static UMutex notifyLock;
 
 ICUNotifier::ICUNotifier(void) 
 : listeners(NULL) 

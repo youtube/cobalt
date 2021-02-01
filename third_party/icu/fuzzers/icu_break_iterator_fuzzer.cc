@@ -11,7 +11,7 @@ IcuEnvironment* env = new IcuEnvironment();
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString str(reinterpret_cast<const char*>(data), size);
+  icu::UnicodeString str(UnicodeStringFromUtf8(data, size));
 
   auto rng = CreateRng(data, size);
   const icu::Locale& locale = GetRandomLocale(&rng);
@@ -35,10 +35,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       bi.reset(icu::BreakIterator::createTitleInstance(locale, status));
       break;
   }
-  if (U_FAILURE(status)) return 0;
+  if (U_FAILURE(status))
+    return 0;
+  bi->setText(str);
 
   for (int32_t p = bi->first(); p != icu::BreakIterator::DONE; p = bi->next())
-    if (U_FAILURE(status)) return 0;
+    if (U_FAILURE(status))
+      return 0;
 
   return 0;
 }

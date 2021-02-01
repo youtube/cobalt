@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2003-2013, International Business Machines Corporation and    *
@@ -51,7 +53,7 @@ BuddhistCalendar& BuddhistCalendar::operator= ( const BuddhistCalendar& right)
     return *this;
 }
 
-Calendar* BuddhistCalendar::clone(void) const
+BuddhistCalendar* BuddhistCalendar::clone() const
 {
     return new BuddhistCalendar(*this);
 }
@@ -131,7 +133,7 @@ void BuddhistCalendar::timeToFields(UDate theTime, UBool quick, UErrorCode& stat
  */
 static UDate     gSystemDefaultCenturyStart       = DBL_MIN;
 static int32_t   gSystemDefaultCenturyStartYear   = -1;
-static icu::UInitOnce gBCInitOnce;
+static icu::UInitOnce gBCInitOnce = U_INITONCE_INITIALIZER;
 
 
 UBool BuddhistCalendar::haveDefaultCentury() const

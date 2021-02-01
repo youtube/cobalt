@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2012, International Business Machines Corporation and
@@ -107,7 +109,7 @@ InitialTimeZoneRule::~InitialTimeZoneRule() {
 }
 
 InitialTimeZoneRule*
-InitialTimeZoneRule::clone(void) const {
+InitialTimeZoneRule::clone() const {
     return new InitialTimeZoneRule(*this);
 }
 

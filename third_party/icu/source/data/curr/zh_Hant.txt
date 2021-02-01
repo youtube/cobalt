@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zh_Hant.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zh_Hant{
     %%Parent{"root"}
     Currencies{
@@ -225,9 +220,13 @@ zh_Hant{
             "BYB",
             "白俄羅斯新盧布 (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "白俄羅斯盧布",
+        }
         BYR{
             "BYR",
-            "白俄羅斯盧布",
+            "白俄羅斯盧布 (2000–2016)",
         }
         BZD{
             "BZD",
@@ -264,6 +263,10 @@ zh_Hant{
         CLP{
             "CLP",
             "智利披索",
+        }
+        CNH{
+            "CNH",
+            "人民幣（離岸）",
         }
         CNX{
             "CNX",
@@ -551,7 +554,7 @@ zh_Hant{
         }
         KPW{
             "KPW",
-            "北韓圓",
+            "北韓元",
         }
         KRH{
             "KRH",
@@ -563,7 +566,7 @@ zh_Hant{
         }
         KRW{
             "￦",
-            "韓圓",
+            "韓元",
         }
         KWD{
             "KWD",
@@ -575,7 +578,7 @@ zh_Hant{
         }
         KZT{
             "KZT",
-            "卡扎克斯坦坦吉",
+            "哈薩克堅戈",
         }
         LAK{
             "LAK",
@@ -683,6 +686,10 @@ zh_Hant{
         }
         MRO{
             "MRO",
+            "茅利塔尼亞烏吉亞 (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "茅利塔尼亞烏吉亞",
         }
         MTL{
@@ -783,11 +790,11 @@ zh_Hant{
         }
         PEN{
             "PEN",
-            "秘魯新太陽幣",
+            "秘魯太陽幣",
         }
         PES{
             "PES",
-            "秘魯索爾 (1863–1965)",
+            "秘魯太陽幣 (1863–1965)",
         }
         PGK{
             "PGK",
@@ -915,6 +922,10 @@ zh_Hant{
         }
         STD{
             "STD",
+            "聖多美島和普林西比島多布拉 (1977–2017)",
+        }
+        STN{
+            "STN",
             "聖多美島和普林西比島多布拉",
         }
         SUR{
@@ -1035,6 +1046,10 @@ zh_Hant{
         }
         VEF{
             "VEF",
+            "委內瑞拉玻利瓦 (2008–2018)",
+        }
+        VES{
+            "VES",
             "委內瑞拉玻利瓦",
         }
         VND{
@@ -1198,7 +1213,11 @@ zh_Hant{
             "辛巴威元 (2008)",
         }
     }
+    Currencies%formal{
+        TWD{"NT$"}
+    }
     Currencies%narrow{
+        AMD{"֏"}
         AOA{"Kz"}
         ARS{"$"}
         AUD{"$"}
@@ -1211,7 +1230,7 @@ zh_Hant{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1269,6 +1288,7 @@ zh_Hant{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"L"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"RF"}
@@ -1278,7 +1298,7 @@ zh_Hant{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1461,8 +1481,11 @@ zh_Hant{
         BYB{
             other{"白俄羅斯新盧布 (1994–1999)"}
         }
-        BYR{
+        BYN{
             other{"白俄羅斯盧布"}
+        }
+        BYR{
+            other{"白俄羅斯盧布 (2000–2016)"}
         }
         BZD{
             other{"貝里斯元"}
@@ -1490,6 +1513,9 @@ zh_Hant{
         }
         CLP{
             other{"智利披索"}
+        }
+        CNH{
+            other{"人民幣（離岸）"}
         }
         CNY{
             other{"人民幣"}
@@ -1702,7 +1728,7 @@ zh_Hant{
             other{"科摩羅法郎"}
         }
         KPW{
-            other{"北韓圓"}
+            other{"北韓元"}
         }
         KRH{
             other{"南韓圜"}
@@ -1711,7 +1737,7 @@ zh_Hant{
             other{"南韓圓"}
         }
         KRW{
-            other{"韓圓"}
+            other{"韓元"}
         }
         KWD{
             other{"科威特第納爾"}
@@ -1720,7 +1746,7 @@ zh_Hant{
             other{"開曼群島元"}
         }
         KZT{
-            other{"卡扎克斯坦坦吉"}
+            other{"哈薩克堅戈"}
         }
         LAK{
             other{"寮國基普"}
@@ -1801,6 +1827,9 @@ zh_Hant{
             other{"澳門元"}
         }
         MRO{
+            other{"茅利塔尼亞烏吉亞 (1973–2017)"}
+        }
+        MRU{
             other{"茅利塔尼亞烏吉亞"}
         }
         MTL{
@@ -1876,10 +1905,10 @@ zh_Hant{
             other{"祕魯因蒂"}
         }
         PEN{
-            other{"秘魯新太陽幣"}
+            other{"秘魯太陽幣"}
         }
         PES{
-            other{"秘魯索爾 (1863–1965)"}
+            other{"秘魯太陽幣 (1863–1965)"}
         }
         PGK{
             other{"巴布亞紐幾內亞基那"}
@@ -1975,6 +2004,9 @@ zh_Hant{
             other{"南蘇丹鎊"}
         }
         STD{
+            other{"聖多美島和普林西比島多布拉 (1977–2017)"}
+        }
+        STN{
             other{"聖多美島和普林西比島多布拉"}
         }
         SUR{
@@ -2065,6 +2097,9 @@ zh_Hant{
             other{"委內瑞拉玻利瓦 (1871–2008)"}
         }
         VEF{
+            other{"委內瑞拉玻利瓦 (2008–2018)"}
+        }
+        VES{
             other{"委內瑞拉玻利瓦"}
         }
         VND{
@@ -2191,5 +2226,4 @@ zh_Hant{
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"2.1.19.89"}
 }

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/br.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 br{
     Currencies{
         ADP{
@@ -124,10 +119,6 @@ br{
             "BEF",
             "lur Belgia",
         }
-        BEL{
-            "BEL",
-            "BEL",
-        }
         BGL{
             "BGL",
             "BGL",
@@ -224,9 +215,13 @@ br{
             "BYB",
             "roubl nevez Belarus (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "roubl Belarus",
+        }
         BYR{
             "BYR",
-            "roubl Belarus",
+            "roubl Belarus (2000–2016)",
         }
         BZD{
             "BZD",
@@ -263,6 +258,10 @@ br{
         CLP{
             "CLP",
             "peso Chile",
+        }
+        CNH{
+            "CNH",
+            "yuan Sina (diavaez)",
         }
         CNX{
             "CNX",
@@ -682,6 +681,10 @@ br{
         }
         MRO{
             "MRO",
+            "ouguiya Maouritania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "ouguiya Maouritania",
         }
         MTL{
@@ -782,7 +785,7 @@ br{
         }
         PEN{
             "PEN",
-            "nuevo sol Perou",
+            "sol Perou",
         }
         PES{
             "PES",
@@ -914,6 +917,10 @@ br{
         }
         STD{
             "STD",
+            "dobra São Tomé ha Príncipe (1977–2017)",
+        }
+        STN{
+            "STN",
             "dobra São Tomé ha Príncipe",
         }
         SUR{
@@ -1034,6 +1041,10 @@ br{
         }
         VEF{
             "VEF",
+            "bolivar Venezuela (2008–2018)",
+        }
+        VES{
+            "VES",
             "bolivar Venezuela",
         }
         VND{
@@ -1128,6 +1139,10 @@ br{
             "XTS",
             "kod moneiz amprouiñ",
         }
+        XUA{
+            "XUA",
+            "unanenn jediñ BAD",
+        }
         XXX{
             "XXX",
             "moneiz dianav",
@@ -1204,7 +1219,7 @@ br{
         BOB{"Bs"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CNY{"¥"}
@@ -1264,7 +1279,7 @@ br{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"$ T"}
@@ -1461,13 +1476,6 @@ br{
             other{"lur Belgia"}
             two{"lur Belgia"}
         }
-        BEL{
-            few{"BEL"}
-            many{"BEL"}
-            one{"BEL"}
-            other{"BEL"}
-            two{"BEL"}
-        }
         BGM{
             few{"lev sokialour Bulgaria"}
             many{"a levoù sokialour Bulgaria"}
@@ -1580,12 +1588,19 @@ br{
             other{"roubl nevez Belarus (1994–1999)"}
             two{"roubl nevez Belarus (1994–1999)"}
         }
-        BYR{
+        BYN{
             few{"roubl Belarus"}
             many{"a roubloù Belarus"}
             one{"roubl Belarus"}
             other{"roubl Belarus"}
             two{"roubl Belarus"}
+        }
+        BYR{
+            few{"roubl Belarus (2000–2016)"}
+            many{"a roubloù Belarus (2000–2016)"}
+            one{"roubl Belarus (2000–2016)"}
+            other{"roubl Belarus (2000–2016)"}
+            two{"roubl Belarus (2000–2016)"}
         }
         BZD{
             few{"dollar Belize"}
@@ -1649,6 +1664,13 @@ br{
             one{"peso Chile"}
             other{"peso Chile"}
             two{"beso Chile"}
+        }
+        CNH{
+            few{"yuan Sina (diavaez)"}
+            many{"a yuanoù Sina (diavaez)"}
+            one{"yuan Sina (diavaez)"}
+            other{"yuan Sina (diavaez)"}
+            two{"yuan Sina (diavaez)"}
         }
         CNX{
             few{"dollar Bank poblel Sina"}
@@ -2309,6 +2331,13 @@ br{
             two{"bataca Macau"}
         }
         MRO{
+            few{"ouguiya Maouritania (1973–2017)"}
+            many{"a ouguiyaoù Maouritania (1973–2017)"}
+            one{"ouguiya Maouritania (1973–2017)"}
+            other{"ouguiya Maouritania (1973–2017)"}
+            two{"ouguiya Maouritania (1973–2017)"}
+        }
+        MRU{
             few{"ouguiya Maouritania"}
             many{"a ouguiyaoù Maouritania"}
             one{"ouguiya Maouritania"}
@@ -2470,11 +2499,11 @@ br{
             two{"valboa Panamá"}
         }
         PEN{
-            few{"nuevo sol Perou"}
-            many{"nuevo sol Perou"}
-            one{"nuevo sol Perou"}
-            other{"nuevo sol Perou"}
-            two{"nuevo sol Perou"}
+            few{"sol Perou"}
+            many{"sol Perou"}
+            one{"sol Perou"}
+            other{"sol Perou"}
+            two{"sol Perou"}
         }
         PES{
             few{"sol Perou (1863–1965)"}
@@ -2701,6 +2730,13 @@ br{
             two{"lur Susoudan"}
         }
         STD{
+            few{"dobra São Tomé ha Príncipe (1977–2017)"}
+            many{"a zobraoù São Tomé ha Príncipe (1977–2017)"}
+            one{"dobra São Tomé ha Príncipe (1977–2017)"}
+            other{"dobra São Tomé ha Príncipe (1977–2017)"}
+            two{"zobra São Tomé ha Príncipe (1977–2017)"}
+        }
+        STN{
             few{"dobra São Tomé ha Príncipe"}
             many{"a zobraoù São Tomé ha Príncipe"}
             one{"dobra São Tomé ha Príncipe"}
@@ -2883,6 +2919,13 @@ br{
             two{"volivar Venezuela (1871–2008)"}
         }
         VEF{
+            few{"bolivar Venezuela (2008–2018)"}
+            many{"a volivaroù Venezuela (2008–2018)"}
+            one{"bolivar Venezuela (2008–2018)"}
+            other{"bolivar Venezuela (2008–2018)"}
+            two{"volivar Venezuela (2008–2018)"}
+        }
+        VES{
             few{"bolivar Venezuela"}
             many{"a volivaroù Venezuela"}
             one{"bolivar Venezuela"}
@@ -2923,6 +2966,20 @@ br{
             one{"lur CFA Kreizafrika"}
             other{"lur CFA Kreizafrika"}
             two{"lur CFA Kreizafrika"}
+        }
+        XAG{
+            few{"oñs troy arcʼhant"}
+            many{"oñs troy arcʼhant"}
+            one{"oñs troy arcʼhant"}
+            other{"oñs troy arcʼhant"}
+            two{"oñs troy arcʼhant"}
+        }
+        XAU{
+            few{"oñs troy aour"}
+            many{"oñs troy aour"}
+            one{"oñs troy aour"}
+            other{"oñs troy aour"}
+            two{"oñs troy aour"}
         }
         XBA{
             few{"unanenn genaoz europat"}
@@ -2994,6 +3051,13 @@ br{
             other{"lur CFA Afrika ar Cʼhornôg"}
             two{"lur CFA BCEAO"}
         }
+        XPD{
+            few{"oñs troy palladiom"}
+            many{"oñs troy palladiom"}
+            one{"oñs troy palladiom"}
+            other{"oñs troy palladiom"}
+            two{"oñs troy palladiom"}
+        }
         XPF{
             few{"lur CFP"}
             many{"a lurioù CFP"}
@@ -3001,12 +3065,26 @@ br{
             other{"lur CFP"}
             two{"lur CFP"}
         }
+        XPT{
+            few{"oñs troy platin"}
+            many{"oñs troy platin"}
+            one{"oñs troy platin"}
+            other{"oñs troy platin"}
+            two{"oñs troy platin"}
+        }
         XTS{
             few{"unanenn voneiz amprouiñ"}
             many{"a unanennoù voneiz amprouiñ"}
             one{"unanenn voneiz amprouiñ"}
             other{"unanenn voneiz amprouiñ"}
             two{"unanenn voneiz amprouiñ"}
+        }
+        XUA{
+            few{"unanenn jediñ BAD"}
+            many{"a unanennoù jediñ BAD"}
+            one{"unanenn jediñ BAD"}
+            other{"unanenn jediñ BAD"}
+            two{"unanenn jediñ BAD"}
         }
         XXX{
             few{"(moneiz dianav)"}
@@ -3100,5 +3178,4 @@ br{
         other{"{0} {1}"}
         two{"{0} {1}"}
     }
-    Version{"2.1.19.94"}
 }

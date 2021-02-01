@@ -1,21 +1,13 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/rbnf/ru.xml
-// *
-// ***************************************************************************
-/**
- * ICU <specials> source: <path>/xml/rbnf/ru.xml
- */
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ru{
     RBNFRules{
         SpelloutRules{
             "%%lenient-parse:",
             "&[last primary ignorable ] << ' ' << ',' << '-' << '\u00AD';",
             "%spellout-numbering-year:",
-            "x.x: =0.#=;",
+            "x.x: =0.0=;",
             "0: =%spellout-ordinal-masculine-genitive=;",
             "%spellout-numbering:",
             "0: =%spellout-cardinal-masculine=;",
@@ -1392,5 +1384,4 @@ ru{
             "21001: =0=.;",
         }
     }
-    Version{"2.1.19.86"}
 }

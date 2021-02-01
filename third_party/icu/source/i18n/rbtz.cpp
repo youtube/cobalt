@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2013, International Business Machines Corporation and
@@ -145,10 +147,10 @@ RuleBasedTimeZone::addTransitionRule(TimeZoneRule* rule, UErrorCode& status) {
     fUpToDate = FALSE;
 }
 
-static UMutex gLock = U_MUTEX_INITIALIZER;
 
 void
 RuleBasedTimeZone::completeConst(UErrorCode& status) const {
+    static UMutex gLock;
     if (U_FAILURE(status)) {
         return;
     }
@@ -355,8 +357,8 @@ cleanup:
     fUpToDate = FALSE;
 }
 
-TimeZone*
-RuleBasedTimeZone::clone(void) const {
+RuleBasedTimeZone*
+RuleBasedTimeZone::clone() const {
     return new RuleBasedTimeZone(*this);
 }
 

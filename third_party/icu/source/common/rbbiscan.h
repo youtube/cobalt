@@ -1,7 +1,9 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 //
 //  rbbiscan.h
 //
-//  Copyright (C) 2002-2008, International Business Machines Corporation and others.
+//  Copyright (C) 2002-2016, International Business Machines Corporation and others.
 //  All Rights Reserved.
 //
 //  This file contains declarations for class RBBIRuleScanner
@@ -21,9 +23,7 @@
 #include "unicode/symtable.h"// For UnicodeSet parsing, is the interface that
                           //    looks up references to $variables within a set.
 #include "rbbinode.h"
-//#include "rbbitblb.h"
-
-
+#include "rbbirpt.h"
 
 U_NAMESPACE_BEGIN
 
@@ -54,6 +54,7 @@ public:
     struct RBBIRuleChar {
         UChar32             fChar;
         UBool               fEscaped;
+        RBBIRuleChar() : fChar(0), fEscaped(false) {}
     };
 
     RBBIRuleScanner(RBBIRuleBuilder  *rb);
@@ -71,6 +72,8 @@ public:
                                                     //   trees, one each for the forward and
                                                     //   reverse rules,
                                                     //   and a list of UnicodeSets encountered.
+
+    int32_t     numRules();                         // Return the number of rules that have been seen.
 
     /**
      * Return a rules string without unnecessary
@@ -128,6 +131,8 @@ private:
 
     UBool                          fLookAheadRule;   // True if the rule includes a '/'
                                                      //   somewhere within it.
+
+    UBool                          fNoChainInRule;   // True if the current rule starts with a '^'.
 
     RBBISymbolTable               *fSymbolTable;     // symbol table, holds definitions of
                                                      //   $variable symbols.

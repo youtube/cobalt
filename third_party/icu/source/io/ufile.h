@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  *
@@ -22,6 +24,8 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
+
+#include <stdio.h>
 
 #include "unicode/ucnv.h"
 #include "unicode/utrans.h"
@@ -70,7 +74,7 @@ struct UFILE {
 
     UChar       fUCBuffer[UFILE_UCHARBUFFER_SIZE];/* buffer used for toUnicode */
 
-    UBool       fOwnFile;       /* TRUE if fFile should be closed */
+    UBool       fOwnFile;       /* true if fFile should be closed */
 
     int32_t     fFileno;        /* File number. Useful to determine if it's stdin. */
 };
@@ -96,7 +100,7 @@ ufile_fill_uchar_buffer(UFILE *f);
  * Get one code unit and detect whether the end of file has been reached.
  * @param f The UFILE containing the characters.
  * @param ch The read in character
- * @return TRUE if the character is valid, or FALSE when EOF has been detected
+ * @return true if the character is valid, or false when EOF has been detected
  */
 U_CFUNC UBool U_EXPORT2
 ufile_getch(UFILE *f, UChar *ch);
@@ -105,7 +109,7 @@ ufile_getch(UFILE *f, UChar *ch);
  * Get one character and detect whether the end of file has been reached.
  * @param f The UFILE containing the characters.
  * @param ch The read in character
- * @return TRUE if the character is valid, or FALSE when EOF has been detected
+ * @return true if the character is valid, or false when EOF has been detected
  */
 U_CFUNC UBool U_EXPORT2
 ufile_getch32(UFILE *f, UChar32 *ch);

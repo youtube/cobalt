@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fr_CA.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fr_CA{
     Currencies{
         ARS{
@@ -16,6 +11,10 @@ fr_CA{
             "$ AU",
             "dollar australien",
         }
+        AZN{
+            "AZN",
+            "manat azerbaïdjanais",
+        }
         BMD{
             "BMD",
             "dollar bermudien",
@@ -24,16 +23,12 @@ fr_CA{
             "BND",
             "dollar brunéien",
         }
-        BSD{
-            "BSD",
-            "dollar bahaméen",
-        }
         BZD{
             "BZD",
             "dollar bélizéen",
         }
         CAD{
-            "$",
+            "$ CA",
             "dollar canadien",
         }
         CLP{
@@ -48,13 +43,17 @@ fr_CA{
             "COP",
             "peso colombien",
         }
+        CVE{
+            "CVE",
+            "escudo cap-verdien",
+        }
         FJD{
             "FJD",
             "dollar fidjien",
         }
         FKP{
             "FKP",
-            "livre des Îles Malouines",
+            "livre des îles Malouines",
         }
         GBP{
             "£",
@@ -72,6 +71,14 @@ fr_CA{
             "ILS",
             "nouveau shekel israélien",
         }
+        INR{
+            "INR",
+            "roupie indienne",
+        }
+        IRR{
+            "IRR",
+            "rial iranien",
+        }
         JPY{
             "¥",
             "yen japonais",
@@ -79,6 +86,10 @@ fr_CA{
         KRW{
             "KRW",
             "won sud-coréen",
+        }
+        LAK{
+            "LAK",
+            "kip laotien",
         }
         LBP{
             "LBP",
@@ -96,6 +107,26 @@ fr_CA{
             "$ NZ",
             "dollar néo-zélandais",
         }
+        OMR{
+            "OMR",
+            "rial omanais",
+        }
+        PEN{
+            "PEN",
+            "nouveau sol péruvien",
+        }
+        PGK{
+            "PGK",
+            "kina papou-néo-guinéen",
+        }
+        QAR{
+            "QAR",
+            "riyal du Qatar",
+        }
+        SAR{
+            "SAR",
+            "rial saoudien",
+        }
         SBD{
             "SBD",
             "dollar des îles Salomon",
@@ -106,7 +137,7 @@ fr_CA{
         }
         SRD{
             "SRD",
-            "dollar surinamais",
+            "dollar du Suriname",
         }
         TOP{
             "TOP",
@@ -128,6 +159,14 @@ fr_CA{
             "VND",
             "dông vietnamien",
         }
+        VUV{
+            "VUV",
+            "vatu",
+        }
+        WST{
+            "WST",
+            "tala",
+        }
         XAF{
             "XAF",
             "franc CFA (BEAC)",
@@ -141,11 +180,17 @@ fr_CA{
             "franc CFP",
         }
         XXX{
-            "XXX",
+            "¤",
             "Devise inconnue",
+        }
+        YER{
+            "YER",
+            "rial yéménite",
         }
     }
     Currencies%narrow{
+        BYN{"Br"}
+        GEL{"GEL"}
         KMF{"CF"}
         NIO{"C$"}
         ZMW{"ZK"}
@@ -154,21 +199,69 @@ fr_CA{
         TRY{"TL"}
     }
     CurrencyPlurals{
-        FKP{
-            one{"livre des Îles Malouines"}
-            other{"livres des Îles Malouines"}
+        AZN{
+            one{"manat azerbaïdjanais"}
+            other{"manats azerbaïdjanais"}
         }
-        GEL{
-            one{"lari géorgien"}
+        CVE{
+            one{"escudo cap-verdien"}
+            other{"escudos cap-verdiens"}
+        }
+        GYD{
+            one{"dollar guyanien"}
+            other{"dollars guyaniens"}
+        }
+        IRR{
+            one{"rial iranien"}
+            other{"rials iraniens"}
+        }
+        LAK{
+            one{"kip laotien"}
+            other{"kips laotiens"}
+        }
+        OMR{
+            one{"rial omanais"}
+            other{"rials omanis"}
+        }
+        PEN{
+            one{"nouveau sol péruvien"}
+            other{"nouveaux sols péruviens"}
+        }
+        PGK{
+            one{"kina papou-néo-guinéen"}
+            other{"kinas papou-néo-guinéens"}
+        }
+        QAR{
+            one{"riyal du Qatar"}
+            other{"riyals du Qatar"}
+        }
+        SAR{
+            one{"rial saoudien"}
+            other{"rials saoudiens"}
+        }
+        SRD{
+            one{"dollar du Suriname"}
+            other{"dollars du Suriname"}
         }
         TOP{
             one{"pa’anga"}
             other{"pa’angas"}
         }
+        VUV{
+            one{"vatu"}
+            other{"vatus"}
+        }
+        WST{
+            one{"tala"}
+            other{"talas"}
+        }
         XXX{
             one{"(devise inconnue)"}
             other{"(devise inconnue)"}
         }
+        YER{
+            one{"rial yéménite"}
+            other{"rials yéménites"}
+        }
     }
-    Version{"2.1.19.14"}
 }

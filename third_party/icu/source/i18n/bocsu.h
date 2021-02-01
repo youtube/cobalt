@@ -1,10 +1,12 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2001-2014, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  bocsu.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -142,14 +144,14 @@ U_NAMESPACE_END
  * yields negative modulo results and quotients that are one more than
  * what we need here.
  */
-#define NEGDIVMOD(n, d, m) { \
+#define NEGDIVMOD(n, d, m) UPRV_BLOCK_MACRO_BEGIN { \
     (m)=(n)%(d); \
     (n)/=(d); \
     if((m)<0) { \
         --(n); \
         (m)+=(d); \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 U_CFUNC UChar32
 u_writeIdenticalLevelRun(UChar32 prev, const UChar *s, int32_t length, icu::ByteSink &sink);

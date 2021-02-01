@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
- *   Copyright (C) 1999-2014, International Business Machines
+ *   Copyright (C) 1999-2016, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  *   Date        Name        Description
@@ -91,7 +93,7 @@ static const char RB_RULE_BASED_IDS[] = "RuleBasedTransliteratorIDs";
 /**
  * The mutex controlling access to registry object.
  */
-static UMutex registryMutex = U_MUTEX_INITIALIZER;
+static icu::UMutex registryMutex;
 
 /**
  * System transliterator registry; non-null when initialized.
@@ -158,7 +160,7 @@ Transliterator::Transliterator(const Transliterator& other) :
 
     if (other.filter != 0) {
         // We own the filter, so we must have our own copy
-        filter = (UnicodeFilter*) other.filter->clone();
+        filter = other.filter->clone();
     }
 }
 
@@ -175,7 +177,7 @@ Transliterator& Transliterator::operator=(const Transliterator& other) {
     ID.getTerminatedBuffer();
 
     maximumContextLength = other.maximumContextLength;
-    adoptFilter((other.filter == 0) ? 0 : (UnicodeFilter*) other.filter->clone());
+    adoptFilter((other.filter == 0) ? 0 : other.filter->clone());
     return *this;
 }
 
@@ -923,13 +925,15 @@ Transliterator::createInstance(const UnicodeString& ID,
         return NULL;
     }
 
-    UnicodeSet* globalFilter;
+    UnicodeSet* globalFilter = nullptr;
     // TODO add code for parseError...currently unused, but
     // later may be used by parsing code...
     if (!TransliteratorIDParser::parseCompoundID(ID, dir, canonID, list, globalFilter)) {
         status = U_INVALID_ID;
+        delete globalFilter;
         return NULL;
     }
+    LocalPointer<UnicodeSet> lpGlobalFilter(globalFilter);
     
     TransliteratorIDParser::instantiateList(list, status);
     if (U_FAILURE(status)) {
@@ -953,8 +957,8 @@ Transliterator::createInstance(const UnicodeString& ID,
     // Check null pointer
     if (t != NULL) {
         t->setID(canonID);
-        if (globalFilter != NULL) {
-            t->adoptFilter(globalFilter);
+        if (lpGlobalFilter.isValid()) {
+            t->adoptFilter(lpGlobalFilter.orphan());
         }
     }
     else if (U_SUCCESS(status)) {
@@ -1101,6 +1105,10 @@ Transliterator::createFromRules(const UnicodeString& ID,
                 UnicodeString* idBlock = (UnicodeString*)parser.idBlockVector.elementAt(i);
                 if (!idBlock->isEmpty()) {
                     Transliterator* temp = createInstance(*idBlock, UTRANS_FORWARD, parseError, status);
+                    if (U_FAILURE(status)) {
+                        delete temp;
+                        return nullptr;
+                    }
                     if (temp != NULL && typeid(*temp) != typeid(NullTransliterator))
                         transliterators.addElement(temp, status);
                     else
@@ -1114,8 +1122,10 @@ Transliterator::createFromRules(const UnicodeString& ID,
                         data, TRUE);
                 // Check if NULL before adding it to transliterators to avoid future usage of NULL pointer.
                 if (temprbt == NULL) {
-                	status = U_MEMORY_ALLOCATION_ERROR;
-                	return t;
+                    if (U_SUCCESS(status)) {
+                        status = U_MEMORY_ALLOCATION_ERROR;
+                    }
+                    return t;
                 }
                 transliterators.addElement(temprbt, status);
             }
@@ -1500,23 +1510,35 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
      */
     //static const char translit_index[] = "translit_index";
 
+    UErrorCode lstatus = U_ZERO_ERROR;
     UResourceBundle *bundle, *transIDs, *colBund;
-    bundle = ures_open(U_ICUDATA_TRANSLIT, NULL/*open default locale*/, &status);
-    transIDs = ures_getByKey(bundle, RB_RULE_BASED_IDS, 0, &status);
+    bundle = ures_open(U_ICUDATA_TRANSLIT, NULL/*open default locale*/, &lstatus);
+    transIDs = ures_getByKey(bundle, RB_RULE_BASED_IDS, 0, &lstatus);
+    const UnicodeString T_PART = UNICODE_STRING_SIMPLE("-t-");
 
     int32_t row, maxRows;
-    if (U_SUCCESS(status)) {
+    if (lstatus == U_MEMORY_ALLOCATION_ERROR) {
+        delete registry;
+        registry = nullptr;
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return FALSE;
+    }
+    if (U_SUCCESS(lstatus)) {
         maxRows = ures_getSize(transIDs);
         for (row = 0; row < maxRows; row++) {
-            colBund = ures_getByIndex(transIDs, row, 0, &status);
-            if (U_SUCCESS(status)) {
+            colBund = ures_getByIndex(transIDs, row, 0, &lstatus);
+            if (U_SUCCESS(lstatus)) {
                 UnicodeString id(ures_getKey(colBund), -1, US_INV);
-                UResourceBundle* res = ures_getNextResource(colBund, NULL, &status);
+                if(id.indexOf(T_PART) != -1) {
+                    ures_close(colBund);
+                    continue;
+                }
+                UResourceBundle* res = ures_getNextResource(colBund, NULL, &lstatus);
                 const char* typeStr = ures_getKey(res);
                 UChar type;
                 u_charsToUChars(typeStr, &type, 1);
 
-                if (U_SUCCESS(status)) {
+                if (U_SUCCESS(lstatus)) {
                     int32_t len = 0;
                     const UChar *resString;
                     switch (type) {
@@ -1526,19 +1548,19 @@ UBool Transliterator::initializeRegistry(UErrorCode &status) {
                         // row[2]=resource, row[3]=direction
                         {
                             
-                            resString = ures_getStringByKey(res, "resource", &len, &status);
+                            resString = ures_getStringByKey(res, "resource", &len, &lstatus);
                             UBool visible = (type == 0x0066 /*f*/);
                             UTransDirection dir = 
-                                (ures_getUnicodeStringByKey(res, "direction", &status).charAt(0) ==
+                                (ures_getUnicodeStringByKey(res, "direction", &lstatus).charAt(0) ==
                                  0x0046 /*F*/) ?
                                 UTRANS_FORWARD : UTRANS_REVERSE;
-                            registry->put(id, UnicodeString(TRUE, resString, len), dir, TRUE, visible, status);
+                            registry->put(id, UnicodeString(TRUE, resString, len), dir, TRUE, visible, lstatus);
                         }
                         break;
                     case 0x61: // 'a'
                         // 'alias'; row[2]=createInstance argument
-                        resString = ures_getString(res, &len, &status);
-                        registry->put(id, UnicodeString(TRUE, resString, len), TRUE, TRUE, status);
+                        resString = ures_getString(res, &len, &lstatus);
+                        registry->put(id, UnicodeString(TRUE, resString, len), TRUE, TRUE, lstatus);
                         break;
                     }
                 }

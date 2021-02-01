@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  * Copyright (C) 2001-2011, International Business Machines Corporation
@@ -43,7 +45,7 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
      * Implement UnicodeFunctor
      * @return a copy of the object.
      */
-    virtual UnicodeFunctor* clone() const;
+    virtual Quantifier* clone() const;
 
     /**
      * Implement UnicodeMatcher
@@ -60,11 +62,11 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
      * considered for matching will be text.charAt(limit-1) in the
      * forward direction or text.charAt(limit+1) in the backward
      * direction.
-     * @param incremental  if TRUE, then assume further characters may
+     * @param incremental  if true, then assume further characters may
      * be inserted at limit and check for partial matching.  Otherwise
      * assume the text as given is complete.
      * @return a match degree value indicating a full match, a partial
-     * match, or a mismatch.  If incremental is FALSE then
+     * match, or a mismatch.  If incremental is false then
      * U_PARTIAL_MATCH should never be returned.
      */
     virtual UMatchDegree matches(const Replaceable& text,
@@ -79,7 +81,7 @@ class Quantifier : public UnicodeFunctor, public UnicodeMatcher {
      * @return                  A reference to 'result'.
      */
     virtual UnicodeString& toPattern(UnicodeString& result,
-                                     UBool escapeUnprintable = FALSE) const;
+                                     UBool escapeUnprintable = false) const;
 
     /**
      * Implement UnicodeMatcher

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2014 IBM and others. All rights reserved.
@@ -281,7 +283,7 @@ void StringSearch::reset()
     usearch_reset(m_strsrch_);
 }
 
-SearchIterator * StringSearch::safeClone(void) const
+StringSearch * StringSearch::safeClone() const
 {
     UErrorCode status = U_ZERO_ERROR;
     StringSearch *result = new StringSearch(m_pattern_, m_text_,

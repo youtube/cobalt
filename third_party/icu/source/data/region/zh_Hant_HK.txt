@@ -1,20 +1,16 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zh_Hant_HK.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zh_Hant_HK{
     Countries{
         013{"中美洲"}
         029{"加勒比"}
+        053{"澳大拉西亞"}
         061{"波利尼西亞"}
         AE{"阿拉伯聯合酋長國"}
         AG{"安提瓜和巴布達"}
         AW{"阿魯巴"}
-        AZ{"阿塞拜疆"}
+        AZ{"亞塞拜疆"}
         BA{"波斯尼亞和黑塞哥維那"}
         BB{"巴巴多斯"}
         BF{"布基納法索"}
@@ -24,9 +20,7 @@ zh_Hant_HK{
         BV{"鮑威特島"}
         BW{"博茨瓦納"}
         BZ{"伯利茲"}
-        CC{"可可斯群島"}
-        CD{"剛果 - 金夏沙"}
-        CG{"剛果 - 布拉薩"}
+        CC{"科科斯 (基林) 群島"}
         CI{"科特迪瓦"}
         CP{"克里珀頓島"}
         CR{"哥斯達黎加"}
@@ -49,9 +43,8 @@ zh_Hant_HK{
         HN{"洪都拉斯"}
         HR{"克羅地亞"}
         IM{"馬恩島"}
-        IO{"英屬印度洋領土"}
         IT{"意大利"}
-        KE{"肯雅"}
+        KE{"肯尼亞"}
         KM{"科摩羅"}
         KN{"聖基茨和尼維斯"}
         LA{"老撾"}
@@ -71,13 +64,13 @@ zh_Hant_HK{
         NE{"尼日爾"}
         NG{"尼日利亞"}
         NR{"瑙魯"}
-        OM{"阿曼"}
         PF{"法屬波利尼西亞"}
         PG{"巴布亞新幾內亞"}
         PN{"皮特凱恩島"}
+        PS{"巴勒斯坦"}
         QA{"卡塔爾"}
         RW{"盧旺達"}
-        SA{"沙特阿拉伯"}
+        SA{"沙地阿拉伯"}
         SB{"所羅門群島"}
         SC{"塞舌爾"}
         SI{"斯洛文尼亞"}
@@ -89,8 +82,7 @@ zh_Hant_HK{
         SZ{"斯威士蘭"}
         TC{"特克斯和凱科斯群島"}
         TD{"乍得"}
-        TF{"法屬南部地區"}
-        TG{"多哥共和國"}
+        TF{"法屬南部領地"}
         TO{"湯加"}
         TT{"千里達和多巴哥"}
         TV{"圖瓦盧"}
@@ -100,11 +92,12 @@ zh_Hant_HK{
         VI{"美屬維爾京群島"}
         VU{"瓦努阿圖"}
         YE{"也門"}
+        YT{"馬約特"}
         ZM{"贊比亞"}
         ZW{"津巴布韋"}
     }
-    Countries%variant{
-        CI{"象牙海岸"}
+    Countries%short{
+        HK{"中國香港"}
+        MO{"中國澳門"}
     }
-    Version{"2.1.19.94"}
 }
