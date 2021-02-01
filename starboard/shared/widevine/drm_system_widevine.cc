@@ -740,7 +740,7 @@ void DrmSystemWidevine::SendServerCertificateRequest(int ticket) {
     SendSessionUpdateRequest(kSbDrmSessionRequestTypeLicenseRequest,
                              kFirstSbDrmSessionId, message);
   } else {
-// Signals failure by sending NULL as the session id.
+    // Signals failure by sending NULL as the session id.
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", NULL, 0, NULL, 0, NULL);
