@@ -65,9 +65,9 @@ typedef enum SbDrmKeyStatus {
   kSbDrmKeyStatusError,
 } SbDrmKeyStatus;
 
-// A mapping of clear and encrypted bytes for a single subsample. All
-// subsamples within a sample must be encrypted with the same encryption
-// parameters. The clear bytes always appear first in the sample.
+// A mapping of clear and encrypted bytes for a single subsample. All subsamples
+// within a sample must be encrypted with the same encryption parameters. The
+// clear bytes always appear first in the sample.
 typedef struct SbDrmSubSampleMapping {
   // How many bytes of the corresponding subsample are not encrypted
   int32_t clear_byte_count;
@@ -126,7 +126,7 @@ typedef struct SbDrmSampleInfo {
   const SbDrmSubSampleMapping* subsample_mapping;
 } SbDrmSampleInfo;
 
-// A handle to a DRM system which can be used with either an SbDecoder or a
+// A handle to a DRM system which can be used with either an SbDecoder or an
 // SbPlayer.
 typedef struct SbDrmSystemPrivate* SbDrmSystem;
 
@@ -198,11 +198,10 @@ typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     const SbDrmKeyStatus* key_statuses);
 
 // A callback for signalling that a session has been closed by the SbDrmSystem
-typedef void (*SbDrmSessionClosedFunc)(
-    SbDrmSystem drm_system,
-    void* context,
-    const void* session_id,
-    int session_id_size);
+typedef void (*SbDrmSessionClosedFunc)(SbDrmSystem drm_system,
+                                       void* context,
+                                       const void* session_id,
+                                       int session_id_size);
 
 // A callback to notify the caller of SbDrmUpdateServerCertificate() whether the
 // update has been successfully updated or not.
@@ -232,8 +231,8 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
   return ticket != kSbDrmTicketInvalid;
 }
 
-// Creates a new DRM system that can be used when constructing an SbPlayer
-// or an SbDecoder.
+// Creates a new DRM system that can be used when constructing an SbPlayer or an
+// SbDecoder.
 //
 // This function returns kSbDrmSystemInvalid if |key_system| is unsupported.
 //
@@ -243,10 +242,10 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 // |key_system|: The DRM key system to be created. The value should be in the
 // form of "com.example.somesystem" as suggested by
 // https://w3c.github.io/encrypted-media/#key-system. All letters in the value
-// should be lowercase and will be matched exactly with known DRM key systems
-// of the platform.
-// |context|: A value passed when any of this function's callback parameters
-// are called.
+// should be lowercase and will be matched exactly with known DRM key systems of
+// the platform.
+// |context|: A value passed when any of this function's callback parameters are
+// called.
 // |update_request_callback|: A function that is called every time after
 // SbDrmGenerateSessionUpdateRequest() is called.
 // |session_updated_callback|: A function that is called every time after
@@ -289,9 +288,9 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
 // Callbacks may be called either from the current thread before this function
 // returns or from another thread.
 //
-// |drm_system|: The DRM system that defines the key system used for the
-// session update request payload as well as the callback function that is
-// called as a result of the function being called.
+// |drm_system|: The DRM system that defines the key system used for the session
+// update request payload as well as the callback function that is called as a
+// result of the function being called.
 //
 // |ticket|: The opaque ID that allows to distinguish callbacks from multiple
 // concurrent calls to SbDrmGenerateSessionUpdateRequest(), which will be passed
@@ -313,20 +312,20 @@ SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
 
 // Update session with |key|, in |drm_system|'s key system, from the license
 // server response. Calls |session_updated_callback| with |context| and whether
-// the update succeeded. |context| may be used to route callbacks back to
-// an object instance.
+// the update succeeded. |context| may be used to route callbacks back to an
+// object instance.
 //
-// |ticket| is the opaque ID that allows to distinguish callbacks from
-// multiple concurrent calls to SbDrmUpdateSession(), which will be passed
-// to |session_updated_callback| as-is. It is the responsibility of the caller
-// to establish ticket uniqueness, issuing multiple calls with the same ticket
-// may result in undefined behavior.
+// |ticket| is the opaque ID that allows to distinguish callbacks from multiple
+// concurrent calls to SbDrmUpdateSession(), which will be passed to
+// |session_updated_callback| as-is. It is the responsibility of the caller to
+// establish ticket uniqueness, issuing multiple calls with the same ticket may
+// result in undefined behavior.
 //
 // Once the session is successfully updated, an SbPlayer or SbDecoder associated
 // with that DRM key system will be able to decrypt encrypted samples.
 //
-// |drm_system|'s |session_updated_callback| may called either from the
-// current thread before this function returns or from another thread.
+// |drm_system|'s |session_updated_callback| may called either from the current
+// thread before this function returns or from another thread.
 SB_EXPORT void SbDrmUpdateSession(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* key,
@@ -396,9 +395,9 @@ SB_EXPORT const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size);
 // destroyed unless any associated SbPlayer or SbDecoder has first been
 // destroyed.
 //
-// All callbacks are guaranteed to be finished when this function returns.
-// As a result, if this function is called from a callback that is passed
-// to SbDrmCreateSystem(), a deadlock will occur.
+// All callbacks are guaranteed to be finished when this function returns.  As a
+// result, if this function is called from a callback that is passed to
+// SbDrmCreateSystem(), a deadlock will occur.
 //
 // |drm_system|: The DRM system to be destroyed.
 SB_EXPORT void SbDrmDestroySystem(SbDrmSystem drm_system);
