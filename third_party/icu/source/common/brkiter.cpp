@@ -20,7 +20,6 @@
 // This file was generated from the java source file BreakIterator.java
 // *****************************************************************************
 
-#include "unicode/ptypes.h"
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_BREAK_ITERATION

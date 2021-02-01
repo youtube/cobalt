@@ -65,4 +65,5 @@ uprv_wcslen(const wchar_t *src);
 #define uprv_mbstowcs(wcstr, mbstr, count) U_STANDARD_CPP_NAMESPACE mbstowcs(wcstr, mbstr, count)
 #endif  // !defined(STARBOARD)
 
+
 #endif

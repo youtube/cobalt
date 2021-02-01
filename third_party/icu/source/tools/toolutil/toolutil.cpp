@@ -19,6 +19,7 @@
 *	
 *   This file contains utility functions for ICU tools like genccode.
 */
+
 #include "unicode/platform.h"
 #if U_PLATFORM == U_PF_MINGW
 // *cough* - for struct stat
@@ -133,10 +134,10 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
 
   const char *basename=uprv_strrchr(path, U_FILE_SEP_CHAR);
   if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-    const char* basenameAlt = uprv_strrchr(path, U_FILE_ALT_SEP_CHAR);
-    if (basenameAlt && (!basename || basename < basenameAlt)) {
-      basename = basenameAlt;
-    }
+  const char *basenameAlt=uprv_strrchr(path, U_FILE_ALT_SEP_CHAR);
+  if(basenameAlt && (!basename || basename<basenameAlt)) {
+    basename = basenameAlt;
+  }
   }
   if(!basename) {
     /* no basename - return ''. */
@@ -165,12 +166,12 @@ findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
     if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-        //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
-        //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
-        const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
-        if(alt_basename>basename) {
-            basename=alt_basename;
-        }
+    //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
+    //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
+    const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+    if(alt_basename>basename) {
+        basename=alt_basename;
+    }
     }
 
     if(basename!=NULL) {
