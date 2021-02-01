@@ -97,11 +97,13 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDirectoryCreate);
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbDoubleAbsolute);
   REGISTER_SYMBOL(SbDoubleExponent);
   REGISTER_SYMBOL(SbDoubleFloor);
   REGISTER_SYMBOL(SbDoubleIsFinite);
   REGISTER_SYMBOL(SbDoubleIsNan);
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);

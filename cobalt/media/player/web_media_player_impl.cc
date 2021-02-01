@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 #include "cobalt/media/player/web_media_player_impl.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -26,7 +26,6 @@
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
-#include "starboard/double.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -71,7 +70,7 @@ DECLARE_INSTANCE_COUNTER(WebMediaPlayerImpl);
 
 bool IsNearTheEndOfStream(const WebMediaPlayerImpl* wmpi, double position) {
   float duration = wmpi->GetDuration();
-  if (SbDoubleIsFinite(duration)) {
+  if (std::isfinite(duration)) {
     // If video is very short, we always treat a position as near the end.
     if (duration <= kEndOfStreamEpsilonInSeconds) return true;
     if (position >= duration - kEndOfStreamEpsilonInSeconds) return true;

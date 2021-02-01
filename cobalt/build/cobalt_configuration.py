@@ -54,7 +54,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     variables = {
         # This is used to omit large debuginfo in files on CI environment
         'cobalt_fastbuild': use_fastbuild,
-
         'cobalt_docker_build': build_in_docker,
 
         # This is here rather than cobalt_configuration.gypi so that it's
@@ -159,6 +158,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'graphics_system_test',
         'layout_test',
         'layout_tests',
+        'cwrappers_test',
         'loader_test',
         'math_test',
         'media_capture_test',

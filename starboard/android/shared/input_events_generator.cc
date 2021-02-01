@@ -18,11 +18,11 @@
 #include <android/keycodes.h>
 #include <jni.h>
 #include <math.h>
+#include <utility>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/double.h"
 #include "starboard/key.h"
 
 namespace starboard {
@@ -35,7 +35,7 @@ typedef ::starboard::android::shared::InputEventsGenerator::Events Events;
 
 namespace {
 
-SbKeyLocation AInputEventToSbKeyLocation(AInputEvent *event) {
+SbKeyLocation AInputEventToSbKeyLocation(AInputEvent* event) {
   int32_t keycode = AKeyEvent_getKeyCode(event);
   switch (keycode) {
     case AKEYCODE_ALT_LEFT:
@@ -52,7 +52,7 @@ SbKeyLocation AInputEventToSbKeyLocation(AInputEvent *event) {
   return kSbKeyLocationUnspecified;
 }
 
-unsigned int AInputEventToSbModifiers(AInputEvent *event) {
+unsigned int AInputEventToSbModifiers(AInputEvent* event) {
   int32_t meta = AKeyEvent_getMetaState(event);
   unsigned int modifiers = kSbKeyModifiersNone;
   if (meta & AMETA_ALT_ON) {
@@ -102,8 +102,8 @@ float GetFlat(jobject input_device, int axis) {
       input_device, "getMotionRange",
       "(I)Landroid/view/InputDevice$MotionRange;", axis));
 
-  float flat = env->CallFloatMethodOrAbort(
-      motion_range.Get(), "getFlat", "()F");
+  float flat =
+      env->CallFloatMethodOrAbort(motion_range.Get(), "getFlat", "()F");
 
   SB_DCHECK(flat < 1.0f);
   return flat;
@@ -424,7 +424,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
   float offset = AMotionEvent_getAxisValue(android_event, motion_axis, 0);
   int sign = offset < 0.0f ? -1 : 1;
 
-  if (SbDoubleAbsolute(offset) < flat) {
+  if (fabs(offset) < flat) {
     offset = sign * flat;
   }
   // Rescaled the range:
@@ -819,8 +819,8 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
   }
 
   if (type == kSbInputEventTypePress) {
-    PushKeyEvent(thumbstick_key, kSbInputEventTypePress, window_,
-                 android_event, events);
+    PushKeyEvent(thumbstick_key, kSbInputEventTypePress, window_, android_event,
+                 events);
     left_thumbstick_key_pressed_[hat_axis] = thumbstick_key;
   } else if (type == kSbInputEventTypeUnpress) {
     left_thumbstick_key_pressed_[hat_axis] = kSbKeyUnknown;

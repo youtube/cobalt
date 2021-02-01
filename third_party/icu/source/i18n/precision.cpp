@@ -5,16 +5,13 @@
  * file name: precisison.cpp
  */
 
-#if !defined(STARBOARD)
 #include <math.h>
-#endif
 
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
 
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/client_porting/poem/math_poem.h"
 #include "digitlst.h"
 #include "fmtableimp.h"
 #include "precision.h"

@@ -90,12 +90,13 @@
 #include "net/android/network_library.h"
 #endif
 
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
- 
+
 namespace net {
 
 namespace {

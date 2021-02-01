@@ -5,6 +5,7 @@
 #include "net/nqe/observation_buffer.h"
 
 #include <float.h>
+#include <math.h>
 
 #include <algorithm>
 #include <utility>
@@ -16,8 +17,9 @@
 #include "net/nqe/network_quality_estimator_params.h"
 #include "net/nqe/weighted_observation.h"
 
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/types.h"
 #endif
 
