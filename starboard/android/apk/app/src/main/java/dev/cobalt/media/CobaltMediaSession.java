@@ -224,20 +224,18 @@ public class CobaltMediaSession
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
 
-    boolean activating = playbackState != PLAYBACK_STATE_NONE;
+    boolean activating = true;
     boolean deactivating = false;
     if (mediaSession != null) {
-      activating = activating && !mediaSession.isActive();
+      activating = playbackState != PLAYBACK_STATE_NONE && !mediaSession.isActive();
       deactivating = playbackState == PLAYBACK_STATE_NONE && mediaSession.isActive();
     }
     if (activating) {
       // Resuming or new playbacks land here.
       setMediaSession();
     }
-    if (mediaSession != null) {
-      mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
-    }
-    if (lifecycleCallback != null && mediaSession != null) {
+    mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
+    if (lifecycleCallback != null) {
       lifecycleCallback.onMediaSessionLifecycle(
           this.mediaSession.isActive(), this.mediaSession.getSessionToken());
     }
@@ -447,8 +445,6 @@ public class CobaltMediaSession
       MediaImage[] artwork,
       final long duration) {
     checkMainLooperThread();
-
-    if (mediaSession == null) return;
 
     boolean hasStateChange = this.currentPlaybackState != playbackState;
     // Always keep track of what the HTML5 app thinks the playback state is so we can configure the
