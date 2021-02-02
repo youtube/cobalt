@@ -280,6 +280,8 @@ class Box : public base::RefCounted<Box> {
   // account transforms.
   RectLayoutUnit GetTransformedBoxFromRoot(
       const RectLayoutUnit& box_from_margin_box) const;
+  RectLayoutUnit GetTransformedBoxFromRootWithScroll(
+      const RectLayoutUnit& box_from_margin_box) const;
   RectLayoutUnit GetTransformedBoxFromContainingBlock(
       const ContainerBox* containing_block,
       const RectLayoutUnit& box_from_margin_box) const;
@@ -368,6 +370,8 @@ class Box : public base::RefCounted<Box> {
   }
 
   math::Matrix3F GetMarginBoxTransformFromContainingBlock(
+      const ContainerBox* containing_block) const;
+  math::Matrix3F GetMarginBoxTransformFromContainingBlockWithScroll(
       const ContainerBox* containing_block) const;
 
   Vector2dLayoutUnit GetMarginBoxOffsetFromRoot(
@@ -838,6 +842,11 @@ class Box : public base::RefCounted<Box> {
   // Get the rectangle for which gives the region that background-color
   // and background-image would populate.
   math::RectF GetBackgroundRect();
+
+  // Get the transform for this box from the specified containing block (which
+  // may be null to indicate root).
+  math::Matrix3F GetMarginBoxTransformFromContainingBlockInternal(
+      const ContainerBox* containing_block, bool include_scroll) const;
 
   // Some custom CSS transform functions require a UI navigation focus item as
   // input. This computes the appropriate UI navigation item for this box's
