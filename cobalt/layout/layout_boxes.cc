@@ -57,7 +57,7 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
        box_iterator != client_rect_boxes.end(); ++box_iterator) {
     RectLayoutUnit transformed_border_box(
         (*box_iterator)
-            ->GetTransformedBoxFromRoot(
+            ->GetTransformedBoxFromRootWithScroll(
                 (*box_iterator)->GetBorderBoxFromMarginBox()));
     dom_rect_list->AppendDOMRect(
         new dom::DOMRect(transformed_border_box.x().toFloat(),
