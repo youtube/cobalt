@@ -19,11 +19,6 @@
 
 /* utypes.h is included to get the proper define for uint8_t */
 #include "unicode/utypes.h"
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include "starboard/configuration.h"
-#endif
-=======
 /* for abort */
 #include <stdlib.h>
 
@@ -33,7 +28,9 @@
  * By changing the definition here, the assert behavior for ICU can be changed
  * without affecting other non - ICU uses of the C library assert().
 */
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif  // defined(STARBOARD)
 #if U_DEBUG
 #if !defined(STARBOARD)
 #   include <assert.h>

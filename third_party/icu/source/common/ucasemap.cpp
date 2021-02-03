@@ -18,7 +18,9 @@
 *   Case mapping service object and functions using it.
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"
@@ -162,24 +164,11 @@ appendResult(int32_t cpLength, int32_t result, const UChar *s,
     return TRUE;
 }
 
-<<<<<<< HEAD
-static inline int32_t
-appendUChar(uint8_t *dest, int32_t destIndex, int32_t destCapacity, UChar c) {
-    int32_t limit=destIndex+U8_LENGTH(c);
-    if(limit<destCapacity) {
-        U8_APPEND_UNSAFE(dest, destIndex, c);
-    }
-    return limit;
-}
-
-static UChar32 U_CALLCONV
-=======
 // See unicode/utf8.h U8_APPEND_UNSAFE().
 inline uint8_t getTwoByteLead(UChar32 c) { return (uint8_t)((c >> 6) | 0xc0); }
 inline uint8_t getTwoByteTrail(UChar32 c) { return (uint8_t)((c & 0x3f) | 0x80); }
 
 UChar32 U_CALLCONV
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 utf8_caseContextIterator(void *context, int8_t dir) {
     UCaseContext *csc=(UCaseContext *)context;
     UChar32 c;
@@ -660,128 +649,6 @@ void toUpper(uint32_t options,
                 }
             }
 
-<<<<<<< HEAD
-U_NAMESPACE_BEGIN
-namespace GreekUpper {
-
-UBool isFollowedByCasedLetter(const UCaseProps *csp, const uint8_t *s, int32_t i, int32_t length) {
-    while (i < length) {
-        UChar32 c;
-        U8_NEXT(s, i, length, c);
-        int32_t type = ucase_getTypeOrIgnorable(csp, c);
-        if ((type & UCASE_IGNORABLE) != 0) {
-            // Case-ignorable, continue with the loop.
-        } else if (type != UCASE_NONE) {
-            return TRUE;  // Followed by cased letter.
-        } else {
-            return FALSE;  // Uncased and not case-ignorable.
-        }
-    }
-    return FALSE;  // Not followed by cased letter.
-}
-
-// Keep this consistent with the UTF-16 version in ustrcase.cpp and the Java version in CaseMap.java.
-int32_t toUpper(const UCaseMap *csm,
-                uint8_t *dest, int32_t destCapacity,
-                const uint8_t *src, int32_t srcLength,
-                UErrorCode *pErrorCode) {
-    int32_t locCache = UCASE_LOC_GREEK;
-    int32_t destIndex=0;
-    uint32_t state = 0;
-    for (int32_t i = 0; i < srcLength;) {
-        int32_t nextIndex = i;
-        UChar32 c;
-        U8_NEXT(src, nextIndex, srcLength, c);
-        uint32_t nextState = 0;
-        int32_t type = ucase_getTypeOrIgnorable(csm->csp, c);
-        if ((type & UCASE_IGNORABLE) != 0) {
-            // c is case-ignorable
-            nextState |= (state & AFTER_CASED);
-        } else if (type != UCASE_NONE) {
-            // c is cased
-            nextState |= AFTER_CASED;
-        }
-        uint32_t data = getLetterData(c);
-        if (data > 0) {
-            uint32_t upper = data & UPPER_MASK;
-            // Add a dialytika to this iota or ypsilon vowel
-            // if we removed a tonos from the previous vowel,
-            // and that previous vowel did not also have (or gain) a dialytika.
-            // Adding one only to the final vowel in a longer sequence
-            // (which does not occur in normal writing) would require lookahead.
-            // Set the same flag as for preserving an existing dialytika.
-            if ((data & HAS_VOWEL) != 0 && (state & AFTER_VOWEL_WITH_ACCENT) != 0 &&
-                    (upper == 0x399 || upper == 0x3A5)) {
-                data |= HAS_DIALYTIKA;
-            }
-            int32_t numYpogegrammeni = 0;  // Map each one to a trailing, spacing, capital iota.
-            if ((data & HAS_YPOGEGRAMMENI) != 0) {
-                numYpogegrammeni = 1;
-            }
-            // Skip combining diacritics after this Greek letter.
-            int32_t nextNextIndex = nextIndex;
-            while (nextIndex < srcLength) {
-                UChar32 c2;
-                U8_NEXT(src, nextNextIndex, srcLength, c2);
-                uint32_t diacriticData = getDiacriticData(c2);
-                if (diacriticData != 0) {
-                    data |= diacriticData;
-                    if ((diacriticData & HAS_YPOGEGRAMMENI) != 0) {
-                        ++numYpogegrammeni;
-                    }
-                    nextIndex = nextNextIndex;
-                } else {
-                    break;  // not a Greek diacritic
-                }
-            }
-            if ((data & HAS_VOWEL_AND_ACCENT_AND_DIALYTIKA) == HAS_VOWEL_AND_ACCENT) {
-                nextState |= AFTER_VOWEL_WITH_ACCENT;
-            }
-            // Map according to Greek rules.
-            UBool addTonos = FALSE;
-            if (upper == 0x397 &&
-                    (data & HAS_ACCENT) != 0 &&
-                    numYpogegrammeni == 0 &&
-                    (state & AFTER_CASED) == 0 &&
-                    !isFollowedByCasedLetter(csm->csp, src, nextIndex, srcLength)) {
-                // Keep disjunctive "or" with (only) a tonos.
-                // We use the same "word boundary" conditions as for the Final_Sigma test.
-                if (i == nextIndex) {
-                    upper = 0x389;  // Preserve the precomposed form.
-                } else {
-                    addTonos = TRUE;
-                }
-            } else if ((data & HAS_DIALYTIKA) != 0) {
-                // Preserve a vowel with dialytika in precomposed form if it exists.
-                if (upper == 0x399) {
-                    upper = 0x3AA;
-                    data &= ~HAS_EITHER_DIALYTIKA;
-                } else if (upper == 0x3A5) {
-                    upper = 0x3AB;
-                    data &= ~HAS_EITHER_DIALYTIKA;
-                }
-            }
-            destIndex=appendUChar(dest, destIndex, destCapacity, (UChar)upper);
-            if ((data & HAS_EITHER_DIALYTIKA) != 0) {
-                destIndex=appendUChar(dest, destIndex, destCapacity, 0x308);  // restore or add a dialytika
-            }
-            if (addTonos) {
-                destIndex=appendUChar(dest, destIndex, destCapacity, 0x301);
-            }
-            while (numYpogegrammeni > 0) {
-                destIndex=appendUChar(dest, destIndex, destCapacity, 0x399);
-                --numYpogegrammeni;
-            }
-        } else {
-            const UChar *s;
-            UChar32 c2 = 0;
-            c=ucase_toFullUpper(csm->csp, c, NULL, NULL, &s, csm->locale, &locCache);
-            if((destIndex<destCapacity) && (c<0 ? (c2=~c)<=0x7f : UCASE_MAX_STRING_LENGTH<c && (c2=c)<=0x7f)) {
-                /* fast path version of appendResult() for ASCII results */
-                dest[destIndex++]=(uint8_t)c2;
-            } else {
-                destIndex=appendResult(dest, destIndex, destCapacity, c, s);
-=======
             UBool change;
             if (edits == nullptr && (options & U_OMIT_UNCHANGED_TEXT) == 0) {
                 change = TRUE;  // common, simple usage
@@ -844,38 +711,11 @@ int32_t toUpper(const UCaseMap *csm,
             if (!ByteSinkUtil::appendUnchanged(src+i, nextIndex-i,
                                                sink, options, edits, errorCode)) {
                 return;
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
             }
         }
         i = nextIndex;
         state = nextState;
     }
-<<<<<<< HEAD
-
-    if(destIndex>destCapacity) {
-        *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
-    }
-    return destIndex;
-}
-
-}  // namespace GreekUpper
-U_NAMESPACE_END
-
-static int32_t U_CALLCONV
-ucasemap_internalUTF8ToLower(const UCaseMap *csm,
-                             uint8_t *dest, int32_t destCapacity,
-                             const uint8_t *src, int32_t srcLength,
-                             UErrorCode *pErrorCode) {
-    UCaseContext csc=UCASECONTEXT_INITIALIZER;
-    csc.p=(void *)src;
-    csc.limit=srcLength;
-    return _caseMap(
-        csm, ucase_toFullLower,
-        dest, destCapacity,
-        src, &csc, 0, srcLength,
-        pErrorCode);
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 }
 
 }  // namespace GreekUpper
@@ -884,16 +724,8 @@ U_NAMESPACE_END
 static void U_CALLCONV
 ucasemap_internalUTF8ToLower(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_UNUSED
                              const uint8_t *src, int32_t srcLength,
-<<<<<<< HEAD
-                             UErrorCode *pErrorCode) {
-    int32_t locCache = csm->locCache;
-    if (ucase_getCaseLocale(csm->locale, &locCache) == UCASE_LOC_GREEK) {
-        return GreekUpper::toUpper(csm, dest, destCapacity, src, srcLength, pErrorCode);
-    }
-=======
                              icu::ByteSink &sink, icu::Edits *edits,
                              UErrorCode &errorCode) {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     UCaseContext csc=UCASECONTEXT_INITIALIZER;
     csc.p=(void *)src;
     csc.limit=srcLength;

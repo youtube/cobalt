@@ -19,11 +19,10 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "cmemory.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "umutex.h"
 #include <float.h>
 #include "gregoimp.h" // Math

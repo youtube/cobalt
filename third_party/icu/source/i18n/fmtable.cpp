@@ -19,15 +19,13 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-<<<<<<< HEAD
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/client_porting/poem/math_poem.h"
-#if !defined(STARBOARD)
-=======
 #include <cstdlib>
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/math_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else  // defined(STARBOARD)
 #include <math.h>
-#endif
+#endif  // defined(STARBOARD)
 #include "unicode/fmtable.h"
 #include "unicode/ustring.h"
 #include "unicode/measure.h"

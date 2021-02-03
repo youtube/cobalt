@@ -20,8 +20,10 @@
 *   to the Unicode Character Database (uprops.dat).
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/casemap.h"
@@ -128,26 +130,16 @@ appendResult(UChar *dest, int32_t destIndex, int32_t destCapacity,
     return destIndex;
 }
 
-<<<<<<< HEAD
-static inline int32_t
-appendUChar(UChar *dest, int32_t destIndex, int32_t destCapacity, UChar c) {
-    if(destIndex<destCapacity) {
-        dest[destIndex]=c;
-=======
 inline int32_t
 appendUChar(UChar *dest, int32_t destIndex, int32_t destCapacity, UChar c) {
     if(destIndex<destCapacity) {
         dest[destIndex]=c;
     } else if(destIndex==INT32_MAX) {
         return -1;  // integer overflow
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     }
     return destIndex+1;
 }
 
-<<<<<<< HEAD
-static UChar32 U_CALLCONV
-=======
 int32_t
 appendNonEmptyUnchanged(UChar *dest, int32_t destIndex, int32_t destCapacity,
                         const UChar *s, int32_t length, uint32_t options, icu::Edits *edits) {
@@ -176,7 +168,6 @@ appendUnchanged(UChar *dest, int32_t destIndex, int32_t destCapacity,
 }
 
 UChar32 U_CALLCONV
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 utf16_caseContextIterator(void *context, int8_t dir) {
     UCaseContext *csc=(UCaseContext *)context;
     UChar32 c;
@@ -1792,49 +1783,6 @@ U_CFUNC int32_t U_CALLCONV
 ustrcase_internalToUpper(int32_t caseLocale, uint32_t options, UCASEMAP_BREAK_ITERATOR_UNUSED
                          UChar *dest, int32_t destCapacity,
                          const UChar *src, int32_t srcLength,
-<<<<<<< HEAD
-                         UErrorCode *pErrorCode) {
-    int32_t locCache = csm->locCache;
-    if (ucase_getCaseLocale(csm->locale, &locCache) == UCASE_LOC_GREEK) {
-        return GreekUpper::toUpper(csm, dest, destCapacity, src, srcLength, pErrorCode);
-    }
-    UCaseContext csc=UCASECONTEXT_INITIALIZER;
-    csc.p=(void *)src;
-    csc.limit=srcLength;
-    return _caseMap(
-        csm, ucase_toFullUpper,
-        dest, destCapacity,
-        src, &csc, 0, srcLength,
-        pErrorCode);
-}
-
-static int32_t
-ustr_foldCase(const UCaseProps *csp,
-              UChar *dest, int32_t destCapacity,
-              const UChar *src, int32_t srcLength,
-              uint32_t options,
-              UErrorCode *pErrorCode) {
-    int32_t srcIndex, destIndex;
-
-    const UChar *s;
-    UChar32 c, c2 = 0;
-
-    /* case mapping loop */
-    srcIndex=destIndex=0;
-    while(srcIndex<srcLength) {
-        U16_NEXT(src, srcIndex, srcLength, c);
-        c=ucase_toFullFolding(csp, c, &s, options);
-        if((destIndex<destCapacity) && (c<0 ? (c2=~c)<=0xffff : UCASE_MAX_STRING_LENGTH<c && (c2=c)<=0xffff)) {
-            /* fast path version of appendResult() for BMP results */
-            dest[destIndex++]=(UChar)c2;
-        } else {
-            destIndex=appendResult(dest, destIndex, destCapacity, c, s);
-        }
-    }
-
-    if(destIndex>destCapacity) {
-        *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
-=======
                          icu::Edits *edits,
                          UErrorCode &errorCode) {
     int32_t destIndex;
@@ -1850,7 +1798,6 @@ ustr_foldCase(const UCaseProps *csp,
             dest, destCapacity,
             src, &csc, srcLength,
             edits, errorCode);
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     }
     return checkOverflowAndEditsError(destIndex, destCapacity, edits, errorCode);
 }

@@ -28,8 +28,10 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/coll.h"
 #include "unicode/localpointer.h"
 #include "unicode/locid.h"
@@ -616,40 +618,7 @@ static const UEnumeration defaultKeywordValues = {
     ulist_reset_keyword_values_iterator
 };
 
-<<<<<<< HEAD
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#else
-#include <stdio.h>
-#endif
-
-U_CAPI UEnumeration* U_EXPORT2
-ucol_getKeywordValuesForLocale(const char* /*key*/, const char* locale,
-                               UBool /*commonlyUsed*/, UErrorCode* status) {
-    /* Get the locale base name. */
-    char localeBuffer[ULOC_FULLNAME_CAPACITY] = "";
-    uloc_getBaseName(locale, localeBuffer, sizeof(localeBuffer), status);
-
-    /* Create the 2 lists
-     * -values is the temp location for the keyword values
-     * -results hold the actual list used by the UEnumeration object
-     */
-    UList *values = ulist_createEmptyList(status);
-    UList *results = ulist_createEmptyList(status);
-    UEnumeration *en = (UEnumeration *)uprv_malloc(sizeof(UEnumeration));
-    if (U_FAILURE(*status) || en == NULL) {
-        if (en == NULL) {
-            *status = U_MEMORY_ALLOCATION_ERROR;
-        } else {
-            uprv_free(en);
-        }
-        ulist_deleteList(values);
-        ulist_deleteList(results);
-        return NULL;
-    }
-=======
 namespace {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
 struct KeywordsSink : public ResourceSink {
 public:

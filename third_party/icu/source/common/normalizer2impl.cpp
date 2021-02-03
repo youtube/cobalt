@@ -22,13 +22,12 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "unicode/bytestream.h"
 #include "unicode/edits.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/normalizer2.h"
 #include "unicode/stringoptions.h"
 #include "unicode/ucptrie.h"

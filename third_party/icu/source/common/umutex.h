@@ -61,17 +61,6 @@ template struct std::atomic<std::mutex *>;
 #endif
 #endif
 
-<<<<<<< HEAD
-// Forward Declarations. UMutex is not in the ICU namespace (yet) because
-//                       there are some remaining references from plain C.
-#if !defined(U_USER_ATOMICS_H)
-// Postponing the defines gives the user flexibility.  E.g. UMutex and
-// UConditionVar can now be typedefs.
-struct UMutex;
-struct UConditionVar;
-#endif
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
 U_NAMESPACE_BEGIN
 
@@ -80,23 +69,6 @@ U_NAMESPACE_BEGIN
  *   Low Level Atomic Operations, ICU wrappers for.
  *
  ****************************************************************************/
-<<<<<<< HEAD
-#if defined (U_USER_ATOMICS_H)
-#include U_MUTEX_XSTR(U_USER_ATOMICS_H)
-
-#if defined(STARBOARD)
-#define ATOMIC_INT32_T_INITIALIZER(val) (val)
-#endif
-
-#elif U_HAVE_STD_ATOMICS
-
-//  C++11 atomics are available.
-
-#include <atomic>
-
-U_NAMESPACE_BEGIN
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
 typedef std::atomic<int32_t> u_atomic_int32_t;
 #define ATOMIC_INT32_T_INITIALIZER(val) ATOMIC_VAR_INIT(val)
@@ -139,12 +111,7 @@ struct UInitOnce {
 U_COMMON_API UBool U_EXPORT2 umtx_initImplPreInit(UInitOnce &);
 U_COMMON_API void  U_EXPORT2 umtx_initImplPostInit(UInitOnce &);
 
-<<<<<<< HEAD
-
-template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (T::*fp)()) {
-=======
 template<class T> void umtx_initOnce(UInitOnce &uio, T *obj, void (U_CALLCONV T::*fp)()) {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     if (umtx_loadAcquire(uio.fState) == 2) {
         return;
     }

@@ -5,53 +5,6 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-<<<<<<< HEAD
-#include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#include "unicode/uniset.h"
-#include "unicode/currpinf.h"
-#include "unicode/plurrule.h"
-#include "unicode/utf16.h"
-#include "unicode/numsys.h"
-#include "unicode/localpointer.h"
-#include "uresimp.h"
-#include "ucurrimp.h"
-#include "charstr.h"
-#include "patternprops.h"
-#include "cstring.h"
-#include "uassert.h"
-#include "hash.h"
-#include "decfmtst.h"
-#include "plurrule_impl.h"
-#include "decimalformatpattern.h"
-#include "fmtableimp.h"
-#include "decimfmtimpl.h"
-#include "visibledigits.h"
-
-/*
- * On certain platforms, round is a macro defined in math.h
- * This undefine is to avoid conflict between the macro and
- * the function defined below.
- */
-#ifdef round
-#undef round
-#endif
-
-
-U_NAMESPACE_BEGIN
-
-#ifdef FMT_DEBUG
-#include <stdio.h>
-static void _debugout(const char *f, int l, const UnicodeString& s) {
-    char buf[2000];
-    s.extract((int32_t) 0, s.length(), buf, "utf-8");
-    printf("%s:%d: %s\n", f,l, buf);
-}
-#define debugout(x) _debugout(__FILE__,__LINE__,x)
-#define debug(x) printf("%s:%d: %s\n", __FILE__,__LINE__, x);
-static const UnicodeString dbg_null("<NULL>","");
-#define DEREFSTR(x)   ((x!=NULL)?(*x):(dbg_null))
-=======
 // Allow implicit conversion from char16_t* to UnicodeString for this file:
 // Helpful in toString methods and elsewhere.
 #define UNISTR_FROM_STRING_EXPLICIT
@@ -59,6 +12,10 @@ static const UnicodeString dbg_null("<NULL>","");
 #include <cmath>
 #include <cstdlib>
 #include <stdlib.h>
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/errorcode.h"
 #include "unicode/decimfmt.h"
 #include "number_decimalquantity.h"
@@ -82,7 +39,6 @@ using EPadPosition = icu::DecimalFormat::EPadPosition;
 // TODO: Move this macro into a better place?
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
 #define UBOOL_TO_BOOL(b) static_cast<bool>(b)
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #else
 #define UBOOL_TO_BOOL(b) b
 #endif

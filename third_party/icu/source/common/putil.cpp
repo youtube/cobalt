@@ -41,21 +41,18 @@
 
 // Starboard poems must be included before uposixdefs.h, or else they cause
 // compiler errors on some platforms.
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 
 // Defines _XOPEN_SOURCE for access to POSIX functions.
 // Must be before any other #includes.
 #include "uposixdefs.h"
 
-<<<<<<< HEAD
-/* include ICU headers */
-#include "unicode/utypes.h"
-#include "unicode/platform.h"
-=======
 // First, the platform type. Need this for U_PLATFORM.
 #include "unicode/platform.h"
 
@@ -69,12 +66,11 @@
  */
 #include <time.h>
 
-#if !U_PLATFORM_USES_ONLY_WIN32_API
+#if !U_PLATFORM_USES_ONLY_WIN32_APII && !defined(STARBOARD)
 #include <sys/time.h>
 #endif
 
 /* include the rest of the ICU headers */
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/putil.h"
 #include "unicode/ustring.h"
 #include "putilimp.h"
@@ -86,8 +82,10 @@
 #include "ucln_cmn.h"
 #include "charstr.h"
 
+#if defined(STARBOARD)
 // Must be after "umitex.h" which includes "time.h" on some platforms.
 #include "starboard/client_porting/poem/eztime_poem.h"
+#endif  // defined(STARBOARD)
 
 /* Include standard headers. */
 #if !defined(STARBOARD)
@@ -151,22 +149,6 @@
 #   include <sys/neutrino.h>
 #endif
 
-<<<<<<< HEAD
-#if (U_PF_MINGW <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(__STRICT_ANSI__)
-/* tzset isn't defined in strict ANSI on Cygwin and MinGW. */
-#undef __STRICT_ANSI__
-#endif
-
-/*
- * Cygwin with GCC requires inclusion of time.h after the above disabling strict asci mode statement.
- */
-#include <time.h>
-
-#if !U_PLATFORM_USES_ONLY_WIN32_API && !defined(STARBOARD)
-#include <sys/time.h>
-#endif
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
 /*
  * Only include langinfo.h if we have a way to get the codeset. If we later
@@ -1364,20 +1346,13 @@ u_setDataDirectory(const char *directory) {
         }
         uprv_strcpy(newDataDir, directory);
 
-<<<<<<< HEAD
-        if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-          char* p;
-          while ((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR))) {
-            *p = U_FILE_SEP_CHAR;
-          }
-=======
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
+    if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
         {
-            char *p;
-            while((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR)) != NULL) {
-                *p = U_FILE_SEP_CHAR;
+                char *p;
+                while((p = uprv_strchr(newDataDir, U_FILE_ALT_SEP_CHAR)) != NULL) {
+                    *p = U_FILE_SEP_CHAR;
+                }
             }
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
         }
     }
 
@@ -1546,17 +1521,11 @@ static void setTimeZoneFilesDir(const char *path, UErrorCode &status) {
     }
     gTimeZoneFilesDirectory->clear();
     gTimeZoneFilesDirectory->append(path, status);
-<<<<<<< HEAD
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-      char* p = gTimeZoneFilesDirectory->data();
-      while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR))) {
-=======
-#if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR)
-    char *p = gTimeZoneFilesDirectory->data();
-    while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR)) != NULL) {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
-        *p = U_FILE_SEP_CHAR;
-      }
+        char *p = gTimeZoneFilesDirectory->data();
+        while ((p = uprv_strchr(p, U_FILE_ALT_SEP_CHAR)) != NULL) {
+            *p = U_FILE_SEP_CHAR;
+        }
     }
 }
 

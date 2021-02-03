@@ -30,16 +30,15 @@
      l = lang, C = ctry, M = charmap, V = variant
 */
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "unicode/bytestream.h"
 #include "unicode/errorcode.h"
 #include "unicode/stringpiece.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/uloc.h"
@@ -57,13 +56,7 @@
 #include "uassert.h"
 #include "charstr.h"
 
-<<<<<<< HEAD
-#if !defined(STARBOARD)
-#include <stdio.h> /* for sprintf */
-#endif
-=======
 U_NAMESPACE_USE
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
 /* ### Declarations **************************************************/
 

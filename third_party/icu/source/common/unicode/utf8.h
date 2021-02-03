@@ -419,11 +419,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_APPEND
  * @stable ICU 2.4
  */
-<<<<<<< HEAD
-#define U8_APPEND_UNSAFE(s, i, c) { \
-=======
 #define U8_APPEND_UNSAFE(s, i, c) UPRV_BLOCK_MACRO_BEGIN { \
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     uint32_t __uc=(c); \
     if(__uc<=0x7f) { \
         (s)[(i)++]=(uint8_t)__uc; \
@@ -460,11 +456,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
  * @see U8_APPEND_UNSAFE
  * @stable ICU 2.4
  */
-<<<<<<< HEAD
-#define U8_APPEND(s, i, capacity, c, isError) { \
-=======
 #define U8_APPEND(s, i, capacity, c, isError) UPRV_BLOCK_MACRO_BEGIN { \
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     uint32_t __uc=(c); \
     if(__uc<=0x7f) { \
         (s)[(i)++]=(uint8_t)__uc; \
@@ -481,11 +473,7 @@ utf8_back1SafeBody(const uint8_t *s, int32_t start, int32_t i);
         (s)[(i)++]=(uint8_t)(((__uc>>6)&0x3f)|0x80); \
         (s)[(i)++]=(uint8_t)((__uc&0x3f)|0x80); \
     } else { \
-<<<<<<< HEAD
-        (isError)=TRUE; \
-=======
         (isError)=true; \
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     } \
 } UPRV_BLOCK_MACRO_END
 
