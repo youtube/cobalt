@@ -2199,10 +2199,16 @@ void HTMLElement::UpdateUiNavigation() {
     node_document()->AddUiNavigationElement(this);
     node_document()->set_ui_nav_needs_layout(true);
     InvalidateLayoutBoxRenderTreeNodes();
+    if (layout_boxes_) {
+      layout_boxes_->SetUiNavItem(ui_nav_item_);
+    }
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
     ReleaseUiNavigationItem();
     InvalidateLayoutBoxRenderTreeNodes();
+    if (layout_boxes_) {
+      layout_boxes_->SetUiNavItem(ui_nav_item_);
+    }
   }
 }
 
