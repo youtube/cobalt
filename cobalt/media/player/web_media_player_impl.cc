@@ -607,7 +607,8 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
 }
 
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
-                                        bool is_initial_preroll) {
+                                        bool is_initial_preroll,
+                                        const std::string& error_message) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
   state_.starting = false;
   state_.seeking = false;
@@ -618,7 +619,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
   }
 
   if (status != PIPELINE_OK) {
-    OnPipelineError(status, "Failed pipeline seek.");
+    OnPipelineError(status,
+                    "Failed pipeline seek with error: " + error_message + ".");
     return;
   }
 

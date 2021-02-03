@@ -194,7 +194,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 
-  void OnPipelineSeek(PipelineStatus status, bool is_initial_preroll);
+  void OnPipelineSeek(PipelineStatus status, bool is_initial_preroll,
+                      const std::string& error_message);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error, const std::string& message);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);

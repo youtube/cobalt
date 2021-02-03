@@ -51,7 +51,8 @@ typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
-  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll)>
+  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll,
+                              const std::string& error_message)>
       SeekCB;
 
   // Return true if the punch through box should be rendered.  Return false if
