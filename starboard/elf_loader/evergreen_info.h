@@ -20,7 +20,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <vector>
 
 // This is duplicate constant for use from signal-safe code in
 // the starboard implementation.
