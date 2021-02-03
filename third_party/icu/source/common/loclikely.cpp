@@ -19,11 +19,10 @@
 *   that then do not depend on resource bundle code and likely-subtags data.
 */
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "unicode/bytestream.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/utypes.h"
 #include "unicode/locid.h"
 #include "unicode/putil.h"

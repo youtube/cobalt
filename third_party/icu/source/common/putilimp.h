@@ -78,13 +78,9 @@ typedef size_t uintptr_t;
 
 #ifdef U_HAVE_NL_LANGINFO_CODESET
     /* Use the predefined value. */
-<<<<<<< HEAD
 #elif U_PLATFORM == U_STARBOARD
 #   define U_HAVE_NL_LANGINFO_CODESET 0
-#elif U_PLATFORM_HAS_WIN32_API || U_PLATFORM == U_PF_ANDROID || U_PLATFORM == U_PF_QNX
-=======
 #elif U_PLATFORM_USES_ONLY_WIN32_API || U_PLATFORM == U_PF_ANDROID || U_PLATFORM == U_PF_QNX
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #   define U_HAVE_NL_LANGINFO_CODESET 0
 #else
 #   define U_HAVE_NL_LANGINFO_CODESET 1
@@ -159,13 +155,9 @@ typedef size_t uintptr_t;
 
 #ifdef U_HAVE_MMAP
     /* Use the predefined value. */
-<<<<<<< HEAD
 #elif (U_PLATFORM == U_STARBOARD) || defined(__LB_XB1__) || defined(__LB_PS3__)
 #   define U_HAVE_MMAP 0
-#elif U_PLATFORM_HAS_WIN32_API
-=======
 #elif U_PLATFORM_USES_ONLY_WIN32_API
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #   define U_HAVE_MMAP 0
 #else
 #   define U_HAVE_MMAP 1
@@ -190,15 +182,11 @@ typedef size_t uintptr_t;
  */
 #ifdef U_HAVE_DIRENT_H
     /* Use the predefined value. */
-<<<<<<< HEAD
 #elif U_PLATFORM == U_STARBOARD
 #   define U_HAVE_DIRENT_H 0
 #elif defined(__LB_PS3__)
 #   define U_HAVE_DIRENT_H 1
-#elif U_PLATFORM_HAS_WIN32_API
-=======
 #elif U_PLATFORM_USES_ONLY_WIN32_API
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #   define U_HAVE_DIRENT_H 0
 #else
 #   define U_HAVE_DIRENT_H 1
@@ -207,77 +195,6 @@ typedef size_t uintptr_t;
 /** @} */
 
 /*===========================================================================*/
-<<<<<<< HEAD
-/** @{ GCC built in functions for atomic memory operations                   */
-/*===========================================================================*/
-
-/**
- * \def U_HAVE_GCC_ATOMICS
- * @internal
- */
-#ifdef U_HAVE_GCC_ATOMICS
-    /* Use the predefined value. */
-#elif U_PLATFORM == U_STARBOARD
-    #define U_HAVE_GCC_ATOMICS 0
-#elif U_PLATFORM == U_PF_MINGW
-    #define U_HAVE_GCC_ATOMICS 0
-#elif U_GCC_MAJOR_MINOR >= 404 || defined(__clang__)
-    /* TODO: Intel icc and IBM xlc on AIX also support gcc atomics.  (Intel originated them.)
-     *       Add them for these compilers.
-     * Note: Clang sets __GNUC__ defines for version 4.2, so misses the 4.4 test here.
-     */
-#   define U_HAVE_GCC_ATOMICS 1
-#else
-#   define U_HAVE_GCC_ATOMICS 0
-#endif
-
-/** @} */
-
-/**
- * \def U_HAVE_STD_ATOMICS
- * Defines whether the standard C++11 <atomic> is available.
- * ICU will use this when avialable,
- * otherwise will fall back to compiler or platform specific alternatives.
- * @internal
- */
-#ifdef U_HAVE_STD_ATOMICS
-    /* Use the predefined value. */
-#elif U_CPLUSPLUS_VERSION < 11
-    /* Not C++11, disable use of atomics */
-#   define U_HAVE_STD_ATOMICS 0
-#elif __clang__ && __clang_major__==3 && __clang_minor__<=1
-    /* Clang 3.1, has atomic variable initializer bug. */
-#   define U_HAVE_STD_ATOMICS 0
-#else 
-    /* U_HAVE_ATOMIC is typically set by an autoconf test of #include <atomic>  */
-    /*   Can be set manually, or left undefined, on platforms without autoconf. */
-#   if defined(U_HAVE_ATOMIC) &&  U_HAVE_ATOMIC 
-#      define U_HAVE_STD_ATOMICS 1
-#   else
-#      define U_HAVE_STD_ATOMICS 0
-#   endif
-#endif
-
-
-/**
- *  \def U_HAVE_CLANG_ATOMICS
- *  Defines whether Clang c11 style built-in atomics are avaialable.
- *  These are used in preference to gcc atomics when both are available.
- */
-#ifdef U_HAVE_CLANG_ATOMICS
-    /* Use the predefined value. */
-#elif __has_builtin(__c11_atomic_load) && \
-    __has_builtin(__c11_atomic_store) && \
-    __has_builtin(__c11_atomic_fetch_add) && \
-    __has_builtin(__c11_atomic_fetch_sub)
-#    define U_HAVE_CLANG_ATOMICS 1
-#else
-#    define U_HAVE_CLANG_ATOMICS 0
-#endif
-
-/*===========================================================================*/
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 /** @{ Programs used by ICU code                                             */
 /*===========================================================================*/
 

@@ -46,15 +46,6 @@
 
 U_NAMESPACE_BEGIN
 
-// The operator new is declared but not defined to prevent custom functions that
-// heap allocate the object.
-#if defined(__ghs__)
-// Linker requires an implementation.
-#define IGNORE_DECLARATION { ASSERT(0); return NULL; }
-#else
-#define IGNORE_DECLARATION
-#endif
-
 /**
  * "Smart pointer" base class; do not use directly: use LocalPointer etc.
  *
@@ -176,15 +167,6 @@ private:
     // No ownership sharing: No copy constructor, no assignment operator.
     LocalPointerBase(const LocalPointerBase<T> &other);
     void operator=(const LocalPointerBase<T> &other);
-<<<<<<< HEAD
-    // No heap allocation. Use only on the stack.
-    static void * U_EXPORT2 operator new(size_t size) IGNORE_DECLARATION;
-    static void * U_EXPORT2 operator new[](size_t size) IGNORE_DECLARATION;
-#if U_HAVE_PLACEMENT_NEW
-    static void * U_EXPORT2 operator new(size_t, void *ptr);
-#endif
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 };
 
 /**

@@ -11,12 +11,10 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-#include "brkeng.h"
-#include "dictbe.h"
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+#endif  // defined(STARBOARD)
+
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
 #include "unicode/chariter.h"

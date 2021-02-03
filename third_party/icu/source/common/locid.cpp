@@ -31,14 +31,14 @@
 ******************************************************************************
 */
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
+
 #include <utility>
 
 #include "unicode/bytestream.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/locid.h"
 #include "unicode/localebuilder.h"
 #include "unicode/strenum.h"

@@ -18,13 +18,13 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
+
 #include <cinttypes>
 
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/rbbi.h"
 #include "unicode/schriter.h"
 #include "unicode/uchriter.h"

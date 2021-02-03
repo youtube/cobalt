@@ -19,12 +19,11 @@
 *   that then do not depend on resource bundle code and res_index bundles.
 */
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "unicode/errorcode.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/utypes.h"
 #include "unicode/locid.h"
 #include "unicode/uloc.h"

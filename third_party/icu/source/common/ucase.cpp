@@ -19,7 +19,9 @@
 *   Much code moved here (and modified) from uchar.c.
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "unicode/uset.h"
@@ -819,30 +821,11 @@ ucase_getCaseLocale(const char *locale) {
                 }
             }
         }
-<<<<<<< HEAD
-    } else if(is_e(c)) {
-        /* el or ell? */
-        c=*locale++;
-        if(is_l(c)) {
-            c=*locale++;
-            if(is_l(c)) {
-                c=*locale;
-            }
-            if(is_sep(c)) {
-                result=UCASE_LOC_GREEK;
-            }
-        }
-    } else if(is_n(c)) {
-        /* nl or nld? */
-        c=*locale++;
-        if(is_l(c)) {
-=======
     } else {
         // uppercase c
         // Same code as for lowercase c but also check for 'E'.
         if(c=='T') {
             /* tr or tur? */
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
             c=*locale++;
             if(is_u(c)) {
                 c=*locale++;

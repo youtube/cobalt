@@ -49,11 +49,8 @@
  * ANSI C headers:
  * stddef.h defines wchar_t
  */
-<<<<<<< HEAD
-#if !defined(STARBOARD)
-=======
 #include <stdbool.h>
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+#if !defined(STARBOARD)
 #include <stddef.h>
 #endif
 

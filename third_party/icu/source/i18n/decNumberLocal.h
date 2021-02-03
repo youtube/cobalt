@@ -32,11 +32,8 @@
 #if !defined(STARBOARD)
   #include <stdlib.h>         /* for abs                              */
   #include <string.h>         /* for memset, strcpy                   */
-<<<<<<< HEAD
 #endif
-=======
   #include "decContext.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 
   /* Conditional code flag -- set this to match hardware platform     */
   #if !defined(DECLITEND)

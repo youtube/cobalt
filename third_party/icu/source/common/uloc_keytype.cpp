@@ -6,12 +6,12 @@
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-=======
+#endif  // defined(STARBOARD)
+
 #include <algorithm>
 
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "unicode/uobject.h"

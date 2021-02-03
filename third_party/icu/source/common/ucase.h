@@ -56,12 +56,8 @@ enum {
     UCASE_LOC_TURKISH,
     UCASE_LOC_LITHUANIAN,
     UCASE_LOC_GREEK,
-<<<<<<< HEAD
-    UCASE_LOC_DUTCH
-=======
     UCASE_LOC_DUTCH,
     UCASE_LOC_ARMENIAN
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 };
 
 /**
@@ -188,11 +184,7 @@ U_NAMESPACE_END
 U_CAPI int32_t U_EXPORT2
 ucase_getType(UChar32 c);
 
-<<<<<<< HEAD
-/** @return same as ucase_getType() and set bit 2 if c is case-ignorable */
-=======
 /** @return like ucase_getType() but also sets UCASE_IGNORABLE if c is case-ignorable */
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 U_CAPI int32_t U_EXPORT2
 ucase_getTypeOrIgnorable(UChar32 c);
 

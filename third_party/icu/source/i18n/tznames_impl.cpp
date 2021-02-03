@@ -15,11 +15,10 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-<<<<<<< HEAD
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-=======
+#endif  // defined(STARBOARD)
 #include "unicode/strenum.h"
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unicode/ustring.h"
 #include "unicode/timezone.h"
 #include "unicode/utf16.h"

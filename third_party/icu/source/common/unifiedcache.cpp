@@ -10,16 +10,15 @@
 ******************************************************************************
 */
 
-<<<<<<< HEAD
-#include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#include "uhash.h"
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #include "unifiedcache.h"
 
 #include <algorithm>      // For std::max()
 #include <mutex>
+
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 
 #include "uassert.h"
 #include "uhash.h"

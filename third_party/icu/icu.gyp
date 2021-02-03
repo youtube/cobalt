@@ -21,19 +21,12 @@
         # We don't use ICU plugins and dyload is only necessary for them.
         # NaCl-related builds also fail looking for dlfcn.h when it's enabled.
         'U_ENABLE_DYLOAD=0',
-<<<<<<< HEAD
-        # With exception disabled, MSVC emits C4577 warning on coming across
-        # 'noexcept'. See http://bugs.icu-project.org/trac/ticket/12406
-        # TODO(jshin): Remove this when updating to a newer version with this
-        # fixed.
-        'U_NOEXCEPT=',
+        # Disable unused ICU code
         'UCONFIG_ONLY_HTML_CONVERSION',
         'UCONFIG_NO_COLLATION',
         'UCONFIG_NO_LEGACY_CONVERSION',
         'UCONFIG_NO_TRANSLITERATION',
         'UCONFIG_NO_REGULAR_EXPRESSIONS'
-=======
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
       ],
     },
     'defines': [
@@ -84,14 +77,9 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-<<<<<<< HEAD
         (target_arch=="arm" or target_arch=="x86" or \
-         target_arch=="mipsel")', {
-=======
-        (target_arch=="arm" or target_arch=="ia32" or \
          target_arch=="mipsel" or target_arch=="mips" or \
          target_arch=="ppc" or target_arch=="s390")', {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
@@ -132,11 +120,8 @@
       'source/common',
       'source/i18n',
     ],
-<<<<<<< HEAD
-    'msvs_disabled_warnings': [4005, 4068, 4244, 4355, 4996, 4267],
-=======
-    'msvs_disabled_warnings': [4005, 4068, 4267],
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+    # Add 4244 to also disable a warning when a float is converted to an int
+    'msvs_disabled_warnings': [4005, 4068, 4244, 4267],
   },
   'conditions': [
     ['use_system_icu==0 or want_separate_host_toolset==1', {
@@ -166,12 +151,8 @@
               } , { # else: OS != android
                 'conditions': [
                   # Big Endian
-<<<<<<< HEAD
-                  [ 'target_arch=="mips" or target_arch=="mips64"', {
-=======
                   [ 'v8_host_byteorder=="big" or target_arch=="mips" or \
                      target_arch=="mips64"', {
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
                     'files': [
                       'common/icudtb.dat',
                     ],
@@ -250,12 +231,7 @@
             'data_assembly#target',
           ],
           'sources': [
-<<<<<<< HEAD
             'source/stubdata/stubdata.c',
-=======
-             '<(SHARED_INTERMEDIATE_DIR)/third_party/icu/icudtl_dat.S',
-             '<(SHARED_INTERMEDIATE_DIR)/third_party/icu/icudtb_dat.S',
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
           ],
           'conditions': [
             [ 'v8_host_byteorder=="big" or target_arch=="mips" or \
@@ -322,17 +298,6 @@
               ], # conditions
             }], # icu_use_data_file_flag
           ], # conditions
-<<<<<<< HEAD
-=======
-          'target_conditions': [
-            [ 'OS == "win"', {
-              'sources!': [
-                '<(SHARED_INTERMEDIATE_DIR)/third_party/icu/icudtl_dat.S',
-                '<(SHARED_INTERMEDIATE_DIR)/third_party/icu/icudtb_dat.S'
-              ],
-            }],
-          ], # target_conditions
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
         },
         {
           'target_name': 'icui18n',
@@ -740,12 +705,9 @@
 	      # I18N_HDR_END
             ],
           },
-<<<<<<< HEAD
-=======
           'includes': [
             'shim_headers.gypi',
           ],
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
           'toolsets': ['target'],
         },
         {
@@ -862,12 +824,9 @@
 	      # COMMON_HDR_END
             ],
           },
-<<<<<<< HEAD
-=======
           'includes': [
             'shim_headers.gypi',
           ],
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
           'toolsets': ['target'],
         },
       ], # targets

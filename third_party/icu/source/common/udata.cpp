@@ -16,8 +16,11 @@
 *   created by: Markus W. Scherer
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "unicode/utypes.h"  /* U_PLATFORM etc. */
 
 #ifdef __GNUC__
@@ -80,7 +83,7 @@ might have to #include some other header
 #if defined(UDATA_DEBUG)
 #   include <stdio.h>
 #endif
-#endif
+#endif  // defined(STARBOARD)
 
 U_NAMESPACE_USE
 
@@ -1194,35 +1197,22 @@ doOpenChoice(const char *path, const char *type, const char *name,
 
     /* Windows:  try "foo\bar" and "foo/bar" */
     /* remap from alternate path char to the main one */
-<<<<<<< HEAD
     if (U_FILE_SEP_CHAR != U_FILE_ALT_SEP_CHAR) {
-      CharString altSepPath;
-      if (path) {
-        if (uprv_strchr(path, U_FILE_ALT_SEP_CHAR) != NULL) {
-          altSepPath.append(path, *pErrorCode);
-          char* p;
-          while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR))) {
-            *p = U_FILE_SEP_CHAR;
-          }
-#if defined(UDATA_DEBUG)
-          fprintf(stderr, "Changed path from [%s] to [%s]\n", path,
-                  altSepPath.s);
-=======
-    CharString altSepPath;
-    if(path) {
-        if(uprv_strchr(path,U_FILE_ALT_SEP_CHAR) != NULL) {
-            altSepPath.append(path, *pErrorCode);
-            char *p;
-            while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR)) != NULL) {
-                *p = U_FILE_SEP_CHAR;
-            }
+        CharString altSepPath;
+        if(path) {
+            if(uprv_strchr(path,U_FILE_ALT_SEP_CHAR) != NULL) {
+                altSepPath.append(path, *pErrorCode);
+                char *p;
+                while ((p = uprv_strchr(altSepPath.data(), U_FILE_ALT_SEP_CHAR)) != NULL) {
+                    *p = U_FILE_SEP_CHAR;
+                }
 #if defined (UDATA_DEBUG)
-            fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.s);
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+                fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.s);
 #endif
-          path = altSepPath.data();
+              path = altSepPath.data();
+            }
+          }
         }
-      }
     }
 
     CharString tocEntryName; /* entry name in tree format. ex:  'icudt28b/coll/ar.res' */

@@ -164,25 +164,13 @@ U_CAPI const char * U_EXPORT2
 findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
-<<<<<<< HEAD
     if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-#if !(U_PLATFORM == U_PF_CYGWIN && U_PLATFORM_USES_ONLY_WIN32_API)
-      if (basename == NULL)
-#endif
-      {
-        /* Use lenient matching on Windows, which can accept either \ or /
-        This is useful for environments like Win32+CygWin which have both.
-        */
-        basename = uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
-      }
-=======
-#if U_FILE_ALT_SEP_CHAR!=U_FILE_SEP_CHAR
-    //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
-    //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
-    const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
-    if(alt_basename>basename) {
-        basename=alt_basename;
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+        //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
+        //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
+        const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+        if(alt_basename>basename) {
+            basename=alt_basename;
+        }
     }
 
     if(basename!=NULL) {

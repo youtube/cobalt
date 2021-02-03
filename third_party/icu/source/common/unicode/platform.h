@@ -452,18 +452,6 @@
 #else
 #   define UPRV_HAS_ATTRIBUTE(x) 0
 #endif
-<<<<<<< HEAD
-
-#ifndef __has_feature
-#    undef __has_feature
-#endif
-
-#ifndef __has_builtin
-#    define __has_builtin(x) 0
-#endif
-#ifndef __has_feature
-#    define __has_feature(x) 0
-=======
 #ifdef __has_cpp_attribute
 #   define UPRV_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
 #else
@@ -473,8 +461,12 @@
 #   define UPRV_HAS_DECLSPEC_ATTRIBUTE(x) __has_declspec_attribute(x)
 #else
 #   define UPRV_HAS_DECLSPEC_ATTRIBUTE(x) 0
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #endif
+
+#ifndef __has_feature
+#    undef UPRV_HAS_FEATURE(x)
+#endif
+
 #ifdef __has_builtin
 #   define UPRV_HAS_BUILTIN(x) __has_builtin(x)
 #else
@@ -868,14 +860,11 @@ namespace std {
     /* Use the predefined value. */
 #elif defined(U_STATIC_IMPLEMENTATION)
 #   define U_EXPORT
-<<<<<<< HEAD
 #elif defined(STARBOARD)
 #   define U_EXPORT SB_EXPORT_PLATFORM
-=======
 #elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(dllexport) && \
                             UPRV_HAS_DECLSPEC_ATTRIBUTE(dllimport))
 #   define U_EXPORT __declspec(dllexport)
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
 #elif defined(__GNUC__)
 #   define U_EXPORT __attribute__((visibility("default")))
 #elif (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x550) \
@@ -898,14 +887,10 @@ namespace std {
 
 #ifdef U_IMPORT
     /* Use the predefined value. */
-<<<<<<< HEAD
 #elif U_PLATFORM == U_STARBOARD
 #   define U_IMPORT SB_IMPORT_PLATFORM
-#elif defined(_MSC_VER)
-=======
 #elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(dllexport) && \
                             UPRV_HAS_DECLSPEC_ATTRIBUTE(dllimport))
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
     /* Windows needs to export/import data. */
 #   define U_IMPORT __declspec(dllimport)
 #else

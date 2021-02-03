@@ -16,13 +16,13 @@
 *   created by: Markus W. Scherer
 */
 
-<<<<<<< HEAD
-#include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-=======
 #include <cstddef>
 
->>>>>>> 047a7134fa7a3ed5d506179d439db144bf326e70
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/unistr.h"
