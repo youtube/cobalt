@@ -20,6 +20,7 @@
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/ui_navigation/nav_item.h"
 
 namespace cobalt {
 namespace dom {
@@ -87,6 +88,10 @@ class LayoutBoxes {
   virtual void InvalidateCrossReferences() = 0;
   // Invalidate the layout box's render tree nodes.
   virtual void InvalidateRenderTreeNodes() = 0;
+
+  // Update the navigation item associated with the layout boxes.
+  virtual void SetUiNavItem(
+      const scoped_refptr<ui_navigation::NavItem>& item) = 0;
 
  protected:
   LayoutBoxes() {}
