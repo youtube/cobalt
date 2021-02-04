@@ -46,8 +46,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 }
 
 std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index) {
+    const WasmCode* code) {
   return std::unique_ptr<DebugSideTable>();
 }
 
