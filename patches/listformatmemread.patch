@@ -1,0 +1,92 @@
+diff --git a/source/i18n/formattedval_impl.h b/source/i18n/formattedval_impl.h
+index 4cfb0f07..c0dec83b 100644
+--- a/source/i18n/formattedval_impl.h
++++ b/source/i18n/formattedval_impl.h
+@@ -174,8 +174,8 @@ public:
+      * spanValue: the index of the list item, for example.
+      * length: the length of the span, used to split adjacent fields.
+      */
+-    void appendSpanInfo(int32_t spanValue, int32_t length);
+-    void prependSpanInfo(int32_t spanValue, int32_t length);
++    void appendSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status);
++    void prependSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status);
+ 
+ private:
+     FormattedStringBuilder fString;
+diff --git a/source/i18n/formattedval_sbimpl.cpp b/source/i18n/formattedval_sbimpl.cpp
+index aad44383..84c2d006 100644
+--- a/source/i18n/formattedval_sbimpl.cpp
++++ b/source/i18n/formattedval_sbimpl.cpp
+@@ -219,19 +219,35 @@ bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition&
+     }
+ 
+     U_ASSERT(currField == kUndefinedField);
++    // Always set the position to the end so that we don't revisit previous sections
++    cfpos.setState(
++        cfpos.getCategory(),
++        cfpos.getField(),
++        fString.fLength,
++        fString.fLength);
+     return false;
+ }
+ 
+-void FormattedValueStringBuilderImpl::appendSpanInfo(int32_t spanValue, int32_t length) {
+-    if (spanIndices.getCapacity() <= spanValue) {
+-        spanIndices.resize(spanValue * 2);
++void FormattedValueStringBuilderImpl::appendSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status) {
++    if (U_FAILURE(status)) { return; }
++    U_ASSERT(spanIndices.getCapacity() >= spanValue);
++    if (spanIndices.getCapacity() == spanValue) {
++        if (!spanIndices.resize(spanValue * 2, spanValue)) {
++            status = U_MEMORY_ALLOCATION_ERROR;
++            return;
++        }
+     }
+     spanIndices[spanValue] = {spanValue, length};
+ }
+ 
+-void FormattedValueStringBuilderImpl::prependSpanInfo(int32_t spanValue, int32_t length) {
+-    if (spanIndices.getCapacity() <= spanValue) {
+-        spanIndices.resize(spanValue * 2);
++void FormattedValueStringBuilderImpl::prependSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status) {
++    if (U_FAILURE(status)) { return; }
++    U_ASSERT(spanIndices.getCapacity() >= spanValue);
++    if (spanIndices.getCapacity() == spanValue) {
++        if (!spanIndices.resize(spanValue * 2, spanValue)) {
++            status = U_MEMORY_ALLOCATION_ERROR;
++            return;
++        }
+     }
+     for (int32_t i = spanValue - 1; i >= 0; i--) {
+         spanIndices[i+1] = spanIndices[i];
+diff --git a/source/i18n/listformatter.cpp b/source/i18n/listformatter.cpp
+index 2ee646f0..be0d16bc 100644
+--- a/source/i18n/listformatter.cpp
++++ b/source/i18n/listformatter.cpp
+@@ -567,7 +567,7 @@ public:
+                 start,
+                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                 status);
+-            data->appendSpanInfo(0, start.length());
++            data->appendSpanInfo(0, start.length(), status);
+         }
+     }
+ 
+@@ -603,7 +603,7 @@ public:
+                 next,
+                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                 status);
+-            data->appendSpanInfo(position, next.length());
++            data->appendSpanInfo(position, next.length(), status);
+             data->getStringRef().append(
+                 temp.tempSubString(offsets[1]),
+                 {UFIELD_CATEGORY_LIST, ULISTFMT_LITERAL_FIELD},
+@@ -622,7 +622,7 @@ public:
+                 next,
+                 {UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD},
+                 status);
+-            data->prependSpanInfo(position, next.length());
++            data->prependSpanInfo(position, next.length(), status);
+             data->getStringRef().insert(
+                 0,
+                 temp.tempSubStringBetween(0, offsets[1]),
