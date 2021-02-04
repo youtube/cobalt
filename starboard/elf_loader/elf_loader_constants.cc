@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ELF_LOADER_ELF_LOADER_SWITCHES_H_
-#define STARBOARD_ELF_LOADER_ELF_LOADER_SWITCHES_H_
-
-#include "starboard/configuration.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 
 namespace starboard {
 namespace elf_loader {
 
-extern const char kEvergreenLibrary[];
-extern const char kEvergreenContent[];
+const char kCompressionSuffix[] = ".lz4";
+const char kEvergreenLibrary[] = "evergreen_library";
+const char kEvergreenContent[] = "evergreen_content";
 
 }  // namespace elf_loader
 }  // namespace starboard
-
-#endif  // STARBOARD_ELF_LOADER_ELF_LOADER_SWITCHES_H_

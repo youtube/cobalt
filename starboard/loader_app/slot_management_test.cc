@@ -58,15 +58,15 @@ class SlotManagementTest : public testing::Test {
  protected:
   virtual void SetUp() {
     slot_0_libcobalt_path_ =
-        CreatePath({"content", "app", "cobalt", "lib", "libcobalt.so"});
+        CreatePath({"content", "app", "cobalt", "lib", "libcobalt.so.lz4"});
     slot_0_content_path_ = CreatePath({"content", "app", "cobalt", "content"});
 
     slot_1_libcobalt_path_ =
-        CreatePath({"installation_1", "lib", "libcobalt.so"});
+        CreatePath({"installation_1", "lib", "libcobalt.so.lz4"});
     slot_1_content_path_ = CreatePath({"installation_1", "content"});
 
     slot_2_libcobalt_path_ =
-        CreatePath({"installation_2", "lib", "libcobalt.so"});
+        CreatePath({"installation_2", "lib", "libcobalt.so.lz4"});
     slot_2_content_path_ = CreatePath({"installation_2", "content"});
 
     std::vector<char> buf(kSbFileMaxPath);

@@ -16,7 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/elf_loader.h"
-#include "starboard/elf_loader/elf_loader_switches.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
