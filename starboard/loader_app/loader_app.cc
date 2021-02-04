@@ -18,6 +18,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
@@ -93,6 +94,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
   library_path += kSystemImageLibraryPath;
+  if (!SbFileExists(library_path.c_str())) {
+    // Try the compressed path if the binary doesn't exits.
+    library_path += starboard::elf_loader::kCompressionSuffix;
+  }
 
   if (!g_elf_loader.Load(library_path, content_path, false)) {
     SB_NOTREACHED() << "Failed to load library at '"

@@ -75,7 +75,12 @@ bool ElfLoader::Load(const std::string& library_path,
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
-  return impl_->Load(library_path_.c_str(), custom_get_extension);
+  SbTime start_time = SbTimeGetMonotonicNow();
+  bool res = impl_->Load(library_path_.c_str(), custom_get_extension);
+  SbTime end_time = SbTimeGetMonotonicNow();
+  SB_LOG(INFO) << "Loading took: "
+               << (end_time - start_time) / kSbTimeMillisecond << " ms";
+  return res;
 }
 
 void* ElfLoader::LookupSymbol(const char* symbol) {

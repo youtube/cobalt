@@ -13,15 +13,32 @@
 // limitations under the License.
 
 #include "starboard/elf_loader/elf_loader_impl.h"
+
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/elf.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
+#include "starboard/elf_loader/lz4_file_impl.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
 namespace starboard {
 namespace elf_loader {
+
+namespace {
+
+bool EndsWith(const std::string& s, const std::string& suffix) {
+  if (s.size() < suffix.size()) {
+    return false;
+  }
+  return SbStringCompareAll(s.c_str() + (s.size() - suffix.size()),
+                            suffix.c_str()) == 0;
+}
+
+}  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
 #if SB_API_VERSION < 12 || !(SB_API_VERSION >= 12 || SB_HAS(MMAP)) || \
@@ -34,8 +51,13 @@ ElfLoaderImpl::ElfLoaderImpl() {
 bool ElfLoaderImpl::Load(
     const char* name,
     const void* (*custom_get_extension)(const char* name)) {
-  SB_LOG(INFO) << "Loading: " << name;
-  elf_file_.reset(new FileImpl());
+  if (EndsWith(name, kCompressionSuffix)) {
+    elf_file_.reset(new LZ4FileImpl());
+    SB_LOG(INFO) << "Loading " << name << " using compression";
+  } else {
+    SB_LOG(INFO) << "Loading " << name;
+    elf_file_.reset(new FileImpl());
+  }
   elf_file_->Open(name);
 
   elf_header_loader_.reset(new ElfHeader());
@@ -106,8 +128,8 @@ bool ElfLoaderImpl::Load(
   }
 
   if (relocations_->HasTextRelocations()) {
-    // Restores the memory protection to its original state.
 #if SB_API_VERSION >= 12 || SB_HAS(MMAP)
+    // Restores the memory protection to its original state.
     if (program_table_->AdjustMemoryProtectionOfReadOnlySegments(
             kSbMemoryMapProtectReserved) < 0) {
       SB_LOG(ERROR) << "Unable to restore segment protection";

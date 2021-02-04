@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -205,6 +206,11 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
                     installation_path.data(), kSbFileSepString,
                     kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
+    if (!SbFileExists(lib_path.data())) {
+      // Try the compressed path if the binary doesn't exits.
+      SbStringConcat(lib_path.data(), starboard::elf_loader::kCompressionSuffix,
+                     kSbFileMaxPath);
+    }
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     std::string content;
