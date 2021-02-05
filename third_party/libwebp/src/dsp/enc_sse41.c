@@ -16,11 +16,10 @@
 #if defined(WEBP_USE_SSE41)
 #include <smmintrin.h>
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <stdlib.h>  // for abs()
 #endif
+
+#include <stdlib.h>  // for abs()
 
 #include "src/dsp/common_sse2.h"
 #include "src/enc/vp8i_enc.h"

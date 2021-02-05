@@ -4,10 +4,6 @@
 
 #include "src/inspector/string-16.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>

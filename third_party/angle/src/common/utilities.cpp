@@ -12,6 +12,7 @@
 #include "common/mathutil.h"
 #include "common/platform.h"
 
+#include <cstdlib>
 #include <set>
 
 #if defined(ANGLE_ENABLE_WINDOWS_UWP)
@@ -19,10 +20,6 @@
 #    include <windows.graphics.display.h>
 #    include <wrl.h>
 #    include <wrl/wrappers/corewrappers.h>
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #endif
 
 namespace

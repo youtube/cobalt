@@ -414,7 +414,7 @@ static int parse_tagging(const char *vstart, int vlen, int *ptag, int *pclass)
     char *eptr;
     if (!vstart)
         return 0;
-    tag_num = OPENSSL_port_strtoul(vstart, &eptr, 10);
+    tag_num = strtoul(vstart, &eptr, 10);
     /* Check we haven't gone past max length: should be impossible */
     if (eptr && *eptr && (eptr > vstart + vlen))
         return 0;
@@ -826,7 +826,7 @@ static int bitstr_cb(const char *elem, int len, void *bitstr)
     char *eptr;
     if (!elem)
         return 0;
-    bitnum = OPENSSL_port_strtoul(elem, &eptr, 10);
+    bitnum = strtoul(elem, &eptr, 10);
     if (eptr && *eptr && (eptr != elem + len))
         return 0;
     if (bitnum < 0) {

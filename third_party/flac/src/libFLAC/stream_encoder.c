@@ -44,12 +44,12 @@
 #endif
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy() */
 #include <sys/types.h> /* for off_t */
 #endif  // STARBOARD
 
-#include "starboard/client_porting/poem/stdlib_poem.h"
+#include <stdlib.h> /* for malloc() */
+
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 

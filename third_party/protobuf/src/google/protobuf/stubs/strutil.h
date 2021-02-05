@@ -364,22 +364,14 @@ LIBPROTOBUF_EXPORT uint32 strtou32_adaptor(const char *nptr, char **endptr,
 
 inline int32 strto32(const char *nptr, char **endptr, int base) {
   if (sizeof(int32) == sizeof(long))
-#ifndef STARBOARD
     return strtol(nptr, endptr, base);
-#else
-    return SbStringParseSignedInteger(nptr, endptr, base);
-#endif  // STARBOARD
   else
     return strto32_adaptor(nptr, endptr, base);
 }
 
 inline uint32 strtou32(const char *nptr, char **endptr, int base) {
   if (sizeof(uint32) == sizeof(unsigned long))
-#ifndef STARBOARD
     return strtoul(nptr, endptr, base);
-#else
-    return SbStringParseUnsignedInteger(nptr, endptr, base);
-#endif
   else
     return strtou32_adaptor(nptr, endptr, base);
 }
@@ -389,21 +381,13 @@ inline uint32 strtou32(const char *nptr, char **endptr, int base) {
 inline int64 strto64(const char *nptr, char **endptr, int base) {
   GOOGLE_COMPILE_ASSERT(sizeof(int64) == sizeof(long long),
                         sizeof_int64_is_not_sizeof_long_long);
-#ifndef STARBOARD
   return strtoll(nptr, endptr, base);
-#else
-  return SbStringParseSignedInteger(nptr, endptr, base);
-#endif  // STARBOARD
 }
 
 inline uint64 strtou64(const char *nptr, char **endptr, int base) {
   GOOGLE_COMPILE_ASSERT(sizeof(uint64) == sizeof(unsigned long long),
                         sizeof_uint64_is_not_sizeof_long_long);
-#ifndef STARBOARD
   return strtoull(nptr, endptr, base);
-#else
-  return SbStringParseUInt64(nptr, endptr, base);
-#endif  // STARBOARD
 }
 
 // ----------------------------------------------------------------------

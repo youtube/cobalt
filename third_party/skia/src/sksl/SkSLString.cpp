@@ -13,11 +13,11 @@
 #include <limits.h>
 #include <locale>
 #include <sstream>
+#include <stdlib.h>
 #include <string>
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #endif
 
 namespace SkSL {

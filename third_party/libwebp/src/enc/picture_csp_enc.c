@@ -15,12 +15,12 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #else
 #include <assert.h>
-#include <stdlib.h>
 #include <math.h>
 #endif
+
+#include <stdlib.h>
 
 #include "src/enc/vp8i_enc.h"
 #include "src/utils/random_utils.h"

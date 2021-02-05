@@ -17,7 +17,11 @@
 #include <stdlib.h>
 #include "starboard/common/log.h"
 
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+
 double SbStringParseDouble(const char* start, char** out_end) {
   SB_DCHECK(start != NULL) << "start must be a valid pointer";
   return strtod(start, out_end);
 }
+
+#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION

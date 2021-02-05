@@ -16,9 +16,13 @@
 
 #include <stdlib.h>
 
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+
 // NOLINTNEXTLINE(runtime/int)
 unsigned long SbStringParseUnsignedInteger(const char* start,
                                            char** out_end,
                                            int base) {
   return strtoul(start, out_end, base);
 }
+
+#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION

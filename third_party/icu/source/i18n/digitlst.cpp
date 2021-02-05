@@ -25,7 +25,6 @@
 */
 
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "digitlst.h"
 // Must go after digitlst.h, or a compile error occurs.

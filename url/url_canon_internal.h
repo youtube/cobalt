@@ -428,11 +428,7 @@ inline int _itow_s(int value, base::char16 (&buffer)[N], int radix) {
 // _strtoui64 and strtoull behave the same
 inline unsigned long long _strtoui64(const char* nptr,
                                      char** endptr, int base) {
-#if defined(STARBOARD)
-  return SbStringParseUInt64(nptr, endptr, base);
-#else
   return strtoull(nptr, endptr, base);
-#endif
 }
 
 #endif  // WIN32

@@ -16,10 +16,6 @@
 
 #include "starboard/client_porting/cwrappers/pow_wrapper.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 #include <limits>
 
 #include "base/strings/string_util.h"

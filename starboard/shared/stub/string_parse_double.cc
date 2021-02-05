@@ -14,8 +14,12 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+
 double SbStringParseDouble(const char* start, char** out_end) {
   if (out_end != NULL)
     *out_end = NULL;
   return 0.0;
 }
+
+#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION

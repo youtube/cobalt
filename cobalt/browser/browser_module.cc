@@ -585,7 +585,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     }
   }
 
-  // Create new WebModule.
+// Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =
       dom::CspDelegateFactory::GetInsecureAllowedToken();
@@ -625,9 +625,9 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kWaitForWebDebugger)) {
     int wait_for_generation =
-        SbStringAToI(base::CommandLine::ForCurrentProcess()
-                         ->GetSwitchValueASCII(switches::kWaitForWebDebugger)
-                         .c_str());
+        atoi(base::CommandLine::ForCurrentProcess()
+                 ->GetSwitchValueASCII(switches::kWaitForWebDebugger)
+                 .c_str());
     if (wait_for_generation < 1) wait_for_generation = 1;
     options.wait_for_web_debugger =
         (wait_for_generation == main_web_module_generation_);
@@ -1623,8 +1623,8 @@ void BrowserModule::InitializeComponents() {
   if (media_module_) {
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
     SB_HAS(CONCEALED_STATE)
-    media_module_->UpdateSystemWindowAndResourceProvider(
-        system_window_.get(), GetResourceProvider());
+    media_module_->UpdateSystemWindowAndResourceProvider(system_window_.get(),
+                                                         GetResourceProvider());
 #else
     media_module_->Resume(GetResourceProvider());
 #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
@@ -1780,8 +1780,8 @@ void BrowserModule::ConcealInternal() {
     SB_HAS(CONCEALED_STATE)
     input_device_manager_.reset();
     system_window_.reset();
-    media_module_->UpdateSystemWindowAndResourceProvider(
-        NULL, GetResourceProvider());
+    media_module_->UpdateSystemWindowAndResourceProvider(NULL,
+                                                         GetResourceProvider());
 #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
         // SB_HAS(CONCEALED_STATE)
   }
@@ -1821,8 +1821,8 @@ void BrowserModule::RevealInternal() {
 
 void BrowserModule::UnfreezeInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
-  // Set the Stub resource provider to media module and to web module
-  // at Concealed state.
+// Set the Stub resource provider to media module and to web module
+// at Concealed state.
 #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
     SB_HAS(CONCEALED_STATE)
   media_module_->Resume(GetResourceProvider());

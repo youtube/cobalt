@@ -102,7 +102,7 @@ int ASN1_STRING_set_default_mask_asc(const char *p)
     if (!OPENSSL_port_strncmp(p, "MASK:", 5)) {
         if (!p[5])
             return 0;
-        mask = OPENSSL_port_strtoul(p + 5, &end, 0);
+        mask = strtoul(p + 5, &end, 0);
         if (*end)
             return 0;
     } else if (!OPENSSL_port_strcmp(p, "nombstr"))

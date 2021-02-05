@@ -17,9 +17,10 @@
 #if defined(WEBP_USE_MIPS_DSP_R2)
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
+
+#include <stdlib.h>
 
 #include "src/dsp/mips_macro.h"
 #include "src/enc/cost_enc.h"

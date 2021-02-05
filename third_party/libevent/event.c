@@ -40,7 +40,6 @@
 // Include Starboard poems after all system headers.
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/time.h"
 #else  // STARBOARD
 #ifdef WIN32

@@ -19,12 +19,13 @@
 *   06/20/2000  helena      OS/400 port changes; mostly typecast.
 */
 
+#include <stdlib.h>
+
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION
 
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "unicode/ustring.h"
 #include "unicode/ucnv.h"
 #include "unicode/ucnv_err.h"
