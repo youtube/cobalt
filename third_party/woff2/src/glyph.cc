@@ -8,13 +8,9 @@
 
 #include "./glyph.h"
 
-#if !defined(STARBOARD)
-#include <stdlib.h>
-#else
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 #include <limits>
+#include <stdlib.h>
+
 #include "./buffer.h"
 #include "./store_bytes.h"
 

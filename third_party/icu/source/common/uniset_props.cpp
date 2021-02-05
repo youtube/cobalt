@@ -17,7 +17,6 @@
 */
 
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "unicode/utypes.h"
 #include "unicode/uniset.h"

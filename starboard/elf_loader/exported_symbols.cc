@@ -226,10 +226,12 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringGetLength);
   REGISTER_SYMBOL(SbStringGetLengthWide);
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbStringParseDouble);
   REGISTER_SYMBOL(SbStringParseSignedInteger);
   REGISTER_SYMBOL(SbStringParseUInt64);
   REGISTER_SYMBOL(SbStringParseUnsignedInteger);
+#endif
   REGISTER_SYMBOL(SbStringScan);
 #if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbSystemBinarySearch);

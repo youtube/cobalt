@@ -97,12 +97,7 @@ namespace {
 
 uint32_t ParseHexToken(const TrivialStringPiece& string_piece) {
   char* value_end(const_cast<char*>(string_piece.end));
-#if defined(STARBOARD)
-  uint64 long_integer =
-      SbStringParseUnsignedInteger(string_piece.begin, &value_end, 16);
-#else
   uint64 long_integer = strtoul(string_piece.begin, &value_end, 16);
-#endif
   DCHECK_LE(long_integer, std::numeric_limits<uint32_t>::max());
   DCHECK_EQ(value_end, string_piece.end);
   return static_cast<uint32_t>(long_integer);

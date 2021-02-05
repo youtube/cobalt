@@ -39,7 +39,6 @@
 
 // Include Starboard poems after all system headers.
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #else
 #ifdef WIN32
 #include <winsock2.h>

@@ -617,7 +617,7 @@ int DoParsePort(const CHAR* spec, const Component& component) {
   // Null-terminate the string and convert to integer. Since we guarantee
   // only digits, atoi's lack of error handling is OK.
   digits[digits_comp.len] = 0;
-  int port = SbStringAToI(digits);
+  int port = atoi(digits);
   if (port > 65535)
     return PORT_INVALID;  // Out of range.
   return port;

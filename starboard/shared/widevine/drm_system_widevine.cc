@@ -228,7 +228,7 @@ DrmSystemWidevine::DrmSystemWidevine(
   auto command_line = Application::Get()->GetCommandLine();
   auto value = command_line->GetSwitchValue("maximum_drm_session_updates");
   if (!value.empty()) {
-    maximum_number_of_session_updates_ = SbStringAToI(value.c_str());
+    maximum_number_of_session_updates_ = atoi(value.c_str());
     SB_LOG(INFO) << "Limit drm session updates to "
                  << maximum_number_of_session_updates_;
   }

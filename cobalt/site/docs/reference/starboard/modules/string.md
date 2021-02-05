@@ -7,32 +7,6 @@ Defines functions for interacting with c-style strings.
 
 ## Functions ##
 
-### SbStringAToI ###
-
-Parses a string into a base-10 integer. This is a shorthand replacement for
-`atoi`.
-
-`value`: The string to be converted.
-
-#### Declaration ####
-
-```
-static int SbStringAToI(const char *value)
-```
-
-### SbStringAToL ###
-
-Parses a string into a base-10, long integer. This is a shorthand replacement
-for `atol`.
-
-`value`: The string to be converted. NOLINTNEXTLINE(runtime/int)
-
-#### Declaration ####
-
-```
-static long SbStringAToL(const char *value)
-```
-
 ### SbStringCompare ###
 
 Compares the first `count` characters of two 8-bit character strings. The return
@@ -404,79 +378,6 @@ assumes that there are no multi-element characters.
 size_t SbStringGetLengthWide(const wchar_t *str)
 ```
 
-### SbStringParseDouble ###
-
-Extracts a string that represents an integer from the beginning of `start` into
-a double.
-
-This function is meant to be a drop-in replacement for `strtod`, except that it
-is explicitly declared to return a double.
-
-`start`: The string that begins with the number to be converted. `out_end`: If
-provided, the function places a pointer to the end of the consumed portion of
-the string into `out_end`.
-
-#### Declaration ####
-
-```
-double SbStringParseDouble(const char *start, char **out_end)
-```
-
-### SbStringParseSignedInteger ###
-
-Extracts a string that represents an integer from the beginning of `start` into
-a signed integer in the given `base`. This function is meant to be a drop-in
-replacement for `strtol`.
-
-`start`: The string that begins with the number to be converted. `out_end`: If
-provided, the function places a pointer to the end of the consumed portion of
-the string into `out_end`. `base`: The base into which the number will be
-converted. The value must be between `2` and `36`, inclusive.
-NOLINTNEXTLINE(runtime/int)
-
-#### Declaration ####
-
-```
-long SbStringParseSignedInteger(const char *start, char **out_end, int base)
-```
-
-### SbStringParseUInt64 ###
-
-Extracts a string that represents an integer from the beginning of `start` into
-an unsigned 64-bit integer in the given `base`.
-
-This function is meant to be a drop-in replacement for `strtoull`, except that
-it is explicitly declared to return `uint64_t`.
-
-`start`: The string that begins with the number to be converted. `out_end`: If
-provided, the function places a pointer to the end of the consumed portion of
-the string into `out_end`. `base`: The base into which the number will be
-converted. The value must be between `2` and `36`, inclusive.
-
-#### Declaration ####
-
-```
-uint64_t SbStringParseUInt64(const char *start, char **out_end, int base)
-```
-
-### SbStringParseUnsignedInteger ###
-
-Extracts a string that represents an integer from the beginning of `start` into
-an unsigned integer in the given `base`. This function is meant to be a drop-in
-replacement for `strtoul`.
-
-`start`: The string that begins with the number to be converted. `out_end`: If
-provided, the function places a pointer to the end of the consumed portion of
-the string into `out_end`. `base`: The base into which the number will be
-converted. The value must be between `2` and `36`, inclusive.
-NOLINTNEXTLINE(runtime/int)
-
-#### Declaration ####
-
-```
-unsigned long SbStringParseUnsignedInteger(const char *start, char **out_end, int base)
-```
-
 ### SbStringScan ###
 
 Scans `buffer` for `pattern`, placing the extracted values in `arguments`. The
@@ -507,4 +408,3 @@ Values matching `pattern` that were extracted from `buffer`.
 ```
 static int SbStringScanF(const char *buffer, const char *pattern,...)
 ```
-

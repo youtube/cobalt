@@ -20,6 +20,7 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include "starboard/common/string.h"
@@ -42,7 +43,7 @@ void WaitForNetLogIfNecessary(const CommandLine& cmd_line) {
     SbTime timeout = kSbTimeSecond * 2;
     std::string val = cmd_line.GetSwitchValue(kNetLogCommandSwitchWait);
     if (!val.empty()) {
-      timeout = SbStringAToI(val.c_str());
+      timeout = atoi(val.c_str());
     }
     NetLogWaitForClientConnected(timeout);
   }

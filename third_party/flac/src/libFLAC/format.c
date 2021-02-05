@@ -39,7 +39,6 @@
 
 #ifdef STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
 

@@ -41,7 +41,5 @@
 #define strncmp SbStringCompare
 #define strncpy SbStringCopy
 #define strstr SbStringFindString
-#define strtol SbStringParseSignedInteger
-#define strtoul SbStringParseUnsignedInteger
 
 #endif  // HB_STARBOARD_HH

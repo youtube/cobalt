@@ -14,10 +14,8 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #else
-#include <stdlib.h>
 #include <string.h>  // for memcpy()
 #endif
 #include "src/webp/decode.h"

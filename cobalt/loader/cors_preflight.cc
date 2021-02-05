@@ -389,8 +389,7 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
     int max_age = 0;
     if (response_headers->GetNormalizedHeader(kAccessControlMaxAge,
                                               &max_age_str)) {
-      max_age = std::min(SbStringAToI(max_age_str.c_str()),
-                         kPreflightCacheMaxAgeLimit);
+      max_age = std::min(atoi(max_age_str.c_str()), kPreflightCacheMaxAgeLimit);
     }
     preflight_cache_->AppendEntry(source->GetURL().spec(), origin_, max_age,
                                   credentials_mode_is_include_, methods_vec,

@@ -29,6 +29,8 @@
 /* TurboJPEG/LJT:  this implements the TurboJPEG API using libjpeg or
    libjpeg-turbo */
 
+#include <stdlib.h>
+
 #include <jinclude.h>
 
 #include <setjmp.h>
@@ -49,7 +51,6 @@
 #include "starboard/client_porting/poem/stdio_poem.h"
 #else
 #include <stdio.h>
-#include <stdlib.h>
 #endif
 
 #include <ctype.h>

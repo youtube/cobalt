@@ -9,7 +9,6 @@
 *******************************************************************************
 */
 
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "unicode/utypes.h"
 #if !UCONFIG_NO_FORMATTING
 
