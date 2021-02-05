@@ -124,12 +124,12 @@ class LogMessageVoidify {
   !(condition) ? (void)0 : ::starboard::logging::LogMessageVoidify() & (stream)
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD
-#define SB_LOG_IS_ON(severity)                        \
-  (::starboard::logging::SB_LOG_##severity >=         \
-   ::starboard::logging::SB_LOG_FATAL)                \
-      ? ((::starboard::logging::SB_LOG_##severity) >= \
-         ::starboard::logging::GetMinLogLevel())      \
-      : false
+#define SB_LOG_IS_ON(severity)                         \
+  ((::starboard::logging::SB_LOG_##severity >=         \
+    ::starboard::logging::SB_LOG_FATAL)                \
+       ? ((::starboard::logging::SB_LOG_##severity) >= \
+          ::starboard::logging::GetMinLogLevel())      \
+       : false)
 #else  // SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_LOG_IS_ON(severity)                  \
   ((::starboard::logging::SB_LOG_##severity) >= \
