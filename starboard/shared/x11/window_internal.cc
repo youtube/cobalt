@@ -83,7 +83,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   window = XCreateWindow(display, root_window, 0, 0, width, height, 0,
                          x_visual_info.depth, InputOutput, x_visual_info.visual,
                          attribute_flags, &swa);
-  SB_CHECK(window != None) << "Failed to create the X window.";
+  SB_LOG_IF(FATAL, (window == None)) << "Failed to create the X window.";
 
   const char* name = "Cobalt";
   if (options && options->name) {
