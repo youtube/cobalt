@@ -17,7 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/client_porting/poem/strnlen_poem.h"
 
 namespace starboard {
 namespace nplb {
@@ -75,20 +74,6 @@ TEST(StringPoemTest, PoemStringCopySizeMoreThanNeeded) {
   strncpy(a, b, sizeof(a));
 
   EXPECT_STREQ(a, "Wu");
-}
-
-TEST(StringPoemTest, PoemStringGetLengthFixed) {
-  char a[] = "abcdef";
-  char b[] = "abc\0def";
-
-  EXPECT_EQ(strnlen(a, 0), 0);
-  EXPECT_EQ(strnlen(a, 3), 3);
-  EXPECT_EQ(strnlen(a, sizeof(a)), 6);
-  EXPECT_EQ(strnlen(a, 256), 6);
-  EXPECT_EQ(strnlen(b, 2), 2);
-  EXPECT_EQ(strnlen(b, 3), 3);
-  EXPECT_EQ(strnlen(b, sizeof(b)), 3);
-  EXPECT_EQ(strnlen(b, 256), 3);
 }
 
 }  // namespace
