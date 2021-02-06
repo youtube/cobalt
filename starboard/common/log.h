@@ -206,7 +206,7 @@ class LogMessageVoidify {
 
 }  // extern "C++"
 
-#else   // !__cplusplus
+#else  // !__cplusplus
 
 // Provide a very small subset for straight-C users.
 #define SB_NOTIMPLEMENTED_IN(X) "Not implemented reached in " #X
