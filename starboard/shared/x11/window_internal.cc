@@ -14,12 +14,12 @@
 
 #include "starboard/shared/x11/window_internal.h"
 
-#include <X11/extensions/Xcomposite.h>
-#include <X11/extensions/Xrender.h>
-#include <X11/Xatom.h>
 #include <X11/XKBlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xrender.h>
 
 #include <algorithm>
 
@@ -145,8 +145,7 @@ void SbWindowPrivate::BeginComposite() {
   XSynchronize(display, True);
   XWindowAttributes window_attributes;
   XGetWindowAttributes(display, window, &window_attributes);
-  if (window_attributes.width != width ||
-      window_attributes.height != height) {
+  if (window_attributes.width != width || window_attributes.height != height) {
     width = window_attributes.width;
     height = window_attributes.height;
     unhandled_resize = true;
@@ -223,8 +222,8 @@ void SbWindowPrivate::CompositeVideoFrame(
     SB_DCHECK(status);
 
     // Upload the video frame to the X server.
-    XPutImage(display, video_pixmap, video_pixmap_gc, &image, 0, 0,
-              0, 0, image.width, image.height);
+    XPutImage(display, video_pixmap, video_pixmap_gc, &image, 0, 0, 0, 0,
+              image.width, image.height);
 
     // Initially assume we don't have to center or scale.
     if (bounds_width != width || bounds_height != height ||
@@ -232,11 +231,10 @@ void SbWindowPrivate::CompositeVideoFrame(
       // This transform maps the destination pixel back to the source pixel.
       double sx = static_cast<double>(frame->width()) / bounds_width;
       double sy = static_cast<double>(frame->height()) / bounds_height;
-      XTransform transform = {{
-          { XDoubleToFixed(sx), XDoubleToFixed(0), XDoubleToFixed(0) },
-          { XDoubleToFixed(0), XDoubleToFixed(sy), XDoubleToFixed(0) },
-          { XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1) }
-        }};
+      XTransform transform = {
+          {{XDoubleToFixed(sx), XDoubleToFixed(0), XDoubleToFixed(0)},
+           {XDoubleToFixed(0), XDoubleToFixed(sy), XDoubleToFixed(0)},
+           {XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1)}}};
       XRenderSetPictureTransform(display, video_picture, &transform);
     }
     XRenderComposite(display, PictOpSrc, video_picture, None,
