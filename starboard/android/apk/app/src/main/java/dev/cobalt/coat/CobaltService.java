@@ -71,18 +71,3 @@ public abstract class CobaltService {
 
   private native void nativeSendToClient(long nativeService, byte[] data);
 }
-
-// Provide a Null factory as some platform service might need it for legacy
-// apk versions.
-static class NullCobaltFactory implements CobaltService.Factory {
-
-  @Override
-  public CobaltService createCobaltService(long nativeService) {
-    return null;
-  }
-
-  @Override
-  public String getServiceName() {
-    return null;
-  }
-}
