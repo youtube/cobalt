@@ -442,19 +442,29 @@ TEST(BreakIteratorTest, BreakLineWide32) {
 }
 
 TEST(BreakIteratorTest, BreakCharacter) {
-  static const wchar_t* kCharacters[] = {
-    // An English word consisting of four ASCII characters.
-    L"w", L"o", L"r", L"d", L" ",
-    // A Hindi word (which means "Hindi") consisting of three Devanagari
-    // characters.
-    L"\x0939\x093F", L"\x0928\x094D", L"\x0926\x0940", L" ",
-    // A Thai word (which means "feel") consisting of three Thai characters.
-    L"\x0E23\x0E39\x0E49", L"\x0E2A\x0E36", L"\x0E01", L" ",
+  static const char* kCharacters[] = {
+      // An English word consisting of four ASCII characters.
+      "w",
+      "o",
+      "r",
+      "d",
+      " ",
+      // A Hindi word (which means "Hindi") consisting of two Devanagari
+      // grapheme clusters.
+      "\u0939\u093F",
+      "\u0928\u094D\u0926\u0940",
+      " ",
+      // A Thai word (which means "feel") consisting of three Thai grapheme
+      // clusters.
+      "\u0E23\u0E39\u0E49",
+      "\u0E2A\u0E36",
+      "\u0E01",
+      " ",
   };
   std::vector<string16> characters;
   string16 text;
   for (size_t i = 0; i < arraysize(kCharacters); ++i) {
-    characters.push_back(WideToUTF16(kCharacters[i]));
+    characters.push_back(base::UTF8ToUTF16(i));
     text.append(characters.back());
   }
   BreakIterator iter(text, BreakIterator::BREAK_CHARACTER);
