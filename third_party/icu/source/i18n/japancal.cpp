@@ -73,6 +73,9 @@ UBool JapaneseCalendar::enableTentativeEra() {
 
     UBool includeTentativeEra = FALSE;
 
+#if !defined(STARBOARD)
+    // Historically Starboard has relied on a stub implementation of getenv(),
+    // so the logic below is not necessary.
 #if U_PLATFORM_HAS_WINUWP_API == 1
     // UWP doesn't allow access to getenv(), but we can call GetEnvironmentVariableW to do the same thing.
     UChar varName[26] = {};
@@ -88,6 +91,7 @@ UBool JapaneseCalendar::enableTentativeEra() {
         includeTentativeEra = TRUE;
     }
 #endif
+#endif  // !defined(STARBOARD)
     return includeTentativeEra;
 }
 
