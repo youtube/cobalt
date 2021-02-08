@@ -28,6 +28,19 @@
         'UCONFIG_NO_TRANSLITERATION',
         'UCONFIG_NO_REGULAR_EXPRESSIONS'
       ],
+      # ICU-using code relies on a particular definition of UChar!=char16_t if
+      # the system does not have a 2-byte wchar_t implementation
+      'conditions': [
+        ['OS=="win"', {
+          'defines': [
+            'UCHAR_TYPE=wchar_t',
+          ],
+        },{
+          'defines': [
+            'UCHAR_TYPE=uint16_t',
+          ],
+        }],
+      ],
     },
     'defines': [
       'U_USING_ICU_NAMESPACE=0',
@@ -56,14 +69,6 @@
             'U_STATIC_IMPLEMENTATION',
           ]
         },
-      }],
-      ['(OS=="starboard")', {
-        'defines': [
-          # Use starboard atomics and mutexes
-          'U_USER_ATOMICS_H=third_party/icu/source/starboard/atomic_sb.h',
-          'U_USER_MUTEX_H=third_party/icu/source/starboard/mutex_sb.h',
-          'U_USER_MUTEX_CPP=third_party/icu/source/starboard/mutex_sb.cpp'
-        ]
       }],
       ['OS=="win"', {
         'defines': [
@@ -151,7 +156,7 @@
               } , { # else: OS != android
                 'conditions': [
                   # Big Endian
-                  [ 'v8_host_byteorder=="big" or target_arch=="mips" or \
+                  [ 'target_arch=="mips" or \
                      target_arch=="mips64"', {
                     'files': [
                       'common/icudtb.dat',
@@ -170,7 +175,7 @@
           'target_name': 'data_assembly',
           'type': 'none',
           'conditions': [
-            [ 'v8_host_byteorder=="big" or target_arch=="mips" or \
+            [ 'target_arch=="mips" or \
                target_arch=="mips64"', { # Big Endian
               'data_assembly_inputs': [
                 'common/icudtb.dat',
@@ -231,10 +236,10 @@
             'data_assembly#target',
           ],
           'sources': [
-            'source/stubdata/stubdata.c',
+            'source/stubdata/stubdata.cpp',
           ],
           'conditions': [
-            [ 'v8_host_byteorder=="big" or target_arch=="mips" or \
+            [ 'target_arch=="mips" or \
                target_arch=="mips64"', {
               'sources!': [
                 '<(SHARED_INTERMEDIATE_DIR)/third_party/icu/icudtl_dat.S'

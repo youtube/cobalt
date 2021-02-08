@@ -18,7 +18,7 @@
 
 #include "unicode/utypes.h"
 
-#if !U_HAVE_WCSCPY
+#if !U_HAVE_WCSCPY && !defined(STARBOARD)
 
 #include "cwchar.h"
 

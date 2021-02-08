@@ -38,7 +38,12 @@
 #define DOUBLE_CONVERSION_UTILS_H_
 
 #include <cstdlib>
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <cstring>
+#endif
 
 // ICU PATCH: Use U_ASSERT instead of <assert.h>
 #include "uassert.h"
