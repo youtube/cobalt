@@ -24,7 +24,9 @@
 #include "cmemory.h"
 #include "putilimp.h"
 #include "uassert.h"
+#if !defined(STARBOARD)
 #include <stdlib.h>
+#endif
 
 /* uprv_malloc(0) returns a pointer to this read-only data. */
 static const int32_t zeroMem[] = {0, 0, 0, 0, 0, 0};
@@ -36,7 +38,11 @@ static UMemReallocFn  *pRealloc;
 static UMemFreeFn     *pFree;
 
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
+#endif
 static int n=0;
 static long b=0; 
 #endif

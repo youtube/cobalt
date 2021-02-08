@@ -176,7 +176,9 @@
 /*      **  -- raise to the power                                     */
 /* ------------------------------------------------------------------ */
 
+#if !defined(STARBOARD)
 #include <stdlib.h>                /* for malloc, free, etc.  */
+#endif
 /*  #include <stdio.h>   */        /* for printf [if needed]  */
 #include <string.h>                /* for strcpy  */
 #include <ctype.h>                 /* for lower  */
@@ -306,8 +308,10 @@ static decNumber * decRoundOperand(const decNumber *, decContext *, uInt *);
 #define SPECIALARGS ((lhs->bits | rhs->bits) & DECSPECIAL)
 
 /* For use in ICU */
+#if !defined(STARBOARD)
 #define malloc(a) uprv_malloc(a)
 #define free(a) uprv_free(a)
+#endif
 
 /* Diagnostic macros, etc. */
 #if DECALLOC

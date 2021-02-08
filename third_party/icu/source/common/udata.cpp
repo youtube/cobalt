@@ -1211,7 +1211,6 @@ doOpenChoice(const char *path, const char *type, const char *name,
 #endif
               path = altSepPath.data();
             }
-          }
         }
     }
 

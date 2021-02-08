@@ -28,7 +28,10 @@
 
 #include "unicode/utypes.h"
 
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/client_porting/poem/assert_poem.h"
+#else
 #include <stddef.h>
 #include <string.h>
 #endif
