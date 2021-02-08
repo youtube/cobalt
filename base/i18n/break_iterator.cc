@@ -121,10 +121,8 @@ bool BreakIterator::Advance() {
 
 bool BreakIterator::SetText(const base::char16* text, const size_t length) {
   UErrorCode status = U_ZERO_ERROR;
-  static_assert(sizeof(UChar) == sizeof(*text),
-                "icu::UChar and base::char16 are not bit-compatible.");
   ubrk_setText(static_cast<UBreakIterator*>(iter_),
-               reinterpret_cast<const UChar*>(text), length, &status);
+               text, length, &status);
   pos_ = 0;  // implicit when ubrk_setText is done
   prev_ = npos;
   if (U_FAILURE(status)) {
