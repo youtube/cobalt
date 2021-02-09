@@ -172,12 +172,26 @@ services:
       - PLATFORM
       - CONFIG
 
+  evergreen-x64:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      - PLATFORM=evergreen-x64
+
   evergreen-x64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-x64-sbversion-12
+
+  evergreen-x86:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      - PLATFORM=evergreen-x86
 
   evergreen-x86-sbversion-12:
     <<: *build-common-definitions
@@ -186,6 +200,13 @@ services:
     environment:
       - PLATFORM=evergreen-x86-sbversion-12
 
+  evergreen-arm64:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      - PLATFORM=evergreen-arm64
+
   evergreen-arm64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
@@ -193,12 +214,26 @@ services:
     environment:
       - PLATFORM=evergreen-arm64-sbversion-12
 
+  evergreen-arm-hardfp:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      - PLATFORM=evergreen-arm-hardfp
+
   evergreen-arm-hardfp-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
       - PLATFORM=evergreen-arm-hardfp-sbversion-12
+
+  evergreen-arm-softfp:
+    <<: *build-common-definitions
+    image: cobalt-build-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      - PLATFORM=evergreen-arm-softfp
 
   evergreen-arm-softfp-sbversion-12:
     <<: *build-common-definitions
