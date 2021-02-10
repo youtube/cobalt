@@ -18,7 +18,9 @@ import android.app.Activity;
 import android.app.Service;
 import dev.cobalt.account.UserAuthorizerImpl;
 import dev.cobalt.coat.CobaltActivity;
+import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
+import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.util.Holder;
 
 /**
@@ -42,12 +44,19 @@ public class MainActivity extends CobaltActivity {
         };
     UserAuthorizerImpl userAuthorizer =
         new UserAuthorizerImpl(getApplicationContext(), activityHolder, stopRequester);
-    return new StarboardBridge(
-        getApplicationContext(),
-        activityHolder,
-        serviceHolder,
-        userAuthorizer,
-        args,
-        startDeepLink);
+    StarboardBridge bridge =
+        new StarboardBridge(
+            getApplicationContext(),
+            activityHolder,
+            serviceHolder,
+            userAuthorizer,
+            args,
+            startDeepLink);
+
+    CobaltService.Factory clientLogInfoFactory =
+        new ClientLogInfoModule().provideFactory(getApplicationContext());
+    bridge.registerCobaltService(clientLogInfoFactory);
+
+    return bridge;
   }
 }
