@@ -401,23 +401,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def SupportsDeepLink(self):
     return True
 
-  def SupportsBackgroundMode(self):
-    return True
-
   def SendDeepLink(self, link):
     shell_cmd = 'am start -d "{}" {}'.format(link, _APP_START_INTENT)
     args = ['shell', shell_cmd]
     self._CheckCallAdb(*args)
     return True
-
-  def SendConceal(self):
-    """input keyevent 3 represents to home button on Android key map"""
-    shell_cmd = 'input keyevent 3'
-    args = ['shell', shell_cmd]
-    self._CheckCallAdb(*args)
-
-  def SendFocus(self):
-    self.CallAdb('shell', 'am', 'start', _APP_PACKAGE_NAME)
 
   def Kill(self):
     if not self.killed.is_set():
