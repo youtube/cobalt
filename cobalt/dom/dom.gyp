@@ -258,6 +258,7 @@
         'performance.h',
         'performance_timing.cc',
         'performance_timing.h',
+        'performance__high_resolution_time.h',
         'plugin_array.cc',
         'plugin_array.h',
         'pointer_event.cc',
