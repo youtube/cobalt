@@ -61,9 +61,7 @@ struct JniEnvExt : public JNIEnv {
     return field;
   }
 
-  jfieldID GetFieldIDOrAbort(jobject obj,
-                             const char* name,
-                             const char* sig) {
+  jfieldID GetFieldIDOrAbort(jobject obj, const char* name, const char* sig) {
     jclass clazz = GetObjectClass(obj);
     AbortOnException();
     jfieldID field = GetFieldID(clazz, name, sig);
@@ -157,9 +155,9 @@ struct JniEnvExt : public JNIEnv {
     }
     const jstring charset = NewStringUTF("UTF-8");
     AbortOnException();
-    const jbyteArray byte_array = static_cast<jbyteArray>(
-        CallObjectMethodOrAbort(str, "getBytes", "(Ljava/lang/String;)[B",
-                                charset));
+    const jbyteArray byte_array =
+        static_cast<jbyteArray>(CallObjectMethodOrAbort(
+            str, "getBytes", "(Ljava/lang/String;)[B", charset));
     jsize array_length = GetArrayLength(byte_array);
     AbortOnException();
     void* bytes = GetPrimitiveArrayCritical(byte_array, NULL);
@@ -188,7 +186,9 @@ struct JniEnvExt : public JNIEnv {
   _jtype GetStatic##_jname##FieldOrAbort(const char* class_name,               \
                                          const char* name, const char* sig) {  \
     jclass clazz = FindClassExtOrAbort(class_name);                            \
-    return GetStatic##_jname##FieldOrAbort(clazz, name, sig);                  \
+    _jtype result = GetStatic##_jname##FieldOrAbort(clazz, name, sig);         \
+    DeleteLocalRef(clazz);                                                     \
+    return result;                                                             \
   }                                                                            \
                                                                                \
   _jtype GetStatic##_jname##FieldOrAbort(jclass clazz, const char* name,       \
