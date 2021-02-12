@@ -111,23 +111,22 @@ void* Send(CobaltExtensionPlatformService service,
   }
   *invalid_state =
       env->GetBooleanFieldOrAbort(j_response_from_client, "invalidState", "Z");
-  jbyteArray j_out_data_array = static_cast<jbyteArray>(
-      env->GetObjectFieldOrAbort(j_response_from_client, "data", "[B"));
-  *output_length = env->GetArrayLength(j_out_data_array);
+  ScopedLocalJavaRef<jbyteArray> j_out_data_array(static_cast<jbyteArray>(
+      env->GetObjectFieldOrAbort(j_response_from_client, "data", "[B")));
+  *output_length = env->GetArrayLength(j_out_data_array.Get());
   char* output = new char[*output_length];
-  env->GetByteArrayRegion(j_out_data_array, 0, *output_length,
+  env->GetByteArrayRegion(j_out_data_array.Get(), 0, *output_length,
                           reinterpret_cast<jbyte*>(output));
   return output;
 }
 
 const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
-  kCobaltExtensionPlatformServiceName,
-  1,      // API version that's implemented.
-  &Has,
-  &Open,
-  &Close,
-  &Send
-};
+    kCobaltExtensionPlatformServiceName,
+    1,  // API version that's implemented.
+    &Has,
+    &Open,
+    &Close,
+    &Send};
 
 }  // namespace
 
