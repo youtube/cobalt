@@ -256,6 +256,8 @@
         'application_lifecycle_state.h',
         'performance.cc',
         'performance.h',
+        'performance_entry.cc',
+        'performance_entry.h',
         'performance_timing.cc',
         'performance_timing.h',
         'performance_high_resolution_time.h',
