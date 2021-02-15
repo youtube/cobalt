@@ -98,7 +98,7 @@ class JobQueue {
     // Allow |JobOwner| created on another thread to run on the current thread
     // if it is created with |kDetached|.
     // Note that this operation is not thread safe.  It is the caller's
-    // responsilibity to ensure that concurrency hasn't happened yet.
+    // responsibility to ensure that concurrency hasn't happened yet.
     void AttachToCurrentThread() {
       SB_DCHECK(job_queue_ == NULL);
       job_queue_ = JobQueue::current();

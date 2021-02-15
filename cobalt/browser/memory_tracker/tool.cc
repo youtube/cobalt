@@ -403,8 +403,8 @@ std::unique_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
         // TotalSamplingTime(1) outputs 60,000 milliseconds, or 1 minute.
         static int ToMilliseconds(double mins) {
-          const double millseconds = mins * 60. * 1000.;
-          return static_cast<int>(millseconds);
+          const double milliseconds = mins * 60. * 1000.;
+          return static_cast<int>(milliseconds);
         }
       };
 

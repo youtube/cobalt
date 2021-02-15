@@ -276,7 +276,7 @@ bool ProxyHandler::IsNamedPropertyVisible(
   // TODO: Implement OverrideBuiltins extended attribute
 
   // 5. If O has an own property named P, then return false.
-  // 6~7. ( Walk the prototype chain and if the protoype has P, return false)
+  // 6~7. ( Walk the prototype chain and if the prototype has P, return false)
 
   bool found_property;
   if (!JS_HasProperty(context, object, property_name.c_str(),

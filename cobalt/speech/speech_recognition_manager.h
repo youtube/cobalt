@@ -30,8 +30,8 @@ namespace speech {
 // Owned by SpeechRecognition to manage major speech recognition logic.
 // This class interacts with microphone, speech recognition service and audio
 // encoder. It provides the interface to start/stop microphone and
-// recogniton service. After receiving the audio data from microphone, this
-// class would encode the audio data, then send it to recogniton service.
+// recognition service. After receiving the audio data from microphone, this
+// class would encode the audio data, then send it to recognition service.
 class SpeechRecognitionManager {
  public:
   typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;

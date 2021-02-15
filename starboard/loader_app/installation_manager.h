@@ -25,7 +25,7 @@ extern "C" {
 // The installation is successful.
 #define IM_INSTALLATION_STATUS_SUCCESS 1
 
-// An error occurd and the status of the installation is unknown.
+// An error occurred and the status of the installation is unknown.
 #define IM_INSTALLATION_STATUS_ERROR -1
 
 #define IM_SUCCESS 0

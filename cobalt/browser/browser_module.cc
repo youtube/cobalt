@@ -158,7 +158,7 @@ const char kScreenshotCommandLongHelp[] =
 // by treating them as unsupported
 const char kDisableMediaCodecsCommand[] = "disable_media_codecs";
 const char kDisableMediaCodecsCommandShortHelp[] =
-    "Specify a semicolon-seperated list of disabled media codecs.";
+    "Specify a semicolon-separated list of disabled media codecs.";
 const char kDisableMediaCodecsCommandLongHelp[] =
     "Disabling Media Codecs will force the app to claim they are not "
     "supported. This "

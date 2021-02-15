@@ -763,7 +763,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       return;
     }
 
-    // Ensure all fetched data is read and transfered to this XHR. This should
+    // Ensure all fetched data is read and transferred to this XHR. This should
     // only be done for successful and error-free fetches.
     OnURLFetchDownloadProgress(source, 0, 0, 0);
 
@@ -823,7 +823,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
   // terminate these subsubsteps.
   // 2. If upload listener flag is set, then fire a progress event named
   // progress on the XMLHttpRequestUpload object with request's body's
-  // transmiteted bytes and request's body's total bytes.
+  // transmitted bytes and request's body's total bytes.
   if (!upload_listener_) {
     return;
   }
@@ -888,7 +888,7 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
     HandleRequestError(kNetworkError);
     return;
   }
-  // CORS check for the received resposne
+  // CORS check for the received response
   if (is_cross_origin_) {
     if (!loader::CORSPreflight::CORSCheck(headers, origin_.SerializedOrigin(),
                                           with_credentials_)) {

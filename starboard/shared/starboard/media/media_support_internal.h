@@ -119,7 +119,8 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate);
 // characteristics.  If |transfer_id| is not supported under any condition, this
 // function returns |false|.
 //
-// |transfer_id|: The id of transfer charateristics listed in SbMediaTransferId.
+// |transfer_id|: The id of transfer characteristics listed in
+//                SbMediaTransferId.
 bool SbMediaIsTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
 #endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 

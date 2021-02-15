@@ -39,7 +39,7 @@ class LogWriterTool : public AbstractTool {
   LogWriterTool();
   virtual ~LogWriterTool();
 
-  // Interface AbstrctMemoryTrackerTool
+  // Interface AbstractMemoryTrackerTool
   std::string tool_name() const override;
   void Run(Params* params) override;
 

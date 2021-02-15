@@ -216,7 +216,7 @@ typedef enum SbEventType {
   // The operating system will put the application into the Concealed state
   // after this event is handled. The application is expected to be made
   // invisible, but background tasks can still be running, such as audio
-  // playback, or updating of recommandations. Can only be received after a
+  // playback, or updating of recommendations. Can only be received after a
   // Blur or Reveal event. The only events that should be dispatched after
   // a Conceal event are Freeze or Reveal. On some platforms, the process may
   // also be killed after Conceal without a Freeze event.
@@ -250,7 +250,7 @@ typedef enum SbEventType {
   // event is handled. Can only be received after a Freeze event, in the
   // FROZEN state. No data argument.
   kSbEventTypeStop,
-# else
+#else
   // Applications should perform initialization and prepare to react to
   // subsequent events, but must not initialize any graphics resources (through
   // GL or SbBlitter). The intent of this event is to allow the application to
@@ -311,7 +311,7 @@ typedef enum SbEventType {
   // event is handled. Can only be received after a Suspend event, in the
   // SUSPENDED state. No data argument.
   kSbEventTypeStop,
-  #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
         // SB_HAS(CONCEALED_STATE)
 
   // A user input event, including keyboard, mouse, gesture, or something else.

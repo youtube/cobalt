@@ -285,7 +285,7 @@ INSTANTIATE_TEST_CASE_P(
         EWMATestScenario(0.0f, kOnes, 32, 0.0f).HasExpectedResult(0.0f, 1.0f),
         EWMATestScenario(1.0f, kZeros, 32, 0.0f).HasExpectedResult(1.0f, 0.0f),
 
-        // Smothing factor of one: Result = last sample squared.
+        // Smoothing factor of one: Result = last sample squared.
         EWMATestScenario(0.0f, kCheckerboard, 32, 1.0f)
             .ScaledBy(2.0f)
             .HasExpectedResult(4.0f, 4.0f),
@@ -356,7 +356,7 @@ INSTANTIATE_TEST_CASE_P(
         EWMATestScenario(0.0f, kInverseCheckerboard, 15, 0.25f)
             .HasExpectedResult(0.56570137f, 1.0f),
 
-        // Smoothing factor of 1/4, impluse signal.
+        // Smoothing factor of 1/4, impulse signal.
         EWMATestScenario(0.0f, kZeros, 3, 0.25f)
             .WithImpulse(2.0f, 0)
             .HasExpectedResult(0.562500f, 4.0f),

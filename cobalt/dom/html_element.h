@@ -354,7 +354,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Returns whether the element can be designated by a pointer.
   //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
-  bool CanbeDesignatedByPointerIfDisplayed() const;
+  bool CanBeDesignatedByPointerIfDisplayed() const;
 
   // Returns true if this node and all of its ancestors do NOT have display set
   // to 'none'.

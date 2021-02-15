@@ -21,7 +21,7 @@ namespace css_parser {
 
 namespace {
 
-// While the inital values for transition_duration, transition_timing_function
+// While the initial values for transition_duration, transition_timing_function
 // and transition_delay are well defined, they are lists of single objects,
 // and right here what we really need are those single objects.  These wrapper
 // functions extract the single element out of the initial list values for

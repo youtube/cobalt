@@ -66,7 +66,7 @@ class NET_EXPORT WebSocketEventInterface {
   virtual void OnClosingHandshake() = 0;
 
   // Called when the channel has been dropped, either due to a network close, a
-  // network error, or a protocol error. This may or may not be preceeded by a
+  // network error, or a protocol error. This may or may not be preceded by a
   // call to OnClosingHandshake().
   //
   // Warning: Both the |code| and |reason| are passed through to Javascript, so

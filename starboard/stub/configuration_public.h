@@ -170,7 +170,7 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// After a seek is triggerred, the default behavior is to append video frames
+// After a seek is triggered, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
 // seek time because usually all audio frames are key frames.  On platforms that
 // cannot decode video frames without displaying them, this will cause the video

@@ -18,7 +18,7 @@
   },
   'targets': [
     {
-      # For the convenince, some tests depend on dom_parser.gyp:dom_parser. To
+      # For the convenience, some tests depend on dom_parser.gyp:dom_parser. To
       # avoid the dependency cycle between the two gyp files, dom_test is
       # separated into its own gyp file.
       'target_name': 'dom_test',

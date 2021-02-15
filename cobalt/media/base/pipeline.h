@@ -179,7 +179,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Attempt to set the volume of the audio renderer.  Valid values for volume
   // range from 0.0f (muted) to 1.0f (full volume).  This value affects all
-  // channels proportionately for multi-channel audio streams.
+  // channels proportionally for multi-channel audio streams.
   virtual void SetVolume(float volume) = 0;
 
   // Returns the current media playback time, which progresses from 0 until

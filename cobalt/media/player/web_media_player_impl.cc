@@ -694,7 +694,7 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
     case PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateFormatError,
-          message.empty() ? "Pipeline extenrnal renderer failed." : message);
+          message.empty() ? "Pipeline external renderer failed." : message);
       break;
     case DEMUXER_ERROR_COULD_NOT_OPEN:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,

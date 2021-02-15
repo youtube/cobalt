@@ -33,8 +33,8 @@ namespace {
 
 const char kStyleAttributeName[] = "style";
 
-void WriteAtttributes(const scoped_refptr<const Element>& element,
-                      std::ostream* out_stream) {
+void WriteAttributes(const scoped_refptr<const Element>& element,
+                     std::ostream* out_stream) {
   const Element::AttributeMap& attributes = element->attribute_map();
   typedef std::map<std::string, std::string> SortedAttributeMap;
   SortedAttributeMap sorted_attribute_map;
@@ -112,8 +112,7 @@ void Serializer::Visit(const Comment* comment) {
   }
 }
 
-void Serializer::Visit(const Document* document) {
-}
+void Serializer::Visit(const Document* document) {}
 
 void Serializer::Visit(const DocumentType* document_type) {
   if (entering_node_) {
@@ -124,7 +123,7 @@ void Serializer::Visit(const DocumentType* document_type) {
 void Serializer::Visit(const Element* element) {
   if (entering_node_) {
     *out_stream_ << "<" << element->local_name();
-    WriteAtttributes(element, out_stream_);
+    WriteAttributes(element, out_stream_);
     *out_stream_ << ">";
   } else {
     *out_stream_ << "</" << element->local_name() << ">";

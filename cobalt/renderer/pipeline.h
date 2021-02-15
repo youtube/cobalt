@@ -191,7 +191,7 @@ class Pipeline {
   void FrameStatsOnFlushCallback(
       const base::CValCollectionTimerStatsFlushResults& flush_results);
 
-  // Resets the submission queue, effecitvely emptying it and restarting it
+  // Resets the submission queue, effectively emptying it and restarting it
   // with the configuration specified by |current_timeline_info_| applied to it.
   void ResetSubmissionQueue();
 

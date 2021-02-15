@@ -34,7 +34,7 @@ class RawTextureMemory;
 // created by the GraphicsSystem that owns this ResourceContext.  This class
 // is useful when one wishes to create and allocate pixel buffer data (e.g. for
 // a texture) from any thread, that can later be converted to a texture for
-// a specific grpahics context.  Resource management GL operations can be
+// a specific graphics context.  Resource management GL operations can be
 // performed (from any thread) by calling the method
 // RunSynchronouslyWithinResourceContext() and passing a function which one
 // wishes to run under the resource management GL context.

@@ -279,8 +279,7 @@ bool ContainerBox::HasStackingContextChildren() const {
 
 namespace {
 
-InsetsLayoutUnit
-GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(
+InsetsLayoutUnit GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(
     const ContainerBox* containing_block, Box* child_box) {
   // NOTE: Bottom inset is not computed and should not be queried.
   DCHECK(child_box->IsAbsolutelyPositioned());
@@ -307,8 +306,7 @@ GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(
   // as the containing block for 'fixed' position elements.
   offset += InsetsLayoutUnit(containing_block->padding_left(),
                              containing_block->padding_top(),
-                             containing_block->padding_right(),
-                             LayoutUnit());
+                             containing_block->padding_right(), LayoutUnit());
 
   return offset;
 }
@@ -831,7 +829,7 @@ void ContainerBox::RenderAndAnimateContent(
   // Update the stacking context if this is found to be a stacking context.
   ContainerBox* this_as_stacking_context = const_cast<ContainerBox*>(this);
 
-  // Reset the draw order for this box. Even if it isn't explictly a stacking
+  // Reset the draw order for this box. Even if it isn't explicitly a stacking
   // context, it'll be used as one for in-flow, non-positioned child boxes.
   this_as_stacking_context->next_draw_order_position_ = 0;
 

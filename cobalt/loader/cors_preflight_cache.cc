@@ -159,7 +159,7 @@ void CORSPreflightCache::ClearObsoleteEntries() {
     if (entry_iter == url_iter->second.end()) {
       continue;
     }
-    // The entry could have been updated and should only delete obselete ones.
+    // The entry could have been updated and should only delete obsolete ones.
     if (entry_iter->second->expiration_time < base::Time::Now()) {
       url_iter->second.erase(entry_iter);
     }

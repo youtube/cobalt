@@ -23,7 +23,7 @@ bool SbBlitterSetScissor(SbBlitterContext context, SbBlitterRect rect) {
     return false;
   }
   if (rect.width < 0 || rect.height < 0) {
-    SB_DLOG(ERROR) << ": Width and heigh must both be >= 0.";
+    SB_DLOG(ERROR) << ": Width and height must both be >= 0.";
     return false;
   }
   if (!SbBlitterIsRenderTargetValid(context->current_render_target)) {

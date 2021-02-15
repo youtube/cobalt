@@ -375,7 +375,7 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
 
   // Sets |selected_range_| and seeks to the nearest keyframe after
   // |timestamp| if necessary and possible. This method only attempts to
-  // set |selected_range_| if |seleted_range_| is null and |track_buffer_|
+  // set |selected_range_| if |selected_range_| is null and |track_buffer_|
   // is empty.
   void SetSelectedRangeIfNeeded(const DecodeTimestamp timestamp);
 

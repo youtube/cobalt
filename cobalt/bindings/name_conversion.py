@@ -21,14 +21,14 @@ import re
 # (?<!^) ensures that we don't match the first character in the string
 #     as a word boundary
 # (?<![A-Z])(?=[A-Z]) will match an uppercase character that is
-#     preceeded by a non-uppercase character: FooBar -> Foo Bar
+#     preceded by a non-uppercase character: FooBar -> Foo Bar
 # (?=[A-Z][a-z]) will match an uppercase character that is followed by
 #     a lowercase character: FOOBar -> FOO Bar
 titlecase_word_delimiter_re = re.compile(
     '(?<!^)((?<![A-Z])(?=[A-Z])|(?=[A-Z][a-z]))')
 
 # Terms that should always be marked as words regardless of the case of
-# neigboring characters.
+# neighboring characters.
 word_list = ['html']
 
 # List of special tokens which are always be marked as words.
@@ -46,9 +46,8 @@ def convert_to_regular_cobalt_name(class_name):
   cobalt_name = titlecase_word_delimiter_re.sub('_', class_name).lower()
   for term in word_list:
     replacement = [
-        token
-        for token in re.split('_?(%s)_?' % term, cobalt_name, re.IGNORECASE)
-        if token
+        token for token in re.split('_?(%s)_?' %
+                                    term, cobalt_name, re.IGNORECASE) if token
     ]
     cobalt_name = '_'.join(replacement)
   return cobalt_name
@@ -75,8 +74,8 @@ def capitalize_function_name(operation_name):
 
 
 def convert_to_cobalt_constant_name(constant_name):
-  return 'k' + ''.join((token.capitalize()
-                        for token in constant_name.split('_')))
+  return 'k' + ''.join(
+      (token.capitalize() for token in constant_name.split('_')))
 
 
 def convert_to_cobalt_enumeration_value(enum_type, enum_value):

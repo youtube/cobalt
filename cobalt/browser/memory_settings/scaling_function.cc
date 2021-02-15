@@ -36,7 +36,7 @@ class JavaScriptGCMemoryScaler {
     min_memory = std::min(min_memory, max_memory);
     const double min_factor =
         static_cast<double>(min_memory) / static_cast<double>(max_memory);
-    // From 95% -> 0%, the memory will stay the same. This effectivly
+    // From 95% -> 0%, the memory will stay the same. This effectively
     // clamps the minimum value.
     interp_table_.Add(0.0, min_factor);
 

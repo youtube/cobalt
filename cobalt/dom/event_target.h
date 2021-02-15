@@ -121,7 +121,7 @@ class EventTarget : public script::Wrappable,
       const base::Location& location, const scoped_refptr<Event>& event,
       const base::Closure& dispatched_callback);
 
-  // Check if target has event listener (atrtibute or not attribute).
+  // Check if target has event listener (attribute or not attribute).
   bool HasEventListener(base::Token type);
 
   // Web API: GlobalEventHandlers (implements)

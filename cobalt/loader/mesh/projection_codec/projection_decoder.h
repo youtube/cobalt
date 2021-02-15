@@ -41,7 +41,7 @@ class ProjectionDecoder {
   static const uint32_t kMaxMeshCount = 32;
   static const uint32_t kMaxTriangleIndexCount = 128 * 1000;
 
-  // This is a callback handler interface for a ProjecionDecoder.
+  // This is a callback handler interface for a ProjectionDecoder.
   class Sink {
    public:
     virtual ~Sink();
@@ -104,7 +104,7 @@ class ProjectionDecoder {
     BitReader(const uint8_t* data, size_t data_size);
 
     // Reads the requested number of big-endian bits. Sets ok() to false if an
-    // error ocurred.
+    // error occurred.
     uint32_t GetBits(int32_t num_bits);
 
     // Aligns the reader to an 8-bit boundary, potentially discarding up to 7

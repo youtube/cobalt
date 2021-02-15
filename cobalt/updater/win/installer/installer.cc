@@ -27,7 +27,7 @@
 
 #include <initializer_list>
 
-// TODO(sorin): remove the dependecies on //base/ to reduce the code size.
+// TODO(sorin): remove the dependencies on //base/ to reduce the code size.
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -48,13 +48,11 @@ namespace {
 // |unpack_path| to a random directory beginning with "source" within
 // |temp_path|. Returns false on error.
 bool CreateTemporaryAndUnpackDirectories(
-    installer::SelfCleaningTempDir* temp_path,
-    base::FilePath* unpack_path) {
+    installer::SelfCleaningTempDir* temp_path, base::FilePath* unpack_path) {
   DCHECK(temp_path && unpack_path);
 
   base::FilePath temp_dir;
-  if (!base::PathService::Get(base::DIR_TEMP, &temp_dir))
-    return false;
+  if (!base::PathService::Get(base::DIR_TEMP, &temp_dir)) return false;
 
   if (!temp_path->Initialize(temp_dir, kTempPrefix)) {
     PLOG(ERROR) << "Could not create temporary path.";
@@ -139,20 +137,15 @@ ProcessExitResult RunProcessAndWait(const wchar_t* exe_path, wchar_t* cmdline) {
 // matching resource found, the callback is invoked and at this point we write
 // it to disk. We expect resource names to start with the 'updater' prefix.
 // Any other name is treated as an error.
-BOOL CALLBACK OnResourceFound(HMODULE module,
-                              const wchar_t* type,
-                              wchar_t* name,
-                              LONG_PTR context) {
+BOOL CALLBACK OnResourceFound(HMODULE module, const wchar_t* type,
+                              wchar_t* name, LONG_PTR context) {
   Context* ctx = reinterpret_cast<Context*>(context);
-  if (!ctx)
-    return FALSE;
+  if (!ctx) return FALSE;
 
-  if (!StrStartsWith(name, kUpdaterArchivePrefix))
-    return FALSE;
+  if (!StrStartsWith(name, kUpdaterArchivePrefix)) return FALSE;
 
   PEResource resource(name, type, module);
-  if (!resource.IsValid() || resource.Size() < 1)
-    return FALSE;
+  if (!resource.IsValid() || resource.Size() < 1) return FALSE;
 
   PathString full_path;
   if (!full_path.assign(ctx->base_path) || !full_path.append(name) ||
@@ -160,8 +153,7 @@ BOOL CALLBACK OnResourceFound(HMODULE module,
     return FALSE;
   }
 
-  if (!ctx->updater_resource_path->assign(full_path.get()))
-    return FALSE;
+  if (!ctx->updater_resource_path->assign(full_path.get())) return FALSE;
 
   return TRUE;
 }
@@ -256,12 +248,10 @@ bool GetCurrentOwnerSid(wchar_t** sid) {
 bool SetSecurityDescriptor(const wchar_t* path, PSECURITY_DESCRIPTOR* sd) {
   *sd = nullptr;
   // We succeed without doing anything if ACLs aren't supported.
-  if (!IsAclSupportedForPath(path))
-    return true;
+  if (!IsAclSupportedForPath(path)) return true;
 
   wchar_t* sid = nullptr;
-  if (!GetCurrentOwnerSid(&sid))
-    return false;
+  if (!GetCurrentOwnerSid(&sid)) return false;
 
   // The largest SID is under 200 characters, so 300 should give enough slack.
   StackString<300> sddl;
@@ -293,8 +283,7 @@ bool SetSecurityDescriptor(const wchar_t* path, PSECURITY_DESCRIPTOR* sd) {
 // delete it and create a directory in its place.  So, we use our own mechanism
 // for creating a directory with a hopefully-unique name.  In the case of a
 // collision, we retry a few times with a new name before failing.
-bool CreateWorkDir(const wchar_t* base_path,
-                   PathString* work_dir,
+bool CreateWorkDir(const wchar_t* base_path, PathString* work_dir,
                    ProcessExitResult* exit_code) {
   *exit_code = ProcessExitResult(PATH_STRING_OVERFLOW);
   if (!work_dir->assign(base_path) || !work_dir->append(kTempPrefix))
@@ -307,8 +296,7 @@ bool CreateWorkDir(const wchar_t* base_path,
   // The name of the directory will use up 11 chars and then we need to append
   // the trailing backslash and a terminator.  We've already added the prefix
   // to the buffer, so let's just make sure we've got enough space for the rest.
-  if ((work_dir->capacity() - end) < (_countof("fffff.tmp") + 1))
-    return false;
+  if ((work_dir->capacity() - end) < (_countof("fffff.tmp") + 1)) return false;
 
   // Add an ACL if supported by the filesystem. Otherwise system-level installs
   // are potentially vulnerable to file squatting attacks.
@@ -327,7 +315,7 @@ bool CreateWorkDir(const wchar_t* base_path,
 
     // This converts 'id' to a string in the format "78563412" on windows
     // because of little endianness, but we don't care since it's just
-    // a name. Since we checked capaity at the front end, we don't need to
+    // a name. Since we checked capacity at the front end, we don't need to
     // duplicate it here.
     HexEncode(&id, sizeof(id), work_dir->get() + end,
               work_dir->capacity() - end);
@@ -349,15 +337,13 @@ bool CreateWorkDir(const wchar_t* base_path,
     }
   }
 
-  if (sa.lpSecurityDescriptor)
-    LocalFree(sa.lpSecurityDescriptor);
+  if (sa.lpSecurityDescriptor) LocalFree(sa.lpSecurityDescriptor);
   return exit_code->IsSuccess();
 }
 
 // Creates and returns a temporary directory in |work_dir| that can be used to
 // extract updater payload. |work_dir| ends with a path separator.
-bool GetWorkDir(HMODULE module,
-                PathString* work_dir,
+bool GetWorkDir(HMODULE module, PathString* work_dir,
                 ProcessExitResult* exit_code) {
   PathString base_path;
   DWORD len =
@@ -405,8 +391,7 @@ ProcessExitResult WMain(HMODULE module) {
   // a compressed LZMA archive of a single file.
   base::ScopedTempDir base_path_owner;
   PathString base_path;
-  if (!GetWorkDir(module, &base_path, &exit_code))
-    return exit_code;
+  if (!GetWorkDir(module, &base_path, &exit_code)) return exit_code;
   if (!base_path_owner.Set(base::FilePath(base_path.get()))) {
     ::DeleteFile(base_path.get());
     return ProcessExitResult(static_cast<DWORD>(installer::TEMP_DIR_FAILED));

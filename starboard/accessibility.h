@@ -142,7 +142,7 @@ typedef enum SbAccessibilityCaptionState {
   // take priority over app defaults. If
   // SbAccessibilityCaptionSettings.supportsOverride contains true, this value
   // should be interpreted as explicitly saying "do not override." If it
-  // contains false, it is up to the application to intepret any additional
+  // contains false, it is up to the application to interpret any additional
   // meaning of this value.
   kSbAccessibilityCaptionStateSet,
 
@@ -192,8 +192,8 @@ typedef struct SbAccessibilityCaptionSettings {
   // neither. As a result, there are separate checks for getting and setting
   // the value that is contained in the |is_enabled| attribute. Modifying the
   // attribute via |SbAccessibilitySetCaptionsEnabled| will change the setting
-  // system-wide. Attemping to read |is_enabled| when the value of
-  // |supports_is_enabled| is false will always return false. Attemping to set
+  // system-wide. Attempting to read |is_enabled| when the value of
+  // |supports_is_enabled| is false will always return false. Attempting to set
   // |is_enabled| via |SbAccessibilitySetCaptionsEnabled| when the value of
   // |supports_set_enabled| is false will fail silently.
   bool supports_is_enabled;

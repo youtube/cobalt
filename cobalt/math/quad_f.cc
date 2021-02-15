@@ -39,8 +39,8 @@ bool QuadF::IsCounterClockwise() const {
   // This math computes the signed area of the quad. Positive area
   // indicates the quad is clockwise; negative area indicates the quad is
   // counter-clockwise. Note carefully: this is backwards from conventional
-  // math because our geometric space uses screen coordiantes with y-axis
-  // pointing downards.
+  // math because our geometric space uses screen coordinates with y-axis
+  // pointing downwards.
   // Reference: http://mathworld.wolfram.com/PolygonArea.html.
   // The equation can be written:
   // Signed area = determinant1 + determinant2 + determinant3 + determinant4
@@ -66,7 +66,7 @@ static inline bool PointIsInTriangle(const PointF& point, const PointF& r1,
   // Then checking if the origin is contained in the translated triangle.
   // The origin O lies inside ABC if and only if the triangles OAB, OBC,
   // and OCA are all either clockwise or counterclockwise.
-  // This algorithm is from Real-Time Collision Detection (Chaper 5.4.2).
+  // This algorithm is from Real-Time Collision Detection (Chapter 5.4.2).
 
   Vector2dF a = r1 - point;
   Vector2dF b = r2 - point;

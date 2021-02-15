@@ -77,7 +77,7 @@ TEST_F(OffsetByteQueueTest, Trim) {
   EXPECT_EQ(400 - 256, buf[0]);
 
   // Trimming to the exact end of the buffer should return 'true'. This
-  // accomodates EOS cases.
+  // accommodates EOS cases.
   EXPECT_TRUE(queue_->Trim(512));
   EXPECT_EQ(512, queue_->head());
   queue_->Peek(&buf, &size);

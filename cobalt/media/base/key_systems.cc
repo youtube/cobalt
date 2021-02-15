@@ -362,7 +362,7 @@ void KeySystemsImpl::AddSupportedKeySystems(
       continue;
     }
 
-    // Supporting persistent state is a prerequsite for supporting persistent
+    // Supporting persistent state is a prerequisite for supporting persistent
     // sessions.
     if (properties->GetPersistentStateSupport() ==
         EmeFeatureSupport::NOT_SUPPORTED) {

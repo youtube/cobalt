@@ -57,7 +57,7 @@ MEDIA_EXPORT int DecimatedSearch(int decimation, Interval exclude_interval,
 // is most similar to |target_block|. |energy_target_block| is the energy of the
 // |target_block|. |energy_candidate_blocks| is the energy of all blocks within
 // |search_block|.
-MEDIA_EXPORT int FullSearch(int low_limit, int hight_limimit,
+MEDIA_EXPORT int FullSearch(int low_limit, int high_limit,
                             Interval exclude_interval,
                             const AudioBus* target_block,
                             const AudioBus* search_block,

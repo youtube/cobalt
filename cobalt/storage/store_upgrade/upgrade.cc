@@ -94,7 +94,7 @@ void GetAllCookies(sql::Connection* conn, Storage* storage) {
                << " creation=" << cookie->creation_time_us()
                << " expiration=" << cookie->expiration_time_us()
                << " last_access=" << cookie->last_access_time_us()
-               << " seucure=" << cookie->secure()
+               << " secure=" << cookie->secure()
                << " http_only=" << cookie->http_only();
   }
 }

@@ -66,27 +66,27 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
   // Only collapse in-flow, block-level boxes. Do not collapse root element and
   // the initial containing block. Do not collapse boxes with overflow not equal
   // to 'visible', because these create new formatting contexts.
-  bool is_collapsable =
+  bool is_collapsible =
       !IsAbsolutelyPositioned() && GetLevel() == Box::kBlockLevel && parent() &&
       parent()->parent() && !IsOverflowCropped(computed_style());
 
   // Margins should only collapse if no padding or border separate them.
   //   https://www.w3.org/TR/CSS22/box.html#collapsing-margins
-  bool top_margin_is_collapsable = is_collapsable &&
+  bool top_margin_is_collapsible = is_collapsible &&
                                    padding_top() == LayoutUnit() &&
                                    border_top_width() == LayoutUnit();
   // Lay out child boxes in the normal flow.
   //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
   std::unique_ptr<BlockFormattingContext> block_formatting_context(
       new BlockFormattingContext(child_layout_params,
-                                 top_margin_is_collapsable));
+                                 top_margin_is_collapsible));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     block_formatting_context->UpdateRect(child_box);
   }
 
-  if (is_collapsable) {
+  if (is_collapsible) {
     block_formatting_context->CollapseContainingMargins(this);
   }
 

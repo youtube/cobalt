@@ -25,11 +25,11 @@ namespace cobalt {
 namespace layout {
 
 struct MarginCollapsingParams {
-  MarginCollapsingParams(const bool is_margin_collapsable)
+  MarginCollapsingParams(const bool is_margin_collapsible)
       : collapsing_margin(0),
         should_collapse_own_margins_together(true),
         should_collapse_margin_bottom(true),
-        should_collapse_margin_top(is_margin_collapsable) {}
+        should_collapse_margin_top(is_margin_collapsible) {}
 
   LayoutUnit collapsing_margin;
   base::Optional<LayoutUnit> context_margin_top;
@@ -50,7 +50,7 @@ struct MarginCollapsingParams {
 class BlockFormattingContext : public FormattingContext {
  public:
   explicit BlockFormattingContext(const LayoutParams& layout_params,
-                                  const bool is_margin_collapsable);
+                                  const bool is_margin_collapsible);
   ~BlockFormattingContext() override;
 
   // Updates the top and bottom margins of the containing box after children

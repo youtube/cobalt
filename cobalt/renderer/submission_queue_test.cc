@@ -201,7 +201,7 @@ TEST(SubmissionQueueTest,
 
 // Check that inserting a submission older than what the renderer thinks the
 // submission time is will cause the SubmissionQueue to jump back in time to
-// make to accomodate the newly pushed old submission.
+// make to accommodate the newly pushed old submission.
 TEST(SubmissionQueueTest, PushingOldTimeResetsQueue) {
   SubmissionQueue queue(4, base::TimeDelta::FromSeconds(1));
 
@@ -233,7 +233,7 @@ TEST(SubmissionQueueTest, PushingOldTimeResetsQueue) {
 }
 
 // This tests that pushing a submission into a full queue will result in the
-// oldest submission to be forcefully removed, and time artifically advanced
+// oldest submission to be forcefully removed, and time artificially advanced
 // up to the next oldest submission.
 TEST(SubmissionQueueTest, FullQueueWillEjectOldestSubmission) {
   // Loop over this with many different values to test that numerical precision

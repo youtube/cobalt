@@ -65,8 +65,9 @@ enum OutputSurfaceType {
   kOutputSurfaceTypeOffscreen,
 };
 
-typedef base::Callback<scoped_refptr<Node>(
-    ResourceProvider*, const SizeF&, base::TimeDelta)> SceneCreateFunction;
+typedef base::Callback<scoped_refptr<Node>(ResourceProvider*, const SizeF&,
+                                           base::TimeDelta)>
+    SceneCreateFunction;
 
 // RunRenderTreeSceneBenchmark serves as a framework for render tree scene
 // based benchmarks.  In other words, it makes it easy to test performance
@@ -152,7 +153,7 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
       "Rasterizer::Submit()", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS, \
       "VisitRenderTree", cobalt::trace_event::IN_SCOPE_DURATION)
 
-// A catch-all test that excercises every different render tree node at the
+// A catch-all test that exercises every different render tree node at the
 // same time.  This is the same render tree builder used by the renderer
 // sandbox.
 RENDER_TREE_BUILDER_BENCHMARK(AllScenesCombinedOffscreenBenchmark) {

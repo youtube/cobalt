@@ -24,7 +24,7 @@ Rect ToEnclosedRect(const RectF& rect);
 Rect ToNearestRect(const RectF& rect);
 
 // Returns true if the Rect produced after snapping the corners of the RectF
-// to an integer grid is withing |distance|.
+// to an integer grid is within |distance|.
 bool IsNearestRectWithinDistance(const RectF& rect, float distance);
 
 // Returns a Rect obtained by flooring the values of the given RectF.

@@ -8031,7 +8031,7 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithListOfValues) {
             animation_direction->value()[1]);
 }
 
-TEST_F(ParserTest, ParsesAnimationDirectionWithInvaildValue) {
+TEST_F(ParserTest, ParsesAnimationDirectionWithInvalidValue) {
   EXPECT_CALL(parser_observer_,
               OnError("[object ParserTest]:1:22: error: unsupported property "
                       "value for animation-direction"));

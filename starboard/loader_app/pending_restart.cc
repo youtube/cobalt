@@ -21,7 +21,7 @@ namespace loader_app {
 
 namespace {
 SbAtomic32 g_pending_restart = 0;
-}  // namesapce
+}  // namespace
 
 bool IsPendingRestart() {
   return SbAtomicNoBarrier_Load(&g_pending_restart) == 1;

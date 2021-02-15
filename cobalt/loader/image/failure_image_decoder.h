@@ -27,12 +27,12 @@ namespace loader {
 namespace image {
 
 // This class always signals a decoding error rather than decoding.  It can
-// be used for inmitating the normal image decoders without doing any
+// be used for imitating the normal image decoders without doing any
 // decoding works.
 class FailureImageDecoder : public ImageDataDecoder {
  public:
   explicit FailureImageDecoder(render_tree::ResourceProvider* resource_provider,
-                            const base::DebuggerHooks& debugger_hooks)
+                               const base::DebuggerHooks& debugger_hooks)
       : ImageDataDecoder(resource_provider, debugger_hooks) {}
 
   // From ImageDataDecoder

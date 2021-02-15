@@ -48,7 +48,7 @@ void ProgressiveDemuxerStream::Read(const ReadCB& read_cb) {
   base::AutoLock auto_lock(lock_);
 
   // Don't accept any additional reads if we've been told to stop.
-  // The demuxer_ may have been destroyed in the pipleine thread.
+  // The demuxer_ may have been destroyed in the pipeline thread.
   if (stopped_) {
     TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read() EOS sent.");
     read_cb.Run(DemuxerStream::kOk,
@@ -211,7 +211,7 @@ ProgressiveDemuxer::ProgressiveDemuxer(
 
 ProgressiveDemuxer::~ProgressiveDemuxer() {
   // Explicitly stop |blocking_thread_| to ensure that it stops before the
-  // destructiing of any other members.
+  // destructing of any other members.
   blocking_thread_.Stop();
 }
 

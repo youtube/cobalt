@@ -85,7 +85,7 @@ class InputEventsGenerator {
   // Cache the flat area of joystick to avoid calling jni functions frequently.
   std::map<int32_t, std::vector<float> > device_flat_;
 
-  // The curent X/Y analog values of the "hat" (dpad on the game controller).
+  // The current X/Y analog values of the "hat" (dpad on the game controller).
   float hat_value_[2];
 
   // The last known value of the left thumbstick, used to track when we should

@@ -114,7 +114,7 @@ void CachedResourceBase::ScheduleLoadingRetry() {
   on_retry_loading_.Run();
 
   // The delay starts at 1 second and doubles every subsequent retry until the
-  // maxiumum delay of 1024 seconds (~17 minutes) is reached. After this, all
+  // maximum delay of 1024 seconds (~17 minutes) is reached. After this, all
   // additional attempts also wait 1024 seconds.
   const int64 kBaseRetryDelayInMilliseconds = 1000;
   const int kMaxRetryCountShift = 10;

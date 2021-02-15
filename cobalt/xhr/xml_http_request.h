@@ -302,10 +302,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
       prevent_gc_until_send_complete_;
 
   // A corspreflight instance for potentially sending preflight
-  // request and perfoming cors check for all cross origin requests.
+  // request and performing cors check for all cross origin requests.
   std::unique_ptr<cobalt::loader::CORSPreflight> corspreflight_;
   bool is_cross_origin_;
-  // net::URLReuqest does not have origin variable so we can only store it here.
+  // net::URLRequest does not have origin variable so we can only store it here.
   // https://fetch.spec.whatwg.org/#concept-request-origin
   loader::Origin origin_;
   bool is_redirect_;

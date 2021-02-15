@@ -143,7 +143,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetPlaybackRateTask(float volume);
   void SetDurationTask(TimeDelta duration);
 
-  // DemuxerHost implementaion.
+  // DemuxerHost implementation.
   void OnBufferedTimeRangesChanged(
       const Ranges<base::TimeDelta>& ranges) override;
   void SetDuration(TimeDelta duration) override;
@@ -191,7 +191,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   const bool allow_resume_after_suspend_;
 
   // The window this player associates with.  It should only be assigned in the
-  // dtor and accesed once by SbPlayerCreate().
+  // dtor and accessed once by SbPlayerCreate().
   PipelineWindow window_;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().

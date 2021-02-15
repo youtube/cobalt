@@ -33,7 +33,7 @@ class RenderTreeCombiner {
   // Layer represents the render layer corresponding to the main web
   // module, the splash screen, or the debug console and are used to
   // create and submit a combined tree to the RendererModule's
-  // pipeline. Layers are combined in order of the |z_index| specifed
+  // pipeline. Layers are combined in order of the |z_index| specified
   // at the Layers' creation. The RenderTreeCombiner stores pointers
   // to Layers. The Layers are owned by the caller of
   // RenderTreeCombiner::CreateLayer.

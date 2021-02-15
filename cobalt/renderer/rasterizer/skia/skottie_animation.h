@@ -25,7 +25,7 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-// A subclass of render_tree::LottieAnnimation that holds information about
+// A subclass of render_tree::LottieAnimation that holds information about
 // the Skottie animation object associated with the given animation data.
 class SkottieAnimation : public render_tree::LottieAnimation {
  public:

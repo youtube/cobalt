@@ -60,7 +60,7 @@ class InterleavedSincResampler {
 
   double GetSampleRateRatio() const { return io_sample_rate_ratio_; }
 
-  int GetNumberOfCashedFrames() const;
+  int GetNumberOfCachedFrames() const;
 
   int channels() const { return channel_count_; }
 

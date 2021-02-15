@@ -1,12 +1,11 @@
 # Copyright 2019 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """Script to create the Chrome Updater Installer archive.
 
   This script is used to create an archive of all the files required for a
   Chrome Updater install in appropriate directory structure. It reads
-  updater.release file as input, creates updater.7z ucompressed archive, and
+  updater.release file as input, creates updater.7z uncompressed archive, and
   generates the updater.packed.7z compressed archive.
 
 """
@@ -31,22 +30,26 @@ TEMP_ARCHIVE_DIR = "temp_installer_archive"
 
 g_archive_inputs = []
 
+
 def CompressUsingLZMA(build_dir, compressed_file, input_file, verbose):
   lzma_exec = GetLZMAExec(build_dir)
-  cmd = [lzma_exec,
-         'a', '-t7z',
-          # Flags equivalent to -mx9 (ultra) but with the bcj2 turned on (exe
-          # pre-filter). These arguments are the similar to what the Chrome mini
-          # installer is using.
-          '-m0=BCJ2',
-          '-m1=LZMA:d27:fb128',
-          '-m2=LZMA:d22:fb128:mf=bt2',
-          '-m3=LZMA:d22:fb128:mf=bt2',
-          '-mb0:1',
-          '-mb0s1:2',
-          '-mb0s2:3',
-          os.path.abspath(compressed_file),
-          os.path.abspath(input_file),]
+  cmd = [
+      lzma_exec,
+      'a',
+      '-t7z',
+      # Flags equivalent to -mx9 (ultra) but with the bcj2 turned on (exe
+      # pre-filter). These arguments are the similar to what the Chrome mini
+      # installer is using.
+      '-m0=BCJ2',
+      '-m1=LZMA:d27:fb128',
+      '-m2=LZMA:d22:fb128:mf=bt2',
+      '-m3=LZMA:d22:fb128:mf=bt2',
+      '-mb0:1',
+      '-mb0s1:2',
+      '-mb0s2:3',
+      os.path.abspath(compressed_file),
+      os.path.abspath(input_file),
+  ]
   if os.path.exists(compressed_file):
     os.remove(compressed_file)
   RunSystemCommand(cmd, verbose)
@@ -78,13 +81,15 @@ def CopySectionFilesToStagingDir(config, section, staging_dir, src_dir):
         print('paths src_path={0}, dest_dir={1}'.format(src_path, dst_dir))
         shutil.copy(src_path, dst_dir)
 
+
 def GetLZMAExec(build_dir):
   if sys.platform == 'win32':
-    lzma_exec = os.path.join(build_dir, "..", "..", "third_party",
-                             "lzma_sdk", "Executable", "7za.exe")
+    lzma_exec = os.path.join(build_dir, "..", "..", "third_party", "lzma_sdk",
+                             "Executable", "7za.exe")
   else:
     lzma_exec = '7zr'  # Use system 7zr.
   return lzma_exec
+
 
 def MakeStagingDirectory(staging_dir):
   """Creates a staging path for installer archive. If directory exists already,
@@ -96,6 +101,7 @@ def MakeStagingDirectory(staging_dir):
   os.makedirs(file_path)
   return file_path
 
+
 def Readconfig(input_file):
   """Reads config information from input file after setting default value of
   global variables.
@@ -105,6 +111,7 @@ def Readconfig(input_file):
   config = ConfigParser.SafeConfigParser(variables)
   config.read(input_file)
   return config
+
 
 def RunSystemCommand(cmd, verbose):
   """Runs |cmd|, prints the |cmd| and its output if |verbose|; otherwise
@@ -122,8 +129,8 @@ def RunSystemCommand(cmd, verbose):
   except subprocess.CalledProcessError as e:
     raise Exception("Error while running cmd: %s\n"
                     "Exit code: %s\n"
-                    "Command output:\n%s" %
-                    (e.cmd, e.returncode, e.output))
+                    "Command output:\n%s" % (e.cmd, e.returncode, e.output))
+
 
 def CreateArchiveFile(options, staging_dir):
   """Creates a new installer archive file after deleting any existing old file.
@@ -158,8 +165,8 @@ def CreateArchiveFile(options, staging_dir):
     for staging_file in staging_contents:
       for archive_input in g_archive_inputs:
         archive_rel = PathFixup(archive_input)
-        if (os.path.basename(staging_file).lower() ==
-            os.path.basename(archive_rel).lower()):
+        if (os.path.basename(staging_file).lower() == os.path.basename(
+            archive_rel).lower()):
           break
       else:
         raise Exception('Did not find an archive input file for "%s"' %
@@ -167,8 +174,9 @@ def CreateArchiveFile(options, staging_dir):
 
     # Finally, write the depfile referencing the inputs.
     with open(options.depfile, 'wb') as f:
-      f.write(PathFixup(os.path.relpath(archive_file, options.build_dir)) +
-              ': \\\n')
+      f.write(
+          PathFixup(os.path.relpath(archive_file, options.build_dir)) +
+          ': \\\n')
       f.write('  ' + ' \\\n  '.join(PathFixup(x) for x in g_archive_inputs))
 
   # It is important to use abspath to create the path to the directory because
@@ -176,12 +184,14 @@ def CreateArchiveFile(options, staging_dir):
   # entire relative path as part of the file paths in the archive. If you have
   # a .. sequence or an absolute path then only the last directory is stored as
   # part of the file paths in the archive, which is what we want.
-  cmd = [lzma_exec,
-         'a',
-         '-t7z',
-         archive_file,
-         os.path.abspath(os.path.join(staging_dir, UPDATER_DIR)),
-         '-mx0',]
+  cmd = [
+      lzma_exec,
+      'a',
+      '-t7z',
+      archive_file,
+      os.path.abspath(os.path.join(staging_dir, UPDATER_DIR)),
+      '-mx0',
+  ]
   # There does not seem to be any way in 7za.exe to override existing file so
   # we always delete before creating a new one.
   if not os.path.exists(archive_file):
@@ -218,19 +228,18 @@ _RESOURCE_FILE_HEADER = """\
 // separate path components.
 """
 
-def CreateResourceInputFile(
-    output_dir, archive_file, resource_file_path,
-    component_build, staging_dir):
+
+def CreateResourceInputFile(output_dir, archive_file, resource_file_path,
+                            component_build, staging_dir):
   """Creates resource input file for installer target."""
 
   # An array of (file, type, path) tuples of the files to be included.
-  resources = [(archive_file, 'B7',
-                    os.path.join(output_dir, archive_file))]
+  resources = [(archive_file, 'B7', os.path.join(output_dir, archive_file))]
 
   with open(resource_file_path, 'w') as f:
     f.write(_RESOURCE_FILE_HEADER)
     for (file, type, path) in resources:
-      f.write('\n%s  %s\n    "%s"\n' % (file, type, path.replace("\\","/")))
+      f.write('\n%s  %s\n    "%s"\n' % (file, type, path.replace("\\", "/")))
 
 
 def ParseDLLsFromDeps(build_dir, runtime_deps_file):
@@ -242,6 +251,7 @@ def ParseDLLsFromDeps(build_dir, runtime_deps_file):
     if os.path.splitext(l)[1] == ".dll":
       build_dlls.add(os.path.join(build_dir, l))
   return build_dlls
+
 
 # Copies component build DLLs for the setup to be able to find those DLLs at
 # run-time.
@@ -257,6 +267,7 @@ def DoComponentBuildTasks(staging_dir, build_dir, setup_runtime_deps):
   for setup_component_dll in setup_component_dlls:
     g_archive_inputs.append(setup_component_dll)
     shutil.copy(setup_component_dll, installer_dir)
+
 
 def main(options):
   """Main method that reads input file, creates archive file and writes
@@ -275,42 +286,63 @@ def main(options):
 
   # Name of the archive file built (for example - updater.7z)
   archive_file = CreateArchiveFile(options, staging_dir)
-  CreateResourceInputFile(options.output_dir,
-                          archive_file, options.resource_file_path,
+  CreateResourceInputFile(options.output_dir, archive_file,
+                          options.resource_file_path,
                           options.component_build == '1', staging_dir)
+
 
 def _ParseOptions():
   parser = optparse.OptionParser()
-  parser.add_option('-i', '--input_file',
+  parser.add_option(
+      '-i',
+      '--input_file',
       help='Input file describing which files to archive.')
-  parser.add_option('-b', '--build_dir',
+  parser.add_option(
+      '-b',
+      '--build_dir',
       help='Build directory. The paths in input_file are relative to this.')
-  parser.add_option('--staging_dir',
+  parser.add_option(
+      '--staging_dir',
       help='Staging directory where intermediate files and directories '
-           'will be created')
-  parser.add_option('-o', '--output_dir',
+      'will be created')
+  parser.add_option(
+      '-o',
+      '--output_dir',
       help='The output directory where the archives will be written. '
-            'Defaults to the build_dir.')
-  parser.add_option('--resource_file_path',
+      'Defaults to the build_dir.')
+  parser.add_option(
+      '--resource_file_path',
       help='The path where the resource file will be output. ')
-  parser.add_option('-s', '--skip_rebuild_archive',
-      default="False", help='Skip re-building updater.7z archive if it exists.')
-  parser.add_option('-n', '--output_name', default='updater',
+  parser.add_option(
+      '-s',
+      '--skip_rebuild_archive',
+      default="False",
+      help='Skip re-building updater.7z archive if it exists.')
+  parser.add_option(
+      '-n',
+      '--output_name',
+      default='updater',
       help='Name used to prefix names of generated archives.')
-  parser.add_option('--component_build', default='0',
+  parser.add_option(
+      '--component_build',
+      default='0',
       help='Whether this archive is packaging a component build.')
-  parser.add_option('--skip_archive_compression',
-      action='store_true', default=False,
+  parser.add_option(
+      '--skip_archive_compression',
+      action='store_true',
+      default=False,
       help='Turn off compression of updater.7z into updater.packed.7z and '
-           'helpfully delete any old updater.packed.7z in |output_dir|.')
-  parser.add_option('--depfile',
+      'helpfully delete any old updater.packed.7z in |output_dir|.')
+  parser.add_option(
+      '--depfile',
       help='Generate a depfile with the given name listing the implicit inputs '
-           'to the archive process that can be used with a build system.')
-  parser.add_option('--setup_runtime_deps',
+      'to the archive process that can be used with a build system.')
+  parser.add_option(
+      '--setup_runtime_deps',
       help='A file listing runtime dependencies for setup.exe. This will be '
-           'used to get a list of DLLs to archive in a component build.')
-  parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
-                    default=False)
+      'used to get a list of DLLs to archive in a component build.')
+  parser.add_option(
+      '-v', '--verbose', action='store_true', dest='verbose', default=False)
 
   options, _ = parser.parse_args()
   if not options.build_dir:

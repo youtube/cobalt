@@ -714,7 +714,7 @@ class BrowserModule {
   base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
 
   // Save the current window size before transitioning to Concealed state,
-  // and resuse this vaule to recreate the window.
+  // and reuse this value to recreate the window.
   math::Size window_size_;
 };
 

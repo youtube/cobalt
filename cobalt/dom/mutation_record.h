@@ -28,7 +28,7 @@ class Node;
 class NodeList;
 
 // MutationRecords are used with the MutationObserver interface to describe a
-// mutation on the documnet.
+// mutation on the document.
 // https://www.w3.org/TR/dom/#mutationrecord
 class MutationRecord : public script::Wrappable {
  public:

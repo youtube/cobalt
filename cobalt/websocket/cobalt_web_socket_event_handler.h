@@ -69,7 +69,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   void OnClosingHandshake() override;
 
   // Called when the channel has been dropped, either due to a network close, a
-  // network error, or a protocol error. This may or may not be preceeded by a
+  // network error, or a protocol error. This may or may not be preceded by a
   // call to OnClosingHandshake().
   //
   // Warning: Both the |code| and |reason| are passed through to Javascript, so
@@ -139,7 +139,7 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   // For now, we forward most event to the impl to handle. We might want to
   // move more thing
   WebSocketImpl* creator_;
-  // This vector should store data of data frams from the same message.
+  // This vector should store data of data frames from the same message.
   typedef std::vector<std::pair<scoped_refptr<net::IOBuffer>, size_t>>
       FrameDataVector;
   FrameDataVector frame_data_;

@@ -34,7 +34,7 @@ class ScriptExecutorResult : public script::Wrappable {
   // so use an instance of the ResultHandler class to access the results of
   // execution from another thread.
   // Exactly one of OnResult and OnTimeout will be called. After one of these
-  // is called, the ScriptExectutorResult object will no longer hold a pointer
+  // is called, the ScriptExecutorResult object will no longer hold a pointer
   // to the ResultHandler instance, so it's safe for the owning thread to
   // destroy it.
   class ResultHandler {

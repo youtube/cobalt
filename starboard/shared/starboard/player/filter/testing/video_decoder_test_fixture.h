@@ -115,7 +115,7 @@ class VideoDecoderTestFixture {
 
   void AssertValidDecodeTargetWhenSupported();
 
-  // This has to be called when the decoder is just initialized/reseted or when
+  // This has to be called when the decoder is just initialized/reset or when
   // status is |kNeedMoreInput|.
   void WriteSingleInput(size_t index);
 

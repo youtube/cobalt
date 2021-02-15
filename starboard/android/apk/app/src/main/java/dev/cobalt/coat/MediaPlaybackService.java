@@ -30,128 +30,127 @@ import androidx.core.app.NotificationCompat;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 
-public class MediaPlaybackService extends Service{
+public class MediaPlaybackService extends Service {
 
-private static final int NOTIFICATION_ID = 1234;
-private static final String NOTIFICAITON_CHANNEL_ID = "default";
-private static final String NOTIFICATION_CHANNEL_NAME = "Default channel";
-private Context context;
+  private static final int NOTIFICATION_ID = 1234;
+  private static final String NOTIFICATION_CHANNEL_ID = "default";
+  private static final String NOTIFICATION_CHANNEL_NAME = "Default channel";
+  private Context context;
 
-@Override
-public void onCreate() {
-  super.onCreate();
-  Log.i(TAG, "Creating a Media playback foreground service.");
-  if (getStarboardBridge() == null) {
-    Log.e(TAG, "StarboardBridge already destroyed.");
-    return;
+  @Override
+  public void onCreate() {
+    super.onCreate();
+    Log.i(TAG, "Creating a Media playback foreground service.");
+    if (getStarboardBridge() == null) {
+      Log.e(TAG, "StarboardBridge already destroyed.");
+      return;
+    }
+    getStarboardBridge().onServiceStart(this);
+    context = getApplicationContext();
   }
-  getStarboardBridge().onServiceStart(this);
-  context = getApplicationContext();
-}
 
-@Override
-public int onStartCommand(Intent intent, int flags, int startId) {
-  Log.i(TAG, "Cold start - Starting the serivce.");
-  startService();
-  // We don't want the system to recreate a service for us.
-  return START_NOT_STICKY;
-}
-
-@Override
-public IBinder onBind(Intent intent) {
-  // Do not support binding.
-  return null;
-}
-
-@Override
-public void onDestroy() {
-  if (getStarboardBridge() == null) {
-    Log.e(TAG, "StarboardBridge already destroyed.");
-    return;
+  @Override
+  public int onStartCommand(Intent intent, int flags, int startId) {
+    Log.i(TAG, "Cold start - Starting the service.");
+    startService();
+    // We don't want the system to recreate a service for us.
+    return START_NOT_STICKY;
   }
-  getStarboardBridge().onServiceDestroy(this);
-  context = null;
-  super.onDestroy();
-  Log.i(TAG, "Destroying the Media playback service.");
-}
 
-public void startService() {
-  createChannel();
-  startForeground(NOTIFICATION_ID, buildNotification());
-}
-
-public void stopService() {
-  deleteChannel();
-  hideNotification();
-  stopForeground(true);
-  stopSelf();
-}
-
-private void hideNotification() {
-  Log.i(TAG, "Hiding notification after stopped the serivce");
-  NotificationManager notificationManager =
-      (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-  notificationManager.cancel(NOTIFICATION_ID);
-}
-
-private void createChannel() {
-  if (Build.VERSION.SDK_INT >= 26) {
-    createChannelInternalV26();
-  }
-}
-
-@RequiresApi(26)
-private void createChannelInternalV26() {
-  NotificationManager notificationManager =
-      (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-  NotificationChannel channel =
-      new NotificationChannel(
-          NOTIFICAITON_CHANNEL_ID,
-          NOTIFICATION_CHANNEL_NAME,
-          notificationManager.IMPORTANCE_DEFAULT);
-  channel.setDescription("Channel for showing persistent notification");
-  try {
-    notificationManager.createNotificationChannel(channel);
-  } catch (IllegalArgumentException e) {
-
-  }
-}
-
-public void deleteChannel() {
-  if (Build.VERSION.SDK_INT >= 26) {
-    deleteChannelInternalV26();
-  }
-}
-
-@RequiresApi(26)
-private void deleteChannelInternalV26() {
-  NotificationManager notificationManager =
-        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-  notificationManager.deleteNotificationChannel(NOTIFICAITON_CHANNEL_ID);
-}
-
-Notification buildNotification() {
-  NotificationCompat.Builder builder =
-      new NotificationCompat.Builder(context, NOTIFICAITON_CHANNEL_ID)
-          .setShowWhen(false)
-          .setPriority(NotificationCompat.PRIORITY_MIN)
-          .setSmallIcon(android.R.drawable.stat_sys_warning)
-          .setContentTitle("Media playback serivce")
-          .setContentText("Media playback serivce is running");
-
-  if (VERSION.SDK_INT >= 26) {
-    builder.setChannelId(NOTIFICAITON_CHANNEL_ID);
-  }
-  return builder.build();
-}
-
-@UsedByNative
-protected StarboardBridge getStarboardBridge() {
-  if (getApplication() == null) {
-    Log.e(TAG, "Application already destroyed.");
+  @Override
+  public IBinder onBind(Intent intent) {
+    // Do not support binding.
     return null;
   }
-  return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
-}
 
+  @Override
+  public void onDestroy() {
+    if (getStarboardBridge() == null) {
+      Log.e(TAG, "StarboardBridge already destroyed.");
+      return;
+    }
+    getStarboardBridge().onServiceDestroy(this);
+    context = null;
+    super.onDestroy();
+    Log.i(TAG, "Destroying the Media playback service.");
+  }
+
+  public void startService() {
+    createChannel();
+    startForeground(NOTIFICATION_ID, buildNotification());
+  }
+
+  public void stopService() {
+    deleteChannel();
+    hideNotification();
+    stopForeground(true);
+    stopSelf();
+  }
+
+  private void hideNotification() {
+    Log.i(TAG, "Hiding notification after stopped the service");
+    NotificationManager notificationManager =
+        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+    notificationManager.cancel(NOTIFICATION_ID);
+  }
+
+  private void createChannel() {
+    if (Build.VERSION.SDK_INT >= 26) {
+      createChannelInternalV26();
+    }
+  }
+
+  @RequiresApi(26)
+  private void createChannelInternalV26() {
+    NotificationManager notificationManager =
+        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+    NotificationChannel channel =
+        new NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            NOTIFICATION_CHANNEL_NAME,
+            notificationManager.IMPORTANCE_DEFAULT);
+    channel.setDescription("Channel for showing persistent notification");
+    try {
+      notificationManager.createNotificationChannel(channel);
+    } catch (IllegalArgumentException e) {
+
+    }
+  }
+
+  public void deleteChannel() {
+    if (Build.VERSION.SDK_INT >= 26) {
+      deleteChannelInternalV26();
+    }
+  }
+
+  @RequiresApi(26)
+  private void deleteChannelInternalV26() {
+    NotificationManager notificationManager =
+        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+    notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID);
+  }
+
+  Notification buildNotification() {
+    NotificationCompat.Builder builder =
+        new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("Media playback service")
+            .setContentText("Media playback service is running");
+
+    if (VERSION.SDK_INT >= 26) {
+      builder.setChannelId(NOTIFICATION_CHANNEL_ID);
+    }
+    return builder.build();
+  }
+
+  @UsedByNative
+  protected StarboardBridge getStarboardBridge() {
+    if (getApplication() == null) {
+      Log.e(TAG, "Application already destroyed.");
+      return null;
+    }
+    return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  }
 }

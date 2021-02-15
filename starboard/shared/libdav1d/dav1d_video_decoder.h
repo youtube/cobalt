@@ -76,7 +76,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   // Sends all available decoded frames from dav1d for outputting. Returns the
   // number of frames decoded. The output argument tracks whether an
-  // unrecoverable error occured in dav1d while trying to output frames.
+  // unrecoverable error occurred in dav1d while trying to output frames.
   bool TryToOutputFrames();
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -94,7 +94,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   Dav1dContext* dav1d_context_ = NULL;
 
   bool stream_ended_ = false;
-  bool error_occured_ = false;
+  bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   scoped_ptr<starboard::player::JobThread> decoder_thread_;

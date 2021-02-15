@@ -229,7 +229,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
-  // TODO: |last_playback_head_changed_at| is also resetted when a warning is
+  // TODO: |last_playback_head_changed_at| is also reset when a warning is
   //       logged after the playback head position hasn't been updated for a
   //       while.  We should refine the name to make it better reflect its
   //       usage.

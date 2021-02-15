@@ -31,9 +31,9 @@
 #include <linux/auxvec.h>  // AT_HWCAP
 #include <stdio.h>         // fopen, fclose
 #include <string.h>
-#include <strings.h>  // strcasecmp
+#include <strings.h>   // strcasecmp
 #include <sys/auxv.h>  // getauxval()
-#include <unistd.h>  // sysconf()
+#include <unistd.h>    // sysconf()
 #include <memory>
 
 #include <cstdlib>
@@ -472,7 +472,7 @@ bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
     // also contain processor brand information. "model name" is used in
     // Linux 3.8 and later (3.7
     // and later for arm64) and is shown once per CPU. "Processor" is used in
-    // earler versions and is shown only once at the top of /proc/cpuinfo
+    // earlier versions and is shown only once at the top of /proc/cpuinfo
     // regardless of the number CPUs.
 
     // Allocate 256 bytes for "Processor"/"model name" field.

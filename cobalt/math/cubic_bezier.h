@@ -33,7 +33,7 @@ class CubicBezier {
   // Returns an approximation of dy/dx at the given x.
   double Slope(double x) const;
 
-  // Sets |min| and |max| to the bezier's minimum and maximium y values in the
+  // Sets |min| and |max| to the bezier's minimum and maximum y values in the
   // interval [0, 1].
   void Range(double* min, double* max) const;
 

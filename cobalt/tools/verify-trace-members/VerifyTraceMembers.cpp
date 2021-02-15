@@ -147,7 +147,7 @@ bool IsBaseOf(CXXRecordDecl* base_decl, QualType derived) {
   return false;
 }
 
-// We need to keep track of types we've already visisted due to type cycles in
+// We need to keep track of types we've already visited due to type cycles in
 // templates. Consider, for example, "class Foo : public MyCrtp<Foo> {};".
 using Visited = std::unordered_set<const Type*>;
 

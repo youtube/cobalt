@@ -26,7 +26,7 @@ class BASE_EXPORT CircularBufferShell {
   void Clear();
 
   // Reads the requested amount of data into the given buffer, writing the
-  // number of bytes actually read into the bytes_read paramter. If there is
+  // number of bytes actually read into the bytes_read parameter. If there is
   // less data then requested, then the remaining data will be consumed.
   void Read(void* destination, size_t length, size_t* bytes_read);
 

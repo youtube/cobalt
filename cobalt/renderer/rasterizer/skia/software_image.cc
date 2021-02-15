@@ -85,7 +85,7 @@ void SoftwareImage::Initialize(
   size_ = descriptor.size;
 
   if (descriptor.pixel_format == render_tree::kPixelFormatUV8) {
-    // TODO: SKIA_M61_UNFINISHED_IMPLEMENATION: fix me
+    // TODO: SKIA_M61_UNFINISHED_IMPLEMENTATION: fix me
     // Convert UV8 to ARGB because Skia does not support any two-channel
     // formats.  This of course is not efficient, but efficiency in the software
     // renderer is not as important as completeness and correctness.

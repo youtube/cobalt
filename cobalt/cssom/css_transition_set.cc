@@ -105,11 +105,12 @@ void SetReversingValues(
   // half-way through by making the reverse transition occur over half as much
   // time.
   if (old_transition.reversing_adjusted_start_value()->Equals(*new_end_value)) {
-    *new_reversing_shortening_factor =
-        std::min<float>(1.0f, std::max<float>(0.0f,
-            std::abs(old_transition.Progress(current_time) *
-                         old_transition.reversing_shortening_factor() +
-                     1 - old_transition.reversing_shortening_factor())));
+    *new_reversing_shortening_factor = std::min<float>(
+        1.0f,
+        std::max<float>(
+            0.0f, std::abs(old_transition.Progress(current_time) *
+                               old_transition.reversing_shortening_factor() +
+                           1 - old_transition.reversing_shortening_factor())));
 
     *new_reversing_adjusted_start_value = old_transition.end_value();
   } else {
@@ -133,7 +134,7 @@ Transition CreateTransitionOverOldTransition(
     const base::TimeDelta& delay,
     const scoped_refptr<TimingFunction>& timing_function,
     const scoped_refptr<PropertyValue>& end_value) {
-  // Since we're updating an old transtion, we'll need to know the animated
+  // Since we're updating an old transition, we'll need to know the animated
   // CSS style value from the old transition at this point in time.
   scoped_refptr<PropertyValue> current_value_within_old_transition =
       old_transition.Evaluate(current_time);

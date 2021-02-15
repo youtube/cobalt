@@ -536,7 +536,7 @@ TEST_F(MP4MapTest, GetSizeIterationTinyCache) {
       if (sample_table_->read_count())
         ASSERT_LE(sample_table_->read_bytes() / sample_table_->read_count(),
                   (i + 1) * kEntrySize_stsz);
-      // call to sample past the table size should still faile
+      // call to sample past the table size should still fail
       uint32 failed_size = 0;
       ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), &failed_size));
     }

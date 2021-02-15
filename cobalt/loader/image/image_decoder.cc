@@ -73,11 +73,10 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
   }
 }
 
-// Returns true if the ResourceProvider is ResourceProdiverStub.
-bool IsResourceProviderStub(
-    render_tree::ResourceProvider* resource_provider) {
+// Returns true if the ResourceProvider is ResourceProviderStub.
+bool IsResourceProviderStub(render_tree::ResourceProvider* resource_provider) {
   return resource_provider->GetTypeId() ==
-      base::GetTypeId<render_tree::ResourceProviderStub>();
+         base::GetTypeId<render_tree::ResourceProviderStub>();
 }
 
 }  // namespace
@@ -341,8 +340,7 @@ std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
 std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks,
-    bool use_failure_image_decoder) {
+    const base::DebuggerHooks& debugger_hooks, bool use_failure_image_decoder) {
   // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     return std::unique_ptr<ImageDataDecoder>(
@@ -430,7 +428,7 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
                       ->CobaltRasterizerType()) == "direct-gles";
 #elif SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   bool allow_image_decoding_to_multi_plane = true;
-#else  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   bool allow_image_decoding_to_multi_plane = false;
 #endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
 

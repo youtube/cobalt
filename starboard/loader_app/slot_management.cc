@@ -186,7 +186,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         current_installation = RevertBack(current_installation, app_key);
         continue;
       }
-      // If the current installtion is in use by an updater roll back.
+      // If the current installation is in use by an updater roll back.
       if (DrainFileDraining(installation_path.data(), "")) {
         SB_LOG(INFO) << "Active slot draining";
         current_installation = RevertBack(current_installation, app_key);

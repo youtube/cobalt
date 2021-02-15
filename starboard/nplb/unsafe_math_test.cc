@@ -99,7 +99,7 @@ TEST(SbUnsafeMathTest, InfinityDoubleSunnyDay) {
   EXPECT_TRUE(a == b);
   EXPECT_TRUE(-a == -b);
 
-  // Infinity is greater than the maximium double.
+  // Infinity is greater than the maximum double.
   EXPECT_TRUE(a > std::numeric_limits<double>::max());
   EXPECT_TRUE(a >= std::numeric_limits<double>::max());
 

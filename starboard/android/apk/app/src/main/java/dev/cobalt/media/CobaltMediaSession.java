@@ -290,12 +290,12 @@ public class CobaltMediaSession
   @RequiresApi(26)
   private int requestAudioFocusV26() {
     if (audioFocusRequest == null) {
-      AudioAttributes audioAtrributes =
+      AudioAttributes audioAttributes =
           new Builder().setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build();
       audioFocusRequest =
           new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
               .setOnAudioFocusChangeListener(this)
-              .setAudioAttributes(audioAtrributes)
+              .setAudioAttributes(audioAttributes)
               .build();
     }
     return getAudioManager().requestAudioFocus(audioFocusRequest);
@@ -513,8 +513,7 @@ public class CobaltMediaSession
     mediaSession.setPlaybackState(playbackStateBuilder.build());
 
     // Let metadata hold onto the most recent metadata and add artwork later.
-    metadata.SetMetadata(
-        title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
+    metadata.SetMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
 
     // Update the metadata as soon as we can - even before artwork is loaded.
     updateMetadata(false);
@@ -523,8 +522,7 @@ public class CobaltMediaSession
   private void updateMetadata(boolean resetMetadataWithEmptyBuilder) {
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     // Reset the metadata to make sure the artwork update correctly.
-    if (resetMetadataWithEmptyBuilder)
-      mediaSession.setMetadata(metadataBuilder.build());
+    if (resetMetadataWithEmptyBuilder) mediaSession.setMetadata(metadataBuilder.build());
 
     metadataBuilder
         .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title)

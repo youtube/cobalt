@@ -136,7 +136,7 @@ class FixedSizeLRUCache {
   // so that the starting_iterator now points to an empty value that can be
   // written to, and the value near the ending_iterator is overwritten.
   // The function does not call the destructor on any values, so it is advised
-  // that the destructor be called on the value that is to be ovewritten before
+  // that the destructor be called on the value that is to be overwritten before
   // this function is called.
   void ShiftValuesDown(iterator starting_iterator, iterator ending_iterator) {
     std::size_t distance = std::distance(starting_iterator, ending_iterator);

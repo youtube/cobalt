@@ -97,7 +97,7 @@ class MEDIA_EXPORT BitReaderCore {
   bool ReadBitsInternal(int num_bits, uint64_t* out);
 
   // Refill bit registers to have at least |min_nbits| bits available.
-  // Return true if the mininimum bit count condition is met after the refill.
+  // Return true if the minimum bit count condition is met after the refill.
   bool Refill(int min_nbits);
 
   // Refill the current bit register from the next bit register.

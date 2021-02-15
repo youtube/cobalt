@@ -48,7 +48,7 @@ BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
   if (*allocate_from_front) {
     // Start looking through the free list from the front.
     for (FreeBlockSet::iterator it = begin; it != end; ++it) {
-      if (it->CanFullfill(size, alignment)) {
+      if (it->CanFulfill(size, alignment)) {
         return it;
       }
     }
@@ -58,7 +58,7 @@ BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,
   FreeBlockSet::reverse_iterator rbegin(end);
   FreeBlockSet::reverse_iterator rend(begin);
   for (FreeBlockSet::reverse_iterator it = rbegin; it != rend; ++it) {
-    if (it->CanFullfill(size, alignment)) {
+    if (it->CanFulfill(size, alignment)) {
       return --it.base();
     }
   }

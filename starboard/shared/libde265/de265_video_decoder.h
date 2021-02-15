@@ -82,7 +82,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   de265_decoder_context* context_ = nullptr;
 
   bool stream_ended_ = false;
-  bool error_occured_ = false;
+  bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   scoped_ptr<starboard::player::JobThread> decoder_thread_;

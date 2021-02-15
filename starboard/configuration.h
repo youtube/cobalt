@@ -369,7 +369,7 @@ struct CompileAssert {};
 #endif
 #endif  // !defined(SB_ALIGNAS)
 
-// Returns the alignment reqiured for any instance of the type indicated by
+// Returns the alignment required for any instance of the type indicated by
 // |type|.
 #if !defined(SB_ALIGNOF)
 #if SB_IS(COMPILER_GCC)

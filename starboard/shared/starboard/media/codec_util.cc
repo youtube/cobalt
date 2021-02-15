@@ -151,7 +151,7 @@ bool VerifyFormatStrictly(const char* format, const char* reference) {
 
 // This function parses an av01 codec in the form of "av01.0.05M.08" or
 // "av01.0.04M.10.0.110.09.16.09.0" as
-// specificed by https://aomediacodec.github.io/av1-isobmff/#codecsparam.
+// specified by https://aomediacodec.github.io/av1-isobmff/#codecsparam.
 //
 // Note that the spec also supports of different chroma subsamplings but the
 // implementation always assume that it is 4:2:0 and returns false when it
@@ -279,7 +279,7 @@ bool ParseAv1Info(std::string codec,
 }
 
 // This function parses an h264 codec in the form of {avc1|avc3}.PPCCLL as
-// specificed by https://tools.ietf.org/html/rfc6381#section-3.3.
+// specified by https://tools.ietf.org/html/rfc6381#section-3.3.
 //
 // Note that the leading codec is not necessarily to be "avc1" or "avc3" per
 // spec but this function only parses "avc1" and "avc3".  This function returns
@@ -300,7 +300,7 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
   return true;
 }
 
-// This function parses an h265 codec as specificed by ISO IEC 14496-15 dated
+// This function parses an h265 codec as specified by ISO IEC 14496-15 dated
 // 2012 or newer in the Annex E.3.  The codec will be in the form of:
 //   hvc1.PPP.PCPCPCPC.TLLL.CB.CB.CB.CB.CB.CB, where
 // PPP: 0 or 1 byte general_profile_space ('', 'A', 'B', or 'C') +
@@ -420,7 +420,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
 }
 
 // This function parses an vp09 codec in the form of "vp09.00.41.08" or
-// "vp09.02.10.10.01.09.16.09.01" as specificed by
+// "vp09.02.10.10.01.09.16.09.01" as specified by
 // https://www.webmproject.org/vp9/mp4/.  YouTube also uses the long form
 // without the last part (color range), so we also support it.
 //

@@ -381,7 +381,7 @@ void Scanner::ScanUnrecognizedAtRule() {
       if ((first_input_iterator == ')' && brace_stack.top() == '(') ||
           (first_input_iterator == '}' && brace_stack.top() == '{') ||
           (first_input_iterator == ']' && brace_stack.top() == '[')) {
-        // Pop the open brace from stack when encourtering a match.
+        // Pop the open brace from stack when encountering a match.
         brace_stack.pop();
 
         continue;
@@ -3429,7 +3429,7 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
         }
       } else if (length == 12) {
         // Checking the last character first could further reduce
-        // the possibile cases.
+        // the possible cases.
         if (IsAsciiAlphaCaselessEqual(name.begin[11], 'e') &&
             IsEqualToCssIdentifier(name.begin + 2, "eft-middl")) {
           *at_token = kLeftMiddleToken;
@@ -3477,7 +3477,7 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
         }
       } else if (length == 13) {
         // Checking the last character first could further reduce
-        // the possibile cases.
+        // the possible cases.
         if (IsAsciiAlphaCaselessEqual(name.begin[12], 'e') &&
             IsEqualToCssIdentifier(name.begin + 2, "ight-middl")) {
           *at_token = kRightMiddleToken;

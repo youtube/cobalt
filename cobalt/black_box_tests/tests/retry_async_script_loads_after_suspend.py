@@ -90,7 +90,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 
 
 class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
-  """Tests cancelation of synchronous loading of scripts on Suspend."""
+  """Tests cancellation of synchronous loading of scripts on Suspend."""
 
   def _LoadPage(self, webdriver, url):
     """Instructs webdriver to navigate to url."""

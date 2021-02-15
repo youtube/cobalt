@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests cancelation of synchronous loading of scripts on Suspend."""
+"""Tests cancellation of synchronous loading of scripts on Suspend."""
 
 # This test script works by splitting the work over 3 threads, so that they
 # can each make progress even if they come across blocking operations.
@@ -79,7 +79,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 
 
 class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
-  """Tests cancelation of synchronous loading of scripts on Suspend."""
+  """Tests cancellation of synchronous loading of scripts on Suspend."""
 
   def _LoadPage(self, webdriver, url):
     """Instructs webdriver to navigate to url."""

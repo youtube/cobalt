@@ -157,11 +157,11 @@ public class StarboardBridge {
   protected void startMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service == null) {
-      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackSerivce.");
+      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
       Intent intent = new Intent(appContext, MediaPlaybackService.class);
       appContext.startService(intent);
     } else {
-      Log.i(TAG, "Warm start - Restarting the serivce.");
+      Log.i(TAG, "Warm start - Restarting the service.");
       ((MediaPlaybackService) service).startService();
     }
   }
@@ -169,7 +169,7 @@ public class StarboardBridge {
   protected void stopMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service != null) {
-      Log.i(TAG, "Stopping the Media playback serivce.");
+      Log.i(TAG, "Stopping the Media playback service.");
       ((MediaPlaybackService) service).stopService();
     }
   }

@@ -77,7 +77,7 @@ void InlineFormattingContext::EndUpdates() {
   // calculate the "preferred width". It is possible to save one layout pass
   // taking into account that:
   //   - an exact value of "preferred width" does not matter if "available
-  //     width" cannot acommodate it;
+  //     width" cannot accommodate it;
   //   - the inline formatting context has more than one line if and only if
   //     the "preferred width" is greater than the "available width";
   //   - "preferred minimum" and "preferred" widths are equal when an inline

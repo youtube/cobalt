@@ -112,13 +112,13 @@ class MediaCodecBridge {
   private class FrameRateEstimator {
     private static final int INVALID_FRAME_RATE = -1;
     private static final long INVALID_FRAME_TIMESTAMP = -1;
-    private static final int MINIMUN_REQUIRED_FRAMES = 4;
+    private static final int MINIMUM_REQUIRED_FRAMES = 4;
     private long mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
     private long mNumberOfFrames = 0;
     private long mTotalDurationUs = 0;
 
     public int getEstimatedFrameRate() {
-      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUN_REQUIRED_FRAMES) {
+      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUM_REQUIRED_FRAMES) {
         return INVALID_FRAME_RATE;
       }
       return Math.round((mNumberOfFrames - 1) * 1000000.0f / mTotalDurationUs);

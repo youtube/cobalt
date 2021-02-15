@@ -85,7 +85,7 @@ MEDIA_EXPORT void ScaleYUVToRGB32(const uint8_t* yplane, const uint8_t* uplane,
                                   int uvstride, int rgbstride, YUVType yuv_type,
                                   Rotate view_rotate, ScaleFilter filter);
 
-// Biliner Scale a frame of YV12 to 32 bits ARGB on a specified rectangle.
+// Bilinear Scale a frame of YV12 to 32 bits ARGB on a specified rectangle.
 // |yplane|, etc and |rgbframe| should point to the top-left pixels of the
 // source and destination buffers.
 MEDIA_EXPORT void ScaleYUVToRGB32WithRect(

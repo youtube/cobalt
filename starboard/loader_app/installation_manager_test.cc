@@ -438,7 +438,7 @@ TEST_F(InstallationManagerTest, RollForwardMatrix20) {
   };
 
   for (int i = 0; i < 2; i++) {
-    SB_LOG(INFO) << "Testing Maxtrix20 expected_priorities at index: " << i;
+    SB_LOG(INFO) << "Testing Matrix20 expected_priorities at index: " << i;
     RollForwardHelper(0, 2, setup_priorities[i], expected_priorities[i]);
   }
 }
@@ -457,7 +457,7 @@ TEST_F(InstallationManagerTest, RollForwardMatrix21) {
   };
 
   for (int i = 0; i < 2; i++) {
-    SB_LOG(INFO) << "Testing Maxtrix21 expected_priorities at index: " << i;
+    SB_LOG(INFO) << "Testing Matrix21 expected_priorities at index: " << i;
     RollForwardHelper(1, 2, setup_priorities[i], expected_priorities[i]);
   }
 }
@@ -476,7 +476,7 @@ TEST_F(InstallationManagerTest, RollForwardMatrix30) {
   };
 
   for (int i = 0; i < 6; i++) {
-    SB_LOG(INFO) << "Testing Maxtrix30 expected_priorities at index: " << i;
+    SB_LOG(INFO) << "Testing Matrix30 expected_priorities at index: " << i;
     RollForwardHelper(0, 3, setup_priorities[i], expected_priorities[i]);
   }
 }
@@ -495,7 +495,7 @@ TEST_F(InstallationManagerTest, RollForwardMatrix31) {
   };
 
   for (int i = 0; i < 6; i++) {
-    SB_LOG(INFO) << "Testing Maxtrix31 expected_priorities at index: " << i;
+    SB_LOG(INFO) << "Testing Matrix31 expected_priorities at index: " << i;
     RollForwardHelper(1, 3, setup_priorities[i], expected_priorities[i]);
   }
 }
@@ -513,7 +513,7 @@ TEST_F(InstallationManagerTest, RollForwardMatrix32) {
       {1, 2, 0}, {1, 2, 0}, {1, 2, 0}, {2, 1, 0}, {2, 1, 0}, {2, 1, 0},
   };
   for (int i = 0; i < 6; i++) {
-    SB_LOG(INFO) << "Testing Maxtrix32 expected_priorities at index: " << i;
+    SB_LOG(INFO) << "Testing Matrix32 expected_priorities at index: " << i;
     RollForwardHelper(2, 3, setup_priorities[i], expected_priorities[i]);
   }
 }
@@ -540,13 +540,11 @@ TEST_F(InstallationManagerTest, RevertMatrix2) {
   };
 
   for (int i = 0; i < 4; i++) {
-    SB_LOG(INFO) << "Testing RevertMaxtrix2 expected_priorities at index: "
-                 << i;
+    SB_LOG(INFO) << "Testing RevertMatrix2 expected_priorities at index: " << i;
     RevertHelper(2, priority_success_pairs1[i], NULL, false);
   }
   for (int i = 0; i < 4; i++) {
-    SB_LOG(INFO) << "Testing RevertMaxtrix2 expected_priorities at index: "
-                 << i;
+    SB_LOG(INFO) << "Testing RevertMatrix2 expected_priorities at index: " << i;
     RevertHelper(2, priority_success_pairs2[i], expected_priorities[i], true);
   }
 }
@@ -611,14 +609,12 @@ TEST_F(InstallationManagerTest, RevertMatrix3) {
   };
 
   for (int i = 0; i < 12; i++) {
-    SB_LOG(INFO) << "Testing RevertMaxtrix3 expected_priorities at index: "
-                 << i;
+    SB_LOG(INFO) << "Testing RevertMatrix3 expected_priorities at index: " << i;
     RevertHelper(3, priority_success_pairs1[i], NULL, false);
   }
 
   for (int i = 0; i < 36; i++) {
-    SB_LOG(INFO) << "Testing RevertMaxtrix3 expected_priorities at index: "
-                 << i;
+    SB_LOG(INFO) << "Testing RevertMatrix3 expected_priorities at index: " << i;
     RevertHelper(3, priority_success_pairs2[i], expected_priorities[i], true);
   }
 }

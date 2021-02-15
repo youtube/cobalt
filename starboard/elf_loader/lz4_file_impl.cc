@@ -24,7 +24,7 @@ namespace elf_loader {
 namespace {
 
 // The size of the buffer that the file to be decompressed is read into, 16KiB.
-// This value was explicitly chosed after testing various buffer sizes on a
+// This value was explicitly chosen after testing various buffer sizes on a
 // Raspberry Pi 2.
 constexpr int kCompressedBufferSize = 16 * 1024;
 

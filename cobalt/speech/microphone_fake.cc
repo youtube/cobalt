@@ -37,13 +37,13 @@ namespace {
 
 const int kMaxBufferSize = 1024 * 1024;
 const int kMinMicrophoneReadInBytes = 1024;
-// The possiblity of microphone creation failed is 1/20.
+// The possibility of microphone creation failed is 1/20.
 const int kCreationRange = 20;
-// The possiblity of microphone open failed is 1/20.
+// The possibility of microphone open failed is 1/20.
 const int kOpenRange = 20;
-// The possiblity of microphone read failed is 1/300.
+// The possibility of microphone read failed is 1/300.
 const int kReadRange = 300;
-// The possiblity of microphone close failed is 1/20.
+// The possibility of microphone close failed is 1/20.
 const int kCloseRange = 20;
 const int kFailureNumber = 5;
 const int kSupportedMonoChannel = 1;

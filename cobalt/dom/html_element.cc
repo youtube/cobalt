@@ -2145,7 +2145,7 @@ bool HTMLElement::IsDesignated() const {
   return false;
 }
 
-bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
+bool HTMLElement::CanBeDesignatedByPointerIfDisplayed() const {
   return computed_style()->pointer_events() != cssom::KeywordValue::GetNone() &&
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();
 }

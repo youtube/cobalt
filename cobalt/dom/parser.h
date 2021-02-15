@@ -35,8 +35,8 @@ class XMLDocument;
 // be able to parse a piece of HTML or XML input. If the input is a full
 // document then a corresponding Document or XMLDocument should be created, and
 // new nodes are inserted under the document. Otherwise the new nodes are
-// inserted in the given document under parent_node, before referece_node, using
-// the Web API insertBefore().
+// inserted in the given document under parent_node, before reference_node,
+// using the Web API insertBefore().
 //
 // This class is not a part of any specification.
 class Parser {

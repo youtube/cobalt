@@ -255,22 +255,27 @@ class PlatformConfiguration(object):
       logging.info('Using Thread Sanitizer')
 
     variables = {
-        'clang': use_clang,
+        'clang':
+            use_clang,
 
         # Whether to build with clang's Source Based Code Coverage
         # instrumentation.
         # See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html
-        'use_source_code_coverage': use_source_code_coverage,
+        'use_source_code_coverage':
+            use_source_code_coverage,
 
         # Whether to build with clang's Address Sanitizer instrumentation.
-        'use_asan': use_asan,
+        'use_asan':
+            use_asan,
         # Whether to build with clang's Thread Sanitizer instrumentation.
-        'use_tsan': use_tsan,
+        'use_tsan':
+            use_tsan,
 
         # Which JavaScript engine to use.  Currently, both SpiderMonkey 45 and
         # V8 are supported.  Note that V8 can only be used on platforms that
         # support JIT.
-        'javascript_engine': 'v8',
+        'javascript_engine':
+            'v8',
 
         # If the path to the Starboard ABI file is able to be formatted, it will
         # be using the experimental Starboard API version of the file, i.e.
@@ -281,10 +286,14 @@ class PlatformConfiguration(object):
                 sb_api_version=sabi.SB_API_VERSION),
 
         # TODO: Remove these compatibility variables.
-        'cobalt_config': config_name,
-        'cobalt_fastbuild': 0,
-        'custom_media_session_client': 0,
-        'enable_vr': 0,
+        'cobalt_config':
+            config_name,
+        'cobalt_fastbuild':
+            0,
+        'custom_media_session_client':
+            0,
+        'enable_vr':
+            0,
     }
     return variables
 
@@ -346,7 +355,7 @@ class PlatformConfiguration(object):
     return []
 
   def GetDeployPathPatterns(self):
-    """Gets deployment paths patterns for files to be included for deployement.
+    """Gets deployment paths patterns for files to be included for deployment.
 
     Example: ['deploy/*.exe', 'content/*']
 

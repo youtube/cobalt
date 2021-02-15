@@ -16,7 +16,7 @@ const char kIvfHeaderSignature[] = "DKIF";
 
 #pragma pack(push, 1)
 struct MEDIA_EXPORT IvfFileHeader {
-  // Byte swap interger fields between native and (on disk) little endian.
+  // Byte swap integer fields between native and (on disk) little endian.
   void ByteSwap();
 
   char signature[4];        // signature: 'DKIF'
@@ -38,7 +38,7 @@ static_assert(
     "sizeof(IvfFileHeader) must be fixed since it will be used with file IO");
 
 struct MEDIA_EXPORT IvfFrameHeader {
-  // Byte swap interger fields between native and (on disk) little endian.
+  // Byte swap integer fields between native and (on disk) little endian.
   void ByteSwap();
 
   uint32_t frame_size;  // Size of frame in bytes (not including the header)

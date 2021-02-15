@@ -73,7 +73,7 @@ class FileFetcher : public Fetcher {
   // Builds the search path list, including an optional extra directory.
   void BuildSearchPath(const base::FilePath& extra_search_dir);
 
-  // Tries opening a file using the current entry in the seach path.
+  // Tries opening a file using the current entry in the search path.
   void TryFileOpen();
 
   void ReadNextChunk();

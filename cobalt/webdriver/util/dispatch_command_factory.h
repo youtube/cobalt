@@ -151,7 +151,7 @@ void ReturnResponse(const base::Optional<protocol::SessionId>& session_id,
 // Specify the XXXDriver class name as a template parameter.
 template <class DriverClassT>
 class DispatchCommandFactory
-    : public base::RefCounted<DispatchCommandFactory<DriverClassT> > {
+    : public base::RefCounted<DispatchCommandFactory<DriverClassT>> {
   // Max retries for the "can_retry" CommandResult case.
   static const int kMaxRetries = 5;
 
@@ -164,7 +164,7 @@ class DispatchCommandFactory
   // Callback that takes PathVariableMap* and CommandResultHandler* as arguments
   // and returns a SessionDriver*.
   // Attempts to extract the sessionID from the PathVariableMap and finds the
-  // session that this ID maps to. If no such session occurrs, an error is sent
+  // session that this ID maps to. If no such session occurs, an error is sent
   // through the CommandResultHandler and NULL is returned.
   typedef base::Callback<SessionDriver*(const PathVariableMap* path_variables,
                                         CommandResultHandler*)>
@@ -177,7 +177,8 @@ class DispatchCommandFactory
   // the CommandResultHandler and NULL is returned.
   typedef base::Callback<DriverClassT*(SessionDriver*,
                                        const PathVariableMap* path_variables,
-                                       CommandResultHandler*)> GetDriverCommand;
+                                       CommandResultHandler*)>
+      GetDriverCommand;
 
   // Takes GetSessionCommand and GetDriverCommand callbacks. These will be
   // called when the DispatchCommandCallback is called to try to find the
@@ -188,7 +189,7 @@ class DispatchCommandFactory
 
   // Returns a DispatchCommandCallback that will call the specified
   // command_callback.
-  // If the path variables successfull map to a DriverClass instance, it will
+  // If the path variables successfully map to a DriverClass instance, it will
   // be passed as the argument to the command_callback.
   // If no such DriverClass instance can be found, the command_callback will not
   // be run. The results of the command will be sent through the
@@ -205,7 +206,7 @@ class DispatchCommandFactory
 
   // Returns a DispatchCommandCallback that will call the specified
   // command_callback with an argument.
-  // If the path variables successfull map to a DriverClass instance, it will
+  // If the path variables successfully map to a DriverClass instance, it will
   // be passed as the argument to the command_callback.
   // If the parameters passed to the command cannot be converted to an instance
   // of type A1, the command_callback will not be called an an appropriate
@@ -228,7 +229,7 @@ class DispatchCommandFactory
   // for a particular return value R. Putting this into a nested template class
   // helps alleviate some of the headaches of working with C++ templates.
   template <typename R>
-  class CommandHandler : public base::RefCounted<CommandHandler<R> > {
+  class CommandHandler : public base::RefCounted<CommandHandler<R>> {
    public:
     // Wrapper around an actual command to run. It will extract arguments from
     // |parameters| if necessary and pass them to the command.

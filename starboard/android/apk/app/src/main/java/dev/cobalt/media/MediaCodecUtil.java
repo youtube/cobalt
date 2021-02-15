@@ -595,7 +595,7 @@ public class MediaCodecUtil {
           continue;
         }
 
-        // VideoCapabilties is not implemented correctly on this device.
+        // VideoCapabilities is not implemented correctly on this device.
         if (Build.VERSION.SDK_INT < 23
             && Build.MODEL.equals("MIBOX3")
             && name.equals("OMX.amlogic.vp9.decoder.awesome")

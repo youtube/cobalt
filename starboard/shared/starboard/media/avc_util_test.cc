@@ -430,7 +430,7 @@ TEST(AvcParameterSetsTest, InvalidNaluHeader) {
   }
 }
 
-TEST(AvcParameterSetsTest, MultiNalusWithouSpsPps) {
+TEST(AvcParameterSetsTest, MultiNalusWithoutSpsPps) {
   std::vector<uint8_t> nalus_in_annex_b = kIdrInAnnexB + kSliceInAnnexB;
 
   for (int i = 0; i < 3; ++i) {

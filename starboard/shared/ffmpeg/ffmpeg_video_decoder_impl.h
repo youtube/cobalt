@@ -126,7 +126,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   AVFrame* av_frame_;
 
   bool stream_ended_;
-  bool error_occured_;
+  bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_;

@@ -22,7 +22,7 @@ namespace nplb {
 namespace {
 
 TEST(SbSystemClearLastErrorTest, SunnyDay) {
-  // Opening a non-existant file should generate an error on all platforms.
+  // Opening a non-existent file should generate an error on all platforms.
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
   SbFile file = SbFileOpen(random_file.filename().c_str(),
                            kSbFileOpenOnly | kSbFileRead, NULL, NULL);

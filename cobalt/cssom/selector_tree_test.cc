@@ -50,8 +50,9 @@ TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
   //   kDescendantCombinator -> node_1("div")
   std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule("div {}", base::SourceLocation(
-                                          "[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("div {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
 
@@ -91,14 +92,14 @@ TEST(SelectorTreeTest, AppendRuleShouldNormalizeCompoundSelector) {
   //   kDescendantCombinator -> node_1(".class#id")
   std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule(
-                    ".class#id {}",
-                    base::SourceLocation("[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule(".class#id {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule(
-                    "#id.class {}",
-                    base::SourceLocation("[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("#id.class {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
@@ -131,12 +132,14 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
   //   kDescendantCombinator -> node_1("div")
   std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule("div {}", base::SourceLocation(
-                                          "[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("div {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule("div {}", base::SourceLocation(
-                                          "[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("div {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
@@ -169,7 +172,7 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
   EXPECT_EQ(Specificity(0, 0, 1), node_1->cumulative_specificity());
 }
 
-TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
+TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDescendantSelectors) {
   SelectorTree selector_tree;
 
   // Selector Tree:
@@ -178,13 +181,14 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
   //     kChildCombinator -> node_2("span")
   std::unique_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
-      css_parser->ParseRule("div {}", base::SourceLocation(
-                                          "[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("div {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
-      css_parser->ParseRule(
-                    "div span {}",
-                    base::SourceLocation("[object SelectorTreeTest]", 1, 1))
+      css_parser
+          ->ParseRule("div span {}",
+                      base::SourceLocation("[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);

@@ -16,7 +16,7 @@
 
 // This is an API for accessing system-level closed caption settings and
 // exposing them to HTML5 apps. It supports detecting if captions are enabled at
-// a system level, and retreiving values of various captioning style
+// a system level, and retrieving values of various captioning style
 // properties assigned by the system.
 
 // For each captioning style property that this API supports, there are two
@@ -85,8 +85,8 @@ interface SystemCaptionSettings : EventTarget {
   // There are separate checks for reading and writing to the enabled attribute,
   // as some systems allow the value to be queried but not written to. Setting
   // the enabled attribute will change the system-wide enabled setting.
-  // Attemping to read isEnabled when supportsIsEnabled is false will
-  // always return false. Attemping to set isEnabled when supportsSetEnabled is
+  // Attempting to read isEnabled when supportsIsEnabled is false will
+  // always return false. Attempting to set isEnabled when supportsSetEnabled is
   // false will fail silently.
   readonly attribute boolean supportsIsEnabled;
   readonly attribute boolean supportsSetEnabled;

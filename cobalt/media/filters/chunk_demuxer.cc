@@ -179,7 +179,7 @@ Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges(
   if (type_ == TEXT) {
     // Since text tracks are discontinuous and the lack of cues should not block
     // playback, report the buffered range for text tracks as [0, |duration|) so
-    // that intesections with audio & video tracks are computed correctly when
+    // that intersections with audio & video tracks are computed correctly when
     // no cues are present.
     Ranges<TimeDelta> text_range;
     text_range.Add(TimeDelta(), duration);

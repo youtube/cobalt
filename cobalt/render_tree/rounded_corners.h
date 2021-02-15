@@ -46,7 +46,7 @@ struct RoundedCorner {
     return horizontal >= other.horizontal && vertical >= other.vertical;
   }
 
-  // |horizontal| and |vertial| represent the horizontal radius and vertical
+  // |horizontal| and |vertical| represent the horizontal radius and vertical
   // radius of a corner.
   float horizontal;
   float vertical;

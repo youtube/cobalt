@@ -75,7 +75,7 @@ class WindowTimers {
   };
   typedef base::hash_map<int, scoped_refptr<TimerInfo> > Timers;
 
-  // Returns a positive interger timer handle that hasn't been assigned, or 0
+  // Returns a positive integer timer handle that hasn't been assigned, or 0
   // if none can be found.
   int GetFreeTimerHandle();
 
