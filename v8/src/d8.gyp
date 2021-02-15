@@ -44,7 +44,7 @@
       'V8_OS_STARBOARD=1',
     ],
    },
-  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
+  'includes': ['../toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'd8',
