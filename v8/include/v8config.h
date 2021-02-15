@@ -181,9 +181,16 @@
 # define V8_TARGET_OS_MACOSX
 #endif
 
+#if defined(COMPILE_FOR_STARBOARD)
+// Cobalt
+#if defined(SB_HAS_WINDOWS_CALLING)
+#define V8_TARGET_OS_WIN 1
+#endif
+#else
 #ifdef V8_OS_WIN
 # define V8_TARGET_OS_WIN
 #endif
+#endif  // COMPILE_FOR_STARBOARD
 
 #endif  // V8_HAVE_TARGET_OS
 
@@ -355,11 +362,6 @@
 
 # define V8_HAS___FORCEINLINE 1
 
-#endif
-
-// Cobalt-specific
-#if defined(SB_HAS_WINDOWS_CALLING)
-#define V8_TARGET_OS_WIN 1
 #endif
 
 // -----------------------------------------------------------------------------

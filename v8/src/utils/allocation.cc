@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+﻿// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -151,6 +151,8 @@ void AlignedFree(void* ptr) {
 #elif V8_LIBC_BIONIC
   // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
   base::Free(ptr);
+#elif V8_OS_STARBOARD
+  SbMemoryFreeAligned(ptr);
 #else
   base::Free(ptr);
 #endif
