@@ -34,7 +34,7 @@ enum RelocationType {
 // class representing the ELF relocations.
 class Relocations {
  public:
-  Relocations(Addr base_memory_adddress,
+  Relocations(Addr base_memory_address,
               DynamicSection* dynamic_section,
               ExportedSymbols* exported_symbols);
 

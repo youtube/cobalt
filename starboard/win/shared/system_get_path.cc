@@ -32,7 +32,7 @@
 
 namespace {
 
-using starboard::shared::win32::CreateDirectoryHiearchy;
+using starboard::shared::win32::CreateDirectoryHierarchy;
 using starboard::shared::win32::NormalizeWin32Path;
 
 // Places up to |path_size| - 1 characters of the path to the current
@@ -84,7 +84,8 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
 }
 
 bool GetRelativeDirectory(const char* relative_path,
-                          char* out_path, int path_size) {
+                          char* out_path,
+                          int path_size) {
   if (!out_path || (path_size <= 0)) {
     return false;
   }
@@ -98,7 +99,7 @@ bool GetRelativeDirectory(const char* relative_path,
     return false;
   }
 
-  if (!CreateDirectoryHiearchy(NormalizeWin32Path(file_path.data()))) {
+  if (!CreateDirectoryHierarchy(NormalizeWin32Path(file_path.data()))) {
     return false;
   }
   return SbStringCopy(out_path, file_path.data(), path_size);
@@ -113,8 +114,7 @@ bool GetContentPath(char* out_path, int path_size) {
 }
 
 bool GetCachePath(char* out_path, int path_size) {
-  return GetRelativeDirectory("\\content\\cache",
-                              out_path, path_size);
+  return GetRelativeDirectory("\\content\\cache", out_path, path_size);
 }
 
 bool CreateAndGetTempPath(char* out_path, int path_size) {

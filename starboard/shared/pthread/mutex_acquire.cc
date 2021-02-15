@@ -35,12 +35,12 @@ SbMutexResult SbMutexAcquire(SbMutex* mutex) {
     SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
   }
 #endif
-#if SB_ENABLE_CONCURRENTY_DEBUG
+#if SB_ENABLE_CONCURRENCY_DEBUG
   starboard::experimental::ScopedMutexWaitTracker tracker(mutex);
   if (tracker.acquired()) {
     return kSbMutexAcquired;
   }
-#endif  // SB_ENABLE_CONCURRENTY_DEBUG
+#endif  // SB_ENABLE_CONCURRENCY_DEBUG
   int result = pthread_mutex_lock(SB_PTHREAD_INTERNAL_MUTEX(mutex));
   if (IsSuccess(result)) {
     return kSbMutexAcquired;

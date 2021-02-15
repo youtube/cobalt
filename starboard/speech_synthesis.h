@@ -14,7 +14,7 @@
 
 // Module Overview: Starboard Speech Synthesis API
 //
-// A basic text-to-speech API intended to be used for audio accessibilty.
+// A basic text-to-speech API intended to be used for audio accessibility.
 //
 // Implementations of this API should audibly play back text to assist
 // users in non-visual navigation of the application.

@@ -23,7 +23,7 @@
 // refactors.
 namespace gfx {
 
-// Used to represet a color space for the purpose of color conversion.
+// Used to represent a color space for the purpose of color conversion.
 // This is designed to be safe and compact enough to send over IPC
 // between any processes.
 class ColorSpace {
@@ -129,7 +129,7 @@ class ColorSpace {
     // Limited Rec. 709 color range with RGB values ranging from 16 to 235.
     kRangeIdLimited = 1,
 
-    // Full RGB color range with RGB valees from 0 to 255.
+    // Full RGB color range with RGB values from 0 to 255.
     kRangeIdFull = 2,
 
     // Range is defined by TransferID/MatrixID.

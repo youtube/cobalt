@@ -91,7 +91,7 @@ class CobaltRunner(object):
     Args:
       launcher_params:  An object storing all platform configuration and device
         information parameters.
-      url:              The intial URL to launch Cobalt on.
+      url:              The initial URL to launch Cobalt on.
       log_file:         The log file's name string.
       target_params:    An array of command line arguments to launch Cobalt
         with.
@@ -176,7 +176,7 @@ class CobaltRunner(object):
       line = self.launcher_read_pipe.readline()
       if line:
         self.log_file.write(line)
-        # Calling flush() to ensure the logs are delievered timely.
+        # Calling flush() to ensure the logs are delivered timely.
         self.log_file.flush()
       else:
         break

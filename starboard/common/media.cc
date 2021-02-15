@@ -277,7 +277,7 @@ std::ostream& operator<<(std::ostream& os,
 #endif  // SB_API_VERSION >= 11
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>")
-     << ", max video capabilites: "
+     << ", max video capabilities: "
      << (sample_info.max_video_capabilities ? sample_info.max_video_capabilities
                                             : "<null>")
      << ", ";

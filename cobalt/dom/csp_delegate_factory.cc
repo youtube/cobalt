@@ -47,7 +47,7 @@ bool InsecureAllowed(int token) {
 
 CspDelegate* CreateInsecureDelegate(
     std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    csp::CSPHeaderPolicy requre_csp,
+    csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback, int insecure_allowed_token) {
   if (InsecureAllowed(insecure_allowed_token)) {
     return new CspDelegateInsecure();

@@ -132,8 +132,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                                   self.test_success_tag)
     test_failure_output = ' || echo {} {}'.format(self.test_complete_tag,
                                                   self.test_failure_tag)
-    self.test_command = '{} {} {}'.format(
-        test_base_command, test_success_output, test_failure_output)
+    self.test_command = '{} {} {}'.format(test_base_command,
+                                          test_success_output,
+                                          test_failure_output)
 
   def _PexpectSpawnAndConnect(self, command):
     """Spawns a process with pexpect and connect to the raspi.
@@ -267,7 +268,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     except pexpect.TIMEOUT:
       logging.exception('pexpect timed out while reading line.')
     except Exception:  # pylint: disable=broad-except
-      logging.exception('Error occured while running test.')
+      logging.exception('Error occurred while running test.')
     finally:
       self._CleanupPexpectProcess()
 

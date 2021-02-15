@@ -157,7 +157,7 @@ bool EzTimeTExplode(const EzTimeT* SB_RESTRICT in_time,
                     EzTimeExploded* SB_RESTRICT out_exploded);
 
 // Explodes |value| to a time in the given |timezone|, placing the result in
-// |out_exploded|, with the remainder milliseconds in |out_millsecond|, if not
+// |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
 // NULL. Returns whether the explosion was successful. NOTE: This is LOSSY.
 bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
                         EzTimeZone timezone,

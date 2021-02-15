@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Extracts the API versions for all available builds.
 
   Example usage:
@@ -53,7 +52,7 @@ def SearchInFileReturnFirstMatchingLine(file_path, search_term):
         return line
     return None
   except IOError:
-    print ('  error while reading file ', file_path)
+    print('  error while reading file ', file_path)
 
 
 # Opens a header or cc file and decodes it to utf8 using a variety
@@ -79,7 +78,7 @@ def FindIncludeFiles(file_path):
         output_list.append(line)
     return output_list
   except IOError:
-    print ('  error while reading file ', file_path)
+    print('  error while reading file ', file_path)
 
 
 # Searches from the search_location for a configuration.h file that
@@ -89,8 +88,7 @@ def ExtractExperimentalApiVersion(config_file_path):
   """Searches for and extracts the current experimental API version."""
   needle = '#define SB_EXPERIMENTAL_API_VERSION'
   line = SearchInFileReturnFirstMatchingLine(
-      config_file_path,
-      '#define SB_EXPERIMENTAL_API_VERSION')
+      config_file_path, '#define SB_EXPERIMENTAL_API_VERSION')
   if not line:
     raise ValueError('Could not find ' + needle + ' in ' + config_file_path)
 
@@ -122,6 +120,7 @@ def FindConfigIncludefile(platform_path_config_file):
 
 def GeneratePlatformPathMap():
   """Return a map of platform-name -> full-path-to-platform-config-header."""
+
   def GenPath(p):
     full_path = os.path.abspath(os.path.join(p.path, 'configuration_public.h'))
     if not os.path.exists(full_path):
@@ -145,7 +144,7 @@ def FindVersionRecursive(starboard_dir, platform_path):
     if not config_include_paths:
       return '<UNKNOWN>'
     elif len(config_include_paths) > 1:
-      return '<AMBIGUIOUS>'
+      return '<AMBIGUOUS>'
     else:
       include_path = config_include_paths[0]
       include_path = re.sub(r'^starboard/', '', include_path)

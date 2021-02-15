@@ -352,7 +352,7 @@ class Document : public Node,
   const void* ui_nav_focus_element() const { return ui_nav_focus_element_; }
   bool TrySetUiNavFocusElement(const void* focus_element, SbTimeMonotonic time);
 
-  // Track HTML elements that are UI navigtion items. This facilitates updating
+  // Track HTML elements that are UI navigation items. This facilitates updating
   // their layout information as needed.
   void AddUiNavigationElement(HTMLElement* element) {
     ui_nav_elements_.insert(element);

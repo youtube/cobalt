@@ -251,7 +251,7 @@
 
 // Defines the maximum number of simultaneous threads for this platform. Some
 // platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
+// like mutexes, so we want to keep this manageable.
 #define SB_MAX_THREADS 90
 
 // The maximum number of thread local storage keys supported by this platform.

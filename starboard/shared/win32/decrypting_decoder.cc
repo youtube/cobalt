@@ -311,7 +311,7 @@ bool DecryptingDecoder::ActivateDecryptor() {
       protection_version, 0, cert_data, cert_data_size, &crypt_seed,
       &crypt_seed_size);
   if (FAILED(hr)) {
-    // This can happen if we call InitOutputProtection while procesing
+    // This can happen if we call InitOutputProtection while processing
     // a UWP resume event or shortly after.
     return false;
   }

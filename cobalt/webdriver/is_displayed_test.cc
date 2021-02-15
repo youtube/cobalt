@@ -85,7 +85,7 @@ TEST_F(IsDisplayedTest, ZeroOpacityIsNotDisplayed) {
       algorithms::IsDisplayed(document()->GetElementById("transparent").get()));
 }
 
-TEST_F(IsDisplayedTest, ZeroSizeDivHasDescendentWithSize) {
+TEST_F(IsDisplayedTest, ZeroSizeDivHasDescendantWithSize) {
   EXPECT_TRUE(algorithms::IsDisplayed(
       document()->GetElementById("zerosizeddiv").get()));
 }

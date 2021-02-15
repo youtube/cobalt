@@ -44,7 +44,7 @@ class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
   virtual bool ParseConfig() = 0;
 
   // Returns a populated, valid AU indicating the needed information for
-  // downloding and decoding the next access unit in the stream, or NULL on
+  // downloading and decoding the next access unit in the stream, or NULL on
   // fatal error. On success this advances the respective audio or video cursor
   // to the next AU.
   virtual scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) = 0;

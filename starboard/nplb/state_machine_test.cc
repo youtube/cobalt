@@ -87,7 +87,7 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     // The "HSM Event" that occurred causing this to be recorded.
     const hsm::HsmEvent hsm_event;
 
-    // The state version at the time the HsmEvent occured.
+    // The state version at the time the HsmEvent occurred.
     const uint64_t version;
   };
 

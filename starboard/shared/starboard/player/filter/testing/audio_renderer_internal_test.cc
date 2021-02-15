@@ -641,7 +641,7 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
   EXPECT_EQ(playback_rate, 1.0);
 }
 
-TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
+TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   if (HasAsyncAudioFramesReporting()) {
     SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;
@@ -734,7 +734,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
-TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
+TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   if (HasAsyncAudioFramesReporting()) {
     SB_LOG(INFO) << "Platform has async audio frames reporting. Test skipped.";
     return;

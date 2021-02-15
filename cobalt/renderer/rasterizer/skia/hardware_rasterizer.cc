@@ -206,7 +206,7 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
       destination_rect.height() / canvas_size.height(), 0, 0, 0, 0, 1, 0,
       destination_rect.x(), destination_rect.y(), 0, 1);
 
-  // Since these matrices are applied in LIFO order, read the followin inlined
+  // Since these matrices are applied in LIFO order, read the following inlined
   // comments in reverse order.
   glm::mat4 result =
       // Flip the y axis depending on the destination surface's origin.

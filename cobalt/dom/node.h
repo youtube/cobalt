@@ -226,7 +226,7 @@ class Node : public EventTarget {
   virtual scoped_refptr<Node> Duplicate() const = 0;
 
   // Purges all cached resource reference from the current node and all
-  // descendents.
+  // descendants.
   void PurgeCachedResourceReferencesRecursively();
 
   bool RegisterMutationObserver(const scoped_refptr<MutationObserver>& observer,
@@ -305,8 +305,8 @@ class Node : public EventTarget {
   scoped_refptr<Node> PreRemove(const scoped_refptr<Node>& child);
   void Remove(const scoped_refptr<Node>& node, bool suppress_observers);
 
-  // Called everytime mutation happens, i.e. when a child is inserted or removed
-  // from this node.
+  // Called every time mutation happens, i.e. when a child is inserted or
+  // removed from this node.
   virtual void OnMutation() {}
 
   // Weak reference to the node document.

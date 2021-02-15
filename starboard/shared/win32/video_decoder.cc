@@ -117,9 +117,8 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
     hr = media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
                                       ULONG_PTR(device_manager));
     if (FAILED(hr)) {
-      SB_LOG(WARNING)
-          << "Unable to set device manager for d3d aware decoder, "
-             "disabling DXVA.";
+      SB_LOG(WARNING) << "Unable to set device manager for d3d aware decoder, "
+                         "disabling DXVA.";
       hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, FALSE);
       if (FAILED(hr)) {
         SB_LOG(WARNING) << "Unable to disable DXVA.";
@@ -497,7 +496,7 @@ void VideoDecoder::ShutdownCodec() {
   graphics_context_provider_->gles_context_runner(
       graphics_context_provider_, &VideoDecoder::ReleaseDecodeTargets, this);
 
-  // Microsoft recommendeds stalling to let other systems release their
+  // Microsoft recommends stalling to let other systems release their
   // references to the IMFSamples.
   if (video_codec_ == kSbMediaVideoCodecVp9) {
     SbThreadSleep(150 * kSbTimeMillisecond);

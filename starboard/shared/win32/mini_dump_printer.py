@@ -19,14 +19,15 @@ import os
 import subprocess
 import sys
 
- # This cdb tool is part of Microsofts debugging toolset, it will allow mini
- # dump analysis and printing.
+# This cdb tool is part of Microsoft's debugging toolset, it will allow mini
+# dump analysis and printing.
 _DEFAULT_TOOL_PATH = "C:/Program Files (x86)/Windows Kits/10/Debuggers/x64/cdb.exe"
+
 
 def PrintMiniDump(mini_dump_path,
                   exe_path,
-                  out_stream = sys.stdout,
-                  tool_path = _DEFAULT_TOOL_PATH):
+                  out_stream=sys.stdout,
+                  tool_path=_DEFAULT_TOOL_PATH):
   out_stream.write('\n*** Found crash dump! ***\nMinDumpPath:'\
                    + mini_dump_path + '\n')
 

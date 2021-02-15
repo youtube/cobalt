@@ -264,12 +264,12 @@ void GetElementTextInternal(dom::Element* element,
 
   scoped_refptr<dom::NodeList> children = element->child_nodes();
   // https://www.w3.org/TR/webdriver/#get-element-text
-  // 2. For each descendent of node, at time of execution, in order:
+  // 2. For each descendant of node, at time of execution, in order:
   for (uint32 i = 0; i < children->length(); ++i) {
     scoped_refptr<dom::Node> child = children->Item(i);
     if (child->IsText() && is_displayed) {
-      // If descendent is a [DOM] text node let text equal the nodeValue
-      // property of descendent.
+      // If descendant is a [DOM] text node let text equal the nodeValue
+      // property of descendant.
       icu::UnicodeString text =
           icu::UnicodeString::fromUTF8(child->node_value().value_or(""));
       CanonicalizeText(whitespace_style, text_transform_style, &text);

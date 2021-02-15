@@ -37,7 +37,7 @@ TEST(SbTimeGetMonotonicNowTest, IsMonotonic) {
       }
 
       // If time hasn't increased within a second, our "high-resolution"
-      // monotomic timer is broked.
+      // monotonic timer is broken.
       if (SbTimeGetNow() - clockStart >= kSbTimeSecond) {
         GTEST_FAIL() << "SbTimeGetMonotonicNow() hasn't changed within a "
                      << "second.";

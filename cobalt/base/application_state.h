@@ -34,7 +34,7 @@ enum ApplicationState {
 
   // The state where the application is running on the background, but the
   // background tasks are still running, such as audio playback, or updating
-  // of recommandations. The application is expected to be able to move back
+  // of recommendations. The application is expected to be able to move back
   // into the Blurred state very quickly.
   kApplicationStateConcealed,
 

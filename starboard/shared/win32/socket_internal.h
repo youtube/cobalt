@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_WIN32_SOCKET_INTERNAL_H_
 #define STARBOARD_SHARED_WIN32_SOCKET_INTERNAL_H_
 
-#include <winsock2.h>
 #include <WS2tcpip.h>
+#include <winsock2.h>
 
 #include "starboard/atomic.h"
 #include "starboard/common/socket.h"
@@ -68,7 +68,7 @@ struct SbSocketPrivate {
   // Used to work around the fact that WSAEventSelect for FD_WRITE is
   // edge-triggered, unlike other events.
   //
-  // See MSDN documentato n for WSAEventSelect FD_WRITE for more info.
+  // See MSDN documentation for WSAEventSelect FD_WRITE for more info.
   starboard::atomic_bool writable;
 
   // The last error that occurred on this socket, or kSbSocketOk.

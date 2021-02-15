@@ -83,7 +83,6 @@ const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond = 40 * 1024 * 1024;
 // video.
 const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond = 200 * 1024 * 1024;
 
-
 // Specifies how video frame buffers must be aligned on this platform.
 const uint32_t kSbMediaVideoFrameAlignment = 256;
 
@@ -109,7 +108,7 @@ const uint32_t kSbNetworkReceiveBufferSize = 0;
 
 // Defines the maximum number of simultaneous threads for this platform. Some
 // platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
+// like mutexes, so we want to keep this manageable.
 const uint32_t kSbMaxThreads = 90;
 
 // The current platform's search path component separator character. When

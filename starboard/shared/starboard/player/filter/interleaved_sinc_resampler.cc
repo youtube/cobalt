@@ -136,7 +136,7 @@ void InterleavedSincResampler::InitializeKernel() {
   }
 }
 
-int InterleavedSincResampler::GetNumberOfCashedFrames() const {
+int InterleavedSincResampler::GetNumberOfCachedFrames() const {
   if (pending_buffers_.empty()) {
     return 0;
   }

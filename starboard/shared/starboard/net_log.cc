@@ -187,7 +187,7 @@ class BufferedSocketWriter {
   }
 
   // Will flush data through to the dest_socket. Returns |true| if
-  // flushed, else connection was dropped or an error occured.
+  // flushed, else connection was dropped or an error occurred.
   bool Flush(SbSocket dest_socket) {
     std::string curr_write_block;
     while (TransferData(chunk_size_, &curr_write_block)) {

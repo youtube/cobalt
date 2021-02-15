@@ -23,7 +23,7 @@
 namespace cobalt {
 namespace account {
 
-// Glue for h5vcc to get properites for the current user.
+// Glue for h5vcc to get properties for the current user.
 // The AccountManager will be owned by BrowserModule.
 class AccountManager {
  public:

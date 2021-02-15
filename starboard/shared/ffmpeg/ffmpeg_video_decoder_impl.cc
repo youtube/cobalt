@@ -91,7 +91,7 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
-      error_occured_(false),
+      error_occurred_(false),
       decoder_thread_(kSbThreadInvalid),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -212,7 +212,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
     if (event.type == kReset) {
       return;
     }
-    if (error_occured_) {
+    if (error_occurred_) {
       continue;
     }
     if (event.type == kWriteInputBuffer) {
@@ -257,7 +257,7 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     error_cb_(kSbPlayerErrorDecode,
               FormatString("avcodec_decode_video2() failed with result %d.",
                            decode_result));
-    error_occured_ = true;
+    error_occurred_ = true;
     return false;
   }
   if (frame_decoded == 0) {
@@ -268,7 +268,7 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
     error_cb_(kSbPlayerErrorDecode,
               "Video frame was produced yet has invalid frame data.");
-    error_occured_ = true;
+    error_occurred_ = true;
     return false;
   }
 

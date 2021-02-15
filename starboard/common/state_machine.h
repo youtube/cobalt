@@ -213,7 +213,7 @@ class StateMachineBase {
   // --- Implementation Interface for Subclasses ---
 
   // Abstract method for subclasses to define the state hierarchy. It is
-  // recommended that all user-defined states be descendents of a single "top"
+  // recommended that all user-defined states be descendants of a single "top"
   // state.
   virtual optional<State> GetUserParentState(State state) const = 0;
 
@@ -478,9 +478,7 @@ class StateMachine {
       return wrapper_->GetUserEventString(static_cast<EventEnum>(event));
     }
 
-    Result HandleUserStateEvent(State state,
-                                Event event,
-                                void* data) override {
+    Result HandleUserStateEvent(State state, Event event, void* data) override {
       typename StateMachine<StateEnum, EventEnum>::Result result =
           wrapper_->HandleUserStateEvent(static_cast<StateEnum>(state),
                                          static_cast<EventEnum>(event), data);

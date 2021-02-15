@@ -44,7 +44,7 @@ class LoaderOnThread {
         end_waitable_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                             base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
-  // Start() and End() should be called on the same thread, the sychronous load
+  // Start() and End() should be called on the same thread, the synchronous load
   // thread, so the member objects are created, execute, and are destroyed,
   // on that same thread.
   void Start(base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)>

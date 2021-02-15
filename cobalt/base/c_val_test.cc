@@ -505,7 +505,7 @@ TEST(CValTest, HookReceiver) {
   }
 
   // Make sure there's no interference from the previous hook which should
-  // be completely non-existant now
+  // be completely non-existent now
   {
     class TestHook : public base::CValManager::OnChangedHook {
      public:

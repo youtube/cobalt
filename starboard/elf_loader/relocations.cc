@@ -106,7 +106,7 @@ bool Relocations::InitRelocations() {
         break;
       case DT_RELR:
       case DT_RELRSZ:
-        SB_LOG(ERROR) << "  DT_RELRSZ NOT IMPELMENTED";
+        SB_LOG(ERROR) << "  DT_RELRSZ NOT IMPLEMENTED";
         break;
       case DT_RELRENT:
       case DT_PLTGOT:

@@ -81,7 +81,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   scoped_ptr<aom_codec_ctx_t> context_;
 
   bool stream_ended_;
-  bool error_occured_;
+  bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   scoped_ptr<starboard::player::JobThread> decoder_thread_;

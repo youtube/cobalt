@@ -21,7 +21,7 @@ namespace starboard {
 namespace loader_app {
 
 // Returns an application key extracted from |url|. This function is not meant
-// to validate a URL, and operates assusming the URL provided is valid. This
+// to validate a URL, and operates assuming the URL provided is valid. This
 // should not be used for anything other than a best-effort attempt.
 std::string ExtractAppKey(const std::string& url);
 

@@ -130,7 +130,7 @@ class WebDriverDispatcher {
     kMatchVariables,
   };
   // Internal structure that manages command mappings for a given URL.
-  // Each Http method can have a DispatchCommmandCallback mapped to it.
+  // Each Http method can have a DispatchCommandCallback mapped to it.
   // The registered path is stored as a tokenized vector of the registered
   // path's components, preserving variable components that start with a colon.
   struct CommandMapping {

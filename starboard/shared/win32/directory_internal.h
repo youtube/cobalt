@@ -69,7 +69,7 @@ bool DirectoryExists(const std::wstring& dir_path);
 
 // Directory hierarchy is created from tip down to root. This is necessary
 // because UWP has issues with bottom up directory creation due to permissions.
-bool CreateDirectoryHiearchy(const std::wstring& wfull_path);
+bool CreateDirectoryHierarchy(const std::wstring& wfull_path);
 
 bool DirectoryExistsOrCreated(const std::wstring& wpath);
 

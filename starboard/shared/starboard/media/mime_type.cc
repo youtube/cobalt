@@ -133,7 +133,7 @@ MimeType::MimeType(const std::string& content_type)
     param.name = name_and_value[0];
     if (param.name == "codecs") {
       // There can only be no more than one codecs parameter and it has to be
-      // the first paramter if it is present.
+      // the first parameter if it is present.
       if (!params_.empty() || has_codecs) {
         return;
       } else {

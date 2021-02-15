@@ -48,7 +48,7 @@ bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
   return false;
 }
 
-bool ReuseAllocatorBase::MemoryBlock::CanFullfill(std::size_t request_size,
+bool ReuseAllocatorBase::MemoryBlock::CanFulfill(std::size_t request_size,
                                                   std::size_t alignment) const {
   const std::size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
@@ -63,7 +63,7 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
                                                MemoryBlock* free) const {
   SB_DCHECK(allocated);
   SB_DCHECK(free);
-  SB_DCHECK(CanFullfill(request_size, alignment));
+  SB_DCHECK(CanFulfill(request_size, alignment));
 
   // First we assume that the block is just enough to fulfill the allocation and
   // leaves no free block.
@@ -263,7 +263,7 @@ void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
   MemoryBlock allocated_block;
   void* user_address;
 
-  if (block.CanFullfill(size, alignment)) {
+  if (block.CanFulfill(size, alignment)) {
     MemoryBlock free_block;
     block.Allocate(size, alignment, allocate_from_front, &allocated_block,
                    &free_block);
@@ -395,7 +395,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   AddFreeBlock(MemoryBlock(ptr, size_to_allocate));
   FreeBlockSet::iterator iter = free_blocks_.end();
   --iter;
-  return iter->CanFullfill(size, alignment) ? iter : free_blocks_.end();
+  return iter->CanFulfill(size, alignment) ? iter : free_blocks_.end();
 }
 
 void ReuseAllocatorBase::AddAllocatedBlock(void* address,

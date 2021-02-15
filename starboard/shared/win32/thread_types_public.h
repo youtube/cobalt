@@ -28,7 +28,7 @@
 typedef struct WindowsConditionVariable { void* ptr; } SbConditionVariable;
 
 // Condition Variable static initializer.
-// Note: replica of RTL_CONDITION_VARIABILE_INIT in um/winnt.h to avoid include.
+// Note: replica of RTL_CONDITION_VARIABLE_INIT in um/winnt.h to avoid include.
 #define SB_CONDITION_VARIABLE_INITIALIZER \
   { 0 }
 

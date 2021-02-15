@@ -27,7 +27,7 @@ void FreezeDone(void* /*context*/) {
   // Stop all thread execution after fully transitioning into Frozen.
   // This would stop the platform's background thread, such as:
   // application android thread for android platforms. Which may not
-  // be the correct expected behavoir, since application android is
+  // be the correct expected behavior, since application android is
   // for listening the callbacks from android main thread.
   raise(SIGSTOP);
 }

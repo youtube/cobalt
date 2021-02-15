@@ -45,7 +45,7 @@ int UpgradeMain(int argc, char** argv) {
   }
   DLOG(INFO) << "read: size=" << buffer.size();
   if (IsUpgradeRequired(buffer)) {
-    DLOG(INFO) << "Upgarded required";
+    DLOG(INFO) << "Upgrade required";
     if (!UpgradeStore(&buffer)) {
       DLOG(ERROR) << "Failed to upgrade";
       return -1;
@@ -56,7 +56,7 @@ int UpgradeMain(int argc, char** argv) {
     DLOG(ERROR) << "Failed to save";
     return -1;
   }
-  DLOG(INFO) << "SUCCESS: upgarded size=" << buffer.size();
+  DLOG(INFO) << "SUCCESS: upgraded size=" << buffer.size();
   return 0;
 }
 

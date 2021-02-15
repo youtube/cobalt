@@ -53,7 +53,7 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
   DCHECK(JS_IsGlobalObject(global_object));
 
   JSAutoRequest auto_request(context);
-  JSAutoCompartment auto_comparment(context, global_object);
+  JSAutoCompartment auto_compartment(context, global_object);
   JS::RootedObject rooted_global_object(context, global_object);
   JS_DefineFunction(context, rooted_global_object, "print", &Print, 0,
                     JSPROP_ENUMERATE | JSFUN_STUB_GSOPS);

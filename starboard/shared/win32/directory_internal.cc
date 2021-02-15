@@ -77,7 +77,7 @@ bool DirectoryExists(const std::wstring& dir_path) {
   return (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-bool CreateDirectoryHiearchy(const std::wstring& wfull_path) {
+bool CreateDirectoryHierarchy(const std::wstring& wfull_path) {
   if (DirectoryExistsOrCreated(wfull_path)) {
     return true;
   }

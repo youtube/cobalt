@@ -42,7 +42,7 @@ class TimingFunction : public base::RefCountedThreadSafe<TimingFunction>,
   // value).
   virtual float Evaluate(float x) const = 0;
 
-  // Functions to retreive specific timing functions that are named by CSS
+  // Functions to retrieve specific timing functions that are named by CSS
   // keywords.
   static const scoped_refptr<TimingFunction>& GetEase();
   static const scoped_refptr<TimingFunction>& GetEaseIn();

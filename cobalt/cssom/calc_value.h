@@ -27,7 +27,7 @@
 namespace cobalt {
 namespace cssom {
 
-// Represets the result of the mathematical calculation it contains, using
+// Represents the result of the mathematical calculation it contains, using
 // standard operator precedence rules.
 // TODO: Implement the complete version of CalcValue. The
 // current CalcValue is just a simplified implementation.

@@ -85,7 +85,7 @@ void QueueApplication::InjectTimedEvent(TimedEvent* timed_event) {
 void QueueApplication::CancelTimedEvent(SbEventId event_id) {
   timed_event_queue_.Cancel(event_id);
 
-  // The wait duration will only get longer after canceling an event, so the
+  // The wait duration will only get longer after cancelling an event, so the
   // waiter will wake up as previously scheduled, see there is nothing to do,
   // and go back to sleep.
 }

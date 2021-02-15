@@ -14,7 +14,9 @@
 
 #include "starboard/shared/win32/minidump.h"
 
+// clang-format off
 #include <windows.h>  // Has to go first.
+// clang-format on
 #include <crtdbg.h>
 #include <dbghelp.h>
 #include <sstream>
@@ -73,9 +75,9 @@ class DumpHandler {
     bool out_created = false;
     SbFileError out_error = kSbFileOk;
 
-    HANDLE file_handle = OpenFileOrDirectory(
-        file_path_.c_str(), kSbFileCreateAlways | kSbFileWrite,
-        &out_created, &out_error);
+    HANDLE file_handle = OpenFileOrDirectory(file_path_.c_str(),
+                                             kSbFileCreateAlways | kSbFileWrite,
+                                             &out_created, &out_error);
 
     const bool file_ok = out_created && (out_error == kSbFileOk) &&
                          (file_handle != NULL) &&
@@ -90,27 +92,23 @@ class DumpHandler {
 
     // Create the minidump.
     MINIDUMP_EXCEPTION_INFORMATION mdei;
-    mdei.ThreadId           = GetCurrentThreadId();
-    mdei.ExceptionPointers  = pep;
-    mdei.ClientPointers     = TRUE;
-    MINIDUMP_TYPE mdt =
-        static_cast<MINIDUMP_TYPE>(MiniDumpWithFullMemory |
-                                   MiniDumpWithFullMemoryInfo |
-                                   MiniDumpWithHandleData |
-                                   MiniDumpWithThreadInfo |
-                                   MiniDumpWithUnloadedModules);
+    mdei.ThreadId = GetCurrentThreadId();
+    mdei.ExceptionPointers = pep;
+    mdei.ClientPointers = TRUE;
+    MINIDUMP_TYPE mdt = static_cast<MINIDUMP_TYPE>(
+        MiniDumpWithFullMemory | MiniDumpWithFullMemoryInfo |
+        MiniDumpWithHandleData | MiniDumpWithThreadInfo |
+        MiniDumpWithUnloadedModules);
 
     BOOL rv = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(),
-                                file_handle, mdt,
-                                (pep != 0) ? &mdei : 0,
-                                0, 0);
+                                file_handle, mdt, (pep != 0) ? &mdei : 0, 0, 0);
     std::stringstream ss;
     if (!rv) {
       ss << "Minidump write failed. Error: " << GetLastError() << "\n";
     } else {
       ss << "Minidump " << file_path_ << "created.\n";
     }
-    // Lower level loggin than SbLogRaw().
+    // Lower level logging than SbLogRaw().
     SbLogRaw(ss.str().c_str());
     CloseHandle(file_handle);
   }

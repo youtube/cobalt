@@ -18,6 +18,7 @@ from starboard.tools.toolchain_deprecated import CompilerSettings
 from starboard.tools.toolchain_deprecated import PrecompiledHeader
 from starboard.tools.toolchain_deprecated import Toolchain
 
+
 def _LanguageMatchesForPch(source_ext, pch_source_ext):
   c_exts = ('.c',)
   cc_exts = ('.cc', '.cxx', '.cpp')
@@ -52,8 +53,8 @@ class MSVCPrecompiledHeader(PrecompiledHeader):
         return ([('cflags_cc', map(expand_special, cflags_cc + pch_output))],
                 self.output_obj, [])
       elif command == 'cc':
-        return ([('cflags_c', map(expand_special, cflags_c + pch_output))],
-                self.output_obj, [])
+        return ([('cflags_c', map(expand_special,
+                                  cflags_c + pch_output))], self.output_obj, [])
     return [], output, implicit
 
   def GetInclude(self):
@@ -72,7 +73,7 @@ class MSVCPrecompiledHeader(PrecompiledHeader):
   def GetObjDependencies(self, sources, output):
     """Given a list of sources files and the corresponding object files,
     returns a list of the pch files that should be depended upon. The
-    additional wrapping in the return value is for interface compatability
+    additional wrapping in the return value is for interface compatibility
     with make.py on Mac, and xcode_emulation.py."""
     if not self._PchHeader():
       return []
@@ -151,7 +152,7 @@ def _AppendOrReturn(append, element):
 
 class MsvsSettings(CompilerSettings):
   """A class that understands the gyp 'msvs_...' values (especially the
-  msvs_settings field). They largely correpond to the VS2008 IDE DOM. This
+  msvs_settings field). They largely correspond to the VS2008 IDE DOM. This
   class helps map those settings to command line options."""
 
   def __init__(self, spec, generator_flags):
@@ -317,10 +318,9 @@ class MsvsSettings(CompilerSettings):
     config = self._TargetConfig(config)
     includes = include_dirs + self.msvs_system_include_dirs[config]
     includes.extend(
-        self._Setting(
-            ('VCCLCompilerTool', 'AdditionalIncludeDirectories'),
-            config,
-            default=[]))
+        self._Setting(('VCCLCompilerTool', 'AdditionalIncludeDirectories'),
+                      config,
+                      default=[]))
     return [self.ConvertVSMacros(p, config=config) for p in includes]
 
   def GetDefines(self, config):
@@ -333,9 +333,9 @@ class MsvsSettings(CompilerSettings):
     if self._ConfigAttrib(['CharacterSet'], config) == '2':
       defines.append('_MBCS')
     defines.extend(
-        self._Setting(
-            ('VCCLCompilerTool', 'PreprocessorDefinitions'), config,
-            default=[]))
+        self._Setting(('VCCLCompilerTool', 'PreprocessorDefinitions'),
+                      config,
+                      default=[]))
     return defines
 
   def GetOutputName(self, config, expand_special):
@@ -369,10 +369,12 @@ class MsvsSettings(CompilerSettings):
     cl = self._GetWrapper(
         self, self.msvs_settings[config], 'VCCLCompilerTool', append=cflags)
     cl('Optimization',
-       map={'0': 'd',
-            '1': '1',
-            '2': '2',
-            '3': 'x'},
+       map={
+           '0': 'd',
+           '1': '1',
+           '2': '2',
+           '3': 'x'
+       },
        prefix='/O')
     cl('InlineFunctionExpansion', prefix='/Ob')
     cl('OmitFramePointers', map={'false': '-', 'true': ''}, prefix='/Oy')
@@ -381,31 +383,33 @@ class MsvsSettings(CompilerSettings):
     cl('WarningLevel', prefix='/W')
     cl('WarnAsError', map={'false': '', 'true': '/WX'})
     cl('DebugInformationFormat',
-       map={'1': '7',
-            '3': 'i',
-            '4': 'I'},
+       map={
+           '1': '7',
+           '3': 'i',
+           '4': 'I'
+       },
        prefix='/Z')
     cl('RuntimeTypeInfo', map={'true': '/GR', 'false': '/GR-'})
     cl('EnableFunctionLevelLinking', map={'true': '/Gy', 'false': '/Gy-'})
     cl('BufferSecurityCheck', map={'true': '/GS', 'false': '/GS-'})
     cl('BasicRuntimeChecks', map={'1': 's', '2': 'u', '3': '1'}, prefix='/RTC')
     cl('RuntimeLibrary',
-       map={'0': 'T',
-            '1': 'Td',
-            '2': 'D',
-            '3': 'Dd'},
+       map={
+           '0': 'T',
+           '1': 'Td',
+           '2': 'D',
+           '3': 'Dd'
+       },
        prefix='/M')
     cl('ExceptionHandling', map={'1': 'sc', '2': 'a'}, prefix='/EH')
     cl('EnablePREfast', map={'true': '/analyze'})
     cl('AdditionalOptions', prefix='')
     cflags.extend([
-        '/FI' + f
-        for f in self._Setting(
+        '/FI' + f for f in self._Setting(
             ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])
     ])
     cflags.extend([
-        '/Zc:' + f
-        for f in self._Setting(
+        '/Zc:' + f for f in self._Setting(
             ('VCCLCompilerTool', 'Conformance'), config, default=[])
     ])
 
@@ -434,8 +438,9 @@ class MsvsSettings(CompilerSettings):
     return []
 
   def UsesComponentExtensions(self, config):
-    return self._Setting(
-        ('VCCLCompilerTool', 'ComponentExtensions'), config, default=[])
+    return self._Setting(('VCCLCompilerTool', 'ComponentExtensions'),
+                         config,
+                         default=[])
 
   def GetCflagsC(self, config):
     """Returns the flags that need to be added to .c compilations."""
@@ -461,8 +466,9 @@ class MsvsSettings(CompilerSettings):
     """Get and normalize the list of paths in AdditionalLibraryDirectories
     setting."""
     config = self._TargetConfig(config)
-    libpaths = self._Setting(
-        (root, 'AdditionalLibraryDirectories'), config, default=[])
+    libpaths = self._Setting((root, 'AdditionalLibraryDirectories'),
+                             config,
+                             default=[])
     libpaths = [
         os.path.normpath(
             gyp_path_to_ninja(self.ConvertVSMacros(p, config=config)))
@@ -524,8 +530,10 @@ class MsvsSettings(CompilerSettings):
     ld('LinkIncremental', map={'1': ':NO', '2': ''}, prefix='/INCREMENTAL')
     ld('FixedBaseAddress', map={'1': ':NO', '2': ''}, prefix='/FIXED')
     ld('RandomizedBaseAddress',
-       map={'1': ':NO',
-            '2': ''},
+       map={
+           '1': ':NO',
+           '2': ''
+       },
        prefix='/DYNAMICBASE')
     ld('DataExecutionPrevention', map={'1': ':NO', '2': ''}, prefix='/NXCOMPAT')
     ld('OptimizeReferences', map={'1': 'NOREF', '2': 'REF'}, prefix='/OPT:')
@@ -540,8 +548,7 @@ class MsvsSettings(CompilerSettings):
 
     # If the base address is not specifically controlled, DYNAMICBASE should
     # be on by default.
-    base_flags = filter(lambda x: 'DYNAMICBASE' in x or x == '/FIXED',
-                        ldflags)
+    base_flags = filter(lambda x: 'DYNAMICBASE' in x or x == '/FIXED', ldflags)
     if not base_flags:
       ldflags.append('/DYNAMICBASE')
 
@@ -575,8 +582,9 @@ class MsvsSettings(CompilerSettings):
   def _GetAdditionalManifestFiles(self, config, gyp_path_to_ninja):
     """Gets additional manifest files that are added to the default one
     generated by the linker."""
-    files = self._Setting(
-        ('VCManifestTool', 'AdditionalManifestFiles'), config, default=[])
+    files = self._Setting(('VCManifestTool', 'AdditionalManifestFiles'),
+                          config,
+                          default=[])
     if (self._Setting(('VCManifestTool', 'EmbedManifest'), config,
                       default='') == 'true'):
       print 'gyp/msvs_emulation.py: "EmbedManifest: true" not yet supported.'
@@ -640,7 +648,6 @@ class MsvsSettings(CompilerSettings):
     if value:
       raise Exception("Cygwin usage is no longer allowed in Cobalt Gyp")
     return False
-
 
   def _HasExplicitRuleForExtension(self, spec, extension):
     """Determine if there's an explicit rule for a particular extension."""
@@ -722,7 +729,8 @@ def _ExtractImportantEnvironment(output_of_set):
       'xedk',
       'cell_.*',
       'sn_.*',
-      'sce_.*',)
+      'sce_.*',
+  )
   env = {}
   for line in output_of_set.splitlines():
     for envvar in envvars_to_save:
@@ -768,8 +776,8 @@ class MSVCUWPToolchain(Toolchain):
     return string.replace('$', '$$')
 
   def Define(self, d):
-    # cl.exe replaces literal # characters with = in preprocesor definitions for
-    # some reason. Octal-encode to work around that.
+    # cl.exe replaces literal # characters with = in preprocessor definitions
+    # for some reason. Octal-encode to work around that.
     d = d.replace('#', '\\%03o' % ord('#'))
     return '/D' + self.QuoteForRspFile(self._escape(d))
 

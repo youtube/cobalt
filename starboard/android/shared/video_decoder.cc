@@ -1030,7 +1030,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 
 void VideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
-    // Wait until codec is stoped.
+    // Wait until codec is stopped.
     ScopedLock lock(surface_destroy_mutex_);
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
     surface_condition_variable_.WaitTimed(kSbTimeSecond);

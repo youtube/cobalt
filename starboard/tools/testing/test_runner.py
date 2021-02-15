@@ -836,7 +836,7 @@ def main():
       "-w",
       "--launcher_args",
       help="Pass space-separated arguments to control launcher behaviour. "
-      "Arguments are plaform specific and may not be implemented for all "
+      "Arguments are platform specific and may not be implemented for all "
       "platforms. Common arguments are:\n\t'noinstall' - skip install steps "
       "before running the test\n\t'systools' - use system-installed tools.")
   args = arg_parser.parse_args()

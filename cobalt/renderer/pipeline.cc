@@ -66,7 +66,7 @@ const int kRendererThreadStackSize =
 // How many entries the rasterize periodic timer will contain before updating.
 const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
 
-// The maxiumum numer of entries that the rasterize animations timer can contain
+// The maximum numer of entries that the rasterize animations timer can contain
 // before automatically updating. In the typical use case, the update will
 // occur manually when the animations expire.
 const size_t kRasterizeAnimationsTimerMaxEntries = 60;

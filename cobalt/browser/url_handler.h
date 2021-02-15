@@ -28,7 +28,7 @@ class BrowserModule;
 class URLHandler {
  public:
   // Type for a callback to potentially handle a URL before it is used to
-  // intialize a new WebModule. The callback should return true if it handled
+  // initialize a new WebModule. The callback should return true if it handled
   // the URL, false otherwise.
   typedef base::Callback<bool(const GURL& url)> URLHandlerCallback;
 

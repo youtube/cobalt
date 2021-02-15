@@ -119,12 +119,12 @@ const std::string GetCurrentEvergreenVersion() {
 
   if (!version.IsValid()) {
     if (!index) {
-      SB_LOG(ERROR) << "Failed to get the Everegreen version. Defaulting to "
+      SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
                     << kDefaultManifestVersion << ".";
       return kDefaultManifestVersion;
     }
 
-    SB_LOG(ERROR) << "Failed to get the Everegreen version.";
+    SB_LOG(ERROR) << "Failed to get the Evergreen version.";
     return "";
   }
   return version.GetString();

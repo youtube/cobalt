@@ -33,7 +33,7 @@ namespace filter {
 // All functions (including Create() and the dtor) of the class should be called
 // on the same thread as the JobQueue passed in the Create() function.
 // It doesn't have a function to reset its internal state so during a seek the
-// user of this class shoudld destroy and recreate it.
+// user of this class should destroy and recreate it.
 class AudioResampler {
  public:
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;

@@ -77,7 +77,7 @@ typedef enum SbMediaSupportType {
   // The media type cannot be played.
   kSbMediaSupportTypeNotSupported,
 
-  // Cannot determinate if the media type is playable without playing it.
+  // Cannot determine if the media type is playable without playing it.
   kSbMediaSupportTypeMaybe,
 
   // The media type seems to be playable.
@@ -277,7 +277,7 @@ typedef enum SbMediaRangeId {
   // Limited Rec. 709 color range with RGB values ranging from 16 to 235.
   kSbMediaRangeIdLimited = 1,
 
-  // Full RGB color range with RGB valees from 0 to 255.
+  // Full RGB color range with RGB values from 0 to 255.
   kSbMediaRangeIdFull = 2,
 
   // Range is defined by TransferId/MatrixId.

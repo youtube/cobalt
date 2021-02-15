@@ -18,7 +18,7 @@
 namespace cobalt {
 namespace paths {
 
-// The following keys are used to retreive Cobalt-specific paths using
+// The following keys are used to retrieve Cobalt-specific paths using
 // base::PathService::Get().
 //
 // Example:

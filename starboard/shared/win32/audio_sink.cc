@@ -85,12 +85,12 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   ConsumeFramesFunc consume_frames_func,
                   void* context);
-  ~XAudioAudioSink() override {};
+  ~XAudioAudioSink() override{};
 
   void SetSourceVoice(IXAudio2SourceVoice* source_voice) {
     source_voice_ = source_voice;
     samples_played_ = 0;
-    submited_frames_ = 0;
+    submitted_frames_ = 0;
     if (source_voice_) {
       CHECK_HRESULT_OK(source_voice_->Start(0));
       SbAtomicRelease_Store(&stop_callbacks_, 0);
@@ -160,7 +160,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   double volume_;
   // The following variables are only used inside Process().  To keep it in the
   // class simply to allow them to be kept between Process() calls.
-  int submited_frames_;
+  int submitted_frames_;
   int samples_played_;
   int queued_buffers_;
   bool was_playing_;
@@ -280,7 +280,7 @@ XAudioAudioSink::XAudioAudioSink(
       wfx_(wfx),
       playback_rate_(1.0),
       volume_(1.0),
-      submited_frames_(0),
+      submitted_frames_(0),
       samples_played_(0),
       queued_buffers_(0),
       was_playing_(false),
@@ -336,9 +336,9 @@ void XAudioAudioSink::Process() {
   if (!is_playing || frames_in_buffer == 0 || is_playback_rate_zero) {
     return;
   }
-  int unsubmitted_frames = frames_in_buffer - submited_frames_;
+  int unsubmitted_frames = frames_in_buffer - submitted_frames_;
   int unsubmitted_start =
-      (offset_in_frames + submited_frames_) % frame_buffers_size_in_frames_;
+      (offset_in_frames + submitted_frames_) % frame_buffers_size_in_frames_;
   if (unsubmitted_frames == 0 || queued_buffers_ + kMaxBuffersSubmittedPerLoop >
                                      XAUDIO2_MAX_QUEUED_BUFFERS) {
     // submit nothing
@@ -352,7 +352,7 @@ void XAudioAudioSink::Process() {
     SubmitSourceBuffer(unsubmitted_start, count_tail_frames);
     SubmitSourceBuffer(0, unsubmitted_frames - count_tail_frames);
   }
-  submited_frames_ = frames_in_buffer;
+  submitted_frames_ = frames_in_buffer;
 
   XAUDIO2_VOICE_STATE voice_state;
   source_voice_->GetState(&voice_state);
@@ -363,7 +363,7 @@ void XAudioAudioSink::Process() {
   int consumed_frames_int = static_cast<int>(consumed_frames);
 
   consume_frames_func_(consumed_frames_int, SbTimeGetMonotonicNow(), context_);
-  submited_frames_ -= consumed_frames_int;
+  submitted_frames_ -= consumed_frames_int;
   samples_played_ = voice_state.SamplesPlayed;
   queued_buffers_ = voice_state.BuffersQueued;
 }
@@ -457,9 +457,8 @@ SbAudioSink XAudioAudioSinkType::Create(
       }
       hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
       if (FAILED(hr)) {
-        SB_DLOG(WARNING)
-          << "Audio failed to CreateMasteringVoice(), "
-             "sound will be disabled.";
+        SB_DLOG(WARNING) << "Audio failed to CreateMasteringVoice(), "
+                            "sound will be disabled.";
         return nullptr;
       }
     }

@@ -65,7 +65,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   FetcherBufferedDataSource(
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GURL& url, const csp::SecurityCallback& security_callback,
-      network::NetworkModule* network_module, loader::RequestMode requset_mode,
+      network::NetworkModule* network_module, loader::RequestMode request_mode,
       loader::Origin origin);
   ~FetcherBufferedDataSource() override;
 

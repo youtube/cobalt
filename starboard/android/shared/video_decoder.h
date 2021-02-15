@@ -130,7 +130,7 @@ class VideoDecoder
   const SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  // Android doesn't offically support multi concurrent codecs. But the device
+  // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.

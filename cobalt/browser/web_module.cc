@@ -265,10 +265,10 @@ class WebModule::Impl {
   void InjectCustomWindowAttributes(
       const Options::InjectedWindowAttributes& attributes);
 
-  // Called by |layout_mananger_| after it runs the animation frame callbacks.
+  // Called by |layout_manager_| after it runs the animation frame callbacks.
   void OnRanAnimationFrameCallbacks();
 
-  // Called by |layout_mananger_| when it produces a render tree. May modify
+  // Called by |layout_manager_| when it produces a render tree. May modify
   // the render tree (e.g. to add a debug overlay), then runs the callback
   // specified in the constructor, |render_tree_produced_callback_|.
   void OnRenderTreeProduced(const LayoutResults& layout_results);

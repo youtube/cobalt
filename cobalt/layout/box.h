@@ -222,7 +222,7 @@ class Box : public base::RefCounted<Box> {
     return css_computed_style_declaration_->data();
   }
 
-  // The animation set specifies all currently active animations appyling
+  // The animation set specifies all currently active animations applying
   // to this box's computed_style() CSS Style Declaration.
   //   https://w3c.github.io/web-animations
   const web_animations::AnimationSet* animations() const {

@@ -47,7 +47,7 @@ TEST(TokenTest, CompareEqual) {
   EXPECT_EQ(non_empty_1, non_empty_2);
 }
 
-TEST(TokenTest, CompareUnqual) {
+TEST(TokenTest, CompareUnequal) {
   std::string kTestString = "test";
 
   Token empty;

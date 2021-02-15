@@ -797,7 +797,7 @@ namespace {
 // target surface, and will be added as a child to the composition node with
 // the specified transform applied.  This function is used for the multiple
 // tests that follow this function definition that ensure that different
-// composition node transforms are workign correctly.
+// composition node transforms are working correctly.
 scoped_refptr<MatrixTransformNode> MakeTransformedSingleSolidColorRect(
     const SizeF& size, const Matrix3F& transform) {
   return new MatrixTransformNode(
@@ -1967,7 +1967,7 @@ scoped_refptr<CompositionNode> CreatePixelEdgeCascade(
     const PointF& bottom_right_corner_of_top_layer, int num_cascades,
     const Matrix3F& texture_coord_matrix) {
   // Cascade multiple image rectangles by 1 pixel offsets so that we can
-  // exagerate the bottom pixel not being grey.
+  // exaggerate the bottom pixel not being grey.
   CompositionNode::Builder builder;
   for (int i = 0; i <= num_cascades; ++i) {
     PointF offset(-frame_size.width() + bottom_right_corner_of_top_layer.x() +
@@ -2071,7 +2071,7 @@ TEST_F(PixelTest, YUV2PlaneImagesAreLinearlyInterpolated) {
 
 TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
   // This test ensures that an opacity filter being applied to an extremely
-  // large surface works just fine.  This test is itneresting because opacity
+  // large surface works just fine.  This test is interesting because opacity
   // is likely implemented by rendering to an offscreen surface, but the
   // offscreen surface should never need to be larger than the canvas it will
   // be rendered to.
@@ -2129,7 +2129,7 @@ TEST_F(PixelTest, TextNodesScaleDownSmoothly) {
   // This test checks that we can smoothly scale text from one size to
   // another.  In some font rasterizers, if they don't do sub-pixel font
   // glyph rendering, text glyphs will appear quantized into different
-  // scale buckets.  This is undesireable as it makes animating text scale
+  // scale buckets.  This is undesirable as it makes animating text scale
   // very jittery.
   const std::string kText("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 

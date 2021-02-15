@@ -53,7 +53,7 @@ DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix) {
     col0x *= 1 / decomposition.scale[0];
     col0y *= 1 / decomposition.scale[0];
   }
-  if ((0.0f !=  decomposition.scale[1])) {
+  if ((0.0f != decomposition.scale[1])) {
     col1x *= 1 / decomposition.scale[1];
     col1y *= 1 / decomposition.scale[1];
   }
@@ -87,17 +87,16 @@ DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix) {
   return decomposition;
 }
 
-float Lerp(float a, float b, float progress) {
-  return a + (b - a) * progress;
-}
+float Lerp(float a, float b, float progress) { return a + (b - a) * progress; }
 
 namespace {
 
 // Prepare certain attributes of the decomposed matrices for interpolation.
-void SanitizeInputsForInterpolation(
-    const DecomposedMatrix& a, const DecomposedMatrix& b,
-    float* a_scale_sanitized, float* a_angle_sanitized,
-    float* b_angle_sanitized) {
+void SanitizeInputsForInterpolation(const DecomposedMatrix& a,
+                                    const DecomposedMatrix& b,
+                                    float* a_scale_sanitized,
+                                    float* a_angle_sanitized,
+                                    float* b_angle_sanitized) {
   static const float kPi = static_cast<float>(M_PI);
 
   // If x-axis of one is flipped, and y-axis of the other,
@@ -172,7 +171,7 @@ math::Matrix3F RecomposeMatrix(const DecomposedMatrix& decomposition) {
 
   // Translate matrix.  Note that we deviate from the specification here
   // because the specification's "recompose" algorithm is inconsistent with
-  // its "decompose" algorithm.  The modification acheives this consistency.
+  // its "decompose" algorithm.  The modification achieves this consistency.
   matrix(0, 2) = decomposition.translation[0];
   matrix(1, 2) = decomposition.translation[1];
 

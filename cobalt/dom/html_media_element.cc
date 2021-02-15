@@ -1753,7 +1753,7 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
     const std::string& max_video_capabilities,
     script::ExceptionState* exception_state) {
   if (GetAttribute("src").value_or("").length() > 0) {
-    LOG(WARNING) << "Cannot set maxmium capabilities after src is defined.";
+    LOG(WARNING) << "Cannot set maximum capabilities after src is defined.";
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }

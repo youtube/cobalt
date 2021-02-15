@@ -96,7 +96,7 @@ void CallThreadLocalDestructorsMultipleTimes() {
   int num_tls_objects_remaining = 0;
   // TODO note that the implementation below holds a global lock
   // while processing TLS destructors on thread exit. This could
-  // be a bottleneck in some scenarios. A lockless approach may be preferrable.
+  // be a bottleneck in some scenarios. A lockless approach may be preferable.
   SbMutexAcquire(&singleton->mutex_);
 
   for (int i = 0; i < kNumDestructorPasses; ++i) {
@@ -181,7 +181,7 @@ SbThread SbThreadCreate(int64_t stack_size,
   }
 
   // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
-  // has been set, so that it's alway valid in the ThreadCreateInfo
+  // has been set, so that it's always valid in the ThreadCreateInfo
   // destructor.
   uintptr_t handle =
       _beginthreadex(NULL, static_cast<unsigned int>(stack_size),

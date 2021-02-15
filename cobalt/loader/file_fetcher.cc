@@ -122,7 +122,7 @@ void FileFetcher::BuildSearchPath(const base::FilePath& extra_search_dir) {
   // Build the vector of paths to search for files.
   // Paths will be tried in the order they are listed.
   // Add the user-specified extra directory first, if specified,
-  // so it has precendence.
+  // so it has precedence.
   if (!extra_search_dir.empty()) {
     search_path_.push_back(extra_search_dir);
   }

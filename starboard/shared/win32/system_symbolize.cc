@@ -19,7 +19,7 @@
 #include <functional>
 #include <string>
 
-#include <Windows.h>  // Must go before dbhelp.h
+#include <Windows.h>  // Must go before dbghelp.h
 #include <dbghelp.h>
 
 #include "starboard/common/log.h"
@@ -35,10 +35,9 @@ typedef std::function<bool(const void*, std::string*)> SymbolResolverFunction;
 // Handles dynamically loading functions from dbghelp.dll used
 // for symbol resolution.
 SymbolResolverFunction CreateWin32SymbolResolver() {
-  SymbolResolverFunction null_function =
-    [] (const void*, std::string*) {
-      return false;
-    };
+  SymbolResolverFunction null_function = [](const void*, std::string*) {
+    return false;
+  };
 
   if (!::SymInitialize(GetCurrentProcess(), NULL, TRUE)) {
     auto error = GetLastError();
@@ -47,16 +46,16 @@ SymbolResolverFunction CreateWin32SymbolResolver() {
   }
 
   ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-  return [=] (const void* address, std::string* destination) {
+  return [=](const void* address, std::string* destination) {
     char sym_buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
     SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(sym_buf);
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     symbol->MaxNameLen = MAX_SYM_NAME;
 
     DWORD64 offset = 0;
-    bool ok = ::SymFromAddr(::GetCurrentProcess(),
-                            reinterpret_cast<DWORD64>(address),
-                            &offset, symbol);
+    bool ok =
+        ::SymFromAddr(::GetCurrentProcess(), reinterpret_cast<DWORD64>(address),
+                      &offset, symbol);
 
     const char* name = symbol->Name;
     if (name[0] == '_') {
@@ -84,9 +83,7 @@ class SymbolResolver {
   }
 
  private:
-  SymbolResolver() {
-    resolver_ = CreateWin32SymbolResolver();
-  }
+  SymbolResolver() { resolver_ = CreateWin32SymbolResolver(); }
   starboard::Mutex mutex_;
   SymbolResolverFunction resolver_;
 };
@@ -95,8 +92,7 @@ SB_ONCE_INITIALIZE_FUNCTION(SymbolResolver, SymbolResolver::Instance);
 
 }  // namespace
 
-bool SbSystemSymbolize(const void* address, char* out_buffer,
-                       int buffer_size) {
+bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
   SymbolResolver* db = SymbolResolver::Instance();
   bool ok = db->Resolve(address, out_buffer, buffer_size);
   return ok;
@@ -104,7 +100,7 @@ bool SbSystemSymbolize(const void* address, char* out_buffer,
 
 #else  // COBALT_BUILD_TYPE_GOLD
 
-bool SbSystemSymbolize(const void*, char*,int) {
+bool SbSystemSymbolize(const void*, char*, int) {
   return false;
 }
 

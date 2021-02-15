@@ -373,7 +373,7 @@ bool MP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
 }
 
 // Set up map state and load first part of table, or entire table if it is small
-// enough, for each of the supporated atoms.
+// enough, for each of the supported atoms.
 bool MP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
                      uint32 cache_size_entries, const uint8* atom) {
   // All map atoms are variable-length tables starting with 4 bytes of
@@ -652,7 +652,7 @@ bool MP4Map::stsc_Init() {
   return true;
 }
 
-// To find the chunk number of an abritrary sample we have to sum the
+// To find the chunk number of an arbitrary sample we have to sum the
 // samples-per-chunk value multiplied by the number of chunks with that sample
 // count until the sum exceeds the sample number, then calculate the chunk
 // number from that range of per-sample chunk sizes. Since this map is meant

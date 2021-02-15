@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Flatten a set of IDLs.
 
 Scan the specified directories for IDL files, filter out any ignored IDLs, and
@@ -104,7 +103,7 @@ class FlattenedInterface(object):
     return cls(lhs.name, operations, attributes, constants, constructors)
 
   def IsEmpty(self):
-    """Return True if this FlattendInterface has no properties."""
+    """Return True if this FlattenedInterface has no properties."""
     return not (self.operations or self.attributes or self.constants)
 
   @classmethod
@@ -139,12 +138,12 @@ def _GatherIDLFiles(dirname, ignore_patterns):
   """Walk all directories under |dirname| for files with the .idl extension."""
 
   def MatchesIgnorePattern(idl_path):
-    return any((fnmatch.fnmatch(idl_path, pattern) for pattern in
-                ignore_patterns))
+    return any(
+        (fnmatch.fnmatch(idl_path, pattern) for pattern in ignore_patterns))
 
   for root, _, filenames in os.walk(dirname):
-    idl_paths = (os.path.join(root, file)
-                 for file in fnmatch.filter(filenames, '*.idl'))
+    idl_paths = (
+        os.path.join(root, file) for file in fnmatch.filter(filenames, '*.idl'))
     for idl_path in idl_paths:
       if not MatchesIgnorePattern(idl_path):
         yield idl_path
@@ -211,9 +210,11 @@ def _FlattenInterfaces(idl_files):
   # Convert the idl_definition.IdlInterface objects to FlattenedInterface
   # objects. Ignore interfaces that were on the right-hand-side of an implements
   # statement.
-  return [FlattenedInterface.FromIdlInterface(interface)
-          for name, interface in interfaces.items()
-          if name not in all_implemented_interfaces]
+  return [
+      FlattenedInterface.FromIdlInterface(interface)
+      for name, interface in interfaces.items()
+      if name not in all_implemented_interfaces
+  ]
 
 
 def main(argv):
@@ -228,11 +229,12 @@ def main(argv):
       required=True,
       dest='directories',
       help='Directories to search (recursively) for .idl files.')
-  parser.add_argument('-i',
-                      '--ignore',
-                      action='append',
-                      default=[],
-                      help='Ignore IDLs whose path contains the argument.')
+  parser.add_argument(
+      '-i',
+      '--ignore',
+      action='append',
+      default=[],
+      help='Ignore IDLs whose path contains the argument.')
   parser.add_argument(
       '-o',
       '--output_path',
@@ -241,8 +243,8 @@ def main(argv):
   parser.add_argument(
       '--blink_scripts_dir',
       required=True,
-      help=
-      'Specify the directory from which blink\'s scripts should be imported.')
+      help='Specify the directory from which blink\'s scripts should be imported.'
+  )
 
   options = parser.parse_args(argv)
 

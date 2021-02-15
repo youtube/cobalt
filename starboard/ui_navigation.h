@@ -95,14 +95,10 @@ typedef struct SbUiNavItemDir {
 // This represents a 2x3 transform matrix in row-major order.
 //   | a b tx |
 //   | c d ty |
-typedef struct SbUiNavMatrix2x3 {
-  float m[6];
-} SbUiNavMatrix2x3;
+typedef struct SbUiNavMatrix2x3 { float m[6]; } SbUiNavMatrix2x3;
 
 // This represents a 4x4 transform matrix in row-major order.
-typedef struct SbUiNavMatrix4 {
-  float m[16];
-} SbUiNavMatrix4;
+typedef struct SbUiNavMatrix4 { float m[16]; } SbUiNavMatrix4;
 
 // This structure specifies all the callbacks which the platform UI engine
 // should invoke for various interaction events on navigation items. These
@@ -139,14 +135,14 @@ typedef struct SbUiNavInterface {
   // be automatically destroyed.
   void (*destroy_item)(SbUiNavItem item);
 
-  // This is used to manually force focus on a navigation item of type
-  // kSbUiNavItemTypeFocus. Any previously focused navigation item should
-  // receive the blur event. If the item is not transitively a content of the
-  // root item, then this does nothing.
+// This is used to manually force focus on a navigation item of type
+// kSbUiNavItemTypeFocus. Any previously focused navigation item should
+// receive the blur event. If the item is not transitively a content of the
+// root item, then this does nothing.
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  //
-  // Specifying kSbUiNavItemInvalid should remove focus from the UI navigation
-  // system.
+//
+// Specifying kSbUiNavItemInvalid should remove focus from the UI navigation
+// system.
 #endif
   void (*set_focus)(SbUiNavItem item);
 
@@ -159,12 +155,12 @@ typedef struct SbUiNavInterface {
   // be invoked until the item is re-enabled.
   void (*set_item_enabled)(SbUiNavItem item, bool enabled);
 
-  // This specifies directionality for container items. Containers within
-  // containers do not inherit directionality. Directionality must be specified
-  // for each container explicitly.
+// This specifies directionality for container items. Containers within
+// containers do not inherit directionality. Directionality must be specified
+// for each container explicitly.
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  //
-  // This should work even if |item| is disabled.
+//
+// This should work even if |item| is disabled.
 #endif
   void (*set_item_dir)(SbUiNavItem item, SbUiNavItemDir dir);
 
@@ -207,14 +203,14 @@ typedef struct SbUiNavInterface {
   // item and (0, 0) being the center.
   bool (*get_item_focus_vector)(SbUiNavItem item, float* out_x, float* out_y);
 
-  // This attaches the given navigation item (which must be a container) to
-  // the specified window. Navigation items are only interactable if they are
-  // transitively attached to a window.
-  //
+// This attaches the given navigation item (which must be a container) to
+// the specified window. Navigation items are only interactable if they are
+// transitively attached to a window.
+//
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  // The native UI engine should never change this navigation item's content
-  // offset. It is assumed to be used as a proxy for the system window.
-  //
+// The native UI engine should never change this navigation item's content
+// offset. It is assumed to be used as a proxy for the system window.
+//
 #endif
   // A navigation item may only have a SbUiNavItem or SbWindow as its direct
   // container. The navigation item hierarchy is established using
@@ -230,61 +226,61 @@ typedef struct SbUiNavInterface {
   // |window|, the |item| is automatically unregistered from the |window|.
   void (*set_item_container_window)(SbUiNavItem item, SbWindow window);
 
-  // A container navigation item may contain other navigation items. However,
-  // it is an error to have circular containment or for |container| to not
-  // be of type kSbUiNavItemTypeContainer. If |item| already has a different
-  // container, then this first severs that connection. If |container| is
-  // kSbUiNavItemInvalid, then this removes |item| from its current container.
-  // Upon destruction of |item| or |container|, the |item| is automatically
-  // removed from the |container|.
-  //
-  // The position of items within a container are specified relative to the
-  // container's position. The position of these content items are further
-  // modified by the container's "content offset".
-  //
-  // For example, consider item A with position (5,5) and content offset (0,0).
-  // Given item B with position (10,10) is registered as a content of item A.
-  // 1. Item B should be drawn at position (15,15).
-  // 2. If item A's content offset is changed to (10,0), then item B should be
-  //    drawn at position (5,15).
-  //
-  // Essentially, content items should be drawn at:
-  //   [container position] + [content position] - [container content offset]
+// A container navigation item may contain other navigation items. However,
+// it is an error to have circular containment or for |container| to not
+// be of type kSbUiNavItemTypeContainer. If |item| already has a different
+// container, then this first serves that connection. If |container| is
+// kSbUiNavItemInvalid, then this removes |item| from its current container.
+// Upon destruction of |item| or |container|, the |item| is automatically
+// removed from the |container|.
+//
+// The position of items within a container are specified relative to the
+// container's position. The position of these content items are further
+// modified by the container's "content offset".
+//
+// For example, consider item A with position (5,5) and content offset (0,0).
+// Given item B with position (10,10) is registered as a content of item A.
+// 1. Item B should be drawn at position (15,15).
+// 2. If item A's content offset is changed to (10,0), then item B should be
+//    drawn at position (5,15).
+//
+// Essentially, content items should be drawn at:
+//   [container position] + [content position] - [container content offset]
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  //
-  // Content items may overlap within a container. This can cause obscured items
-  // to be unfocusable. The only rule that needs to be followed is that contents
-  // which are focus items can obscure other contents which are containers, but
-  // not vice versa. The caller must ensure that content focus items do not
-  // overlap other content focus items and content container items do not
-  // overlap other content container items.
+//
+// Content items may overlap within a container. This can cause obscured items
+// to be unfocusable. The only rule that needs to be followed is that contents
+// which are focus items can obscure other contents which are containers, but
+// not vice versa. The caller must ensure that content focus items do not
+// overlap other content focus items and content container items do not
+// overlap other content container items.
 #endif
   void (*set_item_container_item)(SbUiNavItem item, SbUiNavItem container);
 
-  // Set the current content offset for the given container. This may be used
-  // to force scrolling to make certain content items visible. A container
-  // item's content offset helps determine where its content items should be
-  // drawn. Essentially, a content item should be drawn at:
-  //   [container position] + [content position] - [container content offset]
-  // If |item| is not a container, then this does nothing.
-  // By default, the content offset is (0,0).
+// Set the current content offset for the given container. This may be used
+// to force scrolling to make certain content items visible. A container
+// item's content offset helps determine where its content items should be
+// drawn. Essentially, a content item should be drawn at:
+//   [container position] + [content position] - [container content offset]
+// If |item| is not a container, then this does nothing.
+// By default, the content offset is (0,0).
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  //
-  // This should update the values returned by get_item_content_offset() even
-  // if the |item| is disabled.
+//
+// This should update the values returned by get_item_content_offset() even
+// if the |item| is disabled.
 #endif
   void (*set_item_content_offset)(SbUiNavItem item,
                                   float content_offset_x,
                                   float content_offset_y);
 
-  // Retrieve the current content offset for the navigation item. If |item| is
-  // not a container, then the content offset is (0,0).
+// Retrieve the current content offset for the navigation item. If |item| is
+// not a container, then the content offset is (0,0).
 #if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
-  //
-  // The native UI engine should not change the content offset of a container
-  // unless one of its contents (possibly recursively) is focused. This is to
-  // allow seemlessly disabling then re-enabling focus items without having
-  // their containers change offsets.
+//
+// The native UI engine should not change the content offset of a container
+// unless one of its contents (possibly recursively) is focused. This is to
+// allow seamlessly disabling then re-enabling focus items without having
+// their containers change offsets.
 #endif
   void (*get_item_content_offset)(SbUiNavItem item,
                                   float* out_content_offset_x,

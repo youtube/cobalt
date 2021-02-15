@@ -110,7 +110,7 @@ class MP4Map : public base::RefCountedThreadSafe<MP4Map> {
   // table is always aligned with the full table in cache_size_entries, so
   // that the position in the cache is trivially calculated from
   // entry_number % cache_size_entries, and the cache index is similarly
-  // caculated from entry_number / cache_size_entries.
+  // calculated from entry_number / cache_size_entries.
   class TableCache : public base::RefCountedThreadSafe<TableCache> {
    public:
     TableCache(uint64 table_offset,  // byte offset of start of table in file
@@ -155,7 +155,7 @@ class MP4Map : public base::RefCountedThreadSafe<MP4Map> {
   uint64 current_chunk_offset_;  // file byte offset of current_chunk_sample_
 
   // Can be set by a stsz entry count but an stsz may provide a default size,
-  // in which case this number may not be known until itegration through
+  // in which case this number may not be known until iteration through
   // the ctts, or stts has completed. In the event that one of those tables
   // ends at a lower number than the others this number will be amended
   // to return the lower number.

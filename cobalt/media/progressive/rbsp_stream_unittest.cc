@@ -121,7 +121,7 @@ class RBSPStreamTest : public testing::Test {
         }
       }
     } else {
-      // we will need to detect any naturally ocurring 00 00 03s
+      // we will need to detect any naturally occurring 00 00 03s
       // and protect them from removal of the 03, by inserting a
       // second 03
       int num_zeros = 0;

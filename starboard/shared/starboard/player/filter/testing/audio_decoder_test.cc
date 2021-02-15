@@ -127,7 +127,7 @@ class AudioDecoderTest
     return std::bind(&AudioDecoderTest::OnConsumed, this);
   }
 
-  // This has to be called when the decoder is just initialized/reseted or when
+  // This has to be called when the decoder is just initialized/reset or when
   // OnConsumed() is called.
   void WriteSingleInput(size_t index) {
     ASSERT_TRUE(can_accept_more_input_);

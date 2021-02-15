@@ -563,7 +563,7 @@ class ResourceCache : public ResourceCacheBase {
   // |cached_resource_map_| and add it to |weak_referenced_cached_resource_map_|
   // or |unreferenced_cached_resource_map_|, depending on whether the resource
   // is still weakly referenced.
-  // It will then start purgeing and may immediately free the resource from
+  // It will then start purging and may immediately free the resource from
   // memory ifthe cache is over its memory limit.
   void NotifyResourceDestroyed(CachedResourceType* cached_resource);
 

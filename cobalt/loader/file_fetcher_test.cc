@@ -53,7 +53,7 @@ FileFetcherTest::FileFetcherTest()
   CHECK(base::PathService::Get(base::DIR_TEST_DATA, &dir_test_data_));
 }
 
-TEST_F(FileFetcherTest, NonExisitingPath) {
+TEST_F(FileFetcherTest, NonExistingPath) {
   base::RunLoop run_loop;
 
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);

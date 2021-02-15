@@ -42,7 +42,7 @@
 //     object unless they are manually synchronized.
 //   - Multiple threads should not issue draw calls to the same render target,
 //     even if the draw calls are made within separate contexts.  In this case,
-//     be sure to manually synchronize through the use of syncrhonization
+//     be sure to manually synchronize through the use of synchronization
 //     primitives and use of the |SbBlitterFlushContext()| command.
 //   - Multiple threads can operate on the swap chain, but they must perform
 //     manual synchronization.

@@ -27,7 +27,7 @@ namespace cssom {
 
 class PropertyValue;
 
-// A Transition object represents a persistant transition from one CSS style
+// A Transition object represents a persistent transition from one CSS style
 // value to another.  Most of the data members of this class are defined with
 // names based off of the concepts named here:
 //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting

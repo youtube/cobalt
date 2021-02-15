@@ -21,7 +21,7 @@
 namespace base {
 
 // Derive from this class from the base class of a class hierarchy in order to
-// provide your hierarchy with the functinoality to test for equivalence between
+// provide your hierarchy with the functionality to test for equivalence between
 // different instances without knowing what the type of each instance is.
 // You will also need to add the line
 //   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MyDerivedClass)

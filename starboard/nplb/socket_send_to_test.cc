@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SendTo is largely tested with ReceiveFrom, so look there for more invovled
+// SendTo is largely tested with ReceiveFrom, so look there for more involved
 // tests.
 
 #include <utility>
@@ -76,8 +76,7 @@ TEST(SbSocketSendToTest, RainyDayUnconnectedSocket) {
   int result = SbSocketSendTo(socket, buf, sizeof(buf), NULL);
   EXPECT_EQ(-1, result);
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= 9
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
@@ -113,8 +112,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   void* thread_result;
   EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= 9
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(trio.server_socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
@@ -187,8 +185,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
     if (result < 0) {
       SbSocketError err = SbSocketGetLastError(trio->client_socket->socket());
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= 9
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
       EXPECT_EQ(kSbSocketErrorConnectionReset, err)
           << "Expected connection drop.";
 #else
@@ -201,8 +198,8 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
       return;  // Other way in which the connection was reset.
     }
   }
-  ASSERT_TRUE(false) << "Connection was not dropped after "
-                     << kNumRetries << " tries.";
+  ASSERT_TRUE(false) << "Connection was not dropped after " << kNumRetries
+                     << " tries.";
 }
 
 #if SB_HAS(IPV6)

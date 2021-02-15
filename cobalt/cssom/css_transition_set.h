@@ -31,7 +31,7 @@ class PropertyValue;
 
 // Maintains a mapping from the set of all unique CSS style properties to
 // active transitions.  Not all style properties may have active transitions.
-// This class is used to maintain persistance of active transitions and is
+// This class is used to maintain persistence of active transitions and is
 // expected to be modified over time as events such as CSS style modifications
 // occur.
 class TransitionSet {

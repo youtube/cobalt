@@ -42,7 +42,7 @@ FirstFitReuseAllocator::FindFreeBlock(std::size_t size,
 
   // Start looking through the free list from the front.
   for (FreeBlockSet::iterator it = begin; it != end; ++it) {
-    if (it->CanFullfill(size, alignment)) {
+    if (it->CanFulfill(size, alignment)) {
       return it;
     }
   }

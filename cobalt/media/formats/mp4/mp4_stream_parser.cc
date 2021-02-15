@@ -48,8 +48,7 @@ const int kMaxEmptySampleLogs = 20;
 // Caller should be prepared to handle return of Unencrypted() in case of
 // unsupported scheme.
 EncryptionScheme GetEncryptionScheme(const ProtectionSchemeInfo& sinf) {
-  if (!sinf.HasSupportedScheme())
-    return Unencrypted();
+  if (!sinf.HasSupportedScheme()) return Unencrypted();
   FourCC fourcc = sinf.type.type;
   EncryptionScheme::CipherMode mode = EncryptionScheme::CIPHER_MODE_UNENCRYPTED;
   EncryptionPattern pattern;
@@ -331,7 +330,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       int sample_per_second = 0;
       std::vector<uint8_t> extra_data;
       // Check if it is MPEG4 AAC defined in ISO 14496 Part 3 or
-      // supported MPEG2 AAC varients.
+      // supported MPEG2 AAC variants.
       if (ESDescriptor::IsAAC(audio_type)) {
         codec = kCodecAAC;
         channel_layout = aac.GetChannelLayout(has_sbr_);
@@ -378,8 +377,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       EncryptionScheme scheme = Unencrypted();
       if (is_track_encrypted) {
         scheme = GetEncryptionScheme(entry.sinf);
-        if (!scheme.is_encrypted())
-          return false;
+        if (!scheme.is_encrypted()) return false;
       }
       audio_config.Initialize(codec, sample_format, channel_layout,
                               sample_per_second, extra_data, scheme,
@@ -442,8 +440,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       EncryptionScheme scheme = Unencrypted();
       if (is_track_encrypted) {
         scheme = GetEncryptionScheme(entry.sinf);
-        if (!scheme.is_encrypted())
-          return false;
+        if (!scheme.is_encrypted()) return false;
       }
       video_config.Initialize(entry.video_codec, entry.video_codec_profile,
                               PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709,

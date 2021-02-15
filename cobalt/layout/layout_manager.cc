@@ -89,7 +89,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // Setting these flags triggers an update of the layout box tree and the
   // generation of a new render tree at a regular interval (e.g. 60Hz). Events
   // such as DOM mutations cause them to be set to true. While the render tree
-  // is excusively produced at the regular interval, the box tree can also be
+  // is exclusively produced at the regular interval, the box tree can also be
   // updated via a call to DoSynchronousLayout().
   bool are_computed_styles_and_box_tree_dirty_;
   base::CVal<bool> is_render_tree_pending_;

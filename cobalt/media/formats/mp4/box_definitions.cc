@@ -244,8 +244,7 @@ TrackEncryption::TrackEncryption()
       default_iv_size(0),
       default_crypt_byte_block(0),
       default_skip_byte_block(0),
-      default_constant_iv_size(0)
-{}
+      default_constant_iv_size(0) {}
 TrackEncryption::~TrackEncryption() {}
 FourCC TrackEncryption::BoxType() const { return FOURCC_TENC; }
 
@@ -259,19 +258,19 @@ bool TrackEncryption::Parse(BoxReader* reader) {
          reader->ReadVec(&default_kid, kKeyIdSize));
   is_encrypted = (flag != 0);
   if (is_encrypted) {
-     if (reader->version() > 0) {
-       default_crypt_byte_block = (possible_pattern_info >> 4) & 0x0f;
-       default_skip_byte_block = possible_pattern_info & 0x0f;
-     }
-     if (default_iv_size == 0) {
-       RCHECK(reader->Read1(&default_constant_iv_size));
-       RCHECK(default_constant_iv_size == 8 || default_constant_iv_size == 16);
-       SbMemorySet(default_constant_iv, 0, sizeof(default_constant_iv));
-       for (uint8_t i = 0; i < default_constant_iv_size; i++)
-         RCHECK(reader->Read1(default_constant_iv + i));
-     } else {
-       RCHECK(default_iv_size == 8 || default_iv_size == 16);
-     }
+    if (reader->version() > 0) {
+      default_crypt_byte_block = (possible_pattern_info >> 4) & 0x0f;
+      default_skip_byte_block = possible_pattern_info & 0x0f;
+    }
+    if (default_iv_size == 0) {
+      RCHECK(reader->Read1(&default_constant_iv_size));
+      RCHECK(default_constant_iv_size == 8 || default_constant_iv_size == 16);
+      SbMemorySet(default_constant_iv, 0, sizeof(default_constant_iv));
+      for (uint8_t i = 0; i < default_constant_iv_size; i++)
+        RCHECK(reader->Read1(default_constant_iv + i));
+    } else {
+      RCHECK(default_iv_size == 8 || default_iv_size == 16);
+    }
   } else {
     RCHECK(default_iv_size == 0);
   }
@@ -303,10 +302,8 @@ bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
 
 bool ProtectionSchemeInfo::HasSupportedScheme() const {
   FourCC four_cc = type.type;
-  if (four_cc == FOURCC_CENC)
-    return true;
-  if (four_cc == FOURCC_CBCS)
-    return true;
+  if (four_cc == FOURCC_CENC) return true;
+  if (four_cc == FOURCC_CBCS) return true;
   return false;
 }
 
@@ -971,7 +968,7 @@ std::string MediaHeader::language() const {
 
   if (lang_chars[0] < 'a' || lang_chars[0] > 'z' || lang_chars[1] < 'a' ||
       lang_chars[1] > 'z' || lang_chars[2] < 'a' || lang_chars[2] > 'z') {
-    // Got unexpected characteds in ISO 639-2/T language code. Something must be
+    // Got unexpected characters in ISO 639-2/T language code. Something must be
     // wrong with the input file, report 'und' language to be safe.
     DVLOG(2) << "Ignoring MDHD language_code (non ISO 639-2 compliant): "
              << lang_chars;
@@ -1230,8 +1227,7 @@ CencSampleEncryptionInfoEntry::CencSampleEncryptionInfoEntry()
       iv_size(0),
       crypt_byte_block(0),
       skip_byte_block(0),
-      constant_iv_size(0)
-{}
+      constant_iv_size(0) {}
 CencSampleEncryptionInfoEntry::~CencSampleEncryptionInfoEntry() {}
 
 bool CencSampleEncryptionInfoEntry::Parse(BoxReader* reader) {

@@ -37,7 +37,7 @@ int SbFileRead(SbFile file, char* data, int size) {
   BOOL success =
       ReadFile(file->file_handle, data, size, &number_bytes_read, nullptr);
 
-  // Since we are only doing synchornous IO, success == FALSE implies that
+  // Since we are only doing synchronous IO, success == FALSE implies that
   // something is wrong.
   if (!success) {
     return -1;

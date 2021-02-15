@@ -70,7 +70,7 @@ class RefCountedThreadSafeBase {
 //   };
 //
 // You should always make your destructor private, to avoid any code deleting
-// the object accidently while there are references to it.
+// the object accidentally while there are references to it.
 template <class T>
 class RefCounted : public subtle::RefCountedBase {
  public:
@@ -221,8 +221,7 @@ class scoped_refptr {
   }
 
   template <typename U>
-  scoped_refptr(const scoped_refptr<U>& r)
-      : ptr_(r.get()) {
+  scoped_refptr(const scoped_refptr<U>& r) : ptr_(r.get()) {
     if (ptr_)
       ptr_->AddRef();
   }
@@ -251,12 +250,12 @@ class scoped_refptr {
   }
 
   scoped_refptr<T>& operator=(const scoped_refptr<T>& r) {
-    return * this = r.ptr_;
+    return *this = r.ptr_;
   }
 
   template <typename U>
   scoped_refptr<T>& operator=(const scoped_refptr<U>& r) {
-    return * this = r.get();
+    return *this = r.get();
   }
 
   void swap(T** pp) {

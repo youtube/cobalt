@@ -148,7 +148,7 @@ void VideoDecoder::Reset() {
     decoder_thread_.reset();
   }
 
-  error_occured_ = false;
+  error_occurred_ = false;
   stream_ended_ = false;
 
   CancelPendingJobs();
@@ -220,7 +220,7 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
 void VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
-  error_occured_ = true;
+  error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 

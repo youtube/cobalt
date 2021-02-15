@@ -467,7 +467,7 @@ This document records all notable changes made to Cobalt since the last release.
  - **Implemented Same Origin Policy and removed navigation whitelist**
 
    - Added Same Origin Policy (SOP) and Cross Origin Resource Sharing (CORS)
-     suport to Cobalt.  In particular, it is added to XHR, script elements,
+     support to Cobalt.  In particular, it is added to XHR, script elements,
      link elements, style elements, media elements and @font-face CSS rules.
    - Removed hardcoded YouTube navigation whitelist in favor of SOP and CSP.
 

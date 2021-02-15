@@ -28,7 +28,7 @@
       ],
       'cflags': [
         # TODO: examine/upgrade code to see if these can be removed.
-        # Prelimenary investigation suggests that a rebase of the library
+        # Preliminary investigation suggests that a rebase of the library
         # will get rid of some or all of the warnings.
         '-Wno-sign-compare',
         '-Wno-unused-parameter',

@@ -87,7 +87,7 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
 
   std::unique_ptr<Decoder> decoder = decoder_creator_.Run(
       base::Bind(&Loader::LoadComplete, base::Unretained(this)));
-  // We are doing this bizzare check because decoder_ used to be a scoped_ptr
+  // We are doing this bizarre check because decoder_ used to be a scoped_ptr
   // and scoped_ptr checks equality of held raw pointer and only delete rhs if
   // not equal.
   if (decoder.get() == decoder_.get()) {

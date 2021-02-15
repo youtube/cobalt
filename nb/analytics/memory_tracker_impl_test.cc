@@ -42,7 +42,7 @@ struct CustomObject {
     return o;
   }
 };
-}
+}  // namespace
 
 void* operator new(std::size_t size, CustomObject ignored) {
   // Volatile prevents optimization and elimination of operator new by the
@@ -62,9 +62,7 @@ class NoReportAllocator {
  public:
   NoReportAllocator() {}
   NoReportAllocator(const NoReportAllocator&) {}
-  static void* Allocate(size_t n) {
-    return SbMemoryAllocateNoReport(n);
-  }
+  static void* Allocate(size_t n) { return SbMemoryAllocateNoReport(n); }
   // Second argument can be used for accounting, but is otherwise optional.
   static void Deallocate(void* ptr, size_t /* not used*/) {
     SbMemoryDeallocateNoReport(ptr);
@@ -276,8 +274,7 @@ class MemoryTrackerImplTest : public ::testing::Test {
     // There are obligatory background threads for nb_test suite. This filter
     // makes sure that they don't intercept this test.
     s_memory_tracker_->SetThreadFilter(SbThreadGetId());
-    s_memory_tracker_enabled_ =
-        s_memory_tracker_->InstallGlobalTrackingHooks();
+    s_memory_tracker_enabled_ = s_memory_tracker_->InstallGlobalTrackingHooks();
   }
   static void TearDownTestCase() {
     s_memory_tracker_->RemoveGlobalTrackingHooks();
@@ -286,13 +283,9 @@ class MemoryTrackerImplTest : public ::testing::Test {
     SbThreadSleep(250 * kSbTimeMillisecond);
   }
 
-  virtual void SetUp() {
-    memory_tracker()->Clear();
-  }
+  virtual void SetUp() { memory_tracker()->Clear(); }
 
-  virtual void TearDown() {
-    memory_tracker()->Clear();
-  }
+  virtual void TearDown() { memory_tracker()->Clear(); }
   static bool s_memory_tracker_enabled_;
 };
 bool MemoryTrackerImplTest::s_memory_tracker_enabled_ = false;
@@ -338,7 +331,7 @@ TEST_F(MemoryTrackerImplTest, RemovePointerOnNoMemoryTracking) {
   EXPECT_FALSE_NO_TRACKING(pointer_map()->Get(int_ptr, NULL));
 }
 
-TEST_F(MemoryTrackerImplTest, NewDeleteOverridenTest) {
+TEST_F(MemoryTrackerImplTest, NewDeleteOverriddenTest) {
   // Memory tracker is not enabled for this build.
   if (!MemoryTrackerEnabled()) {
     return;
@@ -438,7 +431,7 @@ TEST_F(MemoryTrackerImplTest, RespectsNonCachedHandle) {
   }
   const bool kCaching = false;
   NbMemoryScopeInfo memory_scope = {
-      NULL, "MyName", __FILE__,
+      NULL,     "MyName",     __FILE__,
       __LINE__, __FUNCTION__, false};  // false to disallow caching.
 
   // Pushing the memory scope should trigger the caching operation to be
@@ -473,8 +466,7 @@ TEST_F(MemoryTrackerImplTest, PushAllocGroupCachedHandle) {
   EXPECT_TRUE_NO_TRACKING(memory_scope.cached_handle_ != NULL);
   AllocationGroup* group = memory_tracker()->GetAllocationGroup("MyName");
 
-  EXPECT_EQ_NO_TRACKING(memory_scope.cached_handle_,
-                        static_cast<void*>(group));
+  EXPECT_EQ_NO_TRACKING(memory_scope.cached_handle_, static_cast<void*>(group));
   NbPopMemoryScope();
 }
 
@@ -588,25 +580,21 @@ TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
 
   memory_tracker()->SetMemoryTrackerDebugCallback(&s_debug_callback);
   void* memory_block = SbMemoryAllocate(8);
+  EXPECT_EQ_NO_TRACKING(memory_block,
+                        s_debug_callback.last_memory_block_allocated_);
   EXPECT_EQ_NO_TRACKING(
-      memory_block,
-      s_debug_callback.last_memory_block_allocated_);
-  EXPECT_EQ_NO_TRACKING(
-      8,
-      s_debug_callback.last_allocation_record_allocated_.size);
+      8, s_debug_callback.last_allocation_record_allocated_.size);
   // ... and no memory should have been deallocated.
-  EXPECT_TRUE_NO_TRACKING(s_debug_callback.last_memory_block_deallocated_
-                          == NULL);
+  EXPECT_TRUE_NO_TRACKING(s_debug_callback.last_memory_block_deallocated_ ==
+                          NULL);
 
   // After this call we check that the callback for deallocation was used.
   SbMemoryDeallocate(memory_block);
-  EXPECT_EQ_NO_TRACKING(
-      memory_block,
-      s_debug_callback.last_memory_block_deallocated_);
+  EXPECT_EQ_NO_TRACKING(memory_block,
+                        s_debug_callback.last_memory_block_deallocated_);
 
   EXPECT_EQ_NO_TRACKING(
-      s_debug_callback.last_allocation_record_deallocated_.size,
-      8);
+      s_debug_callback.last_allocation_record_deallocated_.size, 8);
 }
 
 // Tests the expectation that the visitor can access the allocations.
@@ -850,8 +838,8 @@ bool AllocationStressThread::DoDelete() {
   // what we expect.
   if (current_group->name() != unique_name_) {
     NoMemTracking no_memory_tracking_in_this_scope;
-    ADD_FAILURE_AT(__FILE__, __LINE__) << " " << current_group->name()
-                                       << " != " << unique_name_;
+    ADD_FAILURE_AT(__FILE__, __LINE__)
+        << " " << current_group->name() << " != " << unique_name_;
   }
 
   MemoryTrackerImpl::AllocationMapType* internal_alloc_map =
@@ -887,8 +875,8 @@ void AllocationStressThread::DoMalloc() {
   // our unique name.
   if (current_group->name() != unique_name_) {
     NoMemTracking no_tracking_in_scope;
-    ADD_FAILURE_AT(__FILE__, __LINE__) << " " << current_group->name()
-                                       << " != " << unique_name_;
+    ADD_FAILURE_AT(__FILE__, __LINE__)
+        << " " << current_group->name() << " != " << unique_name_;
   }
 
   if (!memory_tracker_->IsMemoryTrackingEnabled()) {

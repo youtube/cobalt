@@ -69,7 +69,7 @@ class FakeDemuxerStream : public DemuxerStream {
   // Sets further read requests to return EOS buffers.
   void SeekToEndOfStream();
 
-  // Sets the splice timestamp for all furture buffers returned via Read().
+  // Sets the splice timestamp for all future buffers returned via Read().
   void set_splice_timestamp(base::TimeDelta splice_timestamp) {
     splice_timestamp_ = splice_timestamp;
   }

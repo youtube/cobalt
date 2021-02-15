@@ -81,7 +81,7 @@ class MEDIA_EXPORT Vp8BoolDecoder {
   bool ReadLiteral(size_t num_bits, int* out);
 
   // Reads a literal with sign from the coded stream. This is similar to
-  // the ReadListeral(), it first read a "num_bits"-wide unsigned value, and
+  // the ReadLiteral(), it first read a "num_bits"-wide unsigned value, and
   // then read an extra bit as the sign of the literal. Returns false if it has
   // reached the end of |data| and failed to read the literal or the sign.
   // This is different from the "read_signed_literal(d, n)" defined in RFC 6386.

@@ -22,7 +22,7 @@ import sys
 
 # lifted from standard lib webbrowser.py
 def isexecutable(cmd):
-  """Returns whether the input file is an exectuable."""
+  """Returns whether the input file is an executable."""
   if sys.platform[:3] == 'win':
     extensions = ('.exe', '.bat', '.cmd')
     cmd = cmd.lower()

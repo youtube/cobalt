@@ -51,7 +51,7 @@ class RBSPStream {
   // advance by one byte through the NALU buffer, respecting the encoding of
   // 00 00 03 => 00 00. Updates the state of current_nalu_byte_ to the new
   // value.
-  // returns fale if we have moved past the end of the buffer.
+  // returns false if we have moved past the end of the buffer.
   bool ConsumeNALUByte();
   // return single bit in the LSb from the RBSP stream. Bits are read from MSb
   // to LSb in the stream.

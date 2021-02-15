@@ -57,7 +57,7 @@ class SmoothedValue {
   // Returns the value of P1 to be used in cubic bezier equations.
   // Here, we calculate it from |previous_derivative_| and |previous_value_|
   // in such a way that it results in a curve that at t = 0 has a derivative
-  // equal to |previous_deriviative_|.
+  // equal to |previous_derivative_|.
   double P1() const;
 
   // Returns the value of P2 to be used in cubic bezier equations.

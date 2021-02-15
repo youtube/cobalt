@@ -88,9 +88,9 @@ TEST_F(ProgramTableTest, LoadSegments) {
   // File structure
   // [Phdr1]
   // [Phdr2]
-  // [200, 300) sement for phdr1
-  // [250, 300) dyanmic section in segment for phdr1
-  // [400, 500) sement for phdr2
+  // [200, 300) segment for phdr1
+  // [250, 300) dynamic section in segment for phdr1
+  // [400, 500) segment for phdr2
   Ehdr ehdr;
   ehdr.e_phnum = 3;
   ehdr.e_phoff = 0;

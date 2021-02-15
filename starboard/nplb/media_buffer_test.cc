@@ -48,8 +48,7 @@ constexpr SbMediaVideoCodec kVideoCodecs[] = {
 };
 
 constexpr SbMediaType kMediaTypes[] = {
-    kSbMediaTypeAudio,
-    kSbMediaTypeVideo,
+    kSbMediaTypeAudio, kSbMediaTypeVideo,
 };
 
 }  // namespace
@@ -109,11 +108,11 @@ TEST(SbMediaBufferTest, AudioBudget) {
 
 TEST(SbMediaBufferTest, GarbageCollectionDurationThreshold) {
   // TODO: impose reasonable bounds here.
-  int kMinGarbargeCollectionDurationThreshold = 10 * kSbTimeSecond;
-  int kMaxGarbargeCollectionDurationThreshold = 240 * kSbTimeSecond;
+  int kMinGarbageCollectionDurationThreshold = 10 * kSbTimeSecond;
+  int kMaxGarbageCollectionDurationThreshold = 240 * kSbTimeSecond;
   int threshold = SbMediaGetBufferGarbageCollectionDurationThreshold();
-  EXPECT_GE(threshold, kMinGarbargeCollectionDurationThreshold);
-  EXPECT_LE(threshold, kMaxGarbargeCollectionDurationThreshold);
+  EXPECT_GE(threshold, kMinGarbageCollectionDurationThreshold);
+  EXPECT_LE(threshold, kMaxGarbageCollectionDurationThreshold);
 }
 
 TEST(SbMediaBufferTest, InitialCapacity) {
