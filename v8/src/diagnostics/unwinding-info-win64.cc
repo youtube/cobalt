@@ -516,7 +516,6 @@ bool AddGrowableFunctionTable(PVOID* DynamicTable,
 void DeleteGrowableFunctionTable(PVOID dynamic_table) {
 #if !defined(DISABLE_UNWIND_STARBOARD)
   DCHECK(::IsWindows8OrGreater());
-
   LoadNtdllUnwindingFunctions();
   DCHECK_NOT_NULL(delete_growable_function_table_func);
 

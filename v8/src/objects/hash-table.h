@@ -148,7 +148,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
+#if defined(DISABLE_GRAPHS_STARBOARD)
+  // Cobalt MSVC issue.
+  static bool IsKey(ReadOnlyRoots roots, Object k);
+#else
   static inline bool IsKey(ReadOnlyRoots roots, Object k);
+#endif
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_k);
   inline bool ToKey(IsolateRoot isolate, InternalIndex entry, Object* out_k);

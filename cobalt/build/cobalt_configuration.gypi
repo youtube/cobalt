@@ -34,7 +34,11 @@
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
-      'cobalt_v8_enable_embedded_builtins%': 1,
+      # In cross-compiling for modules like V8, we need a gyp flag to tell
+      # that Cobalt is being compiled by MSVC and certain MSVC options should
+      # be specified. This is needed even with 'msvs_settings' since the later
+      # is not used by platforms that only uses MSVC for host build.
+      'cobalt_compiled_by_msvc%': 0,
     },
 
     # Whether Cobalt is being built.
@@ -245,7 +249,8 @@
 
     # Some compiler can not compile with raw assembly(.S files) and v8
     # converts asm to inline assembly for these platforms.
-    'cobalt_v8_emit_builtins_as_inline_asm%': 1,
+    'cobalt_v8_emit_builtins_as_inline_asm%': 0,
+    'cobalt_compiled_by_msvc%': 0,
 
     # Deprecated. Implement the CobaltExtensionConfigurationApi function
     # CobaltEnableQuic instead.

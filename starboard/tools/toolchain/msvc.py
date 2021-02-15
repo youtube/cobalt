@@ -133,16 +133,7 @@ class AssemblerWithCPreprocessor(abstract.AssemblerWithCPreprocessor):
     return 'ASM $in'
 
   def GetFlags(self, defines, include_dirs, cflags):
-    del cflags  # Not used.
-    defines = defines + self._gyp_defines
-    quoted_defines = QuoteArguments(defines)
-    define_flags = ['/D{0}'.format(define) for define in quoted_defines]
-    include_dirs = include_dirs + self._gyp_include_dirs
-    quoted_include_dirs = QuoteArguments(include_dirs)
-    include_dir_flags = [
-        '/I{0}'.format(include_dir) for include_dir in quoted_include_dirs
-    ]
-    return define_flags + include_dir_flags
+    return []
 
 
 class StaticLinkerBase(object):
