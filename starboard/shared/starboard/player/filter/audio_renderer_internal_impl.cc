@@ -261,7 +261,6 @@ void AudioRendererImpl::Seek(SbTime seek_to_time) {
   offset_in_frames_on_sink_thread_ = 0;
   frames_consumed_on_sink_thread_ = 0;
   silence_frames_written_after_eos_on_sink_thread_ = 0;
-  silence_frames_consumed_on_sink_thread_ = 0;
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -395,18 +394,30 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
 
   if (*is_eos_reached && *frames_in_buffer < max_cached_frames_) {
     // Fill silence frames on EOS to ensure keep the audio sink playing.
-    auto start_offset =
-        (*offset_in_frames + *frames_in_buffer) % max_cached_frames_;
-    auto silence_frames_to_write =
-        std::min(max_cached_frames_ - start_offset,
-                 max_cached_frames_ - *frames_in_buffer);
-    SB_DCHECK(start_offset >= 0);
-    SB_DCHECK(silence_frames_to_write >= 0);
-    SB_DCHECK(start_offset + silence_frames_to_write <= max_cached_frames_);
-    SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
-                silence_frames_to_write * bytes_per_frame_);
-    silence_frames_written_after_eos_on_sink_thread_ += silence_frames_to_write;
-    *frames_in_buffer += silence_frames_to_write;
+    if (max_cached_frames_ - *frames_in_buffer >
+        silence_frames_written_after_eos_on_sink_thread_) {
+      auto silence_frames_to_write =
+          max_cached_frames_ - *frames_in_buffer -
+          silence_frames_written_after_eos_on_sink_thread_;
+      auto start_offset = (*offset_in_frames + *frames_in_buffer +
+                           silence_frames_written_after_eos_on_sink_thread_) %
+                          max_cached_frames_;
+
+      if (silence_frames_to_write <= max_cached_frames_ - start_offset) {
+        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+                    silence_frames_to_write * bytes_per_frame_);
+      } else {
+        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+                    (max_cached_frames_ - start_offset) * bytes_per_frame_);
+        SbMemorySet(
+            frame_buffer_.data(), 0,
+            (silence_frames_to_write - max_cached_frames_ + start_offset) *
+                bytes_per_frame_);
+      }
+      silence_frames_written_after_eos_on_sink_thread_ +=
+          silence_frames_to_write;
+    }
+    *frames_in_buffer = max_cached_frames_;
   }
 }
 
@@ -455,8 +466,8 @@ void AudioRendererImpl::UpdateVariablesOnSinkThread_Locked(
   mutex_.DCheckAcquired();
 
   if (frames_consumed_on_sink_thread_ > 0) {
-    SB_DCHECK(total_frames_consumed_by_sink_ + frames_consumed_on_sink_thread_ +
-                  silence_frames_consumed_on_sink_thread_ <=
+    SB_DCHECK(total_frames_consumed_by_sink_ +
+                  frames_consumed_on_sink_thread_ <=
               total_frames_sent_to_sink_ +
                   silence_frames_written_after_eos_on_sink_thread_);
     auto non_silence_frames_consumed =
@@ -469,16 +480,12 @@ void AudioRendererImpl::UpdateVariablesOnSinkThread_Locked(
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
     consume_frames_called_ = true;
-    silence_frames_consumed_on_sink_thread_ =
-        frames_consumed_on_sink_thread_ - non_silence_frames_consumed;
     frames_consumed_on_sink_thread_ = 0;
   }
 
   is_eos_reached_on_sink_thread_ = eos_state_ >= kEOSSentToSink;
   frames_in_buffer_on_sink_thread_ = static_cast<int>(
-      total_frames_sent_to_sink_ +
-      silence_frames_written_after_eos_on_sink_thread_ -
-      total_frames_consumed_by_sink_ - silence_frames_consumed_on_sink_thread_);
+      total_frames_sent_to_sink_ - total_frames_consumed_by_sink_);
   underflow_ |=
       frames_in_buffer_on_sink_thread_ < kFramesInBufferBeginUnderflow;
   if (is_eos_reached_on_sink_thread_ ||
@@ -486,9 +493,8 @@ void AudioRendererImpl::UpdateVariablesOnSinkThread_Locked(
     underflow_ = false;
   }
   is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
-  offset_in_frames_on_sink_thread_ = (total_frames_consumed_by_sink_ +
-                                      silence_frames_consumed_on_sink_thread_) %
-                                     max_cached_frames_;
+  offset_in_frames_on_sink_thread_ =
+      total_frames_consumed_by_sink_ % max_cached_frames_;
 
   if (IsEndOfStreamPlayed_Locked() && !ended_cb_called_) {
     ended_cb_called_ = true;
