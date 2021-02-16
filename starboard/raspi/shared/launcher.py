@@ -214,7 +214,26 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if self.pexpect_process is not None and self.pexpect_process.isalive():
       # Send ctrl-c to the raspi and close the process.
       self.pexpect_process.sendline(chr(3))
+      self._KillExistingCobaltProcesses()
       self.pexpect_process.close()
+
+  def _KillExistingCobaltProcesses(self):
+    """If there are leftover Cobalt processes, kill them.
+
+    It is possible that a previous process did not exit cleanly.
+    Zombie Cobalt instances can block the WebDriver port or
+    cause other problems.
+    """
+    self.pexpect_process.sendline('pkill -9 -f cobalt crashpad_handler')
+    # Print the return code of pkill. 0 if a process was halted
+    self.pexpect_process.sendline('echo $?')
+    i = self.pexpect_process.expect([r'0', r'.*'])
+    if i == '0':
+      logging.warning(
+          'Forced to pkill existing instance(s) of cobalt. '
+          'Pausing to ensure no further operations are run '
+          'before processes shut down.')
+      time.sleep(10)
 
   def Run(self):
     """Runs launcher's executable on the target raspi.
@@ -239,6 +258,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if not self.shutdown_initiated.is_set():
         self._PexpectSpawnAndConnect(self.ssh_command)
       if not self.shutdown_initiated.is_set():
+        self._KillExistingCobaltProcesses()
         self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
 
