@@ -36,6 +36,12 @@ const char kUserAgent[] = "user_agent";
 // Switch to disable use of the Quic network protocol.
 const char kDisableQuic[] = "disable_quic";
 
+const char kMaxNetworkDelay[] = "max_network_delay";
+const char kMaxNetworkDelayHelp[] =
+    "Add an artificial random delay (up to the value specified) before the "
+    "start of network requests to simulate low-latency networks.  The value "
+    "is specified in microseconds.";
+
 }  // namespace switches
 }  // namespace network
 }  // namespace cobalt
