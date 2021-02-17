@@ -246,6 +246,11 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
   void XMLDecoderLoadCompleteCallback(
       const base::Optional<std::string>& status);
+
+  // The following method starts "url_fetcher_" with a possible pre-delay.
+  void StartURLFetcher(const SbTime max_artificial_delay,
+                       const int url_fetcher_generation);
+
   void CORSPreflightErrorCallback();
   void CORSPreflightSuccessCallback();
 
@@ -277,7 +282,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   std::unique_ptr<FetchModeCallbackArg::Reference> fetch_mode_callback_;
 
   // All members requiring initialization are grouped below.
-  dom::DOMSettings* settings_;
+  dom::DOMSettings* const settings_;
   State state_;
   ResponseTypeCode response_type_;
   uint32 timeout_ms_;
@@ -313,6 +318,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   std::string request_body_text_;
   int redirect_times_;
   bool is_data_url_;
+  int url_fetcher_generation_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };
