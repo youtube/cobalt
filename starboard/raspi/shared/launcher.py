@@ -225,7 +225,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Zombie Cobalt instances can block the WebDriver port or
     cause other problems.
     """
-    self.pexpect_process.sendline('pkill -9 -f cobalt crashpad_handler')
+    self.pexpect_process.sendline('pkill -9 -f "(cobalt)|(crashpad_handler)"')
     # Print the return code of pkill. 0 if a process was halted
     self.pexpect_process.sendline('echo $?')
     i = self.pexpect_process.expect([r'0', r'.*'])
