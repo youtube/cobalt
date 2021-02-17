@@ -72,6 +72,7 @@ public class AudioTrackBridge {
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
+      boolean enableAudioRouting,
       int tunnelModeAudioSessionId) {
     tunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
@@ -164,7 +165,7 @@ public class AudioTrackBridge {
             audioTrackBufferSize,
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
-    if (Build.VERSION.SDK_INT >= 24) {
+    if (enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
       currentRoutedDevice = audioTrack.getRoutedDevice();
       onRoutingChangedListener =
           new AudioRouting.OnRoutingChangedListener() {

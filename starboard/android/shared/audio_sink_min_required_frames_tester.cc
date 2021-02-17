@@ -124,7 +124,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, this);
+        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
       ScopedLock scoped_lock(mutex_);
       wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
