@@ -107,6 +107,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbAudioSinkPrivate::ErrorFunc error_func,
     SbTime start_time,
     int tunnel_mode_audio_session_id,
+    bool enable_audio_routing,
     void* context)
     : type_(type),
       channels_(channels),
@@ -142,9 +143,10 @@ AudioTrackAudioSink::AudioTrackAudioSink(
           "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
   jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
-      "(IIIII)Ldev/cobalt/media/AudioTrackBridge;",
+      "(IIIIZI)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_, channels_,
-      preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id_);
+      preferred_buffer_size_in_bytes, enable_audio_routing,
+      tunnel_mode_audio_session_id_);
   if (!j_audio_track_bridge) {
     // One of the cases that this may hit is when output happened to be switched
     // to a device that doesn't support tunnel mode.
@@ -525,10 +527,12 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     void* context) {
   const SbTime kStartTime = 0;
   const int kTunnelModeAudioSessionId = -1;  // disable tunnel mode
+  const bool kEnableAudioRouting = true;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, context);
+                kStartTime, kTunnelModeAudioSessionId, kEnableAudioRouting,
+                context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -543,6 +547,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     SbTime start_media_time,
     int tunnel_mode_audio_session_id,
+    bool enable_audio_routing,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -553,7 +558,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
-      start_media_time, tunnel_mode_audio_session_id, context);
+      start_media_time, tunnel_mode_audio_session_id, enable_audio_routing,
+      context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

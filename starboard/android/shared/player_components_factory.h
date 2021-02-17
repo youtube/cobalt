@@ -31,6 +31,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -55,10 +56,11 @@ constexpr bool kTunnelModeEnabled = false;
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
-class AudioRendererSinkTunneled : public ::starboard::shared::starboard::
-                                      player::filter::AudioRendererSinkImpl {
+class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
+                                     filter::AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkTunneled(int tunnel_mode_audio_session_id)
+  explicit AudioRendererSinkAndroid(bool enable_audio_routing,
+                                    int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](SbTime start_media_time,
                 int channels,
@@ -71,7 +73,6 @@ class AudioRendererSinkTunneled : public ::starboard::shared::starboard::
                 SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
-              SB_DCHECK(tunnel_mode_audio_session_id != -1);
 
               auto type = static_cast<AudioTrackAudioSinkType*>(
                   SbAudioSinkPrivate::GetPreferredType());
@@ -81,7 +82,7 @@ class AudioRendererSinkTunneled : public ::starboard::shared::starboard::
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, context);
+                  tunnel_mode_audio_session_id, enable_audio_routing, context);
             }) {}
 
  private:
@@ -203,15 +204,31 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_sample_info(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
+      bool enable_audio_routing = true;
+      starboard::shared::starboard::media::MimeType mime_type(
+          creation_parameters.audio_mime());
+      auto enable_audio_routing_parameter_value =
+          mime_type.GetParamStringValue("enableaudiorouting", "");
+      if (enable_audio_routing_parameter_value.empty() ||
+          enable_audio_routing_parameter_value == "true") {
+        SB_LOG(INFO) << "AudioRouting is enabled.";
+      } else {
+        enable_audio_routing = false;
+        SB_LOG(INFO) << "Mime attribute enableaudiorouting is set to: "
+                     << enable_audio_routing_parameter_value
+                     << ". AudioRouting is disabled.";
+      }
       if (tunnel_mode_audio_session_id != -1) {
-        *audio_renderer_sink = CreateTunnelModeAudioRendererSink(
-            tunnel_mode_audio_session_id, creation_parameters);
+        *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
+            tunnel_mode_audio_session_id, creation_parameters,
+            enable_audio_routing);
         if (!*audio_renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
       if (!*audio_renderer_sink) {
-        audio_renderer_sink->reset(new AudioRendererSinkImpl());
+        audio_renderer_sink->reset(
+            new AudioRendererSinkAndroid(enable_audio_routing));
       }
     }
 
@@ -369,11 +386,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     return tunnel_mode_audio_session_id;
   }
 
-  scoped_ptr<AudioRendererSink> CreateTunnelModeAudioRendererSink(
+  scoped_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
       int tunnel_mode_audio_session_id,
-      const CreationParameters& creation_parameters) {
-    scoped_ptr<AudioRendererSink> audio_sink(
-        new AudioRendererSinkTunneled(tunnel_mode_audio_session_id));
+      const CreationParameters& creation_parameters,
+      bool enable_audio_routing) {
+    scoped_ptr<AudioRendererSink> audio_sink(new AudioRendererSinkAndroid(
+        enable_audio_routing, tunnel_mode_audio_session_id));
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,

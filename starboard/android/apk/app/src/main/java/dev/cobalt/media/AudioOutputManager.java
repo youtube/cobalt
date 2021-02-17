@@ -53,6 +53,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
+      boolean enableAudioRouting,
       int tunnelModeAudioSessionId) {
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(
@@ -60,6 +61,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
+            enableAudioRouting,
             tunnelModeAudioSessionId);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
