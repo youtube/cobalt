@@ -55,6 +55,7 @@ class Navigator : public script::Wrappable {
 
   // Web API: NavigatorLanguage
   const std::string& language() const;
+  script::Sequence<std::string> languages() const;
 
   // Web API: NavigatorLicenses
   const std::string licenses() const;
