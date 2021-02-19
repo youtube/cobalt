@@ -159,6 +159,12 @@ Navigator::Navigator(
 
 const std::string& Navigator::language() const { return language_; }
 
+script::Sequence<std::string> Navigator::languages() const {
+  script::Sequence<std::string> languages;
+  languages.push_back(language_);
+  return languages;
+}
+
 base::Optional<std::string> GetFilenameForLicenses() {
   const size_t kBufferSize = kSbFileMaxPath + 1;
   std::vector<char> buffer(kBufferSize, 0);

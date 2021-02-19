@@ -133,7 +133,10 @@ std::string Configurator::GetBrand() const { return {}; }
 std::string Configurator::GetLang() const {
   const char* locale_id = SbSystemGetLocaleId();
   if (!locale_id) {
-    return "";
+    // If Starboard failed to determine the locale, return a hardcoded, but
+    // valid BCP 47 language tag as required by
+    // https://html.spec.whatwg.org/commit-snapshots/e2f08b4e56d9a098038fb16c7ff6bb820a57cfab/#language-preferences
+    return "en-US";
   }
   std::string locale_string(locale_id);
   // POSIX platforms put time zone id at the end of the locale id, like
