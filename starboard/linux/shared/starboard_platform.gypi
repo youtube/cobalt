@@ -445,6 +445,10 @@
         'starboard_platform_dependencies': [
           '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
           '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
+       ]},
+      ],
+      ['sb_evergreen_compatible_libunwind == 1', {
+        'starboard_platform_dependencies': [
           '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
        ]},
       ],
