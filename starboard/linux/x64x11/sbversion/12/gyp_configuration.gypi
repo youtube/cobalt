@@ -16,6 +16,7 @@
   'variables': {
     'variables': {
       'sb_evergreen_compatible': 1,
+      'sb_evergreen_compatible_libunwind': 1,
     }
   },
   'target_defaults': {
