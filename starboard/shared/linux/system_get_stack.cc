@@ -14,7 +14,7 @@
 
 #include "starboard/system.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_IS(EVERGREEN_COMPATIBLE_LIBUNWIND)
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 #include "starboard/common/log.h"
@@ -24,7 +24,7 @@
 #include <algorithm>
 #endif
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_IS(EVERGREEN_COMPATIBLE_LIBUNWIND)
 int SbSystemGetStack(void** out_stack, int stack_size) {
   unw_cursor_t cursor;
   unw_context_t context;

@@ -56,6 +56,11 @@
         'SB_IS_EVERGREEN_COMPATIBLE=1',
       ],
     }],
+    ['sb_evergreen_compatible_libunwind==1', {
+      'defines': [
+        'SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1',
+      ],
+    }],
     ['starboard_path == ""', {
       'defines': [
         # There doesn't appear to be any way to use the C preprocessor to do
