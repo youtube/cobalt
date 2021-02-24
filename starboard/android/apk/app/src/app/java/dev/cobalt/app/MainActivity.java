@@ -17,9 +17,7 @@ package dev.cobalt.app;
 import android.app.Activity;
 import dev.cobalt.account.UserAuthorizerImpl;
 import dev.cobalt.coat.CobaltActivity;
-import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
-import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.util.Holder;
 
 /**
@@ -42,28 +40,11 @@ public class MainActivity extends CobaltActivity {
         };
     UserAuthorizerImpl userAuthorizer =
         new UserAuthorizerImpl(getApplicationContext(), activityHolder, stopRequester);
-<<<<<<< HEAD   (a23fa8 Provide an option to disable the libunwind usage in starboar)
     return new StarboardBridge(
         getApplicationContext(),
         activityHolder,
         userAuthorizer,
         args,
         startDeepLink);
-=======
-    StarboardBridge bridge =
-        new StarboardBridge(
-            getApplicationContext(),
-            activityHolder,
-            serviceHolder,
-            userAuthorizer,
-            args,
-            startDeepLink);
-
-    CobaltService.Factory clientLogInfoFactory =
-        new ClientLogInfoModule().provideFactory(getApplicationContext());
-    bridge.registerCobaltService(clientLogInfoFactory);
-
-    return bridge;
->>>>>>> CHANGE (a83be9 Add clientLogInfo into StarboardBridge)
   }
 }
