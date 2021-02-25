@@ -143,7 +143,7 @@ std::string Configurator::GetLang() const {
 }
 
 std::string Configurator::GetOSLongName() const {
-  return "Starboard";  // version_info::GetOSType();
+  return GetDeviceProperty(kSbSystemPropertyPlatformName);
 }
 
 base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
@@ -163,6 +163,18 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   // Model name
   params.insert(
       std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
+
+  // Chipset model number
+  params.insert(std::make_pair(
+      "chipset", GetDeviceProperty(kSbSystemPropertyChipsetModelNumber)));
+
+  // Firmware version
+  params.insert(std::make_pair(
+      "firmware", GetDeviceProperty(kSbSystemPropertyFirmwareVersion)));
+
+  // Model year
+  params.insert(
+      std::make_pair("year", GetDeviceProperty(kSbSystemPropertyModelYear)));
 
   return params;
 }
