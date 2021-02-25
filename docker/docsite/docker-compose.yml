@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: docsite
     ports:
       - "4000:4000"
     volumes:
