@@ -219,6 +219,10 @@ int HandlerTable::LookupReturn(int pc_offset) {
     difference_type operator-(const Iterator& other) const {
       return index - other.index;
     }
+    // GLIBCXX_DEBUG checks require the comparator.
+    constexpr bool operator<=(const Iterator& rhs) {
+      return index < rhs.index;
+    }
     HandlerTable* table;
     int index;
   };
