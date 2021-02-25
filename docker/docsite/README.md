@@ -14,4 +14,5 @@ ran the Docker container.
 
 # How To Run
 docker-compose build --build-arg UID=$(id -u) --build-arg GID=$(id -g) docsite
+
 docker-compose up docsite
