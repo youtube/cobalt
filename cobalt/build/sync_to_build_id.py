@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import requests
@@ -22,22 +23,11 @@ _BUILD_ID_QUERY_URL = (
 _BUILD_ID_QUERY_PARAMETER_NAME = "build_number"
 
 
-def _GetGClientRoot(repo_path):
-  """Finds the root of this gclient repo, or returns repo_path if failed."""
-  current_path = os.path.normpath(repo_path)
-  while not os.access(os.path.join(current_path, ".gclient"), os.R_OK):
-    next_path = os.path.dirname(current_path)
-    if next_path == current_path:
-      return repo_path
-    current_path = next_path
-  return current_path
-
-
 class SubprocessFailedException(Exception):
   """Exception for non-zero subprocess exits."""
 
   def __init__(self, command):
-    super(SubprocessFailedException, self).__init__()
+    super(SubprocessFailedException, self).__init__()  # pylint: disable=super-with-arguments
     self.command = command
 
   def __str__(self):
@@ -87,12 +77,15 @@ def main():
   arg_parser = argparse.ArgumentParser(
       description="Syncs to a given Cobalt build id")
   arg_parser.add_argument("buildid", nargs=1)
+  arg_parser.add_argument(
+      "--force",
+      default=False,
+      action="store_true",
+      help="Deletes directories that don't match the requested format.")
   args = arg_parser.parse_args()
   r = requests.get(
       _BUILD_ID_QUERY_URL,
-      params={
-          _BUILD_ID_QUERY_PARAMETER_NAME: args.buildid[0]
-      })
+      params={_BUILD_ID_QUERY_PARAMETER_NAME: args.buildid[0]})
   if not r.ok:
     print(
         "HTTP request failed\n{0} {1}\n{2}".format(r.status_code, r.reason,
@@ -102,30 +95,43 @@ def main():
   # The response starts with a security-related close expression line
   outer_json = json.loads(r.text.splitlines()[1])
   hashes = json.loads(outer_json["deps"])
-  gclient_root = _GetGClientRoot(os.getcwd())
+  git_root = os.getcwd()
 
   for relpath, rep_hash in hashes.iteritems():
-    path = os.path.join(gclient_root, relpath)
+    path = os.path.normpath(os.path.join(git_root, relpath))
     if not os.path.exists(path):
       # No warning in this case, we will attempt to clone the repository in
       # the next pass through the repos.
       continue
     is_dirty = (
         bool(
+            _RunGitCommandReturnExitCode(["diff", "--no-ext-diff", "--quiet"],
+                                         cwd=path,
+                                         stderr=dev_null)[0]) or
+        bool(
             _RunGitCommandReturnExitCode(
-                ["diff", "--no-ext-diff", "--quiet"], cwd=path,
-                stderr=dev_null)[0]) or bool(
-                    _RunGitCommandReturnExitCode(
-                        ["diff", "--no-ext-diff", "--quiet", "--cached"],
-                        cwd=path,
-                        stderr=dev_null)[0]))
+                ["diff", "--no-ext-diff", "--quiet", "--cached"],
+                cwd=path,
+                stderr=dev_null)[0]))
 
     if is_dirty:
       print("{0} is dirty, please resolve".format(relpath))
       return 1
 
+    (requested_repo, _) = rep_hash.split("@")
+    remote_url = _RunGitCommand(["config", "--get", "remote.origin.url"],
+                                cwd=path)[0] + ".git"
+    if remote_url != requested_repo:
+      if args.force:
+        shutil.rmtree(path)
+      else:
+        print(("{0} exists but does not point to the requested repo for that "
+               "path, {1}. Either replace that directory manually or run this "
+               "script with --force.").format(path, requested_repo))
+        return 1
+
   for relpath, rep_hash in hashes.iteritems():
-    path = os.path.join(gclient_root, relpath)
+    path = os.path.normpath(os.path.join(git_root, relpath))
 
     # repo_hash has a repo path prefix like this:
     # 'https://chromium.googlesource.com/chromium/llvm-project/libcxx.git
@@ -149,9 +155,9 @@ def main():
       continue
     symbolic_ref = None
     try:
-      symbolic_ref = _RunGitCommand(
-          ["symbolic-ref", "--short", "-q", "HEAD"], cwd=path,
-          stderr=dev_null)[0]
+      symbolic_ref = _RunGitCommand(["symbolic-ref", "--short", "-q", "HEAD"],
+                                    cwd=path,
+                                    stderr=dev_null)[0]
     except SubprocessFailedException:
       pass
 
