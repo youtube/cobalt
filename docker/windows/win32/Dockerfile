@@ -1,8 +1,5 @@
 FROM build-base-windows
 
-RUN git clone https://cobalt.googlesource.com/depot_tools
-RUN setx path "%path%;C:\depot_tools"
-
 # This is necessary in order to ensure that gyp configures the build without PDB
 # generation.
 # PDB files cannot be created inside of volumes due to limitations with windows
