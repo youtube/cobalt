@@ -429,6 +429,10 @@
         ['sb_evergreen_compatible == 1', {
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
+          ],},
+        ],
+        ['sb_evergreen_compatible == 1' and 'sb_evergreen_compatible_lite != 1', {
+          'dependencies': [
             '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
           ],},
         ],
