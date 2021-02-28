@@ -16,6 +16,7 @@
 #include "cobalt/extension/installation_manager.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 
 #define PRODUCT_FULLNAME_STRING "cobalt_updater"
@@ -26,7 +27,7 @@ namespace {
 // The default manifest version to assume when the actual manifest cannot be
 // parsed for any reason. This should not be used for installation manager
 // errors, or any other error unrelated to parsing the manifest.
-const std::string kDefaultManifestVersion = "1.0.0";
+const char kDefaultManifestVersion[] = "1.0.0";
 }  // namespace
 
 bool CreateProductDirectory(base::FilePath* path) {
@@ -92,40 +93,59 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   return base::Version();
 }
 
+const std::string GetSystemImageEvergreenVersion() {
+  std::vector<char> installation_path(kSbFileMaxPath);
+  std::vector<char> system_path_content_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory,
+                       system_path_content_dir.data(), kSbFileMaxPath)) {
+    SB_LOG(ERROR) << "Failed to get system path content directory";
+    return "";
+  }
+  SbStringFormatF(installation_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+                  system_path_content_dir.data(), kSbFileSepString, "app",
+                  kSbFileSepString, "cobalt");
+  base::Version version = ReadEvergreenVersion(base::FilePath(
+      std::string(installation_path.begin(), installation_path.end())));
+
+  if (!version.IsValid()) {
+    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+                  << kDefaultManifestVersion << ".";
+    return std::string(kDefaultManifestVersion);
+  }
+  return version.GetString();
+}
+
 const std::string GetCurrentEvergreenVersion() {
   auto installation_manager =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Failed to get installation manager extension.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get installation manager extension, assuming "
+                     "system image.";
+    return GetSystemImageEvergreenVersion();
   }
-
   // Get the update version from the manifest file under the current
   // installation path.
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get current installation index.";
-    return "";
+    SB_LOG(ERROR)
+        << "Failed to get current installation index, assuming system image.";
+    return GetSystemImageEvergreenVersion();
   }
   std::vector<char> installation_path(kSbFileMaxPath);
   if (installation_manager->GetInstallationPath(
           index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get installation path.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get installation path, assuming system image.";
+    return GetSystemImageEvergreenVersion();
   }
+
   base::Version version = ReadEvergreenVersion(base::FilePath(
       std::string(installation_path.begin(), installation_path.end())));
 
   if (!version.IsValid()) {
-    if (!index) {
-      SB_LOG(ERROR) << "Failed to get the Everegreen version. Defaulting to "
-                    << kDefaultManifestVersion << ".";
-      return kDefaultManifestVersion;
-    }
-
-    SB_LOG(ERROR) << "Failed to get the Everegreen version.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+                  << kDefaultManifestVersion << ".";
+    return std::string(kDefaultManifestVersion);
   }
   return version.GetString();
 }
