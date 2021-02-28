@@ -20,6 +20,9 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
+#if SB_IS(EVERGREEN)
+#include "cobalt/extension/installation_manager.h"
+#endif  // SB_IS(EVERGREEN)
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
@@ -110,6 +113,15 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   if (!platform_info.evergreen_version().empty()) {
     base::StringAppendF(&user_agent, " Evergreen/%s",
                         platform_info.evergreen_version().c_str());
+#if SB_IS(EVERGREEN)
+    if (!SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+      // If the installation manager is not initialized, the "evergreen_lite"
+      // command line parameter is specified and the system image is loaded.
+      base::StringAppendF(&user_agent, " Evergreen-Lite");
+    } else {
+      base::StringAppendF(&user_agent, " Evergreen-Full");
+    }
+#endif  // SB_IS(EVERGREEN)
   }
 
   // Starboard/APIVersion,
