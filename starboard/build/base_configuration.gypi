@@ -37,6 +37,7 @@
       'sb_deploy_output_dir%': '<(PRODUCT_DIR)/deploy',
       'sb_evergreen_compatible%': 0,
       'sb_evergreen_compatible_libunwind%': 0,
+      'sb_evergreen_compatible_lite%': 0,
     },
 
     # Enables the yasm compiler to be used to compile .asm files.
@@ -88,6 +89,9 @@
 
     # Whether to use the libunwind library on evergreen compatible platform.
     'sb_evergreen_compatible_libunwind%': '<(sb_evergreen_compatible_libunwind)',
+
+    # Whether to adopt Evergreen Lite on the evergreen compatible platform.
+    'sb_evergreen_compatible_lite%': '<(sb_evergreen_compatible_lite)',
 
     # The operating system of the target, separate from the target_arch. In many
     # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
