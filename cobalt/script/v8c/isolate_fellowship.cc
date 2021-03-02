@@ -55,9 +55,6 @@ void V8FlagsInit() {
   };
 
   if (!configuration::Configuration::GetInstance()->CobaltEnableJit()) {
-#if !defined(V8_EMBEDDED_BUILTINS)
-    CHECK(false) << "Jitless mode required embedded builtins.";
-#endif
     kV8CommandLineFlags.push_back("--jitless");
   }
 
