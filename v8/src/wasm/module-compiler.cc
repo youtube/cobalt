@@ -2679,8 +2679,10 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     cache_hit = job_->GetOrCreateNativeModule(std::move(result).value(),
                                               kCodeSizeEstimate);
   } else {
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
+#endif
     job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();
