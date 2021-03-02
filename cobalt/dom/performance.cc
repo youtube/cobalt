@@ -21,7 +21,9 @@ namespace cobalt {
 namespace dom {
 
 Performance::Performance(const scoped_refptr<base::BasicClock>& clock)
-    : timing_(new PerformanceTiming(clock)), memory_(new MemoryInfo()) {}
+    : timing_(new PerformanceTiming(clock)),
+      memory_(new MemoryInfo()),
+      time_origin_(base::Time::Now() - base::Time::UnixEpoch()) {}
 
 double Performance::Now() const {
   return timing_->GetNavigationStartClock()->Now().InMillisecondsF();
@@ -30,6 +32,26 @@ double Performance::Now() const {
 scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
 
 scoped_refptr<MemoryInfo> Performance::memory() const { return memory_; }
+
+DOMHighResTimeStamp Performance::time_origin() const {
+  // The algorithm for calculating time origin timestamp.
+  //   https://www.w3.org/TR/2019/REC-hr-time-2-20191121/#dfn-time-origin-timestamp
+  // Assert that global's time origin is not undefined.
+  DCHECK(!time_origin_.is_zero());
+
+  // Let t1 be the DOMHighResTimeStamp representing the high resolution
+  // time at which the global monotonic clock is zero.
+  base::TimeDelta t1 =
+      base::Time::UnixEpoch().ToDeltaSinceWindowsEpoch();
+
+  // Let t2 be the DOMHighResTimeStamp representing the high resolution
+  // time value of the global monotonic clock at global's time origin.
+  base::TimeDelta t2 = time_origin_;
+
+  // Return the sum of t1 and t2.
+  return ConvertTimeDeltaToDOMHighResTimeStamp(t1 + t2,
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+}
 
 void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(timing_);
