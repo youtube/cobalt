@@ -44,7 +44,7 @@ function wait_and_force_race_condition() {
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file at"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Created drain file at"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to create a drain file for the test package"
@@ -62,7 +62,7 @@ function run_test() {
 
   wait_and_force_race_condition "Created drain file at" "${LOG_PATH}/${TEST_NAME}.1.log" "${FILENAME}" &
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "failed to lock slot"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "failed to lock slot"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to recognize another update is updating slot"

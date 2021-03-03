@@ -25,21 +25,21 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to download and install the test package"
     return 1
   fi
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to run the downloaded installation"
     return 1
   fi
 
-  start_cobalt "file:///tests/empty.html" "${TEST_NAME}.2.log" "quick update succeeded"
+  cycle_cobalt "file:///tests/empty.html" "${TEST_NAME}.2.log" "quick update succeeded"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to perform a quick update on different app"
@@ -55,7 +55,7 @@ function run_test() {
 
   create_file "${FILENAME}"
 
-  start_cobalt "file:///tests/empty.html" "${TEST_NAME}.3.log" "RevertBack current_installation="
+  cycle_cobalt "file:///tests/empty.html" "${TEST_NAME}.3.log" "RevertBack current_installation="
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to revert when the app's bad file exists"

@@ -28,7 +28,7 @@ function run_test() {
   OLD_TIMEOUT="${TIMEOUT}"
   TIMEOUT=300
 
-  start_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "continuous updates without restart working"
+  cycle_cobalt "file:///tests/${TEST_FILE}" "${TEST_NAME}.0.log" "continuous updates without restart working"
 
   TIMEOUT="${OLD_TIMEOUT}"
 
