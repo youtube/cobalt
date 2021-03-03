@@ -25,7 +25,7 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to download and install the test package"
@@ -41,7 +41,7 @@ function run_test() {
 
   create_file "${FILENAME}"
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "Active slot draining"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "Active slot draining"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to abort loading a slot being drained"

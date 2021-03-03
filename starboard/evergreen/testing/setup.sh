@@ -52,10 +52,10 @@ SCRIPTS=("${DIR}/shared/app_key.sh"           \
          "${DIR}/${1}/clean_up.sh"            \
          "${DIR}/${1}/clear_storage.sh"       \
          "${DIR}/${1}/create_file.sh"         \
+         "${DIR}/${1}/cycle_cobalt.sh"        \
          "${DIR}/${1}/delete_file.sh"         \
          "${DIR}/${1}/deploy_cobalt.sh"       \
          "${DIR}/${1}/run_command.sh"         \
-         "${DIR}/${1}/start_cobalt.sh"        \
          "${DIR}/${1}/stop_cobalt.sh")
 
 for script in "${SCRIPTS[@]}"; do
