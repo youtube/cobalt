@@ -25,14 +25,14 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=tfailv" "${TEST_NAME}.0.log" "Verification failed. Verifier error = [0-9]+"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=tfailv" "${TEST_NAME}.0.log" "Verification failed. Verifier error = [0-9]+"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to fail verifying the downloaded installation"
     return 1
   fi
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=tfailv" "${TEST_NAME}.1.log" "App is up to date"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=tfailv" "${TEST_NAME}.1.log" "App is up to date"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to revert back to the system image"

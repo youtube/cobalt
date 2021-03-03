@@ -39,11 +39,11 @@ tests, and is platform specific.
 * `<PLATFORM>/clean_up.sh`
 * `<PLATFORM>/clear_storage.sh`
 * `<PLATFORM>/create_file.sh`
+* `<PLATFORM>/cycle_cobalt.sh`
 * `<PLATFORM>/delete_file.sh`
 * `<PLATFORM>/deploy_cobalt.sh`
 * `<PLATFORM>/run_command.sh`
 * `<PLATFORM>/setup.sh`
-* `<PLATFORM>/start_cobalt.sh`
 * `<PLATFORM>/stop_cobalt.sh`
 
 **Test HTML**
