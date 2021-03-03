@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/performance_high_resolution_time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -39,6 +40,35 @@ TEST(PerformanceTest, Now) {
             (lower_limit - navigation_start_clock->origin()).InMillisecondsF());
   DCHECK_LE(current_time_in_milliseconds,
             (upper_limit - navigation_start_clock->origin()).InMillisecondsF());
+}
+
+TEST(PerformanceTest, TimeOrigin) {
+  scoped_refptr<base::SystemMonotonicClock> clock(
+      new base::SystemMonotonicClock());
+  // Test that time_origin returns a result that is within a correct range for
+  // the current time.
+  base::Time lower_limit = base::Time::Now();
+
+  scoped_refptr<Performance> performance(new Performance(clock));
+
+  base::Time upper_limit = base::Time::Now();
+
+  base::TimeDelta lower_limit_delta = lower_limit - base::Time::UnixEpoch();
+  base::TimeDelta upper_limit_delta = upper_limit - base::Time::UnixEpoch();
+
+  base::TimeDelta time_zero =
+      base::Time::UnixEpoch().ToDeltaSinceWindowsEpoch();
+
+  DOMHighResTimeStamp lower_limit_milliseconds =
+        ConvertTimeDeltaToDOMHighResTimeStamp(lower_limit_delta + time_zero,
+            Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  DOMHighResTimeStamp upper_limit_milliseconds =
+        ConvertTimeDeltaToDOMHighResTimeStamp(upper_limit_delta + time_zero,
+            Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  DCHECK_GE(performance->time_origin(), lower_limit_milliseconds);
+  DCHECK_LE(performance->time_origin(), upper_limit_milliseconds);
 }
 
 TEST(PerformanceTest, NavigationStart) {
