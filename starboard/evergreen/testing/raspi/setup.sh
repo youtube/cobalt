@@ -17,12 +17,14 @@
 source $1/../pprint.sh
 source $1/run_command.sh
 
+CACHE_DIR="${HOME}/.cache/cobalt"
 CONTENT="/home/pi/coeg/content/app/cobalt/content"
 STORAGE_DIR="/home/pi/.cobalt_storage"
 STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"
 
 ID="id"
 TAIL="tail"
+WC="wc"
 
 if [[ -z "${RASPI_ADDR}" ]]; then
   log "info" " Please set the environment variable 'RASPI_ADDR'"

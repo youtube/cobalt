@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+CACHE_DIR="${HOME}/.cache/cobalt"
 CONTENT="${OUT}/content/app/cobalt/content"
 STORAGE_DIR="${HOME}/.cobalt_storage"
 STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"
 
 ID="id"
 TAIL="tail"
+WC="wc"
 
 if [[ -L "${STORAGE_DIR}" ]]; then
   rm -f ${STORAGE_DIR} 1> /dev/null
@@ -45,4 +47,3 @@ if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
     fi
   fi
 fi
-
