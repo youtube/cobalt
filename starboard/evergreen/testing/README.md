@@ -26,6 +26,7 @@ These files contain code that is either non-trivial or repeated throughout the
 tests, and is shared across all platforms.
 
 * `shared/app_key.sh`
+* `shared/cycle_cobalt.sh`
 * `shared/drain_file.sh`
 * `shared/init_logging.sh`
 * `shared/installation_slot.sh`
@@ -39,11 +40,11 @@ tests, and is platform specific.
 * `<PLATFORM>/clean_up.sh`
 * `<PLATFORM>/clear_storage.sh`
 * `<PLATFORM>/create_file.sh`
-* `<PLATFORM>/cycle_cobalt.sh`
 * `<PLATFORM>/delete_file.sh`
 * `<PLATFORM>/deploy_cobalt.sh`
 * `<PLATFORM>/run_command.sh`
 * `<PLATFORM>/setup.sh`
+* `<PLATFORM>/start_cobalt.sh`
 * `<PLATFORM>/stop_cobalt.sh`
 
 **Test HTML**
