@@ -165,7 +165,7 @@ public class AudioTrackBridge {
             audioTrackBufferSize,
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
-    if (enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
+    if (audioTrack != null && enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
       currentRoutedDevice = audioTrack.getRoutedDevice();
       onRoutingChangedListener =
           new AudioRouting.OnRoutingChangedListener() {
