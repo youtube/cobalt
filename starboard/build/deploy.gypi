@@ -63,10 +63,10 @@
 
     # Directory in which the platform deploy action should stage its results
     # to to separate them from other targets.
-    'target_deploy_dir': '<(sb_deploy_output_dir)/<(executable_name)',
+    'target_deploy_dir%': '<(sb_deploy_output_dir)/<(executable_name)',
 
     # Stamp file that will be updated after the deploy dir is created/cleaned.
-    'target_deploy_stamp_file': '<(target_deploy_dir).stamp',
+    'target_deploy_stamp_file%': '<(sb_deploy_output_dir)/<(executable_name).stamp',
 
     'make_dirs': '<(DEPTH)/starboard/build/make_dirs.py',
   },
