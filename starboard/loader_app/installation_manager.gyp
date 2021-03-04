@@ -35,7 +35,13 @@
       'dependencies': [
         ':installation_store_proto',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
+      ],
+      'conditions': [
+        ['sb_evergreen_compatible_lite != 1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
+          ],},
+        ],
       ],
       'include_dirs': [
         # Get protobuf headers from the chromium tree.
@@ -47,8 +53,14 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'installation_manager_test.cc',
-        'pending_restart_test.cc',
         '<(DEPTH)/starboard/common/test_main.cc',
+      ],
+      'conditions': [
+        ['sb_evergreen_compatible_lite != 1', {
+          'sources': [
+            'pending_restart_test.cc',
+          ],},
+        ],
       ],
       'dependencies': [
          ':installation_manager',
