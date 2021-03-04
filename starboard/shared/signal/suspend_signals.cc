@@ -25,9 +25,9 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"
-#endif
+#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
 namespace starboard {
 namespace shared {
