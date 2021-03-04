@@ -39,7 +39,9 @@
       # be specified. This is needed even with 'msvs_settings' since the later
       # is not used by platforms that only uses MSVC for host build.
       'cobalt_compiled_by_msvc%': 0,
+      'host_executable_suffix%': '<(EXECUTABLE_SUFFIX)',
     },
+    'host_executable_suffix%': '<(EXECUTABLE_SUFFIX)',
 
     # Whether Cobalt is being built.
     'cobalt': 1,
