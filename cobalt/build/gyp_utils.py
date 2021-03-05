@@ -60,7 +60,7 @@ def GetRevinfo():
 
   # First make sure we can add the cobalt_src repo.
   try:
-    repos = CheckRevInfo('.')
+    repos = CheckRevInfo('.', cwd=repo_root)
   except subprocess.CalledProcessError as e:
     logging.warning('Failed to get revision information: %s', e)
     return {}
