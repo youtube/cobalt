@@ -29,6 +29,12 @@ class MemoryInfo;
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
 class Performance : public script::Wrappable {
  public:
+  // Ensure that the timer resolution is at the lowest 20 microseconds in
+  // order to mitigate potential Spectre-related attacks.  This is following
+  // Mozilla's lead as described here:
+  //   https://www.mozilla.org/en-US/security/advisories/mfsa2018-01/
+  static constexpr int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
+
   explicit Performance(const scoped_refptr<base::BasicClock>& clock);
 
   // Web API: Performance
