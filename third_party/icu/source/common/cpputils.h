@@ -16,7 +16,9 @@
 #ifndef CPPUTILS_H
 #define CPPUTILS_H
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
 #include "cmemory.h"

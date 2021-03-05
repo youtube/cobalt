@@ -7,7 +7,9 @@
 ******************************************************************************
 * sharedobject.cpp
 */
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "sharedobject.h"
 #include "mutex.h"
 #include "uassert.h"

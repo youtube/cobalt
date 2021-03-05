@@ -11,7 +11,9 @@
 *******************************************************************************
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdlib_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #if !UCONFIG_NO_FORMATTING
 

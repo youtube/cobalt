@@ -13,8 +13,10 @@
 
 #if !UCONFIG_NO_COLLATION && !UCONFIG_NO_BREAK_ITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/usearch.h"
 #include "unicode/ustring.h"
 #include "unicode/uchar.h"

@@ -15,7 +15,9 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/measfmt.h"
 #include "unicode/numfmt.h"
 #include "currfmt.h"

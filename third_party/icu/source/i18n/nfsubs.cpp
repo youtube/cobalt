@@ -15,10 +15,11 @@
 * 10/11/2001  Doug      Ported from ICU4J
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-#if !defined(STARBOARD)
+#else
 #include <stdio.h>
-#endif
+#endif  // defined(STARBOARD)
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "nfsubs.h"

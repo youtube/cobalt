@@ -8,10 +8,11 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
-#if !defined(STARBOARD)
+#else
 #include <math.h>
-#endif
+#endif  // defined(STARBOARD)
 #include "unicode/numfmt.h"
 #include "unicode/plurrule.h"
 #include "unicode/ustring.h"

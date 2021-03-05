@@ -16,7 +16,9 @@
 *   created by: George Rhoten
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "ucln.h"
 #include "ucln_in.h"
 #include "mutex.h"

@@ -5,7 +5,9 @@
  * others. All Rights Reserved.
  */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/unistr.h"
 #include "charstr.h"
 #include "cstring.h"

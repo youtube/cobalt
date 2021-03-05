@@ -44,7 +44,9 @@ Disclaimer and license
  * - UTF-16 handling
  */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_IDNA

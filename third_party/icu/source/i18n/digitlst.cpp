@@ -24,13 +24,17 @@
 ******************************************************************************
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "digitlst.h"
 // Must go after digitlst.h, or a compile error occurs.
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/wchar_poem.h"
+#endif  // defined(STARBOARD)
 
 #if !UCONFIG_NO_FORMATTING
 #include "unicode/putil.h"

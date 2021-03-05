@@ -15,8 +15,10 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/udata.h"
 #include "unicode/localpointer.h"
 #include "unicode/normalizer2.h"
