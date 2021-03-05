@@ -13,9 +13,11 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "cstring.h"
 #include "decNumber.h"
 #include "digitlst.h"

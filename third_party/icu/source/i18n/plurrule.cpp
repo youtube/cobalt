@@ -9,14 +9,15 @@
 * File plurrule.cpp
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#if !defined(STARBOARD)
+#else
 #include <math.h>
 #include <stdio.h>
-#endif
+#endif  // defined(STARBOARD)
 
 #include "unicode/utypes.h"
 #include "unicode/localpointer.h"
@@ -24,8 +25,10 @@
 
 // These files must be included after plurrule.h, for the #define in the poems
 // to work successfully.
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/wchar_poem.h"
+#endif  // defined(STARBOARD)
 
 #include "unicode/upluralrules.h"
 #include "unicode/ures.h"

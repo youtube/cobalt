@@ -16,7 +16,9 @@
 *   created by: Markus W. Scherer
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/uniset.h"
 #include "unicode/ustring.h"

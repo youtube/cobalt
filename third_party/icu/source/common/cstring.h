@@ -27,7 +27,9 @@
 #ifndef CSTRING_H
 #define CSTRING_H 1
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #if !defined(STARBOARD)

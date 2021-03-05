@@ -7,7 +7,9 @@
 **********************************************************************
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "uvector.h"
 
 U_NAMESPACE_BEGIN

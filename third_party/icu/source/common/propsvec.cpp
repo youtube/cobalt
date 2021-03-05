@@ -18,7 +18,12 @@
 *   Store bits (Unicode character properties) in bit set vectors.
 */
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <stdlib.h>
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "utrie.h"

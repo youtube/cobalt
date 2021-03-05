@@ -31,7 +31,9 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/smpdtfmt.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/ures.h"

@@ -30,11 +30,12 @@
 
 #if !UCONFIG_NO_CONVERSION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#if !defined(STARBOARD)
+#else
 #include <string.h>
-#endif
+#endif  // defined(STARBOARD)
 
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"

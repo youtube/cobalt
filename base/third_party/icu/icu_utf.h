@@ -1,4 +1,6 @@
+#if defined(STARBOARD)
 #include "starboard/types.h"
+#endif  // defined(STARBOARD)
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*

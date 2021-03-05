@@ -26,7 +26,9 @@
 #ifndef PUTIL_H
 #define PUTIL_H
 
+#if defined(STARBOARD)
 #include "starboard/configuration_constants.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
  /**
   * \file
