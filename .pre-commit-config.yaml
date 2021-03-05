@@ -110,6 +110,7 @@ repos:
         entry: python precommit_hooks/check_bug_in_description_wrapper.py
         language: python
         stages: [push]
+        always_run: true
     -   id: run-py2-tests
         name: Run Python 2 Tests
         description: Run Python 2 unittests
