@@ -338,7 +338,7 @@
         '../dom/non_document_type_child_node.idl',
         '../dom/non_element_parent_node.idl',
         '../dom/parent_node.idl',
-        '../dom/performance__high_resolution_time.idl',
+        '../dom/performance_high_resolution_time.idl',
         '../dom/speech_synthesis_getter.idl',
         '../dom/url_mse.idl',
         '../dom/url_utils.idl',
