@@ -23,8 +23,6 @@ namespace switches {
 extern const char kNetLog[];
 extern const char kNetLogCaptureMode[];
 extern const char kUserAgent[];
-extern const char kMaxNetworkDelay[];
-extern const char kMaxNetworkDelayHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 extern const char kDisableQuic[];
 
