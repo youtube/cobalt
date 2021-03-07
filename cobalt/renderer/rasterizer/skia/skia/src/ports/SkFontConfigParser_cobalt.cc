@@ -398,9 +398,6 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
       default:
         break;
     }
-
-    LOG(ERROR) << "---- Unsupported font attribute [" << name << "]";
-    NOTREACHED();
   }
 }
 
