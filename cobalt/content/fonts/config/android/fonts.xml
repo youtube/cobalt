@@ -541,4 +541,24 @@
     <family>
             <font weight="400" style="normal">RobotoCondensed-MediumItalic.ttf</font>
     </family>
+
+    <!--
+        Include font files on android version S under /system/fonts directory.
+    -->
+    <family lang="zh-Hans">
+        <font weight="400" style="normal" index="2">NotoSansCJKjp-Regular.otc</font>
+        <font weight="400" style="normal" index="2" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
+    </family>
+    <family lang="zh-Hant,zh-Bopo">
+        <font weight="400" style="normal" index="3">NotoSansCJKjp-Regular.otc</font>
+        <font weight="400" style="normal" index="3" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
+    </family>
+    <family lang="ja">
+        <font weight="400" style="normal" index="0">NotoSansCJKjp-Regular.otc</font>
+        <font weight="400" style="normal" index="0" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
+    </family>
+    <family lang="ko">
+        <font weight="400" style="normal" index="1">NotoSansCJKjp-Regular.otc</font>
+        <font weight="400" style="normal" index="1" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
+    </family>
 </familyset>
