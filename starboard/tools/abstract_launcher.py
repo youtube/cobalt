@@ -236,6 +236,27 @@ class AbstractLauncher(object):
         "Deep link not supported for this platform (link {} sent).".format(
             link))
 
+  # Not like SendSuspendResume sending signals to cobalt, system suspend and
+  # resume send system signals to suspend and resume cobalt process.
+  def SupportsSystemSuspendResume(self):
+    return False
+
+  def SendSystemResume(self):
+    """sends a system signal to the resume the launcher's executable.
+
+    Raises:
+      RuntimeError: System resume signal not supported on platform.
+    """
+    raise RuntimeError("System resume signal not supported for this platform.")
+
+  def SendSystemSuspend(self):
+    """sends a system signal to suspend the current running executable.
+
+    Raises:
+      RuntimeError: System suspend signal not supported on platform.
+    """
+    raise RuntimeError("System suspend signal not supported for this platform.")
+
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
     return self.startup_timeout_seconds

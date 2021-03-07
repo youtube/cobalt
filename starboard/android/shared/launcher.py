@@ -407,6 +407,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb(*args)
     return True
 
+  def SupportsSystemSuspendResume(self):
+    return True
+
+  def SendSystemResume(self):
+    self.CallAdb('shell', 'am', 'start', _APP_PACKAGE_NAME)
+    return True
+
+  def SendSystemSuspend(self):
+    self.CallAdb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+    return True
+
   def Kill(self):
     if not self.killed.is_set():
       sys.stderr.write('***Killing Launcher***\n')
