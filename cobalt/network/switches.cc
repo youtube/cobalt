@@ -31,6 +31,12 @@ const char kNetLog[] = "net_log";
 const char kNetLogCaptureMode[] = "net_log_capture_mode";
 
 const char kUserAgent[] = "user_agent";
+
+const char kMaxNetworkDelay[] = "max_network_delay";
+const char kMaxNetworkDelayHelp[] =
+    "Add an artificial random delay (up to the value specified) before the "
+    "start of network requests to simulate low-latency networks.  The value "
+    "is specified in microseconds.";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // Switch to disable use of the Quic network protocol.
