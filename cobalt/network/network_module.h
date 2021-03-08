@@ -59,12 +59,14 @@ class NetworkModule {
         : cookie_policy(net::StaticCookiePolicy::BLOCK_ALL_THIRD_PARTY_COOKIES),
           ignore_certificate_errors(false),
           https_requirement(network::kHTTPSRequired),
-          preferred_language("en-US") {}
+          preferred_language("en-US"),
+          max_network_delay(0) {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
     HTTPSRequirement https_requirement;
     std::string preferred_language;
     std::string custom_proxy;
+    SbTime max_network_delay;
   };
 
   // Simple constructor intended to be used only by tests.
@@ -80,13 +82,12 @@ class NetworkModule {
   URLRequestContext* url_request_context() const {
     return url_request_context_.get();
   }
-  NetworkDelegate* network_delegate() const {
-    return network_delegate_.get();
-  }
+  NetworkDelegate* network_delegate() const { return network_delegate_.get(); }
   std::string GetUserAgent() const;
   const std::string& preferred_language() const {
     return options_.preferred_language;
   }
+  SbTime max_network_delay() const { return options_.max_network_delay; }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
