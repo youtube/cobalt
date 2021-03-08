@@ -50,6 +50,9 @@ class PerformanceEntry : public script::Wrappable {
   static PerformanceEntry::EntryType ToEntryTypeEnum(
       const std::string& entry_type);
 
+  static bool StartTimeCompareLessThan(PerformanceEntry* a,
+                                       PerformanceEntry* b);
+
   DEFINE_WRAPPABLE_TYPE(PerformanceEntry);
 
   ~PerformanceEntry() {}
@@ -61,6 +64,7 @@ class PerformanceEntry : public script::Wrappable {
  private:
   const std::string name_;
   const DOMHighResTimeStamp start_time_;
+  const int index_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceEntry);
 };
