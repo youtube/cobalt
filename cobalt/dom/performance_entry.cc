@@ -14,15 +14,22 @@
 
 #include "performance_entry.h"
 
+#include "base/atomic_sequence_num.h"
+
 namespace cobalt {
 namespace dom {
+
+namespace {
+static base::AtomicSequenceNumber index_seq;
+}
 
 PerformanceEntry::PerformanceEntry(const std::string& name,
                                    DOMHighResTimeStamp start_time,
                                    DOMHighResTimeStamp finish_time)
     : duration_(finish_time - start_time),
     name_(name),
-    start_time_(start_time) {}
+    start_time_(start_time),
+    index_(index_seq.GetNext()) {}
 
 DOMHighResTimeStamp PerformanceEntry::start_time() const {
   return start_time_;
@@ -39,6 +46,13 @@ PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
   if (entry_type == "navigation")
     return kNavigation;
   return kInvalid;
+}
+
+bool PerformanceEntry::StartTimeCompareLessThan(
+    PerformanceEntry* a, PerformanceEntry* b) {
+  if (a->start_time() == b->start_time())
+    return a->index_ < b->index_;
+  return a->start_time() < b->start_time();
 }
 
 }  // namespace dom
