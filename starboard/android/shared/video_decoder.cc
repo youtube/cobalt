@@ -20,7 +20,6 @@
 #include <cmath>
 #include <functional>
 #include <list>
-#include <vector>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/decode_target_create.h"
@@ -36,7 +35,6 @@
 #include "starboard/drm.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"
 
@@ -154,125 +152,7 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 
 }  // namespace
 
-// TODO: Move into a separate file and write unit tests for it.
-class VideoFrameTracker {
- public:
-  SbTime seek_to_time() const { return seek_to_time_; }
-
-  void OnInputBuffer(SbTime timestamp) {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-    if (frames_to_be_rendered_.empty()) {
-      frames_to_be_rendered_.push_back(timestamp);
-      return;
-    }
-
-    if (frames_to_be_rendered_.size() > kMaxPendingWorkSize * 2) {
-      // OnFrameRendered() is only available after API level 23.  Cap the size
-      // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
-      frames_to_be_rendered_.pop_front();
-    }
-
-    // Sort by |timestamp|, because |timestamp| won't be monotonic if there are
-    // B frames.
-    for (auto it = frames_to_be_rendered_.end();
-         it != frames_to_be_rendered_.begin();) {
-      it--;
-      if (*it < timestamp) {
-        frames_to_be_rendered_.emplace(++it, timestamp);
-        return;
-      } else if (*it == timestamp) {
-        SB_LOG(WARNING) << "feed video AU with same time stamp " << timestamp;
-        return;
-      }
-    }
-
-    frames_to_be_rendered_.emplace_front(timestamp);
-  }
-
-  void OnFrameRendered(int64_t frame_timestamp) {
-    ScopedLock lock(rendered_frames_mutex_);
-    rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
-  }
-
-  void Seek(SbTime seek_to_time) {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-    // Ensure that all dropped frames before seeking are captured.
-    UpdateDroppedFrames();
-
-    frames_to_be_rendered_.clear();
-    seek_to_time_ = seek_to_time;
-  }
-
-  int UpdateAndGetDroppedFrames() {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-    UpdateDroppedFrames();
-    return dropped_frames_;
-  }
-
- private:
-  // TODO:
-  // * It is possible that the initial frame rendered time is before the seek to
-  //   time, when the platform decides to render a frame earlier than the seek
-  //   to time during preroll. This shouldn't be an issue after we align seek
-  //   time to the next video key frame.
-  // * The reported frame rendering time is the real time the frame is rendered.
-  //   It can be slightly different than the timestamp associated with the
-  //   InputBuffer.  For example, the frame with timestamp 120000 may be
-  //   rendered at 120020.  We have to account for this difference, as otherwise
-  //   lots of frames will be reported as being dropped.
-  void UpdateDroppedFrames() {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-    {
-      ScopedLock lock(rendered_frames_mutex_);
-      rendered_frames_on_tracker_thread_.swap(
-          rendered_frames_on_decoder_thread_);
-    }
-
-    // TODO: Refine the algorithm, and consider using std::set<> for
-    //       |frames_to_be_rendered_|.
-    for (auto timestamp : rendered_frames_on_tracker_thread_) {
-      auto it = frames_to_be_rendered_.begin();
-      while (it != frames_to_be_rendered_.end()) {
-        if (*it > timestamp) {
-          break;
-        }
-
-        if (*it < seek_to_time_) {
-          it = frames_to_be_rendered_.erase(it);
-        } else if (*it < timestamp) {
-          SB_LOG(WARNING) << "Video frame dropped:" << *it
-                          << ", current frame timestamp:" << timestamp
-                          << ", frames in the backlog:"
-                          << frames_to_be_rendered_.size();
-          ++dropped_frames_;
-          it = frames_to_be_rendered_.erase(it);
-        } else if (*it == timestamp) {
-          it = frames_to_be_rendered_.erase(it);
-        } else {
-          ++it;
-        }
-      }
-    }
-
-    rendered_frames_on_tracker_thread_.clear();
-  }
-
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
-
-  std::list<SbTime> frames_to_be_rendered_;
-
-  int dropped_frames_ = 0;
-  SbTime seek_to_time_ = 0;
-
-  std::vector<SbTime> rendered_frames_on_tracker_thread_;
-  Mutex rendered_frames_mutex_;
-  std::vector<SbTime> rendered_frames_on_decoder_thread_;
-};
-
-// TODO: Merge this with VideoFrameTracker
+// TODO: Merge this with VideoFrameTracker, maybe?
 class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
  public:
   explicit VideoRenderAlgorithmTunneled(VideoFrameTracker* frame_tracker)
@@ -352,7 +232,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
-    video_frame_tracker_.reset(new VideoFrameTracker);
+    video_frame_tracker_.reset(new VideoFrameTracker(kMaxPendingWorkSize * 2));
   }
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK(tunnel_mode_audio_session_id != -1);
