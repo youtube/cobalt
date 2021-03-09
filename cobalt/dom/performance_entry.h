@@ -42,6 +42,7 @@ class PerformanceEntry : public script::Wrappable {
   std::string name() const { return name_; }
   DOMHighResTimeStamp start_time() const;
   virtual std::string entry_type() const = 0;
+  virtual PerformanceEntryType EntryTypeEnum() const = 0;
   // PerformanceNavigationTiming will override this function,
   // other classes must NOT override this.
   virtual DOMHighResTimeStamp duration() const;
