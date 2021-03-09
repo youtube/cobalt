@@ -22,6 +22,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
@@ -40,8 +41,6 @@
 namespace starboard {
 namespace android {
 namespace shared {
-
-class VideoFrameTracker;
 
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
