@@ -18,6 +18,7 @@
 {
   'variables': {
     'has_platform_tests%': '<!pymod_do_main(starboard.build.gyp_functions file_exists \'<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp\')',
+    'has_platform_targets%': '<!pymod_do_main(starboard.build.gyp_functions file_exists \'<(DEPTH)/<(starboard_path)/platform_targets.gyp\')',
   },
   'conditions': [
     # If 'starboard_platform_tests' is not defined by the platform, then an
@@ -73,6 +74,11 @@
         ['gl_type != "none"', {
           'dependencies': [
             '<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example',
+          ],
+        }],
+        ['has_platform_targets==1', {
+          'dependencies': [
+            '<(DEPTH)/<(starboard_path)/platform_targets.gyp:*',
           ],
         }],
         ['has_platform_tests==1', {
