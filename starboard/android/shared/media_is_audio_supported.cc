@@ -16,6 +16,7 @@
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
@@ -47,14 +48,36 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   if (!enable_audio_routing_parameter_value.empty() &&
       enable_audio_routing_parameter_value != "true" &&
       enable_audio_routing_parameter_value != "false") {
-    SB_LOG(WARNING) << "Invalid value for enableaudiorouting: "
-                    << enable_audio_routing_parameter_value << ".";
+    SB_LOG(INFO)
+        << "Invalid value for audio mime parameter \"enableaudiorouting\": "
+        << enable_audio_routing_parameter_value << ".";
     return false;
   }
+  // Allows for enabling tunneled playback. Disabled by default.
+  // (https://source.android.com/devices/tv/multimedia-tunneling)
+  auto enable_tunnel_mode_parameter_value =
+      mime_type.GetParamStringValue("tunnelmode", "");
+  if (!enable_tunnel_mode_parameter_value.empty() &&
+      enable_tunnel_mode_parameter_value != "true" &&
+      enable_tunnel_mode_parameter_value != "false") {
+    SB_LOG(INFO) << "Invalid value for audio mime parameter \"tunnelmode\": "
+                 << enable_tunnel_mode_parameter_value << ".";
+    return false;
+  } else if (enable_tunnel_mode_parameter_value == "true" &&
+             !SbAudioSinkIsAudioSampleTypeSupported(
+                 kSbMediaAudioSampleTypeInt16Deprecated)) {
+    SB_LOG(WARNING)
+        << "Tunnel mode is rejected because int16 sample is required "
+           "but not supported.";
+    return false;
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
+  const bool must_support_tunnel_mode =
+      enable_tunnel_mode_parameter_value == "true";
   return env->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
-             "(Ljava/lang/String;I)Z", j_mime.Get(),
-             static_cast<jint>(bitrate)) == JNI_TRUE;
+             "(Ljava/lang/String;IZ)Z", j_mime.Get(),
+             static_cast<jint>(bitrate), must_support_tunnel_mode) == JNI_TRUE;
 }
