@@ -79,6 +79,7 @@ class PerformanceObserver : public script::Wrappable {
 
  private:
   friend class Performance;
+  friend class MockPerformanceObserver;
 
   enum class PerformanceObserverType {
     kMultiple,
