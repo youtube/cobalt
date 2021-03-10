@@ -523,7 +523,7 @@ class MediaCodecBridge {
       MediaCrypto crypto) {
     MediaCodec mediaCodec = null;
     try {
-      String decoderName = MediaCodecUtil.findAudioDecoder(mime, 0);
+      String decoderName = MediaCodecUtil.findAudioDecoder(mime, 0, false);
       if (decoderName.equals("")) {
         Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
         return null;
