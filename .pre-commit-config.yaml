@@ -118,3 +118,8 @@ repos:
         language: python
         language_version: python2
         types: [python]
+    -   id: osslint
+        name: osslint
+        entry: python precommit_hooks/osslint_wrapper.py
+        language: python
+        types: [text]
