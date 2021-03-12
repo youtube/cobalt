@@ -16,6 +16,12 @@ repos:
     -   id: trailing-whitespace
     -   id: mixed-line-ending
 
+-   repo: https://cobalt.googlesource.com/codespell
+    rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
+    hooks:
+    -   id: codespell
+        name: Spell Check
+
 -   repo: local
     hooks:
     -   id: sync-keyboxes
