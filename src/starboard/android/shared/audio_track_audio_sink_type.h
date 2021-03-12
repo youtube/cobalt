@@ -67,6 +67,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_time,
       int tunnel_mode_audio_session_id,
+      bool enable_audio_routing,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -109,6 +110,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_media_time,
       int tunnel_mode_audio_session_id,
+      bool enable_audio_routing,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -148,10 +150,6 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
 
   Mutex mutex_;
   double playback_rate_ = 1.0;
-
-  // TODO: Rename to |frames_in_audio_track| and move it into AudioThreadFunc()
-  //       as a local variable.
-  int written_frames_ = 0;
 };
 
 }  // namespace shared

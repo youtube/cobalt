@@ -238,7 +238,7 @@ class WebSocket : public dom::EventTarget {
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceName);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseEmptyResourceName);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, ParseResourceNameWithQuery);
-  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailUnsecurePort);
+  FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailInsecurePort);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, FailInvalidSubProtocols);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, SubProtocols);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, DuplicatedSubProtocols);

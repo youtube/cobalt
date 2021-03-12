@@ -33,15 +33,14 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
 #include <stdio.h>
-#include <stdlib.h> /* for qsort() */
-#include <string.h> /* for memset() */
-#endif  // STARBOARD
+#include <string.h>
+#include <stdlib.h>
 
+#ifdef STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include "FLAC/assert.h"
 #include "FLAC/format.h"

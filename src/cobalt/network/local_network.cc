@@ -72,7 +72,7 @@ bool IsIPInLocalNetwork(const SbSocketAddress& destination) {
 
 bool IsIPInPrivateRange(const SbSocketAddress& ip) {
   // For IPv4, the private address range is defined by RFC 1918
-  // avaiable at https://tools.ietf.org/html/rfc1918#section-3.
+  // available at https://tools.ietf.org/html/rfc1918#section-3.
   if (ip.type == kSbSocketAddressTypeIpv4) {
     if (ip.address[0] == 10) {
       // IP is in range 10.0.0.0 - 10.255.255.255 (10/8 prefix).

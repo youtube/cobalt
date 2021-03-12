@@ -75,6 +75,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbCharacterIsAlphanumeric);
   REGISTER_SYMBOL(SbCharacterIsDigit);
   REGISTER_SYMBOL(SbCharacterIsHexDigit);
@@ -82,6 +83,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbCharacterIsUpper);
   REGISTER_SYMBOL(SbCharacterToLower);
   REGISTER_SYMBOL(SbCharacterToUpper);
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
@@ -95,11 +97,13 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDirectoryCreate);
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbDoubleAbsolute);
   REGISTER_SYMBOL(SbDoubleExponent);
   REGISTER_SYMBOL(SbDoubleFloor);
   REGISTER_SYMBOL(SbDoubleIsFinite);
   REGISTER_SYMBOL(SbDoubleIsNan);
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
@@ -222,12 +226,16 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringGetLength);
   REGISTER_SYMBOL(SbStringGetLengthWide);
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbStringParseDouble);
   REGISTER_SYMBOL(SbStringParseSignedInteger);
   REGISTER_SYMBOL(SbStringParseUInt64);
   REGISTER_SYMBOL(SbStringParseUnsignedInteger);
+#endif
   REGISTER_SYMBOL(SbStringScan);
+#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbSystemBinarySearch);
+#endif
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
   REGISTER_SYMBOL(SbSystemGetConnectionType);
@@ -248,22 +256,26 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
-  #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-      SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
+    SB_HAS(CONCEALED_STATE)
   REGISTER_SYMBOL(SbSystemRequestBlur);
   REGISTER_SYMBOL(SbSystemRequestConceal);
   REGISTER_SYMBOL(SbSystemRequestFocus);
   REGISTER_SYMBOL(SbSystemRequestFreeze);
   REGISTER_SYMBOL(SbSystemRequestReveal);
   REGISTER_SYMBOL(SbSystemRequestStop);
-  #else
+#else
   REGISTER_SYMBOL(SbSystemRequestPause);
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
-  #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-          // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
+        // SB_HAS(CONCEALED_STATE)
+
+#if SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
   REGISTER_SYMBOL(SbSystemSort);
+#endif  // SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
+
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadCreate);
   REGISTER_SYMBOL(SbThreadCreateLocalKey);

@@ -619,7 +619,7 @@ typedef enum DynamicFlags {
   // storage scheme. Implementations need not support any form of thread-local
   // storage.
   DF_STATIC_TLS = 0x00000010,
-} DynamicFalgs;
+} DynamicFlags;
 
 // Relocation types per CPU architecture
 #if SB_IS(ARCH_ARM)

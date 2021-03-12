@@ -28,14 +28,14 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/text.h"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #define HANDLE_CORE_DUMP
 #include "base/lazy_instance.h"
 #include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 #include "third_party/libxml/src/include/libxml/xmlerror.h"
 
 namespace cobalt {

@@ -15,20 +15,16 @@ RUN . $NVM_DIR/nvm.sh \
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
-# === Install depot_tools
-RUN git clone https://cobalt.googlesource.com/depot_tools /depot_tools
 
 # === Configure common env vars
-ENV PATH="${PATH}:/depot_tools" \
-    OUTDIR=out \
-    DEPOT_TOOLS_UPDATE=0 \
+ENV OUTDIR=out \
     NINJA_STATUS="[%f/%t %c/sec] " \
+    NINJA_PARALLEL=4 \
     CCACHE_DIR=/root/ccache \
     CCACHE_MAXSIZE=30G
 
-# == Set up gclient and ccache
-RUN cd /tmp && gclient verify || true \
-    && mkdir /root/ccache
+# == Set up  ccache
+RUN cd /tmp && mkdir /root/ccache
 
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]

@@ -12,3 +12,6 @@ In addition, we have the following patch(es):
       xdg_mime_get_mime_type_for_file() - use of pointer after being freed.
   - function_casts.patch: fix bad function casts.
   - Added a LICENSE file.
+
+Of the dual-licenses, it is licensed under the terms of the Academic Free
+License, version 2.0, in licenses_cobalt.txt.

@@ -36,6 +36,8 @@
       'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
       'sb_deploy_output_dir%': '<(PRODUCT_DIR)/deploy',
       'sb_evergreen_compatible%': 0,
+      'sb_evergreen_compatible_libunwind%': 0,
+      'sb_evergreen_compatible_lite%': 0,
     },
 
     # Enables the yasm compiler to be used to compile .asm files.
@@ -81,12 +83,15 @@
     # Whether this is an evergreen build.
     'sb_evergreen': 0,
 
-    # Whether to use crashpad.
-    'sb_crashpad_enabled': 0,
-
     # Whether this is an evergreen compatible platform. A compatible platform
     # can run the elf_loader and launch the evergreen build.
     'sb_evergreen_compatible%': '<(sb_evergreen_compatible)',
+
+    # Whether to use the libunwind library on evergreen compatible platform.
+    'sb_evergreen_compatible_libunwind%': '<(sb_evergreen_compatible_libunwind)',
+
+    # Whether to adopt Evergreen Lite on the evergreen compatible platform.
+    'sb_evergreen_compatible_lite%': '<(sb_evergreen_compatible_lite)',
 
     # The operating system of the target, separate from the target_arch. In many
     # cases, an 'unknown' value is fine, but, if set to 'linux', then we can

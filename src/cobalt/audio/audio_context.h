@@ -73,7 +73,7 @@ class AudioLock : public base::RefCountedThreadSafe<AudioLock> {
 
 // This represents a set of AudioNode objects and their connections. It allows
 // for arbitrary routing of signals to the AudioDestinationNode (what the user
-// ultimately hears). Nodes are created from the cotnext and are then connected
+// ultimately hears). Nodes are created from the context and are then connected
 // together. In most user cases, only a single AudioContext is used per
 // document.
 //   https://www.w3.org/TR/webaudio/#AudioContext-section

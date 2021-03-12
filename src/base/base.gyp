@@ -915,9 +915,8 @@
         'trace_event/trace_event_filter_test_utils.cc',
         'trace_event/trace_event_filter_test_utils.h',
         'trace_event/trace_event_system_stats_monitor_unittest.cc',
-        # TODO[Cobalt]:re-enable these.
-        # 'trace_event/blame_context_unittest.cc',
-        # 'trace_event/trace_event_unittest.cc',
+        'trace_event/blame_context_unittest.cc',
+        'trace_event/trace_event_unittest.cc',
         'tuple_unittest.cc',
         'unguessable_token_unittest.cc',
         'value_iterators_unittest.cc',

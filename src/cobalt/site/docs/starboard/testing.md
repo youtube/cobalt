@@ -12,7 +12,7 @@ end, Starboard provides a compliance test suite, called NPLB
 All of the APIs that Cobalt defines are at least called by NPLB, and most of
 those APIs are verified in one way or another. The APIs that are most likely
 to just be implemented by a single system call, such as the Starboard functions
-defined in [string.h](modules/string.md) and [memory.h](modules/memory.md)
+defined in [string.h](../reference/starboard/modules/string.md) and [memory.h](../reference/starboard/modules/memory.md)
 are not exhaustively tested.
 
 NPLB tests must work on all Starboard implementations, so they may make no

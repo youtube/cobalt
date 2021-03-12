@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 #include "cobalt/media/player/web_media_player_impl.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -26,7 +26,6 @@
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
-#include "starboard/double.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -71,7 +70,7 @@ DECLARE_INSTANCE_COUNTER(WebMediaPlayerImpl);
 
 bool IsNearTheEndOfStream(const WebMediaPlayerImpl* wmpi, double position) {
   float duration = wmpi->GetDuration();
-  if (SbDoubleIsFinite(duration)) {
+  if (std::isfinite(duration)) {
     // If video is very short, we always treat a position as near the end.
     if (duration <= kEndOfStreamEpsilonInSeconds) return true;
     if (position >= duration - kEndOfStreamEpsilonInSeconds) return true;
@@ -608,7 +607,8 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
 }
 
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
-                                        bool is_initial_preroll) {
+                                        bool is_initial_preroll,
+                                        const std::string& error_message) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
   state_.starting = false;
   state_.seeking = false;
@@ -619,7 +619,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
   }
 
   if (status != PIPELINE_OK) {
-    OnPipelineError(status, "Failed pipeline seek.");
+    OnPipelineError(status,
+                    "Failed pipeline seek with error: " + error_message + ".");
     return;
   }
 
@@ -695,7 +696,7 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
     case PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateFormatError,
-          message.empty() ? "Pipeline extenrnal renderer failed." : message);
+          message.empty() ? "Pipeline external renderer failed." : message);
       break;
     case DEMUXER_ERROR_COULD_NOT_OPEN:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,

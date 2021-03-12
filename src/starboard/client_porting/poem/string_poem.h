@@ -155,11 +155,11 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 }
 
 // Inline wrapper for a drop-in replacement for |strcspn|. This function scans
-// str1 for the first occurence of any character that is in str2. If a character
-// from str2 is found in str1, this function returns the number of characters in
-// str1 checked before the first occurence of the str2 character. If none of the
-// str2 characters are found in str1, then the function returns the length of
-// str1.
+// str1 for the first occurrence of any character that is in str2. If a
+// character from str2 is found in str1, this function returns the number of
+// characters in str1 checked before the first occurrence of the str2 character.
+// If none of the str2 characters are found in str1, then the function returns
+// the length of str1.
 static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
                                                     const char* str2) {
   size_t length = SbStringGetLength(str1);

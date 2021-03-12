@@ -280,7 +280,7 @@ Follow the above list, except:
       1. Set the target and host toolchains. If you defined a target
          toolchain in `BUILD.gn`, you'll want to set it to that.
   1. In `configuration.gni`, set platform-specific defaults for any
-     variables that should be overriden for your Starboard platform.  You
+     variables that should be overridden for your Starboard platform.  You
      can find a list of such variables at `//cobalt/build/config/base.gni`
      and `//starboard/build/config/base.gni`.
 

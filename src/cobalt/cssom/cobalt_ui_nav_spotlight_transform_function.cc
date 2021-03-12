@@ -39,15 +39,16 @@ math::Matrix3F CobaltUiNavSpotlightTransformFunction::ToMatrix(
     const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus) const {
   float scale = progress_to_identity_;
   float focus_x = 0.0f, focus_y = 0.0f;
-  if (used_ui_nav_focus &&
-      used_ui_nav_focus->GetFocusVector(&focus_x, &focus_y)) {
+  if ((used_ui_nav_focus &&
+       used_ui_nav_focus->GetFocusVector(&focus_x, &focus_y)) ||
+      (!used_ui_nav_focus &&
+       ui_navigation::NavItem::GetGlobalFocusVector(&focus_x, &focus_y))) {
     // Translation must be mapped from [-1,+1] to [-50%,+50%].
     focus_x *= (1.0f - progress_to_identity_) * 0.5f * used_size.width();
     focus_y *= (1.0f - progress_to_identity_) * 0.5f * used_size.height();
     scale = 1.0f;
   }
-  return math::Matrix3F::FromValues(scale, 0.0f, focus_x,
-                                    0.0f, scale, focus_y,
+  return math::Matrix3F::FromValues(scale, 0.0f, focus_x, 0.0f, scale, focus_y,
                                     0.0f, 0.0f, 1.0f);
 }
 

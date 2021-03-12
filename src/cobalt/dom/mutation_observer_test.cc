@@ -272,7 +272,7 @@ TEST_F(MutationObserverTest, Notify) {
   records = observer->TakeRecords();
   EXPECT_TRUE(records.empty());
 
-  // Queue another mutation record on the same ovserver.
+  // Queue another mutation record on the same observer.
   record = MutationRecord::CreateAttributeMutationRecord(
       target, "attribute_name", std::string("old_attribute_data"));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskScheduled(_, "attributes", kOneshot))
@@ -363,7 +363,7 @@ TEST_F(MutationObserverTest, AttributeFilter) {
   reporter.ReportAttributesMutation("apple", std::string("wormy"));
   reporter.ReportAttributesMutation("potato", std::string("mashed"));
 
-  // Check that mutation records for the filtered attrbiutes have been queued.
+  // Check that mutation records for the filtered attributes have been queued.
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();

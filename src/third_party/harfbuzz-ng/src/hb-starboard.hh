@@ -28,12 +28,10 @@
 // Micro Posix Emulation
 #undef assert
 #define assert SB_DCHECK
-#define bsearch SbSystemBinarySearch
 #define getenv(x) NULL
 #define memcpy SbMemoryCopy
 #define memmove SbMemoryMove
 #define memset SbMemorySet
-#define qsort SbSystemSort
 #define snprintf SbStringFormatF
 #define strchr (char *)SbStringFindCharacter
 #define strcmp SbStringCompareAll
@@ -43,7 +41,5 @@
 #define strncmp SbStringCompare
 #define strncpy SbStringCopy
 #define strstr SbStringFindString
-#define strtol SbStringParseSignedInteger
-#define strtoul SbStringParseUnsignedInteger
 
 #endif  // HB_STARBOARD_HH

@@ -109,7 +109,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   // Shuts X down.
   void StopX();
 
-  // Retreive the next pending event, such as keypresses from a paste buffer.
+  // Retrieve the next pending event, such as keypresses from a paste buffer.
   // Returns NULL if there are no pending events.
   Event* GetPendingEvent();
 

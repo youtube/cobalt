@@ -69,12 +69,12 @@
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "url/gurl.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 
 #define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace media {
@@ -194,7 +194,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 
-  void OnPipelineSeek(PipelineStatus status, bool is_initial_preroll);
+  void OnPipelineSeek(PipelineStatus status, bool is_initial_preroll,
+                      const std::string& error_message);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error, const std::string& message);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);

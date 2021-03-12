@@ -1,5 +1,5 @@
 // This file provides JavaScript-side environment and test utility functions.
-// The foolowing constants and logics are used in communication with the python
+// The following constants and logics are used in communication with the python
 // tests. Anyone making changes here should also ensure corresponding changes
 // are made in black_box_cobalt_runner.py.
 

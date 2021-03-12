@@ -183,7 +183,7 @@ typedef void(* SbDecodeTargetGlesContextRunner) (struct SbDecodeTargetGraphicsCo
 
 ### SbDecodeTargetGlesContextRunnerTarget ###
 
-Signature for a Starboard implementaion function that is to be run by a
+Signature for a Starboard implementation function that is to be run by a
 SbDecodeTargetGlesContextRunner callback.
 
 #### Definition ####
@@ -397,4 +397,3 @@ Starboard implementations, if it is necessary.
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
 ```
-

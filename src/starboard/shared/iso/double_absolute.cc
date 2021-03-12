@@ -16,6 +16,8 @@
 
 #include <math.h>
 
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
 double SbDoubleAbsolute(double d) {
   return fabs(d);
 }
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION

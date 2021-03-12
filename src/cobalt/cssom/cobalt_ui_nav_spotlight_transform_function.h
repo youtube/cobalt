@@ -35,7 +35,9 @@ class TransformFunctionVisitor;
 // not have focus, or the platform does not provide focus movement
 // information, then this transform function will evaluate to the zero
 // scale. Otherwise the transform will evaluate to a translation ranging
-// from -50% to +50% in the X and Y directions.
+// from -50% to +50% in the X and Y directions. If no ancestor is a hybrid
+// navigation focus item, then the currently-focused item (which may be in
+// a different subtree) is queried.
 class CobaltUiNavSpotlightTransformFunction : public TransformFunction {
  public:
   // |progress_to_identity| is used to support transitions to or from CSS
@@ -53,8 +55,8 @@ class CobaltUiNavSpotlightTransformFunction : public TransformFunction {
   std::string ToString() const override;
 
   math::Matrix3F ToMatrix(const math::SizeF& used_size,
-      const scoped_refptr<ui_navigation::NavItem>& used_ui_nav_focus)
-      const override;
+                          const scoped_refptr<ui_navigation::NavItem>&
+                              used_ui_nav_focus) const override;
 
   bool operator==(const CobaltUiNavSpotlightTransformFunction& other) const {
     return progress_to_identity_ == other.progress_to_identity_;

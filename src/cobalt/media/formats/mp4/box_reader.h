@@ -49,7 +49,7 @@ class MEDIA_EXPORT BufferReader {
             size_ - pos_ >= count);
   }
 
-  // Read a value from the stream, perfoming endian correction, and advance the
+  // Read a value from the stream, performing endian correction, and advance the
   // stream pointer.
   bool Read1(uint8_t* v) WARN_UNUSED_RESULT;
   bool Read2(uint16_t* v) WARN_UNUSED_RESULT;

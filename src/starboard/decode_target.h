@@ -178,7 +178,7 @@ typedef enum SbDecodeTargetPlane {
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 struct SbDecodeTargetGraphicsContextProvider;
 
-// Signature for a Starboard implementaion function that is to be run by a
+// Signature for a Starboard implementation function that is to be run by a
 // SbDecodeTargetGlesContextRunner callback.
 typedef void (*SbDecodeTargetGlesContextRunnerTarget)(
     void* gles_context_runner_target_context);

@@ -16,7 +16,7 @@
 #include "base/base_paths_mac.h"
 #elif defined(OS_ANDROID)
 #include "base/base_paths_android.h"
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 #include "base/base_paths_starboard.h"
 #endif
 

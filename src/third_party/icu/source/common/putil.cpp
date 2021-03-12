@@ -40,9 +40,7 @@
 // Starboard poems must be included before uposixdefs.h, or else they cause
 // compiler errors on some platforms.
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 
 // Defines _XOPEN_SOURCE for access to POSIX functions.
@@ -66,12 +64,13 @@
 // Must be after "umitex.h" which includes "time.h" on some platforms.
 #include "starboard/client_porting/poem/eztime_poem.h"
 
+#include <math.h>
+
 /* Include standard headers. */
 #if !defined(STARBOARD)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <locale.h>
 #include <float.h>
 #endif

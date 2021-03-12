@@ -24,7 +24,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// Generate the cadance pattern according to the graphics refresh rate and the
+// Generate the cadence pattern according to the graphics refresh rate and the
 // video frame rate.  For example, for 30 fps video on 60 fps graphics, each
 // frame should be rendered across 2 graphic updates (vsyncs).
 class VideoFrameCadencePatternGenerator {

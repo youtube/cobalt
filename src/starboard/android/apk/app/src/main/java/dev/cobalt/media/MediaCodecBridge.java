@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -112,13 +112,13 @@ class MediaCodecBridge {
   private class FrameRateEstimator {
     private static final int INVALID_FRAME_RATE = -1;
     private static final long INVALID_FRAME_TIMESTAMP = -1;
-    private static final int MINIMUN_REQUIRED_FRAMES = 4;
+    private static final int MINIMUM_REQUIRED_FRAMES = 4;
     private long mLastFrameTimestampUs = INVALID_FRAME_TIMESTAMP;
     private long mNumberOfFrames = 0;
     private long mTotalDurationUs = 0;
 
     public int getEstimatedFrameRate() {
-      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUN_REQUIRED_FRAMES) {
+      if (mTotalDurationUs <= 0 || mNumberOfFrames < MINIMUM_REQUIRED_FRAMES) {
         return INVALID_FRAME_RATE;
       }
       return Math.round((mNumberOfFrames - 1) * 1000000.0f / mTotalDurationUs);
@@ -572,6 +572,7 @@ class MediaCodecBridge {
       boolean requireSoftwareCodec,
       int width,
       int height,
+      int fps,
       Surface surface,
       MediaCrypto crypto,
       ColorInfo colorInfo,
@@ -650,11 +651,27 @@ class MediaCodecBridge {
     VideoCapabilities videoCapabilities = findVideoDecoderResult.videoCapabilities;
     int maxWidth = videoCapabilities.getSupportedWidths().getUpper();
     int maxHeight = videoCapabilities.getSupportedHeights().getUpper();
-    if (!videoCapabilities.isSizeSupported(maxWidth, maxHeight)) {
-      if (maxHeight >= 4320 && videoCapabilities.isSizeSupported(7680, 4320)) {
-        maxWidth = 7680;
-        maxHeight = 4320;
-      } else if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
+    if (fps > 0) {
+      if (!videoCapabilities.areSizeAndRateSupported(maxWidth, maxHeight, fps)) {
+        if (maxHeight >= 4320 && videoCapabilities.areSizeAndRateSupported(7680, 4320, fps)) {
+          maxWidth = 7680;
+          maxHeight = 4320;
+        } else if (maxHeight >= 2160
+            && videoCapabilities.areSizeAndRateSupported(3840, 2160, fps)) {
+          maxWidth = 3840;
+          maxHeight = 2160;
+        } else if (maxHeight >= 1080
+            && videoCapabilities.areSizeAndRateSupported(1920, 1080, fps)) {
+          maxWidth = 1920;
+          maxHeight = 1080;
+        } else {
+          Log.e(TAG, "Failed to find a compatible resolution");
+          maxWidth = 1920;
+          maxHeight = 1080;
+        }
+      }
+    } else {
+      if (maxHeight >= 2160 && videoCapabilities.isSizeSupported(3840, 2160)) {
         maxWidth = 3840;
         maxHeight = 2160;
       } else if (maxHeight >= 1080 && videoCapabilities.isSizeSupported(1920, 1080)) {
@@ -666,6 +683,7 @@ class MediaCodecBridge {
         maxHeight = 1080;
       }
     }
+
     if (!bridge.configureVideo(
         mediaFormat,
         surface,

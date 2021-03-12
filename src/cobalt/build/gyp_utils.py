@@ -25,7 +25,7 @@ import urllib2
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 
-_REVINFO_KEY = 'cobalt_src'
+_SUBREPO_PATHS = ['starboard/keyboxes']
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
@@ -33,30 +33,47 @@ _XSSI_PREFIX = ")]}'\n"
 BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 
 
+def CheckRevInfo(key, cwd=None):
+  cwd = cwd if cwd else '.'
+  git_prefix = ['git', '-C', cwd]
+  git_get_remote_args = git_prefix + ['config', '--get', 'remote.origin.url']
+  remote = subprocess.check_output(git_get_remote_args).strip()
+
+  git_get_revision_args = git_prefix + ['rev-parse', 'HEAD']
+  revision = subprocess.check_output(git_get_revision_args).strip()
+  return {key: '{}@{}'.format(remote, revision)}
+
+
 def GetRevinfo():
   """Get absolute state of all git repos."""
-
-  git_get_remote_args = ['config', '--get', 'remote.origin.url']
-  git_get_revision_args = ['rev-parse', 'HEAD']
-
   try:
-    cobalt_remote = subprocess.check_output(['git'] +
-                                            git_get_remote_args).strip()
-    cobalt_rev = subprocess.check_output(['git'] +
-                                         git_get_revision_args).strip()
-    return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
-  except subprocess.CalledProcessError:
-    logging.info(
-        'Failed to get revision information. Trying again in src/ directory...')
+    repo_root = subprocess.check_output(['git', 'rev-parse',
+                                         '--show-toplevel']).strip()
+  except subprocess.CalledProcessError as e:
+    logging.info('Could not get repo root. Trying again in src/')
     try:
-      cobalt_remote = subprocess.check_output(['git', '-C', 'src'] +
-                                              git_get_remote_args).strip()
-      cobalt_rev = subprocess.check_output(['git', '-C', 'src'] +
-                                           git_get_revision_args).strip()
-      return {_REVINFO_KEY: '{}@{}'.format(cobalt_remote, cobalt_rev)}
+      repo_root = subprocess.check_output(
+          ['git', '-C', 'src', 'rev-parse', '--show-toplevel']).strip()
     except subprocess.CalledProcessError as e:
       logging.warning('Failed to get revision information: %s', e)
       return {}
+
+  # First make sure we can add the cobalt_src repo.
+  try:
+    repos = CheckRevInfo('.', cwd=repo_root)
+  except subprocess.CalledProcessError as e:
+    logging.warning('Failed to get revision information: %s', e)
+    return {}
+
+  for rel_path in _SUBREPO_PATHS:
+    path = os.path.join(repo_root, rel_path)
+    try:
+      repos.update(CheckRevInfo(rel_path, cwd=path))
+    except subprocess.CalledProcessError as e:
+      logging.warning('Failed to get revision information for subrepo: %s', e)
+      continue
+
+  return repos
 
 
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):

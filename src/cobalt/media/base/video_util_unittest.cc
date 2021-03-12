@@ -29,7 +29,7 @@ void FillPlaneWithPattern(uint8_t* data, int stride,
 // Create a VideoFrame and initialize the visible rect using
 // |FillPlaneWithPattern()|. For testing purpose, the VideoFrame should be
 // filled with varying values, which is different from
-// |VideoFrame::CreateColorFrame()| where the entrire VideoFrame is filled
+// |VideoFrame::CreateColorFrame()| where the entire VideoFrame is filled
 // with a given color.
 scoped_refptr<media::VideoFrame> CreateFrameWithPatternFilled(
     media::VideoPixelFormat format, const math::Size& coded_size,

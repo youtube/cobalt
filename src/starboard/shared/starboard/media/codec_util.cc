@@ -18,7 +18,6 @@
 #include <cctype>
 #include <string>
 
-#include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -60,7 +59,7 @@ bool ReadOneDigitHex(const char* str, T* output) {
     return true;
   }
 
-  if (!SbCharacterIsDigit(str[0])) {
+  if (!isdigit(str[0])) {
     return false;
   }
 
@@ -77,7 +76,7 @@ bool ReadDecimalUntilDot(const char* str, T* output) {
 
   *output = 0;
   while (*str != 0 && *str != '.') {
-    if (!SbCharacterIsDigit(*str)) {
+    if (!isdigit(*str)) {
       return false;
     }
     *output = *output * 10 + (*str - '0');
@@ -93,7 +92,7 @@ template <typename T>
 bool ReadTwoDigitDecimal(const char* str, T* output) {
   SB_DCHECK(str);
 
-  if (!SbCharacterIsDigit(str[0]) || !SbCharacterIsDigit(str[1])) {
+  if (!isdigit(str[0]) || !isdigit(str[1])) {
     return false;
   }
 
@@ -119,8 +118,8 @@ bool VerifyFormat(const char* format, const char* reference) {
     return false;
   }
   for (size_t i = 0; i < reference_size; ++i) {
-    if (SbCharacterIsDigit(reference[i])) {
-      if (!SbCharacterIsDigit(format[i])) {
+    if (isdigit(reference[i])) {
+      if (!isdigit(format[i])) {
         return false;
       }
     } else if (std::isalpha(reference[i])) {
@@ -138,8 +137,7 @@ bool VerifyFormat(const char* format, const char* reference) {
   if (format_size == reference_size) {
     return true;
   }
-  return format[reference_size] != '.' &&
-         !SbCharacterIsDigit(format[reference_size]);
+  return format[reference_size] != '.' && !isdigit(format[reference_size]);
 }
 
 // It works exactly the same as the above function, except that the size of
@@ -153,7 +151,7 @@ bool VerifyFormatStrictly(const char* format, const char* reference) {
 
 // This function parses an av01 codec in the form of "av01.0.05M.08" or
 // "av01.0.04M.10.0.110.09.16.09.0" as
-// specificed by https://aomediacodec.github.io/av1-isobmff/#codecsparam.
+// specified by https://aomediacodec.github.io/av1-isobmff/#codecsparam.
 //
 // Note that the spec also supports of different chroma subsamplings but the
 // implementation always assume that it is 4:2:0 and returns false when it
@@ -281,7 +279,7 @@ bool ParseAv1Info(std::string codec,
 }
 
 // This function parses an h264 codec in the form of {avc1|avc3}.PPCCLL as
-// specificed by https://tools.ietf.org/html/rfc6381#section-3.3.
+// specified by https://tools.ietf.org/html/rfc6381#section-3.3.
 //
 // Note that the leading codec is not necessarily to be "avc1" or "avc3" per
 // spec but this function only parses "avc1" and "avc3".  This function returns
@@ -292,8 +290,8 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
     return false;
   }
 
-  if (SbStringGetLength(codec) != 11 || !SbCharacterIsHexDigit(codec[9]) ||
-      !SbCharacterIsHexDigit(codec[10])) {
+  if (SbStringGetLength(codec) != 11 || !isxdigit(codec[9]) ||
+      !isxdigit(codec[10])) {
     return false;
   }
 
@@ -302,7 +300,7 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
   return true;
 }
 
-// This function parses an h265 codec as specificed by ISO IEC 14496-15 dated
+// This function parses an h265 codec as specified by ISO IEC 14496-15 dated
 // 2012 or newer in the Annex E.3.  The codec will be in the form of:
 //   hvc1.PPP.PCPCPCPC.TLLL.CB.CB.CB.CB.CB.CB, where
 // PPP: 0 or 1 byte general_profile_space ('', 'A', 'B', or 'C') +
@@ -412,8 +410,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
     if (codec[0] == 0) {
       return true;
     }
-    if (codec[0] != '.' || !SbCharacterIsHexDigit(codec[1]) ||
-        !SbCharacterIsHexDigit(codec[2])) {
+    if (codec[0] != '.' || !isxdigit(codec[1]) || !isxdigit(codec[2])) {
       return false;
     }
     codec += 3;
@@ -423,7 +420,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
 }
 
 // This function parses an vp09 codec in the form of "vp09.00.41.08" or
-// "vp09.02.10.10.01.09.16.09.01" as specificed by
+// "vp09.02.10.10.01.09.16.09.01" as specified by
 // https://www.webmproject.org/vp9/mp4/.  YouTube also uses the long form
 // without the last part (color range), so we also support it.
 //
@@ -502,7 +499,8 @@ bool ParseVp09Info(const char* codec,
   // 6. Parse chroma subsampling, which we only support 00 and 01.
   // Note that this value is not returned.
   int chroma;
-  if (!ReadTwoDigitDecimal(codec + 14, &chroma) || (chroma != 0 && chroma != 1)) {
+  if (!ReadTwoDigitDecimal(codec + 14, &chroma) ||
+      (chroma != 0 && chroma != 1)) {
     return false;
   }
 
@@ -586,7 +584,7 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
     video_codec_ = video_codec;
   }
 #if SB_API_VERSION >= 11
-  else if(video_codec == kSbMediaVideoCodecAv1) {
+  else if (video_codec == kSbMediaVideoCodecAv1) {
     video_codec_ = video_codec;
   }
 #endif  // SB_API_VERSION >= 11
@@ -680,7 +678,7 @@ bool ParseVideoCodec(const char* codec_string,
   if (SbStringCompare(codec_string, "av01.", 5) == 0) {
 #if SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecVp10;
-#else  // SB_API_VERSION < 11
+#else   // SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecAv1;
 #endif  // SB_API_VERSION < 11
     return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,

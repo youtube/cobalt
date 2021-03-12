@@ -112,7 +112,7 @@ class Application {
   // Main components of the Cobalt browser application.
   std::unique_ptr<BrowserModule> browser_module_;
 
-  // Event callbacks.
+// Event callbacks.
 #if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
 #endif  // SB_API_VERSION >= 8
@@ -221,7 +221,7 @@ class Application {
   // Called when deep links are consumed.
   void OnDeepLinkConsumedCallback(const std::string& link);
 
-  // Dispach events for deep links.
+  // Dispatch events for deep links.
   void DispatchDeepLink(const char* link);
   void DispatchDeepLinkIfNotConsumed();
 

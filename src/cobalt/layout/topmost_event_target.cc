@@ -95,7 +95,7 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
     }
 
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-    if (html_element && html_element->CanbeDesignatedByPointerIfDisplayed()) {
+    if (html_element && html_element->CanBeDesignatedByPointerIfDisplayed()) {
       ConsiderBoxes(html_element, layout_boxes, element_coordinate);
     }
   }
@@ -449,7 +449,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
     // This is an 'up' event for the last pressed button indicating that no
     // more buttons are pressed.
     if (target_element && !is_touchpad_event) {
-      // Send the click event if needed, which is not prevented by canceling
+      // Send the click event if needed, which is not prevented by cancelling
       // the pointerdown event.
       //   https://www.w3.org/TR/uievents/#event-type-click
       //   https://www.w3.org/TR/pointerevents/#compatibility-mapping-with-mouse-events

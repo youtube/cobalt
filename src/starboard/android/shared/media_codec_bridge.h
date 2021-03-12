@@ -105,6 +105,7 @@ class MediaCodecBridge {
       SbMediaVideoCodec video_codec,
       int width,
       int height,
+      int fps,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,

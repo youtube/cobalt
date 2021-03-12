@@ -31,7 +31,7 @@
         ],
       },
       'conditions': [
-        # ANGLE supports GLES3 on Windows only if DirectX11 feauture level 11 is
+        # ANGLE supports GLES3 on Windows only if DirectX11 feature level 11 is
         # supported.
         ['target_os=="win" and enable_d3d11_feature_level_11==1', {
           'direct_dependent_settings': {

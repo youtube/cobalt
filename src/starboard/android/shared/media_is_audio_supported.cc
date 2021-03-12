@@ -19,10 +19,12 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedAudioCodecToMimeType;
+using starboard::shared::starboard::media::MimeType;
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
@@ -34,6 +36,19 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   }
   const char* mime = SupportedAudioCodecToMimeType(audio_codec);
   if (!mime) {
+    return false;
+  }
+  MimeType mime_type(content_type);
+  // Allows for disabling the use of the AudioRouting API to detect when audio
+  // peripherals are connected. Enabled by default.
+  // (https://developer.android.com/reference/android/media/AudioRouting)
+  auto enable_audio_routing_parameter_value =
+      mime_type.GetParamStringValue("enableaudiorouting", "");
+  if (!enable_audio_routing_parameter_value.empty() &&
+      enable_audio_routing_parameter_value != "true" &&
+      enable_audio_routing_parameter_value != "false") {
+    SB_LOG(WARNING) << "Invalid value for enableaudiorouting: "
+                    << enable_audio_routing_parameter_value << ".";
     return false;
   }
   JniEnvExt* env = JniEnvExt::Get();

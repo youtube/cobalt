@@ -15,8 +15,6 @@
 #ifndef STARBOARD_ELF_LOADER_FILE_IMPL_H_
 #define STARBOARD_ELF_LOADER_FILE_IMPL_H_
 
-#include "starboard/elf_loader/elf.h"
-
 #include "starboard/elf_loader/file.h"
 #include "starboard/file.h"
 
@@ -28,11 +26,11 @@ class FileImpl : public File {
  public:
   FileImpl();
   ~FileImpl() override;
-  bool Open(const char* name);
-  bool ReadFromOffset(int64_t offset, char* buffer, int size);
-  void Close();
+  bool Open(const char* name) override;
+  bool ReadFromOffset(int64_t offset, char* buffer, int size) override;
+  void Close() override;
 
- private:
+ protected:
   SbFile file_;
 
   FileImpl(const FileImpl&) = delete;

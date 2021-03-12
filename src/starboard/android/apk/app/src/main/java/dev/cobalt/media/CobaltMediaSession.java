@@ -70,8 +70,6 @@ public class CobaltMediaSession
   private final ArtworkLoader artworkLoader;
   private MediaSessionCompat mediaSession;
 
-  // We re-use the builder to hold onto the most recent metadata and add artwork later.
-  private MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
   // We re-use the builder to hold onto the most recent playback state.
   private PlaybackStateCompat.Builder playbackStateBuilder = new PlaybackStateCompat.Builder();
 
@@ -95,6 +93,26 @@ public class CobaltMediaSession
 
   private LifecycleCallback lifecycleCallback = null;
 
+  /** We use the MediaMetadata to hold onto the most recent metadata and add artwork later. */
+  public class MediaMetadata {
+    public String title = "";
+    public String artist = "";
+    public String album = "";
+    public Bitmap artwork = null;
+    public long duration = (long) 0.0;
+
+    public void SetMetadata(
+        String title, String artist, String album, Bitmap artwork, long duration) {
+      this.title = title;
+      this.artist = artist;
+      this.album = album;
+      this.artwork = artwork;
+      this.duration = duration;
+    }
+  }
+
+  private MediaMetadata metadata = new MediaMetadata();
+
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, UpdateVolumeListener volumeListener) {
     this.context = context;
@@ -117,65 +135,66 @@ public class CobaltMediaSession
     Log.i(TAG, "MediaSession new");
     if (mediaSession == null) {
       mediaSession = new MediaSessionCompat(context, TAG);
+      mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
+      mediaSession.setCallback(
+          new MediaSessionCompat.Callback() {
+            @Override
+            public void onFastForward() {
+              Log.i(TAG, "MediaSession action: FAST FORWARD");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_FAST_FORWARD);
+            }
+
+            @Override
+            public void onPause() {
+              Log.i(TAG, "MediaSession action: PAUSE");
+              nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
+            }
+
+            @Override
+            public void onPlay() {
+              Log.i(TAG, "MediaSession action: PLAY");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
+            }
+
+            @Override
+            public void onRewind() {
+              Log.i(TAG, "MediaSession action: REWIND");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_REWIND);
+            }
+
+            @Override
+            public void onSkipToNext() {
+              Log.i(TAG, "MediaSession action: SKIP NEXT");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+              Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
+            }
+
+            @Override
+            public void onSeekTo(long pos) {
+              Log.i(TAG, "MediaSession action: SEEK " + pos);
+              explicitUserActionRequired = false;
+              nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
+            }
+
+            @Override
+            public void onStop() {
+              Log.i(TAG, "MediaSession action: STOP");
+              nativeInvokeAction(PlaybackStateCompat.ACTION_STOP);
+            }
+          });
     }
-    mediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
-    mediaSession.setCallback(
-        new MediaSessionCompat.Callback() {
-          @Override
-          public void onFastForward() {
-            Log.i(TAG, "MediaSession action: FAST FORWARD");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_FAST_FORWARD);
-          }
-
-          @Override
-          public void onPause() {
-            Log.i(TAG, "MediaSession action: PAUSE");
-            nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
-          }
-
-          @Override
-          public void onPlay() {
-            Log.i(TAG, "MediaSession action: PLAY");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_PLAY);
-          }
-
-          @Override
-          public void onRewind() {
-            Log.i(TAG, "MediaSession action: REWIND");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_REWIND);
-          }
-
-          @Override
-          public void onSkipToNext() {
-            Log.i(TAG, "MediaSession action: SKIP NEXT");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
-          }
-
-          @Override
-          public void onSkipToPrevious() {
-            Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
-          }
-
-          @Override
-          public void onSeekTo(long pos) {
-            Log.i(TAG, "MediaSession action: SEEK " + pos);
-            explicitUserActionRequired = false;
-            nativeInvokeAction(PlaybackStateCompat.ACTION_SEEK_TO, pos);
-          }
-
-          @Override
-          public void onStop() {
-            Log.i(TAG, "MediaSession action: STOP");
-            nativeInvokeAction(PlaybackStateCompat.ACTION_STOP);
-          }
-        });
     // |metadataBuilder| may still have no fields at this point, yielding empty metadata.
+    MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mediaSession.setMetadata(metadataBuilder.build());
     // |playbackStateBuilder| may still have no fields at this point.
     mediaSession.setPlaybackState(playbackStateBuilder.build());
@@ -271,12 +290,12 @@ public class CobaltMediaSession
   @RequiresApi(26)
   private int requestAudioFocusV26() {
     if (audioFocusRequest == null) {
-      AudioAttributes audioAtrributes =
+      AudioAttributes audioAttributes =
           new Builder().setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build();
       audioFocusRequest =
           new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
               .setOnAudioFocusChangeListener(this)
-              .setAudioAttributes(audioAtrributes)
+              .setAudioAttributes(audioAttributes)
               .build();
     }
     return getAudioManager().requestAudioFocus(audioFocusRequest);
@@ -493,22 +512,33 @@ public class CobaltMediaSession
             .setState(androidPlaybackState, positionMs, speed);
     mediaSession.setPlaybackState(playbackStateBuilder.build());
 
-    // Reset the metadata to make sure we don't retain any fields from previous playback.
-    metadataBuilder = new MediaMetadataCompat.Builder();
-    metadataBuilder
-        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-        .putBitmap(
-            MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkLoader.getOrLoadArtwork(artwork))
-        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration);
+    // Let metadata hold onto the most recent metadata and add artwork later.
+    metadata.SetMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
+
     // Update the metadata as soon as we can - even before artwork is loaded.
+    updateMetadata(false);
+  }
+
+  private void updateMetadata(boolean resetMetadataWithEmptyBuilder) {
+    MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
+    // Reset the metadata to make sure the artwork update correctly.
+    if (resetMetadataWithEmptyBuilder) mediaSession.setMetadata(metadataBuilder.build());
+
+    metadataBuilder
+        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title)
+        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.artist)
+        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, metadata.album)
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, metadata.artwork)
+        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, metadata.duration);
+
+    // Set mediaSession's metadata to update the "Now Playing Card".
     mediaSession.setMetadata(metadataBuilder.build());
   }
 
   @Override
   public void onArtworkLoaded(Bitmap bitmap) {
-    metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
-    mediaSession.setMetadata(metadataBuilder.build());
+    metadata.artwork = bitmap;
+    // Update artwork when it is ready to use.
+    updateMetadata(true);
   }
 }

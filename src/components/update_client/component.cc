@@ -19,7 +19,7 @@
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "components/update_client/cobalt_slot_management.h"
 #endif
 
@@ -92,7 +92,7 @@ void InstallComplete(
 // For Cobalt, don't delete the unpack_path, which is not a temp directory.
 // Cobalt uses a dedicated installation slot obtained from the Installation
 // Manager.
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
             base::DeleteFile(unpack_path, true);
 #endif
             const ErrorCategory error_category =
@@ -109,7 +109,7 @@ void InstallOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const base::FilePath& unpack_path,
     const std::string& public_key,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     const int installation_index,
 #endif
     const std::string& fingerprint,
@@ -117,7 +117,7 @@ void InstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   DCHECK(base::DirectoryExists(unpack_path));
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   // Acquire the ownership of the |unpack_path|.
   base::ScopedTempDir unpack_path_owner;
   ignore_result(unpack_path_owner.Set(unpack_path));
@@ -135,7 +135,7 @@ void InstallOnBlockingTaskRunner(
     return;
   }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   InstallError install_error = InstallError::NONE;
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
@@ -177,7 +177,7 @@ void InstallOnBlockingTaskRunner(
 void UnpackCompleteOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const base::FilePath& crx_path,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     const int installation_index,
     PersistedData* metadata,
     const std::string& id,
@@ -188,14 +188,14 @@ void UnpackCompleteOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   base::DeleteFile(crx_path, false);
 #else
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
 #endif
 
   if (result.error != UnpackerError::kNone) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     // When there is an error unpacking the downloaded CRX, such as a failure to
     // verify the package, we should remember to clear out any drain files.
     if (base::DirectoryExists(crx_path.DirName())) {
@@ -210,7 +210,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // Write the version of the unpacked update package to the persisted data.
   if (metadata != nullptr) {
     main_task_runner->PostTask(
@@ -223,7 +223,7 @@ void UnpackCompleteOnBlockingTaskRunner(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                      result.unpack_path, result.public_key,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
                      installation_index,
 #endif
                      fingerprint, installer, std::move(callback)));
@@ -233,7 +233,7 @@ void StartInstallOnBlockingTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const std::vector<uint8_t>& pk_hash,
     const base::FilePath& crx_path,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     const int installation_index,
     PersistedData* metadata,
     const std::string& id,
@@ -251,7 +251,7 @@ void StartInstallOnBlockingTaskRunner(
 
   unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
                                   main_task_runner, crx_path,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
                                   installation_index, metadata, id, version,
 #endif
                                   fingerprint, installer, std::move(callback)));
@@ -560,7 +560,7 @@ void Component::StateNew::DoHandle() {
 
   auto& component = State::component();
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   auto& config = component.update_context_.config;
   config->SetPreviousUpdaterStatus(config->GetUpdaterStatus());
 #endif
@@ -604,7 +604,7 @@ void Component::StateChecking::UpdateCheckComplete() {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto& component = State::component();
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   auto& config = component.update_context_.config;
   auto metadata = component.update_context_.update_checker->GetPersistedData();
   if (metadata != nullptr) {
@@ -734,9 +734,14 @@ void Component::StateDownloadingDiff::DoHandle() {
 
   DCHECK(component.crx_component());
 
+#if defined(STARBOARD)
+  crx_downloader_ = update_context.crx_downloader_factory(
+      component.CanDoBackgroundDownload(), update_context.config);
+#else
   crx_downloader_ = update_context.crx_downloader_factory(
       component.CanDoBackgroundDownload(),
       update_context.config->GetNetworkFetcherFactory());
+#endif
 
   const auto& id = component.id_;
   crx_downloader_->set_progress_callback(
@@ -781,7 +786,7 @@ void Component::StateDownloadingDiff::DownloadComplete(
 
   component.crx_path_ = download_result.response;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   component.installation_index_ = download_result.installation_index;
 #endif
 
@@ -803,9 +808,14 @@ void Component::StateDownloading::DoHandle() {
 
   DCHECK(component.crx_component());
 
+#if defined(STARBOARD)
+  crx_downloader_ = update_context.crx_downloader_factory(
+      component.CanDoBackgroundDownload(), update_context.config);
+#else
   crx_downloader_ = update_context.crx_downloader_factory(
       component.CanDoBackgroundDownload(),
       update_context.config->GetNetworkFetcherFactory());
+#endif
 
   const auto& id = component.id_;
   crx_downloader_->set_progress_callback(
@@ -851,7 +861,7 @@ void Component::StateDownloading::DownloadComplete(
 
   component.crx_path_ = download_result.response;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   component.installation_index_ = download_result.installation_index;
 #endif
 
@@ -882,7 +892,7 @@ void Component::StateUpdatingDiff::DoHandle() {
               &update_client::StartInstallOnBlockingTaskRunner,
               base::ThreadTaskRunnerHandle::Get(),
               component.crx_component()->pk_hash, component.crx_path_,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
               component.installation_index_,
               update_context.update_checker->GetPersistedData(), component.id_,
               component.next_version_.GetString(),
@@ -948,7 +958,7 @@ void Component::StateUpdating::DoHandle() {
                      &update_client::StartInstallOnBlockingTaskRunner,
                      base::ThreadTaskRunnerHandle::Get(),
                      component.crx_component()->pk_hash, component.crx_path_,
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
                      component.installation_index_,
                      update_context.update_checker->GetPersistedData(),
                      component.id_, component.next_version_.GetString(),

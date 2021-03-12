@@ -213,7 +213,7 @@ DecoderBufferAllocator::ReuseAllocator::FindBestFreeBlock(
   *allocate_from_front = context == 1;
   if (*allocate_from_front) {
     for (FreeBlockSet::iterator it = begin; it != end; ++it) {
-      if (it->CanFullfill(1, alignment)) {
+      if (it->CanFulfill(1, alignment)) {
         return it;
       }
     }
@@ -224,7 +224,7 @@ DecoderBufferAllocator::ReuseAllocator::FindBestFreeBlock(
   FreeBlockSet::reverse_iterator rbegin(end);
   FreeBlockSet::reverse_iterator rend(begin);
   for (FreeBlockSet::reverse_iterator it = rbegin; it != rend; ++it) {
-    if (it->CanFullfill(1, alignment)) {
+    if (it->CanFulfill(1, alignment)) {
       return --it.base();
     }
   }

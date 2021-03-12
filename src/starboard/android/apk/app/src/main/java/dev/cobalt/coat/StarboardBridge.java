@@ -36,6 +36,7 @@ import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
+import dev.cobalt.libraries.services.clientloginfo.ClientLogInfo;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
 import dev.cobalt.media.CobaltMediaSession;
@@ -125,6 +126,12 @@ public class StarboardBridge {
     activityHolder.set(activity);
     this.keyboardEditor = keyboardEditor;
     sysConfigChangeReceiver.setForeground(true);
+
+    // TODO: v0_1231sd2 is the default value used for testing,
+    // delete it once we verify it can be queried in QOE system.
+    if (!isReleaseBuild()) {
+      ClientLogInfo.setClientInfo("v0_1231sd2");
+    }
   }
 
   protected void onActivityStop(Activity activity) {
@@ -157,11 +164,11 @@ public class StarboardBridge {
   protected void startMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service == null) {
-      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackSerivce.");
+      Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
       Intent intent = new Intent(appContext, MediaPlaybackService.class);
       appContext.startService(intent);
     } else {
-      Log.i(TAG, "Warm start - Restarting the serivce.");
+      Log.i(TAG, "Warm start - Restarting the service.");
       ((MediaPlaybackService) service).startService();
     }
   }
@@ -169,7 +176,7 @@ public class StarboardBridge {
   protected void stopMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service != null) {
-      Log.i(TAG, "Stopping the Media playback serivce.");
+      Log.i(TAG, "Stopping the Media playback service.");
       ((MediaPlaybackService) service).stopService();
     }
   }
@@ -452,7 +459,7 @@ public class StarboardBridge {
   /** Returns Java layer implementation for AndroidUserAuthorizer */
   @SuppressWarnings("unused")
   @UsedByNative
-  UserAuthorizer getUserAuthorizer() {
+  public UserAuthorizer getUserAuthorizer() {
     return userAuthorizer;
   }
 

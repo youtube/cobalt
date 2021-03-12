@@ -9,7 +9,6 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #if !defined(STARBOARD)
 #include <stdlib.h>

@@ -71,26 +71,26 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
     VideoDmpReader dmp_reader(ResolveTestFileName(audio_filename).c_str());
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
 
-    const auto* audio_sample_info = &dmp_reader.audio_sample_info();
-    if (IsMediaConfigSupported(kSbMediaVideoCodecNone, dmp_reader.audio_codec(),
-                               kSbDrmSystemInvalid, audio_sample_info,
-                               "", /* max_video_capabilities */
-                               kSbPlayerOutputModePunchOut)) {
-      test_configs.push_back(std::make_tuple(audio_filename, kEmptyName,
-                                             kSbPlayerOutputModePunchOut));
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
+                                       "")) {
+      for (auto output_mode : kOutputModes) {
+        if (IsOutputModeSupported(output_mode, kSbMediaVideoCodecNone)) {
+          test_configs.push_back(
+              std::make_tuple(audio_filename, kEmptyName, output_mode));
+        }
+      }
     }
   }
 
   for (auto video_filename : kVideoTestFiles) {
     VideoDmpReader dmp_reader(ResolveTestFileName(video_filename).c_str());
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-
+    if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                        "")) {
+      continue;
+    }
     for (auto output_mode : kOutputModes) {
-      if (IsMediaConfigSupported(dmp_reader.video_codec(),
-                                 kSbMediaAudioCodecNone, kSbDrmSystemInvalid,
-                                 NULL, /* audio_sample_info */
-                                 "",   /* max_video_capabilities */
-                                 output_mode)) {
+      if (IsOutputModeSupported(output_mode, dmp_reader.video_codec())) {
         test_configs.push_back(
             std::make_tuple(kEmptyName, video_filename, output_mode));
       }
@@ -194,31 +194,6 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   return SbPlayerOutputModeSupported(output_mode, codec, kSbDrmSystemInvalid);
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-}
-
-bool IsMediaConfigSupported(SbMediaVideoCodec video_codec,
-                            SbMediaAudioCodec audio_codec,
-                            SbDrmSystem drm_system,
-                            const SbMediaAudioSampleInfo* audio_sample_info,
-                            const char* max_video_capabilities,
-                            SbPlayerOutputMode output_mode) {
-  if (audio_codec != kSbMediaAudioCodecNone &&
-      audio_sample_info->number_of_channels > SbAudioSinkGetMaxChannels()) {
-    return false;
-  }
-
-  atomic_bool error_occurred;
-  FakeGraphicsContextProvider fake_graphics_context_provider;
-  SbPlayer player = CallSbPlayerCreate(
-      fake_graphics_context_provider.window(), video_codec, audio_codec,
-      drm_system, audio_sample_info, max_video_capabilities,
-      DummyDeallocateSampleFunc, DummyDecoderStatusFunc, DummyPlayerStatusFunc,
-      ErrorFunc, &error_occurred, output_mode,
-      fake_graphics_context_provider.decoder_target_provider());
-  bool is_valid_player = SbPlayerIsValid(player);
-  SbPlayerDestroy(player);
-
-  return is_valid_player && !error_occurred.load();
 }
 
 }  // namespace nplb

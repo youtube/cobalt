@@ -132,8 +132,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                                   self.test_success_tag)
     test_failure_output = ' || echo {} {}'.format(self.test_complete_tag,
                                                   self.test_failure_tag)
-    self.test_command = '{} {} {}'.format(
-        test_base_command, test_success_output, test_failure_output)
+    self.test_command = '{} {} {}'.format(test_base_command,
+                                          test_success_output,
+                                          test_failure_output)
 
   def _PexpectSpawnAndConnect(self, command):
     """Spawns a process with pexpect and connect to the raspi.
@@ -214,7 +215,26 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if self.pexpect_process is not None and self.pexpect_process.isalive():
       # Send ctrl-c to the raspi and close the process.
       self.pexpect_process.sendline(chr(3))
+      self._KillExistingCobaltProcesses()
       self.pexpect_process.close()
+
+  def _KillExistingCobaltProcesses(self):
+    """If there are leftover Cobalt processes, kill them.
+
+    It is possible that a previous process did not exit cleanly.
+    Zombie Cobalt instances can block the WebDriver port or
+    cause other problems.
+    """
+    self.pexpect_process.sendline('pkill -9 -f "(cobalt)|(crashpad_handler)"')
+    # Print the return code of pkill. 0 if a process was halted
+    self.pexpect_process.sendline('echo $?')
+    i = self.pexpect_process.expect([r'0', r'.*'])
+    if i == '0':
+      logging.warning(
+          'Forced to pkill existing instance(s) of cobalt. '
+          'Pausing to ensure no further operations are run '
+          'before processes shut down.')
+      time.sleep(10)
 
   def Run(self):
     """Runs launcher's executable on the target raspi.
@@ -239,6 +259,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if not self.shutdown_initiated.is_set():
         self._PexpectSpawnAndConnect(self.ssh_command)
       if not self.shutdown_initiated.is_set():
+        self._KillExistingCobaltProcesses()
         self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
 
@@ -247,7 +268,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     except pexpect.TIMEOUT:
       logging.exception('pexpect timed out while reading line.')
     except Exception:  # pylint: disable=broad-except
-      logging.exception('Error occured while running test.')
+      logging.exception('Error occurred while running test.')
     finally:
       self._CleanupPexpectProcess()
 

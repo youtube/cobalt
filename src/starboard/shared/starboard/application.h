@@ -67,7 +67,7 @@ class Application {
     // BLUR event from Started or REVEAL event from Concealed.
     kStateBlurred,
 
-    // The background-invisible state after receving a CONCEAL event from
+    // The background-invisible state after receiving a CONCEAL event from
     // Blurred or UNFREEZE event from Frozen.
     kStateConcealed,
 
@@ -192,9 +192,7 @@ class Application {
   int Run(int argc, char** argv, const char* link_data) {
     return Run(CommandLine(argc, argv), link_data);
   }
-  int Run(int argc, char** argv) {
-    return Run(CommandLine(argc, argv));
-  }
+  int Run(int argc, char** argv) { return Run(CommandLine(argc, argv)); }
 
 // Prevents GetCommandLine from being redefined.  For example, Windows
 // defines it to GetCommandLineW, which causes link errors.

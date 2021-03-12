@@ -71,10 +71,10 @@ void TextureDataPBO::InitAndMapPBO() {
   // synchronize existing draw calls with it, both things which should be
   // implied anyways since this is a brand new buffer, but we specify just in
   // case.
-  mapped_data_ = static_cast<GLubyte*>(glMapBufferRange(
-      GL_PIXEL_UNPACK_BUFFER, 0, data_size_, GL_MAP_WRITE_BIT |
-                                                 GL_MAP_INVALIDATE_BUFFER_BIT |
-                                                 GL_MAP_UNSYNCHRONIZED_BIT));
+  mapped_data_ = static_cast<GLubyte*>(
+      glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, data_size_,
+                       GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT |
+                           GL_MAP_UNSYNCHRONIZED_BIT));
   if (glGetError() != GL_NO_ERROR || !mapped_data_) {
     LOG(ERROR) << "Error mapping PBO buffer data.";
     error_ = true;
@@ -192,7 +192,7 @@ void RawTextureMemoryPBO::InitAndMapPBO() {
   DCHECK_EQ(GL_NO_ERROR, glGetError());
   GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
 
-  // Finally, determine the offset within |mapped_data_| necessary to acheive
+  // Finally, determine the offset within |mapped_data_| necessary to achieve
   // the desired alignment.
   intptr_t alignment_remainder =
       reinterpret_cast<size_t>(mapped_data_) % alignment_;

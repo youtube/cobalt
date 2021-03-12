@@ -27,7 +27,7 @@
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "cobalt/base/init_cobalt.h"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/event.h"
 #else
 typedef void SbEvent;
@@ -65,7 +65,7 @@ void NoopStopFunction() {}
 }  // namespace wrap_main
 }  // namespace cobalt
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "cobalt/base/wrap_main_starboard.h"
 #else
 
@@ -128,6 +128,6 @@ int BaseMain(int argc, char** argv) {
 }  // namespace wrap_main
 }  // namespace cobalt
 
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 #endif  // COBALT_BASE_WRAP_MAIN_H_

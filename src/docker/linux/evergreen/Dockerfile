@@ -16,4 +16,4 @@ RUN apt update -qqy \
     && echo "Done"
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG:-debug} ${PLATFORM} && \
-    ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG:-debug} ${TARGET:-cobalt_deploy}
+    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG:-debug} ${TARGET:-cobalt_deploy}

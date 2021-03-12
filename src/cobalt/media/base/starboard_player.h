@@ -207,7 +207,7 @@ class StarboardPlayer {
   SbPlayerOutputMode ComputeSbPlayerOutputMode(
       bool prefer_decode_to_texture) const;
 
-  // The following variables are initialized in the ctor and never changed.
+// The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -256,7 +256,7 @@ class StarboardPlayer {
 
   VideoFrameProvider* const video_frame_provider_;
 
-  // A string of video maxmium capabilities.
+  // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
 #if SB_HAS(PLAYER_WITH_URL)

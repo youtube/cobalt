@@ -57,7 +57,7 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
        box_iterator != client_rect_boxes.end(); ++box_iterator) {
     RectLayoutUnit transformed_border_box(
         (*box_iterator)
-            ->GetTransformedBoxFromRoot(
+            ->GetTransformedBoxFromRootWithScroll(
                 (*box_iterator)->GetBorderBoxFromMarginBox()));
     dom_rect_list->AppendDOMRect(
         new dom::DOMRect(transformed_border_box.x().toFloat(),
@@ -146,8 +146,7 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
   }
 
   // Return the cached results if applicable.
-  if (scroll_area_cache_ &&
-      scroll_area_cache_->first == dir) {
+  if (scroll_area_cache_ && scroll_area_cache_->first == dir) {
     return scroll_area_cache_->second;
   }
 
@@ -159,8 +158,7 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
   for (scoped_refptr<Box> layout_box : boxes_) {
     // Include the box's own content and padding areas.
     SizeLayoutUnit padding_size = layout_box->GetClampedPaddingBoxSize();
-    padding_area.Union(math::RectF(0, 0,
-                                   padding_size.width().toFloat(),
+    padding_area.Union(math::RectF(0, 0, padding_size.width().toFloat(),
                                    padding_size.height().toFloat()));
     const ContainerBox* container_box = layout_box->AsContainerBox();
     if (!container_box) {
@@ -185,10 +183,9 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
             RectLayoutUnit border_box =
                 box->GetTransformedBoxFromContainingBlock(
                     container_box, box->GetBorderBoxFromMarginBox());
-            scroll_area.Union(math::RectF(border_box.x().toFloat(),
-                                          border_box.y().toFloat(),
-                                          border_box.width().toFloat(),
-                                          border_box.height().toFloat()));
+            scroll_area.Union(math::RectF(
+                border_box.x().toFloat(), border_box.y().toFloat(),
+                border_box.width().toFloat(), border_box.height().toFloat()));
 
             // Include the scrollable overflow regions of the contents provided
             // they are visible (i.e. container has overflow: visible).
@@ -221,8 +218,7 @@ math::RectF LayoutBoxes::GetScrollArea(dom::Directionality dir) const {
 
   // Cache the results to speed up future queries.
   scroll_area_cache_.emplace(
-      dir,
-      math::RectF(left, top, right - left, bottom - top));
+      dir, math::RectF(left, top, right - left, bottom - top));
   return scroll_area_cache_->second;
 }
 
@@ -258,6 +254,15 @@ void LayoutBoxes::InvalidateRenderTreeNodes() {
       box->InvalidateRenderTreeNodesOfBoxAndAncestors();
       box = box->GetSplitSibling();
     } while (box != NULL);
+  }
+}
+
+void LayoutBoxes::SetUiNavItem(
+    const scoped_refptr<ui_navigation::NavItem>& item) {
+  for (Boxes::const_iterator box_iterator = boxes_.begin();
+       box_iterator != boxes_.end(); ++box_iterator) {
+    Box* box = *box_iterator;
+    box->SetUiNavItem(item);
   }
 }
 

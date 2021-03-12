@@ -14,13 +14,15 @@
 
 #include "starboard/android/shared/log_internal.h"
 
+#include <stdlib.h>
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
 namespace {
-  const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
-  SbTime g_log_sleep_time = 0;
-}
+const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
+SbTime g_log_sleep_time = 0;
+}  // namespace
 
 namespace starboard {
 namespace android {
@@ -29,7 +31,7 @@ namespace shared {
 void LogInit(const starboard::shared::starboard::CommandLine& command_line) {
   if (command_line.HasSwitch(kLogSleepTimeSwitch)) {
     g_log_sleep_time =
-        SbStringAToL(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());
+        atol(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());
     SB_LOG(INFO) << "Android log sleep time: " << g_log_sleep_time;
   }
 }

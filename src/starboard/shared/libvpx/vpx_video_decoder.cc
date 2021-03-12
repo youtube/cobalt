@@ -16,7 +16,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/shared/libvpx/vpx_library_loader.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -32,13 +31,12 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     : current_frame_width_(0),
       current_frame_height_(0),
       stream_ended_(false),
-      error_occured_(false),
+      error_occurred_(false),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecVp9);
-  SB_DCHECK(is_vpx_supported());
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -108,7 +106,7 @@ void VideoDecoder::Reset() {
     decoder_thread_.reset();
   }
 
-  error_occured_ = false;
+  error_occurred_ = false;
   stream_ended_ = false;
 
   CancelPendingJobs();
@@ -133,7 +131,7 @@ void VideoDecoder::UpdateDecodeTarget_Locked(
 void VideoDecoder::ReportError(const std::string& error_message) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
-  error_occured_ = true;
+  error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 

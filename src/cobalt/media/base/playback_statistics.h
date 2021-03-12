@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include "base/optional.h"
+#include "base/time/time.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
 namespace cobalt {
@@ -24,18 +26,24 @@ namespace media {
 
 class PlaybackStatistics {
  public:
-  class Record {
-   public:
-    // TODO: Implement record for audio streams.
-    explicit Record(const VideoDecoderConfig& video_config);
-    ~Record();
+  ~PlaybackStatistics();
 
-    void OnPresenting(const VideoDecoderConfig& video_config);
-    void OnConfigChange(const VideoDecoderConfig& video_config);
-  };
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
+  void OnPresenting(const VideoDecoderConfig& video_config);
+  void OnSeek(const base::TimeDelta& seek_time);
+  void OnAudioAU(const base::TimeDelta& timestamp);
+  void OnVideoAU(const base::TimeDelta& timestamp);
 
-  static std::string GetStatistics(
-      const VideoDecoderConfig& current_video_config);
+  std::string GetStatistics(
+      const VideoDecoderConfig& current_video_config) const;
+
+ private:
+  base::TimeDelta seek_time_;
+  base::Optional<base::TimeDelta> first_written_audio_timestamp_;
+  base::Optional<base::TimeDelta> first_written_video_timestamp_;
+  base::TimeDelta last_written_audio_timestamp_;
+  base::TimeDelta last_written_video_timestamp_;
+  bool is_initial_config_ = true;
 };
 
 }  // namespace media

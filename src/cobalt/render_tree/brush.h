@@ -121,7 +121,7 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
 // respective directions.
 class LinearGradientBrush : public Brush {
  public:
-  // The ColorStopList passed into LienarGradientBrush must have at least two
+  // The ColorStopList passed into LinearGradientBrush must have at least two
   // stops and they must be sorted in order of increasing position.
   LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
                       const ColorStopList& color_stops);

@@ -72,7 +72,7 @@ TEST(SbDrmTest, NullCallbacks) {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */, DummySessionUpdateRequestFunc,
           DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-          NULL /* server_certificatd_updated_func */, DummySessionClosedFunc);
+          NULL /* server_certificate_updated_func */, DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }

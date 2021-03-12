@@ -142,7 +142,7 @@ class SignalHandler {
     return SendEvergreenInfoImpl();
   }
 
-  bool SendAnnotations(EvergreenAnnotations annotations) {
+  bool SendAnnotations(CrashpadAnnotations annotations) {
     annotations_ = annotations;
     return SendAnnotationsImpl();
   }
@@ -186,7 +186,7 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
-  const EvergreenAnnotations& GetAnnotations() { return annotations_; }
+  const CrashpadAnnotations& GetAnnotations() { return annotations_; }
 #endif
 
   const ExceptionInformation& GetExceptionInfo() {
@@ -218,7 +218,7 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   EvergreenInfo evergreen_info_;
-  EvergreenAnnotations annotations_;
+  CrashpadAnnotations annotations_;
 #endif
 
   static SignalHandler* handler_;
@@ -595,7 +595,7 @@ bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
 }
 
 bool CrashpadClient::SendAnnotationsToHandler(
-    EvergreenAnnotations annotations) {
+    CrashpadAnnotations annotations) {
   if (!SignalHandler::Get()) {
     DLOG(ERROR) << "Crashpad isn't enabled";
     return false;

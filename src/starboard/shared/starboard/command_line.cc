@@ -16,15 +16,10 @@ namespace starboard {
 
 namespace {
 // From base/string_util.cc
-const char kWhitespaceASCII[] = {
-  0x09,    // <control-0009> to <control-000D>
-  0x0A,
-  0x0B,
-  0x0C,
-  0x0D,
-  0x20,    // Space
-  0
-};
+const char kWhitespaceASCII[] = {0x09,  // <control-0009> to <control-000D>
+                                 0x0A, 0x0B, 0x0C, 0x0D,
+                                 0x20,  // Space
+                                 0};
 
 const CommandLine::CharType kSwitchTerminator[] = "--";
 const CommandLine::CharType kSwitchValueSeparator[] = "=";
@@ -73,8 +68,7 @@ void AppendSwitchesAndArguments(CommandLine* command_line,
     CommandLine::StringType::size_type last_good_char =
         arg.find_last_not_of(kWhitespaceASCII);
 
-    if (arg.empty() ||
-      (first_good_char == CommandLine::StringType::npos) ||
+    if (arg.empty() || (first_good_char == CommandLine::StringType::npos) ||
         (last_good_char == CommandLine::StringType::npos)) {
       arg.clear();
     } else {
@@ -94,7 +88,7 @@ void AppendSwitchesAndArguments(CommandLine* command_line,
   }
 }
 
-// Lowercase switches for backwards compatiblity *on Windows*.
+// Lowercase switches for backwards compatibility *on Windows*.
 std::string LowerASCIIOnWindows(const std::string& string) {
   return string;
 }
@@ -102,19 +96,15 @@ std::string LowerASCIIOnWindows(const std::string& string) {
 }  // namespace
 
 CommandLine::CommandLine(int argc, const CommandLine::CharType* const* argv)
-    : argv_(1),
-      begin_args_(1) {
+    : argv_(1), begin_args_(1) {
   InitFromArgv(argc, argv);
 }
 
-CommandLine::CommandLine(const StringVector& argv)
-    : argv_(1),
-      begin_args_(1) {
+CommandLine::CommandLine(const StringVector& argv) : argv_(1), begin_args_(1) {
   InitFromArgv(argv);
 }
 
-CommandLine::~CommandLine() {
-}
+CommandLine::~CommandLine() {}
 
 void CommandLine::InitFromArgv(int argc,
                                const CommandLine::CharType* const* argv) {

@@ -2914,7 +2914,7 @@ TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
 #endif  // !defined(OS_WIN)
 
 #if !defined(OS_WIN) && !defined(OS_NACL) && !defined(OS_FUCHSIA) && \
-    !defined(OS_IOS) && !defined(OS_STARBOARD)
+    !defined(OS_IOS) && !defined(STARBOARD)
 #define ChildMain WriteToPipeChildMain
 #define ChildMainString "WriteToPipeChildMain"
 
@@ -3709,7 +3709,7 @@ TEST_F(FileUtilTest, NonExistentContentUriTest) {
 #else
 #define MAYBE_MultiThreadedTempFiles MultiThreadedTempFiles
 #endif
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 TEST(FileUtilMultiThreadedTest, MAYBE_MultiThreadedTempFiles) {
   constexpr int kNumThreads = 64;
   constexpr int kNumWritesPerThread = 32;
@@ -3764,7 +3764,7 @@ TEST(FileUtilMultiThreadedTest, MAYBE_MultiThreadedTempFiles) {
   for (auto& thread : threads)
     thread->Stop();
 }
-#endif  // !defined(OS_STARBOARD)
+#endif  // !defined(STARBOARD)
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 

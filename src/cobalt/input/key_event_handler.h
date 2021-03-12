@@ -26,7 +26,7 @@ typedef base::Callback<void(base::Token type, const dom::KeyboardEventInit&)>
     KeyboardEventCallback;
 
 // Base class for objects that can process keyboard events.
-// This includes input device manangers and key event filters.
+// This includes input device managers and key event filters.
 // Objects of this class can either handle the key event directly using the
 // callback provided at construction, or pass the event on to a filter.
 // This allows filters to be chained together to implement the combined

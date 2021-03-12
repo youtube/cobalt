@@ -7,6 +7,8 @@
 
 #include "include/core/SkGraphics.h"
 
+#include <stdlib.h>
+
 #include "include/core/SkCanvas.h"
 #include "include/core/SkMath.h"
 #include "include/core/SkMatrix.h"
@@ -28,11 +30,6 @@
 #include "src/core/SkTypefaceCache.h"
 #include "src/utils/SkUTF.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#else
-#include <stdlib.h>
-#endif
 
 void SkGraphics::Init() {
     // SkGraphics::Init() must be thread-safe and idempotent.

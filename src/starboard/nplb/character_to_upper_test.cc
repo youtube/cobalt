@@ -18,6 +18,8 @@
 #include "starboard/character.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -41,3 +43,5 @@ TEST(SbCharacterToUpperTest, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION

@@ -38,7 +38,7 @@ class AudioRendererSink {
                                SbTime frames_consumed_at) = 0;
 
     // When |capability_changed| is true, it hints that the error is caused by a
-    // a transisent capability on the platform.  The app should retry playback
+    // a transient capability on the platform.  The app should retry playback
     // to recover from the error.
     virtual void OnError(bool capability_changed) = 0;
 

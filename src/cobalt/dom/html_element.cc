@@ -80,6 +80,17 @@ namespace {
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
 const int32 kUiNavFocusTabIndexThreshold = -2;
 
+// This custom data attribute can be used to force UI navigation to remain
+// focused on the element for a specified duration.
+const char kUiNavFocusDurationAttribute[] = "data-cobalt-ui-nav-focus-duration";
+
+void UiNavCallbackHelper(
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    base::Callback<void(SbTimeMonotonic)> callback) {
+  task_runner->PostTask(FROM_HERE,
+                        base::Bind(callback, SbTimeGetMonotonicNow()));
+}
+
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() {
     cssom::PropertyKeyVector computed_style_invalidation_properties;
@@ -1169,23 +1180,25 @@ void HTMLElement::InvalidateLayoutBoxes() {
   directionality_ = base::nullopt;
 }
 
-void HTMLElement::OnUiNavBlur() {
+void HTMLElement::OnUiNavBlur(SbTimeMonotonic time) {
   if (node_document() && node_document()->ui_nav_focus_element() == this) {
-    node_document()->set_ui_nav_focus_element(nullptr);
-    Blur();
+    if (node_document()->TrySetUiNavFocusElement(nullptr, time)) {
+      Blur();
+    }
   }
 }
 
-void HTMLElement::OnUiNavFocus() {
+void HTMLElement::OnUiNavFocus(SbTimeMonotonic time) {
   // Suppress the focus event if this is already focused -- i.e. the HTMLElement
   // initiated the focus change that resulted in this call to OnUiNavFocus.
   if (node_document() && node_document()->ui_nav_focus_element() != this) {
-    node_document()->set_ui_nav_focus_element(this);
-    Focus();
+    if (node_document()->TrySetUiNavFocusElement(this, time)) {
+      Focus();
+    }
   }
 }
 
-void HTMLElement::OnUiNavScroll() {
+void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
   Document* document = node_document();
   scoped_refptr<Window> window(document ? document->window() : nullptr);
   DispatchEvent(new UIEvent(base::Tokens::scroll(), Event::kBubbles,
@@ -1268,6 +1281,8 @@ void HTMLElement::OnSetAttribute(const std::string& name,
     SetDir(value);
   } else if (name == "tabindex") {
     SetTabIndex(value);
+  } else if (name == kUiNavFocusDurationAttribute) {
+    SetUiNavFocusDuration(value);
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -1280,6 +1295,8 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
     SetDir("");
   } else if (name == "tabindex") {
     SetTabIndex("");
+  } else if (name == kUiNavFocusDurationAttribute) {
+    SetUiNavFocusDuration("");
   }
 
   // Always clear the matching state when an attribute changes. Any attribute
@@ -1402,7 +1419,7 @@ void HTMLElement::RunUnFocusingSteps() {
   ClearRuleMatchingState();
 }
 
-void HTMLElement::UpdateUiNavigationFocus(bool force_focus) {
+void HTMLElement::UpdateUiNavigationFocus() {
   if (!node_document()) {
     return;
   }
@@ -1424,17 +1441,15 @@ void HTMLElement::UpdateUiNavigationFocus(bool force_focus) {
         html_element->ui_nav_item_->IsContainer()) {
       continue;
     }
-    if (node_document()->ui_nav_focus_element() == html_element &&
-        !force_focus) {
-      // UI navigation is already focused on the correct element.
-      break;
-    }
+
     // Updating the UI navigation focus element has the additional effect of
     // suppressing the Blur call for the previously focused HTMLElement and the
     // Focus call for this HTMLElement as a result of OnUiNavBlur / OnUiNavFocus
     // callbacks that result from initiating the UI navigation focus change.
-    node_document()->set_ui_nav_focus_element(html_element);
-    html_element->ui_nav_item_->Focus();
+    if (node_document()->TrySetUiNavFocusElement(html_element,
+                                                 SbTimeGetMonotonicNow())) {
+      html_element->ui_nav_item_->Focus();
+    }
     break;
   }
 }
@@ -1475,6 +1490,25 @@ void HTMLElement::SetTabIndex(const std::string& value) {
 
   // Changing the tabindex may trigger a UI navigation change.
   ui_nav_needs_update_ = true;
+}
+
+void HTMLElement::SetUiNavFocusDuration(const std::string& value) {
+  double duration;
+  if (base::StringToDouble(value, &duration)) {
+    ui_nav_focus_duration_ = static_cast<float>(duration);
+    if (!std::isfinite(*ui_nav_focus_duration_) ||
+        *ui_nav_focus_duration_ < 0.0f) {
+      ui_nav_focus_duration_ = 0.0f;
+    }
+    if (ui_nav_item_) {
+      ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);
+    }
+  } else {
+    ui_nav_focus_duration_ = base::nullopt;
+    if (ui_nav_item_) {
+      ui_nav_item_->SetFocusDuration(0.0f);
+    }
+  }
 }
 
 namespace {
@@ -2111,7 +2145,7 @@ bool HTMLElement::IsDesignated() const {
   return false;
 }
 
-bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
+bool HTMLElement::CanBeDesignatedByPointerIfDisplayed() const {
   return computed_style()->pointer_events() != cssom::KeywordValue::GetNone() &&
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();
 }
@@ -2149,29 +2183,32 @@ void HTMLElement::UpdateUiNavigation() {
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
         base::Bind(
-            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
-            base::Unretained(base::MessageLoop::current()->task_runner().get()),
-            FROM_HERE,
+            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
             base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
         base::Bind(
-            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
-            base::Unretained(base::MessageLoop::current()->task_runner().get()),
-            FROM_HERE,
+            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
             base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
         base::Bind(
-            base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
-            base::Unretained(base::MessageLoop::current()->task_runner().get()),
-            FROM_HERE,
+            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
+    if (ui_nav_focus_duration_) {
+      ui_nav_item_->SetFocusDuration(*ui_nav_focus_duration_);
+    }
 
     node_document()->AddUiNavigationElement(this);
     node_document()->set_ui_nav_needs_layout(true);
     InvalidateLayoutBoxRenderTreeNodes();
+    if (layout_boxes_) {
+      layout_boxes_->SetUiNavItem(ui_nav_item_);
+    }
   } else if (ui_nav_item_) {
     // This navigation item is no longer relevant.
     ReleaseUiNavigationItem();
     InvalidateLayoutBoxRenderTreeNodes();
+    if (layout_boxes_) {
+      layout_boxes_->SetUiNavItem(ui_nav_item_);
+    }
   }
 }
 
@@ -2183,8 +2220,10 @@ void HTMLElement::ReleaseUiNavigationItem() {
       node_document()->RemoveUiNavigationElement(this);
       node_document()->set_ui_nav_needs_layout(true);
       if (node_document()->ui_nav_focus_element() == this) {
-        node_document()->set_ui_nav_focus_element(nullptr);
-        ui_nav_item_->UnfocusAll();
+        if (node_document()->TrySetUiNavFocusElement(nullptr,
+                                                     SbTimeGetMonotonicNow())) {
+          ui_nav_item_->UnfocusAll();
+        }
       }
     }
     ui_nav_item_->SetEnabled(false);

@@ -25,9 +25,9 @@
 
 /*  SkTypes.h, the root of the public header files, does the following trick:
 
+    #include <SkPostConfig.h>
     #include <SkPreConfig.h>
     #include <SkUserConfig.h>
-    #include <SkPostConfig.h>
 
     SkPreConfig.h runs first, and it is responsible for initializing certain
     skia defines.
@@ -42,7 +42,7 @@
 
     Below are optional defines that add, subtract, or change default behavior
     in Skia. Your port can locally edit this file to enable/disable flags as
-    you choose, or these can be delared on your command line (i.e. -Dfoo).
+    you choose, or these can be declared on your command line (i.e. -Dfoo).
 
     By default, this include file will always default to having all of the flags
     commented out, so including it will have no effect.
@@ -164,7 +164,7 @@ const uint8_t r32_or_bendian_a32_shift =
 //#define SkLONGLONG int64_t
 
 
-/*  Some envorinments do not suport writable globals (eek!). If yours does not,
+/*  Some environments do not support writable globals (eek!). If yours does not,
     define this flag.
  */
 //#define SK_USE_RUNTIME_GLOBALS

@@ -22,7 +22,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/utils.h"
 #include "components/update_client/cobalt_slot_management.h"
@@ -87,7 +87,7 @@ class UpdateCheckerImpl : public UpdateChecker {
       bool enabled_component_updates,
       UpdateCheckCallback update_check_callback) override;
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   PersistedData* GetPersistedData() override { return metadata_; }
 #endif
 
@@ -203,7 +203,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         !enabled_component_updates;
 
     base::Version current_version = crx_component->version;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     std::string unpacked_version =
         GetPersistedData()->GetLastUnpackedVersion(app_id);
     // If the version of the last unpacked update package is higher than the
@@ -224,6 +224,14 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     }
 
     if (CobaltQuickUpdate(installation_api, current_version)) {
+      // The last parameter in UpdateCheckFailed below, which is to be passed to
+      // update_check_callback_, indicates a throttling by the update server.
+      // Only non-negative values are valid. Negative values are not trusted
+      // and are ignored.
+      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+                        static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD),
+                        -1);
+
       return;
     }
 
@@ -260,7 +268,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       config_->EnabledCupSigning(),
       base::BindOnce(&UpdateCheckerImpl::OnRequestSenderComplete,
                      base::Unretained(this)));
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // Reset is_channel_changed flag to false if it is true
   config_->CompareAndSwapChannelChanged(1, 0);
 #endif

@@ -41,7 +41,7 @@ namespace {
 const float kErrorEpsilon = 0.00015f;
 
 // Helper function to animate a propertyby a given progress between a given
-// start and end point.  The aniamted value is returned, casted to the passed in
+// start and end point.  The animated value is returned, casted to the passed in
 // template type parameter.
 template <typename T>
 scoped_refptr<T> InterpolatePropertyTyped(
@@ -126,7 +126,7 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
 }
 
 TEST(InterpolatePropertyValueTest,
-     TransfromFromNoneToCobaltUiNavFocusTransformValuesInterpolate) {
+     TransformFromNoneToCobaltUiNavFocusTransformValuesInterpolate) {
   struct MakeSingleFocusTransform {
     static scoped_refptr<PropertyValue> Start() {
       return KeywordValue::GetNone();
@@ -161,7 +161,7 @@ TEST(InterpolatePropertyValueTest,
 }
 
 TEST(InterpolatePropertyValueTest,
-     TransfromSingleCobaltUiNavFocusTransformValuesInterpolate) {
+     TransformSingleCobaltUiNavFocusTransformValuesInterpolate) {
   struct MakeSingleFocusTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;
@@ -200,7 +200,7 @@ TEST(InterpolatePropertyValueTest,
 }
 
 TEST(InterpolatePropertyValueTest,
-     TransfromFromNoneToCobaltUiNavSpotlightTransformValuesInterpolate) {
+     TransformFromNoneToCobaltUiNavSpotlightTransformValuesInterpolate) {
   struct MakeSingleSpotlightTransform {
     static scoped_refptr<PropertyValue> Start() {
       return KeywordValue::GetNone();
@@ -233,7 +233,7 @@ TEST(InterpolatePropertyValueTest,
 }
 
 TEST(InterpolatePropertyValueTest,
-     TransfromSingleCobaltUiNavSpotlightTransformValuesInterpolate) {
+     TransformSingleCobaltUiNavSpotlightTransformValuesInterpolate) {
   struct MakeSingleSpotlightTransform {
     static scoped_refptr<PropertyValue> Start() {
       TransformFunctionListValue::Builder functions;

@@ -223,29 +223,15 @@ InsetsLayoutUnit Box::GetContainingBlockInsetFromItsContentBox(
              : InsetsLayoutUnit();
 }
 
-RectLayoutUnit Box::GetTransformedBoxFromRoot(
-    const RectLayoutUnit& box_from_margin_box) const {
-  return GetTransformedBoxFromContainingBlock(nullptr, box_from_margin_box);
-}
-
-RectLayoutUnit Box::GetTransformedBoxFromContainingBlock(
-    const ContainerBox* containing_block,
-    const RectLayoutUnit& box_from_margin_box) const {
-  // Get the transform for the margin box from the containing block and
-  // add the box offset from the margin box to the beginning of the transform.
-  math::Matrix3F transform =
-      GetMarginBoxTransformFromContainingBlock(containing_block) *
-      math::TranslateMatrix(box_from_margin_box.x().toFloat(),
-                            box_from_margin_box.y().toFloat());
-
-  // Transform the box.
+namespace {
+RectLayoutUnit GetTransformedBox(const math::Matrix3F& transform,
+                                 const RectLayoutUnit& box) {
   const int kNumPoints = 4;
   math::PointF box_corners[kNumPoints] = {
-      {0.0f, 0.0f},
-      {box_from_margin_box.width().toFloat(), 0.0f},
-      {0.0f, box_from_margin_box.height().toFloat()},
-      {box_from_margin_box.width().toFloat(),
-       box_from_margin_box.height().toFloat()},
+      {box.x().toFloat(), box.y().toFloat()},
+      {box.right().toFloat(), box.y().toFloat()},
+      {box.x().toFloat(), box.bottom().toFloat()},
+      {box.right().toFloat(), box.bottom().toFloat()},
   };
 
   for (int i = 0; i < kNumPoints; ++i) {
@@ -263,6 +249,29 @@ RectLayoutUnit Box::GetTransformedBoxFromContainingBlock(
   return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
                         LayoutUnit(max_corner.x() - min_corner.x()),
                         LayoutUnit(max_corner.y() - min_corner.y()));
+}
+}  // namespace
+
+RectLayoutUnit Box::GetTransformedBoxFromRoot(
+    const RectLayoutUnit& box_from_margin_box) const {
+  return GetTransformedBoxFromContainingBlock(nullptr, box_from_margin_box);
+}
+
+RectLayoutUnit Box::GetTransformedBoxFromRootWithScroll(
+    const RectLayoutUnit& box_from_margin_box) const {
+  // Get the transformed box from root while factoring in scrollLeft and
+  // scrollTop of intermediate containers.
+  return GetTransformedBox(
+      GetMarginBoxTransformFromContainingBlockWithScroll(nullptr),
+      box_from_margin_box);
+}
+
+RectLayoutUnit Box::GetTransformedBoxFromContainingBlock(
+    const ContainerBox* containing_block,
+    const RectLayoutUnit& box_from_margin_box) const {
+  return GetTransformedBox(
+      GetMarginBoxTransformFromContainingBlock(containing_block),
+      box_from_margin_box);
 }
 
 RectLayoutUnit Box::GetTransformedBoxFromContainingBlockContentBox(
@@ -373,8 +382,8 @@ LayoutUnit Box::GetMarginBoxHeight() const {
   return margin_top() + GetBorderBoxHeight() + margin_bottom();
 }
 
-math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
-    const ContainerBox* containing_block) const {
+math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockInternal(
+    const ContainerBox* containing_block, bool include_scroll) const {
   math::Matrix3F transform = math::Matrix3F::Identity();
   if (this == containing_block) {
     return transform;
@@ -421,10 +430,30 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
                                       containing_block_offset.y().toFloat()) *
                 transform;
 
+    // Factor in the container's scrollLeft / scrollTop as needed.
+    if (include_scroll && container->ui_nav_item_ &&
+        container->ui_nav_item_->IsContainer()) {
+      float left, top;
+      container->ui_nav_item_->GetContentOffset(&left, &top);
+      transform = math::TranslateMatrix(-left, -top) * transform;
+    }
+
     box = container;
   }
 
   return transform;
+}
+
+math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
+    const ContainerBox* containing_block) const {
+  return GetMarginBoxTransformFromContainingBlockInternal(
+      containing_block, false /* include_scroll */);
+}
+
+math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockWithScroll(
+    const ContainerBox* containing_block) const {
+  return GetMarginBoxTransformFromContainingBlockInternal(
+      containing_block, true /* include_scroll */);
 }
 
 Vector2dLayoutUnit Box::GetMarginBoxOffsetFromRoot(
@@ -1994,8 +2023,10 @@ void Box::UpdateUiNavigationItem() {
   // containing blocks.
   scoped_refptr<ui_navigation::NavItem> ui_nav_container;
   const ContainerBox* containing_block;
+  const Box* prev_containing_block = this;
   for (containing_block = GetContainingBlock(); containing_block != nullptr;
-       containing_block = containing_block->GetContainingBlock()) {
+       prev_containing_block = containing_block,
+      containing_block = containing_block->GetContainingBlock()) {
     if (containing_block->ui_nav_item_ &&
         containing_block->ui_nav_item_->IsContainer()) {
       ui_nav_container = containing_block->ui_nav_item_;
@@ -2013,11 +2044,26 @@ void Box::UpdateUiNavigationItem() {
   ui_nav_item_->SetSize(border_box_size.width().toFloat(),
                         border_box_size.height().toFloat());
 
+  // GetMarginBoxTransformFromContainingBlock() doesn't properly handle the
+  // descendant of the containing block if it uses 'position: relative' -- it
+  // just assumes the padding box is used instead of the content box in this
+  // case. Workaround the issue here.
+  //   https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+  Vector2dLayoutUnit containing_block_offset;
+  if (containing_block) {
+    containing_block_offset =
+        prev_containing_block->GetContainingBlockOffsetFromItsContentBox(
+            containing_block) +
+        containing_block->GetContentBoxOffsetFromMarginBox();
+  }
+
   // Get the border box's transform relative to its containing item. This
   // dictates the center of the border box relative to its container.
   Vector2dLayoutUnit border_box_offset = GetBorderBoxOffsetFromMarginBox();
   math::Matrix3F transform =
       GetMarginBoxTransformFromContainingBlock(containing_block) *
+      math::TranslateMatrix(containing_block_offset.x().toFloat(),
+                            containing_block_offset.y().toFloat()) *
       math::TranslateMatrix(border_box_offset.x().toFloat() +
                                 0.5f * border_box_size.width().toFloat(),
                             border_box_offset.y().toFloat() +

@@ -14,7 +14,11 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+
 // NOLINTNEXTLINE(runtime/int)
 long SbStringParseSignedInteger(const char* start, char** out_end, int base) {
   return 0L;
 }
+
+#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION

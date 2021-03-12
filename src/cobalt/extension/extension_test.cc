@@ -15,6 +15,8 @@
 #include <cmath>
 
 #include "cobalt/extension/configuration.h"
+#include "cobalt/extension/crash_handler.h"
+#include "cobalt/extension/cwrappers.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/extension/media_session.h"
@@ -187,6 +189,46 @@ TEST(ExtensionTest, MediaSession) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->OnMediaSessionStateChanged, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, CrashHandler) {
+  typedef CobaltExtensionCrashHandlerApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionCrashHandlerName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->OverrideCrashpadAnnotations, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, CWrappers) {
+  typedef CobaltExtensionCWrappersApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionCWrappersName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->PowWrapper, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

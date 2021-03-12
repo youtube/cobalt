@@ -28,7 +28,7 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
-// Constrains the memory in the memmory_settings vector so that the target is
+// Constrains the memory in the memory_settings vector so that the target is
 // such that the sum of memory consumption is below max_cpu_memory and
 // max_gpu_memory.
 //

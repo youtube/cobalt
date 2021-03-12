@@ -91,6 +91,7 @@
       'sources': [
         'animations_test.cc',
         'pipeline_test.cc',
+        'rasterizer/lottie_coverage_pixel_test.cc',
         'rasterizer/pixel_test.cc',
         'rasterizer/pixel_test_fixture.cc',
         'rasterizer/pixel_test_fixture.h',
@@ -121,11 +122,40 @@
       'variables': {
         'content_test_input_files': [
           '<(DEPTH)/cobalt/renderer/rasterizer/testdata',
+          '<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/cobalt/renderer/rasterizer/testdata/lottie_coverage *.json.sha1 json.sha1 json)',
+'<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/cobalt/renderer/rasterizer/testdata/lottie_coverage *.png.sha1 png.sha1 png)',
         ],
         'content_test_output_subdir': 'cobalt/renderer/rasterizer',
       },
+      'actions' : [
+        {
+          'variables': {
+            'sha_dir': '<(DEPTH)/cobalt/renderer/rasterizer/testdata/lottie_coverage',
+            # GYP will remove an argument to an action that looks like a duplicate, so
+            # we change it semantically here.
+            'out_dir': '<(DEPTH)/cobalt/../cobalt/renderer/rasterizer/testdata/lottie_coverage',
+          },
+          'action_name': 'renderer_download_lottie_test_data',
+          'action': [
+            'python',
+            '<(DEPTH)/tools/download_from_gcs.py',
+            '--bucket', 'lottie-coverage-testdata',
+            '--sha1', '<(sha_dir)',
+            '--output', '<(out_dir)',
+          ],
+          'inputs': [
+            '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(sha_dir) *.json.sha1)',
+            '<!@pymod_do_main(starboard.build.gyp_functions file_glob <(sha_dir) *.png.sha1)',
+          ],
+          'outputs': [
+            '<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/cobalt/renderer/rasterizer/testdata/lottie_coverage *.json.sha1 json.sha1 json)',
+            '<!@pymod_do_main(starboard.build.gyp_functions file_glob_sub <(DEPTH)/cobalt/renderer/rasterizer/testdata/lottie_coverage *.png.sha1 png.sha1 png)',
+          ],
+        },
+      ],
       'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
+
     {
       'target_name': 'renderer_test_deploy',
       'type': 'none',

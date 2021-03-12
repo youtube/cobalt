@@ -88,7 +88,7 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
     return;
   }
   // The output parameter is an index describing which output of the AudioNode
-  // from which to connect. If this paremeter is out-of-bound, an INDEX_SIZE_ERR
+  // from which to connect. If this parameter is out-of-bound, an INDEX_SIZE_ERR
   // exception MUST be thrown.
   if (output >= number_of_outputs()) {
     dom::DOMException::Raise(dom::DOMException::kIndexSizeErr, exception_state);

@@ -46,9 +46,15 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     except (ValueError, TypeError):
       use_fastbuild = 0
 
+    try:
+      build_in_docker = int(os.environ.get('IS_DOCKER', 0))
+    except (ValueError, TypeError):
+      build_in_docker = 0
+
     variables = {
         # This is used to omit large debuginfo in files on CI environment
         'cobalt_fastbuild': use_fastbuild,
+        'cobalt_docker_build': build_in_docker,
 
         # This is here rather than cobalt_configuration.gypi so that it's
         # available for browser_bindings_gen.gyp.
@@ -152,6 +158,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'graphics_system_test',
         'layout_test',
         'layout_tests',
+        'cwrappers_test',
         'loader_test',
         'math_test',
         'media_capture_test',

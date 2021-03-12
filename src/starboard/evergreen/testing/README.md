@@ -26,6 +26,7 @@ These files contain code that is either non-trivial or repeated throughout the
 tests, and is shared across all platforms.
 
 * `shared/app_key.sh`
+* `shared/cycle_cobalt.sh`
 * `shared/drain_file.sh`
 * `shared/init_logging.sh`
 * `shared/installation_slot.sh`
@@ -63,6 +64,7 @@ single Evergreen test case.
 * `tests/alternative_content_test.sh`
 * `tests/continuous_updates_test.sh`
 * `tests/crashing_binary_test.sh`
+* `tests/crashpad_runs_test.sh`
 * `tests/disabled_updater_test.sh`
 * `tests/load_slot_being_updated_test.sh`
 * `tests/mismatched_architecture_test.sh`

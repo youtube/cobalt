@@ -66,8 +66,11 @@ void TaskScheduler::StartWithDefaultParams() {
   const int num_cores = SysInfo::NumberOfProcessors();
   constexpr int kBackgroundMaxThreads = 1;
   constexpr int kBackgroundBlockingMaxThreads = 2;
-  const int kForegroundMaxThreads = std::max(1, num_cores - 1);
-  const int kForegroundBlockingMaxThreads = std::max(2, num_cores - 1);
+  constexpr int kMaxNumberOfThreads = 32;
+  const int kForegroundMaxThreads =
+      std::min(std::max(1, num_cores - 1), kMaxNumberOfThreads);
+  const int kForegroundBlockingMaxThreads =
+      std::min(std::max(2, num_cores - 1), kMaxNumberOfThreads);
 
   constexpr TimeDelta kSuggestedReclaimTime = TimeDelta::FromSeconds(30);
 

@@ -68,7 +68,7 @@ NetworkModule::~NetworkModule() {
 
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   object_watch_multiplexer_.reset(NULL);
 #endif
   network_system_.reset(NULL);
@@ -92,15 +92,15 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
 
 void NetworkModule::SetEnableQuic(bool enable_quic) {
   task_runner()->PostTask(
-      FROM_HERE, base::Bind(&URLRequestContext::SetEnableQuic,
-                            base::Unretained(url_request_context_.get()),
-                            enable_quic));
+      FROM_HERE,
+      base::Bind(&URLRequestContext::SetEnableQuic,
+                 base::Unretained(url_request_context_.get()), enable_quic));
 }
 
 void NetworkModule::Initialize(const std::string& user_agent_string,
                                base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
 #endif
   network_system_ = NetworkSystem::Create(event_dispatcher);
@@ -115,6 +115,12 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
         command_line->GetSwitchValueASCII(switches::kUserAgent);
     http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
         options_.preferred_language, custom_user_agent));
+  }
+
+  if (command_line->HasSwitch(switches::kMaxNetworkDelay)) {
+    base::StringToInt64(
+        command_line->GetSwitchValueASCII(switches::kMaxNetworkDelay),
+        &options_.max_network_delay);
   }
 
 #if defined(ENABLE_NETWORK_LOGGING)

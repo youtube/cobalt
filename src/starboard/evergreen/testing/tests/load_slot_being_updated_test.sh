@@ -25,29 +25,28 @@ TEST_FILE="test.html"
 function run_test() {
   clear_storage
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "update from test channel was installed"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to download and install the test package"
+    log "error" "Failed to download and install the test package"
     return 1
   fi
 
   FILENAME=$(get_temporary_drain_file_path "${TEST_NAME}.0.log")
 
   if [[ -z "${FILENAME}" ]]; then
-    error "Failed to evaluate a temporary drain file path"
+    log "error" "Failed to evaluate a temporary drain file path"
     return 1
   fi
 
   create_file "${FILENAME}"
 
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "Active slot draining"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "Active slot draining"
 
   if [[ $? -ne 0 ]]; then
-    error "Failed to abort loading a slot being drained"
+    log "error" "Failed to abort loading a slot being drained"
     return 1
   fi
 
   return 0
 }
-

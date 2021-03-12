@@ -23,7 +23,7 @@ static int GetUIntMkvSize(uint64_t value) {
   return 8;
 }
 
-// Returns the minimium size required to serialize an integer value.
+// Returns the minimum size required to serialize an integer value.
 static int GetUIntSize(uint64_t value) {
   if (value < 0x0100ULL) return 1;
   if (value < 0x010000ULL) return 2;

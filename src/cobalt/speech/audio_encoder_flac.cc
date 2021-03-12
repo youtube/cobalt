@@ -84,7 +84,7 @@ void AudioEncoderFlac::Finish() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Finish the encoding. It causes the encoder to encode any data still in
-  // its input pipe, and finally reset the encoder to the unintialized state.
+  // its input pipe, and finally reset the encoder to the uninitialized state.
   FLAC__stream_encoder_finish(encoder_);
 }
 
@@ -110,7 +110,6 @@ std::string AudioEncoderFlac::GetAndClearAvailableEncodedData() {
 FLAC__StreamEncoderWriteStatus AudioEncoderFlac::WriteCallback(
     const FLAC__StreamEncoder* encoder, const FLAC__byte buffer[], size_t bytes,
     unsigned int samples, unsigned int current_frame, void* client_data) {
-
   AudioEncoderFlac* audio_encoder =
       reinterpret_cast<AudioEncoderFlac*>(client_data);
   DCHECK(audio_encoder);

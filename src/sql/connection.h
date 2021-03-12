@@ -10,7 +10,7 @@
 #include <string>
 
 #include "build/build_config.h"
-#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
+#if defined(__LB_SHELL__) || defined(STARBOARD)
 #define SQL_CONNECTION_EXTRA_LOCKING
 #endif
 

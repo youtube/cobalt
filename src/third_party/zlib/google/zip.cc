@@ -186,7 +186,7 @@ bool UnzipWithFilterCallback(const base::FilePath& src_file,
     DLOG(WARNING) << "Failed to open " << src_file.value();
     return false;
   }
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   return UnzipWithFilterAndWriters(
       src_file, base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
       base::BindRepeating(&CreateDirectory, dest_dir), filter_cb,
@@ -200,7 +200,7 @@ bool UnzipWithFilterCallback(const base::FilePath& src_file,
 #endif
 }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 bool UnzipWithFilterAndWriters(const base::FilePath& src_file,
                                const WriterFactory& writer_factory,
                                const DirectoryCreator& directory_creator,

@@ -25,7 +25,7 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-// A |TracingContoller| that proxies all calls to an instance of V8's shared
+// A |TracingController| that proxies all calls to an instance of V8's shared
 // platform |TracingController| implementation, which is initialized to send
 // trace events to our |TraceWriter| that forwards them to a |TraceDelegate|
 // through Cobalt's |ScriptDebugger|.

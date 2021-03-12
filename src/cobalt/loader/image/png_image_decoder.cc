@@ -34,7 +34,7 @@ const double kInverseGamma = 0.45455;
 const uint32 kMaxPNGSize = 1000000UL;
 
 // Use fix point multiplier instead of integer division or floating point math.
-// This multipler produces exactly the same result for all values in range 0 -
+// This multiplier produces exactly the same result for all values in range 0 -
 // 255.
 const uint32 kFixPointOffset = 24;
 const uint32 kFixPointShifted = 1U << kFixPointOffset;
@@ -97,7 +97,7 @@ size_t PNGImageDecoder::DecodeChunkInternal(const uint8* data, size_t size) {
   // from setjmp indicates whether control reached that point normally or from a
   // call to longjmp. If the return is from a direct invocation, setjmp returns
   // 0. If the return is from a call to longjmp, setjmp returns a nonzero value.
-MSVC_PUSH_DISABLE_WARNING(4611);
+  MSVC_PUSH_DISABLE_WARNING(4611);
   // warning C4611: interaction between '_setjmp' and C++ object destruction is
   // non-portable.
   if (setjmp(png_->jmpbuf)) {
@@ -106,7 +106,7 @@ MSVC_PUSH_DISABLE_WARNING(4611);
     set_state(kError);
     return 0;
   }
-MSVC_POP_WARNING();
+  MSVC_POP_WARNING();
 
   png_process_data(png_, info_, const_cast<png_bytep>(data), size);
 

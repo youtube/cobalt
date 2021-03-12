@@ -13,6 +13,12 @@
 #include "base/rand_util.h"
 #include "base/time/tick_clock.h"
 
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#endif
+
 namespace net {
 
 BackoffEntry::BackoffEntry(const BackoffEntry::Policy* policy)
@@ -56,8 +62,8 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     base::TimeDelta delay;
     if (policy_->always_use_initial_delay)
       delay = base::TimeDelta::FromMilliseconds(policy_->initial_delay_ms);
-    exponential_backoff_release_time_ = std::max(
-        GetTimeTicksNow() + delay, exponential_backoff_release_time_);
+    exponential_backoff_release_time_ =
+        std::max(GetTimeTicksNow() + delay, exponential_backoff_release_time_);
   }
 }
 
@@ -96,8 +102,8 @@ bool BackoffEntry::CanDiscard() const {
   if (failure_count_ > 0) {
     // Need to keep track of failures until maximum back-off period
     // has passed (since further failures can add to back-off).
-    return unused_since_ms >= std::max(policy_->maximum_backoff_ms,
-                                       policy_->entry_lifetime_ms);
+    return unused_since_ms >=
+           std::max(policy_->maximum_backoff_ms, policy_->entry_lifetime_ms);
   }
 
   // Otherwise, consider the entry is outdated if it hasn't been used for the

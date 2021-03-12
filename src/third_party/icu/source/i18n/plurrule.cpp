@@ -7,12 +7,11 @@
 * File plurrule.cpp
 */
 
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/math_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#if !defined(STARBOARD)
 #include <math.h>
+#if !defined(STARBOARD)
 #include <stdio.h>
 #endif
 

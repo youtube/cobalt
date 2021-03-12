@@ -19,8 +19,10 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
@@ -763,7 +765,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       return;
     }
 
-    // Ensure all fetched data is read and transfered to this XHR. This should
+    // Ensure all fetched data is read and transferred to this XHR. This should
     // only be done for successful and error-free fetches.
     OnURLFetchDownloadProgress(source, 0, 0, 0);
 
@@ -823,7 +825,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
   // terminate these subsubsteps.
   // 2. If upload listener flag is set, then fire a progress event named
   // progress on the XMLHttpRequestUpload object with request's body's
-  // transmiteted bytes and request's body's total bytes.
+  // transmitted bytes and request's body's total bytes.
   if (!upload_listener_) {
     return;
   }
@@ -888,7 +890,7 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
     HandleRequestError(kNetworkError);
     return;
   }
-  // CORS check for the received resposne
+  // CORS check for the received response
   if (is_cross_origin_) {
     if (!loader::CORSPreflight::CORSCheck(headers, origin_.SerializedOrigin(),
                                           with_credentials_)) {
@@ -1105,6 +1107,7 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
   network::NetworkModule* network_module =
       settings_->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, this);
+  ++url_fetcher_generation_;
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   if (fetch_callback_) {
     response_body_ = new URLFetcherResponseWriter::Buffer(
@@ -1174,7 +1177,9 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
   }
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *this;
   if (!dopreflight) {
-    url_fetcher_->Start();
+    DCHECK(settings_->network_module());
+    StartURLFetcher(settings_->network_module()->max_network_delay(),
+                    url_fetcher_generation_);
   }
 }
 
@@ -1183,9 +1188,9 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  if (url_fetcher_) {
-    url_fetcher_->Start();
-  }
+  DCHECK(settings_->network_module());
+  StartURLFetcher(settings_->network_module()->max_network_delay(),
+                  url_fetcher_generation_);
 }
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
@@ -1267,6 +1272,30 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
 void XMLHttpRequest::XMLDecoderLoadCompleteCallback(
     const base::Optional<std::string>& error) {
   if (error) has_xml_decoder_error_ = true;
+}
+
+void XMLHttpRequest::StartURLFetcher(const SbTime max_artificial_delay,
+                                     const int url_fetcher_generation) {
+  if (max_artificial_delay > 0) {
+    base::MessageLoop::current()->task_runner()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&XMLHttpRequest::StartURLFetcher, this, 0,
+                   url_fetcher_generation_),
+        base::TimeDelta::FromMicroseconds(base::RandUint64() %
+                                          max_artificial_delay));
+    return;
+  }
+
+  // Note: Checking that "url_fetcher_generation_" != "url_fetcher_generation"
+  // is to verify the "url_fetcher_" is currently the same one that was present
+  // upon a delayed url fetch. This works because the incoming parameter
+  // "url_fetcher_generation" will hold the value at the time of the initial
+  // call, and if a delayed binding has waited while a new "url_fetcher_" has
+  // changed state, "url_fetcher_generation_" will have incremented.
+  if (nullptr != url_fetcher_ &&
+      url_fetcher_generation == url_fetcher_generation_) {
+    url_fetcher_->Start();
+  }
 }
 
 }  // namespace xhr

@@ -82,7 +82,7 @@ class SourceBufferRange {
   // The first buffer in |range| must come directly after the last buffer
   // in this range.
   // If |transfer_current_position| is true, |range|'s |next_buffer_index_|
-  // is transfered to this SourceBufferRange.
+  // is transferred to this SourceBufferRange.
   // Note: Use these only to merge existing ranges. |range|'s first buffer
   // timestamp must be adjacent to this range. No group start timestamp
   // adjacency is involved in these methods.

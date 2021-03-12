@@ -213,7 +213,7 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return client->SendEvergreenInfoToHandler(evergreen_info);
 }
 
-bool AddAnnotationsToCrashpad(EvergreenAnnotations annotations) {
+bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->SendAnnotationsToHandler(annotations);
 }

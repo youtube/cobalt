@@ -71,7 +71,7 @@ class ImageDecoder : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
   // Called when this ImageDecoder's deletion has been posted to a message loop.
-  // This prevents any additional decoding from occuring prior to the decoder
+  // This prevents any additional decoding from occurring prior to the decoder
   // being deleted.
   void SetDeletionPending();
 
@@ -117,6 +117,9 @@ class ImageDecoder : public Decoder {
   // Whether or not there is a pending task deleting this decoder on a message
   // loop.
   base::subtle::Atomic32 is_deletion_pending_;
+
+  // Whether or not we use failure image decoder.
+  bool use_failure_image_decoder_ = false;
 };
 
 }  // namespace image

@@ -49,16 +49,18 @@ const std::set<std::string> valid_channels = {
     "tcrash",
     // Test an update that fails verification.
     "tfailv",
+    // Test an update that works for one app only.
+    "t1app",
     // Test a series of continuous updates with two channels.
     "tseries1", "tseries2",
 };
 
 #if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const const char kDefaultUpdaterChannel[] = "dev";
+const char kDefaultUpdaterChannel[] = "dev";
 #elif defined(COBALT_BUILD_TYPE_QA)
-const const char kDefaultUpdaterChannel[] = "qa";
+const char kDefaultUpdaterChannel[] = "qa";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-const const char kDefaultUpdaterChannel[] = "prod";
+const char kDefaultUpdaterChannel[] = "prod";
 #endif
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
@@ -141,7 +143,7 @@ std::string Configurator::GetLang() const {
 }
 
 std::string Configurator::GetOSLongName() const {
-  return "Starboard";  // version_info::GetOSType();
+  return GetDeviceProperty(kSbSystemPropertyPlatformName);
 }
 
 base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
@@ -161,6 +163,18 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   // Model name
   params.insert(
       std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
+
+  // Chipset model number
+  params.insert(std::make_pair(
+      "chipset", GetDeviceProperty(kSbSystemPropertyChipsetModelNumber)));
+
+  // Firmware version
+  params.insert(std::make_pair(
+      "firmware", GetDeviceProperty(kSbSystemPropertyFirmwareVersion)));
+
+  // Model year
+  params.insert(
+      std::make_pair("year", GetDeviceProperty(kSbSystemPropertyModelYear)));
 
   return params;
 }

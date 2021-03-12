@@ -191,8 +191,9 @@ SbAtomicRelease_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
 #endif
 }
 
-static SB_C_FORCE_INLINE void
-SbAtomicNoBarrier_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
+static SB_C_FORCE_INLINE void SbAtomicNoBarrier_StorePtr(
+    volatile SbAtomicPtr* ptr,
+    SbAtomicPtr value) {
 #if SB_SIZE_OF(POINTER) == 8
   SbAtomicNoBarrier_Store64(ptr, value);
 #else
@@ -200,8 +201,9 @@ SbAtomicNoBarrier_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 #endif
 }
 
-static SB_C_FORCE_INLINE void
-SbAtomicAcquire_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
+static SB_C_FORCE_INLINE void SbAtomicAcquire_StorePtr(
+    volatile SbAtomicPtr* ptr,
+    SbAtomicPtr value) {
 #if SB_SIZE_OF(POINTER) == 8
   SbAtomicAcquire_Store64(ptr, value);
 #else
@@ -209,8 +211,9 @@ SbAtomicAcquire_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 #endif
 }
 
-static SB_C_FORCE_INLINE void
-SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
+static SB_C_FORCE_INLINE void SbAtomicRelease_StorePtr(
+    volatile SbAtomicPtr* ptr,
+    SbAtomicPtr value) {
 #if SB_SIZE_OF(POINTER) == 8
   SbAtomicRelease_Store64(ptr, value);
 #else
@@ -418,7 +421,7 @@ namespace starboard {
 //  void Foo(const atomic_base<T>& value);
 // GOOD:
 //  template<typename atomic_t>
-//  void Foo(const atomic_t& vlaue);
+//  void Foo(const atomic_t& value);
 
 // Atomic Pointer class. Instantiate as atomic_pointer<void*>
 // for void* pointer types.
@@ -441,11 +444,11 @@ class atomic_float;
 class atomic_double;
 
 ///////////////////////////////////////////////////////////////////////////////
-// Class hiearchy.
+// Class hierarchy.
 ///////////////////////////////////////////////////////////////////////////////
 
 // Base functionality for atomic types. Defines exchange(), load(),
-// store(), compare_exhange_weak(), compare_exchange_strong()
+// store(), compare_exchange_weak(), compare_exchange_strong()
 template <typename T>
 class atomic_base;
 

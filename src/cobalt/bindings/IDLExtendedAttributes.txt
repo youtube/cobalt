@@ -1,4 +1,4 @@
-# This file desribes all Web IDL extended attributes that are supported by the
+# This file describes all Web IDL extended attributes that are supported by the
 # Cobalt bindings code generation pipeline. Using an extended attribute not
 # listed below will cause the build to fail.
 # Extended attributes include attributes listed in the Web IDL specification

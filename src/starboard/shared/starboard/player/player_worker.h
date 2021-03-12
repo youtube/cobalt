@@ -73,7 +73,7 @@ class PlayerWorker {
     virtual ~Handler() {}
 
     // All the following functions return false to signal a fatal error.  The
-    // event processing loop in PlayerWorker will termimate in this case.
+    // event processing loop in PlayerWorker will terminate in this case.
     virtual bool Init(SbPlayer player,
                       UpdateMediaInfoCB update_media_info_cb,
                       GetPlayerStateCB get_player_state_cb,

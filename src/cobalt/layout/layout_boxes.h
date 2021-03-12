@@ -61,6 +61,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
   void InvalidateSizes() override;
   void InvalidateCrossReferences() override;
   void InvalidateRenderTreeNodes() override;
+  void SetUiNavItem(const scoped_refptr<ui_navigation::NavItem>& item) override;
 
   // Other
   //

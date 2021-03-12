@@ -33,4 +33,4 @@ RUN cd ${raspi_home} \
 RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot}
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
-    && ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
+    && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}

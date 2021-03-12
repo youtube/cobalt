@@ -27,7 +27,7 @@
 #   Path to the bad app key file, otherwise "".
 function get_bad_app_key_file_path() {
   if [[ $# -ne 1 ]]; then
-    error " get_bad_app_key_file_path only accepts a single argument"
+    log "error" " get_bad_app_key_file_path only accepts a single argument"
     return 1
   fi
 
@@ -37,4 +37,3 @@ function get_bad_app_key_file_path() {
     sed -n "s/.*bad_app_key_file_path: \(.*app_key_[A-Za-z0-9+/=]\{32,\}\.bad\).*/\1/p" \
       "${LOG_PATH}/${1}" | ${TAIL} -1)"
 }
-

@@ -609,6 +609,7 @@ SB_EXPORT void SbSystemRequestSuspend();
 //   that is eventually terminated as a result of a call to this function.
 SB_EXPORT void SbSystemRequestStop(int error_level);
 
+#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
 // Binary searches a sorted table |base| of |element_count| objects, each
 // element |element_width| bytes in size for an element that |comparator|
 // compares equal to |key|.
@@ -626,7 +627,9 @@ SB_EXPORT void* SbSystemBinarySearch(const void* key,
                                      size_t element_count,
                                      size_t element_width,
                                      SbSystemComparator comparator);
+#endif
 
+#if SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
 // Sorts an array of elements |base|, with |element_count| elements of
 // |element_width| bytes each, using |comparator| as the comparison function.
 //
@@ -640,6 +643,7 @@ SB_EXPORT void SbSystemSort(void* base,
                             size_t element_count,
                             size_t element_width,
                             SbSystemComparator comparator);
+#endif
 
 // Hides the system splash screen on systems that support a splash screen that
 // is displayed while the application is loading. This function may be called

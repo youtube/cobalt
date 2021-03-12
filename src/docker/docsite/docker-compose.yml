@@ -1,0 +1,11 @@
+version: '2.4'
+
+services:
+  docsite:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    volumes:
+      - ${COBALT_SRC:-.}:/code/

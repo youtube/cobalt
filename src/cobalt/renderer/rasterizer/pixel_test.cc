@@ -17,7 +17,6 @@
 
 #include "base/bind.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "cobalt/math/matrix3_f.h"
@@ -583,14 +582,12 @@ TEST_F(PixelTest,
 
 TEST_F(PixelTest, ScaledSingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
-      GetResourceProvider(), SizeF(150, 150),
-      render_tree::kAlphaFormatOpaque);
+      GetResourceProvider(), SizeF(150, 150), render_tree::kAlphaFormatOpaque);
 
   TestTree(new FilterNode(
       ViewportFilter(RectF(20, 20, 160, 160), RoundedCorners(10, 10)),
       new ImageNode(image, RectF(160, 160),
-                    Matrix3F::FromValues(1.1f, 0.0f, 0.0f,
-                                         0.0f, 1.0f, 0.0f,
+                    Matrix3F::FromValues(1.1f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
                                          0.0f, 0.0f, 1.0f))));
 }
 
@@ -800,7 +797,7 @@ namespace {
 // target surface, and will be added as a child to the composition node with
 // the specified transform applied.  This function is used for the multiple
 // tests that follow this function definition that ensure that different
-// composition node transforms are workign correctly.
+// composition node transforms are working correctly.
 scoped_refptr<MatrixTransformNode> MakeTransformedSingleSolidColorRect(
     const SizeF& size, const Matrix3F& transform) {
   return new MatrixTransformNode(
@@ -997,13 +994,13 @@ scoped_refptr<Node> CreateTransparencyImageRenderTree(
   if (alpha_format == render_tree::kAlphaFormatPremultiplied) {
     transparency_image = CreateTransparencyCheckersPremultipliedAlphaImage(
         resource_provider,
-        SizeF(output_dimensions.width() / 2, output_dimensions.height() / 2),
-        r, g, b);
+        SizeF(output_dimensions.width() / 2, output_dimensions.height() / 2), r,
+        g, b);
   } else {
     transparency_image = CreateTransparencyCheckersUnpremultipliedAlphaImage(
         resource_provider,
-        SizeF(output_dimensions.width() / 2, output_dimensions.height() / 2),
-        r, g, b);
+        SizeF(output_dimensions.width() / 2, output_dimensions.height() / 2), r,
+        g, b);
   }
 
   composition_builder.AddChild(
@@ -1523,9 +1520,8 @@ TEST_F(PixelTest, YUV422UYVYImageScaledAndTranslated) {
       MakeAlternatingYUYVYImage(GetResourceProvider(), output_surface_size());
 
   TestTree(new ImageNode(image, RectF(image->GetSize()),
-                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f,
-                                              0.0f, 2.0f, -1.0f,
-                                              0.0f, 0.0f, 1.0f)));
+                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f, 0.0f, 2.0f,
+                                              -1.0f, 0.0f, 0.0f, 1.0f)));
 }
 #endif  // !SB_HAS(BLITTER)
 
@@ -1582,15 +1578,13 @@ TEST_F(PixelTest, ImageNodeLocalTransformScaleAndTranslation) {
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
 
   TestTree(new ImageNode(image, RectF(image->GetSize()),
-                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f,
-                                              0.0f, 2.0f, -1.0f,
-                                              0.0f, 0.0f, 1.0f)));
+                         Matrix3F::FromValues(2.0f, 0.0f, -1.0f, 0.0f, 2.0f,
+                                              -1.0f, 0.0f, 0.0f, 1.0f)));
 }
 
 TEST_F(PixelTest, ImageNodeLocalTransformOfImageSmallerThanSurface) {
-  scoped_refptr<Image> image =
-      CreateColoredCheckersImage(GetResourceProvider(),
-                                 ScaleSize(output_surface_size(), 0.5f, 0.5f));
+  scoped_refptr<Image> image = CreateColoredCheckersImage(
+      GetResourceProvider(), ScaleSize(output_surface_size(), 0.5f, 0.5f));
 
   TestTree(new ImageNode(
       image, RectF(image->GetSize()),
@@ -1973,7 +1967,7 @@ scoped_refptr<CompositionNode> CreatePixelEdgeCascade(
     const PointF& bottom_right_corner_of_top_layer, int num_cascades,
     const Matrix3F& texture_coord_matrix) {
   // Cascade multiple image rectangles by 1 pixel offsets so that we can
-  // exagerate the bottom pixel not being grey.
+  // exaggerate the bottom pixel not being grey.
   CompositionNode::Builder builder;
   for (int i = 0; i <= num_cascades; ++i) {
     PointF offset(-frame_size.width() + bottom_right_corner_of_top_layer.x() +
@@ -2077,7 +2071,7 @@ TEST_F(PixelTest, YUV2PlaneImagesAreLinearlyInterpolated) {
 
 TEST_F(PixelTest, VeryLargeOpacityFilterDoesNotOccupyVeryMuchMemory) {
   // This test ensures that an opacity filter being applied to an extremely
-  // large surface works just fine.  This test is itneresting because opacity
+  // large surface works just fine.  This test is interesting because opacity
   // is likely implemented by rendering to an offscreen surface, but the
   // offscreen surface should never need to be larger than the canvas it will
   // be rendered to.
@@ -2135,7 +2129,7 @@ TEST_F(PixelTest, TextNodesScaleDownSmoothly) {
   // This test checks that we can smoothly scale text from one size to
   // another.  In some font rasterizers, if they don't do sub-pixel font
   // glyph rendering, text glyphs will appear quantized into different
-  // scale buckets.  This is undesireable as it makes animating text scale
+  // scale buckets.  This is undesirable as it makes animating text scale
   // very jittery.
   const std::string kText("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
@@ -4121,26 +4115,6 @@ base::FilePath GetTestFilePath(const char* file_name) {
       .Append(FILE_PATH_LITERAL(file_name));
 }
 
-std::vector<uint8> GetFileData(const base::FilePath& file_path) {
-  int64 size;
-  std::vector<uint8> image_data;
-
-  bool success = base::GetFileSize(file_path, &size);
-
-  CHECK(success) << "Could not get file size.";
-  CHECK_GT(size, 0);
-
-  image_data.resize(static_cast<size_t>(size));
-
-  int num_of_bytes =
-      base::ReadFile(file_path, reinterpret_cast<char*>(&image_data[0]),
-                     static_cast<int>(size));
-
-  CHECK_EQ(num_of_bytes, static_cast<int>(image_data.size()))
-      << "Could not read '" << file_path.value() << "'.";
-  return image_data;
-}
-
 }  // namespace
 
 TEST_F(PixelTest, BeginningOfPlayingLottieAnimationTest) {
@@ -4548,9 +4522,8 @@ TEST_F(PixelTest, LottiePreserveAspectRatioTooShortAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   animation->BeginRenderFrame(lottie_properties);
 
-  LottieNode::Builder node_builder =
-      LottieNode::Builder(animation, RectF(output_surface_size().width(),
-                                           100.0f));
+  LottieNode::Builder node_builder = LottieNode::Builder(
+      animation, RectF(output_surface_size().width(), 100.0f));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
@@ -4566,9 +4539,8 @@ TEST_F(PixelTest, LottiePreserveAspectRatioTooNarrowAnimationTest) {
   lottie_properties.UpdateState(LottieAnimation::LottieState::kPlaying);
   animation->BeginRenderFrame(lottie_properties);
 
-  LottieNode::Builder node_builder =
-      LottieNode::Builder(animation, RectF(100.0f,
-                                           output_surface_size().height()));
+  LottieNode::Builder node_builder = LottieNode::Builder(
+      animation, RectF(100.0f, output_surface_size().height()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
   TestTree(lottie_node);
@@ -4588,9 +4560,10 @@ TEST_F(PixelTest, LottieScaledWideAnimationTest) {
       LottieNode::Builder(animation, RectF(output_surface_size()));
   node_builder.animation_time = base::TimeDelta::FromSecondsD(0);
   scoped_refptr<LottieNode> lottie_node = new LottieNode(node_builder);
-  TestTree(new MatrixTransformNode(lottie_node,
+  TestTree(new MatrixTransformNode(
+      lottie_node,
       ScaleMatrix(4.0f, 1.0f) *
-      TranslateMatrix(output_surface_size().width() * -0.5f, 0.0f)));
+          TranslateMatrix(output_surface_size().width() * -0.5f, 0.0f)));
 }
 
 #endif  // !SB_HAS(BLITTER)

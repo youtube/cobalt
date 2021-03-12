@@ -132,7 +132,7 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     // element and before the head element, will be dropped when the document is
     // parsed. ASCII whitespace after the html element will be parsed as if it
     // were at the end of the body element. Set option XML_PARSE_NOBLANKS to
-    // omit those non signaficant whitespaces.
+    // omit those non significant whitespaces.
     htmlCtxtUseOptions(html_parser_context_, XML_PARSE_NOBLANKS);
 
     if (!html_parser_context_) {

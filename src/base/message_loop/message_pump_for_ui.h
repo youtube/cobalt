@@ -24,7 +24,7 @@
 #include "base/message_loop/message_pump_libevent.h"
 #elif defined(OS_FUCHSIA)
 #include "base/message_loop/message_pump_fuchsia.h"
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 #include "base/message_loop/message_pump_ui_starboard.h"
 #endif
 
@@ -50,7 +50,7 @@ using MessagePumpForUI = MessagePumpGlib;
 using MessagePumpForUI = MessagePumpLibevent;
 #elif defined(OS_FUCHSIA)
 using MessagePumpForUI = MessagePumpFuchsia;
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 using MessagePumpForUI = MessagePumpUIStarboard;
 #else
 #error Platform does not define MessagePumpForUI

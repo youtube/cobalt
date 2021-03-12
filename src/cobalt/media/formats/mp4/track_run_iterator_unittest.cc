@@ -979,7 +979,7 @@ TEST_F(TrackRunIteratorTest, KeyFrameFlagCombinations) {
   // no dependents, but we occasionally encounter media where all samples are
   // marked "sync" and we must rely on combining the two flags to pick out the
   // true key frames. See http://crbug.com/310712 and http://crbug.com/507916.
-  // Realiably knowing the keyframes for video is also critical to SPS PPS
+  // Reliably knowing the keyframes for video is also critical to SPS PPS
   // insertion.
   EXPECT_EQ("2 K P P P K P", KeyframeAndRAPInfo(iter_.get()));
 }

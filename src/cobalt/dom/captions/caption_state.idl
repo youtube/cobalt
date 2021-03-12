@@ -28,7 +28,7 @@ enum CaptionState {
   // take priority over app defaults. If SystemCaptionSettings.supportsOverride
   // contains true, this value should be interpreted as explicitly saying
   // "do not override." If it contains false, it is up to the application to
-  // intepret any additional meaning of this value.
+  // interpret any additional meaning of this value.
   "set",
 
   // This property should take priority over everything but application-level

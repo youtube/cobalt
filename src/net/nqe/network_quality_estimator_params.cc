@@ -6,7 +6,12 @@
 
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
+#if defined(STARBOARD)
 #include "starboard/types.h"
+#endif
 
 namespace net {
 

@@ -27,7 +27,7 @@ namespace input {
 
 // Obtains camera parameters from hardware input to render a 3D scene.
 // Interface to the Web module and Renderer module. Some settings may not apply
-// depending on the specfic hardware implementation, so their setter methods
+// depending on the specific hardware implementation, so their setter methods
 // have empty default implementations.
 class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
  public:
@@ -44,10 +44,8 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
 
   // Functions to map input keys to camera controls.
   virtual void CreateKeyMapping(int keycode, uint32 camera_axis,
-                                float degrees_per_second) {
-  }
-  virtual void ClearKeyMapping(int keycode) {
-  }
+                                float degrees_per_second) {}
+  virtual void ClearKeyMapping(int keycode) {}
   virtual void ClearAllKeyMappings() {}
 
   // Return the camera's current view direction.
@@ -61,8 +59,7 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
 
   // Updates the camera's perspective parameters.
   virtual void UpdatePerspective(float width_to_height_aspect_ratio,
-                                 float vertical_fov) {
-  }
+                                 float vertical_fov) {}
 
   // Returns the camera's view and projection matrices, setup according to the
   // latest available orientation and perspective information. This queries the

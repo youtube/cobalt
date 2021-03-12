@@ -79,7 +79,7 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
         extension_->version < 1) {
       LOG(WARNING) << "Wrong MediaSession extension supplied";
       extension_ = nullptr;
-    } else {
+    } else if (extension_->RegisterMediaSessionCallbacks != nullptr) {
       extension_->RegisterMediaSessionCallbacks(
           this, &InvokeActionCallback, &UpdatePlatformPlaybackStateCallback);
     }
@@ -175,15 +175,13 @@ MediaSessionClient::ComputeAvailableActions() const {
   return result;
 }
 
-void MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState(
+void MediaSessionClient::UpdatePlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
   DCHECK(media_session_->task_runner_);
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(
-            &MediaSessionClient::UpdatePlatformCobaltExtensionPlaybackState,
-            base::Unretained(this), state));
+        FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
+                              base::Unretained(this), state));
     return;
   }
 
@@ -329,7 +327,7 @@ void MediaSessionClient::UpdatePlatformPlaybackStateCallback(
     CobaltExtensionMediaSessionPlaybackState state, void* callback_context) {
   MediaSessionClient* client =
       static_cast<MediaSessionClient*>(callback_context);
-  client->UpdatePlatformCobaltExtensionPlaybackState(state);
+  client->UpdatePlatformPlaybackState(state);
 }
 
 // static
@@ -337,7 +335,7 @@ void MediaSessionClient::InvokeActionCallback(
     CobaltExtensionMediaSessionActionDetails details, void* callback_context) {
   MediaSessionClient* client =
       static_cast<MediaSessionClient*>(callback_context);
-  client->InvokeCobaltExtensionAction(details);
+  client->InvokeAction(details);
 }
 
 CobaltExtensionMediaSessionPlaybackState

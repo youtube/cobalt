@@ -165,10 +165,10 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // allow the caller of GenerateSessionUpdateRequest() to associate the
   // session id with the session related data specified by the ticket, as both
   // of them will be passed via session_update_request_callback_ when it is
-  // called for the first time for this paritcular session id.  As this is only
+  // called for the first time for this particular session id.  As this is only
   // necessary for the first time the callback is called on the particular
   // session, every time an entry is used, it will be removed from the map.
-  // Note that the first callback is always accessed on the thread specificed
+  // Note that the first callback is always accessed on the thread specified
   // by |ticket_thread_id_|.
   std::map<std::string, int> sb_drm_session_id_to_ticket_map_;
 

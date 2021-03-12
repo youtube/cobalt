@@ -395,14 +395,14 @@ int InstallationManager::RollForwardIfNeeded() {
 //
 int InstallationManager::RollForwardInternal(int installation_index) {
   // Save old priority.
-  int new_installation_old_prority =
+  int new_installation_old_priority =
       installation_store_.installations(installation_index).priority();
 
   SB_DLOG(INFO) << "RollForwardInternal: new_installation_old_priority="
-                << new_installation_old_prority;
+                << new_installation_old_priority;
 
   // Lower priorities of all jumped over installations.
-  ShiftPrioritiesInRange(highest_priority_, new_installation_old_prority,
+  ShiftPrioritiesInRange(highest_priority_, new_installation_old_priority,
                          1 /* shift down +1 */);
 
   // The new installation will be set to the highest priority.

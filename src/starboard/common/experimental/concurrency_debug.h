@@ -15,9 +15,9 @@
 #ifndef STARBOARD_COMMON_EXPERIMENTAL_CONCURRENCY_DEBUG_H_
 #define STARBOARD_COMMON_EXPERIMENTAL_CONCURRENCY_DEBUG_H_
 
-#define SB_ENABLE_CONCURRENTY_DEBUG 0
+#define SB_ENABLE_CONCURRENCY_DEBUG 0
 
-#if SB_ENABLE_CONCURRENTY_DEBUG
+#if SB_ENABLE_CONCURRENCY_DEBUG
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -83,6 +83,6 @@ class ThreadTracker {
 }  // namespace experimental
 }  // namespace starboard
 
-#endif  // SB_ENABLE_CONCURRENTY_DEBUG
+#endif  // SB_ENABLE_CONCURRENCY_DEBUG
 
 #endif  // STARBOARD_COMMON_EXPERIMENTAL_CONCURRENCY_DEBUG_H_

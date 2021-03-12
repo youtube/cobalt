@@ -73,41 +73,42 @@ void UpdateMinValue(SbAtomic32 new_value, volatile SbAtomic32* min) {
   }
 }
 
-}  // namespace
-
-PlaybackStatistics::Record::Record(const VideoDecoderConfig& video_config) {
-  SbAtomicNoBarrier_Increment(&s_active_instances, 1);
-
-  UpdateMaxValue(s_active_instances, &s_max_active_instances);
-
-  if (video_config.codec() == kCodecAV1) {
-    SbAtomicBarrier_Increment(&s_av1_played, 1);
-  } else if (video_config.codec() == kCodecH264) {
-    SbAtomicBarrier_Increment(&s_h264_played, 1);
-  } else if (video_config.codec() == kCodecHEVC) {
-    SbAtomicBarrier_Increment(&s_hevc_played, 1);
-  } else if (video_config.codec() == kCodecVP9) {
-    SbAtomicBarrier_Increment(&s_vp9_played, 1);
-  } else {
-    SB_NOTREACHED();
-  }
-
-  OnConfigChange(video_config);
+std::string ToString(const base::Optional<base::TimeDelta>& t) {
+  return (t) ? starboard::FormatString("%" PRId64, t->InMicroseconds()) : "n/a";
 }
 
-PlaybackStatistics::Record::~Record() {
+}  // namespace
+
+PlaybackStatistics::~PlaybackStatistics() {
   SbAtomicNoBarrier_Increment(&s_active_instances, -1);
 }
 
-void PlaybackStatistics::Record::OnPresenting(
+void PlaybackStatistics::UpdateVideoConfig(
     const VideoDecoderConfig& video_config) {
-  SbAtomicNoBarrier_Store(&s_last_working_codec, video_config.codec());
-}
+  if (is_initial_config_) {
+    is_initial_config_ = false;
 
-void PlaybackStatistics::Record::OnConfigChange(
-    const VideoDecoderConfig& video_config) {
-  auto width = static_cast<SbAtomic32>(video_config.natural_size().width());
-  auto height = static_cast<SbAtomic32>(video_config.natural_size().height());
+    SbAtomicNoBarrier_Increment(&s_active_instances, 1);
+
+    UpdateMaxValue(s_active_instances, &s_max_active_instances);
+
+    if (video_config.codec() == kCodecAV1) {
+      SbAtomicBarrier_Increment(&s_av1_played, 1);
+    } else if (video_config.codec() == kCodecH264) {
+      SbAtomicBarrier_Increment(&s_h264_played, 1);
+    } else if (video_config.codec() == kCodecHEVC) {
+      SbAtomicBarrier_Increment(&s_hevc_played, 1);
+    } else if (video_config.codec() == kCodecVP9) {
+      SbAtomicBarrier_Increment(&s_vp9_played, 1);
+    } else {
+      SB_NOTREACHED();
+    }
+  }
+
+  const auto width =
+      static_cast<SbAtomic32>(video_config.natural_size().width());
+  const auto height =
+      static_cast<SbAtomic32>(video_config.natural_size().height());
 
   UpdateMinValue(width, &s_min_video_width);
   UpdateMaxValue(width, &s_max_video_width);
@@ -115,17 +116,48 @@ void PlaybackStatistics::Record::OnConfigChange(
   UpdateMaxValue(height, &s_max_video_height);
 
   LOG(INFO) << "Playback statistics on config change: "
-            << PlaybackStatistics::GetStatistics(video_config);
+            << GetStatistics(video_config);
 }
 
-// static
+
+void PlaybackStatistics::OnPresenting(const VideoDecoderConfig& video_config) {
+  SbAtomicNoBarrier_Store(&s_last_working_codec, video_config.codec());
+}
+
+void PlaybackStatistics::OnSeek(const base::TimeDelta& seek_time) {
+  seek_time_ = seek_time;
+  first_written_audio_timestamp_.reset();
+  first_written_video_timestamp_.reset();
+}
+
+void PlaybackStatistics::OnAudioAU(const base::TimeDelta& timestamp) {
+  last_written_audio_timestamp_ = timestamp;
+  if (!first_written_audio_timestamp_) {
+    first_written_audio_timestamp_.emplace(timestamp);
+  }
+}
+
+void PlaybackStatistics::OnVideoAU(const base::TimeDelta& timestamp) {
+  last_written_video_timestamp_ = timestamp;
+  if (!first_written_video_timestamp_) {
+    first_written_video_timestamp_.emplace(timestamp);
+  }
+}
+
 std::string PlaybackStatistics::GetStatistics(
-    const VideoDecoderConfig& current_video_config) {
+    const VideoDecoderConfig& current_video_config) const {
   return starboard::FormatString(
       "current_codec: %s, drm: %s, width: %d, height: %d,"
       " active_players (max): %d (%d), av1: ~%d, h264: ~%d, hevc: ~%d,"
       " vp9: ~%d, min_width: %d, min_height: %d, max_width: %d, max_height: %d,"
-      " last_working_codec: %s",
+      " last_working_codec: %s,"
+      " seek_time: %" PRId64
+      ","
+      " first_audio_time: %s,"
+      " first_video_time: %s,"
+      " last_audio_time: %" PRId64
+      ","
+      " last_video_time: %" PRId64,
       GetCodecName(current_video_config.codec()).c_str(),
       (current_video_config.is_encrypted() ? "Y" : "N"),
       static_cast<int>(current_video_config.natural_size().width()),
@@ -142,7 +174,12 @@ std::string PlaybackStatistics::GetStatistics(
       SbAtomicNoBarrier_Load(&s_max_video_height),
       GetCodecName(static_cast<VideoCodec>(
                        SbAtomicNoBarrier_Load(&s_last_working_codec)))
-          .c_str());
+          .c_str(),
+      seek_time_.InMicroseconds(),
+      ToString(first_written_audio_timestamp_).c_str(),
+      ToString(first_written_audio_timestamp_).c_str(),
+      last_written_audio_timestamp_.InMicroseconds(),
+      last_written_video_timestamp_.InMicroseconds());
 }
 
 }  // namespace media

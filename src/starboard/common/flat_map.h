@@ -66,7 +66,7 @@ struct IsPod {
 // O(n), where std::map will operate at O(log n) for both operations.
 //
 // FlatMap<int,int>::find() Performance
-// NUMBER OF ELEMENTS | SPEED COMPARSION vs std::map
+// NUMBER OF ELEMENTS | SPEED COMPARISON vs std::map
 // -------------------------------------
 //                  5 | 220.37%
 //                 10 | 158.602%

@@ -20,6 +20,8 @@
 #define STARBOARD_CHARACTER_H_
 
 #include "starboard/configuration.h"
+
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 #include "starboard/export.h"
 #include "starboard/types.h"
 
@@ -77,4 +79,5 @@ SB_EXPORT bool SbCharacterIsAlphanumeric(int c);
 }  // extern "C"
 #endif
 
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 #endif  // STARBOARD_CHARACTER_H_

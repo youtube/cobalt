@@ -127,7 +127,7 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
         break;
       }
     } else {
-      DLOG(WARNING) << "Malformated audio chunk.";
+      DLOG(WARNING) << "Malformed audio chunk.";
       break;
     }
 

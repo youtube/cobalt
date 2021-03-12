@@ -25,7 +25,7 @@
 #include "net/http/http_auth_sspi_win.h"
 #elif defined(OS_POSIX)
 #include "net/http/http_auth_gssapi_posix.h"
-#elif defined(OS_STARBOARD)
+#elif defined(STARBOARD)
 #include "net/http/http_auth_gssapi_starboard.h"
 #endif
 
@@ -45,7 +45,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 #elif defined(OS_WIN)
   typedef SSPILibrary AuthLibrary;
   typedef HttpAuthSSPI AuthSystem;
-#elif defined(OS_POSIX) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(STARBOARD)
   typedef GSSAPILibrary AuthLibrary;
   typedef HttpAuthGSSAPI AuthSystem;
 #endif
@@ -94,7 +94,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
     bool is_unsupported_ = false;
 #if !defined(OS_ANDROID)
     std::unique_ptr<AuthLibrary> auth_library_;
-#if defined(OS_POSIX) || defined(OS_STARBOARD)
+#if defined(OS_POSIX) || defined(STARBOARD)
     bool allow_gssapi_library_load_ = true;
 #endif  // defined(OS_POSIX)
 #endif  // !defined(OS_ANDROID)

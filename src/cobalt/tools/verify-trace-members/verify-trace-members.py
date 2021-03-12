@@ -19,7 +19,7 @@ This script is responsible for:
 
 * Getting and translating Clang invocations required to build Cobalt into
   verify-trace-members invocations.
-  * The Clang invocations are retreived by asking ninja for them.
+  * The Clang invocations are retrieved by asking ninja for them.
   * Then, "clang++ -std=c++11 -c my_file.cc -o my_file.o" becomes
     "verify-trace-members my_file.cc -- -std=c++11", for each command.
 

@@ -48,7 +48,7 @@ bool GetProductDirectoryPath(base::FilePath* path) {
   constexpr int kPathKey = base::DIR_APP_DATA;
 #endif
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   base::FilePath app_data_dir;
   if (!base::PathService::Get(kPathKey, &app_data_dir)) {
     LOG(ERROR) << "Can't retrieve local app data directory.";
@@ -119,12 +119,12 @@ const std::string GetCurrentEvergreenVersion() {
 
   if (!version.IsValid()) {
     if (!index) {
-      SB_LOG(ERROR) << "Failed to get the Everegreen version. Defaulting to "
+      SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
                     << kDefaultManifestVersion << ".";
       return kDefaultManifestVersion;
     }
 
-    SB_LOG(ERROR) << "Failed to get the Everegreen version.";
+    SB_LOG(ERROR) << "Failed to get the Evergreen version.";
     return "";
   }
   return version.GetString();

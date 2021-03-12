@@ -41,7 +41,7 @@ class Animation {
   // on any render_tree::Node object of the specified template type argument.
   //
   // As an example, one could create an animation that linearly interpolates
-  // between two color values on a TextNode object by first definining the
+  // between two color values on a TextNode object by first defining the
   // animation function (assuming ColorRGBA has operator*() defined):
   //
   //   void InterpolateTextColor(

@@ -43,14 +43,14 @@ namespace memory_tracker {
 //  my_histogram.BeginRow(time_delta);
 //  my_histogram.AddRowValue("ColumnA", 0);
 //  my_histogram.AddRowValue("ColumnB", 0);
-//  my_histogram.FinilizeRow();
+//  my_histogram.FinalizeRow();
 //
 //  // Add second row.
 //  my_histogram.BeginRow(time_delta);
 //  my_histogram.AddRowValue("ColumnA", 1);
 //  my_histogram.AddRowValue("ColumnB", 2);
 //  my_histogram.AddRowValue("ColumnC", 1);  // Ok, ColumnC will be autofilled.
-//  my_histogram.FinilizeRow();
+//  my_histogram.FinalizeRow();
 //
 //  Print(my_histogram.ToString());
 template <typename ValueType>

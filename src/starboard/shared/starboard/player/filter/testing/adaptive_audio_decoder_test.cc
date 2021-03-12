@@ -74,11 +74,10 @@ string GetTestInputDirectory() {
   std::vector<char> content_path(kPathSize);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
                            kPathSize));
-  string directory_path = string(content_path.data()) + kSbFileSepChar +
-                          "test" + kSbFileSepChar + "starboard" +
-                          kSbFileSepChar + "shared" + kSbFileSepChar +
-                          "starboard" + kSbFileSepChar + "player" +
-                          kSbFileSepChar + "testdata";
+  string directory_path =
+      string(content_path.data()) + kSbFileSepChar + "test" + kSbFileSepChar +
+      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -360,7 +359,7 @@ TEST_P(AdaptiveAudioDecoderTest, MultipleInput) {
                                static_cast<double>(kSbTimeSecond);
   // The |num_of_output_frames_| may not accurately match
   // |expected_output_frames|. Each time to switch decoder, it may have one
-  // sample difference in ouput due to integer conversion. The total difference
+  // sample difference in output due to integer conversion. The total difference
   // should not exceed the length of |dmp_readers_|.
   AssertExpectedAndOutputFramesMatch(expected_output_frames);
 }

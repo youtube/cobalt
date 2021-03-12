@@ -8,12 +8,6 @@
 
 #include <woff2/decode.h>
 
-#if !defined(STARBOARD)
-#include <stdlib.h>
-#else
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 #include <algorithm>
 #include <complex>
 #include <cstring>
@@ -22,6 +16,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <stdlib.h>
 #include <utility>
 
 #include <brotli/decode.h>

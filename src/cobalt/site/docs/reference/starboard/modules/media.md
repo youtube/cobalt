@@ -108,7 +108,7 @@ specific values start at 1000.
     Limited Rec. 709 color range with RGB values ranging from 16 to 235.
 *   `kSbMediaRangeIdFull`
 
-    Full RGB color range with RGB valees from 0 to 255.
+    Full RGB color range with RGB values from 0 to 255.
 *   `kSbMediaRangeIdDerived`
 
     Range is defined by TransferId/MatrixId.
@@ -688,4 +688,3 @@ seconds.
 ```
 void SbMediaSetAudioWriteDuration(SbTime duration)
 ```
-

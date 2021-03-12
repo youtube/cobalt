@@ -14,7 +14,6 @@
 
 #include "cobalt/updater/updater_module.h"
 
-#include <map>
 #include <utility>
 #include <vector>
 
@@ -50,24 +49,6 @@ constexpr uint8_t kCobaltPublicKeyHash[] = {
     0x9e, 0x8b, 0x2d, 0x22, 0x65, 0x19, 0xb1, 0xfa, 0xba, 0x02, 0x04,
     0x3a, 0xb2, 0x7a, 0xf6, 0xfe, 0xd5, 0x35, 0xa1, 0x19, 0xd9};
 
-// The map to translate update state from ComponentState to readable string.
-const std::map<ComponentState, const char*> update_state_map = {
-    {ComponentState::kNew, "Will check for update soon"},
-    {ComponentState::kChecking, "Checking for update"},
-    {ComponentState::kCanUpdate, "Update is available"},
-    {ComponentState::kDownloadingDiff, "Downloading delta update"},
-    {ComponentState::kDownloading, "Downloading update"},
-    {ComponentState::kDownloaded, "Update is downloaded"},
-    {ComponentState::kUpdatingDiff, "Installing delta update"},
-    {ComponentState::kUpdating, "Installing update"},
-    {ComponentState::kUpdated, "Update installed, pending restart"},
-    {ComponentState::kUpToDate, "App is up to date"},
-    {ComponentState::kUpdateError, "Failed to update"},
-    {ComponentState::kUninstalled, "Update uninstalled"},
-    {ComponentState::kRun, "Transitioning..."},
-    // ComponentState::kLastStatus is not meaningful to show to users.
-};
-
 void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
 }  // namespace
@@ -78,17 +59,19 @@ namespace updater {
 void Observer::OnEvent(Events event, const std::string& id) {
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
-    auto status_iterator = update_state_map.find(crx_update_item_.state);
-    if (status_iterator == update_state_map.end()) {
+    auto status_iterator =
+        component_to_updater_status_map.find(crx_update_item_.state);
+    if (status_iterator == component_to_updater_status_map.end()) {
       status = "Status is unknown.";
     } else if (crx_update_item_.state == ComponentState::kUpToDate &&
                updater_configurator_->GetPreviousUpdaterStatus().compare(
-                   update_state_map.find(ComponentState::kUpdated)->second) ==
-                   0) {
-      status =
-          std::string(update_state_map.find(ComponentState::kUpdated)->second);
+                   updater_status_string_map.find(UpdaterStatus::kUpdated)
+                       ->second) == 0) {
+      status = std::string(
+          updater_status_string_map.find(UpdaterStatus::kUpdated)->second);
     } else {
-      status = std::string(status_iterator->second);
+      status = std::string(
+          updater_status_string_map.find(status_iterator->second)->second);
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
       status +=

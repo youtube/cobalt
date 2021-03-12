@@ -19,13 +19,13 @@
 #include <map>
 
 #include "starboard/common/condition_variable.h"
+#include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
-#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -127,7 +127,7 @@ class AudioDecoderTest
     return std::bind(&AudioDecoderTest::OnConsumed, this);
   }
 
-  // This has to be called when the decoder is just initialized/reseted or when
+  // This has to be called when the decoder is just initialized/reset or when
   // OnConsumed() is called.
   void WriteSingleInput(size_t index) {
     ASSERT_TRUE(can_accept_more_input_);
@@ -639,7 +639,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
   SbTime elapsed = SbTimeGetMonotonicNow() - start;
   SB_LOG(INFO) << "Decoding " << dmp_reader_.number_of_audio_buffers() << " au "
-               << " of " << media::GetCodecName(dmp_reader_.audio_codec())
+               << " of " << GetMediaAudioCodecName(dmp_reader_.audio_codec())
                << " takes " << elapsed << " microseconds.";
 
   ASSERT_TRUE(last_decoded_audio_);

@@ -130,11 +130,6 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 #include <errno.h>
 #endif  // defined(OPENSSL_SYS_STARBOARD
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 
 struct err_error_st {
   // file contains the filename where the error occurred.

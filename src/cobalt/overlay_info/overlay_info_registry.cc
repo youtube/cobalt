@@ -35,7 +35,7 @@ class OverlayInfoRegistryImpl {
   void RetrieveAndClear(std::string* infos);
 
  private:
-  // Reserve enough data for |infos_| to avoid extra allcations.
+  // Reserve enough data for |infos_| to avoid extra allocations.
   static const size_t kReservedSize = 4096;
 
   OverlayInfoRegistryImpl() = default;

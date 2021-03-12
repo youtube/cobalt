@@ -92,7 +92,7 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
       EXPECT_TRUE(SbThreadJoin(threads[i], NULL));
     }
 
-    // On average, Unyielders should finsh sooner than Yielders.
+    // On average, Unyielders should finish sooner than Yielders.
     SbTimeMonotonic average_yielder = 0;
     SbTimeMonotonic average_unyielder = 0;
     const int64_t kRacersPerGroup = kRacers / 2;

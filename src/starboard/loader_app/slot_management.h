@@ -36,7 +36,7 @@ class LibraryLoader {
 
 // Load the library for the app specified by |app_key| and manage the
 // current slot selection by rolling forward or back based on the slot status.
-// The actual loading from the slot is peformed by the |library_loader|.
+// The actual loading from the slot is performed by the |library_loader|.
 // An alternative content can be used by specifying non-empty
 // |alternative_content_path| with the full path to the content.
 // Returns a pointer to the |SbEventHandle| symbol in the library.

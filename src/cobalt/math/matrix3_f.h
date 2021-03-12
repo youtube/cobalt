@@ -88,7 +88,7 @@ class Matrix3F {
   }
 
   // Compute eigenvalues and (optionally) normalized eigenvectors of
-  // a positive defnite matrix *this. Eigenvectors are computed only if
+  // a positive definite matrix *this. Eigenvectors are computed only if
   // non-null |eigenvectors| matrix is passed. If it is NULL, the routine
   // will not attempt to compute eigenvectors but will still return eigenvalues
   // if they can be computed.

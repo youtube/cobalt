@@ -34,7 +34,7 @@ process_version_rc_template("version") {
   output = "$root_out_dir/installer_version.rc"
 }
 
-# This target creats a list of runtime dependencies for the component
+# This target creates a list of runtime dependencies for the component
 # builds. This list is parsed by the |create_installer_archive| script, the
 # DLL paths extracted out from the list, and included in the archive.
 updater_runtime_deps = "$root_gen_dir/updater.runtime_deps"

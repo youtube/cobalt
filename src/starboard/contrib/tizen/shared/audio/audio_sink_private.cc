@@ -119,9 +119,9 @@ void SbAudioSinkPrivate::WaitPlay(int consumed_frames) {
   int pass_ms = (SbTimeGetMonotonicNow() - send_start_) / kSbTimeMillisecond;
   int diff_ms = play_ms - pass_ms;
 
-  const int threashold_ms = 50;
+  const int threshold_ms = 50;
   const int margin_ms = 10;
-  if (diff_ms > threashold_ms) {
+  if (diff_ms > threshold_ms) {
     diff_ms -= margin_ms;
     SbThreadSleep(diff_ms * kSbTimeMillisecond);
   }

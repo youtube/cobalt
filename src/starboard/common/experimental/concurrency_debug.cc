@@ -14,7 +14,7 @@
 
 #include "starboard/common/experimental/concurrency_debug.h"
 
-#if SB_ENABLE_CONCURRENTY_DEBUG
+#if SB_ENABLE_CONCURRENCY_DEBUG
 
 #include <algorithm>
 #include <string>
@@ -33,7 +33,7 @@ namespace {
 const int kMaxSymbolNameLength = 1024;
 // Usually there are quite a few contentions at app startup, and it could also
 // be unsafe to log as the log system may not be ready.  So ignore the first
-// few contentions at app startup set by the folloing constant.
+// few contentions at app startup set by the following constant.
 const int kNumberOfInitialContentionsToIgnore = 50;
 
 const SbTime kMinimumWaitToLog = 5 * kSbTimeMillisecond;
@@ -100,4 +100,4 @@ ScopedMutexWaitTracker::~ScopedMutexWaitTracker() {
 }  // namespace experimental
 }  // namespace starboard
 
-#endif  //  SB_ENABLE_CONCURRENTY_DEBUG
+#endif  //  SB_ENABLE_CONCURRENCY_DEBUG

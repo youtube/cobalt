@@ -22,7 +22,7 @@
 namespace {
 int WordToByteOrder(int bytes_per_pixel, int byte_index) {
 // Since DirectFB stores color in word-order but we wish to output in
-// byte-order fomat, we perform that conversion here.
+// byte-order format, we perform that conversion here.
 #if SB_IS_LITTLE_ENDIAN
   return bytes_per_pixel - 1 - byte_index;
 #else

@@ -48,7 +48,7 @@ DialServer::Method StringToMethod(const std::string& method) {
 class DialServer::ServiceHandler : public net::DialServiceHandler {
  public:
   ServiceHandler(const base::WeakPtr<DialServer>& dial_server,
-                 const std::string& sevice_name);
+                 const std::string& service_name);
 
   // net::DialServiceHandler implementation.
   const std::string& service_name() const override { return service_name_; }

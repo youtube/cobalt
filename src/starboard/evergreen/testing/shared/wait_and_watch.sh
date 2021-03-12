@@ -27,7 +27,7 @@
 #   1 if the pattern was found, otherwise 0.
 function wait_and_watch() {
   if [[ $# -ne 2 ]]; then
-    error " wait_and_watch requires a pattern and a path"
+    log "error" " wait_and_watch requires a pattern and a path"
     return 1
   fi
 
@@ -44,4 +44,3 @@ function wait_and_watch() {
 
   return 0
 }
-

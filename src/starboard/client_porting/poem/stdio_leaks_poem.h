@@ -23,7 +23,7 @@
 // in the std namespace that has the name of the Starboard counterpart of the
 // function to be plugged, and redirect it to the Starboard counterpart in the
 // global namespace. In this way, the calls to std::<function> will be replaced
-// with std::<SbConterpart>, and redirected to ::<SbCounterpart>. With this
+// with std::<SbCounterpart>, and redirected to ::<SbCounterpart>. With this
 // specific order of included headers and redefininitions, it's guaranteed that
 // the calls of the functions afterward are cleanly plugged.
 

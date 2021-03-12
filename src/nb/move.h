@@ -118,16 +118,16 @@
 // It is tempting to want to use the RValue type in function parameters, but
 // excluding the limited usage here for the move constructor and move
 // operator=, doing so would mean that the function could take both r-values
-// and l-values equially which is unexpected.  See COMPARED To Boost.Move for
+// and l-values equally which is unexpected.  See COMPARED To Boost.Move for
 // more details.
 //
 // An alternate, and incorrect, implementation of the RValue class used by
 // Boost.Move makes RValue a fieldless child of the move-only type. RValue&
 // is then used in place of RValue in the various operators.  The RValue& is
 // "created" by doing *reinterpret_cast<RValue*>(this).  This has the appeal
-// of never creating a temproary RValue struct even with optimizations
+// of never creating a temporary RValue struct even with optimizations
 // disabled.  Also, by virtue of inheritance you can treat the RValue
-// reference as if it were the move-only type itself.  Unfortuantely,
+// reference as if it were the move-only type itself.  Unfortunately,
 // using the result of this reinterpret_cast<> is actually undefined behavior
 // due to C++98 5.2.10.7. In certain compilers (eg., NaCl) the optimizer
 // will generate non-working code.

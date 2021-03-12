@@ -18,7 +18,6 @@
       'target_name': 'poem_unittests',
       'type': '<(gtest_target_type)',
       'sources': [
-        'abs_tests.cc',
         'include_all.c',
         'main.cc',
         'string_poem_test.cc',

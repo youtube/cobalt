@@ -64,6 +64,8 @@
 
 #include "buf.h"
 
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
 #ifdef LIBXML_PATTERN_ENABLED
 #define XPATH_STREAMING
 #endif

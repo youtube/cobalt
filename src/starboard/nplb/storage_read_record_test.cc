@@ -157,7 +157,7 @@ TEST(SbStorageReadRecordTest, SunnyDayNamed3) {
   ClearStorageRecord();
 }
 
-TEST(SbStorageReadRecordTest, SunnyDayNonexistant) {
+TEST(SbStorageReadRecordTest, SunnyDayNonexistent) {
   ClearStorageRecord();
 
   SbStorageRecord record = OpenStorageRecord();

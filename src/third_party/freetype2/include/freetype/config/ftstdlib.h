@@ -145,14 +145,8 @@
    *
    */
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define ft_qsort  SbSystemSort
-#else
 #include <stdlib.h>
-
 #define ft_qsort  qsort
-#endif
 
   /**************************************************************************
    *
@@ -188,17 +182,17 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
    *                         miscellaneous
    *
    */
-  
+#include <stdlib.h>
+#define ft_strtol  strtol 
+
 #if defined(STARBOARD)
-#define ft_strtol SbStringParseSignedInteger
 static SB_C_INLINE char* ft_getenv(const char* name){
   return NULL;
 }
 #else
-#include <stdlib.h>
-#define ft_strtol  strtol
 #define ft_getenv  getenv
 #endif
+
 
   /**************************************************************************
    *

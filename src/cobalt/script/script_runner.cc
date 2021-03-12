@@ -19,14 +19,14 @@
 #include "base/logging.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/source_code.h"
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #define HANDLE_CORE_DUMP
 #include "base/lazy_instance.h"
 #include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#endif  // defined(OS_STARBOARD)
+#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace script {

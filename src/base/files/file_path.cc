@@ -681,7 +681,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 void FilePath::WriteToPickle(Pickle* pickle) const {
 #if defined(OS_WIN)
   pickle->WriteString16(path_);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   pickle->WriteString(path_);
 #else
 #error Unsupported platform
@@ -692,7 +692,7 @@ bool FilePath::ReadFromPickle(PickleIterator* iter) {
 #if defined(OS_WIN)
   if (!iter->ReadString16(&path_))
     return false;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   if (!iter->ReadString(&path_))
     return false;
 #else
@@ -1286,7 +1286,7 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
   return HFSFastUnicodeCompare(hfs1, hfs2);
 }
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 
 // Generic Posix system comparisons.
 int FilePath::CompareIgnoreCase(StringPieceType string1,

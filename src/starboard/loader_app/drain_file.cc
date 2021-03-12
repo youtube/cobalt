@@ -59,8 +59,7 @@ SbTime ExtractTimestamp(const std::string& str) {
 
   const std::string timestamp = str.substr(index, str.size() - index);
 
-  return SbTime(SbStringParseUInt64(timestamp.c_str(), NULL, 10)) *
-         kDrainFileAgeUnit;
+  return SbTime(strtoull(timestamp.c_str(), NULL, 10)) * kDrainFileAgeUnit;
 }
 
 bool IsExpired(const std::string& filename) {

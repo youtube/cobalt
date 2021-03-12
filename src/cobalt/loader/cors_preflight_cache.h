@@ -59,8 +59,8 @@ class CORSPreflightCache : public base::RefCounted<CORSPreflightCache> {
   };
 
   // The spec wants a cache entry for every method and for every header which is
-  // a little unnesessarily expensive. We create an entry for each request and
-  // If there is an old entry in the new entry's pleace we simply push the old
+  // a little unnecessarily expensive. We create an entry for each request and
+  // If there is an old entry in the new entry's place we simply push the old
   // one out which potentially increases cache misses slightly but reduces
   // memory cost. Chromium also takes this approach.
   // The map's first key is entry's request url and second is entry's origin.

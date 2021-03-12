@@ -34,11 +34,19 @@ CrxDownloader::DownloadMetrics::DownloadMetrics()
 
 // On Windows, the first downloader in the chain is a background downloader,
 // which uses the BITS service.
+#if defined(STARBOARD)
+std::unique_ptr<CrxDownloader> CrxDownloader::Create(
+    bool is_background_download,
+    scoped_refptr<Configurator> config) {
+  std::unique_ptr<CrxDownloader> url_fetcher_downloader =
+      std::make_unique<UrlFetcherDownloader>(nullptr, config);
+#else
 std::unique_ptr<CrxDownloader> CrxDownloader::Create(
     bool is_background_download,
     scoped_refptr<NetworkFetcherFactory> network_fetcher_factory) {
   std::unique_ptr<CrxDownloader> url_fetcher_downloader =
       std::make_unique<UrlFetcherDownloader>(nullptr, network_fetcher_factory);
+#endif
 
 #if defined(OS_WIN)
   if (is_background_download) {
@@ -160,7 +168,7 @@ void CrxDownloader::VerifyResponse(bool is_handled,
   // handling the error.
   result.error = static_cast<int>(CrxDownloaderError::BAD_HASH);
   download_metrics.error = result.error;
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   base::DeleteFile(result.response, false);
 #else
   DeleteFileAndEmptyParentDirectory(result.response);
@@ -184,7 +192,7 @@ void CrxDownloader::HandleDownloadError(
 
   download_metrics_.push_back(download_metrics);
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
 #endif
 
@@ -212,7 +220,7 @@ void CrxDownloader::HandleDownloadError(
       return;
     }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   }
 #endif
 

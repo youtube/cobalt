@@ -196,7 +196,7 @@ void EsAdapterVideo::ReplaceDiscardedFrames(
   // PTS/DTS are interpolated between the min PTS/DTS of discarded frames
   // and the PTS/DTS of the first valid buffer.
   // Note: |pts_delta| and |dts_delta| are calculated using integer division.
-  // Interpolation thus accumulutes small errors. However, since timestamps
+  // Interpolation thus accumulates small errors. However, since timestamps
   // are given in microseconds, only a high number of discarded frames
   // (in the order of 10000s) could have an impact and create a gap (from MSE
   // point of view) between the last interpolated frame and

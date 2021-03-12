@@ -58,15 +58,15 @@ class SlotManagementTest : public testing::Test {
  protected:
   virtual void SetUp() {
     slot_0_libcobalt_path_ =
-        CreatePath({"content", "app", "cobalt", "lib", "libcobalt.so"});
+        CreatePath({"content", "app", "cobalt", "lib", "libcobalt.so.lz4"});
     slot_0_content_path_ = CreatePath({"content", "app", "cobalt", "content"});
 
     slot_1_libcobalt_path_ =
-        CreatePath({"installation_1", "lib", "libcobalt.so"});
+        CreatePath({"installation_1", "lib", "libcobalt.so.lz4"});
     slot_1_content_path_ = CreatePath({"installation_1", "content"});
 
     slot_2_libcobalt_path_ =
-        CreatePath({"installation_2", "lib", "libcobalt.so"});
+        CreatePath({"installation_2", "lib", "libcobalt.so.lz4"});
     slot_2_content_path_ = CreatePath({"installation_2", "content"});
 
     std::vector<char> buf(kSbFileMaxPath);
@@ -134,7 +134,7 @@ class SlotManagementTest : public testing::Test {
     ASSERT_TRUE(DrainFileTryDrain(installation_path.data(), app_key.c_str()));
   }
 
-  void VerfyLoad(const std::string& lib, const std::string& content) {
+  void VerifyLoad(const std::string& lib, const std::string& content) {
     MockLibraryLoader library_loader;
 
     EXPECT_CALL(library_loader,
@@ -173,7 +173,7 @@ TEST_F(SlotManagementTest, SystemSlot) {
   ImInitialize(3, kTestAppKey);
   ImReset();
   ImUninitialize();
-  VerfyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
+  VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(0, kTestAppKey, false);
   VerifyBadFile(0, kTestAppKey, false);
 }
@@ -191,7 +191,7 @@ TEST_F(SlotManagementTest, AdoptSlot) {
   VerifyGoodFile(1, kTestAppKey, false);
   CreateGoodFile(1, kTestApp2Key);
   ImUninitialize();
-  VerfyLoad(slot_1_libcobalt_path_, slot_1_content_path_);
+  VerifyLoad(slot_1_libcobalt_path_, slot_1_content_path_);
   VerifyGoodFile(1, kTestAppKey, true);
   VerifyBadFile(1, kTestAppKey, false);
 }
@@ -208,7 +208,7 @@ TEST_F(SlotManagementTest, GoodSlot) {
 
   CreateGoodFile(2, kTestAppKey);
   ImUninitialize();
-  VerfyLoad(slot_2_libcobalt_path_, slot_2_content_path_);
+  VerifyLoad(slot_2_libcobalt_path_, slot_2_content_path_);
   VerifyGoodFile(2, kTestAppKey, true);
   VerifyBadFile(2, kTestAppKey, false);
 }
@@ -225,7 +225,7 @@ TEST_F(SlotManagementTest, NotAdoptSlot) {
 
   VerifyGoodFile(2, kTestAppKey, false);
   ImUninitialize();
-  VerfyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
+  VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(2, kTestAppKey, false);
   VerifyBadFile(2, kTestAppKey, true);
 }
@@ -241,7 +241,7 @@ TEST_F(SlotManagementTest, BadSlot) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   CreateBadFile(1, kTestAppKey);
   ImUninitialize();
-  VerfyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
+  VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
 }
 
@@ -256,7 +256,7 @@ TEST_F(SlotManagementTest, DrainingSlot) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   CreateDrainFile(1, kTestApp2Key);
   ImUninitialize();
-  VerfyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
+  VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
   VerifyBadFile(1, kTestAppKey, true);
 }

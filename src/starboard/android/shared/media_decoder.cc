@@ -104,6 +104,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbMediaVideoCodec video_codec,
                            int width,
                            int height,
+                           int fps,
                            jobject j_output_surface,
                            SbDrmSystem drm_system,
                            const SbMediaColorMetadata* color_metadata,
@@ -122,7 +123,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, width, height, this, j_output_surface, j_media_crypto,
+      video_codec, width, height, fps, this, j_output_surface, j_media_crypto,
       color_metadata, require_software_codec, tunnel_mode_audio_session_id,
       error_message);
   if (!media_codec_bridge_) {
@@ -134,7 +135,27 @@ MediaDecoder::MediaDecoder(Host* host,
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  JoinOnThreads();
+  destroying_.store(true);
+  condition_variable_.Signal();
+
+  if (SbThreadIsValid(decoder_thread_)) {
+    SbThreadJoin(decoder_thread_, NULL);
+    decoder_thread_ = kSbThreadInvalid;
+  }
+
+  if (is_valid()) {
+    host_->OnFlushing();
+    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
+    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
+    // So that, |dequeue_output_results_| may not be empty. As
+    // DequeueOutputResult is consisted of plain data, it's fine to let
+    // destructor delete |dequeue_output_results_|.
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+    }
+    host_ = NULL;
+  }
 }
 
 void MediaDecoder::Initialize(const ErrorCB& error_cb) {
@@ -322,31 +343,6 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-// TODO: Move this into dtor.
-void MediaDecoder::JoinOnThreads() {
-  destroying_.store(true);
-  condition_variable_.Signal();
-
-  if (SbThreadIsValid(decoder_thread_)) {
-    SbThreadJoin(decoder_thread_, NULL);
-    decoder_thread_ = kSbThreadInvalid;
-  }
-
-  if (is_valid()) {
-    host_->OnFlushing();
-    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
-    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
-    // So that, |dequeue_output_results_| may not be empty. As we call
-    // JoinOnThreads() in destructor and DequeueOutputResult is consisted of
-    // plain data, it's fine to let destructor delete |dequeue_output_results_|.
-    jint status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
-    }
-    host_ = NULL;
-  }
-}
-
 void MediaDecoder::CollectPendingData_Locked(
     std::deque<Event>* pending_tasks,
     std::vector<int>* input_buffer_indices,
@@ -431,8 +427,19 @@ bool MediaDecoder::ProcessOneInputBuffer(
   if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
     ScopedJavaByteBuffer byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.IsNull() || byte_buffer.capacity() < size) {
-      SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
+    if (byte_buffer.IsNull()) {
+      SB_LOG(ERROR) << "Unable to write to MediaCodec buffer, |byte_buffer| is"
+                    << " null.";
+      // TODO: Stop the decoding loop and call error_cb_ on fatal error.
+      return false;
+    }
+    if (byte_buffer.capacity() < size) {
+      auto error_message = FormatString(
+          "Unable to write to MediaCodec buffer, input buffer size (%d) is"
+          " greater than |byte_buffer.capacity()| (%d).",
+          size, static_cast<int>(byte_buffer.capacity()));
+      SB_LOG(ERROR) << error_message;
+      error_cb_(kSbPlayerErrorDecode, error_message);
       return false;
     }
     byte_buffer.CopyInto(data, size);
@@ -462,7 +469,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   if (status != MEDIA_CODEC_OK) {
     HandleError("queue(Secure)?InputBuffer", status);
-    // TODO: Stop the decoding loop on fatal error.
+    // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_queue_input_buffer_task_);
     pending_queue_input_buffer_task_ = {dequeue_input_result, event};
     return false;

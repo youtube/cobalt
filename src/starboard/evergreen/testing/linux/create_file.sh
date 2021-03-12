@@ -16,7 +16,7 @@
 
 function create_file() {
   if [[ $# -ne 1 ]]; then
-    error " create_file only accepts a single argument"
+    log "error" " create_file only accepts a single argument"
     return 1
   fi
 
@@ -26,4 +26,3 @@ function create_file() {
   eval "touch \"\"${1}\"\"" 1> /dev/null
   return 0
 }
-

@@ -36,6 +36,6 @@
   'includes': [
     '<(DEPTH)/starboard/linux/shared/compiler_flags.gypi',
     '<(DEPTH)/starboard/linux/shared/gyp_configuration.gypi',
-    '<(DEPTH)/starboard/linux/shared/libraries.gypi',
+    '<(DEPTH)/starboard/linux/x64x11/shared/libraries.gypi',
   ],
 }

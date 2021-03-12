@@ -40,41 +40,41 @@ namespace android {
 namespace shared {
 
 namespace {
-  enum {
-    kLooperIdAndroidCommand,
-    kLooperIdAndroidInput,
-    kLooperIdKeyboardInject,
-  };
+enum {
+  kLooperIdAndroidCommand,
+  kLooperIdAndroidInput,
+  kLooperIdKeyboardInject,
+};
 
-  const char* AndroidCommandName(
-      ApplicationAndroid::AndroidCommand::CommandType type) {
-    switch (type) {
-      case ApplicationAndroid::AndroidCommand::kUndefined:
-        return "Undefined";
-      case ApplicationAndroid::AndroidCommand::kStart:
-        return "Start";
-      case ApplicationAndroid::AndroidCommand::kResume:
-        return "Resume";
-      case ApplicationAndroid::AndroidCommand::kPause:
-        return "Pause";
-      case ApplicationAndroid::AndroidCommand::kStop:
-        return "Stop";
-      case ApplicationAndroid::AndroidCommand::kInputQueueChanged:
-        return "InputQueueChanged";
-      case ApplicationAndroid::AndroidCommand::kNativeWindowCreated:
-        return "NativeWindowCreated";
-      case ApplicationAndroid::AndroidCommand::kNativeWindowDestroyed:
-        return "NativeWindowDestroyed";
-      case ApplicationAndroid::AndroidCommand::kWindowFocusGained:
-        return "WindowFocusGained";
-      case ApplicationAndroid::AndroidCommand::kWindowFocusLost:
-        return "WindowFocusLost";
-      case ApplicationAndroid::AndroidCommand::kDeepLink:
-        return "DeepLink";
-      default:
-        return "unknown";
-    }
+const char* AndroidCommandName(
+    ApplicationAndroid::AndroidCommand::CommandType type) {
+  switch (type) {
+    case ApplicationAndroid::AndroidCommand::kUndefined:
+      return "Undefined";
+    case ApplicationAndroid::AndroidCommand::kStart:
+      return "Start";
+    case ApplicationAndroid::AndroidCommand::kResume:
+      return "Resume";
+    case ApplicationAndroid::AndroidCommand::kPause:
+      return "Pause";
+    case ApplicationAndroid::AndroidCommand::kStop:
+      return "Stop";
+    case ApplicationAndroid::AndroidCommand::kInputQueueChanged:
+      return "InputQueueChanged";
+    case ApplicationAndroid::AndroidCommand::kNativeWindowCreated:
+      return "NativeWindowCreated";
+    case ApplicationAndroid::AndroidCommand::kNativeWindowDestroyed:
+      return "NativeWindowDestroyed";
+    case ApplicationAndroid::AndroidCommand::kWindowFocusGained:
+      return "WindowFocusGained";
+    case ApplicationAndroid::AndroidCommand::kWindowFocusLost:
+      return "WindowFocusLost";
+    case ApplicationAndroid::AndroidCommand::kDeepLink:
+      return "DeepLink";
+    default:
+      return "unknown";
   }
+}
 }  // namespace
 
 // "using" doesn't work with class members, so make a local convenience type.
@@ -92,7 +92,6 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
       last_is_accessibility_high_contrast_text_enabled_(false) {
-
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
@@ -242,28 +241,27 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     // Starboard resume/suspend is tied to the UI window being created/destroyed
     // (rather than to the Activity lifecycle) since Cobalt can't do anything at
     // all if it doesn't have a window surface to draw on.
-    case AndroidCommand::kNativeWindowCreated:
-      {
-        ScopedLock lock(android_command_mutex_);
-        native_window_ = static_cast<ANativeWindow*>(cmd.data);
-        if (window_) {
-          window_->native_window = native_window_;
-        }
-        // Media playback service is tied to UI window being created/destroyed
-        // (rather than to the Activity lifecycle), the service should be
-        // stopped before native window being created.
-        StopMediaPlaybackService();
-        // Now that we have the window, signal that the Android UI thread can
-        // continue, before we start or resume the Starboard app.
-        android_command_condition_.Signal();
+    case AndroidCommand::kNativeWindowCreated: {
+      ScopedLock lock(android_command_mutex_);
+      native_window_ = static_cast<ANativeWindow*>(cmd.data);
+      if (window_) {
+        window_->native_window = native_window_;
       }
+      // Media playback service is tied to UI window being created/destroyed
+      // (rather than to the Activity lifecycle), the service should be
+      // stopped before native window being created.
+      StopMediaPlaybackService();
+      // Now that we have the window, signal that the Android UI thread can
+      // continue, before we start or resume the Starboard app.
+      android_command_condition_.Signal();
+    }
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
         DispatchStart();
       } else if (state() == kStateConcealed || state() == kStateFrozen) {
-          DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
+        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -308,11 +306,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       }
 
       bool enabled = settings.has_high_contrast_text_setting &&
-          settings.is_high_contrast_text_enabled;
+                     settings.is_high_contrast_text_enabled;
 
       if (enabled != last_is_accessibility_high_contrast_text_enabled_) {
-        DispatchAndDelete(new Event(
-            kSbEventTypeAccessiblitySettingsChanged, NULL, NULL));
+        DispatchAndDelete(
+            new Event(kSbEventTypeAccessiblitySettingsChanged, NULL, NULL));
       }
       last_is_accessibility_high_contrast_text_enabled_ = enabled;
       break;
@@ -372,7 +370,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
                                             void* data) {
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
-  AndroidCommand cmd {type, data};
+  AndroidCommand cmd{type, data};
   ScopedLock lock(android_command_mutex_);
   write(android_command_writefd_, &cmd, sizeof(cmd));
   // Synchronization only necessary when managing resources.
@@ -399,7 +397,7 @@ void ApplicationAndroid::ProcessAndroidInput() {
     SB_LOG(INFO) << "Android input: type="
                  << AInputEvent_getType(android_event);
     if (AInputQueue_preDispatchEvent(input_queue_, android_event)) {
-        continue;
+      continue;
     }
     if (!input_events_generator_) {
       SB_DLOG(WARNING) << "Android input event ignored without an SbWindow.";
@@ -564,9 +562,10 @@ bool ApplicationAndroid::OnSearchRequested() {
   return true;
 }
 
-extern "C" SB_EXPORT_PLATFORM
-jboolean Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
-    JniEnvExt* env, jobject unused_this) {
+extern "C" SB_EXPORT_PLATFORM jboolean
+Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
+    JniEnvExt* env,
+    jobject unused_this) {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
 
@@ -581,19 +580,31 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   SendAndroidCommand(AndroidCommand::kDeepLink, deep_link);
 }
 
-extern "C" SB_EXPORT_PLATFORM
-void Java_dev_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
-    JniEnvExt* env, jobject unused_this, jstring j_url) {
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeHandleDeepLink(JniEnvExt* env,
+                                                          jobject unused_this,
+                                                          jstring j_url) {
   if (j_url) {
     std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
     ApplicationAndroid::Get()->HandleDeepLink(utf_str.c_str());
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM
-void Java_dev_cobalt_coat_StarboardBridge_nativeStopApp(
-    JniEnvExt* env, jobject unused_this, jint error_level) {
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeStopApp(JniEnvExt* env,
+                                                   jobject unused_this,
+                                                   jint error_level) {
   ApplicationAndroid::Get()->Stop(error_level);
+}
+
+void ApplicationAndroid::SendLowMemoryEvent() {
+  Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_CobaltActivity_nativeLowMemoryEvent(JNIEnv* env,
+                                                         jobject unused_clazz) {
+  ApplicationAndroid::Get()->SendLowMemoryEvent();
 }
 
 }  // namespace shared

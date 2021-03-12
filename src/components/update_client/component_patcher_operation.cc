@@ -150,7 +150,7 @@ UnpackerError DeltaUpdateOpCreate::DoParseArguments(
 }
 
 void DeltaUpdateOpCreate::DoRun(ComponentPatcher::Callback callback) {
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
   if (!base::Move(patch_abs_path_, output_abs_path_))
     std::move(callback).Run(UnpackerError::kDeltaOperationFailure, 0);
   else

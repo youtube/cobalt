@@ -77,7 +77,7 @@ bool FuzzerApp::ParseInitialSeedAndNumberOfIterations(int argc, char* argv[],
 
   if (argc == 3) {
     *initial_seed = ZzufFuzzer::kSeedForOriginalContent;
-    number_of_iterations_ = SbStringParseSignedInteger(argv[1], NULL, 10);
+    number_of_iterations_ = strtol(argv[1], NULL, 10);
 
     if (number_of_iterations_ <= 0) {
       LOG(ERROR) << "Invalid 'number of iterations' " << argv[1];
@@ -85,14 +85,14 @@ bool FuzzerApp::ParseInitialSeedAndNumberOfIterations(int argc, char* argv[],
     }
   } else {
     DCHECK_EQ(argc, 4);
-    *initial_seed = SbStringParseSignedInteger(argv[1], NULL, 10);
+    *initial_seed = strtol(argv[1], NULL, 10);
 
     if (*initial_seed < 0) {
       LOG(ERROR) << "Invalid 'initial seed' " << argv[1];
       return false;
     }
 
-    number_of_iterations_ = SbStringParseSignedInteger(argv[2], NULL, 10);
+    number_of_iterations_ = strtol(argv[2], NULL, 10);
 
     if (number_of_iterations_ <= 0) {
       LOG(ERROR) << "Invalid 'number of iterations' " << argv[2];

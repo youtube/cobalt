@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
-#define STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
+#ifndef STARBOARD_ANDROID_SHARED_ANDROID_MEDIA_SESSION_CLIENT_H_
+#define STARBOARD_ANDROID_SHARED_ANDROID_MEDIA_SESSION_CLIENT_H_
 
 #include "cobalt/extension/media_session.h"
 
@@ -24,20 +24,9 @@ namespace shared {
 // Duplicated in CobaltMediaSession.java
 enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
-void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
-
-void OnMediaSessionStateChanged(
-    const CobaltExtensionMediaSessionState session_state);
-
-void RegisterMediaSessionCallbacks(
-    void* callback_context,
-    CobaltExtensionMediaSessionInvokeActionCallback invoke_action_callback,
-    CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
-        update_platform_playback_state_callback);
-
 const void* GetMediaSessionApi();
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
+#endif  // STARBOARD_ANDROID_SHARED_ANDROID_MEDIA_SESSION_CLIENT_H_

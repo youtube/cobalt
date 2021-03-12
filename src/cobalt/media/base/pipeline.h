@@ -51,7 +51,8 @@ typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
-  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll)>
+  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll,
+                              const std::string& error_message)>
       SeekCB;
 
   // Return true if the punch through box should be rendered.  Return false if
@@ -179,7 +180,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Attempt to set the volume of the audio renderer.  Valid values for volume
   // range from 0.0f (muted) to 1.0f (full volume).  This value affects all
-  // channels proportionately for multi-channel audio streams.
+  // channels proportionally for multi-channel audio streams.
   virtual void SetVolume(float volume) = 0;
 
   // Returns the current media playback time, which progresses from 0 until

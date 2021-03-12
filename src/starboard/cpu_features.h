@@ -166,7 +166,7 @@ typedef struct SbCPUFeaturesX86 {
   //     valid flags depends of specific architecture. Below are processor
   //     feature flags valid on x86 and x86_64
   //
-  //     See kernal source:
+  //     See kernel source:
   //     https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/
   //     tree/arch/x86/include/asm/cpufeatures.h
   // ---------------------------------------------------------------------

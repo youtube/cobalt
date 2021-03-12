@@ -45,7 +45,7 @@ TEST(SbStorageGetRecordSizeTest, SunnyDayShrinkyDink) {
   EXPECT_TRUE(SbStorageCloseRecord(record));
 }
 
-TEST(SbStorageGetRecordSizeTest, SunnyDayNonexistant) {
+TEST(SbStorageGetRecordSizeTest, SunnyDayNonexistent) {
   ClearStorageRecord();
   SbStorageRecord record = OpenStorageRecord();
   EXPECT_EQ(SB_INT64_C(0), SbStorageGetRecordSize(record));

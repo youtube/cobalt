@@ -47,18 +47,15 @@ class MEDIA_EXPORT DecryptConfig {
   //   does not specify patterns for cbcs encryption mode. The pattern is
   //   assumed to be 1:9 for video and 1:0 for audio.
   static std::unique_ptr<DecryptConfig> CreateCencConfig(
-      const std::string& key_id,
-      const std::string& iv,
+      const std::string& key_id, const std::string& iv,
       const std::vector<SubsampleEntry>& subsamples);
   static std::unique_ptr<DecryptConfig> CreateCbcsConfig(
-      const std::string& key_id,
-      const std::string& iv,
+      const std::string& key_id, const std::string& iv,
       const std::vector<SubsampleEntry>& subsamples,
       base::Optional<EncryptionPattern> encryption_pattern);
 
   DecryptConfig(const EncryptionMode& encryption_mode,
-                const std::string& key_id,
-                const std::string& iv,
+                const std::string& key_id, const std::string& iv,
                 const std::vector<SubsampleEntry>& subsamples,
                 base::Optional<EncryptionPattern> encryption_pattern);
   ~DecryptConfig();
@@ -75,7 +72,7 @@ class MEDIA_EXPORT DecryptConfig {
   bool HasPattern() const;
 
   // Returns true if the corresponding decoder buffer requires decryption and
-  // false if that buffer is clear despite the presense of DecryptConfig.
+  // false if that buffer is clear despite the presence of DecryptConfig.
   bool is_encrypted() const { return !key_id_.empty() && !iv_.empty(); }
 
   // Returns true if all fields in |config| match this config.

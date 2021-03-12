@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web_animations/keyframe_effect_read_only.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/rgba_color_value.h"
-#include "cobalt/web_animations/keyframe_effect_read_only.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -160,7 +160,7 @@ scoped_refptr<T> ComputeAnimatedPropertyValueTyped(
 
 // We parameterize the following suite of tests on whether or not "noise
 // keyframes" are to be included in the tests.  Since all of these tests will
-// be targetting a single property, "noise keyframes" means that the keyframe
+// be targeting a single property, "noise keyframes" means that the keyframe
 // effects will contain keyframes for properties that are not our target
 // property, and the keyframes that do contain our target property will also
 // refer to our noise property.  Essentially, all test results need to be

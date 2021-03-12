@@ -67,6 +67,7 @@ class VideoDecoder
                    decode_target_graphics_context_provider,
                const char* max_video_capabilities,
                int tunnel_mode_audio_session_id,
+               bool force_secure_pipeline_under_tunnel_mode,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -92,9 +93,9 @@ class VideoDecoder
 
   void SetPlaybackRate(double playback_rate);
 
-  bool is_valid() const { return media_decoder_ != NULL; }
-
   void OnNewTextureAvailable();
+
+  bool is_decoder_created() const { return media_decoder_ != NULL; }
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
@@ -102,6 +103,7 @@ class VideoDecoder
   bool InitializeCodec(std::string* error_message);
   void TeardownCodec();
 
+  void WriteInputBufferInternal(const scoped_refptr<InputBuffer>& input_buffer);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
   void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
@@ -128,13 +130,17 @@ class VideoDecoder
   const SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  // Android doesn't offically support multi concurrent codecs. But the device
+  // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
 
   const int tunnel_mode_audio_session_id_ = -1;
+  // On some platforms tunnel mode is only supported in the secure pipeline.  So
+  // we create a dummy drm system to force the video playing in secure pipeline
+  // to enable tunnel mode.
+  scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
   scoped_ptr<VideoFrameTracker> video_frame_tracker_;
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
@@ -176,6 +182,9 @@ class VideoDecoder
   bool owns_video_surface_ = false;
   Mutex surface_destroy_mutex_;
   ConditionVariable surface_condition_variable_;
+
+  std::deque<const scoped_refptr<InputBuffer>> pending_input_buffers_;
+  int video_fps_ = 0;
 };
 
 }  // namespace shared

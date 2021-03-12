@@ -174,8 +174,7 @@ uint32_t DecodeTargetFormatToGLFormat(
     case kSbDecodeTargetFormat1PlaneRGBA:
     // For UYVY, we will use a fragment shader where R = the first U, G = Y,
     // B = the second U, and A = V.
-    case kSbDecodeTargetFormat1PlaneUYVY:
-    {
+    case kSbDecodeTargetFormat1PlaneUYVY: {
       DCHECK_EQ(0, plane);
       return GL_RGBA;
     } break;
@@ -200,7 +199,7 @@ uint32_t DecodeTargetFormatToGLFormat(
           return plane_info->gl_texture_format;
         default:
           // gl_texture_format is either unassigned or assigned to
-          // an invalud value. Please see comment above for
+          // an invalid value. Please see comment above for
           // gl_texture_format change, introduced in Starboard 7.
           CHECK(false);
           return 0;
@@ -287,7 +286,7 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
   scoped_refptr<DecodeTargetReferenceCounted> decode_target_ref(
       new DecodeTargetReferenceCounted(decode_target));
 
-// There is limited format support at this time.
+  // There is limited format support at this time.
   int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
 
   for (int i = 0; i < planes_per_format; ++i) {

@@ -89,6 +89,7 @@
         '<(DEPTH)/third_party/zlib/zlib.gyp:zip_unittests_deploy',
         '<(DEPTH)/net/net.gyp:net_unittests_deploy',
         '<(DEPTH)/sql/sql.gyp:sql_unittests_deploy',
+        '<(DEPTH)/starboard/client_porting/cwrappers/cwrappers_test.gyp:cwrappers_test_deploy',
         '<(DEPTH)/starboard/common/common_test.gyp:common_test_deploy',
         '<(DEPTH)/starboard/elf_loader/elf_loader.gyp:elf_loader_test_deploy',
         '<(DEPTH)/starboard/loader_app/loader_app.gyp:loader_app_tests_deploy',
@@ -109,6 +110,7 @@
         }],
         ['sb_evergreen==1', {
           'dependencies': [
+            '<(DEPTH)/cobalt/updater/one_app_only_sandbox.gyp:*',
             '<(DEPTH)/components/update_client/update_client.gyp:cobalt_slot_management_test_deploy',
             '<(DEPTH)/third_party/musl/musl.gyp:musl_unittests',
             '<(DEPTH)/starboard/loader_app/installation_manager.gyp:*',

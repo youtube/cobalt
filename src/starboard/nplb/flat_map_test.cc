@@ -630,7 +630,7 @@ TEST(FlatMap, DISABLED_PerformanceTestFind) {
   std::stringstream ss;
   ss << "\n";
   ss << "FlatMap<int,int>::find() Performance\n"
-     << "NUMBER OF ELEMENTS | SPEED COMPARSION vs std::map\n"
+     << "NUMBER OF ELEMENTS | SPEED COMPARISON vs std::map\n"
      << "-------------------------------------\n";
 
   for (size_t i = 0; i < test_sizes.size(); ++i) {

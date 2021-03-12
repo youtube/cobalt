@@ -40,9 +40,9 @@ typedef enum SbPlayerDecoderState {
   kSbPlayerDecoderStateNeedsData,
 
 #if SB_API_VERSION < 12
-  // The decoder is not ready for any more samples, so do not send them.
-  // Note that this enum value has been deprecated and the SbPlayer
-  // implementation should no longer use this value.
+  // The decoder is not ready for any more samples, so do not send them.  Note
+  // that this enum value has been deprecated and the SbPlayer implementation
+  // should no longer use this value.
   kSbPlayerDecoderStateBufferFull,
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerDecoderStateDestroyed,
@@ -61,9 +61,9 @@ typedef enum SbPlayerState {
   // Prerolling after a Seek.
   kSbPlayerStatePrerolling,
 
-  // The player is presenting media, and it is either paused or actively
-  // playing in real-time. Note that the implementation should use this
-  // state to signal that the preroll has been finished.
+  // The player is presenting media, and it is either paused or actively playing
+  // in real-time. Note that the implementation should use this state to signal
+  // that the preroll has been finished.
   kSbPlayerStatePresenting,
 
   // The player is presenting media, but it is paused at the end of the stream.

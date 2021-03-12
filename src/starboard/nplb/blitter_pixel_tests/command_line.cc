@@ -19,7 +19,7 @@ namespace nplb {
 namespace blitter_pixel_tests {
 
 namespace {
-// Global varaibles used to keep track of the command line arguments so that
+// Global variables used to keep track of the command line arguments so that
 // they can be accessed later.
 int g_argument_count = 0;
 char** g_argument_values = NULL;

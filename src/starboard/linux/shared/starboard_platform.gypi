@@ -18,7 +18,6 @@
   'variables': {
     'variables': {
       'has_cdm%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h)',
-      'has_system_libvpx%' : '<!(pkg-config vpx && echo 1 || echo 0)',
     },
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
@@ -86,10 +85,6 @@
       '<(DEPTH)/starboard/shared/iso/string_scan.cc',
       '<(DEPTH)/starboard/shared/iso/system_binary_search.cc',
       '<(DEPTH)/starboard/shared/iso/system_sort.cc',
-      '<(DEPTH)/starboard/shared/libaom/aom_library_loader.cc',
-      '<(DEPTH)/starboard/shared/libaom/aom_library_loader.h',
-      '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.cc',
-      '<(DEPTH)/starboard/shared/libaom/aom_video_decoder.h',
       '<(DEPTH)/starboard/shared/libdav1d/dav1d_video_decoder.cc',
       '<(DEPTH)/starboard/shared/libdav1d/dav1d_video_decoder.h',
       '<(DEPTH)/starboard/shared/libde265/de265_library_loader.cc',
@@ -104,8 +99,6 @@
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wait_timed.cc',
       '<(DEPTH)/starboard/shared/libevent/socket_waiter_wake_up.cc',
-      '<(DEPTH)/starboard/shared/libvpx/vpx_library_loader.cc',
-      '<(DEPTH)/starboard/shared/libvpx/vpx_library_loader.h',
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.cc',
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.h',
       '<(DEPTH)/starboard/shared/linux/byte_swap.cc',
@@ -253,6 +246,8 @@
       '<(DEPTH)/starboard/shared/starboard/audio_sink/stub_audio_sink_type.h',
       '<(DEPTH)/starboard/shared/starboard/command_line.cc',
       '<(DEPTH)/starboard/shared/starboard/command_line.h',
+      '<(DEPTH)/starboard/shared/starboard/crash_handler.cc',
+      '<(DEPTH)/starboard/shared/starboard/crash_handler.h',
       '<(DEPTH)/starboard/shared/starboard/directory_can_open.cc',
       '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
       '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
@@ -361,11 +356,9 @@
       '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
       '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
       '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player',
-      '<(DEPTH)/third_party/aom_includes/aom_includes.gyp:aom',
       '<(DEPTH)/third_party/boringssl/boringssl.gyp:crypto',
       '<(DEPTH)/third_party/de265_includes/de265_includes.gyp:de265',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
-      '<(DEPTH)/third_party/libdav1d/libdav1d.gyp:libdav1d',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
       '<(DEPTH)/third_party/opus/opus.gyp:opus',
       '<(DEPTH)/third_party/pulseaudio_includes/pulseaudio_includes.gyp:pulseaudio',
@@ -430,15 +423,18 @@
           '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         ],
       }],
-      ['has_system_libvpx==0', {
-        'starboard_platform_dependencies': [
-          '<(DEPTH)/third_party/vpx_includes/vpx_includes.gyp:vpx',
-        ],
-      }],
       ['sb_evergreen_compatible == 1', {
         'starboard_platform_dependencies': [
           '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
+       ]},
+      ],
+      ['sb_evergreen_compatible == 1' and 'sb_evergreen_compatible_lite != 1', {
+        'starboard_platform_dependencies': [
           '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
+       ]},
+      ],
+      ['sb_evergreen_compatible_libunwind == 1', {
+        'starboard_platform_dependencies': [
           '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
        ]},
       ],

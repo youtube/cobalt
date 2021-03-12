@@ -68,11 +68,6 @@
 
 #include "ext_dat.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 static STACK_OF(X509V3_EXT_METHOD) *ext_list = NULL;
 
 static void ext_list_free(X509V3_EXT_METHOD *ext);

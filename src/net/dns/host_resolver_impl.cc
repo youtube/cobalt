@@ -88,6 +88,11 @@
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
+#endif
+
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
+
+#if defined(STARBOARD)
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
@@ -132,7 +137,7 @@ const char kOSErrorsForGetAddrinfoHistogramName[] =
     "Net.OSErrorsForGetAddrinfo_Mac";
 #elif defined(OS_LINUX)
     "Net.OSErrorsForGetAddrinfo_Linux";
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
     "Net.OSErrorsForGetAddrinfo";
 #endif
 
@@ -350,7 +355,7 @@ bool HaveOnlyLoopbackAddresses() {
   return false;
 #elif defined(OS_ANDROID)
   return android::HaveOnlyLoopbackAddresses();
-#elif defined(OS_NACL) || defined(OS_STARBOARD)
+#elif defined(OS_NACL) || defined(STARBOARD)
   NOTIMPLEMENTED();
   return false;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
@@ -957,7 +962,7 @@ class HostResolverImpl::ProcTask {
           base::BindOnce(&ProcTask::StartLookupAttempt,
                          weak_ptr_factory_.GetWeakPtr()),
           params_.unresponsive_delay *
-              std::pow(params_.retry_factor, attempt_number_ - 1));
+              pow(params_.retry_factor, attempt_number_ - 1));
     }
   }
 

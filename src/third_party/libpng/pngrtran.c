@@ -19,11 +19,7 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
-#if defined(STARBOARD)
-#  include "starboard/double.h"
-#  define fabs SbDoubleAbsolute
-#  define pow SbDoubleExponent
-#endif
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #ifdef PNG_READ_SUPPORTED
 
 /* Set the action on getting a CRC error for an ancillary or critical chunk. */

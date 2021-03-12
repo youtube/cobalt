@@ -18,6 +18,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
@@ -31,6 +32,7 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "starboard/thread_types.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 
 namespace {
@@ -92,6 +94,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
   library_path += kSystemImageLibraryPath;
+  if (!SbFileExists(library_path.c_str())) {
+    // Try the compressed path if the binary doesn't exits.
+    library_path += starboard::elf_loader::kCompressionSuffix;
+  }
 
   if (!g_elf_loader.Load(library_path, content_path, false)) {
     SB_NOTREACHED() << "Failed to load library at '"
@@ -124,10 +130,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
-    EvergreenAnnotations cobalt_version_info;
-    SbMemorySet(&cobalt_version_info, sizeof(EvergreenAnnotations), 0);
+    CrashpadAnnotations cobalt_version_info;
+    SbMemorySet(&cobalt_version_info, sizeof(CrashpadAnnotations), 0);
     SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
-                 EVERGREEN_USER_AGENT_MAX_SIZE);
+                 USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
         cobalt_version_info);
     SB_DLOG(INFO) << "Added user agent string to Crashpad.";

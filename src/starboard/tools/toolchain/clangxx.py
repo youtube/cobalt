@@ -62,10 +62,10 @@ class ExecutableLinker(DynamicLinkerBase, abstract.ExecutableLinker):
   def GetCommand(self, path, extra_flags, flags, shell):
     del shell  # Not used.
     if self._write_group:
-      return ('{0} {1} {2} -Wl,--start-group @$rspfile -Wl,--end-group -o $out'
+      return ('{0} {1} -Wl,--start-group @$rspfile -Wl,--end-group -o $out {2}'
               .format(path, extra_flags, flags))
     else:
-      return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
+      return '{0} {1} @$rspfile {2} -o $out'.format(path, extra_flags, flags)
 
 
 class SharedLibraryLinker(DynamicLinkerBase, abstract.SharedLibraryLinker):

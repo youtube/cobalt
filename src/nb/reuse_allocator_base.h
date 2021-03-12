@@ -92,7 +92,7 @@ class ReuseAllocatorBase : public Allocator {
     bool Merge(const MemoryBlock& other);
     // Return true if the current block can be used to fulfill an allocation
     // with the given size and alignment.
-    bool CanFullfill(std::size_t request_size, std::size_t alignment) const;
+    bool CanFulfill(std::size_t request_size, std::size_t alignment) const;
     // Allocate a block from this block with the given size and alignment.
     // Store the allocated block in |allocated|.  If the rest space is large
     // enough to form a block, it will be stored into |free|.  Otherwise the

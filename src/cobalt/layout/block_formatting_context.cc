@@ -23,9 +23,9 @@ namespace cobalt {
 namespace layout {
 
 BlockFormattingContext::BlockFormattingContext(
-    const LayoutParams& layout_params, const bool is_margin_collapsable)
+    const LayoutParams& layout_params, const bool is_margin_collapsible)
     : layout_params_(layout_params),
-      margin_collapsing_params_(MarginCollapsingParams(is_margin_collapsable)) {
+      margin_collapsing_params_(MarginCollapsingParams(is_margin_collapsible)) {
 }
 
 BlockFormattingContext::~BlockFormattingContext() {}

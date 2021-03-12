@@ -18,6 +18,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/ui_navigation/interface.h"
+#include "starboard/atomic.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -44,6 +45,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   void UnfocusAll();
   void SetEnabled(bool enabled);
   void SetDir(NativeItemDir dir);
+  void SetFocusDuration(float seconds);
   void SetSize(float width, float height);
   void SetTransform(const NativeMatrix2x3* transform);
   bool GetFocusTransform(NativeMatrix4* out_transform);
@@ -53,6 +55,10 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   const scoped_refptr<NavItem>& GetContainerItem() const;
   void SetContentOffset(float x, float y);
   void GetContentOffset(float* out_x, float* out_y);
+
+  // These functions query the currently-focused nav item, if any.
+  static bool GetGlobalFocusTransform(NativeMatrix4* out_transform);
+  static bool GetGlobalFocusVector(float* out_x, float* out_y);
 
  private:
   friend class base::RefCountedThreadSafe<NavItem>;
@@ -79,6 +85,7 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   State state_;
 
   static NativeCallbacks s_callbacks_;
+  static SbAtomicPtr s_focused_nav_item_;
 };
 
 }  // namespace ui_navigation

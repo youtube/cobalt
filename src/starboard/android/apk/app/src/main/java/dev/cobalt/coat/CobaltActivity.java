@@ -17,13 +17,16 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.NativeActivity;
+import android.content.ComponentCallbacks;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
@@ -37,7 +40,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends NativeActivity {
+public abstract class CobaltActivity extends NativeActivity implements ComponentCallbacks {
 
   // A place to put args while debugging so they're used even when starting from the launcher.
   // This should always be empty in submitted code.
@@ -63,6 +66,8 @@ public abstract class CobaltActivity extends NativeActivity {
   private KeyboardEditor keyboardEditor;
 
   private boolean forceCreateNewVideoSurfaceView = false;
+
+  private static native void nativeLowMemoryEvent();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -112,6 +117,7 @@ public abstract class CobaltActivity extends NativeActivity {
   @Override
   protected void onStart() {
     if (!isReleaseBuild()) {
+      getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecUtil.dumpAllDecoders();
     }
     if (forceCreateNewVideoSurfaceView) {
@@ -216,7 +222,36 @@ public abstract class CobaltActivity extends NativeActivity {
       }
     }
 
+    addCustomProxyArgs(args);
+
     return args.toArray(new String[0]);
+  }
+
+  private static void addCustomProxyArgs(List<String> args) {
+    Pair<String, String> config = detectSystemProxyConfig();
+
+    if (config.first == null || config.second == null) {
+      return;
+    }
+
+    try {
+      int port = Integer.parseInt(config.second);
+      if (port <= 0 || port > 0xFFFF) {
+        return;
+      }
+
+      String customProxy = String.format("--proxy=\"http=http://%s:%d\"", config.first, port);
+      Log.i(TAG, "addCustomProxyArgs: " + customProxy);
+      args.add(customProxy);
+    } catch (NumberFormatException e) {
+      Log.w(TAG, String.format("http.proxyPort: %s is not valid number", config.second), e);
+    }
+  }
+
+  private static Pair<String, String> detectSystemProxyConfig() {
+    String httpHost = System.getProperty("http.proxyHost", null);
+    String httpPort = System.getProperty("http.proxyPort", null);
+    return new Pair<String, String>(httpHost, httpPort);
   }
 
   protected boolean isReleaseBuild() {
@@ -302,4 +337,12 @@ public abstract class CobaltActivity extends NativeActivity {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
   }
+
+  @Override
+  public void onLowMemory() {
+    nativeLowMemoryEvent();
+  }
+
+  @Override
+  public void onConfigurationChanged(Configuration newConfig) {}
 }

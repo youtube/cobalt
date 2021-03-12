@@ -15,7 +15,6 @@
 #ifndef COBALT_EXTENSION_MEDIA_SESSION_H_
 #define COBALT_EXTENSION_MEDIA_SESSION_H_
 
-
 #include "starboard/configuration.h"
 #include "starboard/time.h"
 
@@ -113,9 +112,13 @@ typedef struct CobaltExtensionMediaSessionApi {
       CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
           update_platform_playback_state_callback);
 
-  // Destory platform's MediaSessionClient after the Cobalt's
+  // Destroy platform's MediaSessionClient after the Cobalt's
   // MediaSessionClient has been destroyed.
   void (*DestroyMediaSessionClientCallback)();
+
+  // Starboard method for updating playback state.
+  void (*UpdateActiveSessionPlatformPlaybackState)(
+      CobaltExtensionMediaSessionPlaybackState state);
 } CobaltExtensionMediaSessionApi;
 
 inline void CobaltExtensionMediaSessionActionDetailsInit(

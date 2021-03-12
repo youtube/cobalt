@@ -28,7 +28,7 @@
       ],
       'cflags': [
         # TODO: examine/upgrade code to see if these can be removed.
-        # Prelimenary investigation suggests that a rebase of the library
+        # Preliminary investigation suggests that a rebase of the library
         # will get rid of some or all of the warnings.
         '-Wno-sign-compare',
         '-Wno-unused-parameter',
@@ -287,6 +287,8 @@
         '<(DEPTH)/starboard/shared/starboard/audio_sink/stub_audio_sink_type.h',
         '<(DEPTH)/starboard/shared/starboard/command_line.cc',
         '<(DEPTH)/starboard/shared/starboard/command_line.h',
+        '<(DEPTH)/starboard/shared/starboard/crash_handler.cc',
+        '<(DEPTH)/starboard/shared/starboard/crash_handler.h',
         '<(DEPTH)/starboard/shared/starboard/directory_can_open.cc',
         '<(DEPTH)/starboard/shared/starboard/event_cancel.cc',
         '<(DEPTH)/starboard/shared/starboard/event_schedule.cc',
@@ -412,7 +414,15 @@
         ['sb_evergreen_compatible == 1', {
           'dependencies': [
             '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
+          ],},
+        ],
+        ['sb_evergreen_compatible == 1' and 'sb_evergreen_compatible_lite != 1', {
+          'dependencies': [
             '<(DEPTH)/starboard/loader_app/pending_restart.gyp:pending_restart',
+          ],},
+        ],
+        ['sb_evergreen_compatible_libunwind == 1', {
+          'dependencies': [
             '<(DEPTH)/third_party/llvm-project/libunwind/libunwind.gyp:unwind_starboard',
           ],},
         ],

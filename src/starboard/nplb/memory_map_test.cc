@@ -202,7 +202,7 @@ CopySumFunctionIntoMemory(void* memory) {
 }
 
 // Cobalt can not map executable memory. If executable memory is needed, map
-// non-executable memory first and use SbMemoryProtect to change memory accesss
+// non-executable memory first and use SbMemoryProtect to change memory access
 // to executable.
 TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
   SbMemoryMapFlags exec_flags[] = {
@@ -222,10 +222,10 @@ TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
 
 TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
   SbMemoryMapFlags all_from_flags[] = {
-    SbMemoryMapFlags(kSbMemoryMapProtectReserved),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead),
-    SbMemoryMapFlags(kSbMemoryMapProtectWrite),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
+      SbMemoryMapFlags(kSbMemoryMapProtectReserved),
+      SbMemoryMapFlags(kSbMemoryMapProtectRead),
+      SbMemoryMapFlags(kSbMemoryMapProtectWrite),
+      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
   };
   SbMemoryMapFlags all_to_flags[] = {
     SbMemoryMapFlags(kSbMemoryMapProtectReserved),

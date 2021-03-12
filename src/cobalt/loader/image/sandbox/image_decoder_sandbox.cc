@@ -53,7 +53,7 @@ struct ImageDecoderCallback {
   scoped_refptr<loader::image::Image> image;
 };
 
-std::vector<base::FilePath> GetImagePaths(const char* extention) {
+std::vector<base::FilePath> GetImagePaths(const char* extension) {
   base::FilePath image_path;
   CHECK(base::PathService::Get(base::DIR_TEST_DATA, &image_path));
   image_path = image_path.Append(FILE_PATH_LITERAL("cobalt"))
@@ -65,7 +65,7 @@ std::vector<base::FilePath> GetImagePaths(const char* extention) {
                                  FileEnumerator::FILES);
   for (base::FilePath next = file_enumerator.Next(); !next.empty();
        next = file_enumerator.Next()) {
-    if (next.Extension() == extention) {
+    if (next.Extension() == extension) {
       result.push_back(next);
     }
   }

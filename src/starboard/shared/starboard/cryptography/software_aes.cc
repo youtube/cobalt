@@ -80,24 +80,24 @@ namespace starboard {
 namespace cryptography {
 
 namespace {
-inline uint32_t GETU32(const void *in) {
+inline uint32_t GETU32(const void* in) {
   uint32_t value;
   SbMemoryCopy(&value, in, sizeof(value));
   return SbByteSwapU32(value);
 }
 
-inline void PUTU32(void *out, uint32_t value) {
+inline void PUTU32(void* out, uint32_t value) {
   value = SbByteSwapU32(value);
   SbMemoryCopy(out, &value, sizeof(value));
 }
 
-inline uint32_t GETU32_aligned(const void *in) {
-  const char *alias = static_cast<const char*>(in);
+inline uint32_t GETU32_aligned(const void* in) {
+  const char* alias = static_cast<const char*>(in);
   return SbByteSwapU32(*reinterpret_cast<const uint32_t*>(alias));
 }
 
-inline void PUTU32_aligned(void *in, uint32_t value) {
-  char *alias = static_cast<char*>(in);
+inline void PUTU32_aligned(void* in, uint32_t value) {
+  char* alias = static_cast<char*>(in);
   *reinterpret_cast<uint32_t*>(alias) = SbByteSwapU32(value);
 }
 
@@ -623,7 +623,7 @@ inline void ctr128_inc_aligned(void* counter_pointer) {
  * before the first call to CRYPTO_ctr128_encrypt(). This algorithm assumes
  * that the counter is in the x lower bits of the IV (ivec), and that the
  * application has full control over overflow and the rest of the IV.  This
- * implementation takes NO responsability for checking that the counter
+ * implementation takes NO responsibility for checking that the counter
  * doesn't overflow into the rest of the IV when incremented.
  */
 void CRYPTO_ctr128_encrypt(const void* in_pointer,
@@ -770,7 +770,7 @@ void CRYPTO_cbc128_decrypt(const void* in_pointer,
   } else {
     if (16 % sizeof(size_t) == 0) { /* always true */
       while (len >= 16) {
-        size_t c, *out_t = reinterpret_cast<size_t *>(out);
+        size_t c, *out_t = reinterpret_cast<size_t*>(out);
         size_t* ivec_t = reinterpret_cast<size_t*>(ivec);
         const size_t* in_t = reinterpret_cast<const size_t*>(in);
 
@@ -1161,7 +1161,7 @@ void gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16]) {
   int cnt = 15;
   size_t rem, nlo, nhi;
 
-  nlo = ((const uint8_t *)Xi)[15];
+  nlo = ((const uint8_t*)Xi)[15];
   nhi = nlo >> 4;
   nlo &= 0xf;
 
@@ -1185,7 +1185,7 @@ void gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16]) {
       break;
     }
 
-    nlo = ((const uint8_t *)Xi)[cnt];
+    nlo = ((const uint8_t*)Xi)[cnt];
     nhi = nlo >> 4;
     nlo &= 0xf;
 
@@ -1211,15 +1211,17 @@ void gcm_gmult_4bit(uint64_t Xi[2], const u128 Htable[16]) {
  * performance improvement, at least not on x86[_64]. It's here
  * mostly as reference and a placeholder for possible future
  * non-trivial optimization[s]... */
-void gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16],
-                    const uint8_t *inp, size_t len) {
+void gcm_ghash_4bit(uint64_t Xi[2],
+                    const u128 Htable[16],
+                    const uint8_t* inp,
+                    size_t len) {
   u128 Z;
   int cnt;
   size_t rem, nlo, nhi;
 
   do {
     cnt = 15;
-    nlo = ((const uint8_t *)Xi)[15];
+    nlo = ((const uint8_t*)Xi)[15];
     nlo ^= inp[15];
     nhi = nlo >> 4;
     nlo &= 0xf;
@@ -1244,7 +1246,7 @@ void gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16],
         break;
       }
 
-      nlo = ((const uint8_t *)Xi)[cnt];
+      nlo = ((const uint8_t*)Xi)[cnt];
       nlo ^= inp[cnt];
       nhi = nlo >> 4;
       nlo &= 0xf;
@@ -1268,10 +1270,12 @@ void gcm_ghash_4bit(uint64_t Xi[2], const u128 Htable[16],
 }
 }  // namespace
 
-void CRYPTO_ghash_init(gmult_func *out_mult, ghash_func *out_hash,
-                       u128 *out_key, u128 out_table[16],
-                       int *out_is_avx,
-                       const uint8_t *gcm_key) {
+void CRYPTO_ghash_init(gmult_func* out_mult,
+                       ghash_func* out_hash,
+                       u128* out_key,
+                       u128 out_table[16],
+                       int* out_is_avx,
+                       const uint8_t* gcm_key) {
   *out_is_avx = 0;
 
   union {
@@ -1292,7 +1296,7 @@ void CRYPTO_ghash_init(gmult_func *out_mult, ghash_func *out_hash,
   *out_hash = gcm_ghash_4bit;
 }
 
-void AES_gcm128_init(GCM128_CONTEXT *ctx, const AES_KEY *aes_key, int enc) {
+void AES_gcm128_init(GCM128_CONTEXT* ctx, const AES_KEY* aes_key, int enc) {
   SbMemorySet(ctx, 0, sizeof(*ctx));
   ctx->block = AES_encrypt;
 
@@ -1305,10 +1309,12 @@ void AES_gcm128_init(GCM128_CONTEXT *ctx, const AES_KEY *aes_key, int enc) {
                     gcm_key);
 }
 
-void AES_gcm128_setiv(GCM128_CONTEXT *ctx, const AES_KEY *key,
-                      const void *iv_void, size_t len) {
+void AES_gcm128_setiv(GCM128_CONTEXT* ctx,
+                      const AES_KEY* key,
+                      const void* iv_void,
+                      size_t len) {
   unsigned int ctr;
-  const uint8_t *iv = static_cast<const uint8_t*>(iv_void);
+  const uint8_t* iv = static_cast<const uint8_t*>(iv_void);
 
   ctx->Yi.u[0] = 0;
   ctx->Yi.u[1] = 0;
@@ -1352,10 +1358,10 @@ void AES_gcm128_setiv(GCM128_CONTEXT *ctx, const AES_KEY *key,
   PUTU32_aligned(ctx->Yi.c + 12, ctr);
 }
 
-int AES_gcm128_aad(GCM128_CONTEXT *ctx, const void *aad_void, size_t len) {
+int AES_gcm128_aad(GCM128_CONTEXT* ctx, const void* aad_void, size_t len) {
   unsigned int n;
   uint64_t alen = ctx->len.u[0];
-  const uint8_t *aad = static_cast<const uint8_t*>(aad_void);
+  const uint8_t* aad = static_cast<const uint8_t*>(aad_void);
 
   if (ctx->len.u[1]) {
     return 0;
@@ -1404,17 +1410,19 @@ int AES_gcm128_aad(GCM128_CONTEXT *ctx, const void *aad_void, size_t len) {
   return 1;
 }
 
-int AES_gcm128_encrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
-                       const void *in_void, void *out_void, size_t len) {
+int AES_gcm128_encrypt(GCM128_CONTEXT* ctx,
+                       const AES_KEY* key,
+                       const void* in_void,
+                       void* out_void,
+                       size_t len) {
   unsigned int n, ctr;
   uint64_t mlen = ctx->len.u[1];
   block128_f block = ctx->block;
-  const uint8_t *in = static_cast<const uint8_t*>(in_void);
-  uint8_t *out = static_cast<uint8_t*>(out_void);
+  const uint8_t* in = static_cast<const uint8_t*>(in_void);
+  uint8_t* out = static_cast<uint8_t*>(out_void);
 
   mlen += len;
-  if (mlen > ((UINT64_C(1) << 36) - 32) ||
-      (sizeof(len) == 8 && mlen < len)) {
+  if (mlen > ((UINT64_C(1) << 36) - 32) || (sizeof(len) == 8 && mlen < len)) {
     return 0;
   }
   ctx->len.u[1] = mlen;
@@ -1443,8 +1451,8 @@ int AES_gcm128_encrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
   }
 
   while (len >= 16) {
-    size_t *out_t = reinterpret_cast<size_t*>(out);
-    const size_t *in_t = reinterpret_cast<const size_t*>(in);
+    size_t* out_t = reinterpret_cast<size_t*>(out);
+    const size_t* in_t = reinterpret_cast<const size_t*>(in);
 
     (*block)(ctx->Yi.c, ctx->EKi.c, key);
     ++ctr;
@@ -1472,17 +1480,19 @@ int AES_gcm128_encrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
   return 1;
 }
 
-int AES_gcm128_decrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
-                       const void *in_void, void *out_void, size_t len) {
+int AES_gcm128_decrypt(GCM128_CONTEXT* ctx,
+                       const AES_KEY* key,
+                       const void* in_void,
+                       void* out_void,
+                       size_t len) {
   unsigned int n, ctr;
   uint64_t mlen = ctx->len.u[1];
   block128_f block = ctx->block;
-  const uint8_t *in = static_cast<const uint8_t*>(in_void);
-  uint8_t *out = static_cast<uint8_t*>(out_void);
+  const uint8_t* in = static_cast<const uint8_t*>(in_void);
+  uint8_t* out = static_cast<uint8_t*>(out_void);
 
   mlen += len;
-  if (mlen > ((UINT64_C(1) << 36) - 32) ||
-      (sizeof(len) == 8 && mlen < len)) {
+  if (mlen > ((UINT64_C(1) << 36) - 32) || (sizeof(len) == 8 && mlen < len)) {
     return 0;
   }
   ctx->len.u[1] = mlen;
@@ -1513,8 +1523,8 @@ int AES_gcm128_decrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
   }
 
   while (len >= 16) {
-    size_t *out_t = reinterpret_cast<size_t*>(out);
-    const size_t *in_t = reinterpret_cast<const size_t*>(in);
+    size_t* out_t = reinterpret_cast<size_t*>(out);
+    const size_t* in_t = reinterpret_cast<const size_t*>(in);
 
     (*block)(ctx->Yi.c, ctx->EKi.c, key);
     ++ctr;
@@ -1546,7 +1556,7 @@ int AES_gcm128_decrypt(GCM128_CONTEXT *ctx, const AES_KEY *key,
   return 1;
 }
 
-void AES_gcm128_tag(GCM128_CONTEXT *ctx, void *tag, size_t len) {
+void AES_gcm128_tag(GCM128_CONTEXT* ctx, void* tag, size_t len) {
   uint64_t alen = ctx->len.u[0] << 3;
   uint64_t clen = ctx->len.u[1] << 3;
 

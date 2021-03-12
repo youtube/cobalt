@@ -16,6 +16,7 @@
 
 #include <jni.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <list>
@@ -95,6 +96,8 @@ const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
 const int kMaxPendingWorkSize = 128;
 
+const int kFpsGuesstimateRequiredInputBufferCount = 3;
+
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
@@ -120,6 +123,34 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
          color_metadata.range == kSbMediaRangeIdLimited &&
          Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
 }
+
+void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
+                                     void* context,
+                                     int ticket,
+                                     SbDrmStatus status,
+                                     SbDrmSessionRequestType type,
+                                     const char* error_message,
+                                     const void* session_id,
+                                     int session_id_size,
+                                     const void* content,
+                                     int content_size,
+                                     const char* url) {}
+
+void StubDrmSessionUpdatedFunc(SbDrmSystem drm_system,
+                               void* context,
+                               int ticket,
+                               SbDrmStatus status,
+                               const char* error_message,
+                               const void* session_id,
+                               int session_id_size) {}
+
+void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
+                                          void* context,
+                                          const void* session_id,
+                                          int session_id_size,
+                                          int number_of_keys,
+                                          const SbDrmKeyId* key_ids,
+                                          const SbDrmKeyStatus* key_statuses) {}
 
 }  // namespace
 
@@ -306,6 +337,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                                decode_target_graphics_context_provider,
                            const char* max_video_capabilities,
                            int tunnel_mode_audio_session_id,
+                           bool force_secure_pipeline_under_tunnel_mode,
                            std::string* error_message)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -322,6 +354,14 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
   if (tunnel_mode_audio_session_id != -1) {
     video_frame_tracker_.reset(new VideoFrameTracker);
   }
+  if (force_secure_pipeline_under_tunnel_mode) {
+    SB_DCHECK(tunnel_mode_audio_session_id != -1);
+    SB_DCHECK(!drm_system_);
+    drm_system_to_enforce_tunnel_mode_.reset(new DrmSystem(
+        nullptr, StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
+        StubDrmSessionKeyStatusesChangedFunc));
+    drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
+  }
 
   if (require_software_codec_) {
     SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
@@ -330,11 +370,13 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     number_of_hardware_decoders_++;
   }
 
-  if (!InitializeCodec(error_message)) {
-    *error_message =
-        "Failed to initialize video decoder with error: " + *error_message;
-    SB_LOG(ERROR) << *error_message;
-    TeardownCodec();
+  if (video_codec_ != kSbMediaVideoCodecAv1) {
+    if (!InitializeCodec(error_message)) {
+      *error_message =
+          "Failed to initialize video decoder with error: " + *error_message;
+      SB_LOG(ERROR) << *error_message;
+      TeardownCodec();
+    }
   }
 }
 
@@ -367,7 +409,6 @@ VideoDecoder::GetRenderAlgorithm() {
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(media_decoder_);
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -376,7 +417,15 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
-  media_decoder_->Initialize(error_cb_);
+  // There's a race condition when suspending the app. If surface view is
+  // destroyed before this function is called, |media_decoder_| could be null
+  // here.
+  if (!media_decoder_) {
+    SB_LOG(INFO) << "Trying to call Initialize() when media_decoder_ is null.";
+    return;
+  }
+  media_decoder_->Initialize(
+      std::bind(&VideoDecoder::ReportError, this, _1, _2));
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
@@ -405,6 +454,7 @@ void VideoDecoder::WriteInputBuffer(
   SB_DCHECK(decoder_status_cb_);
 
   if (input_buffer_written_ == 0) {
+    SB_DCHECK(video_fps_ == 0);
     first_buffer_timestamp_ = input_buffer->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
@@ -419,7 +469,7 @@ void VideoDecoder::WriteInputBuffer(
 
     // Re-initialize the codec now if it was torn down either in |Reset| or
     // because we need to change the color metadata.
-    if (media_decoder_ == NULL) {
+    if (video_codec_ != kSbMediaVideoCodecAv1 && media_decoder_ == NULL) {
       std::string error_message;
       if (!InitializeCodec(&error_message)) {
         error_message =
@@ -439,64 +489,27 @@ void VideoDecoder::WriteInputBuffer(
 
   ++input_buffer_written_;
 
-  // There's a race condition when suspending the app. If surface view is
-  // destroyed before video decoder stopped, |media_decoder_| could be null
-  // here. And error_cb_() could be handled asynchronously. It's possible
-  // that WriteInputBuffer() is called again when the first WriteInputBuffer()
-  // fails, in such case is_valid() will also return false.
-  if (!is_valid()) {
-    SB_LOG(INFO) << "Trying to write input buffer when codec is not available.";
-    return;
-  }
-  media_decoder_->WriteInputBuffer(input_buffer);
-  if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
-    decoder_status_cb_(kNeedMoreInput, NULL);
-  } else if (tunnel_mode_audio_session_id_ != -1) {
-    // In tunnel mode playback when need data is not signaled above, it is
-    // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
-    // to the renderer again.  Schedule a task to check back.
-    Schedule(std::bind(&VideoDecoder::OnTunnelModeCheckForNeedMoreInput, this),
-             kNeedMoreInputCheckIntervalInTunnelMode);
-  }
+  if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
+    SB_DCHECK(!media_decoder_);
 
-  if (tunnel_mode_audio_session_id_ != -1) {
-    video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
-
-    if (tunnel_mode_prerolling_.load()) {
-      // TODO: Refine preroll logic in tunnel mode.
-      bool enough_buffers_written_to_media_codec = false;
-      if (first_buffer_timestamp_ == 0) {
-        // Initial playback.
-        enough_buffers_written_to_media_codec =
-            (input_buffer_written_ -
-             media_decoder_->GetNumberOfPendingTasks()) >
-            kInitialPrerollFrameCount;
-      } else {
-        // Seeking.  Note that this branch can be eliminated once seeking in
-        // tunnel mode is always aligned to the next video key frame.
-        enough_buffers_written_to_media_codec =
-            (input_buffer_written_ -
-             media_decoder_->GetNumberOfPendingTasks()) >
-                kSeekingPrerollPendingWorkSizeInTunnelMode &&
-            input_buffer->timestamp() >= video_frame_tracker_->seek_to_time();
-      }
-
-      bool cache_full =
-          media_decoder_->GetNumberOfPendingTasks() >= kMaxPendingWorkSize;
-      bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
-                       enough_buffers_written_to_media_codec || cache_full;
-
-      if (prerolled && tunnel_mode_prerolling_.exchange(false)) {
-        SB_LOG(INFO)
-            << "Tunnel mode preroll finished on enqueuing input buffer "
-            << input_buffer->timestamp() << ", for seek time "
-            << video_frame_tracker_->seek_to_time();
-        decoder_status_cb_(
-            kNeedMoreInput,
-            new VideoFrame(video_frame_tracker_->seek_to_time()));
-      }
+    if (pending_input_buffers_.size() <
+        kFpsGuesstimateRequiredInputBufferCount) {
+      pending_input_buffers_.push_back(input_buffer);
+      decoder_status_cb_(kNeedMoreInput, NULL);
+      return;
+    }
+    std::string error_message;
+    if (!InitializeCodec(&error_message)) {
+      error_message =
+          "Failed to reinitialize codec with error: " + error_message;
+      SB_LOG(ERROR) << error_message;
+      TeardownCodec();
+      ReportError(kSbPlayerErrorDecode, error_message);
+      return;
     }
   }
+
+  WriteInputBufferInternal(input_buffer);
 }
 
 void VideoDecoder::WriteEndOfStream() {
@@ -517,14 +530,29 @@ void VideoDecoder::WriteEndOfStream() {
     return;
   }
 
+  if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
+    SB_DCHECK(!media_decoder_);
+    SB_DCHECK(pending_input_buffers_.size() == input_buffer_written_);
+
+    std::string error_message;
+    if (!InitializeCodec(&error_message)) {
+      error_message =
+          "Failed to reinitialize codec with error: " + error_message;
+      SB_LOG(ERROR) << error_message;
+      TeardownCodec();
+      ReportError(kSbPlayerErrorDecode, error_message);
+      return;
+    }
+  }
+
   // There's a race condition when suspending the app. If surface view is
   // destroyed before video decoder stopped, |media_decoder_| could be null
   // here. And error_cb_() could be handled asynchronously. It's possible
   // that WriteEndOfStream() is called immediately after the first
-  // WriteInputBuffer() fails, in such case is_valid() will also return false.
-  if (!is_valid()) {
+  // WriteInputBuffer() fails, in such case |media_decoder_| will be null.
+  if (!media_decoder_) {
     SB_LOG(INFO)
-        << "Trying to write end of stream when codec is not available.";
+        << "Trying to write end of stream when media_decoder_ is null.";
     return;
   }
 
@@ -541,6 +569,8 @@ void VideoDecoder::Reset() {
   tunnel_mode_frame_rendered_.store(false);
   input_buffer_written_ = 0;
   end_of_stream_written_ = false;
+  video_fps_ = 0;
+  pending_input_buffers_.clear();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling VideoDecoder::Reset() to update
@@ -551,6 +581,36 @@ void VideoDecoder::Reset() {
 bool VideoDecoder::InitializeCodec(std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(error_message);
+
+  if (video_codec_ == kSbMediaVideoCodecAv1) {
+    SB_DCHECK(pending_input_buffers_.size() > 0);
+
+    // Guesstimate the video fps.
+    if (pending_input_buffers_.size() == 1) {
+      video_fps_ = 30;
+    } else {
+      SbTime first_timestamp = pending_input_buffers_[0]->timestamp();
+      SbTime second_timestamp = pending_input_buffers_[1]->timestamp();
+      if (pending_input_buffers_.size() > 2) {
+        second_timestamp =
+            std::min(second_timestamp, pending_input_buffers_[2]->timestamp());
+      }
+      SbTime frame_duration = second_timestamp - first_timestamp;
+      if (frame_duration > 0) {
+        // To avoid problems caused by deviation of fps calculation, we use the
+        // nearest multiple of 5 to check codec capability. So, the fps like 61,
+        // 62 will be capped to 60, and 24 will be increased to 25.
+        const double kFpsMinDifference = 5;
+        video_fps_ =
+            std::round(kSbTimeSecond / (second_timestamp - first_timestamp) /
+                       kFpsMinDifference) *
+            kFpsMinDifference;
+      } else {
+        video_fps_ = 30;
+      }
+    }
+    SB_DCHECK(video_fps_ > 0);
+  }
 
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
@@ -606,9 +666,15 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
+  if (video_codec_ == kSbMediaVideoCodecAv1) {
+    SB_DCHECK(video_fps_ > 0);
+  } else {
+    SB_DCHECK(video_fps_ == 0);
+  }
   media_decoder_.reset(new MediaDecoder(
-      this, video_codec_, width, height, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      this, video_codec_, width, height, video_fps_, j_output_surface,
+      drm_system_, color_metadata_ ? &*color_metadata_ : nullptr,
+      require_software_codec_,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, error_message));
   if (media_decoder_->is_valid()) {
@@ -617,6 +683,16 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
     media_decoder_->SetPlaybackRate(playback_rate_);
+
+    if (video_codec_ == kSbMediaVideoCodecAv1) {
+      SB_DCHECK(!pending_input_buffers_.empty());
+    } else {
+      SB_DCHECK(pending_input_buffers_.empty());
+    }
+    while (!pending_input_buffers_.empty()) {
+      WriteInputBufferInternal(pending_input_buffers_[0]);
+      pending_input_buffers_.pop_front();
+    }
     return true;
   }
   media_decoder_.reset();
@@ -676,6 +752,68 @@ void VideoDecoder::OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) {
   //       handling of preroll and EOS for pure punchout decoders.
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   sink_->Render();
+}
+
+void VideoDecoder::WriteInputBufferInternal(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  // There's a race condition when suspending the app. If surface view is
+  // destroyed before video decoder stopped, |media_decoder_| could be null
+  // here. And error_cb_() could be handled asynchronously. It's possible
+  // that WriteInputBuffer() is called again when the first WriteInputBuffer()
+  // fails, in such case |media_decoder_| will be null.
+  if (!media_decoder_) {
+    SB_LOG(INFO) << "Trying to write input buffer when media_decoder_ is null.";
+    return;
+  }
+  media_decoder_->WriteInputBuffer(input_buffer);
+  if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
+    decoder_status_cb_(kNeedMoreInput, NULL);
+  } else if (tunnel_mode_audio_session_id_ != -1) {
+    // In tunnel mode playback when need data is not signaled above, it is
+    // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
+    // to the renderer again.  Schedule a task to check back.
+    Schedule(std::bind(&VideoDecoder::OnTunnelModeCheckForNeedMoreInput, this),
+             kNeedMoreInputCheckIntervalInTunnelMode);
+  }
+
+  if (tunnel_mode_audio_session_id_ != -1) {
+    video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
+
+    if (tunnel_mode_prerolling_.load()) {
+      // TODO: Refine preroll logic in tunnel mode.
+      bool enough_buffers_written_to_media_codec = false;
+      if (first_buffer_timestamp_ == 0) {
+        // Initial playback.
+        enough_buffers_written_to_media_codec =
+            (input_buffer_written_ - pending_input_buffers_.size() -
+             media_decoder_->GetNumberOfPendingTasks()) >
+            kInitialPrerollFrameCount;
+      } else {
+        // Seeking.  Note that this branch can be eliminated once seeking in
+        // tunnel mode is always aligned to the next video key frame.
+        enough_buffers_written_to_media_codec =
+            (input_buffer_written_ - pending_input_buffers_.size() -
+             media_decoder_->GetNumberOfPendingTasks()) >
+                kSeekingPrerollPendingWorkSizeInTunnelMode &&
+            input_buffer->timestamp() >= video_frame_tracker_->seek_to_time();
+      }
+
+      bool cache_full =
+          media_decoder_->GetNumberOfPendingTasks() >= kMaxPendingWorkSize;
+      bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
+                       enough_buffers_written_to_media_codec || cache_full;
+
+      if (prerolled && tunnel_mode_prerolling_.exchange(false)) {
+        SB_LOG(INFO)
+            << "Tunnel mode preroll finished on enqueuing input buffer "
+            << input_buffer->timestamp() << ", for seek time "
+            << video_frame_tracker_->seek_to_time();
+        decoder_status_cb_(
+            kNeedMoreInput,
+            new VideoFrame(video_frame_tracker_->seek_to_time()));
+      }
+    }
+  }
 }
 
 void VideoDecoder::ProcessOutputBuffer(
@@ -872,6 +1010,15 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
 
+  // There's a race condition when suspending the app. If surface view is
+  // destroyed before this function is called, |media_decoder_| could be null
+  // here, in such case |media_decoder_| will be null.
+  if (!media_decoder_) {
+    SB_LOG(INFO) << "Trying to call OnTunnelModeCheckForNeedMoreInput() when"
+                 << " media_decoder_ is null.";
+    return;
+  }
+
   if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
@@ -883,7 +1030,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 
 void VideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
-    // Wait until codec is stoped.
+    // Wait until codec is stopped.
     ScopedLock lock(surface_destroy_mutex_);
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
     surface_condition_variable_.WaitTimed(kSbTimeSecond);

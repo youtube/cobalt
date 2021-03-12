@@ -266,7 +266,7 @@ TEST_F(WebSocketTest, ParseResourceNameWithQuery) {
   EXPECT_EQ(resource_name, "/resource_name?abc=xyz&j=3");
 }
 
-TEST_F(WebSocketTest, FailUnsecurePort) {
+TEST_F(WebSocketTest, FailInsecurePort) {
   scoped_refptr<script::ScriptException> exception;
 
   EXPECT_CALL(exception_state_, SetException(_))

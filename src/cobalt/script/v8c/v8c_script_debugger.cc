@@ -36,9 +36,7 @@ namespace v8c {
 
 namespace {
 constexpr const char* kInspectorDomains[] = {
-    "Runtime",
-    "Debugger",
-    "Profiler",
+    "Runtime", "Debugger", "Profiler",
 };
 
 constexpr int kContextGroupId = 1;
@@ -126,7 +124,7 @@ std::string V8cScriptDebugger::Detach() {
   inspector_->contextDestroyed(context);
 
   // After the frontend knows the context is destroyed we can kill the session.
-  // If/when we re-atttach we'll connect a new session and the V8 inspector will
+  // If/when we re-attach we'll connect a new session and the V8 inspector will
   // then inform the frontend about the sources, etc. in the new context.
   DCHECK(inspector_session_);
   std::vector<uint8_t> state = inspector_session_->state();
@@ -340,7 +338,6 @@ void V8cScriptDebugger::consoleAPIMessage(
     const v8_inspector::StringView& message,
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* trace) {
-
   std::string source;
   if (url.length()) {
     std::ostringstream oss;

@@ -109,17 +109,16 @@ void DebugHub::SendCommand(const std::string& method,
 
 const script::Sequence<ConsoleCommand> DebugHub::console_commands() const {
   script::Sequence<ConsoleCommand> result;
-  ConsoleCommandManager* command_mananger =
-      ConsoleCommandManager::GetInstance();
-  DCHECK(command_mananger);
-  if (command_mananger) {
-    std::set<std::string> commands = command_mananger->GetRegisteredCommands();
+  ConsoleCommandManager* command_manager = ConsoleCommandManager::GetInstance();
+  DCHECK(command_manager);
+  if (command_manager) {
+    std::set<std::string> commands = command_manager->GetRegisteredCommands();
     for (std::set<std::string>::const_iterator it = commands.begin();
          it != commands.end(); ++it) {
       ConsoleCommand console_command;
       console_command.set_command(*it);
-      console_command.set_short_help(command_mananger->GetShortHelp(*it));
-      console_command.set_long_help(command_mananger->GetLongHelp(*it));
+      console_command.set_short_help(command_manager->GetShortHelp(*it));
+      console_command.set_long_help(command_manager->GetLongHelp(*it));
       result.push_back(console_command);
     }
   }

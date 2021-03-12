@@ -24,7 +24,7 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return false;
 }
 
-bool AddAnnotationsToCrashpad(EvergreenAnnotations annotations) {
+bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
   return false;
 }
 

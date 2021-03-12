@@ -14,9 +14,7 @@
 
 #include "cobalt/css_parser/scanner.h"
 
-#if defined(OS_STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 
 #include <limits>
 
@@ -383,7 +381,7 @@ void Scanner::ScanUnrecognizedAtRule() {
       if ((first_input_iterator == ')' && brace_stack.top() == '(') ||
           (first_input_iterator == '}' && brace_stack.top() == '{') ||
           (first_input_iterator == ']' && brace_stack.top() == '[')) {
-        // Pop the open brace from stack when encourtering a match.
+        // Pop the open brace from stack when encountering a match.
         brace_stack.pop();
 
         continue;
@@ -432,9 +430,10 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     char first_character(*input_iterator_);
     HandleBraceIfExists(first_character);
     CharacterType character_type(
-        first_character >= 0 ? kTypesOfAsciiCharacters
-                                   [static_cast<unsigned char>(first_character)]
-                             : kIdentifierStartCharacter);
+        first_character >= 0
+            ? kTypesOfAsciiCharacters[static_cast<unsigned char>(
+                  first_character)]
+            : kIdentifierStartCharacter);
     switch (character_type) {
       case kCaselessUCharacter:
         return ScanFromCaselessU(token_value);
@@ -1069,8 +1068,7 @@ bool Scanner::DetectMediaFeatureNamePrefix(Token* token) {
 Token Scanner::ScanFromLess() {
   ++input_iterator_;
 
-  if (input_iterator_[0] == '!' &&
-      input_iterator_[1] == '-' &&
+  if (input_iterator_[0] == '!' && input_iterator_[1] == '-' &&
       input_iterator_[2] == '-') {
     input_iterator_ += 3;
     return kSgmlCommentDelimiterToken;
@@ -3431,7 +3429,7 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
         }
       } else if (length == 12) {
         // Checking the last character first could further reduce
-        // the possibile cases.
+        // the possible cases.
         if (IsAsciiAlphaCaselessEqual(name.begin[11], 'e') &&
             IsEqualToCssIdentifier(name.begin + 2, "eft-middl")) {
           *at_token = kLeftMiddleToken;
@@ -3479,7 +3477,7 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
         }
       } else if (length == 13) {
         // Checking the last character first could further reduce
-        // the possibile cases.
+        // the possible cases.
         if (IsAsciiAlphaCaselessEqual(name.begin[12], 'e') &&
             IsEqualToCssIdentifier(name.begin + 2, "ight-middl")) {
           *at_token = kRightMiddleToken;

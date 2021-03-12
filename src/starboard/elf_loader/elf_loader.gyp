@@ -21,12 +21,14 @@
         'elf_hash_table.cc',
         'elf_loader.h',
         'elf_loader.cc',
-        'elf_loader_switches.h',
-        'elf_loader_switches.cc',
+        'elf_loader_constants.h',
+        'elf_loader_constants.cc',
         'exported_symbols.cc',
         'file.h',
         'file_impl.h',
         'file_impl.cc',
+        'lz4_file_impl.h',
+        'lz4_file_impl.cc',
         'gnu_hash_table.h',
         'gnu_hash_table.cc',
         'dynamic_section.h',
@@ -53,17 +55,11 @@
         'src/include',
         'src/src/',
       ],
-      'conditions': [
-        ['sb_evergreen_compatible == 1', {
-          'variables': {
-            'sb_crashpad_enabled': 1,
-          },
-        },],
-      ],
       'dependencies': [
         '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
         '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/third_party/lz4/lz4.gyp:lz4',
       ],
       'sources': [
         '<@(common_elf_loader_sources)',
@@ -172,13 +168,15 @@
       'conditions': [
         ['target_arch in ["x86", "x64", "arm", "arm64"] ', {
           'sources': [
+            'dynamic_section_test.cc',
             'elf_loader_test.cc',
             'elf_header_test.cc',
-            'dynamic_section_test.cc',
+            'lz4_file_impl_test.cc',
             'program_table_test.cc',
             'relocations_test.cc',
           ],
           'dependencies': [
+            'copy_elf_loader_testdata',
             'elf_loader',
           ],
         }],
@@ -194,6 +192,17 @@
         'executable_name': 'elf_loader_test',
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
+    },
+    {
+      'target_name': 'copy_elf_loader_testdata',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/starboard/elf_loader/testdata/',
+        ],
+        'content_test_output_subdir': 'starboard/elf_loader/testdata',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
   ]
 }

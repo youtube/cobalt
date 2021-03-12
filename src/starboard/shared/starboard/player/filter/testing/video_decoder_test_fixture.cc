@@ -223,7 +223,7 @@ void VideoDecoderTestFixture::AssertValidDecodeTargetWhenSupported() {
 #endif  // SB_HAS(GLES2)
 }
 
-// This has to be called when the decoder is just initialized/reseted or when
+// This has to be called when the decoder is just initialized/reset or when
 // status is |kNeedMoreInput|.
 void VideoDecoderTestFixture::WriteSingleInput(size_t index) {
   ASSERT_TRUE(need_more_input_);
@@ -336,6 +336,7 @@ void VideoDecoderTestFixture::DrainOutputs(bool* error_occurred,
                     event.frame->timestamp());
         }
         decoded_frames_.push_back(event.frame);
+        SB_DCHECK(!outstanding_inputs_.empty());
         ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
                                     event.frame->timestamp()));
         outstanding_inputs_.erase(outstanding_inputs_.begin());

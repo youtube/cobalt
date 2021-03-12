@@ -199,7 +199,7 @@ bool CORSPreflight::IsSafeResponseHeader(
     const std::vector<std::string>& CORS_exposed_header_name_list,
     bool credentials_mode_is_include) {
   // Every check in this function is case-insensitive comparison.
-  // Header is safe if it's CORS-safelisted repsonse-header name.
+  // Header is safe if it's CORS-safelisted response-header name.
   if (IsInArray(name.c_str(), kCORSSafelistedResponseHeaders,
                 arraysize(kCORSSafelistedResponseHeaders))) {
     return true;
@@ -211,7 +211,7 @@ bool CORSPreflight::IsSafeResponseHeader(
   }
   // The following two steps checks if given header name is in CORS-exposed
   // header-name list. If Access-Control-Expose-Headers header is '*', all
-  // header names in reponse should be in CORS-exposed header-name list.
+  // header names in response should be in CORS-exposed header-name list.
   if (CORS_exposed_header_name_list.size() == 1 &&
       CORS_exposed_header_name_list.at(0) == "*" &&
       !credentials_mode_is_include) {
@@ -389,8 +389,7 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
     int max_age = 0;
     if (response_headers->GetNormalizedHeader(kAccessControlMaxAge,
                                               &max_age_str)) {
-      max_age = std::min(SbStringAToI(max_age_str.c_str()),
-                         kPreflightCacheMaxAgeLimit);
+      max_age = std::min(atoi(max_age_str.c_str()), kPreflightCacheMaxAgeLimit);
     }
     preflight_cache_->AppendEntry(source->GetURL().spec(), origin_, max_age,
                                   credentials_mode_is_include_, methods_vec,

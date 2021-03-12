@@ -80,7 +80,7 @@ namespace browser {
 // when it calls the on_render_tree_produced_ callback (provided upon
 // construction).
 // At creation, the WebModule starts a dedicated thread, on which a private
-// implementation object is construted that manages all internal components.
+// implementation object is constructed that manages all internal components.
 // All methods of the WebModule post tasks to the implementation object on that
 // thread, so all internal functions are executed synchronously with respect to
 // each other.

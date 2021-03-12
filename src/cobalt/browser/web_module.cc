@@ -265,10 +265,10 @@ class WebModule::Impl {
   void InjectCustomWindowAttributes(
       const Options::InjectedWindowAttributes& attributes);
 
-  // Called by |layout_mananger_| after it runs the animation frame callbacks.
+  // Called by |layout_manager_| after it runs the animation frame callbacks.
   void OnRanAnimationFrameCallbacks();
 
-  // Called by |layout_mananger_| when it produces a render tree. May modify
+  // Called by |layout_manager_| when it produces a render tree. May modify
   // the render tree (e.g. to add a debug overlay), then runs the callback
   // specified in the constructor, |render_tree_produced_callback_|.
   void OnRenderTreeProduced(const LayoutResults& layout_results);
@@ -1173,7 +1173,6 @@ void WebModule::Impl::Unfreeze(
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
 
-  // TODO: Investigate the loader_factory and resource_provider issues.
   loader_factory_->Resume(resource_provider);
   SetApplicationState(base::kApplicationStateConcealed);
 }
@@ -1185,11 +1184,11 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
   SetResourceProvider(resource_provider);
 
   window_->document()->PurgeCachedResources();
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
 
   loader_factory_->UpdateResourceProvider(resource_provider_);
   layout_manager_->Resume();
 
-  PurgeResourceCaches(should_retain_remote_typeface_cache_on_freeze_);
   SetApplicationState(base::kApplicationStateBlurred);
 }
 

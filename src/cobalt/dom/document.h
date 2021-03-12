@@ -55,6 +55,7 @@
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/time.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -349,11 +350,9 @@ class Document : public Node,
 
   // Track UI navigation system's focus element.
   const void* ui_nav_focus_element() const { return ui_nav_focus_element_; }
-  void set_ui_nav_focus_element(const void* focus_element) {
-    ui_nav_focus_element_ = focus_element;
-  }
+  bool TrySetUiNavFocusElement(const void* focus_element, SbTimeMonotonic time);
 
-  // Track HTML elements that are UI navigtion items. This facilitates updating
+  // Track HTML elements that are UI navigation items. This facilitates updating
   // their layout information as needed.
   void AddUiNavigationElement(HTMLElement* element) {
     ui_nav_elements_.insert(element);
@@ -623,6 +622,10 @@ class Document : public Node,
   // Track the current focus of UI navigation. This is only an identifier and
   // not meant to be dereferenced.
   const void* ui_nav_focus_element_ = nullptr;
+
+  // Since UI navigation involves multiple threads, use a timestamp to help
+  // filter out obsolete focus changes.
+  SbTimeMonotonic ui_nav_focus_element_update_time_ = 0;
 
   // Track all HTMLElements in this document which are UI navigation items.
   // These should be raw pointers to avoid affecting the elements' ref counts.

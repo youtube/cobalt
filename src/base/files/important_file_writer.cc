@@ -131,7 +131,7 @@ void DeleteTmpFile(const FilePath& tmp_file_path,
 
 }  // namespace
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 // static
 bool ImportantFileWriter::WriteFileAtomically(const FilePath& path,
                                               StringPiece data,

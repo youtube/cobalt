@@ -81,6 +81,20 @@
 // Deprecated SB_TRUE and SB_FALSE.
 #define SB_TRUE_FALSE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated SbSystemSort
+#define SB_SYSTEM_SORT_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated SbSystemBinarySearch
+#define SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated Starboard character APIs
+#define SB_CHARACTER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated Starboard double APIs
+#define SB_DOUBLE_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated Starboard stdlib equivalent APIs
+#define SB_STDLIB_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -355,7 +369,7 @@ struct CompileAssert {};
 #endif
 #endif  // !defined(SB_ALIGNAS)
 
-// Returns the alignment reqiured for any instance of the type indicated by
+// Returns the alignment required for any instance of the type indicated by
 // |type|.
 #if !defined(SB_ALIGNOF)
 #if SB_IS(COMPILER_GCC)

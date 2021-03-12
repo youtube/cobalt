@@ -69,15 +69,15 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecVorbis,
 } SbMediaAudioCodec;
 
-// Indicates how confident the device is that it can play media resources
-// of the given type. The values are a direct map of the canPlayType() method
-// specified at the following link:
+// Indicates how confident the device is that it can play media resources of the
+// given type. The values are a direct map of the canPlayType() method specified
+// at the following link:
 // https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom-navigator-canplaytype
 typedef enum SbMediaSupportType {
   // The media type cannot be played.
   kSbMediaSupportTypeNotSupported,
 
-  // Cannot determinate if the media type is playable without playing it.
+  // Cannot determine if the media type is playable without playing it.
   kSbMediaSupportTypeMaybe,
 
   // The media type seems to be playable.
@@ -130,20 +130,19 @@ typedef enum SbMediaAudioFrameStorageType {
   // "L0 R0 L1 R1 L2 R2 ...".
   kSbMediaAudioFrameStorageTypeInterleaved,
 
-  // The samples of each channel are stored in their own continuous buffer.
-  // For example, for a stereo stream with channels L and R that contains
-  // samples with timestamps 0, 1, 2, etc., the samples are stored in two
-  // buffers "L0 L1 L2 ..." and "R0 R1 R2 ...".
+  // The samples of each channel are stored in their own continuous buffer.  For
+  // example, for a stereo stream with channels L and R that contains samples
+  // with timestamps 0, 1, 2, etc., the samples are stored in two buffers
+  // "L0 L1 L2 ..." and "R0 R1 R2 ...".
   kSbMediaAudioFrameStorageTypePlanar,
 } SbMediaAudioFrameStorageType;
 
 // SMPTE 2086 mastering data
 //   http://ieeexplore.ieee.org/document/7291707/
-// This standard specifies the metadata items to specify the color
-// volume (the color primaries, white point, and luminance range) of
-// the display that was used in mastering video content. The metadata
-// is specified as a set of values independent of any specific digital
-// representation.
+// This standard specifies the metadata items to specify the color volume (the
+// color primaries, white point, and luminance range) of the display that was
+// used in mastering video content. The metadata is specified as a set of values
+// independent of any specific digital representation.
 // Also see the WebM container guidelines:
 //   https://www.webmproject.org/docs/container/
 typedef struct SbMediaMasteringMetadata {
@@ -171,12 +170,12 @@ typedef struct SbMediaMasteringMetadata {
   // White Y chromaticity coordinate as defined by CIE 1931. In range [0, 1].
   float white_point_chromaticity_y;
 
-  // Maximum luminance. Shall be represented in candelas per square
-  // meter (cd/m^2). In range [0, 9999.99].
+  // Maximum luminance. Shall be represented in candelas per square meter
+  // (cd/m^2). In range [0, 9999.99].
   float luminance_max;
 
-  // Minimum luminance. Shall be represented in candelas per square
-  // meter (cd/m^2). In range [0, 9999.99].
+  // Minimum luminance. Shall be represented in candelas per square meter
+  // (cd/m^2). In range [0, 9999.99].
   float luminance_min;
 } SbMediaMasteringMetadata;
 
@@ -235,9 +234,8 @@ typedef enum SbMediaTransferId {
   kSbMediaTransferIdUnknown = 1000,
   kSbMediaTransferIdGamma24,
 
-  // This is an ad-hoc transfer function that decodes SMPTE 2084 content
-  // into a 0-1 range more or less suitable for viewing on a non-hdr
-  // display.
+  // This is an ad-hoc transfer function that decodes SMPTE 2084 content into a
+  // 0-1 range more or less suitable for viewing on a non-hdr display.
   kSbMediaTransferIdSmpteSt2084NonHdr,
 
   // TODO: Need to store an approximation of the gamma function(s).
@@ -268,8 +266,8 @@ typedef enum SbMediaMatrixId {
   kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
 } SbMediaMatrixId;
 
-// This corresponds to the WebM Range enum which is part of WebM color data
-// (see http://www.webmproject.org/docs/container/#Range).
+// This corresponds to the WebM Range enum which is part of WebM color data (see
+// http://www.webmproject.org/docs/container/#Range).
 // H.264 only uses a bool, which corresponds to the LIMITED/FULL values.
 // Chrome-specific values start at 1000.
 typedef enum SbMediaRangeId {
@@ -279,7 +277,7 @@ typedef enum SbMediaRangeId {
   // Limited Rec. 709 color range with RGB values ranging from 16 to 235.
   kSbMediaRangeIdLimited = 1,
 
-  // Full RGB color range with RGB valees from 0 to 255.
+  // Full RGB color range with RGB values from 0 to 255.
   kSbMediaRangeIdFull = 2,
 
   // Range is defined by TransferId/MatrixId.
@@ -288,100 +286,91 @@ typedef enum SbMediaRangeId {
   kSbMediaRangeIdLast = kSbMediaRangeIdDerived
 } SbMediaRangeId;
 
-// HDR (High Dynamic Range) Metadata common for HDR10 and
-// WebM/VP9-based HDR formats, together with the ColorSpace. HDR
-// reproduces a greater dynamic range of luminosity than is possible
-// with standard digital imaging. See the Consumer Electronics
-// Association press release:
+// HDR (High Dynamic Range) Metadata common for HDR10 and WebM/VP9-based HDR
+// formats, together with the ColorSpace. HDR reproduces a greater dynamic range
+// of luminosity than is possible with standard digital imaging. See the
+// Consumer Electronics Association press release:
 // https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx
 typedef struct SbMediaColorMetadata {
-  // Number of decoded bits per channel. A value of 0 indicates that
-  // the BitsPerChannel is unspecified.
+  // Number of decoded bits per channel. A value of 0 indicates that the
+  // BitsPerChannel is unspecified.
   unsigned int bits_per_channel;
 
-  // The amount of pixels to remove in the Cr and Cb channels for
-  // every pixel not removed horizontally. Example: For video with
-  // 4:2:0 chroma subsampling, the |chroma_subsampling_horizontal| should be set
-  // to 1.
+  // The amount of pixels to remove in the Cr and Cb channels for every pixel
+  // not removed horizontally. Example: For video with 4:2:0 chroma subsampling,
+  // the |chroma_subsampling_horizontal| should be set to 1.
   unsigned int chroma_subsampling_horizontal;
 
-  // The amount of pixels to remove in the Cr and Cb channels for
-  // every pixel not removed vertically. Example: For video with
-  // 4:2:0 chroma subsampling, the |chroma_subsampling_vertical| should be set
-  // to 1.
+  // The amount of pixels to remove in the Cr and Cb channels for every pixel
+  // not removed vertically. Example: For video with 4:2:0 chroma subsampling,
+  // the |chroma_subsampling_vertical| should be set to 1.
   unsigned int chroma_subsampling_vertical;
 
-  // The amount of pixels to remove in the Cb channel for every pixel
-  // not removed horizontally. This is additive with
-  // ChromaSubsamplingHorz. Example: For video with 4:2:1 chroma
-  // subsampling, the |chroma_subsampling_horizontal| should be set to 1 and
+  // The amount of pixels to remove in the Cb channel for every pixel not
+  // removed horizontally. This is additive with ChromaSubsamplingHorz. Example:
+  // For video with 4:2:1 chroma subsampling, the
+  // |chroma_subsampling_horizontal| should be set to 1 and
   // |cb_subsampling_horizontal| should be set to 1.
   unsigned int cb_subsampling_horizontal;
 
-  // The amount of pixels to remove in the Cb channel for every pixel
-  // not removed vertically. This is additive with
-  // |chroma_subsampling_vertical|.
+  // The amount of pixels to remove in the Cb channel for every pixel not
+  // removed vertically. This is additive with |chroma_subsampling_vertical|.
   unsigned int cb_subsampling_vertical;
 
-  // How chroma is subsampled horizontally. (0: Unspecified, 1: Left
-  // Collocated, 2: Half)
+  // How chroma is subsampled horizontally. (0: Unspecified, 1: Left Collocated,
+  // 2: Half).
   unsigned int chroma_siting_horizontal;
 
-  // How chroma is subsampled vertically. (0: Unspecified, 1: Top
-  // Collocated, 2: Half)
+  // How chroma is subsampled vertically. (0: Unspecified, 1: Top Collocated, 2:
+  // Half).
   unsigned int chroma_siting_vertical;
 
   // [HDR Metadata field] SMPTE 2086 mastering data.
   SbMediaMasteringMetadata mastering_metadata;
 
-  // [HDR Metadata field] Maximum brightness of a single pixel (Maximum
-  // Content Light Level) in candelas per square meter (cd/m^2).
+  // [HDR Metadata field] Maximum brightness of a single pixel (Maximum Content
+  // Light Level) in candelas per square meter (cd/m^2).
   unsigned int max_cll;
 
-  // [HDR Metadata field] Maximum brightness of a single full frame
-  // (Maximum Frame-Average Light Level) in candelas per square meter
-  // (cd/m^2).
+  // [HDR Metadata field] Maximum brightness of a single full frame (Maximum
+  // Frame-Average Light Level) in candelas per square meter (cd/m^2).
   unsigned int max_fall;
 
-  // [Color Space field] The colour primaries of the video. For
-  // clarity, the value and meanings for Primaries are adopted from
-  // Table 2 of ISO/IEC 23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R
-  // BT.709, 2: Unspecified, 3: Reserved, 4: ITU-R BT.470M, 5: ITU-R
-  // BT.470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: FILM, 9: ITU-R
-  // BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors)
+  // [Color Space field] The colour primaries of the video. For clarity, the
+  // value and meanings for Primaries are adopted from Table 2 of
+  // ISO/IEC 23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified,
+  // 3: Reserved, 4: ITU-R BT.470M, 5: ITU-R BT.470BG, 6: SMPTE 170M,
+  // 7: SMPTE 240M, 8: FILM, 9: ITU-R BT.2020, 10: SMPTE ST 428-1,
+  // 22: JEDEC P22 phosphors).
   SbMediaPrimaryId primaries;
 
-  // [Color Space field] The transfer characteristics of the
-  // video. For clarity, the value and meanings for
-  // TransferCharacteristics 1-15 are adopted from Table 3 of ISO/IEC
-  // 23001-8:2013/DCOR1. TransferCharacteristics 16-18 are proposed
-  // values. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3:
-  // Reserved, 4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M,
-  // 7: SMPTE 240M, 8: Linear, 9: Log, 10: Log Sqrt, 11: IEC
-  // 61966-2-4, 12: ITU-R BT.1361 Extended Colour Gamut, 13: IEC
-  // 61966-2-1, 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020 12 bit,
-  // 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG))
+  // [Color Space field] The transfer characteristics of the video. For clarity,
+  // the value and meanings for TransferCharacteristics 1-15 are adopted from
+  // Table 3 of ISO/IEC 23001-8:2013/DCOR1. TransferCharacteristics 16-18 are
+  // proposed values. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified,
+  // 3: Reserved, 4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M,
+  // 7: SMPTE 240M, 8: Linear, 9: Log, 10: Log Sqrt, 11: IEC 61966-2-4,
+  // 12: ITU-R BT.1361 Extended Colour Gamut, 13: IEC 61966-2-1,
+  // 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020 12 bit, 16: SMPTE ST 2084,
+  // 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG)).
   SbMediaTransferId transfer;
 
-  // [Color Space field] The Matrix Coefficients of the video used to
-  // derive luma and chroma values from red, green, and blue color
-  // primaries. For clarity, the value and meanings for
-  // MatrixCoefficients are adopted from Table 4 of ISO/IEC
-  // 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3:
-  // Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8:
-  // YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant
-  // Luminance)
+  // [Color Space field] The Matrix Coefficients of the video used to derive
+  // luma and chroma values from red, green, and blue color primaries. For
+  // clarity, the value and meanings for MatrixCoefficients are adopted from
+  // Table 4 of ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified,
+  // 3: Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG,
+  // 9: BT2020 Non-constant Luminance, 10: BT2020 Constant Luminance).
   SbMediaMatrixId matrix;
 
-  // [Color Space field] Clipping of the color ranges. (0:
-  // Unspecified, 1: Broadcast Range, 2: Full range (no clipping), 3:
-  // Defined by MatrixCoefficients/TransferCharacteristics)
+  // [Color Space field] Clipping of the color ranges. (0: Unspecified,
+  // 1: Broadcast Range, 2: Full range (no clipping), 3: Defined by
+  // MatrixCoefficients/TransferCharacteristics).
   SbMediaRangeId range;
 
-  // [Color Space field] Only used if primaries ==
-  // kSbMediaPrimaryIdCustom.  This a row-major ordered 3 x 4
-  // submatrix of the 4 x 4 transform matrix.  The 4th row is
-  // completed as (0, 0, 0, 1).
+  // [Color Space field] Only used if primaries == kSbMediaPrimaryIdCustom.
+  //  This a row-major ordered 3 x 4 submatrix of the 4 x 4 transform matrix.
+  // The 4th row is completed as (0, 0, 0, 1).
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
 
@@ -412,8 +401,8 @@ typedef struct SbMediaVideoSampleInfo {
   const char* max_video_capabilities;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-  // Indicates whether the associated sample is a key frame (I-frame).
-  // Video key frames must always start with SPS and PPS NAL units.
+  // Indicates whether the associated sample is a key frame (I-frame). Video key
+  // frames must always start with SPS and PPS NAL units.
   bool is_key_frame;
 
   // The frame width of this sample, in pixels. Also could be parsed from the
@@ -426,14 +415,14 @@ typedef struct SbMediaVideoSampleInfo {
   // key frames, but may change on any key frame.
   int frame_height;
 
-  // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
-  // well as the Color Space, and Color elements: MatrixCoefficients,
-  // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
-  // CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
-  // ChromaSitingVert, Range, TransferCharacteristics, and Primaries
-  // described here: https://matroska.org/technical/specs/index.html .
-  // This will only be specified on frames where the HDR metadata and
-  // color / color space might have changed (e.g. keyframes).
+// HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
+// well as the Color Space, and Color elements: MatrixCoefficients,
+// BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
+// CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
+// ChromaSitingVert, Range, TransferCharacteristics, and Primaries
+// described here: https://matroska.org/technical/specs/index.html .
+// This will only be specified on frames where the HDR metadata and
+// color / color space might have changed (e.g. keyframes).
 #if SB_API_VERSION >= 11
   SbMediaColorMetadata color_metadata;
 #else   // SB_API_VERSION >= 11
@@ -464,14 +453,13 @@ typedef struct SbMediaAudioConfiguration {
   int number_of_channels;
 } SbMediaAudioConfiguration;
 
-// An audio sample info, which is a description of a given audio sample.
-// This, in hexadecimal string form, acts as a set of instructions to the audio
-// decoder.
+// An audio sample info, which is a description of a given audio sample.  This
+// acts as a set of instructions to the audio decoder.
 //
-// The audio sample info consists of a little-endian hexadecimal encoded
-// |WAVEFORMATEX| structure followed by an Audio-specific configuration field.
-// The |WAVEFORMATEX| structure is specified at:
-// http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx
+// The audio sample info consists of information found in the |WAVEFORMATEX|
+// structure, as well as other information for the audio decoder, including the
+// Audio-specific configuration field.  The |WAVEFORMATEX| structure is
+// specified at http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx.
 typedef struct SbMediaAudioSampleInfo {
 #if SB_API_VERSION >= 11
   // The audio codec of this sample.
@@ -540,14 +528,14 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
 // Note that neither |mime| nor |key_system| can be NULL. This function returns
 // |kSbMediaSupportNotSupported| if either is NULL.
 //
-// |mime|: The mime information of the media in the form of |video/webm|
-//   or |video/mp4; codecs="avc1.42001E"|. It may include arbitrary parameters
-//   like "codecs", "channels", etc.  Note that the "codecs" parameter may
-//   contain more than one codec, delimited by comma.
-// |key_system|: A lowercase value in the form of "com.example.somesystem"
-//   as suggested by https://w3c.github.io/encrypted-media/#key-system
-//   that can be matched exactly with known DRM key systems of the platform.
-//   When |key_system| is an empty string, the return value is an indication for
+// |mime|: The mime information of the media in the form of |video/webm| or
+//   |video/mp4; codecs="avc1.42001E"|. It may include arbitrary parameters like
+//   "codecs", "channels", etc.  Note that the "codecs" parameter may contain
+//   more than one codec, delimited by comma.
+// |key_system|: A lowercase value in the form of "com.example.somesystem" as
+//   suggested by https://w3c.github.io/encrypted-media/#key-system that can be
+//   matched exactly with known DRM key systems of the platform.  When
+//   |key_system| is an empty string, the return value is an indication for
 //   non-encrypted media.
 //
 //   An implementation may choose to support |key_system| with extra attributes,
@@ -636,9 +624,8 @@ typedef enum SbMediaBufferStorageType {
   kSbMediaBufferStorageTypeFile,
 } SbMediaBufferStorageType;
 
-// The media buffer will be allocated using the returned alignment.  Set this
-// to a larger value may increase the memory consumption of media
-// buffers.
+// The media buffer will be allocated using the returned alignment.  Set this to
+// a larger value may increase the memory consumption of media buffers.
 //
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
@@ -646,16 +633,16 @@ SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
 // This can return 0, in which case the media stack will allocate extra memory
-// on demand.  When SbMediaGetInitialBufferCapacity and this function
-// both return 0, the media stack will allocate individual buffers directly
-// using SbMemory functions.
+// on demand.  When SbMediaGetInitialBufferCapacity and this function both
+// return 0, the media stack will allocate individual buffers directly using
+// SbMemory functions.
 SB_EXPORT int SbMediaGetBufferAllocationUnit();
 
 // Specifies the maximum amount of memory used by audio buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
 // being used by audio buffers but will also make the app less likely to
-// re-download audio data.  Note that the app may experience
-// significant difficulty if this value is too low.
+// re-download audio data.  Note that the app may experience significant
+// difficulty if this value is too low.
 SB_EXPORT int SbMediaGetAudioBufferBudget();
 
 // Specifies the duration threshold of media source garbage collection.  When
@@ -728,16 +715,16 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // to cache the the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
 
-// If SbMediaGetBufferUsingMemoryPool returns true, it indicates that
-// media buffer pools should be allocated on demand, as opposed to using
-// SbMemory* functions.
+// If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
+// buffer pools should be allocated on demand, as opposed to using SbMemory*
+// functions.
 SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 
 // Specifies the maximum amount of memory used by video buffers of media source
 // before triggering a garbage collection.  A large value will cause more memory
-// being used by video buffers but will also make app less likely to
-// re-download video data.  Note that the app may experience
-// significant difficulty if this value is too low.
+// being used by video buffers but will also make app less likely to re-download
+// video data.  Note that the app may experience significant difficulty if this
+// value is too low.
 //
 // |codec|: the video codec associated with the buffer.
 // |resolution_width|: the width of the video resolution.

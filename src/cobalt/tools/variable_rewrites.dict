@@ -7,7 +7,6 @@
   # Variables which only need to be renamed
   "renames": {
     "cobalt_fastbuild": "cobalt_use_fastbuild",
-    "custom_media_session_client": "enable_custom_media_session_client",
     "cobalt_version": "cobalt_build_id",
     "in_app_dial": "enable_in_app_dial",
     "sb_allows_memory_tracking": "sb_allow_memory_tracking",
@@ -21,7 +20,6 @@
     "abort_on_allocation_failure",
     "cobalt_copy_test_data",
     "cobalt_fastbuild",
-    "custom_media_session_client",
     "enable_about_scheme",
     "enable_account_manager",
     "enable_configure_request_job_factory",

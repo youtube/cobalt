@@ -4,7 +4,7 @@
 
 #include "net/dial/dial_udp_socket_factory.h"
 
-#if !defined(OS_STARBOARD)
+#if !defined(STARBOARD)
 #include <arpa/inet.h>
 #endif
 
@@ -12,7 +12,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_string_util.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/common/socket.h"
 #include "starboard/types.h"
 #endif

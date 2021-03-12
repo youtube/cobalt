@@ -119,7 +119,7 @@ TEST_F(AACTest, ImplicitSBR_ChannelConfig0) {
       AudioExtensionSamplingFrequencyLog("0"), AudioChannelLayoutLog("2")));
   EXPECT_TRUE(Parse(data));
 
-  // Test w/o implict SBR.
+  // Test w/o implicit SBR.
   EXPECT_EQ(aac_.GetOutputSamplesPerSecond(false), 24000);
   EXPECT_EQ(aac_.GetChannelLayout(false), CHANNEL_LAYOUT_MONO);
 
@@ -140,7 +140,7 @@ TEST_F(AACTest, ImplicitSBR_ChannelConfig1) {
       AudioExtensionSamplingFrequencyLog("0"), AudioChannelLayoutLog("3")));
   EXPECT_TRUE(Parse(data));
 
-  // Test w/o implict SBR.
+  // Test w/o implicit SBR.
   EXPECT_EQ(aac_.GetOutputSamplesPerSecond(false), 24000);
   EXPECT_EQ(aac_.GetChannelLayout(false), CHANNEL_LAYOUT_STEREO);
 

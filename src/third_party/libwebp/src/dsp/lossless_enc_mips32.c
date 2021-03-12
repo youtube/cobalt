@@ -20,15 +20,14 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/math_poem.h"
-#include "starboard/client_porting/poem/stdlib_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #else
 #include <assert.h>
 #include <math.h>
-#include <stdlib.h>
 #include <string.h>
 #endif
+
+#include <stdlib.h>
 
 static float FastSLog2Slow_MIPS32(uint32_t v) {
   assert(v >= LOG_LOOKUP_IDX_MAX);

@@ -269,15 +269,16 @@ bool AudioTimeStretcher::CanPerformWsola() const {
 }
 
 int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
-  const double kMillsecondsPerSeconds =
+  const double kMillisecondsPerSeconds =
       static_cast<double>(kSbTimeSecond / kSbTimeMillisecond);
-  return static_cast<int>(ms * (samples_per_second_ / kMillsecondsPerSeconds));
+  return static_cast<int>(ms * (samples_per_second_ / kMillisecondsPerSeconds));
 }
 
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   SB_DCHECK(bytes_per_frame_ > 0);
 
-  if (!CanPerformWsola()) return false;
+  if (!CanPerformWsola())
+    return false;
 
   GetOptimalBlock();
 
@@ -320,7 +321,8 @@ void AudioTimeStretcher::UpdateOutputTime(double playback_rate,
 void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
   const int earliest_used_index =
       std::min(target_block_index_, search_block_index_);
-  if (earliest_used_index <= 0) return;  // Nothing to remove.
+  if (earliest_used_index <= 0)
+    return;  // Nothing to remove.
 
   // Remove frames from input and adjust indices accordingly.
   audio_buffer_.SeekFrames(earliest_used_index);
@@ -378,7 +380,7 @@ void AudioTimeStretcher::GetOptimalBlock() {
     PeekAudioWithZeroPrepend(search_block_index_, search_block_.get());
     int last_optimal =
         target_block_index_ - ola_hop_size_ - search_block_index_;
-    internal::Interval exclude_iterval =
+    internal::Interval exclude_interval =
         std::make_pair(last_optimal - kExcludeIntervalLengthFrames / 2,
                        last_optimal + kExcludeIntervalLengthFrames / 2);
 
@@ -386,7 +388,7 @@ void AudioTimeStretcher::GetOptimalBlock() {
     // |search_block_|.
     optimal_index = internal::OptimalIndex(
         search_block_.get(), target_block_.get(),
-        kSbMediaAudioFrameStorageTypeInterleaved, exclude_iterval);
+        kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.

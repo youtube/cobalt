@@ -57,6 +57,8 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_METHOD0(InvalidateSizes, void());
   MOCK_METHOD0(InvalidateCrossReferences, void());
   MOCK_METHOD0(InvalidateRenderTreeNodes, void());
+  MOCK_METHOD1(SetUiNavItem,
+               void(const scoped_refptr<ui_navigation::NavItem>& item));
 };
 }  // namespace testing
 }  // namespace dom

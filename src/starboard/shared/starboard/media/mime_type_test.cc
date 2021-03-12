@@ -77,9 +77,10 @@ TEST(MimeTypeTest, InvalidType) {
     EXPECT_FALSE(mime_type.is_valid());
   }
 
-  {  // More than one "codecs" paramters.
-    MimeType mime_type("audio/mp4;codecs=\"abc, def\";"
-                       "param1=\" value1 \";codecs=\"abc, def\"");
+  {  // More than one "codecs" parameters.
+    MimeType mime_type(
+        "audio/mp4;codecs=\"abc, def\";"
+        "param1=\" value1 \";codecs=\"abc, def\"");
     EXPECT_FALSE(mime_type.is_valid());
   }
 }

@@ -16,7 +16,7 @@ namespace media {
 // Abstract class that defines how to retrieve "media sources" in DemuxerStream
 // form (for most cases) or URL form (for the MediaPlayerRenderer case).
 //
-// The sub-classes do not stricly provide demuxer streams, but because all
+// The sub-classes do not strictly provide demuxer streams, but because all
 // sub-classes are for the moment Demuxers, this class has not been renamed to
 // "MediaProvider". This class would be a good candidate for renaming, if
 // ever Pipeline were to support this class directly, instead of the Demuxer

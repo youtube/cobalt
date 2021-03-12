@@ -62,11 +62,6 @@
 
 #include "../internal.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define bsearch SbSystemBinarySearch
-#endif
-
 
 // kMinSize is the number of pointers that will be initially allocated in a new
 // stack.
@@ -346,7 +341,7 @@ void sk_sort(_STACK *sk) {
 
   // See the comment in sk_find about this cast.
   comp_func = (int (*)(const void *, const void *))(sk->comp);
-  OPENSSL_port_qsort(sk->data, sk->num, sizeof(void *), comp_func);
+  qsort(sk->data, sk->num, sizeof(void *), comp_func);
   sk->sorted = 1;
 }
 

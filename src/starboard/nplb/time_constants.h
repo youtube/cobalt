@@ -20,13 +20,13 @@
 namespace starboard {
 namespace nplb {
 
-static const SbTime kExtraMillseconds = 123 * kSbTimeMillisecond;
+static const SbTime kExtraMilliseconds = 123 * kSbTimeMillisecond;
 static const SbTime kTestSbTimeYear = 525949 * kSbTimeMinute;
 
 // 1443121328 in POSIX time is
 // Thursday, 9/24/2015 19:02:08 UTC
-static const SbTime kTestTimePositive =
-    SbTimeFromPosix(SB_INT64_C(1443121328) * kSbTimeSecond + kExtraMillseconds);
+static const SbTime kTestTimePositive = SbTimeFromPosix(
+    SB_INT64_C(1443121328) * kSbTimeSecond + kExtraMilliseconds);
 
 // 0 in POSIX time is
 // Thursday, 1/1/1970 00:00:00 UTC

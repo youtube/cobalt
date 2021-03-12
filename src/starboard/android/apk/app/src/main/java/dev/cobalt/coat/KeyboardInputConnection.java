@@ -36,8 +36,8 @@ public class KeyboardInputConnection extends BaseInputConnection {
   }
 
   /**
-   * Start a batch edit, indicating to the editor that a batch of editor operations is occuring. The
-   * editor will avoid sending updates about its state until endBatchEdit() is called.
+   * Start a batch edit, indicating to the editor that a batch of editor operations is occurring.
+   * The editor will avoid sending updates about its state until endBatchEdit() is called.
    */
   @Override
   public boolean beginBatchEdit() {

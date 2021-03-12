@@ -18,10 +18,6 @@
 #include "src/utils/utils.h"
 #include "src/webp/format_constants.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#endif
-
 // -----------------------------------------------------------------------------
 // Util function to optimize the symbol map for RLE coding
 

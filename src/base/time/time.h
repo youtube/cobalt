@@ -182,7 +182,7 @@ class BASE_EXPORT TimeDelta {
     return delta_ == std::numeric_limits<int64_t>::min();
   }
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   SbTime ToSbTime() const;
 #endif
 

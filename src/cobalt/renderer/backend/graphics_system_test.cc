@@ -33,7 +33,7 @@ namespace {
 const int kReferenceCount = 5;
 }  // namespace
 
-TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
+TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
   // Test whether the graphics system can be initialized often without slowing
   // down.
   std::unique_ptr<GraphicsSystem> graphics_system;
@@ -70,7 +70,7 @@ TEST(GraphicsSystemTest, GraphicsSystemCanBeInitializedOften) {
   }
 }
 
-TEST(GraphicsSystemTest, GraphicsContextCanBeInitializedOften) {
+TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   // Test whether the graphics system and graphics context can be initialized
   // often without slowing down.
   std::unique_ptr<GraphicsSystem> graphics_system;

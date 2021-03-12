@@ -81,7 +81,7 @@ base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   pending_commands_.emplace(command_id, std::move(command));
   if (script_debugger_->DispatchProtocolMessage(method,
                                                 JSONStringify(message))) {
-    // The command has been dispached; keep ownership of it in the map.
+    // The command has been dispatched; keep ownership of it in the map.
     return base::nullopt;
   }
 

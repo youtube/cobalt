@@ -29,6 +29,8 @@
 /* TurboJPEG/LJT:  this implements the TurboJPEG API using libjpeg or
    libjpeg-turbo */
 
+#include <stdlib.h>
+
 #include <jinclude.h>
 
 #include <setjmp.h>
@@ -47,12 +49,11 @@
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/configuration.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/character.h"
 #else
 #include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
 #endif
+
+#include <ctype.h>
 
 extern void jpeg_mem_dest_tj(j_compress_ptr, unsigned char **, unsigned long *,
                              boolean);
@@ -262,7 +263,7 @@ static int setCompDefaults(struct jpeg_compress_struct *cinfo, int pixelFormat,
 
     if (sscanf(env, "%d%c", &temp, &tempc) >= 1 && temp >= 0 &&
         temp <= 65535) {
-      if (SbCharacterToUpper(tempc) == 'B') {
+      if (toupper(tempc) == 'B') {
         cinfo->restart_interval = temp;
         cinfo->restart_in_rows = 0;
       } else

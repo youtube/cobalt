@@ -150,7 +150,7 @@ const int kAlwaysPrintErrorLevel = LOG_ERROR;
 // first needed.
 #if defined(OS_WIN)
 typedef std::wstring PathString;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 typedef std::string PathString;
 #endif
 PathString* g_log_file_name = nullptr;

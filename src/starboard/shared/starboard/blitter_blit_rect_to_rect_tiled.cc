@@ -22,7 +22,7 @@ int round(float x) {
 }
 
 // A periodic function that follows the same sawtooth pattern as the modulus
-// function in both the postive and negative domain.
+// function in both the positive and negative domain.
 int positive_mod(int x, int m) {
   if (x >= 0) {
     return x % m;

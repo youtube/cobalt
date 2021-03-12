@@ -16,6 +16,8 @@
 
 #include <ctype.h>
 
+#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
 bool SbCharacterIsDigit(int c) {
   return isdigit(c);
 }
+#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION

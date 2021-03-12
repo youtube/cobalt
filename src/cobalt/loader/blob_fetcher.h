@@ -26,7 +26,7 @@ class BlobFetcher : public Fetcher {
  public:
   // This callback avoids a dependency from the fetcher to the actual blob
   // implementation.
-  // If the blob is succesfully fetched:
+  // If the blob is successfully fetched:
   //   1. Writes the size of its buffer to |size|.
   //   2. If |size| > 0, then it also writes the address of the non-empty buffer
   //      to |data|, otherwise writes NULL to |data|.

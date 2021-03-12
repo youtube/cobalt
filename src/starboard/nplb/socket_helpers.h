@@ -83,7 +83,7 @@ bool ReadBySpinning(Socket* socket,
                     SbTime timeout);
 
 // Transfers data between the two connected local sockets, spinning until |size|
-// has been transfered, or an error occurs.
+// has been transferred, or an error occurs.
 int Transfer(SbSocket receive_socket,
              char* out_data,
              SbSocket send_socket,

@@ -18,6 +18,8 @@
 #include "starboard/double.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -97,7 +99,7 @@ TEST(SbUnsafeMathTest, InfinityDoubleSunnyDay) {
   EXPECT_TRUE(a == b);
   EXPECT_TRUE(-a == -b);
 
-  // Infinity is greater than the maximium double.
+  // Infinity is greater than the maximum double.
   EXPECT_TRUE(a > std::numeric_limits<double>::max());
   EXPECT_TRUE(a >= std::numeric_limits<double>::max());
 
@@ -149,3 +151,5 @@ TEST(SbUnsafeMathTest, SignedZeroDoubleSunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION

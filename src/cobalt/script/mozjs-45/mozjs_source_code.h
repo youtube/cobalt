@@ -25,7 +25,7 @@ namespace script {
 namespace mozjs {
 
 // SpiderMonkey supports compiling scripts in one step and executing
-// them in another. Typcically we don't need to execute the same script
+// them in another. Typically we don't need to execute the same script
 // multiple times so we wouldn't expect much performance improvement, but it
 // may be that the compiled script uses less memory than the raw script.
 //

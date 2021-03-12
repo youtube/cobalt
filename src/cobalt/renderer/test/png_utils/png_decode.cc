@@ -81,7 +81,7 @@ void TransformPixelRow(png_structp ptr, png_row_infop row_info,
 
 void PNGReadPlatformFile(png_structp png, png_bytep buffer,
                          png_size_t buffer_size) {
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
   // Casting between two pointer types.
   base::PlatformFile file =
       reinterpret_cast<base::PlatformFile>(png_get_io_ptr(png));

@@ -1,0 +1,120 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages: [commit]
+
+default_language_version:
+    python: python3
+
+exclude: '^third_party/'
+
+repos:
+-   repo: https://cobalt.googlesource.com/pre-commit-hooks
+    rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
+    hooks:
+    -   id: check-case-conflict
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: mixed-line-ending
+
+-   repo: local
+    hooks:
+    -   id: sync-keyboxes
+        name: sync-keyboxes
+        entry: python ./precommit_hooks/sync_keyboxes_wrapper.py
+        language: python
+        stages: [post-checkout]
+        always_run: true
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=4, --quiet]
+        exclude: '.*tests?.(cc|h)$'
+        exclude: '^cobalt/bindings/(templates|generated)/'
+    -   id: cpplint_test
+        name: cpplint_test
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=5, --quiet]
+        files: '.*tests?.(cc|h)$'
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: system
+        types: [python]
+        args: [--style=yapf, -i]
+        exclude: '\.gypi?$'
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        args: [-d W0201]
+        exclude: '\.gypi?$'
+    -   id: clang-format
+        name: clang-format
+        entry: python ./precommit_hooks/clang_format_wrapper.py
+        language: python
+        types: [c++]
+        args: [-i, -style=file]
+    -   id: google-java-format
+        name: google-java-format
+        entry: python ./precommit_hooks/google_java_format_wrapper.py
+        language: python
+        types: [java]
+        args: [-i]
+    -   id: gcheckstyle
+        name: gcheckstyle
+        entry: python ./precommit_hooks/gcheckstyle_wrapper.py
+        language: python
+        types: [java]
+        verbose: true
+    -   id: check-copyright-year
+        name: check copyright year
+        entry: python ./precommit_hooks/custom_hooks/check_copyright_year.py
+        language: python
+        types: [file, text]
+        stages: [push]
+    -   id: check-if-starboard-interface-changed
+        name: check if starboard interface changed
+        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed_wrapper.py
+        language: python
+        files: '^starboard/*.h$'
+        stages: [push]
+    -   id: download-resources
+        name: download resources
+        entry: python ./download_resources.py
+        language: python
+        stages: [post-checkout]
+        always_run: true
+    -   id: test-download-from-gcs-helper
+        name: test download from gcs helper
+        entry: python
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [push]
+        args: [-m, unittest, tools/download_from_gcs_test.py]
+    -   id: test-python3-compatibility
+        name: Test Python 3 Compatibility
+        description: Checks that scripts can be run in Python 3
+        entry: python precommit_hooks/python3_check.py
+        language: python
+        types: [python]
+        verbose: true
+    -   id: check-bug-in-commit-message
+        name: Check Bug In Commit Message
+        description: Checks for a tracking bug in a commit message
+        entry: python precommit_hooks/check_bug_in_description_wrapper.py
+        language: python
+        stages: [push]
+        always_run: true
+    -   id: run-py2-tests
+        name: Run Python 2 Tests
+        description: Run Python 2 unittests
+        entry: python precommit_hooks/custom_hooks/run_python2_unittests.py
+        language: python
+        language_version: python2
+        types: [python]

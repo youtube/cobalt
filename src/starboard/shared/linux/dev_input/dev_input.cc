@@ -861,7 +861,7 @@ bool PollInputEvent(InputDeviceInfo* device_info,
         continue;
       }
 
-      // Some unexpected type of read error occured.
+      // Some unexpected type of read error occurred.
       SB_DLOG(ERROR) << __FUNCTION__ << ": Error reading input: " << errno
                      << " - " << strerror(errno);
       return false;

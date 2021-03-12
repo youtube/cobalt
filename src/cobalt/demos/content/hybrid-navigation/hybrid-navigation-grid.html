@@ -17,7 +17,8 @@
  | (i.e. this element or an ancestor element with tabindex set appropriately).
  | If that navigation item does not have focus, or the system does not provide
  | interaction animations, then this transform function will evaluate to
- | identity.
+ | identity. If no ancestor is a hybrid navigation focus item, then the
+ | currently-focused item (which may be in a different subtree) is used.
  |
  | "-cobalt-ui-nav-spotlight-transform()" is a Cobalt-specific transform
  | function for hybrid navigation which tracks the direction in which focus is
@@ -28,7 +29,8 @@
  | not have focus, or the platform does not provide focus movement information,
  | then this transform function will evaluate to the zero scale. Otherwise the
  | transform will evaluate to a translation ranging from -50% to +50% in the X
- | and Y directions.
+ | and Y directions. If no ancestor is a hybrid navigation focus item, then the
+ | currently-focused item (which may be in a different subtree) is queried.
  -->
 <html>
   <head>
@@ -134,7 +136,7 @@
   <body class="body">
     <div class="vscroll">
       <div class="hscroll">
-        <div class="focusItem" tabindex="-2" style="transform: translateX(0px)">
+        <div id="start" class="focusItem" tabindex="-2" style="transform: translateX(0px)">
           <div class="focusContent">A0</div>
         </div>
         <div class="focusItem" tabindex="-2" style="transform: translateX(300px)">
@@ -231,4 +233,9 @@
       </div>
     </div>
   </body>
+  <script>
+    window.onload = function() {
+      document.getElementById("start").focus();
+    }
+  </script>
 </html>

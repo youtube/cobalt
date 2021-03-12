@@ -4,7 +4,7 @@
 
 #include "net/dns/address_sorter_posix.h"
 
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/inet_poem.h"
 #else
 #include <netinet/in.h>

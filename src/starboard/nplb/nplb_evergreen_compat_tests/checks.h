@@ -23,7 +23,7 @@
 #error "Evergreen requires starboard version 12 or higher!"
 #endif
 
-#if SB_API_VERSION < 12
+#if SB_API_VERSION < 12 && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #error \
     "Evergreen requires support for the kSbSystemPathStorageDirectory" \
     " system property!"

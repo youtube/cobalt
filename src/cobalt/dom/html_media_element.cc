@@ -15,6 +15,7 @@
 #include "cobalt/dom/html_media_element.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -41,7 +42,6 @@
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_value_factory.h"
-#include "starboard/double.h"
 
 #include "cobalt/dom/eme/media_encrypted_event.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
@@ -314,6 +314,9 @@ script::Handle<script::Promise<void>> HTMLMediaElement::SetMediaKeys(
     // re-create the entire player.
     if (player_) {
       ClearMediaPlayer();
+      // |media_keys_| is used in CreateMediaPlayer(). Reset it before calling
+      // CreateMediaPlayer().
+      media_keys_.reset();
       CreateMediaPlayer();
     }
   }
@@ -640,7 +643,7 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent()");
-  LOG(INFO) << "Schedule event " << event->type() << ".";
+  MLOG() << "Schedule event " << event->type() << ".";
   event_queue_.Enqueue(event);
 }
 
@@ -1406,7 +1409,7 @@ bool HTMLMediaElement::PotentiallyPlaying() const {
 
 bool HTMLMediaElement::EndedPlayback() const {
   float dur = duration();
-  if (!player_ || SbDoubleIsNan(dur)) {
+  if (!player_ || std::isnan(dur)) {
     return false;
   }
 
@@ -1538,7 +1541,7 @@ void HTMLMediaElement::TimeChanged(bool eos_played) {
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
   eos_played |=
-      !SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
+      !std::isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
   if (eos_played) {
     LOG(INFO) << "End of stream is played.";
     // If the media element has a loop attribute specified and does not have a
@@ -1750,7 +1753,7 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
     const std::string& max_video_capabilities,
     script::ExceptionState* exception_state) {
   if (GetAttribute("src").value_or("").length() > 0) {
-    LOG(WARNING) << "Cannot set maxmium capabilities after src is defined.";
+    LOG(WARNING) << "Cannot set maximum capabilities after src is defined.";
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
