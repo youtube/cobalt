@@ -123,3 +123,8 @@ repos:
         entry: python precommit_hooks/osslint_wrapper.py
         language: python
         types: [text]
+    -   id: internal-file-check
+        name: Internal File Check
+        entry: python precommit_hooks/internal_file_check_wrapper.py
+        language: python
+        types: [text]
