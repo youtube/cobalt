@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 try:
-  from internal_tools_paths import checkstyle_path
+  from internal.internal_tools_paths import checkstyle_path
 except ImportError:
   checkstyle_path = None
 

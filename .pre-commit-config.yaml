@@ -73,13 +73,13 @@ repos:
         verbose: true
     -   id: check-copyright-year
         name: check copyright year
-        entry: python ./precommit_hooks/custom_hooks/check_copyright_year.py
+        entry: python ./precommit_hooks/check_copyright_year.py
         language: python
         types: [file, text]
         stages: [push]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
-        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed_wrapper.py
+        entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
         language: python
         files: '^starboard/*.h$'
         stages: [push]
@@ -114,7 +114,7 @@ repos:
     -   id: run-py2-tests
         name: Run Python 2 Tests
         description: Run Python 2 unittests
-        entry: python precommit_hooks/custom_hooks/run_python2_unittests.py
+        entry: python precommit_hooks/run_python2_unittests.py
         language: python
         language_version: python2
         types: [python]
