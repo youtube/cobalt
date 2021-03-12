@@ -16,7 +16,7 @@
 
 import sys
 try:
-  from warn_that_starboard_interface_changed import WarnThatStarboardInterfaceChanged
+  from internal.warn_that_starboard_interface_changed import WarnThatStarboardInterfaceChanged
 except ImportError:
   print('warn_that_starboard_interface_changed.py not found, skipping.')
   sys.exit(0)
