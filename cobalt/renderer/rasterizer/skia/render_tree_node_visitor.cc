@@ -18,6 +18,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/trace_event/trace_event.h"
@@ -439,17 +440,19 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   TRACE_EVENT0("cobalt::renderer", "Visit(FilterNode)");
 
   if (filter_node->data().opacity_filter) {
-    TRACE_EVENT_INSTANT1("cobalt::renderer", "opacity", "opacity",
+    TRACE_EVENT_INSTANT1("cobalt::renderer", "opacity",
+                         TRACE_EVENT_SCOPE_THREAD, "opacity",
                          filter_node->data().opacity_filter->opacity());
   }
   if (filter_node->data().viewport_filter) {
     TRACE_EVENT_INSTANT2(
-        "cobalt::renderer", "viewport", "width",
+        "cobalt::renderer", "viewport", TRACE_EVENT_SCOPE_THREAD, "width",
         filter_node->data().viewport_filter->viewport().width(), "height",
         filter_node->data().viewport_filter->viewport().height());
   }
   if (filter_node->data().blur_filter) {
-    TRACE_EVENT_INSTANT1("cobalt::renderer", "blur", "blur_sigma",
+    TRACE_EVENT_INSTANT1("cobalt::renderer", "blur", TRACE_EVENT_SCOPE_THREAD,
+                         "blur_sigma",
                          filter_node->data().blur_filter->blur_sigma());
   }
 #endif  // ENABLE_RENDER_TREE_VISITOR_TRACING
@@ -532,8 +535,7 @@ namespace {
 // operating in a normalized coordinate system, we must perform some
 // transformations.
 void ConvertLocalTransformMatrixToSkiaShaderFormat(
-    const math::Size& input_size,
-    const math::RectF& output_rect,
+    const math::Size& input_size, const math::RectF& output_rect,
     SkMatrix* local_transform_matrix) {
   // First transform to normalized coordinates, where the input transform
   // specified by local_transform_matrix is expecting to take place.
@@ -1089,10 +1091,10 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
 
   // Top
   SkPoint top_points[4] = {
-      {rect.x(), rect.y()},                                                 // A
-      {rect.x() + border.left.width, rect.y() + border.top.width},          // E
-      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
-      {rect.right(), rect.y()}};                                            // B
+      {rect.x(), rect.y()},                                              // A
+      {rect.x() + border.left.width, rect.y() + border.top.width},       // E
+      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
+      {rect.right(), rect.y()}};                                         // B
   DrawQuadWithColorIfBorderIsSolid(
       border.top.style, draw_state, border.top.color, top_points,
       border.top.width < kAntiAliasWidthThreshold ? true
@@ -1115,7 +1117,7 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
       {rect.x(), rect.bottom()},                                            // C
       {rect.right(), rect.bottom()},                                        // D
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width}};                               // H
+       rect.bottom() - border.bottom.width}};  // H
   DrawQuadWithColorIfBorderIsSolid(
       border.bottom.style, draw_state, border.bottom.color, bottom_points,
       border.bottom.width < kAntiAliasWidthThreshold ? true
@@ -1123,11 +1125,11 @@ void DrawSolidNonRoundRectBorder(RenderTreeNodeVisitorDrawState* draw_state,
 
   // Right
   SkPoint right_points[4] = {
-      {rect.right() - border.right.width, rect.y() + border.top.width},     // F
+      {rect.right() - border.right.width, rect.y() + border.top.width},  // F
       {rect.right() - border.right.width,
-       rect.bottom() - border.bottom.width},                                // H
-      {rect.right(), rect.bottom()},                                        // D
-      {rect.right(), rect.y()}};                                            // B
+       rect.bottom() - border.bottom.width},  // H
+      {rect.right(), rect.bottom()},          // D
+      {rect.right(), rect.y()}};              // B
   DrawQuadWithColorIfBorderIsSolid(
       border.right.style, draw_state, border.right.color, right_points,
       border.right.width < kAntiAliasWidthThreshold ? true
@@ -1763,8 +1765,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
 
       RenderText(
           draw_state_.render_target, text_node->data().glyph_buffer,
-          shadow.color, math::PointAtOffsetFromOrigin(text_node->data().offset +
-                                                      shadow.offset),
+          shadow.color,
+          math::PointAtOffsetFromOrigin(text_node->data().offset +
+                                        shadow.offset),
           shadow.blur_sigma == 0.0f ? blur_zero_sigma : shadow.blur_sigma);
     }
   }
