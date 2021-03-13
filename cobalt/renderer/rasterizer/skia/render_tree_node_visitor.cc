@@ -350,7 +350,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
 namespace {
 // Returns true if we permit this source render tree to be rendered under a
-// rounded corners filter mask.  In general we avoid doing this becaue it can
+// rounded corners filter mask.  In general we avoid doing this because it can
 // multiply the number of shaders required by the system, however in some cases
 // we want to do this still because there is a performance advantage.
 bool SourceCanRenderWithRoundedCorners(render_tree::Node* source) {
@@ -668,7 +668,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   }
 
   // We issue different skia rasterization commands to render the image
-  // depending on whether it's single or multi planed.
+  // depending on whether it's single or multi planned.
   auto& local_transform = image_node->data().local_transform;
 
   scoped_refptr<render_tree::Image> fallback_image;
@@ -1324,36 +1324,56 @@ void DrawSolidRoundedRectBorderByEdge(
   }
 
   // Top
-  SkPoint top_points[4] = {top_left_outer, top_left_inner,     // A, E
-                           top_right_inner, top_right_outer};  // F, B
-  SetUpDrawStateClipPath(draw_state, top_points);
-  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
-                                           content_rect, inner_rounded_corners,
-                                           border.top.color);
+  if (border.top.style == render_tree::kBorderStyleSolid) {
+    SkPoint top_points[4] = {top_left_outer, top_left_inner,     // A, E
+                             top_right_inner, top_right_outer};  // F, B
+    SetUpDrawStateClipPath(draw_state, top_points);
+    DrawSolidRoundedRectBorderToRenderTarget(
+        draw_state, rect, rounded_corners, content_rect, inner_rounded_corners,
+        border.top.color);
+  } else {
+    DCHECK_EQ(border.top.style, render_tree::kBorderStyleNone);
+  }
+
 
   // Left
-  SkPoint left_points[4] = {top_left_outer, bottom_left_outer,   // A, C
-                            bottom_left_inner, top_left_inner};  // G, E
-  SetUpDrawStateClipPath(draw_state, left_points);
-  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
-                                           content_rect, inner_rounded_corners,
-                                           border.left.color);
+  if (border.left.style == render_tree::kBorderStyleSolid) {
+    SkPoint left_points[4] = {top_left_outer, bottom_left_outer,   // A, C
+                              bottom_left_inner, top_left_inner};  // G, E
+    SetUpDrawStateClipPath(draw_state, left_points);
+    DrawSolidRoundedRectBorderToRenderTarget(
+        draw_state, rect, rounded_corners, content_rect, inner_rounded_corners,
+        border.left.color);
+  } else {
+    DCHECK_EQ(border.left.style, render_tree::kBorderStyleNone);
+  }
+
 
   // Bottom
-  SkPoint bottom_points[4] = {bottom_left_inner, bottom_left_outer,     // G, C
-                              bottom_right_outer, bottom_right_inner};  // D, H
-  SetUpDrawStateClipPath(draw_state, bottom_points);
-  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
-                                           content_rect, inner_rounded_corners,
-                                           border.bottom.color);
+  if (border.bottom.style == render_tree::kBorderStyleSolid) {
+    SkPoint bottom_points[4] = {bottom_left_inner, bottom_left_outer,  // G, C
+                                bottom_right_outer,
+                                bottom_right_inner};  // D, H
+    SetUpDrawStateClipPath(draw_state, bottom_points);
+    DrawSolidRoundedRectBorderToRenderTarget(
+        draw_state, rect, rounded_corners, content_rect, inner_rounded_corners,
+        border.bottom.color);
+  } else {
+    DCHECK_EQ(border.bottom.style, render_tree::kBorderStyleNone);
+  }
+
 
   // Right
-  SkPoint right_points[4] = {top_right_inner, bottom_right_inner,   // F, H
-                             bottom_right_outer, top_right_outer};  // D, B
-  SetUpDrawStateClipPath(draw_state, right_points);
-  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
-                                           content_rect, inner_rounded_corners,
-                                           border.right.color);
+  if (border.right.style == render_tree::kBorderStyleSolid) {
+    SkPoint right_points[4] = {top_right_inner, bottom_right_inner,   // F, H
+                               bottom_right_outer, top_right_outer};  // D, B
+    SetUpDrawStateClipPath(draw_state, right_points);
+    DrawSolidRoundedRectBorderToRenderTarget(
+        draw_state, rect, rounded_corners, content_rect, inner_rounded_corners,
+        border.right.color);
+  } else {
+    DCHECK_EQ(border.right.style, render_tree::kBorderStyleNone);
+  }
 }
 
 void DrawSolidRoundedRectBorderSoftware(
