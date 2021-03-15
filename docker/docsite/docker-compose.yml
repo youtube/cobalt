@@ -17,6 +17,6 @@ services:
     environment:
       # SITE_DST specifies where the files required to deploy the site should be
       # placed, and by default this is under the "out" directory.
-      - SITE_DST=/cobalt/out/deploy/www
+      - SITE_DST=${SITE_DST:-/cobalt/out/deploy/www}
     extends:
       service: docsite
