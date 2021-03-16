@@ -44,7 +44,7 @@ repos:
         entry: yapf
         language: system
         types: [python]
-        args: [--style=yapf, -i]
+        args: [-i]
         exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
