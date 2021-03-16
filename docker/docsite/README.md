@@ -26,11 +26,3 @@ we need to run `bundle install` with elevated permissions but if we let the
 `preview-site.sh`, which normally installs gems, run with elevated permissions
 the resulting files added or modified would not be accessible to the user who
 ran the Docker container.
-<<<<<<< HEAD   (6a4768 [PS4] Add logs to debug gpu crash)
-
-# How To Run
-docker-compose build --build-arg UID=$(id -u) --build-arg GID=$(id -g) docsite
-
-docker-compose up docsite
-=======
->>>>>>> CHANGE (266712 Update Docker docsite tooling to generate deploy directory.)
