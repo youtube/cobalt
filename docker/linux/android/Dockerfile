@@ -18,17 +18,15 @@ RUN apt update -qqy \
 
 RUN mkdir -p /root/.android
 
-CMD (test -f /root/.android/debug.keystore \
-    && echo "Android debug keystore exists." \
-    || (keytool -genkey -v \
-               -keystore /root/.android/debug.keystore \
-               -dname "cn=Android Docker, ou=YouTube, o=Google, c=US" \
-               -storepass android \
-               -alias androiddebugkey \
-               -keypass android \
-               -keyalg RSA \
-               -keysize 2048 \
-               -validity 10000 \
-    && echo "Generated Android Debug keystore.")) \
-    && /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
+RUN keytool -genkey -v \
+            -keystore /root/.android/debug.keystore \
+            -dname "cn=Android Docker, ou=YouTube, o=Google, c=US" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
+
+CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
     && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
