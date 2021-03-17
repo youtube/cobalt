@@ -585,8 +585,11 @@ bool InstallationManager::SaveInstallationStore() {
 
   const size_t buf_size = installation_store_.ByteSize();
   std::vector<char> buf(buf_size, 0);
-  loader_app::SetPendingRestart(
-      installation_store_.roll_forward_to_installation() != -1);
+
+  int result = installation_store_.roll_forward_to_installation();
+#if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+  loader_app::SetPendingRestart(result != -1);
+#endif
 
   installation_store_.SerializeToArray(buf.data(),
                                        installation_store_.ByteSize());
