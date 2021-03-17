@@ -164,6 +164,11 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(
       std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
 
+  // Original Design manufacturer name
+  params.insert(
+      std::make_pair("manufacturer",
+                     GetDeviceProperty(kSbSystemPropertySystemIntegratorName)));
+
   // Chipset model number
   params.insert(std::make_pair(
       "chipset", GetDeviceProperty(kSbSystemPropertyChipsetModelNumber)));
