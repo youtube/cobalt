@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
@@ -246,6 +247,7 @@ void AudioBufferSourceNode::TraceMembers(script::Tracer* tracer) {
 
 void AudioBufferSourceNode::RemoveBufferSource() {
   context()->RemoveBufferSource(base::WrapRefCounted(this));
+  DispatchEvent(new dom::Event(base::Tokens::ended()));
 }
 
 }  // namespace audio
