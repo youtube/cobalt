@@ -31,7 +31,7 @@
       # ICU-using code relies on a particular definition of UChar!=char16_t if
       # the system does not have a 2-byte wchar_t implementation
       'conditions': [
-        ['OS=="win"', {
+        ['target_os=="win"', {
           'defines': [
             'UCHAR_TYPE=wchar_t',
           ],
@@ -41,6 +41,8 @@
           ],
         }],
       ],
+      # Some dependencies also use UBool, which triggers this warning.
+      'msvs_disabled_warnings': [4805],
     },
     'defines': [
       'U_USING_ICU_NAMESPACE=0',
@@ -125,8 +127,9 @@
       'source/common',
       'source/i18n',
     ],
-    # Add 4244 to also disable a warning when a float is converted to an int
-    'msvs_disabled_warnings': [4005, 4068, 4244, 4267],
+    # Add 4244 to allow conversion of float to int, 4661 to allow undefined
+    # member of template class, 4805 to allow comparison between bool and int
+    'msvs_disabled_warnings': [4005, 4068, 4244, 4267, 4661, 4805],
   },
   'conditions': [
     ['use_system_icu==0 or want_separate_host_toolset==1', {
@@ -264,6 +267,9 @@
               'includes': [
                 '<(DEPTH)/cobalt/build/copy_icu_data.gypi',
               ],
+              'dependencies!': [
+                'data_assembly#target',
+              ],
             }],
             [ 'OS == "win" and icu_use_data_file_flag==0', {
               'type': 'none',
@@ -342,6 +348,9 @@
           'msvs_settings': {
             'VCCLCompilerTool': {
               'RuntimeTypeInfo': 'true',
+              # Certain currency characters will try to use the legacy
+              # windows-1252 encoding unless we explicitly specify utf-8
+              'AdditionalOptions': ['/utf-8'],
             },
           },
           'conditions': [
@@ -506,6 +515,9 @@
           'msvs_settings': {
             'VCCLCompilerTool': {
               'RuntimeTypeInfo': 'true',
+              # Certain currency characters will try to use the legacy
+              # windows-1252 encoding unless we explicitly specify utf-8
+              'AdditionalOptions': ['/utf-8'],
             },
           },
           'all_dependent_settings': {
