@@ -24,6 +24,7 @@
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
+#include "src/objects/cell-inl.h"
 
 namespace v8 {
 namespace internal {
