@@ -16,7 +16,6 @@
 #define COBALT_DOM_PERFORMANCE_H_
 
 #include "cobalt/base/clock.h"
-#include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/wrappable.h"
 
@@ -42,10 +41,6 @@ class Performance : public script::Wrappable {
   scoped_refptr<PerformanceTiming> timing() const;
   scoped_refptr<MemoryInfo> memory() const;
 
-  // High Resolution Time Level 3 timeOrigin.
-  //   https://www.w3.org/TR/hr-time-3/#dom-performance-timeorigin
-  DOMHighResTimeStamp time_origin() const;
-
   // Custom, not in any spec.
   // Returns the time since timing()->navigation_start(), in milliseconds.
   double Now() const;
@@ -56,9 +51,6 @@ class Performance : public script::Wrappable {
  private:
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;
-
-  // https://www.w3.org/TR/hr-time-3/#dfn-time-origin
-  base::TimeDelta time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };
