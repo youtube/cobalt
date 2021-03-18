@@ -462,11 +462,6 @@
 #else
 #   define UPRV_HAS_DECLSPEC_ATTRIBUTE(x) 0
 #endif
-
-#ifndef __has_feature
-#    undef UPRV_HAS_FEATURE(x)
-#endif
-
 #ifdef __has_builtin
 #   define UPRV_HAS_BUILTIN(x) __has_builtin(x)
 #else
