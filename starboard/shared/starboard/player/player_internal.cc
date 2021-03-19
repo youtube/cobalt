@@ -29,9 +29,9 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 
-SbTime GetMediaTime(SbTime media_time,
-                    SbTimeMonotonic media_time_update_time,
-                    double playback_rate) {
+SbTime CalculateMediaTime(SbTime media_time,
+                          SbTimeMonotonic media_time_update_time,
+                          double playback_rate) {
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_time_update_time;
   return media_time + static_cast<SbTime>(elapsed * playback_rate);
 }
@@ -61,9 +61,8 @@ SbPlayerPrivate::SbPlayerPrivate(
   worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
       audio_codec, video_codec, player_worker_handler.Pass(),
       std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
-      decoder_status_func, player_status_func,
-      player_error_func,
-      this, context));
+      decoder_status_func, player_status_func, player_error_func, this,
+      context));
 
   ++number_of_players_;
   SB_DLOG(INFO) << "Creating SbPlayerPrivate. There are " << number_of_players_
@@ -83,9 +82,8 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
   SbPlayerPrivate* ret = new SbPlayerPrivate(
       audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
-      decoder_status_func, player_status_func,
-      player_error_func,
-      context, player_worker_handler.Pass());
+      decoder_status_func, player_status_func, player_error_func, context,
+      player_worker_handler.Pass());
 
   if (ret && ret->worker_) {
     return ret;
@@ -100,6 +98,7 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
     SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
     media_time_updated_at_ = SbTimeGetMonotonicNow();
+    is_progressing_ = false;
     ticket_ = ticket;
   }
 
@@ -159,11 +158,11 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
 
   starboard::ScopedLock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
-  if (is_paused_ || underflow_) {
+  if (is_paused_ || !is_progressing_) {
     out_player_info->current_media_timestamp = media_time_;
   } else {
     out_player_info->current_media_timestamp =
-        GetMediaTime(media_time_, media_time_updated_at_, playback_rate_);
+        CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
 
   out_player_info->frame_width = frame_width_;
@@ -194,13 +193,13 @@ void SbPlayerPrivate::SetVolume(double volume) {
 void SbPlayerPrivate::UpdateMediaInfo(SbTime media_time,
                                       int dropped_video_frames,
                                       int ticket,
-                                      bool underflow) {
+                                      bool is_progressing) {
   starboard::ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
   media_time_ = media_time;
-  underflow_ = underflow;
+  is_progressing_ = is_progressing;
   media_time_updated_at_ = SbTimeGetMonotonicNow();
   dropped_video_frames_ = dropped_video_frames;
 }

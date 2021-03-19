@@ -46,7 +46,7 @@ class PlayerWorker {
   typedef std::function<void(SbTime media_time,
                              int dropped_video_frames,
                              int ticket,
-                             bool underflow)>
+                             bool is_progressing)>
       UpdateMediaInfoCB;
 
   struct Bounds {
@@ -61,7 +61,7 @@ class PlayerWorker {
   class Handler {
    public:
     typedef std::function<
-        void(SbTime media_time, int dropped_video_frames, bool underflow)>
+        void(SbTime media_time, int dropped_video_frames, bool is_progressing)>
         UpdateMediaInfoCB;
     typedef std::function<SbPlayerState()> GetPlayerStateCB;
     typedef std::function<void(SbPlayerState player_state)> UpdatePlayerStateCB;

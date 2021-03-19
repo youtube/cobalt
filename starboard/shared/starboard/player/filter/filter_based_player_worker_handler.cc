@@ -506,7 +506,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     double playback_rate;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
         &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-    update_media_info_cb_(media_time, dropped_frames, is_underflow);
+    update_media_info_cb_(media_time, dropped_frames, !is_underflow);
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateInterval);
