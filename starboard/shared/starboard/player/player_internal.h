@@ -82,7 +82,7 @@ struct SbPlayerPrivate {
   void UpdateMediaInfo(SbTime media_time,
                        int dropped_video_frames,
                        int ticket,
-                       bool underflow);
+                       bool is_progressing);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -101,7 +101,9 @@ struct SbPlayerPrivate {
   double volume_ = 1.0;
   int total_video_frames_ = 0;
   int dropped_video_frames_ = 0;
-  bool underflow_ = false;
+  // Used to determine if |worker_| is progressing with playback so that
+  // we may extrapolate the media time in GetInfo().
+  bool is_progressing_ = false;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
 
