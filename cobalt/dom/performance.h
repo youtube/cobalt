@@ -15,8 +15,12 @@
 #ifndef COBALT_DOM_PERFORMANCE_H_
 #define COBALT_DOM_PERFORMANCE_H_
 
+#include <string>
+
 #include "cobalt/base/clock.h"
+#include "cobalt/dom/performance_entry_buffer_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/performance_observer_entry_list.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/wrappable.h"
 
@@ -57,12 +61,20 @@ class Performance : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Performance);
   void TraceMembers(script::Tracer* tracer) override;
 
+  // Performance Timeline extensions to the Performance interface.
+  PerformanceEntryList getEntries();
+  PerformanceEntryList getEntriesByType(const std::string& entry_type);
+  PerformanceEntryList getEntriesByName(const std::string& name,
+                                          const base::StringPiece& type);
+
  private:
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;
 
   // https://www.w3.org/TR/hr-time-3/#dfn-time-origin
   base::TimeDelta time_origin_;
+
+  PerformanceEntryBuffer performance_entry_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

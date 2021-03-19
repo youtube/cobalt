@@ -16,6 +16,7 @@
 
 #include "base/time/time.h"
 #include "cobalt/dom/memory_info.h"
+#include "cobalt/dom/performance_entry.h"
 
 namespace cobalt {
 namespace dom {
@@ -58,6 +59,22 @@ DOMHighResTimeStamp Performance::time_origin() const {
 void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(timing_);
   tracer->Trace(memory_);
+}
+
+PerformanceEntryList Performance::getEntries() {
+  return PerformanceEntryBufferImpl::getEntries(performance_entry_buffer_);
+}
+
+PerformanceEntryList Performance::getEntriesByType(
+    const std::string& entry_type) {
+  return PerformanceEntryBufferImpl::getEntriesByType(
+      performance_entry_buffer_, entry_type);
+}
+
+PerformanceEntryList Performance::getEntriesByName(
+    const std::string& name, const base::StringPiece& type) {
+  return PerformanceEntryBufferImpl::getEntriesByName(
+      performance_entry_buffer_, name, type);
 }
 
 }  // namespace dom
