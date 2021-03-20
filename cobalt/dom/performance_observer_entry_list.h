@@ -33,7 +33,7 @@ typedef script::Sequence<PerformanceEntry*> PerformanceEntryList;
 class PerformanceObserverEntryList : public script::Wrappable {
  public:
   explicit PerformanceObserverEntryList(
-      const PerformanceEntryList& entry_list);
+      const PerformanceEntryList& observer_buffer);
 
   PerformanceEntryList getEntries();
   PerformanceEntryList getEntriesByType(const std::string& entry_type);
@@ -43,12 +43,7 @@ class PerformanceObserverEntryList : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(PerformanceObserverEntryList);
 
  protected:
-  PerformanceEntryList performance_entries_;
-
- private:
-  // https://www.w3.org/TR/performance-timeline-2/#filter-buffer-by-name-and-type
-  PerformanceEntryList FilterBufferByNameAndType(
-      const std::string& name, const base::StringPiece& entry_type);
+  PerformanceEntryList observer_buffer_;
 };
 
 }  // namespace dom
