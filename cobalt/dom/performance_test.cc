@@ -27,23 +27,19 @@ TEST(PerformanceTest, Now) {
 
   // Test that now returns a result that is within a correct range for the
   // current time.
-  base::TimeDelta lower_limit = base::Time::Now() - base::Time::UnixEpoch();
+  base::TimeDelta lower_limit = clock->Now();
 
-  DOMHighResTimeStamp current_time_in_milliseconds = performance->Now();
+  double current_time_in_milliseconds = performance->Now();
 
-  base::TimeDelta upper_limit = base::Time::Now() - base::Time::UnixEpoch();
+  base::TimeDelta upper_limit = clock->Now();
 
-  DCHECK_GE(current_time_in_milliseconds, ConvertTimeDeltaToDOMHighResTimeStamp(
-      lower_limit - performance->get_time_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds));
-  DCHECK_LE(current_time_in_milliseconds, ConvertTimeDeltaToDOMHighResTimeStamp(
-      upper_limit - performance->get_time_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds));
+  scoped_refptr<base::OffsetClock> navigation_start_clock =
+      performance->timing()->GetNavigationStartClock();
 
   DCHECK_GE(current_time_in_milliseconds,
-        (lower_limit - performance->get_time_origin()).InMillisecondsF());
+            (lower_limit - navigation_start_clock->origin()).InMillisecondsF());
   DCHECK_LE(current_time_in_milliseconds,
-        (upper_limit - performance->get_time_origin()).InMillisecondsF());
+            (upper_limit - navigation_start_clock->origin()).InMillisecondsF());
 }
 
 TEST(PerformanceTest, TimeOrigin) {
