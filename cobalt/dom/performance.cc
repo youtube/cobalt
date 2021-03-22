@@ -25,10 +25,8 @@ Performance::Performance(const scoped_refptr<base::BasicClock>& clock)
       memory_(new MemoryInfo()),
       time_origin_(base::Time::Now() - base::Time::UnixEpoch()) {}
 
-DOMHighResTimeStamp Performance::Now() const {
-  base::TimeDelta now = base::Time::Now() - base::Time::UnixEpoch();
-  return ConvertTimeDeltaToDOMHighResTimeStamp(now - time_origin_,
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+double Performance::Now() const {
+  return timing_->GetNavigationStartClock()->Now().InMillisecondsF();
 }
 
 scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
