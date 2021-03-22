@@ -42,17 +42,13 @@ class Performance : public script::Wrappable {
   scoped_refptr<PerformanceTiming> timing() const;
   scoped_refptr<MemoryInfo> memory() const;
 
-  // https://www.w3.org/TR/hr-time-2/#now-method
-  DOMHighResTimeStamp Now() const;
-
   // High Resolution Time Level 3 timeOrigin.
   //   https://www.w3.org/TR/hr-time-3/#dom-performance-timeorigin
   DOMHighResTimeStamp time_origin() const;
 
-  // Internal getter method for the time origin value.
-  base::TimeDelta get_time_origin() const {
-    return time_origin_;
-  }
+  // Custom, not in any spec.
+  // Returns the time since timing()->navigation_start(), in milliseconds.
+  double Now() const;
 
   DEFINE_WRAPPABLE_TYPE(Performance);
   void TraceMembers(script::Tracer* tracer) override;
