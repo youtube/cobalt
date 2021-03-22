@@ -39,11 +39,6 @@ TEST(PerformanceTest, Now) {
   DCHECK_LE(current_time_in_milliseconds, ConvertTimeDeltaToDOMHighResTimeStamp(
       upper_limit - performance->get_time_origin(),
       Performance::kPerformanceTimerMinResolutionInMicroseconds));
-
-  DCHECK_GE(current_time_in_milliseconds,
-        (lower_limit - performance->get_time_origin()).InMillisecondsF());
-  DCHECK_LE(current_time_in_milliseconds,
-        (upper_limit - performance->get_time_origin()).InMillisecondsF());
 }
 
 TEST(PerformanceTest, TimeOrigin) {
