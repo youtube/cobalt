@@ -291,7 +291,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Timestamp for the last written audio.
   SbTime timestamp_of_last_written_audio_ = 0;
   // Last media time reported by GetMediaTime().
-  SbTime last_media_time_;
+  SbTime last_media_time_ = 0;
   // Time when we last checked the media time.
   SbTime last_time_media_time_retrieved_ = 0;
   // The maximum video playback capabilities required for the playback.
