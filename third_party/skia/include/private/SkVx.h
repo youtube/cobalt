@@ -78,6 +78,11 @@ struct SKVX_ALIGNMENT Vec {
 
     T  operator[](int i) const { return i < N/2 ? lo[i] : hi[i-N/2]; }
     T& operator[](int i)       { return i < N/2 ? lo[i] : hi[i-N/2]; }
+    Vec<N,T>& operator=(const Vec<N,T>& other) {
+        lo = other.lo;
+        hi = other.hi;
+        return *this;
+    }
 
     static Vec Load(const void* ptr) {
         Vec v;
@@ -103,6 +108,10 @@ struct Vec<1,T> {
 
     T  operator[](int) const { return val; }
     T& operator[](int)       { return val; }
+    Vec<1,T>& operator=(const Vec<1,T>& other) {
+        val = other.val;
+        return *this;
+    }
 
     static Vec Load(const void* ptr) {
         Vec v;
