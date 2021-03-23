@@ -14,6 +14,9 @@
 
 #include "net/socket/tcp_socket_starboard.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/callback_helpers.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_activity_monitor.h"
@@ -326,8 +329,8 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
 
   peer_address_.reset(new IPEndPoint(address));
 
-  bool success = SbSocketConnect(socket_, &storage);
-  DCHECK_EQ(true, success);
+  SbSocketError result = SbSocketConnect(socket_, &storage);
+  DCHECK_NE(kSbSocketErrorFailed, result);
 
   int rv = MapLastSocketError(socket_);
   if (rv != ERR_IO_PENDING) {
