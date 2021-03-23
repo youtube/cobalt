@@ -181,6 +181,20 @@ function first_run_expand() {
  kill_qemu
 }
 
+# Turn off swapfile
+function disable_swap() {
+ ${RUN_ON_PI} dphys-swapfile swapoff
+ ${RUN_ON_PI} dphys-swapfile uninstall
+ ${RUN_ON_PI} systemctl disable dphys-swapfile.service
+}
+
+# Clean up large footprint packages
+function clean_unnecessary_packages() {
+ ${RUN_ON_PI} apt-get purge -qy \
+  libraspberrypi-doc \
+  avahi-daemon
+}
+
 # Update APT sources and install required libraries
 function run_apt_updates() {
  ${RUN_ON_PI} apt-get -qy update
@@ -216,6 +230,8 @@ function customize_on_qemu() {
  first_run_expand
  run_qemu_backgrounded
  wait_for_qemu
+ disable_swap
+ clean_unnecessary_packages
  run_apt_updates
  install_cron_entry
  pre_shrink_cleanup
