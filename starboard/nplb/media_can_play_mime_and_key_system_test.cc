@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
-
 #include "starboard/common/string.h"
+#include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -788,6 +788,12 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
         "video/webm; codecs=\"vp9\"; width=256; height=144; framerate=30", "");
     ASSERT_EQ(result, kSbMediaSupportTypeProbably);
   }
+}
+
+TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
+  TEST_PERF_FUNCWITHARGS_DEFAULT(
+      SbMediaCanPlayMimeAndKeySystem,
+      "video/webm; codecs=\"vp9\"; width=256; height=144; framerate=30", "");
 }
 
 }  // namespace
