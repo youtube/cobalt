@@ -15,12 +15,16 @@
 #ifndef COBALT_DOM_PERFORMANCE_H_
 #define COBALT_DOM_PERFORMANCE_H_
 
+#include <list>
 #include <string>
 
 #include "cobalt/base/clock.h"
+#include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_entry_buffer_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/performance_observer.h"
 #include "cobalt/dom/performance_observer_entry_list.h"
+#include "cobalt/dom/performance_observer_init.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/wrappable.h"
 
@@ -32,7 +36,8 @@ class MemoryInfo;
 // Implements the Performance IDL interface, an instance of which is created
 // and owned by the Window object.
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
-class Performance : public script::Wrappable {
+class Performance : public script::Wrappable,
+    public base::SupportsWeakPtr<Performance> {
  public:
   // Ensure that the timer resolution is at the lowest 20 microseconds in
   // order to mitigate potential Spectre-related attacks.  This is following
@@ -58,7 +63,20 @@ class Performance : public script::Wrappable {
     return time_origin_;
   }
 
-  DEFINE_WRAPPABLE_TYPE(Performance);
+  // Register and unregisterthe performance observer.
+  void UnregisterPerformanceObserver(PerformanceObserver* old_observer);
+  void RegisterPerformanceObserver(
+      PerformanceObserver* observer,
+      const PerformanceObserverInit& options);
+
+  // Replace and update registered performance observer options list.
+  void ReplaceRegisteredPerformanceObserverOptionsList(
+      PerformanceObserver* observer,
+      const PerformanceObserverInit& options);
+  void UpdateRegisteredPerformanceObserverOptionsList(
+      PerformanceObserver* observer,
+      const PerformanceObserverInit& options);
+
   void TraceMembers(script::Tracer* tracer) override;
 
   // Performance Timeline extensions to the Performance interface.
@@ -66,6 +84,8 @@ class Performance : public script::Wrappable {
   PerformanceEntryList GetEntriesByType(const std::string& entry_type);
   PerformanceEntryList GetEntriesByName(
       const std::string& name, const base::StringPiece& type);
+
+  DEFINE_WRAPPABLE_TYPE(Performance);
 
  private:
   scoped_refptr<PerformanceTiming> timing_;
@@ -75,6 +95,23 @@ class Performance : public script::Wrappable {
   base::TimeDelta time_origin_;
 
   PerformanceEntryBuffer performance_entry_buffer_;
+  struct RegisteredPerformanceObserver : public script::Traceable {
+    RegisteredPerformanceObserver(
+        const scoped_refptr<PerformanceObserver>& observer_init,
+        const std::list<PerformanceObserverInit>& options_list_init) :
+        observer(observer_init),
+        options_list(options_list_init) {}
+
+    void TraceMembers(script::Tracer* tracer) override {
+        tracer->Trace(observer);
+    }
+
+    scoped_refptr<PerformanceObserver> observer;
+    std::list<PerformanceObserverInit> options_list;
+  };
+
+  typedef std::list<RegisteredPerformanceObserver> RegisteredPerformanceObserverList;
+  RegisteredPerformanceObserverList registered_performance_observers_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };
