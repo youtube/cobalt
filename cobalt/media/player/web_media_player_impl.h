@@ -331,6 +331,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   DrmSystemReadyCB drm_system_ready_cb_;
   scoped_refptr<DrmSystem> drm_system_;
 
+  // Used to determine when the player enters and exits background mode.
+  PipelineWindow window_;
+
+  bool is_resuming_from_background_mode_ = false;
+
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
 
