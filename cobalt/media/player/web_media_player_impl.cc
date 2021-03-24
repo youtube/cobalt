@@ -129,7 +129,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false),
-      drm_system_(NULL) {
+      drm_system_(NULL),
+      window_(window) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::WebMediaPlayerImpl");
 
   ON_INSTANCE_CREATED(WebMediaPlayerImpl);
@@ -532,6 +533,10 @@ float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
 void WebMediaPlayerImpl::Suspend() { pipeline_->Suspend(); }
 
 void WebMediaPlayerImpl::Resume(PipelineWindow window) {
+  if (!window_ && window) {
+    is_resuming_from_background_mode_ = true;
+  }
+  window_ = window;
   pipeline_->Resume(window);
 }
 
@@ -757,6 +762,13 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
 void WebMediaPlayerImpl::OnPipelineBufferingState(
     Pipeline::BufferingState buffering_state) {
   DVLOG(1) << "OnPipelineBufferingState(" << buffering_state << ")";
+
+  // If |is_resuming_from_background_mode_| is true, we are exiting background
+  // mode and must seek.
+  if (is_resuming_from_background_mode_) {
+    Seek(pipeline_->GetMediaTime().InSecondsF());
+    is_resuming_from_background_mode_ = false;
+  }
 
   switch (buffering_state) {
     case Pipeline::kHaveMetadata:
