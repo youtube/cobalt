@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>  // for std::move
 
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
@@ -107,7 +108,8 @@ void HTMLImageElement::UpdateImageData() {
   // not the empty string, let selected source be the value of the element's src
   // attribute, and selected pixel density be 1.0. Otherwise, let selected
   // source be null and selected pixel density be undefined.
-  const std::string src = GetAttribute("src").value_or("");
+  const auto src_attr = GetAttribute("src");
+  const std::string src = src_attr.value_or("");
 
   // 6. Not needed by Cobalt.
 
@@ -147,7 +149,9 @@ void HTMLImageElement::UpdateImageData() {
     // 10. If selected source is null, then set the element to the broken state,
     // queue a task to fire a simple event named error at the img element, and
     // abort these steps.
-    PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::error());
+    if (src_attr) {
+      PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::error());
+    }
     return;
   }
 
@@ -169,8 +173,9 @@ void HTMLImageElement::UpdateImageData() {
   node_document()->IncreaseLoadingCounter();
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
-          cached_image, base::Bind(&HTMLImageElement::OnLoadingSuccess,
-                                   base::Unretained(this)),
+          cached_image,
+          base::Bind(&HTMLImageElement::OnLoadingSuccess,
+                     base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
 }
