@@ -64,7 +64,7 @@ typedef enum SbUiNavItemType {
 // Navigation items of type kSbUiNavItemTypeContainer have directionality. If
 // directionality is not specified for a container, it should default to
 // left-to-right and top-to-bottom.
-//
+// @verbatim
 //   For left-to-right, content offset x = 0 shows the leftmost content.
 //                          |<--Container Size-->|
 //     +--------------------+--------------------+--------------------+
@@ -83,7 +83,7 @@ typedef enum SbUiNavItemType {
 //     | Negative position. | Positive position. | Positive position. |
 //     +--------------------+--------------------+--------------------+
 //                          ^
-//                  Content Offset X = 0.
+//                  Content Offset X = 0. @endverbatim
 //
 //   Top-to-bottom is similar to left-to-right, but for the Y position.
 //   Bottom-to-top is similar to right-to-left, but for the Y position.
@@ -93,8 +93,9 @@ typedef struct SbUiNavItemDir {
 } SbUiNavItemDir;
 
 // This represents a 2x3 transform matrix in row-major order.
+// @verbatim
 //   | a b tx |
-//   | c d ty |
+//   | c d ty | @endverbatim
 typedef struct SbUiNavMatrix2x3 {
   float m[6];
 } SbUiNavMatrix2x3;
@@ -244,8 +245,10 @@ typedef struct SbUiNavInterface {
   //
   // For example, consider item A with position (5,5) and content offset (0,0).
   // Given item B with position (10,10) is registered as a content of item A.
-  // 1. Item B should be drawn at position (15,15).
-  // 2. If item A's content offset is changed to (10,0), then item B should be
+  //
+  // 1) Item B should be drawn at position (15,15).
+  //
+  // 2) If item A's content offset is changed to (10,0), then item B should be
   //    drawn at position (5,15).
   //
   // Essentially, content items should be drawn at:
