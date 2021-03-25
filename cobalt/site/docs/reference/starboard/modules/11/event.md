@@ -235,7 +235,7 @@ the type of the value pointed to by that data argument, if any.
     ticket value kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
-    SB_HAS(ON_SCREEN_KEYBOARD) One or more of the fields returned by
+    SB_HAS(ON_SCREEN_KEYBOARD)One or more of the fields returned by
     SbAccessibilityGetCaptionSettings has changed.
 
 ## Typedefs ##
@@ -366,3 +366,4 @@ callback as soon as possible.
 ```
 SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
 ```
+

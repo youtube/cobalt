@@ -299,3 +299,4 @@ Extract red from a `SbBlitterColor` object.
 ```
 static uint8_t SbBlitterRFromColor(SbBlitterColor color)
 ```
+

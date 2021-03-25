@@ -101,7 +101,7 @@ Determines at compile-time an inherent aspect of this platform.
 
 Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above as
 SB_PREFERRED_RGBA_BYTE_ORDER_*. If your platform uses GLES, you should set this
-to SB_PREFERRED_RGBA_BYTE_ORDER_RGBA. Whether the current platform is little
+to SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.Whether the current platform is little
 endian.
 
 ### SB_LIKELY(x) ###
@@ -155,10 +155,10 @@ uncommented when an API version is a release candidate.
 
 Include the platform-specific configuration. This macro is set by GYP in
 starboard_base_target.gypi and passed in on the command line for all targets and
-all configurations. After version 12, we start to use runtime constants instead
+all configurations.After version 12, we start to use runtime constants instead
 of macros for certain platform dependent configurations. This file substitutes
 configuration macros for the corresponding runtime constants so we don't
-reference these constants when they aren't defined. Makes a pointer-typed
+reference these constants when they aren't defined.Makes a pointer-typed
 parameter restricted so that the compiler can make certain optimizations because
 it knows the pointers are unique.
 

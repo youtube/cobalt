@@ -27,7 +27,7 @@ typedef struct SbAudioSinkPrivate* SbAudioSink
 ### SbAudioSinkConsumeFramesFunc ###
 
 Callback used to report frames consumed. The consumed frames will be removed
-from the source frame buffer to free space for new audio frames. When
+from the source frame buffer to free space for new audio frames.When
 `frames_consumed` is updated asynchnously and the last time that it has been
 updated is known, it can be passed in `frames_consumed_at` so the audio time
 calculating can be more accurate.

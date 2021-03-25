@@ -241,7 +241,7 @@ static bool SbWindowIsValid(SbWindow window)
 Gets the size of the diagonal between two opposing screen corners.
 
 A return value of 0 means that starboard does not know what the screen diagonal
-is. Sets the default options for system windows.
+is.Sets the default options for system windows.
 
 `options`: The option values to use as default values. This object must not be
 `NULL`.

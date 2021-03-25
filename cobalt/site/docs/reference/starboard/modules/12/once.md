@@ -22,7 +22,7 @@ SB_ONCE_MAX_SIZE and aligned at void pointer type.
 #### Definition ####
 
 ```
-typedef union SbOnceControl SbOnceControl
+typedef union SbOnceControl  SbOnceControl
 ```
 
 ### SbOnceInitRoutine ###
