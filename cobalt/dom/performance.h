@@ -62,10 +62,11 @@ class Performance : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
   // Performance Timeline extensions to the Performance interface.
-  PerformanceEntryList getEntries();
-  PerformanceEntryList getEntriesByType(const std::string& entry_type);
-  PerformanceEntryList getEntriesByName(const std::string& name,
-                                          const base::StringPiece& type);
+  PerformanceEntryList GetEntries();
+  PerformanceEntryList GetEntriesByType(const std::string& entry_type);
+  PerformanceEntryList GetEntriesByName(
+      const std::string& name, const base::StringPiece& type);
+  PerformanceEntryList GetEntriesByName(const std::string& name);
 
  private:
   scoped_refptr<PerformanceTiming> timing_;

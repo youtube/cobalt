@@ -61,20 +61,26 @@ void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(memory_);
 }
 
-PerformanceEntryList Performance::getEntries() {
-  return PerformanceEntryBufferImpl::getEntries(performance_entry_buffer_);
+PerformanceEntryList Performance::GetEntries() {
+  return PerformanceEntryBufferImpl::GetEntries(performance_entry_buffer_);
 }
 
-PerformanceEntryList Performance::getEntriesByType(
+PerformanceEntryList Performance::GetEntriesByType(
     const std::string& entry_type) {
-  return PerformanceEntryBufferImpl::getEntriesByType(
+  return PerformanceEntryBufferImpl::GetEntriesByType(
       performance_entry_buffer_, entry_type);
 }
 
-PerformanceEntryList Performance::getEntriesByName(
+PerformanceEntryList Performance::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
-  return PerformanceEntryBufferImpl::getEntriesByName(
+  return PerformanceEntryBufferImpl::GetEntriesByName(
       performance_entry_buffer_, name, type);
+}
+
+PerformanceEntryList Performance::GetEntriesByName(
+    const std::string& name) {
+  return PerformanceEntryBufferImpl::GetEntriesByName(
+      performance_entry_buffer_, name, NULL);
 }
 
 }  // namespace dom
