@@ -43,30 +43,27 @@
 #endif  // SB_API_VERSION >= 11
 
 #if defined(COBALT_EGL_AND_GLES_LOGGING)
+#define EGL_DCHECK_MAYBE_LOG(x) SB_LOG(INFO) << #x;
+#define GL_DCHECK_MAYBE_LOG(x) SB_LOG(INFO) << #x;
+#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
+#define EGL_DCHECK_MAYBE_LOG(x)
+#define GL_DCHECK_MAYBE_LOG(x)
+#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
+
 #define EGL_DCHECK(x)                                                 \
   do {                                                                \
-    SB_LOG(INFO) << #x;                                               \
+    EGL_DCHECK_MAYBE_LOG(x);                                          \
     const int32_t COBALT_EGL_ERRNO = (EGL_CALL_PREFIX eglGetError()); \
     SB_DCHECK(COBALT_EGL_ERRNO == EGL_SUCCESS)                        \
         << #x << " exited with code: " << COBALT_EGL_ERRNO;           \
   } while (false)
 #define GL_DCHECK(x)                                               \
   do {                                                             \
-    SB_LOG(INFO) << #x;                                            \
+    GL_DCHECK_MAYBE_LOG(x);                                        \
     const int32_t COBALT_GL_ERRNO = (GL_CALL_PREFIX glGetError()); \
     SB_DCHECK(COBALT_GL_ERRNO == GL_NO_ERROR)                      \
         << #x << " exited with code: " << COBALT_GL_ERRNO;         \
   } while (false)
-#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
-#define EGL_DCHECK(x)                                          \
-  do {                                                         \
-    SB_DCHECK((EGL_CALL_PREFIX eglGetError()) == EGL_SUCCESS); \
-  } while (false)
-#define GL_DCHECK(x)                                         \
-  do {                                                       \
-    SB_DCHECK((GL_CALL_PREFIX glGetError()) == GL_NO_ERROR); \
-  } while (false)
-#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
 #if SB_API_VERSION >= 11
 namespace cobalt {
