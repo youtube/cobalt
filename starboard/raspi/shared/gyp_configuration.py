@@ -160,6 +160,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
           'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
           'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay'
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete
