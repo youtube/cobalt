@@ -80,18 +80,6 @@
       '-Wl,-rpath=<(sysroot)/lib/arm-linux-gnueabihf',
       # Cleanup unused sections
       '-Wl,-gc-sections',
-      # We don't wrap these symbols, but this ensures that they aren't
-      # linked in.
-      '-Wl,--wrap=malloc',
-      '-Wl,--wrap=calloc',
-      '-Wl,--wrap=realloc',
-      '-Wl,--wrap=memalign',
-      '-Wl,--wrap=reallocalign',
-      '-Wl,--wrap=free',
-      '-Wl,--wrap=strdup',
-      '-Wl,--wrap=malloc_usable_size',
-      '-Wl,--wrap=malloc_stats_fast',
-      '-Wl,--wrap=__cxa_demangle',
       '-Wl,--unresolved-symbols=ignore-in-shared-libs',
     ],
     'compiler_flags_debug': [
