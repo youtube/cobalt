@@ -479,9 +479,6 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     script_executor_ = base::AsWeakPtr(script_executor.get());
   }
 
-  DLOG(INFO) << "Executing: " << script.function_body();
-  DLOG(INFO) << "Arguments: " << script.argument_array();
-
   auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment, script.function_body(),
                                    script.argument_array(), async_timeout);

@@ -203,8 +203,6 @@ class Application {
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
 
-  static AppStatus app_status_;
-
   CValStats c_val_stats_;
 
   base::RepeatingTimer stats_update_timer_;

@@ -17,6 +17,7 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "base/strings/stringprintf.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -77,6 +78,55 @@ void UpdateMinValue(SbAtomic32 new_value, volatile SbAtomic32* min) {
 
 }  // namespace
 
+PlaybackStatistics::PlaybackStatistics(const std::string& pipeline_identifier)
+    : seek_time_(base::StringPrintf("Media.Pipeline.%s.SeekTime",
+                                    pipeline_identifier.c_str()),
+                 base::TimeDelta(), "The seek-to time of the media pipeline."),
+      first_written_audio_timestamp_(
+          base::StringPrintf("Media.Pipeline.%s.FirstWrittenAudioTimestamp",
+                             pipeline_identifier.c_str()),
+          base::TimeDelta(),
+          "The timestamp of the first written audio buffer in the media "
+          "pipeline."),
+      first_written_video_timestamp_(
+          base::StringPrintf("Media.Pipeline.%s.FirstWrittenVideoTimestamp",
+                             pipeline_identifier.c_str()),
+          base::TimeDelta(),
+          "The timestamp of the first written audio buffer in the media "
+          "pipeline."),
+      last_written_audio_timestamp_(
+          base::StringPrintf("Media.Pipeline.%s.LastWrittenAudioTimestamp",
+                             pipeline_identifier.c_str()),
+          base::TimeDelta(),
+          "The timestamp of the last written audio buffer in the media "
+          "pipeline."),
+      last_written_video_timestamp_(
+          base::StringPrintf("Media.Pipeline.%s.LastWrittenVideoTimestamp",
+                             pipeline_identifier.c_str()),
+          base::TimeDelta(),
+          "The timestamp of the last written video buffer in the media "
+          "pipeline."),
+      video_width_(base::StringPrintf("Media.Pipeline.%s.VideoWidth",
+                                      pipeline_identifier.c_str()),
+                   0, "The frame width of the video."),
+      video_height_(base::StringPrintf("Media.Pipeline.%s.VideoHeight",
+                                       pipeline_identifier.c_str()),
+                    0, "The frame height of the video."),
+      is_audio_eos_written_(
+          base::StringPrintf("Media.Pipeline.%s.IsAudioEOSWritten",
+                             pipeline_identifier.c_str()),
+          false, "Indicator of if the audio eos is written."),
+      is_video_eos_written_(
+          base::StringPrintf("Media.Pipeline.%s.IsVideoEOSWritten",
+                             pipeline_identifier.c_str()),
+          false, "Indicator of if the video eos is written."),
+      pipeline_status_(base::StringPrintf("Media.Pipeline.%s.PipelineStatus",
+                                          pipeline_identifier.c_str()),
+                       PIPELINE_OK, "The status of the media pipeline."),
+      error_message_(base::StringPrintf("Media.Pipeline.%s.ErrorMessage",
+                                        pipeline_identifier.c_str()),
+                     "", "The error message of the media pipeline error.") {}
+
 PlaybackStatistics::~PlaybackStatistics() {
   SbAtomicNoBarrier_Increment(&s_active_instances, -1);
 }
@@ -103,10 +153,11 @@ void PlaybackStatistics::UpdateVideoConfig(
     }
   }
 
-  const auto width =
-      static_cast<SbAtomic32>(video_config.natural_size().width());
-  const auto height =
-      static_cast<SbAtomic32>(video_config.natural_size().height());
+  video_width_ = video_config.natural_size().width();
+  video_height_ = video_config.natural_size().height();
+
+  const auto width = static_cast<SbAtomic32>(video_width_);
+  const auto height = static_cast<SbAtomic32>(video_height_);
 
   UpdateMinValue(width, &s_min_video_width);
   UpdateMaxValue(width, &s_max_video_width);
@@ -124,22 +175,38 @@ void PlaybackStatistics::OnPresenting(const VideoDecoderConfig& video_config) {
 
 void PlaybackStatistics::OnSeek(const base::TimeDelta& seek_time) {
   seek_time_ = seek_time;
-  first_written_audio_timestamp_.reset();
-  first_written_video_timestamp_.reset();
+  is_first_audio_buffer_written_ = false;
+  is_first_video_buffer_written_ = false;
 }
 
-void PlaybackStatistics::OnAudioAU(const base::TimeDelta& timestamp) {
-  last_written_audio_timestamp_ = timestamp;
-  if (!first_written_audio_timestamp_) {
-    first_written_audio_timestamp_.emplace(timestamp);
+void PlaybackStatistics::OnAudioAU(const scoped_refptr<DecoderBuffer>& buffer) {
+  if (buffer->end_of_stream()) {
+    is_audio_eos_written_ = true;
+    return;
+  }
+  last_written_audio_timestamp_ = buffer->timestamp();
+  if (!is_first_audio_buffer_written_) {
+    is_first_audio_buffer_written_ = true;
+    first_written_audio_timestamp_ = buffer->timestamp();
   }
 }
 
-void PlaybackStatistics::OnVideoAU(const base::TimeDelta& timestamp) {
-  last_written_video_timestamp_ = timestamp;
-  if (!first_written_video_timestamp_) {
-    first_written_video_timestamp_.emplace(timestamp);
+void PlaybackStatistics::OnVideoAU(const scoped_refptr<DecoderBuffer>& buffer) {
+  if (buffer->end_of_stream()) {
+    is_video_eos_written_ = true;
+    return;
   }
+  last_written_video_timestamp_ = buffer->timestamp();
+  if (!is_first_video_buffer_written_) {
+    is_first_video_buffer_written_ = true;
+    first_written_video_timestamp_ = buffer->timestamp();
+  }
+}
+
+void PlaybackStatistics::OnError(PipelineStatus status,
+                                 const std::string& error_message) {
+  pipeline_status_ = status;
+  error_message_ = error_message;
 }
 
 std::string PlaybackStatistics::GetStatistics(
@@ -149,14 +216,12 @@ std::string PlaybackStatistics::GetStatistics(
       ", active_players (max): %d (%d), av1: ~%" PRId64 ", h264: ~%" PRId64
       ", hevc: ~%" PRId64 ", vp9: ~%" PRId64
       ", min_width: %d, min_height: %d, max_width: %d, max_height: %d"
-      ", last_working_codec: %s, seek_time: %" PRId64
+      ", last_working_codec: %s, seek_time: %s"
       ", first_audio_time: ~%" PRId64 ", first_video_time: ~%" PRId64
       ", last_audio_time: ~%" PRId64 ", last_video_time: ~%" PRId64,
       GetCodecName(current_video_config.codec()).c_str(),
-      (current_video_config.is_encrypted() ? "Y" : "N"),
-      static_cast<int>(current_video_config.natural_size().width()),
-      static_cast<int>(current_video_config.natural_size().height()),
-      SbAtomicNoBarrier_Load(&s_active_instances),
+      (current_video_config.is_encrypted() ? "Y" : "N"), video_width_.value(),
+      video_height_.value(), SbAtomicNoBarrier_Load(&s_active_instances),
       SbAtomicNoBarrier_Load(&s_max_active_instances),
       RoundValues(SbAtomicNoBarrier_Load(&s_av1_played)),
       RoundValues(SbAtomicNoBarrier_Load(&s_h264_played)),
@@ -169,18 +234,18 @@ std::string PlaybackStatistics::GetStatistics(
       GetCodecName(static_cast<VideoCodec>(
                        SbAtomicNoBarrier_Load(&s_last_working_codec)))
           .c_str(),
-      seek_time_.InMicroseconds(),
-      first_written_audio_timestamp_.has_value()
-          ? RoundValues(first_written_audio_timestamp_->InSeconds())
+      ValToString(seek_time_).c_str(),
+      is_first_audio_buffer_written_
+          ? RoundValues(first_written_audio_timestamp_.value().InSeconds())
           : -1,
-      first_written_video_timestamp_.has_value()
-          ? RoundValues(first_written_video_timestamp_->InSeconds())
+      is_first_video_buffer_written_
+          ? RoundValues(first_written_video_timestamp_.value().InSeconds())
           : -1,
-      first_written_audio_timestamp_.has_value()
-          ? RoundValues(last_written_audio_timestamp_.InSeconds())
+      is_first_audio_buffer_written_
+          ? RoundValues(last_written_audio_timestamp_.value().InSeconds())
           : -1,
-      first_written_video_timestamp_.has_value()
-          ? RoundValues(last_written_video_timestamp_.InSeconds())
+      is_first_video_buffer_written_
+          ? RoundValues(last_written_video_timestamp_.value().InSeconds())
           : -1);
 }
 
