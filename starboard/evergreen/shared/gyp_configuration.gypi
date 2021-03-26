@@ -33,13 +33,6 @@
 
     'final_executable_type': 'shared_library',
     'gtest_target_type': 'shared_library',
-
-    # Using an inner scope for 'variables' so that it can be made a default
-    # (and so overridden elsewhere), but yet still used immediately in this
-    # file.
-    'variables': {
-      'use_dlmalloc_allocator%': 0,
-    },
   },
   'target_defaults': {
     'defines' : [

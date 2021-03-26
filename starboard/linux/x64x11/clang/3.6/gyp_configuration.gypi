@@ -15,10 +15,6 @@
 {
   'variables': {
     'sb_target_platform': 'linux-x64x11-clang-3-6',
-    'linker_flags!': [
-            '-Wl,--wrap=malloc',
-            '-Wl,--wrap=free',
-    ],
     'cobalt_v8_emit_builtins_as_inline_asm': 0,
   },
 
