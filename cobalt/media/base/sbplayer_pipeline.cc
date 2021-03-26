@@ -21,11 +21,13 @@
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/optional.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/audio_decoder_config.h"
 #include "cobalt/media/base/bind_to_current_loop.h"
@@ -189,6 +191,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Retrieve the statistics as a string and append to message.
   std::string AppendStatisticsString(const std::string& message) const;
 
+  // An identifier string for the pipeline, used in CVal to identify multiple
+  // pipelines.
+  const std::string pipeline_identifier_;
+
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
@@ -219,12 +225,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
   // filters.
-  float volume_ = 1.f;
+  base::CVal<float> volume_;
 
   // Current playback rate (>= 0.0f).  This value is set immediately via
   // SetPlaybackRate() and a task is dispatched on the message loop to notify
   // the filters.
-  float playback_rate_ = 0.f;
+  base::CVal<float> playback_rate_;
 
   // The saved audio and video demuxer streams.  Note that it is safe to store
   // raw pointers of the demuxer streams, as the Demuxer guarantees that its
@@ -259,7 +265,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool audio_read_in_progress_ = false;
   bool audio_read_delayed_ = false;
   bool video_read_in_progress_ = false;
-  TimeDelta duration_;
+  base::CVal<TimeDelta> duration_;
 
 #if SB_HAS(PLAYER_WITH_URL)
   TimeDelta start_date_;
@@ -276,12 +282,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Temporary callback used for Start() and Seek().
   SeekCB seek_cb_;
-  base::TimeDelta seek_time_;
+  TimeDelta seek_time_;
   std::unique_ptr<StarboardPlayer> player_;
   bool is_initial_preroll_ = true;
-  bool suspended_ = false;
-  bool stopped_ = false;
-  bool ended_ = false;
+  base::CVal<bool> started_;
+  base::CVal<bool> suspended_;
+  base::CVal<bool> stopped_;
+  base::CVal<bool> ended_;
+  base::CVal<SbPlayerState> player_state_;
 
   VideoFrameProvider* video_frame_provider_;
 
@@ -299,11 +307,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Timestamp for the last written audio.
   SbTime timestamp_of_last_written_audio_ = 0;
   // Last media time reported by GetMediaTime().
-  SbTime last_media_time_ = 0;
+  base::CVal<SbTime> last_media_time_;
   // Time when we last checked the media time.
   SbTime last_time_media_time_retrieved_ = 0;
   // The maximum video playback capabilities required for the playback.
-  std::string max_video_capabilities_;
+  base::CVal<std::string> max_video_capabilities_;
 
   PlaybackStatistics playback_statistics_;
 
@@ -317,14 +325,51 @@ SbPlayerPipeline::SbPlayerPipeline(
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider)
-    : task_runner_(task_runner),
+    : pipeline_identifier_(base::StringPrintf("%p", this)),
+      task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       window_(window),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
       natural_size_(0, 0),
+      volume_(base::StringPrintf("Media.Pipeline.%s.Volume",
+                                 pipeline_identifier_.c_str()),
+              1.0f, "Volume of the media pipeline."),
+      playback_rate_(base::StringPrintf("Media.Pipeline.%s.PlaybackRate",
+                                        pipeline_identifier_.c_str()),
+                     0.0f, "Playback rate of the media pipeline."),
+      duration_(base::StringPrintf("Media.Pipeline.%s.Duration",
+                                   pipeline_identifier_.c_str()),
+                base::TimeDelta(), "Playback duration of the media pipeline."),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      video_frame_provider_(video_frame_provider) {
+      started_(base::StringPrintf("Media.Pipeline.%s.Started",
+                                  pipeline_identifier_.c_str()),
+               false, "Whether the media pipeline has started."),
+      suspended_(base::StringPrintf("Media.Pipeline.%s.Suspended",
+                                    pipeline_identifier_.c_str()),
+                 false,
+                 "Whether the media pipeline has been suspended. The "
+                 "pipeline is usually suspended after the app enters "
+                 "background mode."),
+      stopped_(base::StringPrintf("Media.Pipeline.%s.Stopped",
+                                  pipeline_identifier_.c_str()),
+               false, "Whether the media pipeline has stopped."),
+      ended_(base::StringPrintf("Media.Pipeline.%s.Ended",
+                                pipeline_identifier_.c_str()),
+             false, "Whether the media pipeline has ended."),
+      player_state_(base::StringPrintf("Media.Pipeline.%s.PlayerState",
+                                       pipeline_identifier_.c_str()),
+                    kSbPlayerStateInitialized,
+                    "The underlying SbPlayer state of the media pipeline."),
+      video_frame_provider_(video_frame_provider),
+      last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
+                                          pipeline_identifier_.c_str()),
+                       0, "Last media time reported by the underlying player."),
+      max_video_capabilities_(
+          base::StringPrintf("Media.Pipeline.%s.MaxVideoCapabilities",
+                             pipeline_identifier_.c_str()),
+          "", "The max video capabilities required for the media pipeline."),
+      playback_statistics_(pipeline_identifier_) {
   SbMediaSetAudioWriteDuration(kAudioLimit);
 }
 
@@ -773,6 +818,8 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
                        BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerInitialized, this)),
                        kEnableTextTracks);
+
+  started_ = true;
 }
 
 void SbPlayerPipeline::SetVolumeTask(float volume) {
@@ -1113,15 +1160,13 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   if (type == DemuxerStream::AUDIO) {
     audio_read_in_progress_ = false;
+    playback_statistics_.OnAudioAU(buffer);
     if (!buffer->end_of_stream()) {
-      playback_statistics_.OnAudioAU(buffer->timestamp());
       timestamp_of_last_written_audio_ = buffer->timestamp().ToSbTime();
     }
   } else {
     video_read_in_progress_ = false;
-    if (!buffer->end_of_stream()) {
-      playback_statistics_.OnVideoAU(buffer->timestamp());
-    }
+    playback_statistics_.OnVideoAU(buffer);
   }
 
   player_->WriteBuffer(type, buffer);
@@ -1165,7 +1210,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
           timestamp_of_last_written_audio_ - last_media_time_;
       if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
         SbTime delay_time = (time_ahead_of_playback - kAudioLimit) /
-                            std::max(playback_rate_, 1.0f);
+                            std::max(playback_rate_.value(), 1.0f);
         task_runner_->PostDelayedTask(
             FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
             base::TimeDelta::FromMicroseconds(delay_time));
@@ -1196,6 +1241,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   if (!player_) {
     return;
   }
+  player_state_ = state;
   switch (state) {
     case kSbPlayerStateInitialized:
       NOTREACHED();
@@ -1333,6 +1379,11 @@ void SbPlayerPipeline::CallSeekCB(PipelineStatus status,
 void SbPlayerPipeline::CallErrorCB(PipelineStatus status,
                                    const std::string& error_message) {
   DCHECK_NE(status, PIPELINE_OK);
+  // Only to record the first error.
+  if (error_cb_.is_null()) {
+    return;
+  }
+  playback_statistics_.OnError(status, error_message);
   ResetAndRunIfNotNull(&error_cb_, status,
                        AppendStatisticsString(error_message));
 }

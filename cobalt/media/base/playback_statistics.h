@@ -19,6 +19,9 @@
 
 #include "base/optional.h"
 #include "base/time/time.h"
+#include "cobalt/base/c_val.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/video_decoder_config.h"
 
 namespace cobalt {
@@ -26,24 +29,34 @@ namespace media {
 
 class PlaybackStatistics {
  public:
+  explicit PlaybackStatistics(const std::string& pipeline_identifier);
   ~PlaybackStatistics();
 
   void UpdateVideoConfig(const VideoDecoderConfig& video_config);
   void OnPresenting(const VideoDecoderConfig& video_config);
   void OnSeek(const base::TimeDelta& seek_time);
-  void OnAudioAU(const base::TimeDelta& timestamp);
-  void OnVideoAU(const base::TimeDelta& timestamp);
+  void OnAudioAU(const scoped_refptr<DecoderBuffer>& buffer);
+  void OnVideoAU(const scoped_refptr<DecoderBuffer>& buffer);
+  void OnError(PipelineStatus status, const std::string& error_message);
 
   std::string GetStatistics(
       const VideoDecoderConfig& current_video_config) const;
 
  private:
-  base::TimeDelta seek_time_;
-  base::Optional<base::TimeDelta> first_written_audio_timestamp_;
-  base::Optional<base::TimeDelta> first_written_video_timestamp_;
-  base::TimeDelta last_written_audio_timestamp_;
-  base::TimeDelta last_written_video_timestamp_;
+  base::CVal<base::TimeDelta> seek_time_;
+  base::CVal<base::TimeDelta> first_written_audio_timestamp_;
+  base::CVal<base::TimeDelta> first_written_video_timestamp_;
+  base::CVal<base::TimeDelta> last_written_audio_timestamp_;
+  base::CVal<base::TimeDelta> last_written_video_timestamp_;
+  base::CVal<int> video_width_;
+  base::CVal<int> video_height_;
+  base::CVal<bool> is_audio_eos_written_;
+  base::CVal<bool> is_video_eos_written_;
+  base::CVal<PipelineStatus> pipeline_status_;
+  base::CVal<std::string> error_message_;
   bool is_initial_config_ = true;
+  bool is_first_audio_buffer_written_ = false;
+  bool is_first_video_buffer_written_ = false;
 };
 
 }  // namespace media

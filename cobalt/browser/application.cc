@@ -592,9 +592,6 @@ struct RecordCheckerStub : public base::RecordHistogramChecker {
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
 
-Application::AppStatus Application::app_status_ =
-    Application::kUninitializedAppStatus;
-
 Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(base::MessageLoop::current()),
       quit_closure_(quit_closure)
@@ -857,8 +854,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   UpdateUserAgent();
 
-  app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
-
   // Register event callbacks.
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
@@ -1006,19 +1001,12 @@ Application::~Application() {
       base::DateTimeConfigurationChangedEvent::TypeId(),
       on_date_time_configuration_changed_event_callback_);
 #endif
-
-  app_status_ = kShutDownAppStatus;
 }
 
 void Application::Start() {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
-    return;
-  }
-
-  if (app_status_ != kConcealedAppStatus) {
-    NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
 
@@ -1033,7 +1021,6 @@ void Application::Quit() {
   }
 
   quit_closure_.Run();
-  app_status_ = kQuitAppStatus;
 }
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
@@ -1166,13 +1153,11 @@ void Application::OnApplicationEvent(SbEventType event_type) {
   switch (event_type) {
     case kSbEventTypeStop:
       DLOG(INFO) << "Got quit event.";
-      app_status_ = kWillQuitAppStatus;
       Quit();
       DLOG(INFO) << "Finished quitting.";
       break;
     case kSbEventTypeStart:
       DLOG(INFO) << "Got start event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Reveal();
       browser_module_->Focus();
       DLOG(INFO) << "Finished starting.";
@@ -1180,32 +1165,27 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Blur();
       DLOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       DLOG(INFO) << "Got focus event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Focus();
       DLOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       DLOG(INFO) << "Got conceal event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Conceal();
       DLOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got reveal event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       DLOG(INFO) << "Got freeze event.";
-      app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
@@ -1214,7 +1194,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     case kSbEventTypeUnfreeze:
       DLOG(INFO) << "Got unfreeze event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Unfreeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
@@ -1224,21 +1203,17 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Blur();
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Focus();
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Conceal();
-      app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
@@ -1248,9 +1223,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Unfreeze();
-      app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
