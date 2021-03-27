@@ -134,6 +134,7 @@
         '../dom/performance.idl',
         '../dom/performance_entry.idl',
         '../dom/performance_observer_entry_list.idl',
+        '../dom/performance_resource_timing.idl',
         '../dom/performance_timing.idl',
         '../dom/plugin_array.idl',
         '../dom/pointer_event.idl',
