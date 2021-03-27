@@ -262,6 +262,8 @@
         'performance_entry_buffer_impl.h',
         'performance_observer_entry_list.cc',
         'performance_observer_entry_list.h',
+        'performance_resource_timing.cc',
+        'performance_resource_timing.h',
         'performance_timing.cc',
         'performance_timing.h',
         'performance_high_resolution_time.h',
