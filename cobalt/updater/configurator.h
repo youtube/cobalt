@@ -103,6 +103,7 @@ class Configurator : public update_client::Configurator {
   base::Lock updater_status_lock_;
   std::string previous_updater_status_;
   base::Lock previous_updater_status_lock_;
+  std::string user_agent_string_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
