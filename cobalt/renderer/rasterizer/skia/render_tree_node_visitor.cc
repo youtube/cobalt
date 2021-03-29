@@ -45,8 +45,6 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 #include "cobalt/renderer/rasterizer/skia/glyph_buffer.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkNV122RGBShader.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/effects/SkYUV2RGBShader.h"
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/software_image.h"
 #include "third_party/skia/include/core/SkBlendMode.h"

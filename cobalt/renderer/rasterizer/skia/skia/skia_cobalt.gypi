@@ -19,10 +19,6 @@
 
   'sources': [
     'config/SkUserConfig.h',
-    'src/effects/SkNV122RGBShader.cc',
-    'src/effects/SkNV122RGBShader.h',
-    'src/effects/SkYUV2RGBShader.cc',
-    'src/effects/SkYUV2RGBShader.h',
     'src/google_logging.cc',
     'src/gpu/gl/GrGLMakeNativeInterface_cobalt.cc',
     'src/ports/SkFontConfigParser_cobalt.cc',
