@@ -340,9 +340,12 @@ public abstract class CobaltActivity extends NativeActivity implements Component
 
   @Override
   public void onLowMemory() {
+    super.onLowMemory();
     nativeLowMemoryEvent();
   }
 
   @Override
-  public void onConfigurationChanged(Configuration newConfig) {}
+  public void onConfigurationChanged(Configuration newConfig) {
+    super.onConfigurationChanged(newConfig);
+  }
 }
