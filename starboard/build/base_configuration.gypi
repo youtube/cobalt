@@ -220,6 +220,9 @@
               '-m32',
               '--std=gnu++11',
             ],
+            'compiler_flags_host': [
+              '-m32',
+            ],
             'linker_flags_host%': [
               '-target', 'i386-unknown-linux-gnu',
               '-pthread',
