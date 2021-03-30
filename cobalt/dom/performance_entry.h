@@ -34,10 +34,13 @@ class PerformanceEntry : public script::Wrappable {
                    DOMHighResTimeStamp finish_time);
 
   enum EntryType : PerformanceEntryType {
-    kInvalid = 0,
-    kResource = 1 << 0,
-    kNavigation = 1 << 1,
+    kResource = 0,
+    kNavigation = 1,
+    kInvalid = 2,
   };
+
+  static constexpr const char* kEntryTypeString[] =
+      {"resource", "navigation", "invalid"};
 
   std::string name() const { return name_; }
   DOMHighResTimeStamp start_time() const;
@@ -50,8 +53,8 @@ class PerformanceEntry : public script::Wrappable {
   static PerformanceEntry::EntryType ToEntryTypeEnum(
       const std::string& entry_type);
 
-  static bool StartTimeCompareLessThan(PerformanceEntry* a,
-                                       PerformanceEntry* b);
+  static bool StartTimeCompareLessThan(const scoped_refptr<PerformanceEntry>& a,
+                                       const scoped_refptr<PerformanceEntry>& b);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceEntry);
 
