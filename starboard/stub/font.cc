@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
-#include "cobalt/extension/configuration.h"
-#include "cobalt/extension/font.h"
-#include "starboard/common/string.h"
-#include "starboard/stub/configuration.h"
 #include "starboard/stub/font.h"
 
-const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
-    return starboard::stub::GetConfigurationApi();
-  }
-  if (SbStringCompareAll(name, kCobaltExtensionFontName) == 0) {
-    return starboard::stub::GetFontApi();
-  }
-  return NULL;
+#include "cobalt/extension/font.h"
+
+namespace starboard {
+namespace stub {
+
+namespace {
+
+bool GetPathFallbackFontDirectory(char* path, int path_size) {
+  return false;
 }
+
+const CobaltExtensionFontApi kFontApi = {
+    kCobaltExtensionFontName,
+    1,  // API version that's implemented.
+    &GetPathFallbackFontDirectory,
+};
+
+}  // namespace
+
+const void* GetFontApi() {
+  return &kFontApi;
+}
+
+}  // namespace stub
+}  // namespace starboard
