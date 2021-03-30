@@ -19,11 +19,9 @@
 #include <string>
 
 #include "cobalt/base/clock.h"
-#include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_entry_buffer_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/performance_observer.h"
-#include "cobalt/dom/performance_observer_entry_list.h"
 #include "cobalt/dom/performance_observer_init.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/wrappable.h"
@@ -94,7 +92,7 @@ class Performance : public script::Wrappable,
   // https://www.w3.org/TR/hr-time-3/#dfn-time-origin
   base::TimeDelta time_origin_;
 
-  PerformanceEntryBuffer performance_entry_buffer_;
+  PerformanceEntryList performance_entry_buffer_;
   struct RegisteredPerformanceObserver : public script::Traceable {
     RegisteredPerformanceObserver(
         const scoped_refptr<PerformanceObserver>& observer_init,

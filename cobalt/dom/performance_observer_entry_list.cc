@@ -17,7 +17,6 @@
 #include <algorithm>
 
 #include "cobalt/dom/performance_entry.h"
-#include "cobalt/dom/performance_entry_buffer_impl.h"
 
 namespace cobalt {
 namespace dom {

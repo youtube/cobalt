@@ -15,6 +15,7 @@
 #include "performance_entry.h"
 
 #include "base/atomic_sequence_num.h"
+#include "base/strings/string_util.h"
 
 namespace cobalt {
 namespace dom {
@@ -22,6 +23,9 @@ namespace dom {
 namespace {
 static base::AtomicSequenceNumber index_seq;
 }
+
+// static
+constexpr const char* PerformanceEntry::kEntryTypeString[];
 
 PerformanceEntry::PerformanceEntry(const std::string& name,
                                    DOMHighResTimeStamp start_time,
@@ -41,15 +45,19 @@ DOMHighResTimeStamp PerformanceEntry::duration() const {
 
 PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
     const std::string& entry_type) {
-  if (entry_type == "resource")
-    return kResource;
-  if (entry_type == "navigation")
-    return kNavigation;
+  for (size_t i = 0; i < arraysize(PerformanceEntry::kEntryTypeString); ++i) {
+    if (base::LowerCaseEqualsASCII(entry_type,
+        PerformanceEntry::kEntryTypeString[i])) {
+      return static_cast<PerformanceEntry::EntryType>(i);
+    }
+  }
   return kInvalid;
 }
 
+// static
 bool PerformanceEntry::StartTimeCompareLessThan(
-    PerformanceEntry* a, PerformanceEntry* b) {
+    const scoped_refptr<PerformanceEntry>& a,
+    const scoped_refptr<PerformanceEntry>& b) {
   if (a->start_time() == b->start_time())
     return a->index_ < b->index_;
   return a->start_time() < b->start_time();
