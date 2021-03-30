@@ -27,6 +27,8 @@
         'configuration.cc',
         'configuration.h',
         'configuration_constants.cc',
+        'font.cc',
+        'font.h',
         'main.cc',
         'system_get_extensions.cc',
         'thread_types_public.h',
