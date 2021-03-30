@@ -260,6 +260,8 @@
         'performance_entry.h',
         'performance_entry_buffer_impl.cc',
         'performance_entry_buffer_impl.h',
+        'performance_observer.cc',
+        'performance_observer.h',
         'performance_observer_entry_list.cc',
         'performance_observer_entry_list.h',
         'performance_timing.cc',

@@ -16,10 +16,12 @@
 
 callback PerformanceObserverCallback = void (PerformanceObserverEntryList entries,
                                              PerformanceObserver observer);
-[Exposed=Window]
+
+[Constructor(PerformanceObserverCallback callback),
+ConstructorCallWith=EnvironmentSettings,
+Exposed=Window]
 interface PerformanceObserver {
-  constructor(PerformanceObserverCallback callback);
-  void observe (optional PerformanceObserverInit options = {});
+  [RaisesException] void observe (optional PerformanceObserverInit options);
   void disconnect ();
   PerformanceEntryList takeRecords();
   // TODO: make this be FrozenArray<DOMString> when available
