@@ -344,11 +344,14 @@ void ReplacedBox::RenderAndAnimateContent(
       cssom::MapToMeshFunction::ExtractFromFilterList(
           computed_style()->filter());
 
-  if (mtm_filter_function && mtm_filter_function->mesh_spec().mesh_type() !=
-                                 cssom::MapToMeshFunction::kRectangular) {
-    DCHECK(*replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kVideo)
-        << "We currently do not support punched out video with map-to-mesh "
-           "filters.";
+  // Map-to-mesh is only supported with decode-to-texture videos.
+  const bool supports_mtm =
+      replaced_box_mode_ &&
+      *replaced_box_mode_ == ReplacedBox::ReplacedBoxMode::kVideo;
+
+  if (supports_mtm && mtm_filter_function &&
+      mtm_filter_function->mesh_spec().mesh_type() !=
+          cssom::MapToMeshFunction::kRectangular) {
     RenderAndAnimateContentWithMapToMesh(border_node_builder,
                                          mtm_filter_function);
   } else {
