@@ -42,11 +42,5 @@ PerformanceEntryList PerformanceObserverEntryList::GetEntriesByName(
       observer_buffer_, name, type);
 }
 
-PerformanceEntryList PerformanceObserverEntryList::GetEntriesByName(
-    const std::string& name) {
-  return PerformanceEntryBufferImpl::GetEntriesByName(
-      observer_buffer_, name, NULL);
-}
-
 }  // namespace dom
 }  // namespace cobalt

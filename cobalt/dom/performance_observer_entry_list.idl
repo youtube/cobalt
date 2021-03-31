@@ -18,5 +18,5 @@
 interface PerformanceObserverEntryList {
   PerformanceEntryList getEntries();
   PerformanceEntryList getEntriesByType (DOMString type);
-  PerformanceEntryList getEntriesByName (DOMString name, optional DOMString type);
+  PerformanceEntryList getEntriesByName (DOMString name, optional DOMString type = "");
 };
