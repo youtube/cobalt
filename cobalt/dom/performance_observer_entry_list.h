@@ -39,7 +39,6 @@ class PerformanceObserverEntryList : public script::Wrappable {
   PerformanceEntryList GetEntriesByType(const std::string& entry_type);
   PerformanceEntryList GetEntriesByName(const std::string& name,
                                         const base::StringPiece& type);
-  PerformanceEntryList GetEntriesByName(const std::string& name);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceObserverEntryList);
 

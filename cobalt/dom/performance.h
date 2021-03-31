@@ -66,7 +66,6 @@ class Performance : public script::Wrappable {
   PerformanceEntryList GetEntriesByType(const std::string& entry_type);
   PerformanceEntryList GetEntriesByName(
       const std::string& name, const base::StringPiece& type);
-  PerformanceEntryList GetEntriesByName(const std::string& name);
 
  private:
   scoped_refptr<PerformanceTiming> timing_;
