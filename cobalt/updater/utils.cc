@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,19 +93,19 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   return base::Version();
 }
 
-const std::string GetSystemImageEvergreenVersion() {
-  std::vector<char> installation_path(kSbFileMaxPath);
+const std::string GetLoadedInstallationEvergreenVersion() {
   std::vector<char> system_path_content_dir(kSbFileMaxPath);
   if (!SbSystemGetPath(kSbSystemPathContentDirectory,
                        system_path_content_dir.data(), kSbFileMaxPath)) {
     SB_LOG(ERROR) << "Failed to get system path content directory";
     return "";
   }
-  SbStringFormatF(installation_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
-                  system_path_content_dir.data(), kSbFileSepString, "app",
-                  kSbFileSepString, "cobalt");
-  base::Version version = ReadEvergreenVersion(base::FilePath(
-      std::string(installation_path.begin(), installation_path.end())));
+  // Get the parent directory of the system_path_content_dir, and read the
+  // manifest.json there
+  base::Version version = ReadEvergreenVersion(
+      base::FilePath(std::string(system_path_content_dir.begin(),
+                                 system_path_content_dir.end()))
+          .DirName());
 
   if (!version.IsValid()) {
     SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
@@ -120,23 +120,24 @@ const std::string GetCurrentEvergreenVersion() {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Failed to get installation manager extension, assuming "
-                     "system image.";
-    return GetSystemImageEvergreenVersion();
+    SB_LOG(ERROR) << "Failed to get installation manager extension, getting "
+                     "the Evergreen version of the loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
   // Get the update version from the manifest file under the current
   // installation path.
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR)
-        << "Failed to get current installation index, assuming system image.";
-    return GetSystemImageEvergreenVersion();
+    SB_LOG(ERROR) << "Failed to get current installation index, getting the "
+                     "Evergreen version of the currently loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
   std::vector<char> installation_path(kSbFileMaxPath);
   if (installation_manager->GetInstallationPath(
           index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get installation path, assuming system image.";
-    return GetSystemImageEvergreenVersion();
+    SB_LOG(ERROR) << "Failed to get installation path, getting the Evergreen "
+                     "version of the currently loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
 
   base::Version version = ReadEvergreenVersion(base::FilePath(
