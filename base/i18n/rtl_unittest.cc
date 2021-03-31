@@ -541,8 +541,6 @@ TEST_F(RTLTest, SanitizeUserSuppliedString) {
   }
 }
 
-// TODO[Starboard]: Try to re-enable this test after icu library upgrade.
-#ifndef STARBOARD_OLD_ICU
 class SetICULocaleTest : public PlatformTest {};
 
 TEST_F(SetICULocaleTest, OverlongLocaleId) {
@@ -556,7 +554,6 @@ TEST_F(SetICULocaleTest, OverlongLocaleId) {
   SetICUDefaultLocale(id);
   EXPECT_STREQ("en_US", icu::Locale::getDefault().getName());
 }
-#endif
 
 }  // namespace i18n
 }  // namespace base

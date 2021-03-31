@@ -697,7 +697,6 @@
       'type': '<(gtest_target_type)',
       'defines': [
         'GMOCK_NO_MOVE_MOCK',
-        'STARBOARD_OLD_ICU',
         'BASE_DONT_ENFORCE_THREAD_NAME_LENGTH',
       ],
       'sources': [
