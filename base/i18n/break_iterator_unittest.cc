@@ -463,7 +463,7 @@ TEST(BreakIteratorTest, BreakCharacter) {
   };
   std::vector<string16> characters;
   string16 text;
-  for (size_t i = 0; i < arraysize(kCharacters); ++i) {
+  for (auto*& i : kCharacters) {
     characters.push_back(base::UTF8ToUTF16(i));
     text.append(characters.back());
   }
