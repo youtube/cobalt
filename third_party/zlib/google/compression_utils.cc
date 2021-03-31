@@ -68,7 +68,7 @@ bool GzipCompress(base::StringPiece input, std::string* output) {
     return false;
   }
   output->assign(resized_data, resized_data + compressed_data_size);
-  DCHECK_EQ(input_size, GetGzipUncompressedSize(*output));
+  DCHECK_EQ(input_size, GetUncompressedSize(*output));
 
   free(resized_data);
   return true;
