@@ -111,6 +111,12 @@
           '<(visual_studio_install_path)/atlmfc/include',
         ],
         'msvs_settings': {
+          'VCCLCompilerTool': {
+             'AdditionalOptions': [
+               '/EHsc',
+               '/std:c++14',
+             ],
+           },
           'VCLinkerTool': {
             'AdditionalDependencies': [
               'mfplat.lib',
@@ -382,6 +388,8 @@
       4265,
       # Inconsistent DLL linkage
       4273,
+      # Matching delete operator for `new`. 4291 is also ignored by Chromium.
+      4291,
       # Double -> float truncation. Not enabled on other compilers.
       4305,
       # cast truncates constant value.

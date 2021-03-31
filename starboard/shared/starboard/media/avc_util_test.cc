@@ -475,7 +475,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
 }
 
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvccEmptyNalus) {
-  const std::vector<uint8_t> kEmpty;
+  const std::vector<uint8_t> kEmpty = {};
   const std::vector<uint8_t> kRawNalu = {1, 2, 3, 4, 5};
 
   std::vector<uint8_t> nalus_in_annex_b;

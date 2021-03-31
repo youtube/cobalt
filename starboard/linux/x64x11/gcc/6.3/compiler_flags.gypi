@@ -98,20 +98,6 @@
         ],
       }],
     ],
-    'defines_debug': [
-      # Enable debug mode for the C++ standard library.
-      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
-      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
-      '_GLIBCXX_DEBUG',
-      '_LIBCPP_DEBUG=1',
-    ],
-    'defines_devel': [
-      # Enable debug mode for the C++ standard library.
-      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
-      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
-      '_GLIBCXX_DEBUG',
-      '_LIBCPP_DEBUG=0',
-    ],
   },
 
   'target_defaults': {
@@ -121,7 +107,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      '-std=gnu++11',
+      '-std=gnu++14',
       # Don't warn for invalid access to non-static data member of NULL object.
       '-Wno-invalid-offsetof',
       # Don't warn about deprecated use
