@@ -308,10 +308,8 @@ static decNumber * decRoundOperand(const decNumber *, decContext *, uInt *);
 #define SPECIALARGS ((lhs->bits | rhs->bits) & DECSPECIAL)
 
 /* For use in ICU */
-#if !defined(STARBOARD)
 #define malloc(a) uprv_malloc(a)
 #define free(a) uprv_free(a)
-#endif
 
 /* Diagnostic macros, etc. */
 #if DECALLOC
