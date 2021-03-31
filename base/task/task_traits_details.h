@@ -86,74 +86,6 @@ constexpr InvalidTrait GetTraitFromArg(CallSecondTag, ArgType /*arg*/) {
   return InvalidTrait();
 }
 
-// Returns an object of type |TraitFilterType| constructed from a compatible
-// argument in |args...|, or default constructed if none of the arguments are
-// compatible. This is the implementation of GetTraitFromArgList() with a
-// disambiguation tag.
-#if __cplusplus < 201402L
-template <class TraitFilterType,
-          class ArgTypes1,
-          class ArgTypes2,
-          class ArgTypes3,
-          class ArgTypes4,
-          class TestCompatibleArgument = std::enable_if_t<
-              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes2>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes3>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes4>::value>>
-TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
-                                        ArgTypes1 arg1,
-                                        ArgTypes2 arg2,
-                                        ArgTypes3 arg3,
-                                        ArgTypes4 arg4) {
-  return std::get<TraitFilterType>(
-      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg3),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg4)));
-}
-
-template <class TraitFilterType,
-          class ArgTypes1,
-          class ArgTypes2,
-          class ArgTypes3,
-          class TestCompatibleArgument = std::enable_if_t<
-              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes2>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes3>::value>>
-TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
-                                        ArgTypes1 arg1,
-                                        ArgTypes2 arg2,
-                                        ArgTypes3 arg3) {
-  return std::get<TraitFilterType>(
-      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg3)));
-}
-
-template <class TraitFilterType,
-          class ArgTypes1,
-          class ArgTypes2,
-          class TestCompatibleArgument = std::enable_if_t<
-              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
-              std::is_constructible<TraitFilterType, ArgTypes2>::value>>
-TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
-                                        ArgTypes1 arg1,
-                                        ArgTypes2 arg2) {
-  return std::get<TraitFilterType>(
-      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
-                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2)));
-}
-
-template <class TraitFilterType,
-          class ArgTypes1,
-          class TestCompatibleArgument = std::enable_if_t<
-              std::is_constructible<TraitFilterType, ArgTypes1>::value>>
-constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
-                                                  ArgTypes1 arg1) {
-  return TraitFilterType(arg1);
-}
-#else
 template <class TraitFilterType,
           class... ArgTypes,
           class TestCompatibleArgument = std::enable_if_t<any_of(
@@ -163,7 +95,6 @@ constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
   return std::get<TraitFilterType>(std::make_tuple(
       GetTraitFromArg<TraitFilterType>(CallFirstTag(), args)...));
 }
-#endif
 
 template <class TraitFilterType, class... ArgTypes>
 constexpr TraitFilterType GetTraitFromArgListImpl(CallSecondTag,
@@ -179,7 +110,7 @@ constexpr TraitFilterType GetTraitFromArgListImpl(CallSecondTag,
 // value using conversion to |TraitFilterType::ValueType|. If there are more
 // than one compatible argument in |args|, generates a compile-time error.
 template <class TraitFilterType, class... ArgTypes>
-CONSTEXPR typename TraitFilterType::ValueType GetTraitFromArgList(
+constexpr typename TraitFilterType::ValueType GetTraitFromArgList(
     ArgTypes... args) {
 #if __cplusplus >= 201402L
   static_assert(

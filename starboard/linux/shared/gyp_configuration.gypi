@@ -54,5 +54,25 @@
       # Enable GNU extensions to get prototypes like ffsl.
       '_GNU_SOURCE=1',
     ],
+    'conditions': [
+      ['cobalt_config == "debug"', {
+        'defines': [
+          # Enable debug mode for the C++ standard library.
+          # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+          # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+          '_GLIBCXX_DEBUG',
+          '_LIBCPP_DEBUG=1',
+        ],
+      }],
+      ['cobalt_config == "devel"', {
+        'defines': [
+          # Enable debug mode for the C++ standard library.
+          # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
+          # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
+          '_GLIBCXX_DEBUG',
+          '_LIBCPP_DEBUG=0',
+        ],
+      }],
+    ],
   }, # end of target_defaults
 }

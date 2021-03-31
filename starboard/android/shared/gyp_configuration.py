@@ -229,7 +229,7 @@ class AndroidConfiguration(PlatformConfiguration):
               path=cxx_path,
               defines=clang_defines,
               extra_flags=clang_flags + [
-                  '-std=c++11',
+                  '-std=c++14',
               ]),
           clang.AssemblerWithCPreprocessor(
               path=cc_path, defines=clang_defines, extra_flags=clang_flags),
