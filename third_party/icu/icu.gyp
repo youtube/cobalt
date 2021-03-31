@@ -345,14 +345,6 @@
           'xcode_settings': {
             'GCC_ENABLE_CPP_RTTI': 'YES',       # -frtti
           },
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'RuntimeTypeInfo': 'true',
-              # Certain currency characters will try to use the legacy
-              # windows-1252 encoding unless we explicitly specify utf-8
-              'AdditionalOptions': ['/utf-8'],
-            },
-          },
           'conditions': [
             [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "lb_shell"', {
               # Since ICU wants to internally use its own deprecated APIs, don't
@@ -457,6 +449,13 @@
             'include_dirs': [
               'source/common',
             ],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                # Certain currency characters will try to use the legacy
+                # windows-1252 encoding unless we explicitly specify utf-8
+                'AdditionalOptions': ['/utf-8'],
+              },
+            },
             'conditions': [
               [ 'component=="static_library"', {
                 'defines': [
