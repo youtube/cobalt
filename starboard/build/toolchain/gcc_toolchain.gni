@@ -2,54 +2,39 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/clang/clang.gni")
-import("//build/config/compiler/compiler.gni")
-import("//build/config/coverage/coverage.gni")
-import("//build/config/sanitizers/sanitizers.gni")
-import("//build/config/v8_target_cpu.gni")
-import("//build/toolchain/cc_wrapper.gni")
-import("//build/toolchain/goma.gni")
-import("//build/toolchain/rbe.gni")
-import("//build/toolchain/toolchain.gni")
+# Cobalt defaults:
+#   clang.CCompiler(path=cc_path),
+#   clang.CxxCompiler(path=cxx_path),
+#   clang.AssemblerWithCPreprocessor(path=cc_path),
+#   ar.StaticThinLinker(),
+#   ar.StaticLinker(),
+#   clangxx.ExecutableLinker(path=cxx_path, write_group=True),
+#   clangxx.SharedLibraryLinker(path=cxx_path),
+#   cp.Copy(),
+#   touch.Stamp(),
+#   bash.Shell(),
+# maps to:
+#   tool("cc")
+#   tool("cxx")
+#   tool("asm")
+#   tool("alink")
+#   tool("alink")
+#   tool("link")
+#   tool("solink")
+#   tool("copy")
+#   tool("stamp")
+#   TODO (is shell necessary? maybe tool("action")?)
+# TODO(andrewsavage):
+# use command_launcher for ccache
+# pool size
+# figure out imports below
+# possibly add -x to commands (just clang?)
+# add T flag to ar for thin archive? look at "//build/config/compiler:thin_archive"
 
-if (is_nacl) {
-  # To keep NaCl variables out of builds that don't include NaCl, all
-  # variables defined in nacl/config.gni referenced here should be protected by
-  # is_nacl conditions.
-  import("//build/config/nacl/config.gni")
-}
-
-declare_args() {
-  # Enables allowlist generation for IDR_ grit defines seen by the compiler.
-  # Currently works only on some platforms and enabled by default for official
-  # builds. Requires debug info.
-  enable_resource_allowlist_generation =
-      is_official_build &&
-      # Don't enable for Android-on-Chrome OS so that they can build with
-      # symbol_level=0 without this failing (crbug.com/891164).
-      (target_os == "android" || target_os == "win")
-}
-
-# When the arg is set via args.gn, it applies to all toolchains. In order to not
-# hit the assert in grit_rule.gni, explicitly disable for host toolchains.
-if ((is_linux || is_chromeos) && target_os == "android") {
-  enable_resource_allowlist_generation = false
-}
-
-# Ensure enable_resource_allowlist_generation is enabled only when it will work.
-if (enable_resource_allowlist_generation) {
-  assert(symbol_level >= 1,
-         "enable_resource_allowlist_generation=true requires symbol_level >= 1")
-  assert(
-      !strip_debug_info,
-      "enable_resource_allowlist_generation=true requires strip_debug_info=false")
-  assert(
-      !is_component_build,
-      "enable_resource_allowlist_generation=true requires is_component_build=false")
-  assert(
-      target_os == "android" || target_os == "win",
-      "enable_resource_allowlist_generation=true does not work for target_os=$target_os")
-}
+# import("//build/config/compiler/compiler.gni")
+# import("//build/config/sanitizers/sanitizers.gni")
+# import("//build/config/v8_target_cpu.gni")
+# import("//build/toolchain/cc_wrapper.gni")
 
 # This template defines a toolchain for something that works like gcc
 # (including clang).
@@ -126,10 +111,11 @@ template("gcc_toolchain") {
     assert(defined(invoker.toolchain_args),
            "Toolchains must specify toolchain_args")
     invoker_toolchain_args = invoker.toolchain_args
-    assert(defined(invoker_toolchain_args.current_cpu),
-           "toolchain_args must specify a current_cpu")
-    assert(defined(invoker_toolchain_args.current_os),
-           "toolchain_args must specify a current_os")
+
+    # assert(defined(invoker_toolchain_args.current_cpu),
+    #        "toolchain_args must specify a current_cpu")
+    # assert(defined(invoker_toolchain_args.current_os),
+    #        "toolchain_args must specify a current_os")
 
     # When invoking this toolchain not as the default one, these args will be
     # passed to the build. They are ignored when this is the default toolchain.
@@ -143,132 +129,35 @@ template("gcc_toolchain") {
       # set on those toolchains.
       host_toolchain = host_toolchain
 
-      if (!defined(invoker_toolchain_args.v8_current_cpu)) {
-        v8_current_cpu = invoker_toolchain_args.current_cpu
-      }
+      # if (!defined(invoker_toolchain_args.v8_current_cpu)) {
+      #   v8_current_cpu = invoker_toolchain_args.current_cpu
+      # }
     }
 
-    # When the invoker has explicitly overridden user_rbe, use_goma or
-    # cc_wrapper in the toolchain args, use those values, otherwise default
-    # to the global one.  This works because the only reasonable override
-    # that toolchains might supply for these values are to force-disable them.
-    if (defined(toolchain_args.use_rbe)) {
-      toolchain_uses_rbe = toolchain_args.use_rbe
-    } else {
-      toolchain_uses_rbe = use_rbe
-    }
-    if (defined(toolchain_args.use_goma)) {
-      toolchain_uses_goma = toolchain_args.use_goma
-    } else {
-      toolchain_uses_goma = use_goma
-    }
-
-    # x86_64-nacl-* is ELF-32 and Goma/RBE won't support ELF-32.
-    if (toolchain_uses_goma &&
-        get_path_info(invoker.cc, "name") == "x86_64-nacl-gcc") {
-      # it will also disable x86_64-nacl-g++ since these are in
-      # the same toolchain.
-      toolchain_uses_goma = false
-    }
+    cc_wrapper = ""  # TODO(andrewsavage)
     if (defined(toolchain_args.cc_wrapper)) {
       toolchain_cc_wrapper = toolchain_args.cc_wrapper
     } else {
       toolchain_cc_wrapper = cc_wrapper
     }
-    assert(!(toolchain_uses_rbe && toolchain_uses_goma),
-           "Goma and RBE can't be used together.")
-    assert(!(toolchain_cc_wrapper != "" && toolchain_uses_rbe),
-           "RBE and cc_wrapper can't be used together.")
-    assert(!(toolchain_cc_wrapper != "" && toolchain_uses_goma),
-           "Goma and cc_wrapper can't be used together.")
 
-    # When the invoker has explicitly overridden use_goma or cc_wrapper in the
-    # toolchain args, use those values, otherwise default to the global one.
-    # This works because the only reasonable override that toolchains might
-    # supply for these values are to force-disable them.
-    # But if needs_gomacc_path_arg is set in a Chrome OS build, the toolchain
-    # wrapper will have picked up gomacc via cmd-line arg. So need to prepend
-    # gomacc in that case.
-    goma_path = "$goma_dir/gomacc"
-    if (toolchain_uses_rbe) {
-      if (defined(toolchain_args.rbe_cc_cfg_file)) {
-        toolchain_rbe_cc_cfg_file = toolchain_args.rbe_cc_cfg_file
-      } else {
-        toolchain_rbe_cc_cfg_file = rbe_cc_cfg_file
-      }
+    if (defined(toolchain_args.command_launcher)) {
+      command_launcher = toolchain_args.command_launcher
+    } else {
+      command_launcher = command_launcher
+    }
 
-      # C/C++ (clang) rewrapper prefix to use when use_rbe is true.
-      compiler_prefix = "${rbe_bin_dir}/rewrapper -cfg=${toolchain_rbe_cc_cfg_file} -exec_root=${rbe_exec_root} "
-    } else if (toolchain_uses_goma &&
-               (!defined(invoker_toolchain_args.needs_gomacc_path_arg) ||
-                !invoker_toolchain_args.needs_gomacc_path_arg)) {
-      compiler_prefix = "${goma_path} "
-    } else {
-      compiler_prefix = "${toolchain_cc_wrapper} "
-    }
-    if (use_goma_thin_lto && toolchain_uses_goma && use_thin_lto) {
-      # goma_ld.py uses autoninja in an attempt to set a reasonable
-      # number of jobs, but this results in too low a value on
-      # Chrome OS builders. So we pass in an explicit value.
-      goma_ld =
-          "$python_path " +
-          rebase_path("//tools/clang/scripts/goma_ld.py", root_build_dir) +
-          " --gomacc ${goma_path} --jobs 200 -- "
-    } else {
-      goma_ld = ""
-      not_needed([ "goma_path" ])
-    }
+    compiler_prefix = "${toolchain_cc_wrapper} "
 
     # Create a distinct variable for "asm", since coverage runs pass a bunch of
     # flags to clang/clang++ that are nonsensical on assembler runs.
     asm_prefix = compiler_prefix
 
-    # A specific toolchain may wish to avoid coverage instrumentation, so we
-    # allow the global "use_clang_coverage" arg to be overridden.
-    if (defined(toolchain_args.use_clang_coverage)) {
-      toolchain_use_clang_coverage = toolchain_args.use_clang_coverage
-    } else {
-      toolchain_use_clang_coverage = use_clang_coverage
-    }
-
-    # For a coverage build, we use the wrapper script globally so that it can
-    # remove coverage cflags from files that should not have them.
-    if (toolchain_use_clang_coverage) {
-      # "coverage_instrumentation_input_file" is set in args.gn, but it can be
-      # overridden by a toolchain config.
-      if (defined(toolchain_args.coverage_instrumentation_input_file)) {
-        toolchain_coverage_instrumentation_input_file =
-            toolchain_args.coverage_instrumentation_input_file
-      } else {
-        toolchain_coverage_instrumentation_input_file =
-            coverage_instrumentation_input_file
-      }
-
-      _coverage_wrapper =
-          rebase_path("//build/toolchain/clang_code_coverage_wrapper.py",
-                      root_build_dir)
-
-      # The wrapper needs to know what OS we target because it uses that to
-      # select a list of files that should not be instrumented.
-      _coverage_wrapper = _coverage_wrapper + " --target-os=" + target_os
-
-      # We want to instrument everything if there is no input file set.
-      # If there is a file we need to give it to the wrapper script so it can
-      # instrument only those files.
-      if (toolchain_coverage_instrumentation_input_file != "") {
-        _coverage_wrapper =
-            _coverage_wrapper + " --files-to-instrument=" +
-            rebase_path(toolchain_coverage_instrumentation_input_file,
-                        root_build_dir)
-      }
-      compiler_prefix = "$python_path ${_coverage_wrapper} " + compiler_prefix
-    }
-
     cc = compiler_prefix + invoker.cc
     cxx = compiler_prefix + invoker.cxx
     asm = asm_prefix + invoker.cc
     ar = invoker.ar
-    ld = "$goma_ld${invoker.ld}"
+    ld = invoker.ld
     if (defined(invoker.readelf)) {
       readelf = invoker.readelf
     } else {
@@ -347,6 +236,7 @@ template("gcc_toolchain") {
     tool("cc") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
+      command_launcher = command_launcher
       command = "$cc -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}${extra_cppflags}${extra_cflags} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "CC {{output}}"
@@ -356,6 +246,7 @@ template("gcc_toolchain") {
     tool("cxx") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
+      command_launcher = command_launcher
       command = "$cxx -MMD -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}${extra_cppflags}${extra_cxxflags} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "CXX {{output}}"
@@ -372,22 +263,17 @@ template("gcc_toolchain") {
     }
 
     tool("alink") {
-      if (current_os == "aix") {
-        # AIX does not support either -D (deterministic output) or response
-        # files.
-        command = "$ar -X64 {{arflags}} -r -c -s {{output}} {{inputs}}"
-      } else {
-        rspfile = "{{output}}.rsp"
-        rspfile_content = "{{inputs}}"
-        command = "\"$ar\" {{arflags}} -r -c -s -D {{output}} @\"$rspfile\""
-      }
+      rspfile = "{{output}}.rsp"
+      rspfile_content = "{{inputs}}"
+      command = "\"$ar\" {{arflags}} -r -c -s -D {{output}} @\"$rspfile\""
 
       # Remove the output file first so that ar doesn't try to modify the
       # existing file.
       if (host_os == "win") {
-        tool_wrapper_path =
-            rebase_path("//build/toolchain/win/tool_wrapper.py", root_build_dir)
-        command = "cmd /c $python_path $tool_wrapper_path delete-file {{output}} && $command"
+        # TODO(andrewsavage): rm on windows
+        # tool_wrapper_path =
+        #     rebase_path("//build/toolchain/win/tool_wrapper.py", root_build_dir)
+        # command = "cmd /c $python_path $tool_wrapper_path delete-file {{output}} && $command"
       } else {
         command = "rm -f {{output}} && $command"
       }
@@ -408,7 +294,8 @@ template("gcc_toolchain") {
       soname = "{{target_output_name}}{{output_extension}}"  # e.g. "libfoo.so".
       sofile = "{{output_dir}}/$soname"  # Possibly including toolchain dir.
       rspfile = sofile + ".rsp"
-      pool = "//build/toolchain:link_pool($default_toolchain)"
+
+      # TODO(andrewsavage): poolsize?
 
       if (defined(invoker.strip)) {
         unstripped_sofile = "{{root_out_dir}}/lib.unstripped/$soname"
@@ -440,6 +327,7 @@ template("gcc_toolchain") {
         strip_switch = "--strip=${invoker.strip} "
       }
 
+      # TODO(andrewsavage): see if we can replace this with simplified toolchain
       # This needs a Python script to avoid using a complex shell command
       # requiring sh control structures, pipelines, and POSIX utilities.
       # The host might not have a POSIX shell and utilities (e.g. Windows).
@@ -504,7 +392,8 @@ template("gcc_toolchain") {
       soname = "{{target_output_name}}{{output_extension}}"  # e.g. "libfoo.so".
       sofile = "{{output_dir}}/$soname"
       rspfile = sofile + ".rsp"
-      pool = "//build/toolchain:link_pool($default_toolchain)"
+
+      # pool = "//build/toolchain:link_pool($default_toolchain)"
 
       if (defined(invoker.strip)) {
         unstripped_sofile = "{{root_out_dir}}/lib.unstripped/$soname"
@@ -550,7 +439,8 @@ template("gcc_toolchain") {
       outfile = "{{output_dir}}/$exename"
       rspfile = "$outfile.rsp"
       unstripped_outfile = outfile
-      pool = "//build/toolchain:link_pool($default_toolchain)"
+
+      # pool = "//build/toolchain:link_pool($default_toolchain)"
 
       # Use this for {{output_extension}} expansions unless a target manually
       # overrides it (in which case {{output_extension}} will be what the target
@@ -575,20 +465,22 @@ template("gcc_toolchain") {
       # Generate a map file to be used for binary size analysis.
       # Map file adds ~10% to the link time on a z620.
       # With target_os="android", libchrome.so.map.gz is ~20MB.
-      map_switch = ""
-      if (enable_linker_map) {
-        map_file = "$unstripped_outfile.map.gz"
-        map_switch = " --map-file \"$map_file\""
-      }
+      # map_switch = ""
+      # if (enable_linker_map) {
+      #   map_file = "$unstripped_outfile.map.gz"
+      #   map_switch = " --map-file \"$map_file\""
+      # }
 
-      strip_switch = ""
-      if (defined(invoker.strip)) {
-        strip_switch = " --strip=\"${invoker.strip}\" --unstripped-file=\"$unstripped_outfile\""
-      }
+      # strip_switch = ""
+      # if (defined(invoker.strip)) {
+      #   strip_switch = " --strip=\"${invoker.strip}\" --unstripped-file=\"$unstripped_outfile\""
+      # }
 
-      link_wrapper =
-          rebase_path("//build/toolchain/gcc_link_wrapper.py", root_build_dir)
-      command = "$python_path \"$link_wrapper\" --output=\"$outfile\"$strip_switch$map_switch$dwp_switch -- $link_command"
+      # TODO(andrewsavage): can we replace this with what's in the simlpified toolchain?
+      # link_wrapper =
+      #     rebase_path("//build/toolchain/gcc_link_wrapper.py", root_build_dir)
+      # command = "$python_path \"$link_wrapper\" --output=\"$outfile\"$strip_switch$map_switch$dwp_switch -- $link_command"
+      command = link_command
 
       description = "LINK $outfile"
       rspfile_content = "{{inputs}}"
@@ -619,21 +511,29 @@ template("gcc_toolchain") {
       }
     }
 
+    # TODO(andrewsavage)
+    stamp_command = "touch {{output}}"
+    copy_command = "rm -rf {{output}} && cp -af {{source}} {{output}}"
+    stamp_description = "STAMP {{output}}"
+    copy_description = "COPY {{source}} {{output}}"
+
     # These two are really entirely generic, but have to be repeated in
     # each toolchain because GN doesn't allow a template to be used here.
     # See //build/toolchain/toolchain.gni for details.
     tool("stamp") {
+      # TODO(andrewsavage): use "//build/toolchain/toolchain.gni" or find another option
       command = stamp_command
       description = stamp_description
     }
     tool("copy") {
+      # TODO(andrewsavage): use "//build/toolchain/toolchain.gni" or find another option
       command = copy_command
       description = copy_description
     }
 
-    tool("action") {
-      pool = "//build/toolchain:action_pool($default_toolchain)"
-    }
+    # tool("action") {
+    #   pool = "//build/toolchain:action_pool($default_toolchain)"
+    # }
 
     forward_variables_from(invoker, [ "deps" ])
   }
@@ -652,6 +552,7 @@ template("clang_toolchain") {
   } else {
     toolprefix = ""
   }
+  clang_base_path = invoker.clang_base_path
 
   gcc_toolchain(target_name) {
     prefix = rebase_path("$clang_base_path/bin", root_build_dir)
@@ -675,6 +576,7 @@ template("clang_toolchain") {
         forward_variables_from(invoker.toolchain_args, "*")
       }
       is_clang = true
+      command_launcher = "ccache"
     }
   }
 }
