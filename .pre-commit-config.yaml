@@ -135,3 +135,8 @@ repos:
         entry: python precommit_hooks/internal_file_check_wrapper.py
         language: python
         types: [text]
+    -   id: gn-format
+        name: GN format
+        entry: gn format
+        language: system
+        files: '.*\.gni?$'
