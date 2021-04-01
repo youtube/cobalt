@@ -421,7 +421,11 @@ CONSTEXPR_OR_INLINE ComponentType GLenumToComponentType(GLenum componentType)
     }
 }
 
-extern CONSTEXPR angle::PackedEnumMap<ComponentType, uint32_t> kComponentMasks;
+constexpr angle::PackedEnumMap<ComponentType, uint32_t> kComponentMasks = {{
+    {ComponentType::Float, 0x10001},
+    {ComponentType::Int, 0x00001},
+    {ComponentType::UnsignedInt, 0x10000},
+}};
 
 constexpr size_t kMaxComponentTypeMaskIndex = 16;
 using ComponentTypeMask                     = angle::BitSet<kMaxComponentTypeMaskIndex * 2>;
