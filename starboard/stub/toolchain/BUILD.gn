@@ -14,7 +14,13 @@
 
 import("//starboard/build/toolchain/gcc_toolchain.gni")
 
+_home_dir = getenv("HOME")
+_clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
+
 clang_toolchain("host") {
-  home_dir = getenv("HOME")
-  clang_base_path = "$home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
+  clang_base_path = _clang_base_path
+}
+
+clang_toolchain("target") {
+  clang_base_path = _clang_base_path
 }

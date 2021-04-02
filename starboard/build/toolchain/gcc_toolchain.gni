@@ -36,6 +36,10 @@
 # import("//build/config/v8_target_cpu.gni")
 # import("//build/toolchain/cc_wrapper.gni")
 
+declare_args() {
+  command_launcher = ""
+}
+
 # This template defines a toolchain for something that works like gcc
 # (including clang).
 #
@@ -127,7 +131,7 @@ template("gcc_toolchain") {
       # needs to be passed through unchanged to all secondary toolchains to
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
-      host_toolchain = host_toolchain
+      # host_toolchain = host_toolchain
 
       # if (!defined(invoker_toolchain_args.v8_current_cpu)) {
       #   v8_current_cpu = invoker_toolchain_args.current_cpu
