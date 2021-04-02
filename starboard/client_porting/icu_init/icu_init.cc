@@ -16,9 +16,6 @@
 
 #include "starboard/client_porting/icu_init/icu_init.h"
 
-#include <unicode/putil.h>
-#include <unicode/udata.h>
-
 #include <string>
 #include <vector>
 
@@ -28,6 +25,8 @@
 #include "starboard/file.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
 namespace {
 
