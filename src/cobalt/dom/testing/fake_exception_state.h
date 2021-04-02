@@ -32,7 +32,7 @@ class FakeExceptionState : public script::ExceptionState {
         base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   }
   void SetSimpleExceptionVA(script::SimpleExceptionType type,
-                            const char* format, va_list args) override {
+                            const char* format, va_list & args) override {
     // no-op
   }
   dom::DOMException::ExceptionCode GetExceptionCode() {

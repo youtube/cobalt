@@ -1,7 +1,22 @@
-# How It Works
-A Docker container will be launched that will update the cobalt.dev source files
-in the Cobalt repository specified by `$COBALT_SRC`, which must be set, and it
-will locally host the updated cobalt.dev on port `4000`.
+# How To Use
+A docker container will be launched that will update the cobalt.dev source files
+in the Cobalt repository specified by the environment variable `COBALT_SRC` or
+the current working directory, which should be the root of the Cobalt
+repository, if that environment variable is not set.
+
+When the `docsite` service is run, the container will then host the updated
+cobalt.dev site locally on port `4000`.
+
+When the `docsite-build-only` service is run, the container will build and
+output the site content in the directory `out/deploy/www` at the root of the
+Cobalt directory, and copy the app.yaml deployable into `out/deploy`.
+
+# How To Run
+docker-compose build --build-arg UID=$(id -u) --build-arg GID=$(id -g) SERVICE
+
+docker-compose up SERVICE
+
+# Notes
 
 A separate docker-compose.yml was created due to the root docker-compose.yml
 being unable to locate the Gemfile in the Docker build context.
@@ -11,7 +26,3 @@ we need to run `bundle install` with elevated permissions but if we let the
 `preview-site.sh`, which normally installs gems, run with elevated permissions
 the resulting files added or modified would not be accessible to the user who
 ran the Docker container.
-
-# How To Run
-docker-compose build --build-arg UID=$(id -u) --build-arg GID=$(id -g) docsite
-docker-compose up docsite

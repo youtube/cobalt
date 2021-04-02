@@ -15,7 +15,12 @@
 #ifndef COBALT_DOM_PERFORMANCE_H_
 #define COBALT_DOM_PERFORMANCE_H_
 
+#include <string>
+
 #include "cobalt/base/clock.h"
+#include "cobalt/dom/performance_entry_buffer_impl.h"
+#include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/performance_observer_entry_list.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/wrappable.h"
 
@@ -41,16 +46,35 @@ class Performance : public script::Wrappable {
   scoped_refptr<PerformanceTiming> timing() const;
   scoped_refptr<MemoryInfo> memory() const;
 
-  // Custom, not in any spec.
-  // Returns the time since timing()->navigation_start(), in milliseconds.
-  double Now() const;
+  // https://www.w3.org/TR/hr-time-2/#now-method
+  DOMHighResTimeStamp Now() const;
+
+  // High Resolution Time Level 3 timeOrigin.
+  //   https://www.w3.org/TR/hr-time-3/#dom-performance-timeorigin
+  DOMHighResTimeStamp time_origin() const;
+
+  // Internal getter method for the time origin value.
+  base::TimeDelta get_time_origin() const {
+    return time_origin_;
+  }
 
   DEFINE_WRAPPABLE_TYPE(Performance);
   void TraceMembers(script::Tracer* tracer) override;
 
+  // Performance Timeline extensions to the Performance interface.
+  PerformanceEntryList GetEntries();
+  PerformanceEntryList GetEntriesByType(const std::string& entry_type);
+  PerformanceEntryList GetEntriesByName(
+      const std::string& name, const base::StringPiece& type);
+
  private:
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;
+
+  // https://www.w3.org/TR/hr-time-3/#dfn-time-origin
+  base::TimeDelta time_origin_;
+
+  PerformanceEntryBuffer performance_entry_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

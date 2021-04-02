@@ -25,4 +25,4 @@ RUN addgroup --group --gid "${GID}" defaultgroup \
 
 USER defaultuser
 
-CMD /code/third_party/repo-publishing-toolkit-local/preview-site.sh
+CMD /cobalt/third_party/repo-publishing-toolkit-local/preview-site.sh

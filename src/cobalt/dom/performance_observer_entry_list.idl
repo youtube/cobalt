@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_X64X11_DLMALLOC_ATOMIC_PUBLIC_H_
-#define STARBOARD_LINUX_X64X11_DLMALLOC_ATOMIC_PUBLIC_H_
+// https://w3c.github.io/performance-timeline/#performanceobserverentrylist-interface
 
-#include "starboard/linux/shared/atomic_public.h"
-
-#endif  // STARBOARD_LINUX_X64X11_DLMALLOC_ATOMIC_PUBLIC_H_
+[Exposed=Window]
+interface PerformanceObserverEntryList {
+  PerformanceEntryList getEntries();
+  PerformanceEntryList getEntriesByType (DOMString type);
+  PerformanceEntryList getEntriesByName (DOMString name, optional DOMString type = "");
+};

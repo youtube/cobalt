@@ -188,10 +188,6 @@
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 
-// dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
-// not available should define the following quirk.
-#undef SB_HAS_QUIRK_NO_FFS
-
 // --- Decoder-only Params ---
 
 // --- Memory Configuration --------------------------------------------------

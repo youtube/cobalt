@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_X64X11_DLMALLOC_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_LINUX_X64X11_DLMALLOC_CONFIGURATION_PUBLIC_H_
+#include "starboard/stub/font.h"
 
-// Include the X64X11 Linux configuration.
-#include "starboard/linux/x64x11/configuration_public.h"
+#include "cobalt/extension/font.h"
 
-#endif  // STARBOARD_LINUX_X64X11_DLMALLOC_CONFIGURATION_PUBLIC_H_
+namespace starboard {
+namespace stub {
+
+namespace {
+
+bool GetPathFallbackFontDirectory(char* path, int path_size) {
+  return false;
+}
+
+const CobaltExtensionFontApi kFontApi = {
+    kCobaltExtensionFontName,
+    1,  // API version that's implemented.
+    &GetPathFallbackFontDirectory,
+};
+
+}  // namespace
+
+const void* GetFontApi() {
+  return &kFontApi;
+}
+
+}  // namespace stub
+}  // namespace starboard

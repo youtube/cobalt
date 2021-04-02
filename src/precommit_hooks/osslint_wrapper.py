@@ -1,4 +1,5 @@
-# Copyright 2016 The Cobalt Authors. All Rights Reserved.
+#!/usr/bin/env python3
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 X11 future platform configuration."""
+"""Wrapper to run osslint.py."""
 
-from starboard.linux.x64x11 import gyp_configuration as linux_configuration
+import sys
+try:
+  from internal.osslint import RunPrecommitCheck
+except ImportError as e:
+  print(e)
+  sys.exit(0)
 
-
-def CreatePlatformConfig():
-  return linux_configuration.LinuxX64X11Configuration(
-      'linux-x64x11-gczeal',
-      sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')
+if __name__ == '__main__':
+  sys.exit(RunPrecommitCheck(sys.argv[1:]))

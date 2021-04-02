@@ -43,7 +43,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     self.sabi_json_path = sabi_json_path
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
     self.raspi_home = os.environ.get('RASPI_HOME', _UNDEFINED_RASPI_HOME)
-    self.sysroot = os.path.realpath(os.path.join(self.raspi_home, 'sysroot'))
+    self.sysroot = os.path.realpath(os.path.join(self.raspi_home, 'busterroot'))
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -75,7 +75,8 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     toolchain = os.path.realpath(
         os.path.join(
             self.raspi_home,
-            'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
+            'tools/arm-bcm2708/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf'
+        ))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
 
     env_variables = self.host_compiler_environment
@@ -159,6 +160,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
           'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
           'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay'
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete

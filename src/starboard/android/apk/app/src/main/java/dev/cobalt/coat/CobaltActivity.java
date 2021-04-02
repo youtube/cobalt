@@ -17,12 +17,10 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.NativeActivity;
-import android.content.ComponentCallbacks;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.content.res.Configuration;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -40,7 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends NativeActivity implements ComponentCallbacks {
+public abstract class CobaltActivity extends NativeActivity {
 
   // A place to put args while debugging so they're used even when starting from the launcher.
   // This should always be empty in submitted code.
@@ -340,9 +338,7 @@ public abstract class CobaltActivity extends NativeActivity implements Component
 
   @Override
   public void onLowMemory() {
+    super.onLowMemory();
     nativeLowMemoryEvent();
   }
-
-  @Override
-  public void onConfigurationChanged(Configuration newConfig) {}
 }

@@ -96,6 +96,9 @@ Configurator::Configurator(network::NetworkModule* network_module)
   } else {
     SetChannel(persisted_channel);
   }
+  if (network_module != nullptr) {
+    user_agent_string_ = network_module->GetUserAgent();
+  }
 }
 Configurator::~Configurator() = default;
 
@@ -164,6 +167,11 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(
       std::make_pair("model", GetDeviceProperty(kSbSystemPropertyModelName)));
 
+  // Original Design manufacturer name
+  params.insert(
+      std::make_pair("manufacturer",
+                     GetDeviceProperty(kSbSystemPropertySystemIntegratorName)));
+
   // Chipset model number
   params.insert(std::make_pair(
       "chipset", GetDeviceProperty(kSbSystemPropertyChipsetModelNumber)));
@@ -175,6 +183,9 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   // Model year
   params.insert(
       std::make_pair("year", GetDeviceProperty(kSbSystemPropertyModelYear)));
+
+  // User Agent String
+  params.insert(std::make_pair("uastring", user_agent_string_));
 
   return params;
 }

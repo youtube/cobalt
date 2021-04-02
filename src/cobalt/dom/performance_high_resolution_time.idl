@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/WD-hr-time-2-20160225/#the-performance-interface
+// https://w3c.github.io/hr-time/#sec-performance
 
 partial interface Performance {
   DOMHighResTimeStamp now();
+  readonly attribute DOMHighResTimeStamp timeOrigin;
 };
 
 typedef double DOMHighResTimeStamp;

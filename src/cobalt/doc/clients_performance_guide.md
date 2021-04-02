@@ -142,3 +142,27 @@ color, which is `rgba(0, 0, 0, 0)` by default.  Since `<body>` already
 guarantees a full screen draw, the most optimal way of specifying a
 background is to modify `<body>`'s background properties instead of adding
 a layer on top of it.
+
+## Blitter optimizations
+
+If the platform's user agent string contains "blitter", then the platform uses
+the Blitter API for rendering. This device is much more limited in what it can
+render natively, and many complex geometry will require software rendering.
+This means the CPU creates a texture and calculates the color of each pixel in
+that texture. The following things trigger the software rendering path (i.e.
+uses extra memory and is slow) on platforms using the Blitter API:
+
+ - Text.
+ - Rounded corners.
+ - Borders of different sizes. If borders are to be used, then all borders
+   should have the same properties. (And avoid rounded corners.)
+ - Linear gradients which are not exactly vertical or horizontal (i.e. gradients
+   at an angle).
+ - Radial gradients.
+ - Shadows.
+ - Multi-plane images. JPEG images tend to decode into multi-plane images.
+   Prefer using PNG images instead -- these tend to be decoded into RGBA which
+   blitter can handle natively.
+ - Using part of a background image. For example, using background-position may
+   result in extra memory usage, or using a background image inside an
+   `overflow: hidden` element that is shifted or has rounded corners.

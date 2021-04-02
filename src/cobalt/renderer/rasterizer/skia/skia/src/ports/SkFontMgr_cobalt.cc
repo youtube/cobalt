@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
@@ -26,6 +27,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/extension/font.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
@@ -67,6 +69,29 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
                                 system_font_files_directory,
                                 &priority_fallback_families);
   }
+
+// Load local fallback fonts if available.
+// The fonts are added in addition to the Cobalt and System fonts.
+#if SB_API_VERSION >= 11
+  const CobaltExtensionFontApi* font_extension =
+      static_cast<const CobaltExtensionFontApi*>(
+          SbSystemGetExtension(kCobaltExtensionFontName));
+  if (font_extension &&
+      SbStringCompareAll(font_extension->name, kCobaltExtensionFontName) == 0 &&
+      font_extension->version >= 1) {
+    std::vector<char> fallback_directory(kSbFileMaxPath);
+    if (font_extension->GetPathFallbackFontDirectory(fallback_directory.data(),
+                                                     kSbFileMaxPath)) {
+      LOG(INFO) << "Fallback font directory :" << fallback_directory.data();
+      TRACE_EVENT0("cobalt::renderer", "LoadCobaltFallbackFontFamilies");
+
+      ParseConfigAndBuildFamilies(fallback_directory.data(),
+                                  fallback_directory.data(),
+                                  &priority_fallback_families);
+    }
+  }
+#endif
+
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);

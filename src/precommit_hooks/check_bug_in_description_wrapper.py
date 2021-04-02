@@ -17,7 +17,7 @@
 import os
 import sys
 try:
-  from custom_hooks.check_bug_in_description import CheckForBugInCommitDescription
+  from internal.check_bug_in_description import CheckForBugInCommitDescription
 except ImportError as e:
   print(e)
   sys.exit(0)

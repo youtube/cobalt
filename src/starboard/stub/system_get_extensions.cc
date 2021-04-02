@@ -15,12 +15,17 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
+#include "cobalt/extension/font.h"
 #include "starboard/common/string.h"
 #include "starboard/stub/configuration.h"
+#include "starboard/stub/font.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::stub::GetConfigurationApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionFontName) == 0) {
+    return starboard::stub::GetFontApi();
   }
   return NULL;
 }

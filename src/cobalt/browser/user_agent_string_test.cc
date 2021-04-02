@@ -133,13 +133,10 @@ TEST(UserAgentStringFactoryTest, WithStarboardVersion) {
 
 TEST(UserAgentStringFactoryTest, WithJavaScriptVersion) {
   UserAgentPlatformInfo platform_info;
-  platform_info.starboard_version = "Starboard/6";
   platform_info.javascript_engine_version = "V8/6.5.254.28";
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
-  const char* tv_info_str = "V8/6.5.254.28 Starboard/6, _OTT__/ (, , )";
-  EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
+  EXPECT_NE(std::string::npos, user_agent_string.find("V8/6.5.254.28"));
 }
 
 }  // namespace

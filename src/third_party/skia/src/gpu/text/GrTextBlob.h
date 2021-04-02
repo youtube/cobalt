@@ -278,15 +278,7 @@ private:
         SubRun(Run* run, const SkStrikeSpec& strikeSpec, GrColor color)
             : fColor{color}
             , fRun{run}
-#if defined(STARBOARD)
-// Our raspi devices still use gcc 4.8, which has many bugs regarding
-// initialization syntax (for example:
-// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56976).
-            , fStrikeSpec(strikeSpec)
-#else
-            , fStrikeSpec{strikeSpec}
-#endif
-            {}
+            , fStrikeSpec{strikeSpec} {}
 
         // When used with emplace_back, this constructs a SubRun from the last SubRun in an array.
         //SubRun(SkSTArray<1, SubRun>* subRunList)

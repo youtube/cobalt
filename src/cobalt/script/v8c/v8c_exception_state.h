@@ -38,7 +38,7 @@ class V8cExceptionState : public ExceptionState {
   // ExceptionState interface:
   void SetException(const scoped_refptr<ScriptException>& exception) override;
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list arguments) override;
+                            va_list & arguments) override;
 
   bool is_exception_set() const { return is_exception_set_; }
 

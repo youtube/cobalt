@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,7 @@
 #include "cobalt/extension/installation_manager.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 
 #define PRODUCT_FULLNAME_STRING "cobalt_updater"
@@ -26,7 +27,7 @@ namespace {
 // The default manifest version to assume when the actual manifest cannot be
 // parsed for any reason. This should not be used for installation manager
 // errors, or any other error unrelated to parsing the manifest.
-const std::string kDefaultManifestVersion = "1.0.0";
+const char kDefaultManifestVersion[] = "1.0.0";
 }  // namespace
 
 bool CreateProductDirectory(base::FilePath* path) {
@@ -92,40 +93,60 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   return base::Version();
 }
 
+const std::string GetLoadedInstallationEvergreenVersion() {
+  std::vector<char> system_path_content_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory,
+                       system_path_content_dir.data(), kSbFileMaxPath)) {
+    SB_LOG(ERROR) << "Failed to get system path content directory";
+    return "";
+  }
+  // Get the parent directory of the system_path_content_dir, and read the
+  // manifest.json there
+  base::Version version = ReadEvergreenVersion(
+      base::FilePath(std::string(system_path_content_dir.begin(),
+                                 system_path_content_dir.end()))
+          .DirName());
+
+  if (!version.IsValid()) {
+    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+                  << kDefaultManifestVersion << ".";
+    return std::string(kDefaultManifestVersion);
+  }
+  return version.GetString();
+}
+
 const std::string GetCurrentEvergreenVersion() {
   auto installation_manager =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Failed to get installation manager extension.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get installation manager extension, getting "
+                     "the Evergreen version of the loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
-
   // Get the update version from the manifest file under the current
   // installation path.
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get current installation index.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get current installation index, getting the "
+                     "Evergreen version of the currently loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
   std::vector<char> installation_path(kSbFileMaxPath);
   if (installation_manager->GetInstallationPath(
           index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get installation path.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get installation path, getting the Evergreen "
+                     "version of the currently loaded installation.";
+    return GetLoadedInstallationEvergreenVersion();
   }
+
   base::Version version = ReadEvergreenVersion(base::FilePath(
       std::string(installation_path.begin(), installation_path.end())));
 
   if (!version.IsValid()) {
-    if (!index) {
-      SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
-                    << kDefaultManifestVersion << ".";
-      return kDefaultManifestVersion;
-    }
-
-    SB_LOG(ERROR) << "Failed to get the Evergreen version.";
-    return "";
+    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+                  << kDefaultManifestVersion << ".";
+    return std::string(kDefaultManifestVersion);
   }
   return version.GetString();
 }

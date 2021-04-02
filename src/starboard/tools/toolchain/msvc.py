@@ -58,8 +58,8 @@ class CompilerBase(object):
   def GetCommand(self, path, extra_flags, flags, shell):
     del extra_flags  # Not used.
     del shell  # Not used.
-    return ('{path} /nologo /showIncludes {flags} /c $in /Fo$out'.format(
-        path=path, flags=flags))
+    return ('{path} /nologo /showIncludes {flags} /c $in /Fo$out /Fd$out.pdb'
+            .format(path=path, flags=flags))
 
   def GetFlags(self, defines, include_dirs, cflags):
     defines = defines + self._gyp_defines

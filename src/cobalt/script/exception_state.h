@@ -48,7 +48,7 @@ class ExceptionState {
 
  protected:
   virtual void SetSimpleExceptionVA(SimpleExceptionType, const char* format,
-                                    va_list args) = 0;
+                                    va_list & args) = 0;
 };
 
 }  // namespace script

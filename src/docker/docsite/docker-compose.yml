@@ -5,7 +5,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: docsite
     ports:
       - "4000:4000"
     volumes:
-      - ${COBALT_SRC:-.}:/code/
+      # We use ../../ when the environment variable COBALT_SRC is not set since
+      # this file is located two directories under the root of the repository.
+      - ${COBALT_SRC:-../../}:/cobalt/
+  docsite-build-only:
+    container_name: docsite-build-only
+    environment:
+      # SITE_DST specifies where the files required to deploy the site should be
+      # placed, and by default this is under the "out" directory.
+      - SITE_DST=${SITE_DST:-/cobalt/out/deploy/www}
+    extends:
+      service: docsite

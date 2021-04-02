@@ -1,4 +1,5 @@
-# Copyright 2017 The Cobalt Authors. All Rights Reserved.
+#!/usr/bin/env python3
+# Copyright 2020 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,18 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{
-  'variables': {
-    'sources': [
-      '<(DEPTH)/starboard/linux/x64x11/gczeal/configuration.cc',
-      '<(DEPTH)/starboard/linux/x64x11/gczeal/configuration.h'
-      '<(DEPTH)/starboard/linux/x64x11/gczeal/system_get_extensions.cc',
-    ],
-    'sources!': [
-      '<(DEPTH)/starboard/linux/shared/system_get_extensions.cc',
-    ],
-  },
-  'includes': [
-    '../shared/starboard_platform_target.gypi',
-  ],
-}
+"""Gives information on what to do when users change a starboard interface."""
+
+import sys
+try:
+  from internal.warn_that_starboard_interface_changed import WarnThatStarboardInterfaceChanged
+except ImportError:
+  print('warn_that_starboard_interface_changed.py not found, skipping.')
+  sys.exit(0)
+
+if __name__ == '__main__':
+  sys.exit(WarnThatStarboardInterfaceChanged())

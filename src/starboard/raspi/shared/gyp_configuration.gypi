@@ -18,9 +18,6 @@
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.
     'sb_static_contents_output_data_dir': '<(PRODUCT_DIR)/content',
 
-    # The Raspberry Pi compiler does not have support for C++14.
-    'sb_disable_cpp14_audit': 1,
-
     'target_os': 'linux',
 
     'sysroot%': '/',
@@ -69,6 +66,7 @@
       '-I<(sysroot)/opt/vc/include',
       '-I<(sysroot)/opt/vc/include/interface/vcos/pthreads',
       '-I<(sysroot)/opt/vc/include/interface/vmcs_host/linux',
+      '-I<(sysroot)/usr/include/arm-linux-gnueabihf',
     ],
     'linker_flags': [
       '--sysroot=<(sysroot)',
@@ -76,20 +74,13 @@
       # libraries.
       '-L<(sysroot)/opt/vc/lib',
       '-Wl,-rpath=<(sysroot)/opt/vc/lib',
+      '-L<(sysroot)/usr/lib/arm-linux-gnueabihf',
+      '-Wl,-rpath=<(sysroot)/usr/lib/arm-linux-gnueabihf',
+      '-L<(sysroot)/lib/arm-linux-gnueabihf',
+      '-Wl,-rpath=<(sysroot)/lib/arm-linux-gnueabihf',
       # Cleanup unused sections
       '-Wl,-gc-sections',
-      # We don't wrap these symbols, but this ensures that they aren't
-      # linked in.
-      '-Wl,--wrap=malloc',
-      '-Wl,--wrap=calloc',
-      '-Wl,--wrap=realloc',
-      '-Wl,--wrap=memalign',
-      '-Wl,--wrap=reallocalign',
-      '-Wl,--wrap=free',
-      '-Wl,--wrap=strdup',
-      '-Wl,--wrap=malloc_usable_size',
-      '-Wl,--wrap=malloc_stats_fast',
-      '-Wl,--wrap=__cxa_demangle',
+      '-Wl,--unresolved-symbols=ignore-in-shared-libs',
     ],
     'compiler_flags_debug': [
       '-O0',
@@ -144,14 +135,18 @@
       '-lavcodec',
       '-lavformat',
       '-lavutil',
-      '-lEGL',
-      '-lGLESv2',
+      '-l:libpthread.so.0',
       '-lpthread',
       '-lrt',
       '-lopenmaxil',
       '-lbcm_host',
       '-lvcos',
       '-lvchiq_arm',
+      '-lbrcmGLESv2',
+      '-lbrcmEGL',
+      # Static libs must be last, to avoid __dlopen linker errors
+      '-lEGL_static',
+      '-lGLESv2_static',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {
@@ -181,7 +176,7 @@
       '-std=c11',
     ],
     'cflags_cc': [
-      '-std=gnu++11',
+      '-std=gnu++14',
       '-Wno-literal-suffix',
     ],
     'target_conditions': [
@@ -196,6 +191,8 @@
           '-Wno-maybe-uninitialized',
           # Turn warnings into errors.
           '-Werror',
+          '-Wno-expansion-to-defined',
+          '-Wno-implicit-fallthrough',
         ],
       },{
         'cflags': [

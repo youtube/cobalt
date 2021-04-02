@@ -16,6 +16,12 @@ repos:
     -   id: trailing-whitespace
     -   id: mixed-line-ending
 
+-   repo: https://cobalt.googlesource.com/codespell
+    rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
+    hooks:
+    -   id: codespell
+        name: Spell Check
+
 -   repo: local
     hooks:
     -   id: sync-keyboxes
@@ -44,7 +50,7 @@ repos:
         entry: yapf
         language: system
         types: [python]
-        args: [--style=yapf, -i]
+        args: [-i]
         exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
@@ -73,13 +79,13 @@ repos:
         verbose: true
     -   id: check-copyright-year
         name: check copyright year
-        entry: python ./precommit_hooks/custom_hooks/check_copyright_year.py
+        entry: python ./precommit_hooks/check_copyright_year.py
         language: python
         types: [file, text]
         stages: [push]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
-        entry: python ./precommit_hooks/custom_hooks/warn_that_starboard_interface_changed_wrapper.py
+        entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
         language: python
         files: '^starboard/*.h$'
         stages: [push]
@@ -114,7 +120,17 @@ repos:
     -   id: run-py2-tests
         name: Run Python 2 Tests
         description: Run Python 2 unittests
-        entry: python precommit_hooks/custom_hooks/run_python2_unittests.py
+        entry: python precommit_hooks/run_python2_unittests.py
         language: python
         language_version: python2
         types: [python]
+    -   id: osslint
+        name: osslint
+        entry: python precommit_hooks/osslint_wrapper.py
+        language: python
+        types: [text]
+    -   id: internal-file-check
+        name: Internal File Check
+        entry: python precommit_hooks/internal_file_check_wrapper.py
+        language: python
+        types: [text]
