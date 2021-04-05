@@ -45,6 +45,7 @@
       '<(DEPTH)/starboard/shared/alsa/alsa_audio_sink_type.h',
       '<(DEPTH)/starboard/shared/alsa/alsa_util.cc',
       '<(DEPTH)/starboard/shared/alsa/alsa_util.h',
+      '<(DEPTH)/starboard/shared/deviceauth/deviceauth_internal.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
