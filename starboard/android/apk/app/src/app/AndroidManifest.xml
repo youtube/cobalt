@@ -67,4 +67,9 @@
 
   </application>
 
+  <queries>
+    <!-- This is needed to access the speech recognition service in SDK 30 -->
+    <package android:name="com.google.android.katniss" />
+  </queries>
+
 </manifest>
