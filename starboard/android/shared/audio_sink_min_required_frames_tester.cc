@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 
+#include <string>
 #include <vector>
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
@@ -177,7 +178,9 @@ void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
 
 // static
 void MinRequiredFramesTester::ErrorFunc(bool capability_changed,
+                                        const std::string& error_message,
                                         void* context) {
+  SB_LOG(ERROR) << "Error occurred while writing frames: " << error_message;
   // TODO: Handle errors during minimum frames test, maybe by terminating the
   //       test earlier.
   SB_NOTREACHED();
