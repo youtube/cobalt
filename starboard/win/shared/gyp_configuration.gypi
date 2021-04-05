@@ -188,8 +188,6 @@
                '/MDd', # Use debug multithreaded library.
                '/GS',
                '/bigobj', # unit tests can have huge object files.
-               '/EHsc',
-               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -202,8 +200,6 @@
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
                '/Zm10', # Increase compiler heap limit.
-               '/EHsc',
-               '/std:c++14',
              ],
            }],
          ],
@@ -217,8 +213,6 @@
                '/MDd', # Use debug multithreaded library.
                '/GS',
                '/bigobj', # unit tests can have huge object files.
-               '/EHsc',
-               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -231,8 +225,6 @@
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
                '/Zm10', # Increase compiler heap limit.
-               '/EHsc',
-               '/std:c++14',
              ],
            }],
          ],
@@ -244,8 +236,6 @@
              'Optimization': '2',
              'AdditionalOptions': [
                '/MD', # Use release multithreaded library.
-               '/EHsc',
-               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -265,8 +255,6 @@
              'cflags_host': [
                '/MD', # Use release multithreaded library.
                '/Zm10', # Increase compiler heap limit.
-               '/EHsc',
-               '/std:c++14',
              ],
            }],
          ],
@@ -278,8 +266,6 @@
              'Optimization': '2',
              'AdditionalOptions': [
                '/MD', # Use release multithreaded library.
-               '/EHsc',
-               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -298,8 +284,6 @@
              'cflags_host': [
                '/MD', # Use release multithreaded library.
                '/Zm10', # Increase compiler heap limit.
-               '/EHsc',
-               '/std:c++14',
              ],
            }],
          ],
