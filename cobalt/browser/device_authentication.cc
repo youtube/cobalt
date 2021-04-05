@@ -32,6 +32,7 @@ namespace {
 
 constexpr size_t kSHA256DigestSize = 32;
 
+#if SB_API_VERSION < SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION
 bool ComputeSignatureWithSystemPropertySecret(const std::string& message,
                                               uint8_t* signature) {
   const size_t kBase64EncodedCertificationSecretLength = 1023;
@@ -48,6 +49,7 @@ bool ComputeSignatureWithSystemPropertySecret(const std::string& message,
                                             signature, kSHA256DigestSize);
   return true;
 }
+#endif  // SB_API_VERSION < SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION
 
 bool ComputeSignatureFromSignAPI(const std::string& message,
                                  uint8_t* signature) {
@@ -66,8 +68,10 @@ std::string ComputeBase64Signature(const std::string& message) {
   if (ComputeSignatureFromSignAPI(message, signature)) {
     DLOG(INFO) << "Using certification signature provided by "
                << "SbSystemSignWithCertificationSecretKey().";
+#if SB_API_VERSION < SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION
   } else if (ComputeSignatureWithSystemPropertySecret(message, signature)) {
     DLOG(INFO) << "Using certification key from SbSystemGetProperty().";
+#endif  // SB_API_VERSION < SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION
   } else {
     return std::string();
   }

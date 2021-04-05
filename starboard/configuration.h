@@ -106,6 +106,10 @@
 #define SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Deprecated Device Auth certification secret
+#define SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
