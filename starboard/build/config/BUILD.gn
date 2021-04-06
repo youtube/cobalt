@@ -1,0 +1,3 @@
+config("base_configuration") {
+  cflags = [ "-fPIC" ]
+}
