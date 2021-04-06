@@ -21,7 +21,9 @@ class Foo {
 
 int Foo::instance_count = 0;
 
-#if __cplusplus >= 201402L
+// Starboard support some old compilers that does not allow
+// raw pointer lookup in unique_ptr set.
+#if __cplusplus >= 201402L && !defined(STARBOARD)
 TEST(UniquePtrComparatorTest, Basic) {
   std::set<std::unique_ptr<Foo>, UniquePtrComparator> set;
   Foo* foo1 = new Foo();

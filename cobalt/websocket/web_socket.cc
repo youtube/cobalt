@@ -171,7 +171,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const std::string& url,
                      script::ExceptionState* exception_state)
     : dom::EventTarget(settings), require_network_module_(true) {
-  const std::vector<std::string> empty;
+  const std::vector<std::string> empty{};
   Initialize(settings, url, empty, exception_state);
 }
 
@@ -590,7 +590,7 @@ WebSocket::WebSocket(script::EnvironmentSettings* settings,
                      const bool require_network_module)
     : dom::EventTarget(settings),
       require_network_module_(require_network_module) {
-  const std::vector<std::string> empty;
+  const std::vector<std::string> empty{};
   Initialize(settings, url, empty, exception_state);
 }
 

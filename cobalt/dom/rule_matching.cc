@@ -745,7 +745,7 @@ bool UpdateElementRuleMatchingState(HTMLElement* element) {
 
   // Siblings only need to be checked if they're active.
   if (sibling_matching_active) {
-    const SelectorTree::Nodes empty_nodes;
+    const SelectorTree::Nodes empty_nodes{};
 
     // Next sibling combinator
     const SelectorTree::Nodes& previous_sibling_matching_nodes =
