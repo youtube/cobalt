@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "starboard/elf_loader/file_impl.h"
-#include "third_party/lz4/lib/lz4frame.h"
+#include "third_party/lz4_lib/lz4frame.h"
 
 namespace starboard {
 namespace elf_loader {

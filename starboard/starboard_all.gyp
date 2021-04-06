@@ -104,7 +104,7 @@
         ['sb_evergreen==0', {
           'dependencies': [
             '<(DEPTH)/third_party/crashpad/crashpad.gyp:*',
-            '<(DEPTH)/third_party/lz4/lz4.gyp:lz4',
+            '<(DEPTH)/third_party/lz4_lib/lz4.gyp:lz4',
           ],
         }]
       ],
