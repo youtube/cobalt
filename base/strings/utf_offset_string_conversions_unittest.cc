@@ -76,7 +76,7 @@ TEST(UTFOffsetStringConversionsTest, AdjustOffset) {
 }
 
 TEST(UTFOffsetStringConversionsTest, LimitOffsets) {
-  const OffsetAdjuster::Adjustments kNoAdjustments;
+  const OffsetAdjuster::Adjustments kNoAdjustments{};
   const size_t kLimit = 10;
   const size_t kItems = 20;
   std::vector<size_t> size_ts;

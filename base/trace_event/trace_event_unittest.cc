@@ -1488,7 +1488,7 @@ TEST_F(TraceEventTestFixture, Categories) {
   // Make sure metadata isn't returned.
   EXPECT_FALSE(ContainsValue(cat_groups, "__metadata"));
 
-  const std::vector<std::string> empty_categories;
+  const std::vector<std::string> empty_categories{};
   std::vector<std::string> included_categories;
   std::vector<std::string> excluded_categories;
 
@@ -2068,7 +2068,7 @@ TEST_F(TraceEventTestFixture, TraceEnableDisable) {
 
   trace_log->SetEnabled(tc_inc_all, TraceLog::RECORDING_MODE);
   EXPECT_TRUE(trace_log->IsEnabled());
-  const std::vector<std::string> empty;
+  const std::vector<std::string> empty{};
   trace_log->SetEnabled(TraceConfig(), TraceLog::RECORDING_MODE);
   EXPECT_TRUE(trace_log->IsEnabled());
   trace_log->SetDisabled();

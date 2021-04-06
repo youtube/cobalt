@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace cssom {
 
-StyleSheetList::StyleSheetList() : mutation_observer_(NULL) {}
+StyleSheetList::StyleSheetList() : style_sheets_(), mutation_observer_(NULL) {}
 
 StyleSheetList::StyleSheetList(const StyleSheetVector& style_sheets,
                                MutationObserver* observer)
