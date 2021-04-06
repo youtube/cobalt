@@ -72,17 +72,10 @@
  * by modifying below section.
  */
 #ifndef LZ4_SRC_INCLUDED   /* avoid redefinition when sources are coalesced */
-#ifdef STARBOARD
-#  include "starboard/memory.h"
-#  define ALLOC(s)          SbMemoryAllocate(s)
-#  define ALLOC_AND_ZERO(s) SbMemoryCalloc(1,s)
-#  define FREEMEM(p)        SbMemoryDeallocate(p)
-#else
 #  include <stdlib.h>   /* malloc, calloc, free */
 #  define ALLOC(s)          malloc(s)
 #  define ALLOC_AND_ZERO(s) calloc(1,(s))
 #  define FREEMEM(p)        free(p)
-#endif
 #endif
 
 #include <string.h>   /* memset, memcpy, memmove */

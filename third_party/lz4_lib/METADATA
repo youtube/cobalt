@@ -1,7 +1,8 @@
 name: "lz4"
 description:
   "Subtree at third_party/lz4_lib. Only the lib/ subdirectory is maintained to"
-  "avoid keeping GPLv2 licensed code in our repository."
+  "avoid keeping GPLv2 licensed code in our repository. This repository does"
+  "not have any local changes."
 
 third_party {
   url {
