@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-executable("hello_world") {
-  # sources = ["hello_world.cc"]
+# executable("hello_world") {
+#   sources = ["hello_world.cc"]
+# }
+
+group("gn_all") {
+  testonly = true
+
+  deps = [ "//starboard:gn_all" ]
 }
