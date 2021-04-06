@@ -59,7 +59,7 @@
         '<(DEPTH)/starboard/elf_loader/evergreen_config.gyp:evergreen_config',
         '<(DEPTH)/starboard/elf_loader/evergreen_info.gyp:evergreen_info',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/third_party/lz4/lz4.gyp:lz4',
+        '<(DEPTH)/third_party/lz4_lib/lz4.gyp:lz4',
       ],
       'sources': [
         '<@(common_elf_loader_sources)',
