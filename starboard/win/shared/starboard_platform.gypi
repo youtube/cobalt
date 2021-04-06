@@ -289,6 +289,7 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_has_capability.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
+        '<(DEPTH)/starboard/shared/stub/system_network_is_disconnected.cc',
         '<(DEPTH)/starboard/shared/stub/system_sign_with_certification_secret_key.cc',
         '<(DEPTH)/starboard/shared/stub/thread_context_get_pointer.cc',
         '<(DEPTH)/starboard/shared/stub/thread_create_priority.cc',

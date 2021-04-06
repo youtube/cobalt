@@ -340,6 +340,7 @@
       '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
+      '<(DEPTH)/starboard/shared/stub/system_network_is_disconnected.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       '<(DEPTH)/starboard/shared/stub/system_sign_with_certification_secret_key.cc',
       '<(DEPTH)/starboard/shared/stub/thread_create_priority.cc',

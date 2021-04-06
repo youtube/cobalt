@@ -95,6 +95,9 @@
 
 // Deprecated Starboard stdlib equivalent APIs
 #define SB_STDLIB_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce Network connectivity APIs
+#define SB_NETWORK_EVENTS_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

@@ -440,6 +440,22 @@ typedef enum SbEventType {
   // The platform's text-to-speech settings have changed.
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
 #endif  // SB_API_VERSION >= 12
+
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+  // The platform has detected a network disconnection. There are likely to
+  // be cases where the platform cannot detect the disconnection but the
+  // platform should make a best effort to send an event of this type when
+  // the network disconnects. This event is used to implement
+  // window.onoffline DOM event.
+  kSbEventTypeOsNetworkDisconnected,
+
+  // The platform has detected a network connection. There are likely to
+  // be cases where the platform cannot detect the connection but the
+  // platform should make a best effort to send an event of this type when
+  // the device is just connected to the internet. This event is used
+  // to implement window.ononline DOM event.
+  kSbEventTypeOsNetworkConnected,
+#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
