@@ -198,17 +198,10 @@ void  LZ4_free(void* p);
 # define ALLOC_AND_ZERO(s) LZ4_calloc(1,s)
 # define FREEMEM(p)        LZ4_free(p)
 #else
-#ifdef STARBOARD
-# include "starboard/memory.h"
-# define ALLOC(s)          SbMemoryAllocate(s)
-# define ALLOC_AND_ZERO(s) SbMemoryCalloc(1,s)
-# define FREEMEM(p)        SbMemoryDeallocate(p)
-#else
 # include <stdlib.h>   /* malloc, calloc, free */
 # define ALLOC(s)          malloc(s)
 # define ALLOC_AND_ZERO(s) calloc(1,s)
 # define FREEMEM(p)        free(p)
-#endif
 #endif
 
 #include <string.h>   /* memset, memcpy */
