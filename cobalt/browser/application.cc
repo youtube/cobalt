@@ -1126,6 +1126,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+    case kSbEventTypeOsNetworkDisconnected:
+    case kSbEventTypeOsNetworkConnected:
+#endif
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1267,6 +1271,10 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+    case kSbEventTypeOsNetworkDisconnected:
+    case kSbEventTypeOsNetworkConnected:
+#endif
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }

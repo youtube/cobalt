@@ -367,6 +367,13 @@ SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 // Returns the device's current network connection type.
 SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+// Returns if the device is disconnected from network. "Disconnected" is chosen
+// over connected because disconnection can be determined with more certainty
+// than connection usually.
+SB_EXPORT bool SbSystemNetworkIsDisconnected();
+#endif
+
 // Retrieves the platform-defined system path specified by |path_id| and
 // places it as a zero-terminated string into the user-allocated |out_path|
 // unless it is longer than |path_length| - 1. This implementation must be

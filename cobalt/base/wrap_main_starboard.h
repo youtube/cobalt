@@ -142,6 +142,10 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 12
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
 #endif  // SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+    case kSbEventTypeOsNetworkDisconnected:
+    case kSbEventTypeOsNetworkConnected:
+#endif
       event_function(event);
       break;
   }
