@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 class PerformanceEntry;
-typedef script::Sequence<scoped_refptr<PerformanceEntry>> PerformanceEntryList;
+typedef script::Sequence<PerformanceEntry*> PerformanceEntryList;
 
 // Implements the PerformanceObserverEntryList IDL interface, as described here:
 //   https://www.w3.org/TR/performance-timeline-2/#performanceobserverentrylist-interface
