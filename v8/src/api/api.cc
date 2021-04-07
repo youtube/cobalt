@@ -8726,20 +8726,23 @@ String::Value::Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
 
 String::Value::~Value() { i::DeleteArray(str_); }
 
-#define DEFINE_ERROR(NAME, name)                                         \
-  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message) {      \
-    i::Isolate* isolate = i::Isolate::Current();                         \
-    LOG_API(isolate, NAME, New);                                         \
-    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                            \
-    i::Object error;                                                     \
-    {                                                                    \
-      i::HandleScope scope(isolate);                                     \
-      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);    \
-      i::Handle<i::JSFunction> constructor = isolate->name##_function(); \
-      error = *isolate->factory()->NewError(constructor, message);       \
-    }                                                                    \
-    i::Handle<i::Object> result(error, isolate);                         \
-    return Utils::ToLocal(result);                                       \
+#define DEFINE_ERROR(NAME, name)                                          \
+  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message,         \
+                               Isolate* v8_isolate) {                     \
+    i::Isolate* isolate = v8_isolate                                      \
+                              ? reinterpret_cast<i::Isolate*>(v8_isolate) \
+                              : i::Isolate::Current();                    \
+    LOG_API(isolate, NAME, New);                                          \
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                             \
+    i::Object error;                                                      \
+    {                                                                     \
+      i::HandleScope scope(isolate);                                      \
+      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);     \
+      i::Handle<i::JSFunction> constructor = isolate->name##_function();  \
+      error = *isolate->factory()->NewError(constructor, message);        \
+    }                                                                     \
+    i::Handle<i::Object> result(error, isolate);                          \
+    return Utils::ToLocal(result);                                        \
   }
 
 DEFINE_ERROR(RangeError, range_error)
