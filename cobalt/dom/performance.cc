@@ -56,58 +56,6 @@ DOMHighResTimeStamp Performance::time_origin() const {
       Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
-void Performance::UnregisterPerformanceObserver(PerformanceObserver* old_observer) {
-  auto iter = registered_performance_observers_.begin();
-  while (iter != registered_performance_observers_.end()) {
-    if (iter->observer == old_observer) {
-      iter = registered_performance_observers_.erase(iter);
-    } else {
-      ++iter;
-    }
-  }
-}
-
-void Performance::RegisterPerformanceObserver(
-    PerformanceObserver* observer,
-    const PerformanceObserverInit& options) {
-  std::list<PerformanceObserverInit> options_list;
-  options_list.push_back(options);
-  registered_performance_observers_.emplace_back(
-      base::WrapRefCounted(observer), options_list);
-}
-
-void Performance::ReplaceRegisteredPerformanceObserverOptionsList(
-    PerformanceObserver* observer,
-    const PerformanceObserverInit& options) {
-  auto iter = registered_performance_observers_.begin();
-  while (iter != registered_performance_observers_.end()) {
-    if (iter->observer == observer) {
-      iter->options_list.clear();
-      iter->options_list.push_back(options);
-    }
-    ++iter;
-  }
-}
-
-void Performance::UpdateRegisteredPerformanceObserverOptionsList(
-    PerformanceObserver* observer,
-    const PerformanceObserverInit& options) {
-  auto iter = registered_performance_observers_.begin();
-  while (iter != registered_performance_observers_.end()) {
-    if (iter->observer == observer) {
-      bool is_replaced = false;
-      for (auto& registered_options : iter->options_list) {
-        if (registered_options.type() == options.type()) {
-          registered_options = options;
-          is_replaced = true;
-        }
-      }
-      if (!is_replaced) iter->options_list.push_back(options);
-    }
-    ++iter;
-  }
-}
-
 void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(timing_);
   tracer->Trace(memory_);
