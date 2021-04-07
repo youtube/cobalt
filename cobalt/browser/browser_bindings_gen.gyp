@@ -133,7 +133,6 @@
         '../dom/on_screen_keyboard.idl',
         '../dom/performance.idl',
         '../dom/performance_entry.idl',
-        '../dom/performance_observer.idl',
         '../dom/performance_observer_entry_list.idl',
         '../dom/performance_timing.idl',
         '../dom/plugin_array.idl',
