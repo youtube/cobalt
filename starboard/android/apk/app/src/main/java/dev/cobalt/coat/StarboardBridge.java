@@ -161,6 +161,8 @@ public class StarboardBridge {
     }
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
   protected void startMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service == null) {
@@ -173,6 +175,8 @@ public class StarboardBridge {
     }
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
   protected void stopMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service != null) {
