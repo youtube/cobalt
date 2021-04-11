@@ -25,22 +25,23 @@ const kPlaybackRates = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
 function getPrimaryVideo() {
   const elem = document.querySelectorAll('video');
-  if (elem && elem.length > 0) {
-    let primary = null;
-    for (let i = 0; i < elem.length; i++) {
-      const rect = elem[i].getBoundingClientRect();
-      if (rect.width == window.innerWidth &&
-          rect.height == window.innerHeight) {
-        if (primary != null) {
-          console.warn('Two video elements found with the same\
-              dimensions as the main window.');
-        }
-        primary = elem[i];
-      }
-    }
-    return primary;
+  if (!elem || elem.length === 0) {
+    return null;
   }
-  return null;
+
+  let primary = null;
+  for (let i = 0; i < elem.length; i++) {
+    const rect = elem[i].getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && !primary) {
+      // When there is only one video playing, it is always treated as the
+      // primary video, even if it doesn't cover the full window.
+      primary = elem[i];
+    } else if (rect.width == window.innerWidth ||
+               rect.height == window.innerHeight) {
+      primary = elem[i];
+    }
+  }
+  return primary;
 };
 
 function extractState(video, disabledMediaCodecs) {

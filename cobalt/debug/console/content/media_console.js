@@ -165,9 +165,9 @@ MediaConsole.prototype.printToMediaConsole = function(response) {
       Disabled Media Codecs: ${state.disabledMediaCodecs}`;
 }
 
-MediaConsole.prototype.update = function() {
+MediaConsole.prototype.update = function(forceUpdate) {
   const t = window.performance.now();
-  if (t > this.lastUpdateTime + this.updatePeriod) {
+  if (forceUpdate || t > this.lastUpdateTime + this.updatePeriod) {
     this.lastUpdateTime = t;
     this.debuggerClient.evaluate('_mediaConsoleContext.getPlayerState()',
         this.printToMediaConsoleCallback);
@@ -216,6 +216,8 @@ MediaConsole.prototype.onToggleCodec = function(codecToToggle) {
   let codecs = this.getDisabledMediaCodecs().split(";");
   codecs = codecs.filter(s => s.length > 0);
   toggled = codecs.filter(c => c != codecToToggle);
-  if(codecs.length == toggled.length) { toggled.push(codecToToggle); }
+  if (codecs.length == toggled.length) { toggled.push(codecToToggle); }
   this.setDisabledMediaCodecs(toggled.join(';'));
+  // Force an immediate update of the console to reflect the above change.
+  this.update(true);
 }
