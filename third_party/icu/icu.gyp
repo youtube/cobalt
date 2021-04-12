@@ -28,19 +28,6 @@
         'UCONFIG_NO_TRANSLITERATION',
         'UCONFIG_NO_REGULAR_EXPRESSIONS'
       ],
-      # ICU-using code relies on a particular definition of UChar!=char16_t if
-      # the system does not have a 2-byte wchar_t implementation
-      'conditions': [
-        ['target_os=="win"', {
-          'defines': [
-            'UCHAR_TYPE=wchar_t',
-          ],
-        },{
-          'defines': [
-            'UCHAR_TYPE=uint16_t',
-          ],
-        }],
-      ],
       # Some dependencies also use UBool, which triggers this warning.
       'msvs_disabled_warnings': [4805],
     },
