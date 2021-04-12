@@ -23,41 +23,46 @@ function DebugCommands(debugConsole) {
 
 DebugCommands.prototype.addBuiltinCommands = function() {
 
-  this.commandRegistry.cvalList = () => {
-    let result = this.consoleValues.listAll();
+  this.commandRegistry.cvalList = (spaceSeparatedPatternsToMatch) => {
+    let result = this.consoleValues.list(spaceSeparatedPatternsToMatch);
     printToMessageLog(MessageLog.INTERACTIVE, result);
   };
   this.commandRegistry.cvalList.shortHelp =
-      'List all registered console values.';
+      'List registered console values matching the space separated wildcard ' +
+      'patterns (\'*\' matches any character sequence).';
   this.commandRegistry.cvalList.longHelp =
-      'List all registered console values that can be displayed.\n' +
-      'You can change what subset is displayed in the HUD using ' +
+      'List registered console values that can be displayed matching ' +
+      'the space separated wildcard patterns (\'*\' matches any character ' +
+      'sequence).\nYou can change what subset is displayed in the HUD using ' +
       'the cvalAdd and cvalRemove debug methods.';
 
-  this.commandRegistry.cvalAdd = (substringToMatch) => {
-    let result = this.consoleValues.addActive(substringToMatch);
+  this.commandRegistry.cvalAdd = (spaceSeparatedPatternsToMatch) => {
+    let result = this.consoleValues.addActive(spaceSeparatedPatternsToMatch);
     printToMessageLog(MessageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   };
   this.commandRegistry.cvalAdd.shortHelp =
-      'Adds one or more consoles value to the HUD.';
+      'Adds one or more console values to the HUD matching the space ' +
+      'separated wildcard patterns (\'*\' matches any character sequence).';
   this.commandRegistry.cvalAdd.longHelp =
-      'Adds any of the registered consolve values (displayed with cvalList) ' +
-      'to the HUD whose name matches one of the specified space-separated '
-      'prefixes.';
+      'Adds any of the registered console values (displayed with cvalList) ' +
+      'to the HUD whose names match one of the specified space separated '
+      'wildcard patterns (\'*\' matches any character sequence).';
 
-  this.commandRegistry.cvalRemove = (substringToMatch) => {
-    let result = this.consoleValues.removeActive(substringToMatch);
+  this.commandRegistry.cvalRemove = (spaceSeparatedPatternsToMatch) => {
+    let result = this.consoleValues.removeActive(spaceSeparatedPatternsToMatch);
     printToMessageLog(MessageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   };
   this.commandRegistry.cvalRemove.shortHelp =
-      'Removes one or more consoles value from the HUD.';
+      'Removes one or more console values from the HUD matching the space ' +
+      'separated wildcard patterns (\'*\' matches any character sequence).';
   this.commandRegistry.cvalRemove.longHelp =
-      'Removes any of the consolve values displayed in the HUD ' +
-      'whose name matches one of the specified space-separated prefixes.';
+      'Removes any of the console values displayed in the HUD ' +
+      'whose names match one of the specified space-separated patterns ' +
+      '(\'*\' matches any character sequence).';
 
   this.commandRegistry.cvalSave = (key) => {
     let result = this.consoleValues.saveActiveSet(key);
