@@ -435,6 +435,8 @@ updates in an example 3-slot configuration:
     ├── installation_store_<APP_KEY>.pb
     └── icu (default location shared by installation slots, to be explained below)
 ```
+Note that after the Cobalt binary is loaded by the loader_app, `kSbSystemPathContentDirectory` points to the
+content directory of the running binary, as stated in Starboard Module Reference of system.h.
 
 #### App metadata
 Each Cobalt Evergreen application has a set of unique metadata to track slot
