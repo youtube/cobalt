@@ -17,7 +17,6 @@
 
 #include <atomic>
 #include <functional>
-#include <string>
 #include <vector>
 
 #include "starboard/common/condition_variable.h"
@@ -86,9 +85,7 @@ class MinRequiredFramesTester {
   static void ConsumeFramesFunc(int frames_consumed,
                                 SbTime frames_consumed_at,
                                 void* context);
-  static void ErrorFunc(bool capability_changed,
-                        const std::string& error_message,
-                        void* context);
+  static void ErrorFunc(bool capability_changed, void* context);
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
                           bool* is_playing,
