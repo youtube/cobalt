@@ -113,8 +113,7 @@ class AudioRendererSinkCallbackStub
     SB_DCHECK(frames_consumed == 0);
   }
 
-  void OnError(bool capability_changed,
-               const std::string& error_message) override {
+  void OnError(bool capability_changed) override {
     error_occurred_.store(true);
   }
 

@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_IMPL_H_
 
 #include <functional>
-#include <string>
 #include <vector>
 
 #include "starboard/atomic.h"
@@ -139,8 +138,7 @@ class AudioRendererImpl : public AudioRenderer,
                        bool* is_playing,
                        bool* is_eos_reached) override;
   void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
-  void OnError(bool capability_changed,
-               const std::string& error_message) override;
+  void OnError(bool capability_changed) override;
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 

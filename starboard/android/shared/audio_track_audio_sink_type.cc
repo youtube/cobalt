@@ -15,10 +15,8 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 
 #include <algorithm>
-#include <string>
 #include <vector>
 
-#include "starboard/common/string.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
 namespace {
@@ -248,8 +246,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         j_audio_track_bridge_, "getAndResetHasNewAudioDeviceAdded", "()Z");
     if (new_audio_device_added) {
       SB_LOG(INFO) << "New audio device added.";
-      error_func_(kSbPlayerErrorCapabilityChanged, "New audio device added.",
-                  context_);
+      error_func_(kSbPlayerErrorCapabilityChanged, context_);
       break;
     }
 
@@ -398,12 +395,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       // Take all |frames_in_audio_track| as consumed since audio track could be
       // dead.
       consume_frames_func_(frames_in_audio_track, now, context_);
-
-      bool capabilities_changed = written_frames == kAudioTrackErrorDeadObject;
-      error_func_(
-          capabilities_changed,
-          FormatString("Error while writing frames: %d", written_frames),
-          context_);
+      error_func_(written_frames == kAudioTrackErrorDeadObject
+                      ? kSbPlayerErrorCapabilityChanged
+                      : kSbPlayerErrorDecode,
+                  context_);
       break;
     } else if (written_frames > 0) {
       last_written_succeeded_at = now;
