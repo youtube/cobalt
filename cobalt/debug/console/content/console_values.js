@@ -12,6 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Help functions
+//
+// Convert a string with wildcard pattern to RegExp.
+// It takes backwards compatible into account, e.g. it replaces empty string
+// with '*' to match the previous behavior.
+function createRegExpFromPattern(patternToMatch) {
+  if (!patternToMatch) {
+    // Empty string matches everything.
+    patternToMatch = '*';
+  } else if (patternToMatch.indexOf('*') < 0) {
+    // When wilecard is not used, match any string that contains it.
+    patternToMatch = '*' + patternToMatch + '*';
+  }
+  regExpToMatch = patternToMatch.replace(/\./g, '\\.').replace(/\*/g, '.*');
+  return new RegExp('^' + regExpToMatch + '$');
+}
+
+// Convert a string with space separated wildcard patterns to RegExps.
+function createRegExpsFromPatterns(spaceSeparatedPatternsToMatch) {
+  let patternsToMatch;
+  if (spaceSeparatedPatternsToMatch) {
+    patternsToMatch = spaceSeparatedPatternsToMatch.split(/(\s+)/);
+  } else {
+    // Matches everything if the string is empty, to match the previous
+    // behavior.
+    patternsToMatch = ['*'];
+  }
+  let regExpsToMatch = [];
+  patternsToMatch.forEach(function(element) {
+    let trimmedElement = element.trim();
+    if (trimmedElement) {
+      regExpsToMatch.push(createRegExpFromPattern(trimmedElement));
+    }
+  });
+  return regExpsToMatch;
+}
+
+// Return whether |string| matches one of the RegExps specified in |regExps|.
+function matchStringToRegExps(string, regExps) {
+  for (let i = 0; i < regExps.length; i++) {
+    if (string.match(regExps[i])) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Console values constructor
 function ConsoleValues() {
   // Use a prefix on all WLS keys to ensure uniqueness.
@@ -160,7 +208,8 @@ ConsoleValues.prototype.treeToString = function(cvalTree, prefix) {
 }
 
 // Updates the complete list of registered CVals.
-// If any active CVals are no longer registered, remove them from the active set.
+// If any active CVals are no longer registered, remove them from the active
+// set.
 ConsoleValues.prototype.updateRegistered = function() {
   if (this.useDefaultActiveSet) {
     this.setActiveSetToDefault();
@@ -189,12 +238,19 @@ ConsoleValues.prototype.toString = function() {
   }
 }
 
-// Lists all registered cvals
-ConsoleValues.prototype.listAll = function() {
+// Lists registered cvals that match one of the patterns in
+// |spaceSeparatedPatternsToMatch|.
+ConsoleValues.prototype.list = function(spaceSeparatedPatternsToMatch) {
   var result = '';
+  var regExps = createRegExpsFromPatterns(spaceSeparatedPatternsToMatch);
+  var count = 0;
   for (var i = 0; i < this.allCVals.length; i++) {
-    result += this.allCVals[i] + '\n';
+    if (matchStringToRegExps(this.allCVals[i], regExps)) {
+      result += this.allCVals[i] + '\n';
+      ++count;
+    }
   }
+  result += '\n' + count + ' cvals total';
   return result;
 }
 
@@ -220,27 +276,32 @@ ConsoleValues.prototype.removeSingleActive = function(cval) {
 }
 
 // Adds/removes one or more cvals from the active set.
-// Each console value is matched against the space-separated list of prefixes
+// Each console value is matched against the space-separated list of patterns
 // and the specified method run on each match.
-ConsoleValues.prototype.updateActiveSet = function(onMatch, prefixList) {
+ConsoleValues.prototype.updateActiveSet =
+    function(onMatch, spaceSeparatedPatternsToMatch) {
   var result = '';
-  var prefixesToMatch = prefixList.split(' ');
-  for (var j = 0; j < prefixesToMatch.length; j++) {
-    var prefix = prefixesToMatch[j];
-    var found = 0;
-    for (var i = 0; i < this.allCVals.length; i++) {
-      if (this.allCVals[i].indexOf(prefix) == 0) {
-        found += 1;
-        result += onMatch.call(this, this.allCVals[i]) + '\n';
+  var regExps = createRegExpsFromPatterns(spaceSeparatedPatternsToMatch);
+  var processedCvals = [];
+  for (var i = 0; i < regExps.length; ++i) {
+    var found = false;
+    for (var j = 0; j < this.allCVals.length; j++) {
+      if (this.allCVals[j].match(regExps[i])) {
+        found = true;
+        if (processedCvals.indexOf(this.allCVals[j]) === -1) {
+          processedCvals.push(this.allCVals[j]);
+          result += onMatch.call(this, this.allCVals[j]) + '\n';
+        }
       }
     }
-    if (found == 0) {
-      result += '"' + prefix + '" matched no registed cvals.\n';
+    if (!found) {
+      result += '"' + regExps[i] + '" matched no registered cvals.\n';
     }
   }
   this.activeCVals.sort();
   return result;
 }
+
 
 // Saves the current active set using the web local storage.
 ConsoleValues.prototype.saveActiveSet = function(key) {
@@ -292,24 +353,26 @@ ConsoleValues.prototype.setActiveSetToDefault = function() {
 
 // Adds one or more CVals to the active list.
 // Any of the registered console values that match one of the space-separated
-// set of prefixes will be added to the active set.
-ConsoleValues.prototype.addActive = function(prefixesToMatch) {
+// set of patterns will be added to the active set.
+ConsoleValues.prototype.addActive = function(spaceSeparatedPatternsToMatch) {
   if (this.useDefaultActiveSet) {
     // If we modify our list of CVals, we should no longer rely on the defaults.
     this.updateRegistered();
     this.useDefaultActiveSet = false;
   }
-  return this.updateActiveSet(this.addSingleActive, prefixesToMatch);
+  return this.updateActiveSet(this.addSingleActive,
+                              spaceSeparatedPatternsToMatch);
 }
 
 // Removes one or more CVals from the active list.
 // Any of the registered console values that match one of the space-separated
-// set of prefixes will be removed from the active set.
-ConsoleValues.prototype.removeActive = function(prefixesToMatch) {
+// set of patterns will be removed from the active set.
+ConsoleValues.prototype.removeActive = function(spaceSeparatedPatternsToMatch) {
   if (this.useDefaultActiveSet) {
     // If we modify our list of CVals, we should no longer rely on the defaults.
     this.updateRegistered();
     this.useDefaultActiveSet = false;
   }
-  return this.updateActiveSet(this.removeSingleActive, prefixesToMatch);
+  return this.updateActiveSet(this.removeSingleActive,
+                              spaceSeparatedPatternsToMatch);
 }
