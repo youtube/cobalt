@@ -22,6 +22,10 @@ x-build-common-definitions: &build-common-definitions
   depends_on:
     - build-base
 
+x-shared-build-env: &shared-build-env
+  NINJA_PARALLEL: ${NINJA_PARALLEL:-32}
+  IS_CI: ${IS_CI:-0}
+
 services:
   base:
     build:
@@ -30,6 +34,7 @@ services:
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: cobalt-base
+    scale: 0
 
   base-xenial:
     build:
@@ -39,6 +44,7 @@ services:
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: base-xenial
+    scale: 0
 
   # Define common build container for Linux
   build-base:
@@ -48,6 +54,7 @@ services:
     image: cobalt-build-base
     depends_on:
       - base
+    scale: 0
 
   build-base-xenial:
     build:
@@ -58,6 +65,7 @@ services:
     image: build-base-xenial
     depends_on:
       - base-xenial
+    scale: 0
 
   stub:
     <<: *build-common-definitions
@@ -65,9 +73,11 @@ services:
       context: ./docker/linux
       dockerfile: stub/Dockerfile
     image: cobalt-build-linux-stub
+    depends_on: [ build-base ]
     environment:
-      - PLATFORM=stub
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      PLATFORM: stub
+      CONFIG: ${CONFIG:-debug}
 
   linux-x64x11:
     <<: *build-common-definitions
@@ -77,8 +87,9 @@ services:
     image: cobalt-build-linux
     depends_on: [ build-base ]
     environment:
-      - PLATFORM=linux-x64x11
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11
+      CONFIG: ${CONFIG:-debug}
 
   linux-x64x11-xenial:
     <<: *common-definitions
@@ -91,6 +102,7 @@ services:
     image: linux-x64x11-xenial
     depends_on:
       - build-base-xenial
+    scale: 0
 
   linux-x64x11-clang-3-6:
     <<: *common-definitions
@@ -100,8 +112,9 @@ services:
       dockerfile: clang-3-6/Dockerfile
     image: cobalt-build-linux-clang-3-6
     environment:
-      - PLATFORM=linux-x64x11-clang-3-6
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11-clang-3-6
+      CONFIG: ${CONFIG:-debug}
     depends_on:
       - linux-x64x11-xenial
 
@@ -112,33 +125,37 @@ services:
       context: ./docker/linux/android
       dockerfile: ./Dockerfile
     image: cobalt-build-android
+    scale: 0
 
   android-x86:
     <<: *build-common-definitions
     image: cobalt-build-android
     depends_on: [ build-android ]
     environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-x86
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-x86
+      CONFIG: ${CONFIG:-debug}
 
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
     depends_on: [ build-android ]
     environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-arm
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-arm
+      CONFIG: ${CONFIG:-debug}
 
   android-arm64:
     <<: *build-common-definitions
     image: cobalt-build-android
     depends_on: [ build-android ]
     environment:
-      - IS_DOCKER=1
-      - PLATFORM=android-arm64
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-arm64
+      CONFIG: ${CONFIG:-debug}
 
   raspi:
     <<: *build-common-definitions
@@ -147,8 +164,9 @@ services:
       dockerfile: ./Dockerfile
     image: cobalt-build-raspi
     environment:
-      - PLATFORM
-      - CONFIG=${CONFIG:-debug}
+      <<: *shared-build-env
+      PLATFORM:
+      CONFIG: ${CONFIG:-debug}
 
   # Define common build container for Evergreen
   build-evergreen:
@@ -158,43 +176,47 @@ services:
       dockerfile: evergreen/Dockerfile
     image: cobalt-build-evergreen
     environment:
-      - PLATFORM
-      - CONFIG
+      <<: *shared-build-env
 
   evergreen-x64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM=evergreen-x64-sbversion-12
+      <<: *shared-build-env
+      PLATFORM: evergreen-x64-sbversion-12
 
   evergreen-x86-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM=evergreen-x86-sbversion-12
+      <<: *shared-build-env
+      PLATFORM: evergreen-x86-sbversion-12
 
   evergreen-arm64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM=evergreen-arm64-sbversion-12
+      <<: *shared-build-env
+      PLATFORM: evergreen-arm64-sbversion-12
 
   evergreen-arm-hardfp-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM=evergreen-arm-hardfp-sbversion-12
+      <<: *shared-build-env
+      PLATFORM: evergreen-arm-hardfp-sbversion-12
 
   evergreen-arm-softfp-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
     depends_on: [ build-evergreen ]
     environment:
-      - PLATFORM=evergreen-arm-softfp-sbversion-12
+      <<: *shared-build-env
+      PLATFORM: evergreen-arm-softfp-sbversion-12
 
   unittest:
     <<: *common-definitions
