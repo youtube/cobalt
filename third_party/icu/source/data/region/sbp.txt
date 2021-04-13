@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sbp.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sbp{
     Countries{
         AD{"Andola"}
@@ -15,7 +10,6 @@ sbp{
         AI{"Anguilla"}
         AL{"Alubaniya"}
         AM{"Alimeniya"}
-        AN{"Anitili sa Uholansi"}
         AO{"Angola"}
         AR{"Ajentina"}
         AS{"Samoya ya Malekani"}
@@ -134,7 +128,6 @@ sbp{
         MD{"Molidova"}
         MG{"Bukini"}
         MH{"Figunguli ifya Malishali"}
-        MK{"Masedoniya"}
         ML{"Mali"}
         MM{"Muyama"}
         MN{"Mongoliya"}
@@ -234,5 +227,4 @@ sbp{
         ZM{"Sambiya"}
         ZW{"Simbabwe"}
     }
-    Version{"2.1.19.14"}
 }

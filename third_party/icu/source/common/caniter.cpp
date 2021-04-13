@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *****************************************************************************
  * Copyright (C) 1996-2015, International Business Machines Corporation and
@@ -7,7 +9,9 @@
 
 #include "unicode/utypes.h"
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/caniter.h"
@@ -310,12 +314,12 @@ void U_EXPORT2 CanonicalIterator::permute(UnicodeString &source, UBool skipZeros
 
         // see what the permutations of the characters before and after this one are
         //Hashtable *subpermute = permute(source.substring(0,i) + source.substring(i + UTF16.getCharCount(cp)));
-        permute(subPermuteString.replace(i, U16_LENGTH(cp), NULL, 0), skipZeros, &subpermute, status);
+        permute(subPermuteString.remove(i, U16_LENGTH(cp)), skipZeros, &subpermute, status);
         /* Test for buffer overflows */
         if(U_FAILURE(status)) {
             return;
         }
-        // The upper replace is destructive. The question is do we have to make a copy, or we don't care about the contents 
+        // The upper remove is destructive. The question is do we have to make a copy, or we don't care about the contents 
         // of source at this point.
 
         // prefix this character to all of them
@@ -404,7 +408,7 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     //String[] finalResult = new String[result.size()];
     UnicodeString *finalResult = NULL;
     int32_t resultCount;
-    if((resultCount = result.count())) {
+    if((resultCount = result.count()) != 0) {
         finalResult = new UnicodeString[resultCount];
         if (finalResult == 0) {
             status = U_MEMORY_ALLOCATION_ERROR;

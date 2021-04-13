@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2013-2014, International Business Machines
@@ -9,7 +11,9 @@
 * created by: Markus W. Scherer
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_COLLATION

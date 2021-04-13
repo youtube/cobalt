@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2012-2015, International Business Machines
@@ -15,8 +17,10 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/localpointer.h"
 #include "unicode/uchar.h"
 #include "unicode/ucharstrie.h"
@@ -852,8 +856,7 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
         ce32 = encodeOneCE(Collation::unassignedCEFromCodePoint(c), errorCode);
         break;
     default:
-        U_ASSERT(FALSE);  // require ce32 == base->getFinalCE32(ce32)
-        break;
+        UPRV_UNREACHABLE;  // require ce32 == base->getFinalCE32(ce32)
     }
     return ce32;
 }

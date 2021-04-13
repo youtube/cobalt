@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/rbnf/am.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 am{
     RBNFRules{
         OrdinalRules{
@@ -16,7 +11,7 @@ am{
         SpelloutRules{
             "%spellout-numbering-year:",
             "-x: \u1245\u1295\u1235\u1293\u123D >>;",
-            "x.x: =#,###0.#=;",
+            "x.x: =0.0=;",
             "0: =%spellout-numbering=;",
             "1100/100: << \u1218\u1276[ >>];",
             "10000: =%spellout-numbering=;",
@@ -53,5 +48,4 @@ am{
             "0: =%spellout-numbering=\u129B;",
         }
     }
-    Version{"2.1.19.14"}
 }

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2003-2013, International Business Machines Corporation and
@@ -51,7 +53,7 @@ TaiwanCalendar& TaiwanCalendar::operator= ( const TaiwanCalendar& right)
     return *this;
 }
 
-Calendar* TaiwanCalendar::clone(void) const
+TaiwanCalendar* TaiwanCalendar::clone() const
 {
     return new TaiwanCalendar(*this);
 }

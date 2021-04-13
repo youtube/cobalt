@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2003-2012, International Business Machines
+*   Copyright (C) 2003-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  gensprep.c
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -26,6 +28,7 @@
 
 #include "cmemory.h"
 #include "cstring.h"
+#include "toolutil.h"
 #include "unewdata.h"
 #include "uoptions.h"
 #include "uparse.h"
@@ -111,7 +114,7 @@ static int printHelp(int argc, char* argv[]){
     fprintf(stderr,
         "\t-d or --destdir          destination directory, followed by the path\n"
         "\t-s or --sourcedir        source directory of ICU data, followed by the path\n"
-        "\t-b or --bundle-name      generate the ouput data file with the name specified\n"
+        "\t-b or --bundle-name      generate the output data file with the name specified\n"
         "\t-i or --icudatadir       directory for locating any needed intermediate data files,\n"
         "\t                         followed by path, defaults to %s\n",
         u_getDataDirectory());
@@ -153,7 +156,7 @@ main(int argc, char* argv[]) {
     options[BUNDLE_NAME].value = DATA_NAME;
     options[NORMALIZE].value = "";
 
-    argc=u_parseArgs(argc, argv, sizeof(options)/sizeof(options[0]), options);
+    argc=u_parseArgs(argc, argv, UPRV_LENGTHOF(options), options);
 
     /* error handling, printing usage message */
     if(argc<0) {
@@ -201,7 +204,7 @@ main(int argc, char* argv[]) {
 #else
 
     setUnicodeVersion(options[UNICODE_VERSION].value);
-    filename = (char* ) uprv_malloc(uprv_strlen(srcDir) + 300); /* hopefully this should be enough */
+    filename = (char* ) uprv_malloc(uprv_strlen(srcDir) + uprv_strlen(inputFileName) + (icuUniDataDir == NULL ? 0 : uprv_strlen(icuUniDataDir)) + 40); /* hopefully this should be enough */
    
     /* prepare the filename beginning with the source dir */
     if(uprv_strchr(srcDir,U_FILE_SEP_CHAR) == NULL && uprv_strchr(srcDir,U_FILE_ALT_SEP_CHAR) == NULL){
@@ -276,6 +279,8 @@ static void U_CALLCONV
 normalizationCorrectionsLineFn(void *context,
                     char *fields[][2], int32_t fieldCount,
                     UErrorCode *pErrorCode) {
+    (void)context; // suppress compiler warnings about unused variable
+    (void)fieldCount; // suppress compiler warnings about unused variable
     uint32_t mapping[40];
     char *end, *s;
     uint32_t code;
@@ -339,6 +344,7 @@ static void U_CALLCONV
 strprepProfileLineFn(void *context,
               char *fields[][2], int32_t fieldCount,
               UErrorCode *pErrorCode) {
+    (void)fieldCount; // suppress compiler warnings about unused variable  
     uint32_t mapping[40];
     char *end, *map;
     uint32_t code;
@@ -353,7 +359,7 @@ strprepProfileLineFn(void *context,
     if (*s == '@') {
         /* special directive */
         s++;
-        length = fields[0][1] - s;
+        length = (int32_t)(fields[0][1] - s);
         if (length >= NORMALIZE_DIRECTIVE_LEN
             && uprv_strncmp(s, NORMALIZE_DIRECTIVE, NORMALIZE_DIRECTIVE_LEN) == 0) {
             options[NORMALIZE].doesOccur = TRUE;

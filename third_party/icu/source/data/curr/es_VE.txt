@@ -1,21 +1,25 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_VE.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_VE{
     %%Parent{"es_419"}
     Currencies{
         VEF{
             "Bs.",
-            "bolívar venezolano",
+            "bolívar venezolano (2008–2018)",
+        }
+        VES{
+            "Bs.S",
+            "bolívar soberano",
         }
     }
     Currencies%narrow{
         VEF{"Bs."}
     }
-    Version{"2.1.19.14"}
+    CurrencyPlurals{
+        VES{
+            one{"bolívar soberano"}
+            other{"bolívares soberanos"}
+        }
+    }
 }

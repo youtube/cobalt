@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fi{
     Countries{
         001{"maailma"}
@@ -28,7 +23,7 @@ fi{
         039{"Etelä-Eurooppa"}
         053{"Australaasia"}
         054{"Melanesia"}
-        057{"Mikronesia"}
+        057{"Mikronesian alue"}
         061{"Polynesia"}
         142{"Aasia"}
         143{"Keski-Aasia"}
@@ -37,6 +32,7 @@ fi{
         151{"Itä-Eurooppa"}
         154{"Pohjois-Eurooppa"}
         155{"Länsi-Eurooppa"}
+        202{"Saharan eteläpuolinen Afrikka"}
         419{"Latinalainen Amerikka"}
         AC{"Ascension-saari"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ fi{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Alankomaiden Antillit"}
         AO{"Angola"}
         AQ{"Antarktis"}
         AR{"Argentiina"}
@@ -113,10 +108,11 @@ fi{
         ES{"Espanja"}
         ET{"Etiopia"}
         EU{"Euroopan unioni"}
+        EZ{"euroalue"}
         FI{"Suomi"}
         FJ{"Fidži"}
-        FK{"Falklandinsaaret"}
-        FM{"Mikronesian liittovaltio"}
+        FK{"Falklandinsaaret (Malvinassaaret)"}
+        FM{"Mikronesia"}
         FO{"Färsaaret"}
         FR{"Ranska"}
         GA{"Gabon"}
@@ -133,7 +129,7 @@ fi{
         GP{"Guadeloupe"}
         GQ{"Päiväntasaajan Guinea"}
         GR{"Kreikka"}
-        GS{"Etelä-Georgia ja Eteläiset Sandwichsaaret"}
+        GS{"Etelä-Georgia ja Eteläiset Sandwichinsaaret"}
         GT{"Guatemala"}
         GU{"Guam"}
         GW{"Guinea-Bissau"}
@@ -188,7 +184,7 @@ fi{
         MF{"Saint-Martin"}
         MG{"Madagaskar"}
         MH{"Marshallinsaaret"}
-        MK{"Makedonia"}
+        MK{"Pohjois-Makedonia"}
         ML{"Mali"}
         MM{"Myanmar (Burma)"}
         MN{"Mongolia"}
@@ -232,7 +228,7 @@ fi{
         PW{"Palau"}
         PY{"Paraguay"}
         QA{"Qatar"}
-        QO{"ulkomeri"}
+        QO{"Oseanian erillissaaret"}
         RE{"Réunion"}
         RO{"Romania"}
         RS{"Serbia"}
@@ -246,23 +242,23 @@ fi{
         SG{"Singapore"}
         SH{"Saint Helena"}
         SI{"Slovenia"}
-        SJ{"Huippuvuoret ja Jan Mayen"}
+        SJ{"Svalbard ja Jan Mayen"}
         SK{"Slovakia"}
         SL{"Sierra Leone"}
         SM{"San Marino"}
         SN{"Senegal"}
         SO{"Somalia"}
-        SR{"Surinam"}
+        SR{"Suriname"}
         SS{"Etelä-Sudan"}
         ST{"São Tomé ja Príncipe"}
         SV{"El Salvador"}
         SX{"Sint Maarten"}
         SY{"Syyria"}
-        SZ{"Swazimaa"}
+        SZ{"Eswatini"}
         TA{"Tristan da Cunha"}
         TC{"Turks- ja Caicossaaret"}
         TD{"Tšad"}
-        TF{"Ranskan eteläiset alueet"}
+        TF{"Ranskan eteläiset ja antarktiset alueet"}
         TG{"Togo"}
         TH{"Thaimaa"}
         TJ{"Tadžikistan"}
@@ -279,6 +275,7 @@ fi{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"Yhdysvaltain erillissaaret"}
+        UN{"Yhdistyneet kansakunnat"}
         US{"Yhdysvallat"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
@@ -291,6 +288,8 @@ fi{
         VU{"Vanuatu"}
         WF{"Wallis ja Futuna"}
         WS{"Samoa"}
+        XA{"pseudoaksentit"}
+        XB{"kaksisuuntainen pseudo"}
         XK{"Kosovo"}
         YE{"Jemen"}
         YT{"Mayotte"}
@@ -301,15 +300,15 @@ fi{
     }
     Countries%short{
         GB{"Britannia"}
+        UN{"YK"}
         US{"USA"}
     }
     Countries%variant{
         CD{"Kongo-Kinshasa"}
         CG{"Kongo-Brazzaville"}
         CI{"Côte d’Ivoire"}
-        FK{"Falklandinsaaret (Malvinassaaret)"}
-        MK{"EJT Makedonia"}
+        CZ{"Tšekin tasavalta"}
+        SZ{"Swazimaa"}
         TL{"Timor-Leste"}
     }
-    Version{"2.1.19.14"}
 }

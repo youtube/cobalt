@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/de.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 de{
-    Version{"2.1.19.72"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ de{
         "America:El_Salvador"{
             ec{"El Salvador"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -510,6 +507,9 @@ de{
         "America:Puerto_Rico"{
             ec{"Puerto Rico"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -660,6 +660,9 @@ de{
         "Asia:Ashgabat"{
             ec{"Aşgabat"}
         }
+        "Asia:Atyrau"{
+            ec{"Atyrau"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdad"}
         }
@@ -672,6 +675,9 @@ de{
         "Asia:Bangkok"{
             ec{"Bangkok"}
         }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
+        }
         "Asia:Beirut"{
             ec{"Beirut"}
         }
@@ -679,7 +685,7 @@ de{
             ec{"Bischkek"}
         }
         "Asia:Brunei"{
-            ec{"Brunei"}
+            ec{"Brunei Darussalam"}
         }
         "Asia:Calcutta"{
             ec{"Kalkutta"}
@@ -707,6 +713,9 @@ de{
         }
         "Asia:Dushanbe"{
             ec{"Duschanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagusta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -760,7 +769,7 @@ de{
             ec{"Kuwait"}
         }
         "Asia:Macau"{
-            ec{"Macao"}
+            ec{"Macau"}
         }
         "Asia:Magadan"{
             ec{"Magadan"}
@@ -800,6 +809,9 @@ de{
         }
         "Asia:Qatar"{
             ec{"Katar"}
+        }
+        "Asia:Qostanay"{
+            ec{"Qostanai"}
         }
         "Asia:Qyzylorda"{
             ec{"Qysylorda"}
@@ -849,6 +861,9 @@ de{
         "Asia:Tokyo"{
             ec{"Tokio"}
         }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
+        }
         "Asia:Ulaanbaatar"{
             ec{"Ulaanbaatar"}
         }
@@ -877,13 +892,13 @@ de{
             ec{"Azoren"}
         }
         "Atlantic:Bermuda"{
-            ec{"Bermudas"}
+            ec{"Bermuda"}
         }
         "Atlantic:Canary"{
             ec{"Kanaren"}
         }
         "Atlantic:Cape_Verde"{
-            ec{"Kap Verde"}
+            ec{"Cabo Verde"}
         }
         "Atlantic:Faeroe"{
             ec{"Färöer"}
@@ -939,6 +954,9 @@ de{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"Koordinierte Weltzeit"}
+        }
         "Etc:Unknown"{
             ec{"Unbekannt"}
         }
@@ -947,6 +965,9 @@ de{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrachan"}
         }
         "Europe:Athens"{
             ec{"Athen"}
@@ -1006,6 +1027,9 @@ de{
         "Europe:Kiev"{
             ec{"Kiew"}
         }
+        "Europe:Kirov"{
+            ec{"Kirow"}
+        }
         "Europe:Lisbon"{
             ec{"Lissabon"}
         }
@@ -1064,6 +1088,9 @@ de{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratow"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1081,6 +1108,9 @@ de{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Uljanowsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Uschgorod"}
@@ -1411,12 +1441,12 @@ de{
             ls{"Brasília-Normalzeit"}
         }
         "meta:Brunei"{
-            ls{"Brunei-Zeit"}
+            ls{"Brunei-Darussalam-Zeit"}
         }
         "meta:Cape_Verde"{
-            ld{"Kap-Verde-Sommerzeit"}
-            lg{"Kap-Verde-Zeit"}
-            ls{"Kap-Verde-Normalzeit"}
+            ld{"Cabo-Verde-Sommerzeit"}
+            lg{"Cabo-Verde-Zeit"}
+            ls{"Cabo-Verde-Normalzeit"}
         }
         "meta:Casey"{
             ls{"Casey-Zeit"}
@@ -1523,7 +1553,7 @@ de{
             ls{"Französisch-Guayana-Zeit"}
         }
         "meta:French_Southern"{
-            ls{"Französische Süd- und Antarktisgebiete-Zeit"}
+            ls{"Französische-Süd-und-Antarktisgebiete-Zeit"}
         }
         "meta:GMT"{
             ls{"Mittlere Greenwich-Zeit"}
@@ -1577,10 +1607,10 @@ de{
             ls{"Chowd-Normalzeit"}
         }
         "meta:India"{
-            ls{"Indische Zeit"}
+            ls{"Indische Normalzeit"}
         }
         "meta:Indian_Ocean"{
-            ls{"Indischer Ozean-Zeit"}
+            ls{"Indischer-Ozean-Zeit"}
         }
         "meta:Indochina"{
             ls{"Indochina-Zeit"}
@@ -1733,12 +1763,14 @@ de{
             ls{"Niue-Zeit"}
         }
         "meta:Norfolk"{
-            ls{"Norfolkinsel-Zeit"}
+            ld{"Norfolkinsel-Sommerzeit"}
+            lg{"Norfolkinsel-Zeit"}
+            ls{"Norfolkinsel-Normalzeit"}
         }
         "meta:Noronha"{
-            ld{"Fernando de Noronha-Sommerzeit"}
-            lg{"Fernando de Noronha-Zeit"}
-            ls{"Fernando de Noronha-Normalzeit"}
+            ld{"Fernando-de-Noronha-Sommerzeit"}
+            lg{"Fernando-de-Noronha-Zeit"}
+            ls{"Fernando-de-Noronha-Normalzeit"}
         }
         "meta:North_Mariana"{
             ls{"Nördliche-Marianen-Zeit"}
@@ -1749,9 +1781,9 @@ de{
             ls{"Nowosibirsk-Normalzeit"}
         }
         "meta:Omsk"{
-            ld{"Omsk-Sommerzeit"}
-            lg{"Omsk-Zeit"}
-            ls{"Omsk-Normalzeit"}
+            ld{"Omsker Sommerzeit"}
+            lg{"Omsker Zeit"}
+            ls{"Omsker Normalzeit"}
         }
         "meta:Pakistan"{
             ld{"Pakistanische Sommerzeit"}
@@ -1783,15 +1815,18 @@ de{
             ls{"Phoenixinseln-Zeit"}
         }
         "meta:Pierre_Miquelon"{
-            ld{"Saint-Pierre-und-Miquelon-Sommerzeit"}
-            lg{"Saint-Pierre-und-Miquelon-Zeit"}
-            ls{"Saint-Pierre-und-Miquelon-Normalzeit"}
+            ld{"St.-Pierre-und-Miquelon-Sommerzeit"}
+            lg{"St.-Pierre-und-Miquelon-Zeit"}
+            ls{"St.-Pierre-und-Miquelon-Normalzeit"}
         }
         "meta:Pitcairn"{
             ls{"Pitcairninseln-Zeit"}
         }
         "meta:Ponape"{
             ls{"Ponape-Zeit"}
+        }
+        "meta:Pyongyang"{
+            ls{"Pjöngjang-Zeit"}
         }
         "meta:Qyzylorda"{
             ld{"Qysylorda-Sommerzeit"}
@@ -1823,10 +1858,10 @@ de{
             ls{"Seychellen-Zeit"}
         }
         "meta:Singapore"{
-            ls{"Singapur-Zeit"}
+            ls{"Singapurische Normalzeit"}
         }
         "meta:Solomon"{
-            ls{"Salomoninseln-Zeit"}
+            ls{"Salomonen-Zeit"}
         }
         "meta:South_Georgia"{
             ls{"Südgeorgische Zeit"}
@@ -1905,9 +1940,9 @@ de{
             ls{"Wallis-und-Futuna-Zeit"}
         }
         "meta:Yakutsk"{
-            ld{"Jakutsk-Sommerzeit"}
-            lg{"Jakutsk-Zeit"}
-            ls{"Jakutsk-Normalzeit"}
+            ld{"Jakutsker Sommerzeit"}
+            lg{"Jakutsker Zeit"}
+            ls{"Jakutsker Normalzeit"}
         }
         "meta:Yekaterinburg"{
             ld{"Jekaterinburg-Sommerzeit"}

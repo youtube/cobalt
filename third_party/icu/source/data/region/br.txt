@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/br.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 br{
     Countries{
         001{"Bed"}
@@ -37,6 +32,7 @@ br{
         151{"Europa ar Reter"}
         154{"Europa an Norzh"}
         155{"Europa ar Cʼhornôg"}
+        202{"Afrika issaharat"}
         419{"Amerika Latin"}
         AC{"Enez Ascension"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ br{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antilhez Nederlandat"}
         AO{"Angola"}
         AQ{"Antarktika"}
         AR{"Arcʼhantina"}
@@ -96,7 +91,7 @@ br{
         CW{"Curaçao"}
         CX{"Enez Christmas"}
         CY{"Kiprenez"}
-        CZ{"Republik Tchek"}
+        CZ{"Tchekia"}
         DE{"Alamagn"}
         DG{"Diego Garcia"}
         DJ{"Djibouti"}
@@ -113,9 +108,10 @@ br{
         ES{"Spagn"}
         ET{"Etiopia"}
         EU{"Unaniezh Europa"}
+        EZ{"takad an euro"}
         FI{"Finland"}
         FJ{"Fidji"}
-        FK{"Inizi Falkland"}
+        FK{"Inizi Falkland (Inizi Maloù)"}
         FM{"Mikronezia"}
         FO{"Inizi Faero"}
         FR{"Frañs"}
@@ -188,7 +184,7 @@ br{
         MF{"Saint Martin"}
         MG{"Madagaskar"}
         MH{"Inizi Marshall"}
-        MK{"Makedonia"}
+        MK{"Makedonia an Norzh"}
         ML{"Mali"}
         MM{"Myanmar (Birmania)"}
         MN{"Mongolia"}
@@ -258,7 +254,7 @@ br{
         SV{"Salvador"}
         SX{"Sint Maarten"}
         SY{"Siria"}
-        SZ{"Swaziland"}
+        SZ{"Eswatini"}
         TA{"Tristan da Cunha"}
         TC{"Inizi Turks ha Caicos"}
         TD{"Tchad"}
@@ -279,6 +275,7 @@ br{
         UA{"Ukraina"}
         UG{"Ouganda"}
         UM{"Inizi diabell ar Stadoù-Unanet"}
+        UN{"Broadoù unanet"}
         US{"Stadoù-Unanet"}
         UY{"Uruguay"}
         UZ{"Ouzbekistan"}
@@ -291,6 +288,8 @@ br{
         VU{"Vanuatu"}
         WF{"Wallis ha Futuna"}
         WS{"Samoa"}
+        XA{"pouez-mouezh gaou"}
+        XB{"BiDi gaou"}
         XK{"Kosovo"}
         YE{"Yemen"}
         YT{"Mayotte"}
@@ -307,9 +306,8 @@ br{
         CD{"Kongo (RDK)"}
         CG{"Kongo (Republik)"}
         CI{"Aod Olifant"}
-        FK{"Inizi Falkland (Inizi Maloù)"}
-        MK{"Makedonia (RYKM)"}
+        CZ{"Republik Tchek"}
+        SZ{"Swaziland"}
         TL{"Timor ar Reter"}
     }
-    Version{"2.1.19.94"}
 }

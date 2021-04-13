@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
  * Copyright (C) 2003-2013, International Business Machines Corporation
@@ -92,7 +94,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual BuddhistCalendar* clone() const;
 
 public:
     /**
@@ -172,7 +174,7 @@ private:
                                             UBool useMonth) const;
 
     /**
-     * Returns TRUE because the Buddhist Calendar does have a default century
+     * Returns true because the Buddhist Calendar does have a default century
      * @internal
      */
     virtual UBool haveDefaultCentury() const;

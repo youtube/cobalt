@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2007-2012, International Business Machines Corporation and
@@ -11,7 +13,9 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/tzrule.h"
 #include "unicode/ucal.h"
 #include "gregoimp.h"
@@ -107,7 +111,7 @@ InitialTimeZoneRule::~InitialTimeZoneRule() {
 }
 
 InitialTimeZoneRule*
-InitialTimeZoneRule::clone(void) const {
+InitialTimeZoneRule::clone() const {
     return new InitialTimeZoneRule(*this);
 }
 

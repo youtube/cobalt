@@ -1,10 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2002-2006, International Business Machines
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/usetiter.h"
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"
@@ -115,7 +119,7 @@ void UnicodeSetIterator::reset() {
         stringCount = 0;
     } else {
         endRange = set->getRangeCount() - 1;
-        stringCount = set->strings->size();
+        stringCount = set->stringsSize();
     }
     range = 0;
     endElement = -1;

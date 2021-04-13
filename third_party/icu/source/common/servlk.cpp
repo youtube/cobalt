@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2014, International Business Machines Corporation and    *
@@ -10,7 +12,9 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"

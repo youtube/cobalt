@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -6,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  utrie.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -23,7 +25,9 @@
 #   include <stdio.h>
 #endif
 #endif
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "utrie.h"
@@ -141,7 +145,7 @@ utrie_clone(UNewTrie *fillIn, const UNewTrie *other, uint32_t *aliasData, int32_
         uprv_free(aliasData);
     } else {
         uprv_memcpy(trie->index, other->index, sizeof(trie->index));
-        uprv_memcpy(trie->data, other->data, other->dataLength*4);
+        uprv_memcpy(trie->data, other->data, (size_t)other->dataLength*4);
         trie->dataLength=other->dataLength;
         trie->isDataAllocated=isDataAllocated;
     }
@@ -841,7 +845,7 @@ utrie_serialize(UNewTrie *trie, void *dt, int32_t capacity,
         }
 
         /* write 32-bit data values */
-        uprv_memcpy(dest16, trie->data, 4*trie->dataLength);
+        uprv_memcpy(dest16, trie->data, 4*(size_t)trie->dataLength);
     }
 
     return length;

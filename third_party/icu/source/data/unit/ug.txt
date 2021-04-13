@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ug.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ug{
-    Version{"2.1.19.14"}
     units{
         acceleration{
             g-force{
@@ -163,7 +157,7 @@ ug{
                 one{"{0} يۈز پاسكال"}
                 other{"{0} يۈز پاسكال"}
             }
-            inch-hg{
+            inch-ofhg{
                 one{"{0} ديۇيم سىماب تۈۋرۇكى"}
                 other{"{0} ديۇيم سىماب تۈۋرۇكى"}
             }
@@ -355,7 +349,7 @@ ug{
                 one{"{0}hPa"}
                 other{"{0}hPa"}
             }
-            inch-hg{
+            inch-ofhg{
                 one{"{0}\u0022 Hg"}
                 other{"{0}\u0022 Hg"}
             }
@@ -558,7 +552,7 @@ ug{
                 one{"{0} ھېكتوپاسكال"}
                 other{"{0} ھېكتوپاسكال"}
             }
-            inch-hg{
+            inch-ofhg{
                 one{"{0} inHg"}
                 other{"{0} inHg"}
             }

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
  * Copyright (C) 2007-2014, International Business Machines Corporation
@@ -17,7 +19,9 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "umutex.h"
 #include <float.h>
 #include "gregoimp.h" // Math
@@ -50,7 +54,7 @@ static void debug_chnsecal_msg(const char *pat, ...)
 
 
 // --- The cache --
-static UMutex astroLock = U_MUTEX_INITIALIZER;  // Protects access to gChineseCalendarAstro.
+static icu::UMutex astroLock;
 static icu::CalendarAstronomer *gChineseCalendarAstro = NULL;
 
 // Lazy Creation & Access synchronized by class CalendarCache with a mutex.
@@ -117,12 +121,12 @@ U_NAMESPACE_BEGIN
 //-------------------------------------------------------------------------
 
 
-Calendar* ChineseCalendar::clone() const {
+ChineseCalendar* ChineseCalendar::clone() const {
     return new ChineseCalendar(*this);
 }
 
 ChineseCalendar::ChineseCalendar(const Locale& aLocale, UErrorCode& success)
-:   Calendar(TimeZone::createDefault(), aLocale, success),
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success),
     isLeapYear(FALSE),
     fEpochYear(CHINESE_EPOCH_YEAR),
     fZoneAstroCalc(getChineseCalZoneAstroCalc())
@@ -132,7 +136,7 @@ ChineseCalendar::ChineseCalendar(const Locale& aLocale, UErrorCode& success)
 
 ChineseCalendar::ChineseCalendar(const Locale& aLocale, int32_t epochYear,
                                 const TimeZone* zoneAstroCalc, UErrorCode &success)
-:   Calendar(TimeZone::createDefault(), aLocale, success),
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success),
     isLeapYear(FALSE),
     fEpochYear(epochYear),
     fZoneAstroCalc(zoneAstroCalc)

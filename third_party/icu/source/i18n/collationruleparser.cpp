@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2013-2015, International Business Machines
@@ -15,8 +17,10 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/normalizer2.h"
 #include "unicode/parseerr.h"
 #include "unicode/uchar.h"
@@ -622,8 +626,11 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
-            if(length == 3 && uprv_memcmp(baseID, "und", 3) == 0) {
+            if(length == 0) {
                 uprv_strcpy(baseID, "root");
+            } else if(*baseID == '_') {
+                uprv_memmove(baseID + 3, baseID, length + 1);
+                uprv_memcpy(baseID, "und", 3);
             }
             // @collation=type, or length=0 if not specified
             char collationType[ULOC_KEYWORDS_CAPACITY];
@@ -790,7 +797,7 @@ CollationRuleParser::readWords(int32_t i, UnicodeString &raw) const {
             return i;
         }
         if(PatternProps::isWhiteSpace(c)) {
-            raw.append(0x20);
+            raw.append(sp);
             i = skipWhiteSpace(i + 1);
         } else {
             raw.append(c);

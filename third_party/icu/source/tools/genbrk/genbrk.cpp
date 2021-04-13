@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
-*   Copyright (C) 2002-2015, International Business Machines
+*   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 **********************************************************************
 *
@@ -138,7 +140,7 @@ int  main(int argc, char **argv) {
     //
     U_MAIN_INIT_ARGS(argc, argv);
     progName = argv[0];
-    argc=u_parseArgs(argc, argv, sizeof(options)/sizeof(options[0]), options);
+    argc=u_parseArgs(argc, argv, UPRV_LENGTHOF(options), options);
     if(argc<0) {
         // Unrecognized option
         fprintf(stderr, "error in command line argument \"%s\"\n", argv[-argc]);
@@ -260,7 +262,7 @@ int  main(int argc, char **argv) {
     if (status != U_BUFFER_OVERFLOW_ERROR) {
         fprintf(stderr, "ucnv_toUChars: ICU Error \"%s\"\n", u_errorName(status));
         exit(status);
-    };
+    }
 
     status = U_ZERO_ERROR;
     UChar *ruleSourceU = new UChar[destCap+1];
@@ -273,14 +275,14 @@ int  main(int argc, char **argv) {
     if (U_FAILURE(status)) {
         fprintf(stderr, "ucnv_toUChars: ICU Error \"%s\"\n", u_errorName(status));
         exit(status);
-    };
+    }
     ucnv_close(conv);
 
 
     //
     //  Put the source rules into a UnicodeString
     //
-    UnicodeString ruleSourceS(FALSE, ruleSourceU, destCap);
+    UnicodeString ruleSourceS(false, ruleSourceU, destCap);
 
     //
     //  Create the break iterator from the rules
@@ -294,7 +296,7 @@ int  main(int argc, char **argv) {
         fprintf(stderr, "createRuleBasedBreakIterator: ICU Error \"%s\"  at line %d, column %d\n",
                 u_errorName(status), (int)parseError.line, (int)parseError.offset);
         exit(status);
-    };
+    }
 
 
     //

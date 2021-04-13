@@ -1,25 +1,16 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/en_BE.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 en_BE{
-    %%Parent{"en_001"}
+    %%Parent{"en_150"}
     NumberElements{
         latn{
-            patterns{
-                currencyFormat{"#,##0.00 ¤"}
-            }
             symbols{
                 decimal{","}
                 group{"."}
             }
         }
     }
-    Version{"2.1.19.14"}
     calendar{
         generic{
             DateTimePatterns{
@@ -38,7 +29,6 @@ en_BE{
                 "{1}, {0}",
             }
             availableFormats{
-                MEd{"E, d/M"}
                 Md{"d/M"}
                 yyyyMEd{"E, d/M/y G"}
                 yyyyMd{"d/M/y G"}

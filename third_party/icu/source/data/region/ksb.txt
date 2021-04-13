@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ksb.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ksb{
     Countries{
         AD{"Andola"}
@@ -15,7 +10,6 @@ ksb{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Almenia"}
-        AN{"Antili za Uholanzi"}
         AO{"Angola"}
         AR{"Ajentina"}
         AS{"Samoa ya Malekani"}
@@ -133,7 +127,6 @@ ksb{
         MD{"Moldova"}
         MG{"Bukini"}
         MH{"Visiwa vya Mashal"}
-        MK{"Masedonia"}
         ML{"Mali"}
         MM{"Myama"}
         MN{"Mongolia"}
@@ -233,5 +226,4 @@ ksb{
         ZM{"Zambia"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

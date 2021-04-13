@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ko.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ko{
     Currencies{
         ADP{
@@ -220,9 +215,13 @@ ko{
             "BYB",
             "벨라루스 신권 루블 (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "벨라루스 루블",
+        }
         BYR{
             "BYR",
-            "벨라루스 루블",
+            "벨라루스 루블 (2000–2016)",
         }
         BZD{
             "BZD",
@@ -259,6 +258,10 @@ ko{
         CLP{
             "CLP",
             "칠레 페소",
+        }
+        CNH{
+            "CNH",
+            "중국 위안화(역외)",
         }
         CNY{
             "CN¥",
@@ -386,7 +389,7 @@ ko{
         }
         GBP{
             "£",
-            "파운드",
+            "영국 파운드",
         }
         GEK{
             "GEK",
@@ -658,6 +661,10 @@ ko{
         }
         MRO{
             "MRO",
+            "모리타니 우기야 (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "모리타니 우기야",
         }
         MTL{
@@ -754,11 +761,11 @@ ko{
         }
         PEN{
             "PEN",
-            "페루 누에보 솔",
+            "페루 솔",
         }
         PES{
             "PES",
-            "페루 솔",
+            "페루 솔 (1863–1965)",
         }
         PGK{
             "PGK",
@@ -886,6 +893,10 @@ ko{
         }
         STD{
             "STD",
+            "상투메 프린시페 도브라 (1977–2017)",
+        }
+        STN{
+            "STN",
             "상투메 프린시페 도브라",
         }
         SUR{
@@ -905,7 +916,7 @@ ko{
             "스와질란드 릴랑게니",
         }
         THB{
-            "฿",
+            "THB",
             "태국 바트",
         }
         TJR{
@@ -1006,6 +1017,10 @@ ko{
         }
         VEF{
             "VEF",
+            "베네수엘라 볼리바르 (2008–2018)",
+        }
+        VES{
+            "VES",
             "베네수엘라 볼리바르",
         }
         VND{
@@ -1026,7 +1041,7 @@ ko{
         }
         XAF{
             "FCFA",
-            "CFA 프랑 BEAC",
+            "중앙아프리카 CFA 프랑",
         }
         XAG{
             "XAG",
@@ -1074,7 +1089,7 @@ ko{
         }
         XOF{
             "CFA",
-            "CFA 프랑 BCEAO",
+            "서아프리카 CFA 프랑",
         }
         XPD{
             "XPD",
@@ -1097,8 +1112,8 @@ ko{
             "테스트 통화 코드",
         }
         XXX{
-            "XXX",
-            "알 수 없는 통화단위",
+            "¤",
+            "알 수 없는 통화 단위",
         }
         YDD{
             "YDD",
@@ -1170,7 +1185,7 @@ ko{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1187,6 +1202,7 @@ ko{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -1227,6 +1243,7 @@ ko{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"L"}
         RUB{"₽"}
         RWF{"RF"}
         SBD{"$"}
@@ -1235,7 +1252,7 @@ ko{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1314,7 +1331,7 @@ ko{
             other{"볼리비아노"}
         }
         BRL{
-            other{"브라질 헤알"}
+            other{"브라질 레알"}
         }
         BSD{
             other{"바하마 달러"}
@@ -1325,8 +1342,11 @@ ko{
         BWP{
             other{"보츠와나 폴라"}
         }
-        BYR{
+        BYN{
             other{"벨라루스 루블"}
+        }
+        BYR{
+            other{"벨라루스 루블 (2000–2016)"}
         }
         BZD{
             other{"벨리즈 달러"}
@@ -1343,8 +1363,11 @@ ko{
         CLP{
             other{"칠레 페소"}
         }
+        CNH{
+            other{"중국 위안화(역외)"}
+        }
         CNY{
-            other{"중국 위안 인민폐"}
+            other{"중국 위안화"}
         }
         COP{
             other{"콜롬비아 페소"}
@@ -1395,7 +1418,7 @@ ko{
             other{"포클랜드제도 파운드"}
         }
         GBP{
-            other{"영국령 파운드 스털링"}
+            other{"영국 파운드"}
         }
         GEL{
             other{"조지아 라리"}
@@ -1530,6 +1553,9 @@ ko{
             other{"마카오 파타카"}
         }
         MRO{
+            other{"모리타니 우기야 (1973–2017)"}
+        }
+        MRU{
             other{"모리타니 우기야"}
         }
         MUR{
@@ -1575,7 +1601,7 @@ ko{
             other{"파나마 발보아"}
         }
         PEN{
-            other{"페루 누에보 솔"}
+            other{"페루 솔"}
         }
         PGK{
             other{"파푸아뉴기니 키나"}
@@ -1641,6 +1667,9 @@ ko{
             other{"남수단 파운드"}
         }
         STD{
+            other{"상투메 프린시페 도브라 (1977–2017)"}
+        }
+        STN{
             other{"상투메 프린시페 도브라"}
         }
         SYP{
@@ -1692,6 +1721,9 @@ ko{
             other{"우즈베키스탄 숨"}
         }
         VEF{
+            other{"베네수엘라 볼리바르 (2008–2018)"}
+        }
+        VES{
             other{"베네수엘라 볼리바르"}
         }
         VND{
@@ -1704,19 +1736,19 @@ ko{
             other{"서 사모아 탈라"}
         }
         XAF{
-            other{"CFA 프랑 BEAC"}
+            other{"중앙아프리카 CFA 프랑"}
         }
         XCD{
             other{"동카리브 달러"}
         }
         XOF{
-            other{"CFA 프랑 BCEAO"}
+            other{"서아프리카 CFA 프랑"}
         }
         XPF{
             other{"CFP 프랑"}
         }
         XXX{
-            other{"(알 수 없는 통화단위)"}
+            other{"(알 수 없는 통화 단위)"}
         }
         YER{
             other{"예멘 리알"}
@@ -1731,5 +1763,4 @@ ko{
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"2.1.19.94"}
 }

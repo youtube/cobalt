@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fil.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fil{
     Currencies{
         AED{
@@ -100,9 +95,13 @@ fil{
             "BWP",
             "Botswanan Pula",
         }
+        BYN{
+            "BYN",
+            "Belarusian Ruble",
+        }
         BYR{
             "BYR",
-            "Belarusian Ruble",
+            "Belarusian Ruble (2000–2016)",
         }
         BZD{
             "BZD",
@@ -123,6 +122,10 @@ fil{
         CLP{
             "CLP",
             "Piso ng Chile",
+        }
+        CNH{
+            "CNH",
+            "Chinese Yuan (offshore)",
         }
         CNY{
             "CN¥",
@@ -390,7 +393,11 @@ fil{
         }
         MRO{
             "MRO",
-            "Mauritanian Ouguiya",
+            "Mauritanian Ouguiya (1973–2017)",
+        }
+        MRU{
+            "MRU",
+            "Ouguiya ng Mauritania",
         }
         MUR{
             "MUR",
@@ -450,7 +457,7 @@ fil{
         }
         PEN{
             "PEN",
-            "Peruvian Nuevo Sol",
+            "Peruvian Sol",
         }
         PGK{
             "PGK",
@@ -546,6 +553,10 @@ fil{
         }
         STD{
             "STD",
+            "São Tomé & Príncipe Dobra (1977–2017)",
+        }
+        STN{
+            "STN",
             "São Tomé & Príncipe Dobra",
         }
         SYP{
@@ -618,6 +629,10 @@ fil{
         }
         VEF{
             "VEF",
+            "Bolívar ng Venezuela (2008–2018)",
+        }
+        VES{
+            "VES",
             "Bolívar ng Venezuela",
         }
         VND{
@@ -649,7 +664,7 @@ fil{
             "CFP Franc",
         }
         XXX{
-            "XXX",
+            "¤",
             "Hindi Kilalang Pera",
         }
         YER{
@@ -682,7 +697,7 @@ fil{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -699,6 +714,7 @@ fil{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -739,6 +755,7 @@ fil{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"lei"}
         RUB{"₽"}
         RWF{"RF"}
         SBD{"$"}
@@ -747,7 +764,7 @@ fil{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -860,9 +877,13 @@ fil{
             one{"Botswanan pula"}
             other{"Botswanan pulas"}
         }
-        BYR{
+        BYN{
             one{"Belarusian ruble"}
             other{"Belarusian rubles"}
+        }
+        BYR{
+            one{"Belarusian ruble (2000–2016)"}
+            other{"Belarusian rubles (2000–2016)"}
         }
         BZD{
             one{"dolyar ng Belize"}
@@ -883,6 +904,10 @@ fil{
         CLP{
             one{"piso ng Chile"}
             other{"piso ng Chile"}
+        }
+        CNH{
+            one{"Chinese yuan (offshore)"}
+            other{"Chinese yuan (offshore)"}
         }
         CNY{
             one{"Chinese yuan"}
@@ -1133,6 +1158,10 @@ fil{
             other{"Macanese patacas"}
         }
         MRO{
+            one{"Mauritanian ouguiya (1973–2017)"}
+            other{"Mauritanian ouguiyas (1973–2017)"}
+        }
+        MRU{
             one{"Mauritanian ouguiya"}
             other{"Mauritanian ouguiyas"}
         }
@@ -1193,8 +1222,8 @@ fil{
             other{"Balboas ng Panama"}
         }
         PEN{
-            one{"Peruvian nuevo sol"}
-            other{"Peruvian nuevos soles"}
+            one{"Peruvian sol"}
+            other{"Peruvian soles"}
         }
         PGK{
             one{"Papua New Guinean kina"}
@@ -1250,7 +1279,7 @@ fil{
         }
         SDG{
             one{"pound ng Sudan"}
-            other{"Sudanese pounds"}
+            other{"pounds ng Sudan"}
         }
         SEK{
             one{"Swedish krona"}
@@ -1281,6 +1310,10 @@ fil{
             other{"pounds ng Timog Sudan"}
         }
         STD{
+            one{"São Tomé & Príncipe dobra (1977–2017)"}
+            other{"São Tomé & Príncipe dobras (1977–2017)"}
+        }
+        STN{
             one{"São Tomé & Príncipe dobra"}
             other{"São Tomé & Príncipe dobras"}
         }
@@ -1349,6 +1382,10 @@ fil{
             other{"Uzbekistan som"}
         }
         VEF{
+            one{"bolívar ng Venezuela (2008–2018)"}
+            other{"bolívars ng Venezuela (2008–2018)"}
+        }
+        VES{
             one{"bolívar ng Venezuela"}
             other{"bolívars ng Venezuela"}
         }
@@ -1381,7 +1418,7 @@ fil{
             other{"CFP francs"}
         }
         XXX{
-            one{"(hindi kilalang uri ng pera)"}
+            one{"(hindi kilalang unit ng currency)"}
             other{"(hindi kilalang pera)"}
         }
         YER{
@@ -1401,5 +1438,4 @@ fil{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.94"}
 }

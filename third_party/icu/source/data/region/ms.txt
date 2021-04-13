@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ms.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ms{
     Countries{
         001{"Dunia"}
@@ -37,6 +32,7 @@ ms{
         151{"Eropah Timur"}
         154{"Eropah Utara"}
         155{"Eropah Barat"}
+        202{"Afrika Sub-Sahara"}
         419{"Amerika Latin"}
         AC{"Pulau Ascension"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ ms{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Netherlands Antilles"}
         AO{"Angola"}
         AQ{"Antartika"}
         AR{"Argentina"}
@@ -65,7 +60,7 @@ ms{
         BH{"Bahrain"}
         BI{"Burundi"}
         BJ{"Benin"}
-        BL{"Saint Barthélemy"}
+        BL{"St. Barthelemy"}
         BM{"Bermuda"}
         BN{"Brunei"}
         BO{"Bolivia"}
@@ -96,7 +91,7 @@ ms{
         CW{"Curacao"}
         CX{"Pulau Krismas"}
         CY{"Cyprus"}
-        CZ{"Republik Czech"}
+        CZ{"Czechia"}
         DE{"Jerman"}
         DG{"Diego Garcia"}
         DJ{"Djibouti"}
@@ -113,9 +108,10 @@ ms{
         ES{"Sepanyol"}
         ET{"Ethiopia"}
         EU{"Kesatuan Eropah"}
+        EZ{"Zon Euro"}
         FI{"Finland"}
         FJ{"Fiji"}
-        FK{"Kepulauan Falkland"}
+        FK{"Kepulauan Falkland (Islas Malvinas)"}
         FM{"Micronesia"}
         FO{"Kepulauan Faroe"}
         FR{"Perancis"}
@@ -188,7 +184,7 @@ ms{
         MF{"Saint Martin"}
         MG{"Madagaskar"}
         MH{"Kepulauan Marshall"}
-        MK{"Macedonia"}
+        MK{"Macedonia Utara"}
         ML{"Mali"}
         MM{"Myanmar (Burma)"}
         MN{"Mongolia"}
@@ -279,6 +275,7 @@ ms{
         UA{"Ukraine"}
         UG{"Uganda"}
         UM{"Kepulauan Terpencil A.S."}
+        UN{"Bangsa-bangsa Bersatu"}
         US{"Amerika Syarikat"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
@@ -291,6 +288,8 @@ ms{
         VU{"Vanuatu"}
         WF{"Wallis dan Futuna"}
         WS{"Samoa"}
+        XA{"Aksen Pseudo"}
+        XB{"Bidi Pseudo"}
         XK{"Kosovo"}
         YE{"Yaman"}
         YT{"Mayotte"}
@@ -301,15 +300,14 @@ ms{
     }
     Countries%short{
         GB{"UK"}
+        UN{"PBB"}
         US{"A.S"}
     }
     Countries%variant{
         CD{"Congo (DRC)"}
         CG{"Congo (Republik)"}
         CI{"Ivory Coast"}
-        FK{"Kepulauan Falkland (Islas Malvinas)"}
-        MK{"Macedonia (FYROM)"}
+        CZ{"Republik Czech"}
         TL{"Timor Timur"}
     }
-    Version{"2.1.19.94"}
 }

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  *
@@ -17,6 +19,8 @@
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/uscript.h"
+
+U_NAMESPACE_BEGIN
 
 struct ScriptRecord
 {
@@ -150,5 +154,6 @@ inline void ScriptRun::reset(const UChar chars[], int32_t start, int32_t length)
     reset(start, length);
 }
 
+U_NAMESPACE_END
 
 #endif

@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
-* Copyright (C) 1998-2014, International Business Machines Corporation
+* Copyright (C) 1998-2016, International Business Machines Corporation
 * and others.  All Rights Reserved.
 **********************************************************************
 *
@@ -19,8 +21,10 @@
 #include "unicode/uwmsg.h"
 #include "unicode/ures.h"
 #include "unicode/putil.h"
+#include "cmemory.h"
 #include "cstring.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -65,7 +69,7 @@ uprint(const UChar *s,
         /* perform the conversion */
         ucnv_fromUnicode(converter, &myTarget,  myTarget + arraySize,
             &mySource, mySourceEnd, NULL,
-            TRUE, status);
+            true, status);
 
         /* Write the converted data to the FILE* */
         fwrite(buf, sizeof(char), myTarget - buf, f);
@@ -143,7 +147,7 @@ U_CFUNC int u_wmsg(FILE *fp, const char *tag, ... )
     }
 
 #if UCONFIG_NO_FORMATTING
-    resultLength = sizeof(gNoFormatting) / U_SIZEOF_UCHAR;
+    resultLength = UPRV_LENGTHOF(gNoFormatting);
     if((msgLen + resultLength) <= UPRV_LENGTHOF(result)) {
         memcpy(result, msg, msgLen * U_SIZEOF_UCHAR);
         memcpy(result + msgLen, gNoFormatting, resultLength);
@@ -153,6 +157,7 @@ U_CFUNC int u_wmsg(FILE *fp, const char *tag, ... )
         uprint(msg,msgLen, fp, &err);
     }
 #else
+    (void)gNoFormatting;  // suppress -Wunused-variable
     va_start(ap, tag);
 
     resultLength = u_vformatMessage(uloc_getDefault(), msg, msgLen, result, resultLength, ap, &err);

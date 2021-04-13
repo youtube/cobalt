@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2013-2014, International Business Machines
@@ -21,8 +23,10 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/caniter.h"
 #include "unicode/normalizer2.h"
 #include "unicode/tblcoll.h"
@@ -579,8 +583,7 @@ CollationBuilder::getSpecialResetPosition(const UnicodeString &str,
         parserErrorReason = "LDML forbids tailoring to U+FFFF";
         return 0;
     default:
-        U_ASSERT(FALSE);
-        return 0;
+        UPRV_UNREACHABLE;
     }
 
     int32_t index = findOrInsertNodeForRootCE(ce, strength, errorCode);

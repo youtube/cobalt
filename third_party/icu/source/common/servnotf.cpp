@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2012, International Business Machines Corporation and    *
@@ -9,7 +11,9 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "servnotf.h"
 #ifdef NOTIFIER_DEBUG
 #include <stdio.h>
@@ -20,7 +24,7 @@ U_NAMESPACE_BEGIN
 EventListener::~EventListener() {}
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EventListener)
 
-static UMutex notifyLock = U_MUTEX_INITIALIZER;
+static UMutex notifyLock;
 
 ICUNotifier::ICUNotifier(void) 
 : listeners(NULL) 
