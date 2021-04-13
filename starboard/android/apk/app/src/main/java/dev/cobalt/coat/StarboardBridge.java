@@ -537,7 +537,16 @@ public class StarboardBridge {
       return false;
     }
 
-    int[] supportedHdrTypes = defaultDisplay.getHdrCapabilities().getSupportedHdrTypes();
+    Display.HdrCapabilities hdrCapabilities = defaultDisplay.getHdrCapabilities();
+    if (hdrCapabilities == null) {
+      return false;
+    }
+
+    int[] supportedHdrTypes = hdrCapabilities.getSupportedHdrTypes();
+    if (supportedHdrTypes == null) {
+      return false;
+    }
+
     for (int supportedType : supportedHdrTypes) {
       if (supportedType == hdrType) {
         return true;
