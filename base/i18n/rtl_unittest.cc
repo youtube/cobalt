@@ -526,12 +526,8 @@ TEST_F(RTLTest, SanitizeUserSuppliedString) {
     // On Windows for an LTR locale, no changes to the string are made.
     string16 prefix, suffix = WideToUTF16(L"");
 #if !defined(OS_WIN)
-#if !SB_IS(COMPILER_MSVC)
-    // Windows is different from all other platforms, see the comment in
-    // AdjustStringForLocaleDirection() implementation for details.
     prefix = WideToUTF16(L"\x200e\x202b");
     suffix = WideToUTF16(L"\x202c\x200e");
-#endif
 #endif  // !OS_WIN
     string16 unsanitized_text = WideToUTF16(cases[i].unformatted_text);
     string16 sanitized_text =
