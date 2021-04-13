@@ -17,8 +17,6 @@ FROM ${FROM_IMAGE:-cobalt-build-base}
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        pkgconf ninja-build bison yasm \
-        binutils \
         clang \
         libgles2-mesa-dev \
         mesa-common-dev \

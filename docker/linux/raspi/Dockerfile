@@ -22,15 +22,10 @@ ENV RASPI_HOME=${raspi_home}
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        binutils \
-        bison \
         g++-multilib \
-        ninja-build \
-        pkgconf \
         python-requests \
         wget \
         xz-utils \
-        yasm \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
