@@ -15,6 +15,20 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-base}
 
+# === Install common build tools, required by all platforms
+RUN apt update -qqy \
+    && apt install -qqy --no-install-recommends \
+        binutils \
+        bison \
+        ninja-build \
+        pkgconf \
+        yasm \
+    && apt-get clean autoclean \
+    && apt-get autoremove -y --purge \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && rm -rf /var/lib/{apt,dpkg,cache,log} \
+    && echo "Done"
+
 # === Get Nodejs pinned LTS version via NVM
 ENV NVM_DIR /root/.nvm
 ENV NODE_VERSION 12.17.0

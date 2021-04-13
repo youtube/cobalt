@@ -16,14 +16,9 @@ FROM cobalt-build-base
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        binutils \
-        bison \
         default-jdk \
         g++-multilib \
-        ninja-build \
-        pkgconf \
         python-requests \
-        yasm \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \

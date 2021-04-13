@@ -16,8 +16,6 @@ FROM cobalt-build-base
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        pkgconf ninja-build bison yasm \
-        binutils \
         libstdc++-6-dev \
         mesa-common-dev \
         libx11-dev \
