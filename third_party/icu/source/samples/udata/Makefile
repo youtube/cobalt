@@ -1,3 +1,6 @@
+# Copyright (C) 2016 and later: Unicode, Inc. and others.
+# License & terms of use: http://www.unicode.org/copyright.html
+#
 # Copyright (c) 2000-2012 IBM, Inc. and others
 # udata sample code
 # Usage:

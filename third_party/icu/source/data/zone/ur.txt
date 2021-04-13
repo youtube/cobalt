@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ur.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ur{
-    Version{"2.1.19.17"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"عابدجان"}
@@ -309,6 +303,9 @@ ur{
         "America:El_Salvador"{
             ec{"ال سلواڈور"}
         }
+        "America:Fort_Nelson"{
+            ec{"فورٹ نیلسن"}
+        }
         "America:Fortaleza"{
             ec{"فورٹالیزا"}
         }
@@ -510,6 +507,9 @@ ur{
         "America:Puerto_Rico"{
             ec{"پیورٹو ریکو"}
         }
+        "America:Punta_Arenas"{
+            ec{"پنٹا اریناس"}
+        }
         "America:Rainy_River"{
             ec{"رینی ریور"}
         }
@@ -660,6 +660,9 @@ ur{
         "Asia:Ashgabat"{
             ec{"اشغبت"}
         }
+        "Asia:Atyrau"{
+            ec{"آتیراؤ"}
+        }
         "Asia:Baghdad"{
             ec{"بغداد"}
         }
@@ -671,6 +674,9 @@ ur{
         }
         "Asia:Bangkok"{
             ec{"بنکاک"}
+        }
+        "Asia:Barnaul"{
+            ec{"برنال"}
         }
         "Asia:Beirut"{
             ec{"بیروت"}
@@ -703,10 +709,13 @@ ur{
             ec{"ڈلی"}
         }
         "Asia:Dubai"{
-            ec{"دوبئی"}
+            ec{"دبئی"}
         }
         "Asia:Dushanbe"{
             ec{"دوشانبے"}
+        }
+        "Asia:Famagusta"{
+            ec{"فاماگوسٹا"}
         }
         "Asia:Gaza"{
             ec{"غزہ"}
@@ -801,6 +810,9 @@ ur{
         "Asia:Qatar"{
             ec{"قطر"}
         }
+        "Asia:Qostanay"{
+            ec{"کوستانے"}
+        }
         "Asia:Qyzylorda"{
             ec{"کیزیلورڈا"}
         }
@@ -849,6 +861,9 @@ ur{
         "Asia:Tokyo"{
             ec{"ٹوکیو"}
         }
+        "Asia:Tomsk"{
+            ec{"ٹامسک"}
+        }
         "Asia:Ulaanbaatar"{
             ec{"اولان باتار"}
         }
@@ -856,7 +871,7 @@ ur{
             ec{"یورومکی"}
         }
         "Asia:Ust-Nera"{
-            ec{"Ust-Nera"}
+            ec{"اوست-نیرا"}
         }
         "Asia:Vientiane"{
             ec{"وینٹیانا"}
@@ -939,6 +954,9 @@ ur{
         "Australia:Sydney"{
             ec{"سڈنی"}
         }
+        "Etc:UTC"{
+            ls{"کوآرڈینیٹڈ یونیورسل ٹائم"}
+        }
         "Etc:Unknown"{
             ec{"نامعلوم شہر"}
         }
@@ -947,6 +965,9 @@ ur{
         }
         "Europe:Andorra"{
             ec{"انڈورا"}
+        }
+        "Europe:Astrakhan"{
+            ec{"استراخان"}
         }
         "Europe:Athens"{
             ec{"ایتھنز"}
@@ -1001,10 +1022,13 @@ ur{
             ec{"جرسی"}
         }
         "Europe:Kaliningrad"{
-            ec{"كالينينغراد"}
+            ec{"کالينينغراد"}
         }
         "Europe:Kiev"{
-            ec{"کیوو"}
+            ec{"کیو"}
+        }
+        "Europe:Kirov"{
+            ec{"کیروف"}
         }
         "Europe:Lisbon"{
             ec{"لسبن"}
@@ -1064,6 +1088,9 @@ ur{
         "Europe:Sarajevo"{
             ec{"سراجیوو"}
         }
+        "Europe:Saratov"{
+            ec{"سیراٹو"}
+        }
         "Europe:Simferopol"{
             ec{"سمفروپول"}
         }
@@ -1082,8 +1109,11 @@ ur{
         "Europe:Tirane"{
             ec{"ٹیرانی"}
         }
+        "Europe:Ulyanovsk"{
+            ec{"الیانوسک"}
+        }
         "Europe:Uzhgorod"{
-            ec{"ازگوروڈ"}
+            ec{"ازہوراڈ"}
         }
         "Europe:Vaduz"{
             ec{"ویڈوز"}
@@ -1287,7 +1317,7 @@ ur{
         "meta:Amazon"{
             ld{"امیزون کا موسم گرما کا وقت"}
             lg{"امیزون ٹائم"}
-            ls{"ایمیزون سٹینڈرڈ ٹائم"}
+            ls{"ایمیزون کا معیاری وقت"}
         }
         "meta:America_Central"{
             ld{"سنٹرل ڈے لائٹ ٹائم"}
@@ -1325,9 +1355,9 @@ ur{
             ls{"عرب کا معیاری وقت"}
         }
         "meta:Argentina"{
-            ld{"ارجنٹینا سمر ٹائم"}
-            lg{"ارجنٹینا ٹائم"}
-            ls{"ارجنٹینا سٹینڈرڈ ٹائم"}
+            ld{"ارجنٹینا کا موسم گرما کا وقت"}
+            lg{"ارجنٹینا کا وقت"}
+            ls{"ارجنٹینا کا معیاری وقت"}
         }
         "meta:Argentina_Western"{
             ld{"مغربی ارجنٹینا کا موسم گرما کا وقت"}
@@ -1413,7 +1443,7 @@ ur{
         }
         "meta:China"{
             ld{"چینی ڈے لائٹ ٹائم"}
-            lg{"چین ٹائم"}
+            lg{"چین کا وقت"}
             ls{"چین سٹینڈرڈ ٹائم"}
         }
         "meta:Choibalsan"{
@@ -1690,7 +1720,9 @@ ur{
             ls{"نیئو ٹائم"}
         }
         "meta:Norfolk"{
-            ls{"نارفوک آئلینڈ کا وقت"}
+            ld{"نارفوک آئلینڈ ڈے لائٹ وقت"}
+            lg{"نارفوک آئلینڈ کا وقت"}
+            ls{"نارفوک آئلینڈ کا معیاری وقت"}
         }
         "meta:Noronha"{
             ld{"فرنانڈو ڈی نورونہا سمر ٹائم"}
@@ -1746,6 +1778,9 @@ ur{
         }
         "meta:Ponape"{
             ls{"پوناپے ٹائم"}
+        }
+        "meta:Pyongyang"{
+            ls{"پیانگ یانگ وقت"}
         }
         "meta:Reunion"{
             ls{"ری یونین ٹائم"}
@@ -1868,7 +1903,7 @@ ur{
         gmtZeroFormat{"GMT"}
         hourFormat{"+HH:mm;-HH:mm"}
         regionFormat{"{0} وقت"}
-        regionFormatDaylight{"{0} (+1)"}
-        regionFormatStandard{"{0} (+0)"}
+        regionFormatDaylight{"{0} ڈے لائٹ ٹائم"}
+        regionFormatStandard{"{0} معیاری وقت"}
     }
 }

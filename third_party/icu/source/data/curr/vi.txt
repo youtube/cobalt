@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/vi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 vi{
     Currencies{
         ADP{
@@ -34,7 +29,7 @@ vi{
         }
         ANG{
             "ANG",
-            "Guilder Tây Ấn Hà Lan",
+            "Guilder Antille Hà Lan",
         }
         AOA{
             "AOA",
@@ -220,9 +215,13 @@ vi{
             "BYB",
             "Đồng Rúp Mới của Belarus (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "Rúp Belarus",
+        }
         BYR{
             "BYR",
-            "Rúp Belarus",
+            "Rúp Belarus (2000–2016)",
         }
         BZD{
             "BZD",
@@ -259,6 +258,10 @@ vi{
         CLP{
             "CLP",
             "Peso Chile",
+        }
+        CNH{
+            "CNH",
+            "Nhân dân tệ (hải ngoại)",
         }
         CNY{
             "CN¥",
@@ -394,7 +397,7 @@ vi{
         }
         GEL{
             "GEL",
-            "Lari Gruzia",
+            "Lari Georgia",
         }
         GHC{
             "GHC",
@@ -490,7 +493,7 @@ vi{
         }
         IQD{
             "IQD",
-            "Dinar I-rắc",
+            "Dinar Iraq",
         }
         IRR{
             "IRR",
@@ -513,7 +516,7 @@ vi{
             "Dinar Jordan",
         }
         JPY{
-            "JP¥",
+            "¥",
             "Yên Nhật",
         }
         KES{
@@ -666,6 +669,10 @@ vi{
         }
         MRO{
             "MRO",
+            "Ouguiya Mauritania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ouguiya Mauritania",
         }
         MTL{
@@ -762,7 +769,7 @@ vi{
         }
         PEN{
             "PEN",
-            "Nuevo Sol Peru",
+            "Sol Peru",
         }
         PES{
             "PES",
@@ -770,7 +777,7 @@ vi{
         }
         PGK{
             "PGK",
-            "Kina Papua New Guinean",
+            "Kina Papua New Guinea",
         }
         PHP{
             "PHP",
@@ -894,6 +901,10 @@ vi{
         }
         STD{
             "STD",
+            "Dobra São Tomé và Príncipe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Dobra São Tomé và Príncipe",
         }
         SUR{
@@ -966,7 +977,7 @@ vi{
         }
         UAH{
             "UAH",
-            "Hryvnia Ucraina",
+            "Hryvnia Ukraina",
         }
         UAK{
             "UAK",
@@ -1014,6 +1025,10 @@ vi{
         }
         VEF{
             "VEF",
+            "Bolívar Venezuela (2008–2018)",
+        }
+        VES{
+            "VES",
             "Bolívar Venezuela",
         }
         VND{
@@ -1170,102 +1185,30 @@ vi{
         }
     }
     Currencies%narrow{
-        AOA{"Kz"}
         ARS{"$"}
-        AUD{"$"}
-        BAM{"KM"}
         BBD{"$"}
-        BDT{"৳"}
         BMD{"$"}
-        BND{"$"}
-        BOB{"Bs"}
-        BRL{"R$"}
         BSD{"$"}
-        BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
-        CLP{"$"}
-        CNY{"¥"}
-        COP{"$"}
         CRC{"₡"}
         CUC{"$"}
         CUP{"$"}
-        CZK{"Kč"}
-        DKK{"kr"}
         DOP{"$"}
-        EGP{"E£"}
-        EUR{"€"}
-        FJD{"$"}
-        FKP{"£"}
-        GBP{"£"}
-        GIP{"£"}
-        GNF{"FG"}
         GTQ{"Q"}
-        GYD{"$"}
-        HKD{"$"}
         HNL{"L"}
-        HRK{"kn"}
-        HUF{"Ft"}
-        IDR{"Rp"}
-        ILS{"₪"}
-        INR{"₹"}
-        ISK{"kr"}
         JMD{"$"}
-        JPY{"¥"}
-        KHR{"៛"}
-        KMF{"CF"}
-        KPW{"₩"}
-        KRW{"₩"}
         KYD{"$"}
-        KZT{"₸"}
-        LAK{"₭"}
-        LBP{"L£"}
-        LKR{"Rs"}
-        LRD{"$"}
-        MGA{"Ar"}
-        MMK{"K"}
-        MNT{"₮"}
-        MUR{"Rs"}
         MXN{"$"}
-        MYR{"RM"}
-        NAD{"$"}
-        NGN{"₦"}
         NIO{"C$"}
-        NOK{"kr"}
-        NPR{"Rs"}
-        NZD{"$"}
-        PHP{"₱"}
-        PKR{"Rs"}
-        PLN{"zł"}
-        PYG{"₲"}
-        RUB{"₽"}
-        RWF{"RF"}
-        SBD{"$"}
-        SEK{"kr"}
-        SGD{"$"}
-        SHP{"£"}
-        SRD{"$"}
-        SSP{"£"}
-        STD{"Db"}
-        SYP{"£"}
-        THB{"฿"}
-        TOP{"T$"}
-        TRY{"₺"}
         TTD{"$"}
         TWD{"NT$"}
-        UAH{"₴"}
         USD{"$"}
-        UYU{"$"}
-        VEF{"Bs"}
-        VND{"₫"}
         XCD{"$"}
-        ZAR{"R"}
-        ZMW{"ZK"}
     }
     Currencies%variant{
         GEL{"₾"}
-        TRY{"TL"}
     }
     CurrencyPlurals{
         AED{
@@ -1281,7 +1224,7 @@ vi{
             other{"Dram Armenia"}
         }
         ANG{
-            other{"Guilder Tây Ấn Hà Lan"}
+            other{"Guilder Antille Hà Lan"}
         }
         AOA{
             other{"Kwanza Angola"}
@@ -1337,8 +1280,11 @@ vi{
         BWP{
             other{"Pula Botswana"}
         }
-        BYR{
+        BYN{
             other{"Rúp Belarus"}
+        }
+        BYR{
+            other{"Rúp Belarus (2000–2016)"}
         }
         BZD{
             other{"Đô la Belize"}
@@ -1354,6 +1300,9 @@ vi{
         }
         CLP{
             other{"Peso Chile"}
+        }
+        CNH{
+            other{"Nhân dân tệ (hải ngoại)"}
         }
         CNY{
             other{"Nhân dân tệ"}
@@ -1410,7 +1359,7 @@ vi{
             other{"Bảng Anh"}
         }
         GEL{
-            other{"Lari Gruzia"}
+            other{"Lari Georgia"}
         }
         GHS{
             other{"Cedi Ghana"}
@@ -1455,7 +1404,7 @@ vi{
             other{"Rupee Ấn Độ"}
         }
         IQD{
-            other{"Dinar I-rắc"}
+            other{"Dinar Iraq"}
         }
         IRR{
             other{"Rial Iran"}
@@ -1542,6 +1491,9 @@ vi{
             other{"Pataca Ma Cao"}
         }
         MRO{
+            other{"Ouguiya Mauritania (1973–2017)"}
+        }
+        MRU{
             other{"Ouguiya Mauritania"}
         }
         MUR{
@@ -1587,10 +1539,10 @@ vi{
             other{"Balboa Panama"}
         }
         PEN{
-            other{"Nuevo Sol Peru"}
+            other{"Sol Peru"}
         }
         PGK{
-            other{"Kina Papua New Guinean"}
+            other{"Kina Papua New Guinea"}
         }
         PHP{
             other{"Peso Philipin"}
@@ -1653,6 +1605,9 @@ vi{
             other{"Bảng Nam Sudan"}
         }
         STD{
+            other{"Dobra São Tomé và Príncipe (1977–2017)"}
+        }
+        STN{
             other{"Dobra São Tomé và Príncipe"}
         }
         SYP{
@@ -1707,6 +1662,9 @@ vi{
             other{"Som Uzbekistan"}
         }
         VEF{
+            other{"Bolívar Venezuela (2008–2018)"}
+        }
+        VES{
             other{"Bolívar Venezuela"}
         }
         VND{
@@ -1746,5 +1704,4 @@ vi{
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"2.1.19.17"}
 }

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/hu.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 hu{
     Countries{
         001{"Világ"}
@@ -37,6 +32,7 @@ hu{
         151{"Kelet-Európa"}
         154{"Észak-Európa"}
         155{"Nyugat-Európa"}
+        202{"Szubszaharai Afrika"}
         419{"Latin-Amerika"}
         AC{"Ascension-sziget"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ hu{
         AI{"Anguilla"}
         AL{"Albánia"}
         AM{"Örményország"}
-        AN{"Holland Antillák"}
         AO{"Angola"}
         AQ{"Antarktisz"}
         AR{"Argentína"}
@@ -75,13 +70,13 @@ hu{
         BT{"Bhután"}
         BV{"Bouvet-sziget"}
         BW{"Botswana"}
-        BY{"Fehéroroszország"}
+        BY{"Belarusz"}
         BZ{"Belize"}
         CA{"Kanada"}
-        CC{"Kókusz-szigetek"}
-        CD{"Kongó - Kinshasa"}
+        CC{"Kókusz (Keeling)-szigetek"}
+        CD{"Kongó – Kinshasa"}
         CF{"Közép-afrikai Köztársaság"}
-        CG{"Kongó - Brazzaville"}
+        CG{"Kongó – Brazzaville"}
         CH{"Svájc"}
         CI{"Elefántcsontpart"}
         CK{"Cook-szigetek"}
@@ -113,11 +108,12 @@ hu{
         ES{"Spanyolország"}
         ET{"Etiópia"}
         EU{"Európai Unió"}
+        EZ{"Eurózóna"}
         FI{"Finnország"}
         FJ{"Fidzsi"}
-        FK{"Falkland-szigetek"}
+        FK{"Falkland-szigetek (Malvin-szigetek)"}
         FM{"Mikronézia"}
-        FO{"Feröer-szigetek"}
+        FO{"Feröer szigetek"}
         FR{"Franciaország"}
         GA{"Gabon"}
         GB{"Egyesült Királyság"}
@@ -172,7 +168,7 @@ hu{
         KZ{"Kazahsztán"}
         LA{"Laosz"}
         LB{"Libanon"}
-        LC{"Santa Lucia"}
+        LC{"Saint Lucia"}
         LI{"Liechtenstein"}
         LK{"Srí Lanka"}
         LR{"Libéria"}
@@ -188,9 +184,9 @@ hu{
         MF{"Saint Martin"}
         MG{"Madagaszkár"}
         MH{"Marshall-szigetek"}
-        MK{"Macedónia"}
+        MK{"Észak-Macedónia"}
         ML{"Mali"}
-        MM{"Mianmar (Burma)"}
+        MM{"Mianmar"}
         MN{"Mongólia"}
         MO{"Makaó"}
         MP{"Északi Mariana-szigetek"}
@@ -224,7 +220,7 @@ hu{
         PH{"Fülöp-szigetek"}
         PK{"Pakisztán"}
         PL{"Lengyelország"}
-        PM{"Saint Pierre és Miquelon"}
+        PM{"Saint-Pierre és Miquelon"}
         PN{"Pitcairn-szigetek"}
         PR{"Puerto Rico"}
         PS{"Palesztina"}
@@ -233,7 +229,7 @@ hu{
         PY{"Paraguay"}
         QA{"Katar"}
         QO{"Külső-Óceánia"}
-        RE{"Reunion"}
+        RE{"Réunion"}
         RO{"Románia"}
         RS{"Szerbia"}
         RU{"Oroszország"}
@@ -246,7 +242,7 @@ hu{
         SG{"Szingapúr"}
         SH{"Szent Ilona"}
         SI{"Szlovénia"}
-        SJ{"Spitzbergák és Jan Mayen-szigetek"}
+        SJ{"Svalbard és Jan Mayen"}
         SK{"Szlovákia"}
         SL{"Sierra Leone"}
         SM{"San Marino"}
@@ -254,7 +250,7 @@ hu{
         SO{"Szomália"}
         SR{"Suriname"}
         SS{"Dél-Szudán"}
-        ST{"Sao Tomé és Príncipe"}
+        ST{"São Tomé és Príncipe"}
         SV{"Salvador"}
         SX{"Sint Maarten"}
         SY{"Szíria"}
@@ -278,7 +274,8 @@ hu{
         TZ{"Tanzánia"}
         UA{"Ukrajna"}
         UG{"Uganda"}
-        UM{"Amerikai Csendes-óceáni Szigetek"}
+        UM{"Az USA lakatlan külbirtokai"}
+        UN{"Egyesült Nemzetek Szervezete"}
         US{"Egyesült Államok"}
         UY{"Uruguay"}
         UZ{"Üzbegisztán"}
@@ -287,10 +284,12 @@ hu{
         VE{"Venezuela"}
         VG{"Brit Virgin-szigetek"}
         VI{"Amerikai Virgin-szigetek"}
-        VN{"Vietnam"}
+        VN{"Vietnám"}
         VU{"Vanuatu"}
-        WF{"Wallis- és Futuna-szigetek"}
+        WF{"Wallis és Futuna"}
         WS{"Szamoa"}
+        XA{"Pszeudo-nyelvjárások"}
+        XB{"Pszeudo-kétirányú"}
         XK{"Koszovó"}
         YE{"Jemen"}
         YT{"Mayotte"}
@@ -301,13 +300,14 @@ hu{
     }
     Countries%short{
         GB{"UK"}
+        UN{"ENSZ"}
         US{"USA"}
     }
     Countries%variant{
         CD{"Kongó (KDK)"}
         CG{"Kongó (Köztársaság)"}
-        FK{"Falkland-szigetek (Malvin-szigetek)"}
-        MK{"Macedónia (MVJK)"}
+        CZ{"Cseh Köztársaság"}
+        SZ{"Eswatini"}
+        TL{"Timor-Leste"}
     }
-    Version{"2.1.19.17"}
 }

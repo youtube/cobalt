@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/gsw.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 gsw{
     Currencies{
         ADP{
@@ -190,11 +185,15 @@ gsw{
         }
         BYB{
             "BYB",
-            "Belarus-Rubel (alt)",
+            "Belarus-Rubel (1994–1999)",
+        }
+        BYN{
+            "BYN",
+            "Belarus Rubel",
         }
         BYR{
             "BYR",
-            "Belarus Rubel (nöi)",
+            "Belarus Rubel (2000–2016)",
         }
         BZD{
             "BZD",
@@ -610,6 +609,10 @@ gsw{
         }
         MRO{
             "MRO",
+            "Ouguiya (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ouguiya",
         }
         MTL{
@@ -706,11 +709,11 @@ gsw{
         }
         PEN{
             "PEN",
-            "Nöie Sol",
+            "Sol",
         }
         PES{
             "PES",
-            "Sol",
+            "Sol (1863–1965)",
         }
         PGK{
             "PGK",
@@ -838,6 +841,10 @@ gsw{
         }
         STD{
             "STD",
+            "Dobra (1977–2017)",
+        }
+        STN{
+            "STN",
             "Dobra",
         }
         SUR{
@@ -950,6 +957,10 @@ gsw{
         }
         VEF{
             "VEF",
+            "Bolivar (2008–2018)",
+        }
+        VES{
+            "VES",
             "Bolivar",
         }
         VND{
@@ -1037,7 +1048,7 @@ gsw{
             "Teschtwährig",
         }
         XXX{
-            "XXX",
+            "¤",
             "Unbekannti Währig",
         }
         YDD{
@@ -1255,12 +1266,16 @@ gsw{
             other{"Botswanischi Pula"}
         }
         BYB{
-            one{"Belarus-Rubel (alt)"}
-            other{"Belarus-Rubel (alt)"}
+            one{"Belarus-Rubel (1994–1999)"}
+            other{"Belarus-Rubel (1994–1999)"}
+        }
+        BYN{
+            one{"Belarus-Rubel"}
+            other{"Belarus-Rubel"}
         }
         BYR{
-            one{"Belarus-Rubel (nöi)"}
-            other{"Belarus-Rubel (nöi)"}
+            one{"Belarus-Rubel (2000–2016)"}
+            other{"Belarus-Rubel (2000–2016)"}
         }
         CAD{
             one{"Kanadische Dollar"}
@@ -1659,6 +1674,10 @@ gsw{
             other{"Pataca"}
         }
         MRO{
+            one{"Ouguiya (1973–2017)"}
+            other{"Ouguiya (1973–2017)"}
+        }
+        MRU{
             one{"Ouguiya"}
             other{"Ouguiya"}
         }
@@ -1755,12 +1774,12 @@ gsw{
             other{"Peruanischi Inti"}
         }
         PEN{
-            one{"Nöie Sol"}
-            other{"Nöii Sol"}
-        }
-        PES{
             one{"Sol"}
             other{"Sol"}
+        }
+        PES{
+            one{"Sol (1863–1965)"}
+            other{"Sol (1863–1965)"}
         }
         PGK{
             one{"Kina"}
@@ -1887,6 +1906,10 @@ gsw{
             other{"Süüdsudaneesischi Pfund"}
         }
         STD{
+            one{"Dobra (1977–2017)"}
+            other{"Dobra (1977–2017)"}
+        }
+        STN{
             one{"Dobra"}
             other{"Dobra"}
         }
@@ -1999,6 +2022,10 @@ gsw{
             other{"Bolivar (1871–2008)"}
         }
         VEF{
+            one{"Bolivar (2008–2018)"}
+            other{"Bolivar (2008–2018)"}
+        }
+        VES{
             one{"Bolivar"}
             other{"Bolivar"}
         }
@@ -2135,5 +2162,4 @@ gsw{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.74"}
 }

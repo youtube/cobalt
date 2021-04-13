@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2011, International Business Machines
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/unifilt.h"
 #include "unicode/uniset.h"
 #include "cpdtrans.h"
@@ -322,7 +326,7 @@ CompoundTransliterator& CompoundTransliterator::operator=(
 /**
  * Transliterator API.
  */
-Transliterator* CompoundTransliterator::clone(void) const {
+CompoundTransliterator* CompoundTransliterator::clone() const {
     return new CompoundTransliterator(*this);
 }
 

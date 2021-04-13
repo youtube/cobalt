@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/de_CH.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 de_CH{
     Keys{
         colCaseFirst{"Sortierung nach Gross- bzw. Kleinbuchstaben"}
@@ -13,8 +8,28 @@ de_CH{
         ms{"Mass-System"}
     }
     Languages{
-        be{"Weissrussisch"}
+        ace{"Aceh-Sprache"}
+        ach{"Acholi-Sprache"}
+        ar_001{"Modernes Hocharabisch"}
+        ars{"Nadschd-Arabisch"}
+        bas{"Basaa-Sprache"}
+        bik{"Bikol-Sprache"}
+        bin{"Bini-Sprache"}
+        chb{"Chibcha-Sprache"}
+        de_CH{"Schweizer Hochdeutsch"}
+        din{"Dinka-Sprache"}
+        fan{"Pangwe-Sprache"}
+        gba{"Gbaya-Sprache"}
+        kmb{"Kimbundu-Sprache"}
+        mus{"Muskogee-Sprache"}
+        nl_BE{"Flämisch"}
         prg{"Altpreussisch"}
+        zh_Hans{"Chinesisch (vereinfacht)"}
+        zh_Hant{"Chinesisch (traditionell)"}
+    }
+    Languages%long{
+        zh_Hans{"Hochchinesisch (vereinfacht)"}
+        zh_Hant{"Hochchinesisch (traditionell)"}
     }
     Types{
         colCaseFirst{
@@ -29,5 +44,4 @@ de_CH{
             ussystem{"US Mass-System"}
         }
     }
-    Version{"2.1.19.87"}
 }

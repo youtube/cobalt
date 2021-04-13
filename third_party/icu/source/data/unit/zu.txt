@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zu.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zu{
-    Version{"2.1.19.14"}
     durationUnits{
         hm{"h:mm"}
         hms{"h:mm:ss"}
@@ -20,7 +14,7 @@ zu{
                 one{"{0} g-force"}
                 other{"{0} g-force"}
             }
-            meter-per-second-squared{
+            meter-per-square-second{
                 dnam{"m/s²"}
                 one{"{0} m/s²"}
                 other{"{0} m/s²"}
@@ -43,8 +37,8 @@ zu{
                 other{"{0}°"}
             }
             radian{
-                dnam{"rad"}
-                one{"{0} i-radian"}
+                dnam{"radians"}
+                one{"{0} radians"}
                 other{"{0} radians"}
             }
             revolution{
@@ -85,6 +79,7 @@ zu{
                 dnam{"km²"}
                 one{"{0} km²"}
                 other{"{0} km²"}
+                per{"{0}/km²"}
             }
             square-meter{
                 dnam{"m²"}
@@ -96,6 +91,7 @@ zu{
                 dnam{"mi²"}
                 one{"{0} mi²"}
                 other{"{0} mi²"}
+                per{"{0}/mi²"}
             }
             square-yard{
                 dnam{"yd²"}
@@ -106,8 +102,40 @@ zu{
         compound{
             per{"{0} nge-{1}"}
         }
+        concentr{
+            karat{
+                dnam{"ama-karats"}
+                one{"{0} i-karat"}
+                other{"{0} ama-karats"}
+            }
+            milligram-per-deciliter{
+                dnam{"mg/dL"}
+                one{"{0} mg/dL"}
+                other{"{0} mg/dL"}
+            }
+            millimole-per-liter{
+                dnam{"mmol/L"}
+                one{"{0} mmol/L"}
+                other{"{0} mmol/L"}
+            }
+            percent{
+                dnam{"%"}
+                one{"{0}%"}
+                other{"{0}%"}
+            }
+            permille{
+                dnam{"permille"}
+                one{"{0}‰"}
+                other{"{0}‰"}
+            }
+            permillion{
+                dnam{"ppm"}
+                one{"{0} ppm"}
+                other{"{0} ppm"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
+            liter-per-100-kilometer{
                 dnam{"L/100km"}
                 one{"{0} L/100km"}
                 other{"{0} L/100km"}
@@ -122,8 +150,14 @@ zu{
                 one{"{0} mpg"}
                 other{"{0} mpg"}
             }
+            mile-per-gallon-imperial{
+                dnam{"mpg Imp."}
+                one{"{0} mpg Imp."}
+                other{"{0} mpg Imp."}
+            }
         }
         coordinate{
+            dnam{"indlela"}
             east{"{0}E"}
             north{"{0}N"}
             south{"{0}S"}
@@ -170,6 +204,11 @@ zu{
                 one{"{0} MB"}
                 other{"{0} MB"}
             }
+            petabyte{
+                dnam{"PB"}
+                one{"{0} PB"}
+                other{"{0} PB"}
+            }
             terabit{
                 dnam{"terabits"}
                 one{"{0} i-terabit"}
@@ -193,6 +232,10 @@ zu{
                 other{"{0} izinsuku"}
                 per{"{0}/d"}
             }
+            decade{
+                one{"{0} dec"}
+                other{"{0} decades"}
+            }
             hour{
                 dnam{"amahora"}
                 one{"{0} ihora"}
@@ -201,7 +244,7 @@ zu{
             }
             microsecond{
                 dnam{"microseconds"}
-                one{"{0} ama-microsecond"}
+                one{"{0} microsecond"}
                 other{"{0} microseconds"}
             }
             millisecond{
@@ -219,7 +262,7 @@ zu{
                 dnam{"izinyanga"}
                 one{"{0} inyanga"}
                 other{"{0} izinyanga"}
-                per{"{0}/m"}
+                per{"{0} ngenyanga"}
             }
             nanosecond{
                 dnam{"ns"}
@@ -281,7 +324,7 @@ zu{
             joule{
                 dnam{"joule"}
                 one{"{0} i-joule"}
-                other{"{0} ama-joules"}
+                other{"{0} J"}
             }
             kilocalorie{
                 dnam{"kcal"}
@@ -319,6 +362,12 @@ zu{
                 dnam{"MHz"}
                 one{"{0} MHz"}
                 other{"{0} MHz"}
+            }
+        }
+        graphics{
+            megapixel{
+                one{"{0} MP"}
+                other{"{0} megapixels"}
             }
         }
         length{
@@ -407,6 +456,11 @@ zu{
                 one{"{0} pm"}
                 other{"{0} pm"}
             }
+            point{
+                dnam{"pt"}
+                one{"{0} pt"}
+                other{"{0} pt"}
+            }
             yard{
                 dnam{"yd"}
                 one{"{0} yd"}
@@ -414,6 +468,14 @@ zu{
             }
         }
         light{
+            candela{
+                one{"{0} cd"}
+                other{"{0} candela"}
+            }
+            lumen{
+                one{"{0} i-lumen"}
+                other{"{0} lm"}
+            }
             lux{
                 dnam{"lux"}
                 one{"{0} i-lux"}
@@ -509,12 +571,17 @@ zu{
             }
         }
         pressure{
+            atmosphere{
+                dnam{"atm"}
+                one{"{0} atm"}
+                other{"{0} atm"}
+            }
             hectopascal{
                 dnam{"hPa"}
                 one{"{0} hPa"}
                 other{"{0} hPa"}
             }
-            inch-hg{
+            inch-ofhg{
                 dnam{"inHg"}
                 one{"{0} inHg"}
                 other{"{0} inHg"}
@@ -524,22 +591,15 @@ zu{
                 one{"{0} mbar"}
                 other{"{0} mbar"}
             }
-            millimeter-of-mercury{
+            millimeter-ofhg{
                 dnam{"mm Hg"}
                 one{"{0} mm Hg"}
                 other{"{0} mm Hg"}
             }
-            pound-per-square-inch{
+            pound-force-per-square-inch{
                 dnam{"psi"}
                 one{"{0} psi"}
                 other{"{0} psi"}
-            }
-        }
-        proportion{
-            karat{
-                dnam{"karats"}
-                one{"{0} i-karat"}
-                other{"{0} ama-karats"}
             }
         }
         speed{
@@ -550,8 +610,8 @@ zu{
             }
             knot{
                 dnam{"knot"}
-                one{"{0} knots"}
-                other{"{0} knots"}
+                one{"{0} amafindo"}
+                other{"{0} amafindo"}
             }
             meter-per-second{
                 dnam{"m/s"}
@@ -649,6 +709,14 @@ zu{
                 one{"{0} dL"}
                 other{"{0} dL"}
             }
+            dessert-spoon{
+                one{"{0} sipuni dessert"}
+                other{"{0} dstspn"}
+            }
+            dessert-spoon-imperial{
+                one{"{0} Imp. isipuni dessert"}
+                other{"{0} dstspn Imp"}
+            }
             fluid-ounce{
                 dnam{"fl oz"}
                 one{"{0} fl oz"}
@@ -659,6 +727,12 @@ zu{
                 one{"{0} gal"}
                 other{"{0} gal"}
                 per{"{0}/gal"}
+            }
+            gallon-imperial{
+                dnam{"Imp. gal"}
+                one{"{0} gal Imp."}
+                other{"{0} gal Imp."}
+                per{"{0}/gal Imp."}
             }
             hectoliter{
                 dnam{"hL"}
@@ -732,14 +806,22 @@ zu{
         compound{
             per{"{0}/{1}"}
         }
+        concentr{
+            percent{
+                dnam{"%"}
+                one{"{0}%"}
+                other{"{0}%"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
+            liter-per-100-kilometer{
                 dnam{"L/100km"}
                 one{"{0}L/100km"}
                 other{"{0}L/100km"}
             }
         }
         coordinate{
+            dnam{"indlela"}
             east{"{0}E"}
             north{"{0}N"}
             south{"{0}S"}
@@ -763,8 +845,8 @@ zu{
             }
             minute{
                 dnam{"amaminithi"}
-                one{"{0} min"}
-                other{"{0} min"}
+                one{"{0} umzuzu"}
+                other{"{0} umzuzu"}
             }
             month{
                 dnam{"izinyanga"}
@@ -854,7 +936,7 @@ zu{
                 one{"{0} G"}
                 other{"{0} G"}
             }
-            meter-per-second-squared{
+            meter-per-square-second{
                 dnam{"m/s²"}
                 one{"{0} m/s²"}
                 other{"{0} m/s²"}
@@ -893,6 +975,9 @@ zu{
                 one{"{0} ac"}
                 other{"{0} ac"}
             }
+            dunam{
+                dnam{"dunams"}
+            }
             hectare{
                 dnam{"hectare"}
                 one{"{0} ha"}
@@ -919,6 +1004,7 @@ zu{
                 dnam{"km²"}
                 one{"{0} km²"}
                 other{"{0} km²"}
+                per{"{0}/km²"}
             }
             square-meter{
                 dnam{"m²"}
@@ -930,6 +1016,7 @@ zu{
                 dnam{"mi²"}
                 one{"{0} mi²"}
                 other{"{0} mi²"}
+                per{"{0}/mi²"}
             }
             square-yard{
                 dnam{"yd²"}
@@ -940,8 +1027,40 @@ zu{
         compound{
             per{"{0}/{1}"}
         }
+        concentr{
+            karat{
+                dnam{"karats"}
+                one{"{0} kt"}
+                other{"{0} kt"}
+            }
+            milligram-per-deciliter{
+                dnam{"mg/dL"}
+                one{"{0} mg/dL"}
+                other{"{0} mg/dL"}
+            }
+            millimole-per-liter{
+                dnam{"mmol/L"}
+                one{"{0} mmol/L"}
+                other{"{0} mmol/L"}
+            }
+            percent{
+                dnam{"%"}
+                one{"{0}%"}
+                other{"{0}%"}
+            }
+            permille{
+                dnam{"‰"}
+                one{"{0}‰"}
+                other{"{0}‰"}
+            }
+            permillion{
+                dnam{"izingxenye/izigidi"}
+                one{"{0} ppm"}
+                other{"{0} ppm"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
+            liter-per-100-kilometer{
                 dnam{"L/100km"}
                 one{"{0} L/100km"}
                 other{"{0} L/100km"}
@@ -956,8 +1075,14 @@ zu{
                 one{"{0} mpg"}
                 other{"{0} mpg"}
             }
+            mile-per-gallon-imperial{
+                dnam{"mpg Imp."}
+                one{"{0} mpg Imp."}
+                other{"{0} mpg Imp."}
+            }
         }
         coordinate{
+            dnam{"indlela"}
             east{"{0}E"}
             north{"{0}N"}
             south{"{0}S"}
@@ -1004,6 +1129,11 @@ zu{
                 one{"{0} MB"}
                 other{"{0} MB"}
             }
+            petabyte{
+                dnam{"PB"}
+                one{"{0} PB"}
+                other{"{0} PB"}
+            }
             terabit{
                 dnam{"Tbit"}
                 one{"{0} Tb"}
@@ -1030,7 +1160,7 @@ zu{
             hour{
                 dnam{"amahora"}
                 one{"{0} hora"}
-                other{"{0} amahora"}
+                other{"{0} hr"}
                 per{"{0}/h"}
             }
             microsecond{
@@ -1047,7 +1177,6 @@ zu{
                 dnam{"amaminithi"}
                 one{"{0} iminithi"}
                 other{"{0} iminithi"}
-                per{"{0}/min"}
             }
             month{
                 dnam{"izinyanga"}
@@ -1063,8 +1192,8 @@ zu{
             second{
                 dnam{"amasekhondi"}
                 one{"{0} sekhondi"}
-                other{"{0} s"}
-                per{"{0}ps"}
+                other{"{0} sec"}
+                per{"{0}/s"}
             }
             week{
                 dnam{"amaviki"}
@@ -1241,6 +1370,11 @@ zu{
                 one{"{0} pm"}
                 other{"{0} pm"}
             }
+            point{
+                dnam{"pt"}
+                one{"{0} pt"}
+                other{"{0} pt"}
+            }
             yard{
                 dnam{"yd"}
                 one{"{0} yd"}
@@ -1343,12 +1477,17 @@ zu{
             }
         }
         pressure{
+            atmosphere{
+                dnam{"atm"}
+                one{"{0} atm"}
+                other{"{0} atm"}
+            }
             hectopascal{
                 dnam{"hPa"}
                 one{"{0} hPa"}
                 other{"{0} hPa"}
             }
-            inch-hg{
+            inch-ofhg{
                 dnam{"inHg"}
                 one{"{0} inHg"}
                 other{"{0} inHg"}
@@ -1358,22 +1497,15 @@ zu{
                 one{"{0} mbar"}
                 other{"{0} mbar"}
             }
-            millimeter-of-mercury{
+            millimeter-ofhg{
                 dnam{"mm Hg"}
                 one{"{0} mm Hg"}
                 other{"{0} mm Hg"}
             }
-            pound-per-square-inch{
+            pound-force-per-square-inch{
                 dnam{"psi"}
                 one{"{0} psi"}
                 other{"{0} psi"}
-            }
-        }
-        proportion{
-            karat{
-                dnam{"karats"}
-                one{"{0} kt"}
-                other{"{0} kt"}
             }
         }
         speed{
@@ -1493,6 +1625,12 @@ zu{
                 one{"{0} gal"}
                 other{"{0} gal"}
                 per{"{0}/gal"}
+            }
+            gallon-imperial{
+                dnam{"Imp. gal"}
+                one{"{0} gal Imp."}
+                other{"{0} gal Imp."}
+                per{"{0}/gal Imp."}
             }
             hectoliter{
                 dnam{"hL"}

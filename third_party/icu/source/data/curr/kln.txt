@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/kln.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 kln{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ kln{
         }
         MRO{
             "MRO",
+            "Rabisiekab Mauritania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Rabisiekab Mauritania",
         }
         MUR{
@@ -182,6 +181,10 @@ kln{
         }
         STD{
             "STD",
+            "Rabisiekab Sao Tome ak Principe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Rabisiekab Sao Tome ak Principe",
         }
         SZL{
@@ -229,5 +232,4 @@ kln{
             "Dolaitab ya Zimbabwe",
         }
     }
-    Version{"2.1.19.14"}
 }

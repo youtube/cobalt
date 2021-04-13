@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ur_IN.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ur_IN{
-    Version{"2.1.19.14"}
     zoneStrings{
         "Africa:Accra"{
             ec{"اکرا"}
@@ -29,9 +23,6 @@ ur_IN{
         }
         "America:Thule"{
             ec{"تھولے"}
-        }
-        "Asia:Dubai"{
-            ec{"دبئی"}
         }
         "Europe:Budapest"{
             ec{"بوڈاپیسٹ"}
@@ -216,6 +207,5 @@ ur_IN{
         }
         gmtFormat{"GMT{0}"}
         regionFormatDaylight{"{0} دن کا وقت"}
-        regionFormatStandard{"{0} معیاری وقت"}
     }
 }

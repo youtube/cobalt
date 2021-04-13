@@ -1,10 +1,12 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2011-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  messagepattern.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -16,8 +18,10 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/messagepattern.h"
 #include "unicode/unistr.h"
 #include "unicode/utf16.h"
@@ -116,7 +120,7 @@ MessagePatternList<T, stackCapacity>::copyFrom(
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        uprv_memcpy(a.getAlias(), other.a.getAlias(), length*sizeof(T));
+        uprv_memcpy(a.getAlias(), other.a.getAlias(), (size_t)length*sizeof(T));
     }
 }
 

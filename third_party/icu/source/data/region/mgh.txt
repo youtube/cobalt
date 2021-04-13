@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/mgh.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 mgh{
     Countries{
         AD{"Uandora"}
@@ -82,7 +77,6 @@ mgh{
         LY{"Ulibya"}
         ME{"Umantegro"}
         MG{"Ubukini"}
-        MK{"Umasedonia"}
         MW{"Umalawi"}
         MZ{"Umozambiki"}
         NE{"Unijeri"}
@@ -146,5 +140,4 @@ mgh{
         ZM{"Uzambia"}
         ZW{"Uzimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

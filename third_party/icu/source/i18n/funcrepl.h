@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2002-2011, International Business Machines Corporation
@@ -68,7 +70,7 @@ class FunctionReplacer : public UnicodeFunctor, public UnicodeReplacer {
     /**
      * Implement UnicodeFunctor
      */
-    virtual UnicodeFunctor* clone() const;
+    virtual FunctionReplacer* clone() const;
 
     /**
      * UnicodeFunctor API.  Cast 'this' to a UnicodeReplacer* pointer

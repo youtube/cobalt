@@ -1,8 +1,12 @@
 /********************************************************************
+ *   © 2016 and later: Unicode, Inc. and others.
+ *   License & terms of use: http://www.unicode.org/copyright.html
+ *************************************************************************
+ *************************************************************************
  * COPYRIGHT:
  * Copyright (c) 1999-2014, International Business Machines Corporation and
  * others. All Rights Reserved.
- ********************************************************************/
+ *************************************************************************/
 
 #include "unicode/utypes.h"
 #include "unicode/unistr.h"
@@ -31,8 +35,8 @@ int main(int argc, char **argv) {
     printf("C API\n");
     capi();
 
-    showCurrencyFormatting(FALSE);
-    showCurrencyFormatting(TRUE);
+    showCurrencyFormatting(false);
+    showCurrencyFormatting(true);
 
     u_cleanup();    // Release any additional storage held by ICU.  
 

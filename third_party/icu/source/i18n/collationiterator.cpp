@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2010-2014, International Business Machines
@@ -15,8 +17,10 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/ucharstrie.h"
 #include "unicode/ustringtrie.h"
 #include "charstr.h"
@@ -872,7 +876,7 @@ CollationIterator::previousCE(UVector32 &offsets, UErrorCode &errorCode) {
             // consistent with forward iteration.
             while(offsets.size() <= ceBuffer.length) {
                 offsets.addElement(limitOffset, errorCode);
-            };
+            }
         }
         return ceBuffer.get(--ceBuffer.length);
     } else {
@@ -932,7 +936,7 @@ CollationIterator::previousCEUnsafe(UChar32 c, UVector32 &offsets, UErrorCode &e
         offset = getOffset();
         while(offsets.size() < ceBuffer.length) {
             offsets.addElement(offset, errorCode);
-        };
+        }
     }
     U_ASSERT(offsets.size() == ceBuffer.length);
     // End offset corresponding to just after the unsafe-backwards segment.

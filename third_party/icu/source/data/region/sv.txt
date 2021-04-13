@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sv.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sv{
     Countries{
         001{"världen"}
@@ -20,7 +15,7 @@ sv{
         017{"Centralafrika"}
         018{"södra Afrika"}
         019{"Nord- och Sydamerika"}
-        021{"norra Amerika"}
+        021{"Norra Amerika"}
         029{"Karibien"}
         030{"Östasien"}
         034{"Sydasien"}
@@ -37,6 +32,7 @@ sv{
         151{"Östeuropa"}
         154{"Nordeuropa"}
         155{"Västeuropa"}
+        202{"Subsahariska Afrika"}
         419{"Latinamerika"}
         AC{"Ascension"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ sv{
         AI{"Anguilla"}
         AL{"Albanien"}
         AM{"Armenien"}
-        AN{"Nederländska Antillerna"}
         AO{"Angola"}
         AQ{"Antarktis"}
         AR{"Argentina"}
@@ -83,7 +78,7 @@ sv{
         CF{"Centralafrikanska republiken"}
         CG{"Kongo-Brazzaville"}
         CH{"Schweiz"}
-        CI{"Elfenbenskusten"}
+        CI{"Côte d’Ivoire"}
         CK{"Cooköarna"}
         CL{"Chile"}
         CM{"Kamerun"}
@@ -113,6 +108,7 @@ sv{
         ES{"Spanien"}
         ET{"Etiopien"}
         EU{"Europeiska unionen"}
+        EZ{"euroområdet"}
         FI{"Finland"}
         FJ{"Fiji"}
         FK{"Falklandsöarna"}
@@ -185,10 +181,10 @@ sv{
         MC{"Monaco"}
         MD{"Moldavien"}
         ME{"Montenegro"}
-        MF{"S:t Martin"}
+        MF{"Saint-Martin"}
         MG{"Madagaskar"}
         MH{"Marshallöarna"}
-        MK{"Makedonien"}
+        MK{"Nordmakedonien"}
         ML{"Mali"}
         MM{"Myanmar (Burma)"}
         MN{"Mongoliet"}
@@ -266,7 +262,7 @@ sv{
         TG{"Togo"}
         TH{"Thailand"}
         TJ{"Tadzjikistan"}
-        TK{"Tokelau"}
+        TK{"Tokelauöarna"}
         TL{"Östtimor"}
         TM{"Turkmenistan"}
         TN{"Tunisien"}
@@ -279,6 +275,7 @@ sv{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"USA:s yttre öar"}
+        UN{"Förenta Nationerna"}
         US{"USA"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
@@ -291,6 +288,8 @@ sv{
         VU{"Vanuatu"}
         WF{"Wallis- och Futunaöarna"}
         WS{"Samoa"}
+        XA{"fejkade accenter (för test)"}
+        XB{"fejkad bidi (för test)"}
         XK{"Kosovo"}
         YE{"Jemen"}
         YT{"Mayotte"}
@@ -300,14 +299,12 @@ sv{
         ZZ{"okänd region"}
     }
     Countries%short{
-        GB{"Storbritannien"}
-        US{"USA"}
+        UN{"FN"}
     }
     Countries%variant{
         CD{"Demokratiska republiken Kongo"}
         CG{"Republiken Kongo"}
-        FK{"Falklandsöarna (Malvinerna)"}
-        MK{"f.d. jugoslaviska republiken Makedonien"}
+        SZ{"Eswatini"}
+        TL{"Timor-Leste"}
     }
-    Version{"2.1.19.94"}
 }

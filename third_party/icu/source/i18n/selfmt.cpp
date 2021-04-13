@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
  * Copyright (c) 1997-2012, International Business Machines Corporation and
@@ -14,7 +16,9 @@
  *   11/16/09    kirtig      Improved version
  ********************************************************************/
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/messagepattern.h"
@@ -150,7 +154,7 @@ int32_t SelectFormat::findSubMessage(const MessagePattern& pattern, int32_t part
     return msgStart;
 }
 
-Format* SelectFormat::clone() const
+SelectFormat* SelectFormat::clone() const
 {
     return new SelectFormat(*this);
 }

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/khq.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 khq{
     Countries{
         AD{"Andoora"}
@@ -15,7 +10,6 @@ khq{
         AI{"Angiiya"}
         AL{"Albaani"}
         AM{"Armeeni"}
-        AN{"Hollandu Antiiyey Laboo"}
         AO{"Angoola"}
         AR{"Argentine"}
         AS{"Ameriki Samoa"}
@@ -134,7 +128,6 @@ khq{
         MD{"Moldovi"}
         MG{"Madagascar"}
         MH{"Maršal gungey"}
-        MK{"Maacedooni"}
         ML{"Maali"}
         MM{"Maynamar"}
         MN{"Mongooli"}
@@ -234,5 +227,4 @@ khq{
         ZM{"Zambi"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

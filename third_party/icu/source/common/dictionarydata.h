@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2014, International Business Machines
@@ -66,7 +68,7 @@ public:
  */
 class U_COMMON_API DictionaryMatcher : public UMemory {
 public:
-    DictionaryMatcher() {};
+    DictionaryMatcher() {}
     virtual ~DictionaryMatcher();
     // this should emulate CompactTrieDictionary::matches()
     /*  @param text      The text in which to look for matching words. Matching begins

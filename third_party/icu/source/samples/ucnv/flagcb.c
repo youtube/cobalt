@@ -1,8 +1,12 @@
-/********************************************************************
+/**************************************************************************
+ * © 2016 and later: Unicode, Inc. and others.
+ * License & terms of use: http://www.unicode.org/copyright.html
+ **************************************************************************
+ **************************************************************************
  * COPYRIGHT:
  * Copyright (c) 1999-2007, International Business Machines Corporation and
  * others. All Rights Reserved.
- ********************************************************************/
+ **************************************************************************/
 
 #include "unicode/utypes.h"
 #include "unicode/ucnv.h"
@@ -21,7 +25,7 @@ U_CAPI FromUFLAGContext* U_EXPORT2  flagCB_fromU_openContext()
 
     ctx->subCallback = NULL;
     ctx->subContext  = NULL;
-    ctx->flag        = FALSE;
+    ctx->flag        = false;
 
     return ctx;
 }
@@ -38,7 +42,7 @@ U_CAPI void U_EXPORT2 flagCB_fromU(
   /* First step - based on the reason code, take action */
 
   if(reason == UCNV_UNASSIGNED) { /* whatever set should be trapped here */
-    ((FromUFLAGContext*)context)->flag = TRUE;
+    ((FromUFLAGContext*)context)->flag = true;
   }
 
   if(reason == UCNV_CLONE) {

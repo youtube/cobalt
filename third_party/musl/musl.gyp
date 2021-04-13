@@ -196,6 +196,7 @@
             'src/stdlib/atoi.c',
             'src/stdlib/atol.c',
             'src/stdlib/bsearch.c',
+            'src/stdlib/div.c',
             'src/stdlib/labs.c',
             'src/stdlib/llabs.c',
             'src/stdlib/strtod.c',

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
  * Copyright (C) 2008-2014, Google, International Business Machines Corporation and
@@ -5,7 +7,9 @@
  *******************************************************************************
  */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/tmunit.h"
 #include "uassert.h"
 
@@ -93,8 +97,7 @@ TimeUnit::TimeUnit(TimeUnit::UTimeUnitFields timeUnitField) {
         initTime("second");
         break;
     default:
-        U_ASSERT(false);
-        break;
+        UPRV_UNREACHABLE;
     }
 }
 
@@ -102,7 +105,7 @@ TimeUnit::TimeUnit(const TimeUnit& other)
 :   MeasureUnit(other), fTimeUnitField(other.fTimeUnitField) {
 }
 
-UObject* 
+TimeUnit* 
 TimeUnit::clone() const {
     return new TimeUnit(*this);
 }

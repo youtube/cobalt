@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/lt.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 lt{
     Countries{
         001{"pasaulis"}
@@ -37,6 +32,7 @@ lt{
         151{"Rytų Europa"}
         154{"Šiaurės Europa"}
         155{"Vakarų Europa"}
+        202{"Užsachario Afrika"}
         419{"Lotynų Amerika"}
         AC{"Dangun Žengimo sala"}
         AD{"Andora"}
@@ -46,7 +42,6 @@ lt{
         AI{"Angilija"}
         AL{"Albanija"}
         AM{"Armėnija"}
-        AN{"Olandijos Antilai"}
         AO{"Angola"}
         AQ{"Antarktida"}
         AR{"Argentina"}
@@ -113,14 +108,15 @@ lt{
         ES{"Ispanija"}
         ET{"Etiopija"}
         EU{"Europos Sąjunga"}
+        EZ{"euro zona"}
         FI{"Suomija"}
         FJ{"Fidžis"}
-        FK{"Folklando Salos"}
+        FK{"Folklando (Malvinų) Salos"}
         FM{"Mikronezija"}
         FO{"Farerų Salos"}
         FR{"Prancūzija"}
         GA{"Gabonas"}
-        GB{"Didžioji Britanija"}
+        GB{"Jungtinė Karalystė"}
         GD{"Grenada"}
         GE{"Gruzija"}
         GF{"Prancūzijos Gviana"}
@@ -172,7 +168,7 @@ lt{
         KZ{"Kazachstanas"}
         LA{"Laosas"}
         LB{"Libanas"}
-        LC{"Šventoji Liucija"}
+        LC{"Sent Lusija"}
         LI{"Lichtenšteinas"}
         LK{"Šri Lanka"}
         LR{"Liberija"}
@@ -188,7 +184,7 @@ lt{
         MF{"Sen Martenas"}
         MG{"Madagaskaras"}
         MH{"Maršalo Salos"}
-        MK{"Makedonija"}
+        MK{"Šiaurės Makedonija"}
         ML{"Malis"}
         MM{"Mianmaras (Birma)"}
         MN{"Mongolija"}
@@ -219,13 +215,13 @@ lt{
         OM{"Omanas"}
         PA{"Panama"}
         PE{"Peru"}
-        PF{"Prancūzų Polinezija"}
+        PF{"Prancūzijos Polinezija"}
         PG{"Papua Naujoji Gvinėja"}
         PH{"Filipinai"}
         PK{"Pakistanas"}
         PL{"Lenkija"}
         PM{"Sen Pjeras ir Mikelonas"}
-        PN{"Pitkernas"}
+        PN{"Pitkerno salos"}
         PR{"Puerto Rikas"}
         PS{"Palestina"}
         PT{"Portugalija"}
@@ -259,7 +255,7 @@ lt{
         SX{"Sint Martenas"}
         SY{"Sirija"}
         SZ{"Svazilandas"}
-        TA{"Tristanas da Kunja"}
+        TA{"Tristano da Kunjos"}
         TC{"Terkso ir Kaikoso Salos"}
         TD{"Čadas"}
         TF{"Prancūzijos Pietų sritys"}
@@ -279,6 +275,7 @@ lt{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"Jungtinių Valstijų Mažosios Tolimosios Salos"}
+        UN{"Jungtinės Tautos"}
         US{"Jungtinės Valstijos"}
         UY{"Urugvajus"}
         UZ{"Uzbekistanas"}
@@ -289,8 +286,10 @@ lt{
         VI{"Jungtinių Valstijų Mergelių Salos"}
         VN{"Vietnamas"}
         VU{"Vanuatu"}
-        WF{"Volisas ir Futuna"}
+        WF{"Volisas ir Futūna"}
         WS{"Samoa"}
+        XA{"pseudo A"}
+        XB{"pseudo B"}
         XK{"Kosovas"}
         YE{"Jemenas"}
         YT{"Majotas"}
@@ -300,15 +299,14 @@ lt{
         ZZ{"nežinoma sritis"}
     }
     Countries%short{
-        GB{"Didžioji Britanija"}
+        GB{"JK"}
+        UN{"JT"}
         US{"JAV"}
     }
     Countries%variant{
         CD{"Kongo Demokratinė Respublika"}
         CG{"Kongo Respublika"}
         CI{"Dramblio Kaulo Kranto Respublika"}
-        FK{"Folklando (Malvinų) Salos"}
-        MK{"Makedonijos Respublika"}
+        CZ{"Čekijos Respublika"}
     }
-    Version{"2.1.19.14"}
 }

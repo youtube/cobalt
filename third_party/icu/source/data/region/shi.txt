@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/shi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 shi{
     Countries{
         AD{"ⴰⵏⴷⵓⵔⴰ"}
@@ -15,7 +10,6 @@ shi{
         AI{"ⴰⵏⴳⵉⵍⴰ"}
         AL{"ⴰⵍⴱⴰⵏⵢⴰ"}
         AM{"ⴰⵔⵎⵉⵏⵢⴰ"}
-        AN{"ⴰⵏⵜⵉⵢ ⵏ ⵀⵓⵍⴰⵏⴷⴰ"}
         AO{"ⴰⵏⴳⵓⵍⴰ"}
         AR{"ⴰⵔⵊⴰⵏⵜⵉⵏ"}
         AS{"ⵙⴰⵎⵡⴰ ⵜⴰⵎⵉⵔⵉⴽⴰⵏⵉⵜ"}
@@ -134,7 +128,6 @@ shi{
         MD{"ⵎⵓⵍⴷⵓⴼⵢⴰ"}
         MG{"ⵎⴰⴷⴰⵖⴰⵛⵇⴰⵔ"}
         MH{"ⵜⵉⴳⵣⵉⵔⵉⵏ ⵏ ⵎⴰⵔⵛⴰⵍ"}
-        MK{"ⵎⴰⵙⵉⴷⵓⵏⵢⴰ"}
         ML{"ⵎⴰⵍⵉ"}
         MM{"ⵎⵢⴰⵏⵎⴰⵔ"}
         MN{"ⵎⵏⵖⵓⵍⵢⴰ"}
@@ -234,5 +227,4 @@ shi{
         ZM{"ⵣⴰⵎⴱⵢⴰ"}
         ZW{"ⵣⵉⵎⴱⴰⴱⵡⵉ"}
     }
-    Version{"2.1.19.14"}
 }

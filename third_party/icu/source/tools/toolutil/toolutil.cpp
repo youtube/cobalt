@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -6,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  toolutil.c
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -30,7 +32,7 @@
 #include "unicode/utypes.h"
 
 #ifndef U_TOOLUTIL_IMPLEMENTATION
-#error U_TOOLUTIL_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see http://userguide.icu-project.org/howtouseicu
+#error U_TOOLUTIL_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 #if U_PLATFORM_USES_ONLY_WIN32_API
@@ -56,6 +58,8 @@
 #endif
 
 #include <errno.h>
+
+#include <cstddef>
 
 #include "unicode/errorcode.h"
 #include "unicode/putil.h"
@@ -140,7 +144,7 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
     resultLen = 0;
   } else {
     resultPtr = path;
-    resultLen = basename - path;
+    resultLen = static_cast<int32_t>(basename - path);
     if(resultLen<1) {
       resultLen = 1; /* '/' or '/a' -> '/' */
     }
@@ -161,15 +165,12 @@ findBasename(const char *filename) {
     const char *basename=uprv_strrchr(filename, U_FILE_SEP_CHAR);
 
     if (U_FILE_ALT_SEP_CHAR != U_FILE_SEP_CHAR) {
-#if !(U_PLATFORM == U_PF_CYGWIN && U_PLATFORM_USES_ONLY_WIN32_API)
-      if (basename == NULL)
-#endif
-      {
-        /* Use lenient matching on Windows, which can accept either \ or /
-        This is useful for environments like Win32+CygWin which have both.
-        */
-        basename = uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
-      }
+        //be lenient about pathname separators on Windows, like official implementation of C++17 std::filesystem in MSVC
+        //would be convenient to merge this loop with the one above, but alas, there is no such solution in the standard library
+        const char *alt_basename=uprv_strrchr(filename, U_FILE_ALT_SEP_CHAR);
+        if(alt_basename>basename) {
+            basename=alt_basename;
+        }
     }
 
     if(basename!=NULL) {
@@ -240,7 +241,7 @@ struct UToolMemory {
     char name[64];
     int32_t capacity, maxCapacity, size, idx;
     void *array;
-    UAlignedMemory staticArray[1];
+    alignas(std::max_align_t) char staticArray[1];
 };
 
 U_CAPI UToolMemory * U_EXPORT2
@@ -311,7 +312,7 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
         if(mem->array==mem->staticArray) {
             mem->array=uprv_malloc(newCapacity*mem->size);
             if(mem->array!=NULL) {
-                uprv_memcpy(mem->array, mem->staticArray, mem->idx*mem->size);
+                uprv_memcpy(mem->array, mem->staticArray, (size_t)mem->idx*mem->size);
             }
         } else {
             mem->array=uprv_realloc(mem->array, newCapacity*mem->size);

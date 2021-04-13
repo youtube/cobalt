@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ug.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ug{
-    Version{"2.1.19.14"}
     zoneStrings{
         "Africa:Sao_Tome"{
             ec{"سان-تومې"}
@@ -493,7 +487,9 @@ ug{
             ls{"نىيۇئې ۋاقتى"}
         }
         "meta:Norfolk"{
-            ls{"نورفولك ئاراللىرى ۋاقتى"}
+            ld{"نورفولك ئاراللىرى يازلىق ۋاقتى"}
+            lg{"نورفولك ئاراللىرى ۋاقتى"}
+            ls{"نورفولك ئاراللىرى ئۆلچەملىك ۋاقتى"}
         }
         "meta:Noronha"{
             ld{"فېرناندو-نورونخا يازلىق ۋاقتى"}

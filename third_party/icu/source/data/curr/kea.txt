@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/kea.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 kea{
     Currencies{
         AED{
@@ -98,7 +93,7 @@ kea{
             {
                 "#,##0.00 ¤",
                 "$",
-                ",",
+                " ",
             }
         }
         CZK{
@@ -119,7 +114,7 @@ kea{
         }
         EGP{
             "EGP",
-            "Libra ejipsiu",
+            "Libra ejípsiu",
         }
         ERN{
             "ERN",
@@ -127,11 +122,11 @@ kea{
         }
         ETB{
             "ETB",
-            "Bir etiopi",
+            "Bir etiópiku",
         }
         EUR{
             "€",
-            "Euro",
+            "euro",
         }
         FKP{
             "FKP",
@@ -139,7 +134,7 @@ kea{
         }
         GBP{
             "£",
-            "Libra britaniku",
+            "Libra britániku",
         }
         GEL{
             "GEL",
@@ -147,7 +142,7 @@ kea{
         }
         GHC{
             "GHC",
-            "Sedi di Gana",
+            "Sedi di Gana (1979–2007)",
         }
         GMD{
             "GMD",
@@ -263,7 +258,7 @@ kea{
         }
         LYD{
             "LYD",
-            "Dinar libiu",
+            "Dinar líbiu",
         }
         MAD{
             "MAD",
@@ -291,6 +286,10 @@ kea{
         }
         MRO{
             "MRO",
+            "Ougia (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ougia",
         }
         MUR{
@@ -399,7 +398,7 @@ kea{
         }
         SDP{
             "SDP",
-            "Libra sudanes antigu",
+            "Libra sudanes antigu (1957–1998)",
         }
         SEK{
             "SEK",
@@ -419,7 +418,11 @@ kea{
         }
         STD{
             "STD",
-            "Dobra di Sãu Tume i Prinsipi",
+            "Dobra di San Tume i Prínsipi (1977–2017)",
+        }
+        STN{
+            "STN",
+            "Dobra di San Tume i Prínsipi",
         }
         SYP{
             "SYP",
@@ -459,7 +462,7 @@ kea{
         }
         TZS{
             "TZS",
-            "Xelin di Tanzania",
+            "Xelin di Tanzánia",
         }
         UGX{
             "UGX",
@@ -491,7 +494,7 @@ kea{
         }
         XAF{
             "FCFA",
-            "Franku CFA BEAC",
+            "Franku CFA (BEAC)",
         }
         XCD{
             "EC$",
@@ -499,14 +502,14 @@ kea{
         }
         XOF{
             "CFA",
-            "Franku CFA BCEAO",
+            "Franku CFA (BCEAO)",
         }
         XPF{
             "CFPF",
             "XPF",
         }
         XXX{
-            "XXX",
+            "¤",
             "Mueda diskonxedu",
         }
         YER{
@@ -527,7 +530,7 @@ kea{
         }
         ZWD{
             "ZWD",
-            "Dola di Zimbabue",
+            "Dola di Zimbabue (1980–2008)",
         }
     }
     Currencies%narrow{
@@ -602,19 +605,19 @@ kea{
             other{"Dinar arjelinu"}
         }
         EGP{
-            other{"Libra ejipsiu"}
+            other{"Libra ejípsiu"}
         }
         ERN{
             other{"Nafka di Eritreia"}
         }
         ETB{
-            other{"Bir etiopi"}
+            other{"Bir etiópiku"}
         }
         EUR{
-            other{"Euro"}
+            other{"euro"}
         }
         GBP{
-            other{"Libra britaniku"}
+            other{"Libra britániku"}
         }
         GMD{
             other{"Dalasi"}
@@ -644,7 +647,7 @@ kea{
             other{"Dola liberianu"}
         }
         LYD{
-            other{"Dinar libiu"}
+            other{"Dinar líbiu"}
         }
         MAD{
             other{"Diren marokinu"}
@@ -653,6 +656,9 @@ kea{
             other{"Ariari di Madagaskar"}
         }
         MRO{
+            other{"Ougia (1973–2017)"}
+        }
+        MRU{
             other{"Ougia"}
         }
         MUR{
@@ -704,7 +710,7 @@ kea{
             other{"Xelin somalianu"}
         }
         STD{
-            other{"Dobra di Sãu Tume i Prinsipi"}
+            other{"Dobra di San Tume i Prínsipi (1977–2017)"}
         }
         SZL{
             other{"Lilanjeni"}
@@ -722,7 +728,7 @@ kea{
             other{"Dola Novu di Taiwan"}
         }
         TZS{
-            other{"Xelin di Tanzania"}
+            other{"Xelin di Tanzánia"}
         }
         UGX{
             other{"Xelin ugandensi"}
@@ -731,10 +737,10 @@ kea{
             other{"Dola merkanu"}
         }
         XAF{
-            other{"Franku CFA BEAC"}
+            other{"Franku CFA (BEAC)"}
         }
         XOF{
-            other{"Franku CFA BCEAO"}
+            other{"Franku CFA (BCEAO)"}
         }
         XXX{
             other{"(mueda diskonxedu)"}
@@ -749,5 +755,4 @@ kea{
     CurrencyUnitPatterns{
         other{"{0} {1}"}
     }
-    Version{"2.1.19.74"}
 }

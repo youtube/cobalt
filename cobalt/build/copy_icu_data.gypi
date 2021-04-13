@@ -38,9 +38,9 @@
 
     'conditions': [
       ['little_endian==1', {
-        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt56l' ],
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68l' ],
       }, {
-        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt56b' ],
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68b' ],
       }],
     ],
   },

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2000-2005, International Business Machines
@@ -22,7 +24,7 @@ NullTransliterator::NullTransliterator() : Transliterator(UNICODE_STRING_SIMPLE(
 
 NullTransliterator::~NullTransliterator() {}
 
-Transliterator* NullTransliterator::clone(void) const {
+NullTransliterator* NullTransliterator::clone() const {
     return new NullTransliterator();
 }
 

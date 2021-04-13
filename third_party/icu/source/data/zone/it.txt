@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/it.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 it{
-    Version{"2.1.19.17"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ it{
         "America:El_Salvador"{
             ec{"El Salvador"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -510,6 +507,9 @@ it{
         "America:Puerto_Rico"{
             ec{"Portorico"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -660,6 +660,9 @@ it{
         "Asia:Ashgabat"{
             ec{"Ashgabat"}
         }
+        "Asia:Atyrau"{
+            ec{"Atyrau"}
+        }
         "Asia:Baghdad"{
             ec{"Baghdad"}
         }
@@ -671,6 +674,9 @@ it{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Beirut"}
@@ -707,6 +713,9 @@ it{
         }
         "Asia:Dushanbe"{
             ec{"Dushanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagosta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -849,6 +858,9 @@ it{
         "Asia:Tokyo"{
             ec{"Tokyo"}
         }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
+        }
         "Asia:Ulaanbaatar"{
             ec{"Ulaanbaatar"}
         }
@@ -939,6 +951,9 @@ it{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"Tempo coordinato universale"}
+        }
         "Etc:Unknown"{
             ec{"Città sconosciuta"}
         }
@@ -947,6 +962,9 @@ it{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrakhan"}
         }
         "Europe:Athens"{
             ec{"Atene"}
@@ -1006,6 +1024,9 @@ it{
         "Europe:Kiev"{
             ec{"Kiev"}
         }
+        "Europe:Kirov"{
+            ec{"Kirov"}
+        }
         "Europe:Lisbon"{
             ec{"Lisbona"}
         }
@@ -1064,6 +1085,9 @@ it{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Sinferopoli"}
         }
@@ -1081,6 +1105,9 @@ it{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Ulyanovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Užhorod"}
@@ -1399,7 +1426,7 @@ it{
             ls{"Ora standard di Capo Verde"}
         }
         "meta:Chamorro"{
-            ls{"Ora Chamorro"}
+            ls{"Ora di Chamorro"}
         }
         "meta:Chatham"{
             ld{"Ora legale delle Chatham"}
@@ -1699,7 +1726,9 @@ it{
             ls{"Ora di Niue"}
         }
         "meta:Norfolk"{
-            ls{"Ora delle Isole Norfolk"}
+            ld{"Ora legale delle Isole Norfolk"}
+            lg{"Ora delle Isole Norfolk"}
+            ls{"Ora standard delle Isole Norfolk"}
         }
         "meta:Noronha"{
             ld{"Ora legale di Fernando de Noronha"}
@@ -1756,6 +1785,9 @@ it{
         "meta:Ponape"{
             ls{"Ora di Pohnpei"}
         }
+        "meta:Pyongyang"{
+            ls{"Ora di Pyongyang"}
+        }
         "meta:Reunion"{
             ls{"Ora di Riunione"}
         }
@@ -1781,7 +1813,7 @@ it{
             ls{"Ora delle Seychelles"}
         }
         "meta:Singapore"{
-            ls{"Ora Singapore"}
+            ls{"Ora di Singapore"}
         }
         "meta:Solomon"{
             ls{"Ora delle Isole Salomone"}

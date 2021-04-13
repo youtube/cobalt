@@ -64,9 +64,9 @@ void Initialize() {
 #endif
   data_path += kSbFileSepString;
 #if U_IS_BIG_ENDIAN
-  data_path += "icudt56b";
+  data_path += "icudt68b";
 #else
-  data_path += "icudt56l";
+  data_path += "icudt68l";
 #endif
   // set this as the data directory.
   u_setDataDirectory(data_path.c_str());

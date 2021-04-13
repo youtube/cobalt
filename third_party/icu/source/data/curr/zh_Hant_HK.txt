@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zh_Hant_HK.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zh_Hant_HK{
     Currencies{
         AED{
@@ -36,9 +31,17 @@ zh_Hant_HK{
             "BBD",
             "巴巴多斯元",
         }
+        BEC{
+            "BEC",
+            "比利時法郎（可兌換）",
+        }
         BIF{
             "BIF",
             "布隆迪法郎",
+        }
+        BMD{
+            "BMD",
+            "百慕達元",
         }
         BWP{
             "BWP",
@@ -114,7 +117,7 @@ zh_Hant_HK{
         }
         KRW{
             "₩",
-            "韓圓",
+            "韓元",
         }
         KZT{
             "KZT",
@@ -134,6 +137,10 @@ zh_Hant_HK{
         }
         MRO{
             "MRO",
+            "毛里塔尼亞烏吉亞 (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "毛里塔尼亞烏吉亞",
         }
         MUR{
@@ -206,7 +213,15 @@ zh_Hant_HK{
         }
         STD{
             "STD",
+            "聖多美和普林西比多布拉 (1977–2017)",
+        }
+        STN{
+            "STN",
             "聖多美和普林西比多布拉",
+        }
+        SYP{
+            "SYP",
+            "敍利亞鎊",
         }
         SZL{
             "SZL",
@@ -276,8 +291,14 @@ zh_Hant_HK{
         BBD{
             other{"巴巴多斯元"}
         }
+        BEC{
+            other{"比利時法郎（可兌換）"}
+        }
         BIF{
             other{"布隆迪法郎"}
+        }
+        BMD{
+            other{"百慕達元"}
         }
         BWP{
             other{"博茨瓦納普拉"}
@@ -296,9 +317,6 @@ zh_Hant_HK{
         }
         DJF{
             other{"吉布提法郎"}
-        }
-        DKK{
-            other{"丹麥克羅納"}
         }
         DOP{
             other{"多米尼加披索"}
@@ -352,6 +370,9 @@ zh_Hant_HK{
             other{"摩爾多瓦列伊"}
         }
         MRO{
+            other{"毛里塔尼亞烏吉亞 (1973–2017)"}
+        }
+        MRU{
             other{"毛里塔尼亞烏吉亞"}
         }
         MUR{
@@ -365,9 +386,6 @@ zh_Hant_HK{
         }
         NGN{
             other{"尼日利亞奈拉"}
-        }
-        NOK{
-            other{"挪威克羅納"}
         }
         NZD{
             other{"紐西蘭元"}
@@ -396,9 +414,6 @@ zh_Hant_HK{
         SCR{
             other{"塞舌爾盧比"}
         }
-        SEK{
-            other{"瑞典克羅納"}
-        }
         SGD{
             other{"新加坡元"}
         }
@@ -412,7 +427,13 @@ zh_Hant_HK{
             other{"蘇里南元"}
         }
         STD{
+            other{"聖多美和普林西比多布拉 (1977–2017)"}
+        }
+        STN{
             other{"聖多美和普林西比多布拉"}
+        }
+        SYP{
+            other{"敍利亞鎊"}
         }
         SZL{
             other{"斯威士蘭里朗吉尼"}
@@ -448,5 +469,4 @@ zh_Hant_HK{
             other{"贊比亞克瓦查"}
         }
     }
-    Version{"2.1.19.94"}
 }

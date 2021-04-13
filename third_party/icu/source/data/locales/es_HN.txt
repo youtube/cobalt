@@ -1,14 +1,8 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_HN.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_HN{
     %%Parent{"es_419"}
-    Version{"2.1.19.14"}
     calendar{
         generic{
             DateTimePatterns{
@@ -18,7 +12,7 @@ es_HN{
                 "HH:mm",
                 "EEEE dd 'de' MMMM 'de' y G",
                 "dd 'de' MMMM 'de' y G",
-                "d/M/y G",
+                "d 'de' MMM 'de' y G",
                 "dd/MM/yy GGGGG",
                 "{1} {0}",
                 "{1}, {0}",
@@ -38,17 +32,10 @@ es_HN{
                 "d MMM y",
                 "d/M/yy",
                 "{1} {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} 'a' 'las' {0}",
+                "{1} 'a' 'las' {0}",
                 "{1} {0}",
                 "{1} {0}",
-            }
-        }
-    }
-    fields{
-        day{
-            relative{
-                "-2"{"antier"}
             }
         }
     }
