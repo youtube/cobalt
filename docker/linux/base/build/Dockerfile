@@ -48,6 +48,7 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 ENV OUTDIR=out \
     NINJA_STATUS="[%f/%t %c/sec] " \
     NINJA_PARALLEL=4 \
+    IS_CI=0 \
     CCACHE_DIR=/root/ccache \
     CCACHE_MAXSIZE=30G
 
