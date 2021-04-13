@@ -145,8 +145,13 @@ void UpdaterModule::Finalize() {
   updater_observer_.reset();
   update_client_ = nullptr;
 
-  updater_configurator_->GetPrefService()->CommitPendingWrite(
-      base::BindOnce(&QuitLoop, base::Bind(base::DoNothing::Repeatedly())));
+  if (updater_configurator_ != nullptr) {
+    auto pref_service = updater_configurator_->GetPrefService();
+    if (pref_service != nullptr) {
+      pref_service->CommitPendingWrite(
+          base::BindOnce(&QuitLoop, base::Bind(base::DoNothing::Repeatedly())));
+    }
+  }
 
   updater_configurator_ = nullptr;
 }
