@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_H_
 
+#include <string>
+
 #include "starboard/audio_sink.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/time.h"
@@ -40,7 +42,8 @@ class AudioRendererSink {
     // When |capability_changed| is true, it hints that the error is caused by a
     // a transisent capability on the platform.  The app should retry playback
     // to recover from the error.
-    virtual void OnError(bool capability_changed) = 0;
+    virtual void OnError(bool capability_changed,
+                         const std::string& error_message) = 0;
 
    protected:
     ~RenderCallback() {}

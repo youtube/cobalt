@@ -18,6 +18,7 @@
 #include "starboard/audio_sink.h"
 
 #include <functional>
+#include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -27,8 +28,9 @@ struct SbAudioSinkPrivate {
   // When |capability_changed| is true, it hints that the error is caused by a
   // a transisent capability on the platform.  The app should retry playback to
   // recover from the error.
-  // TODO: Allow to pass an error message.
-  typedef void (*ErrorFunc)(bool capability_changed, void* context);
+  typedef void (*ErrorFunc)(bool capability_changed,
+                            const std::string& error_message,
+                            void* context);
 #endif  // SB_API_VERSION >= 12
 
   typedef std::function<
