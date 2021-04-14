@@ -10,5 +10,6 @@ void main() {
       texture2D(texture_y, v_tex_coord_y).a,
       texture2D(texture_uv, v_tex_coord_uv).ba, 1.0);
 
-  gl_FragColor = untransformed_color * to_rgb_color_matrix;
+  vec4 color = untransformed_color * to_rgb_color_matrix;
+  gl_FragColor = color;
 }
