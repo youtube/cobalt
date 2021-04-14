@@ -3157,8 +3157,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #undef DECODE_IMPL2
 
   OpcodeHandler GetOpcodeHandler(uint8_t opcode) {
-    static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers =
-        base::make_array<256>(GetOpcodeHandlerTableEntry);
+    DCHECK(false);
+    static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers{};
     return kOpcodeHandlers[opcode];
   }
 
