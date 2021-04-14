@@ -25,6 +25,21 @@ extern "C" {
 
 #define kCobaltExtensionGraphicsName "dev.cobalt.extension.Graphics"
 
+// This structure allows post-processing of output colors for 360 videos.
+// Given "rgba" is the color that the pixel shader calculates, this struct
+// allows additional processing in the form of:
+//   final color = rgba0_scale +
+//                 rgba1_scale * rgba +
+//                 rgba2_scale * rgba * rgba +
+//                 rgba3_scale * rgba * rgba * rgba;
+// The final_color is then clamped to the range of [0,1] for each element.
+typedef struct CobaltExtensionGraphicsMapToMeshColorAdjustment {
+  float rgba0_scale[4];  // multiplier for rgba^0
+  float rgba1_scale[4];  // multiplier for rgba^1
+  float rgba2_scale[4];  // multiplier for rgba^2
+  float rgba3_scale[4];  // multiplier for rgba^3
+} CobaltExtensionGraphicsMapToMeshColorAdjustment;
+
 typedef struct CobaltExtensionGraphicsApi {
   // Name should be the string kCobaltExtensionGraphicsName.
   // This helps to validate that the extension API is correct.
@@ -75,6 +90,14 @@ typedef struct CobaltExtensionGraphicsApi {
                                      float* clear_color_green,
                                      float* clear_color_blue,
                                      float* clear_color_alpha);
+
+  // The fields below this point were added in version 5 or later.
+
+  // Use the provided color adjustments for 360 videos if the function returns
+  // true. See declaration of CobaltExtensionGraphicsMapToMeshColorAdjustment
+  // for details.
+  bool (*GetMapToMeshColorAdjustments)(
+      CobaltExtensionGraphicsMapToMeshColorAdjustment* adjustment);
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus

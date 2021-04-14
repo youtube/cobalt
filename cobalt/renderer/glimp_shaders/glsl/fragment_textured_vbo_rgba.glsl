@@ -4,5 +4,6 @@ uniform sampler2D texture_rgba;
 
 void main() {
   vec4 untransformed_color = vec4(texture2D(texture_rgba, v_tex_coord_rgba).rgba);
-  gl_FragColor = untransformed_color;
+  vec4 color = untransformed_color;
+  gl_FragColor = color;
 }
