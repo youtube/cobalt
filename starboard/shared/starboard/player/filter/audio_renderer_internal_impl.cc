@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
 
 #include <algorithm>
+#include <string>
 
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -449,15 +450,16 @@ void AudioRendererImpl::ConsumeFrames(int frames_consumed,
   }
 }
 
-void AudioRendererImpl::OnError(bool capability_changed) {
+void AudioRendererImpl::OnError(bool capability_changed,
+                                const std::string& error_message) {
   SB_DCHECK(error_cb_);
   if (capability_changed) {
-    error_cb_(kSbPlayerErrorCapabilityChanged, "failed to start audio sink");
+    error_cb_(kSbPlayerErrorCapabilityChanged, error_message);
   } else {
     // Send |kSbPlayerErrorDecode| on fatal audio sink error.  The error code
     // will be mapped into MediaError eventually, and there is no corresponding
     // error code in MediaError for audio sink error anyway.
-    error_cb_(kSbPlayerErrorDecode, "failed to start audio sink");
+    error_cb_(kSbPlayerErrorDecode, error_message);
   }
 }
 
