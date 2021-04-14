@@ -58,9 +58,9 @@
           '-fcolor-diagnostics',
           # Default visibility to hidden, to enable dead stripping.
           '-fvisibility=hidden',
-          '-Wno-c++11-compat',
+          '-Wno-c++14-compat',
           # This complains about 'override', which we use heavily.
-          '-Wno-c++11-extensions',
+          '-Wno-c++14-extensions',
           # Warns on switches on enums that cover all enum values but
           # also contain a default: branch. Chrome is full of that.
           '-Wno-covered-switch-default',
@@ -127,7 +127,7 @@
     ],
     'cflags_cc': [
       '-nostdinc++',
-      '-std=c++11',
+      '-std=c++14',
     ],
     'target_conditions': [
       ['sb_pedantic_warnings==1', {

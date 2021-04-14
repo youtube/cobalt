@@ -7286,14 +7286,22 @@ typedef void (*LogEventCallback)(const char* name, int event);
  */
 class V8_EXPORT Exception {
  public:
-  static Local<Value> RangeError(Local<String> message);
-  static Local<Value> ReferenceError(Local<String> message);
-  static Local<Value> SyntaxError(Local<String> message);
-  static Local<Value> TypeError(Local<String> message);
-  static Local<Value> WasmCompileError(Local<String> message);
-  static Local<Value> WasmLinkError(Local<String> message);
-  static Local<Value> WasmRuntimeError(Local<String> message);
-  static Local<Value> Error(Local<String> message);
+  static Local<Value> RangeError(Local<String> message,
+                                 Isolate* isolate = nullptr);
+  static Local<Value> ReferenceError(Local<String> message,
+                                     Isolate* isolate = nullptr);
+  static Local<Value> SyntaxError(Local<String> message,
+                                  Isolate* isolate = nullptr);
+  static Local<Value> TypeError(Local<String> message,
+                                Isolate* isolate = nullptr);
+  static Local<Value> WasmCompileError(Local<String> message,
+                                       Isolate* isolate = nullptr);
+  static Local<Value> WasmLinkError(Local<String> message,
+                                    Isolate* isolate = nullptr);
+  static Local<Value> WasmRuntimeError(Local<String> message,
+                                       Isolate* isolate = nullptr);
+  static Local<Value> Error(Local<String> message,
+                            Isolate* isolate = nullptr);
 
   /**
    * Creates an error message for the given exception.

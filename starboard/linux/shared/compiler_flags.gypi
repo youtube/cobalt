@@ -143,7 +143,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      '-std=gnu++11',
+      '-std=gnu++14',
     ],
     'ldflags': [
       '-Wl,-rpath=$ORIGIN/lib',

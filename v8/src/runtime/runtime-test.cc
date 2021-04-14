@@ -1065,12 +1065,14 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
         break;
       }
       case wasm::ValueType::kF32: {
-        float_t value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
+        static_assert(sizeof(float) == 4, "float should be 4 bytes");
+        float value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }
       case wasm::ValueType::kF64: {
-        double_t value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
+        static_assert(sizeof(double) == 8, "double should be 8 bytes");
+        double value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
         PrintF(" -> %f\n", value);
         break;
       }
