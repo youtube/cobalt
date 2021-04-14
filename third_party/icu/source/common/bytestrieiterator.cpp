@@ -1,10 +1,12 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2010-2012, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  bytestrieiterator.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -12,8 +14,10 @@
 *   created by: Markus W. Scherer
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/bytestrie.h"
 #include "unicode/stringpiece.h"
@@ -141,7 +145,6 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
             } else {
                 pos_=skipValue(pos, node);
             }
-            sp_.set(str_->data(), str_->length());
             return TRUE;
         }
         if(maxLength_>0 && str_->length()==maxLength_) {
@@ -169,10 +172,14 @@ BytesTrie::Iterator::next(UErrorCode &errorCode) {
     }
 }
 
+StringPiece
+BytesTrie::Iterator::getString() const {
+    return str_ == NULL ? StringPiece() : str_->toStringPiece();
+}
+
 UBool
 BytesTrie::Iterator::truncateAndStop() {
     pos_=NULL;
-    sp_.set(str_->data(), str_->length());
     value_=-1;  // no real value for str
     return TRUE;
 }
@@ -201,7 +208,6 @@ BytesTrie::Iterator::branchNext(const uint8_t *pos, int32_t length, UErrorCode &
     str_->append((char)trieByte, errorCode);
     if(isFinal) {
         pos_=NULL;
-        sp_.set(str_->data(), str_->length());
         value_=value;
         return NULL;
     } else {

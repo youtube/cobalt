@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/rbnf/sv.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sv{
     RBNFRules{
         OrdinalRules{
@@ -13,19 +8,10 @@ sv{
             "0: =%digits-ordinal-feminine=;",
             "%digits-ordinal-masculine:",
             "-x: \u2212>>;",
-            "0: =#,##0==%%dord-mascabbrev=;",
-            "%%dord-mascabbrev:",
-            "0: :e;",
+            "0: =#,##0=:e;",
             "%digits-ordinal-feminine:",
             "-x: \u2212>>;",
-            "0: =#,##0==%%dord-femabbrev=;",
-            "%%dord-femabbrev:",
-            "0: :e;",
-            "1: :a;",
-            "2: :a;",
-            "3: :e;",
-            "20: >>;",
-            "100: >>;",
+            "0: =#,##0=$(ordinal,one{:a}other{:e})$;",
             "%digits-ordinal-reale:",
             "0: =%digits-ordinal-feminine=;",
             "%digits-ordinal:",
@@ -36,7 +22,7 @@ sv{
             "&[last primary ignorable ] << ' ' << ',' << '-' << '\u00AD';",
             "%spellout-numbering-year:",
             "-x: minus >>;",
-            "x.x: =#,###0.#=;",
+            "x.x: =0.0=;",
             "0: =%spellout-numbering=;",
             "1100/100: <<\u00ADhundra[\u00AD>>];",
             "10000: =%spellout-numbering=;",
@@ -236,5 +222,4 @@ sv{
             "0: =%spellout-ordinal-neuter=;",
         }
     }
-    Version{"2.1.19.14"}
 }

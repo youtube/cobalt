@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -6,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  uobject.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -14,7 +16,9 @@
 *   created by: Markus W. Scherer
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/uobject.h"
 #include "cmemory.h"
 
@@ -57,32 +61,32 @@ U_NAMESPACE_BEGIN
  * and replace with uprv_malloc/uprv_free.
  */
 
-void * U_EXPORT2 UMemory::operator new(size_t size) U_NO_THROW {
+void * U_EXPORT2 UMemory::operator new(size_t size) U_NOEXCEPT {
     return uprv_malloc(size);
 }
 
-void U_EXPORT2 UMemory::operator delete(void *p) U_NO_THROW {
+void U_EXPORT2 UMemory::operator delete(void *p) U_NOEXCEPT {
     if(p!=NULL) {
         uprv_free(p);
     }
 }
 
-void * U_EXPORT2 UMemory::operator new[](size_t size) U_NO_THROW {
+void * U_EXPORT2 UMemory::operator new[](size_t size) U_NOEXCEPT {
     return uprv_malloc(size);
 }
 
-void U_EXPORT2 UMemory::operator delete[](void *p) U_NO_THROW {
+void U_EXPORT2 UMemory::operator delete[](void *p) U_NOEXCEPT {
     if(p!=NULL) {
         uprv_free(p);
     }
 }
 
 #if U_HAVE_DEBUG_LOCATION_NEW
-void * U_EXPORT2 UMemory::operator new(size_t size, const char* /*file*/, int /*line*/) U_NO_THROW {
+void * U_EXPORT2 UMemory::operator new(size_t size, const char* /*file*/, int /*line*/) U_NOEXCEPT {
     return UMemory::operator new(size);
 }
 
-void U_EXPORT2 UMemory::operator delete(void* p, const char* /*file*/, int /*line*/) U_NO_THROW {
+void U_EXPORT2 UMemory::operator delete(void* p, const char* /*file*/, int /*line*/) U_NOEXCEPT {
     UMemory::operator delete(p);
 }
 #endif /* U_HAVE_DEBUG_LOCATION_NEW */

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/is.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 is{
     Currencies{
         ADP{
@@ -136,9 +131,13 @@ is{
             "BWP",
             "botsvönsk púla",
         }
+        BYN{
+            "BYN",
+            "hvítrússnesk rúbla",
+        }
         BYR{
             "BYR",
-            "hvítrússnesk rúbla",
+            "hvítrússnesk rúbla (2000–2016)",
         }
         BZD{
             "BZD",
@@ -163,6 +162,10 @@ is{
         CLP{
             "CLP",
             "síleskur pesi",
+        }
+        CNH{
+            "CNH",
+            "kínverskt júan (utan heimalands)",
         }
         CNY{
             "CN¥",
@@ -498,6 +501,10 @@ is{
         }
         MRO{
             "MRO",
+            "márítönsk úgía (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "márítönsk úgía",
         }
         MTL{
@@ -552,9 +559,13 @@ is{
             "NGN",
             "nígerísk næra",
         }
+        NIC{
+            "NIC",
+            "Níkarögsk kordóva (1988–1991)",
+        }
         NIO{
             "NIO",
-            "níkaraögsk kordóva",
+            "níkarögsk kordóva",
         }
         NLG{
             "NLG",
@@ -706,6 +717,10 @@ is{
         }
         STD{
             "STD",
+            "Saó Tóme og Prinsípe-dóbra (1977–2017)",
+        }
+        STN{
+            "STN",
             "Saó Tóme og Prinsípe-dóbra",
         }
         SUR{
@@ -814,6 +829,10 @@ is{
         }
         VEF{
             "VEF",
+            "venesúelskur bólívari (2008–2018)",
+        }
+        VES{
+            "VES",
             "venesúelskur bólívari",
         }
         VND{
@@ -857,7 +876,7 @@ is{
             "pólinesískur franki",
         }
         XXX{
-            "XXX",
+            "¤",
             "óþekktur gjaldmiðill",
         }
         YDD{
@@ -902,7 +921,6 @@ is{
         BND{"$"}
         BRL{"R$"}
         BSD{"$"}
-        BYR{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -920,6 +938,7 @@ is{
         IDR{"Rp"}
         ILS{"₪"}
         INR{"₹"}
+        ISK{"kr"}
         JMD{"$"}
         JPY{"¥"}
         KHR{"៛"}
@@ -1045,9 +1064,13 @@ is{
             one{"botsvönsk púla"}
             other{"botsvanskar púlur"}
         }
-        BYR{
+        BYN{
             one{"hvítrússnesk rúbla"}
             other{"hvítrússneskar rúblur"}
+        }
+        BYR{
+            one{"hvítrússnesk rúbla (2000–2016)"}
+            other{"hvítrússneskar rúblur (2000–2016)"}
         }
         BZD{
             one{"belískur dalur"}
@@ -1069,6 +1092,10 @@ is{
             one{"síleskur pesi"}
             other{"síleskir pesar"}
         }
+        CNH{
+            one{"kínverskt júan (utan heimalands)"}
+            other{"kínverskt júan (utan heimalands)"}
+        }
         CNY{
             one{"kínverskt júan"}
             other{"kínversk júön"}
@@ -1082,8 +1109,8 @@ is{
             other{"kostarísk kólon"}
         }
         CUC{
-            one{"kúbverskur skiptanlegur pesói"}
-            other{"kúbverskir skiptanlegir pesóar"}
+            one{"kúbverskur skiptanlegur pesi"}
+            other{"kúbverskir skiptanlegir pesar"}
         }
         CUP{
             one{"kúbverskur pesi"}
@@ -1112,6 +1139,10 @@ is{
         DZD{
             one{"alsírskur denari"}
             other{"alsírskir denarar"}
+        }
+        EEK{
+            one{"eistnesk króna"}
+            other{"eistneskar krónur"}
         }
         EGP{
             one{"egypskt pund"}
@@ -1150,7 +1181,7 @@ is{
             other{"ganverskir sedar"}
         }
         GIP{
-            one{"Gíbraltarpund"}
+            one{"Gíbraltarspund"}
             other{"Gíbraltarspund"}
         }
         GMD{
@@ -1318,6 +1349,10 @@ is{
             other{"makaóskar patökur"}
         }
         MRO{
+            one{"máritönsk úgía (1973–2017)"}
+            other{"máritanskar úgíur (1973–2017)"}
+        }
+        MRU{
             one{"máritönsk úgía"}
             other{"máritanskar úgíur"}
         }
@@ -1352,6 +1387,10 @@ is{
         NGN{
             one{"nígerísk næra"}
             other{"nígerískar nærur"}
+        }
+        NIC{
+            one{"Níkarögsk kordóva (1988–1991)"}
+            other{"Níkaragskar kordóvur (1988–1991)"}
         }
         NIO{
             one{"níkarögsk kordóva"}
@@ -1470,6 +1509,10 @@ is{
             other{"suðursúdönsk pund"}
         }
         STD{
+            one{"Saó Tóme og Prinsípe-dóbra (1977–2017)"}
+            other{"Saó Tóme og Prinsípe-dóbrur (1977–2017)"}
+        }
+        STN{
             one{"Saó Tóme og Prinsípe-dóbra"}
             other{"Saó Tóme og Prinsípe-dóbrur"}
         }
@@ -1546,6 +1589,10 @@ is{
             other{"úsbeksk súm"}
         }
         VEF{
+            one{"venesúelskur bólívari (2008–2018)"}
+            other{"venesúelskir bólívarar (2008–2018)"}
+        }
+        VES{
             one{"venesúelskur bólívari"}
             other{"venesúelskir bólívarar"}
         }
@@ -1598,5 +1645,4 @@ is{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.17"}
 }

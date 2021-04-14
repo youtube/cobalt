@@ -17,6 +17,7 @@
 #include "base/i18n/char_iterator.h"
 #include "cobalt/base/unicode/character_values.h"
 
+#include "third_party/icu/source/common/unicode/char16ptr.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 
 namespace cobalt {
@@ -93,8 +94,7 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
         // corresponding pop directional isolate will later be added to the
         // text and allows later paragraphs to copy the directional state.
         // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
-        directional_formatting_stack_.push_back(
-            kLeftToRightDirectionalIsolate);
+        directional_formatting_stack_.push_back(kLeftToRightDirectionalIsolate);
         unicode_text_ += base::unicode::kLeftToRightIsolateCharacter;
         break;
       case kLineFeedCodePoint:
@@ -116,8 +116,7 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
         // corresponding pop directional isolate will later be added to the
         // text and allows later paragraphs to copy the directional state.
         // http://unicode.org/reports/tr9/#Explicit_Directional_Isolates
-        directional_formatting_stack_.push_back(
-            kRightToLeftDirectionalIsolate);
+        directional_formatting_stack_.push_back(kRightToLeftDirectionalIsolate);
         unicode_text_ += base::unicode::kRightToLeftIsolateCharacter;
         break;
     }
@@ -235,7 +234,7 @@ int32 Paragraph::GetPreviousBreakPosition(int32 position,
 bool Paragraph::IsBreakPosition(int32 position, BreakPolicy break_policy) {
   icu::BreakIterator* break_iterator = GetBreakIterator(break_policy);
   break_iterator->setText(unicode_text_);
-  return break_iterator->isBoundary(position) == TRUE;
+  return break_iterator->isBoundary(position) == true;
 }
 
 std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
@@ -266,7 +265,7 @@ std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
 }
 
 const base::char16* Paragraph::GetTextBuffer() const {
-  return unicode_text_.getBuffer();
+  return icu::toUCharPtr(unicode_text_.getBuffer());
 }
 
 const icu::Locale& Paragraph::GetLocale() const { return locale_; }
@@ -419,8 +418,8 @@ bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
   // is the last usable one. However, if overflow is allowed and no segment has
   // been found, then the first overflowing segment is accepted.
   LayoutUnit segment_width = LayoutUnit(used_font->GetTextWidth(
-      unicode_text_.getBuffer() + segment_start, segment_end - segment_start,
-      IsRTL(segment_start), NULL));
+      icu::toUCharPtr(unicode_text_.getBuffer()) + segment_start,
+      segment_end - segment_start, IsRTL(segment_start), NULL));
 
   // If trailing white space is being collapsed, then it will not be included
   // when determining if the segment can fit within the available width.
@@ -487,7 +486,8 @@ void Paragraph::GenerateBidiLevelRuns() {
     return;
   }
 
-  ubidi_setPara(ubidi.get(), unicode_text_.getBuffer(), unicode_text_.length(),
+  ubidi_setPara(ubidi.get(), icu::toUCharPtr(unicode_text_.getBuffer()),
+                unicode_text_.length(),
                 UBiDiLevel(ConvertBaseDirectionToBidiLevel(base_direction_)),
                 NULL, &error);
   if (U_FAILURE(error)) {

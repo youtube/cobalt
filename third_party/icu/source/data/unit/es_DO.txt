@@ -1,14 +1,8 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_DO.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_DO{
     %%Parent{"es_419"}
-    Version{"2.1.19.14"}
     units{
         electric{
             ampere{
@@ -25,18 +19,16 @@ es_DO{
                 one{"{0} ohmio"}
                 other{"{0} ohmios"}
             }
-            volt{
-                one{"{0} voltio"}
-                other{"{0} voltios"}
-            }
         }
     }
     unitsNarrow{
         duration{
             day{
+                one{"{0}d."}
                 other{"{0}d."}
             }
             month{
+                one{"{0}m."}
                 other{"{0}m."}
             }
         }

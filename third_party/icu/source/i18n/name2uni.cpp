@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2011, International Business Machines
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/unifilt.h"
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"
@@ -99,7 +103,7 @@ NameUnicodeTransliterator::NameUnicodeTransliterator(const NameUnicodeTransliter
 /**
  * Transliterator API.
  */
-Transliterator* NameUnicodeTransliterator::clone(void) const {
+NameUnicodeTransliterator* NameUnicodeTransliterator::clone() const {
     return new NameUnicodeTransliterator(*this);
 }
 
@@ -189,6 +193,7 @@ void NameUnicodeTransliterator::handleTransliterate(Replaceable& text, UTransPos
                 }
 
                 if (uprv_isInvariantUString(name.getBuffer(), len)) {
+                    cbuf[0] = 0;
                     name.extract(0, len, cbuf, maxLen, US_INV);
 
                     UErrorCode status = U_ZERO_ERROR;

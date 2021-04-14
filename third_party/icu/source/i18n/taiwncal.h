@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
  * Copyright (C) 2003-2013, International Business Machines Corporation
@@ -89,7 +91,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual TaiwanCalendar* clone() const;
 
 public:
     /**
@@ -154,7 +156,7 @@ private:
     virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
 
     /**
-     * Returns TRUE because the Taiwan Calendar does have a default century
+     * Returns true because the Taiwan Calendar does have a default century
      * @internal
      */
     virtual UBool haveDefaultCentury() const;

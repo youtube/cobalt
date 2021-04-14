@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2000-2007, International Business Machines
@@ -43,7 +45,7 @@ public:
      * Transliterator API.
      * @internal Use transliterator factory methods instead since this class will be removed in that release.
      */
-    virtual Transliterator* clone(void) const;
+    virtual NullTransliterator* clone() const;
 
     /**
      * Implements {@link Transliterator#handleTransliterate}.

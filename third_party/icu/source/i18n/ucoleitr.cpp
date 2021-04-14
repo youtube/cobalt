@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
-*   Copyright (C) 2001-2015, International Business Machines
+*   Copyright (C) 2001-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ******************************************************************************
 *
@@ -18,7 +20,9 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/coleitr.h"
 #include "unicode/tblcoll.h"
 #include "unicode/ucoleitr.h"
@@ -35,9 +39,9 @@ U_NAMESPACE_USE
 #define DEFAULT_BUFFER_SIZE 16
 #define BUFFER_GROW 8
 
-#define ARRAY_COPY(dst, src, count) uprv_memcpy((void *) (dst), (void *) (src), (count) * sizeof (src)[0])
+#define ARRAY_COPY(dst, src, count) uprv_memcpy((void *) (dst), (void *) (src), (size_t)(count) * sizeof (src)[0])
 
-#define NEW_ARRAY(type, count) (type *) uprv_malloc((count) * sizeof(type))
+#define NEW_ARRAY(type, count) (type *) uprv_malloc((size_t)(count) * sizeof(type))
 
 #define DELETE_ARRAY(array) uprv_free((void *) (array))
 
@@ -223,11 +227,11 @@ uint64_t UCollationPCE::processCE(uint32_t ce)
     switch(strength) {
     default:
         tertiary = ucol_tertiaryOrder(ce);
-        /* note fall-through */
+        U_FALLTHROUGH;
 
     case UCOL_SECONDARY:
         secondary = ucol_secondaryOrder(ce);
-        /* note fall-through */
+        U_FALLTHROUGH;
 
     case UCOL_PRIMARY:
         primary = ucol_primaryOrder(ce);

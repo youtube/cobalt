@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2001-2011, International Business Machines
@@ -46,10 +48,10 @@ RemoveTransliterator::RemoveTransliterator() : Transliterator(UnicodeString(TRUE
 
 RemoveTransliterator::~RemoveTransliterator() {}
 
-Transliterator* RemoveTransliterator::clone(void) const {
-    Transliterator* result = new RemoveTransliterator();
+RemoveTransliterator* RemoveTransliterator::clone() const {
+    RemoveTransliterator* result = new RemoveTransliterator();
     if (result != NULL && getFilter() != 0) {
-        result->adoptFilter((UnicodeFilter*)(getFilter()->clone()));
+        result->adoptFilter(getFilter()->clone());
     }
     return result;
 }

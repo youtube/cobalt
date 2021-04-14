@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/mzn.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 mzn{
     Countries{
         001{"جهون"}
@@ -114,7 +109,7 @@ mzn{
         EU{"اروپا اتحادیه"}
         FI{"فنلاند"}
         FJ{"فیجی"}
-        FK{"فالکلند جزیره‌ئون"}
+        FK{"فالکلند (مالویناس)"}
         FM{"میکرونزی"}
         FO{"فارو جزایر"}
         FR{"فرانسه"}
@@ -187,7 +182,6 @@ mzn{
         MF{"سنت مارتین"}
         MG{"ماداگاسکار"}
         MH{"مارشال جزایر"}
-        MK{"مقدونیه"}
         ML{"مالی"}
         MM{"میانمار"}
         MN{"مغولستون"}
@@ -299,16 +293,12 @@ mzn{
         ZZ{"نامَیِّن منطقه"}
     }
     Countries%short{
-        GB{"بریتانیا"}
         US{"آمریکا متحده ایالات"}
     }
     Countries%variant{
         CD{"کنگو (دموکراتیک جمهوری)"}
         CG{"کنگو (جمهوری)"}
         CI{"عاج ساحل"}
-        FK{"فالکلند (مالویناس)"}
-        MK{"مقدونیه جمهوری"}
         TL{"شرقی تیمور"}
     }
-    Version{"2.1.19.14"}
 }

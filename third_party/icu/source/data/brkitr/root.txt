@@ -1,17 +1,11 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/segments/root.xml ../../xml/brkitr/root.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html#License
 root{
-    Version{"2.1.20.0"}
+    Version{"2.1.44.57"}
     boundaries{
         grapheme:process(dependency){"char.brk"}
         line:process(dependency){"line_normal.brk"}
-        line_loose:process(dependency){"line_normal.brk"}
+        line_loose:process(dependency){"line_loose.brk"}
         line_normal:process(dependency){"line_normal.brk"}
         line_strict:process(dependency){"line.brk"}
         sentence:process(dependency){"sent.brk"}

@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (C) 1999-2011, International Business Machines Corporation
@@ -208,7 +210,7 @@ private:
 
     /**
      * Assert that the given character is NOT within the variable range.
-     * If it is, return FALSE.  This is neccesary to ensure that the
+     * If it is, return false.  This is neccesary to ensure that the
      * variable range does not overlap characters used in a rule.
      * @param ch     the given character.
      * @return       True, if the given character is NOT within the variable range.

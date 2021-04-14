@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2002-2012, International Business Machines Corporation
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/uniset.h"
 #include "unicode/utf16.h"
 #include "strrepl.h"
@@ -86,7 +90,7 @@ StringReplacer::~StringReplacer() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringReplacer::clone() const {
+StringReplacer* StringReplacer::clone() const {
     return new StringReplacer(*this);
 }
 

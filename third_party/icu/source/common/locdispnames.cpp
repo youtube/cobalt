@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
-*   Copyright (C) 1997-2013, International Business Machines
+*   Copyright (C) 1997-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  locdispnames.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -17,13 +19,18 @@
 *   that then do not depend on resource bundle code and display name data.
 */
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/locid.h"
+#include "unicode/uenum.h"
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "putilimp.h"
@@ -305,14 +312,11 @@ _getStringOrCopyKey(const char *path, const char *locale,
 
     if(itemKey==NULL) {
         /* top-level item: normal resource bundle access */
-        UResourceBundle *rb;
-
-        rb=ures_open(path, locale, pErrorCode);
+        icu::LocalUResourceBundlePointer rb(ures_open(path, locale, pErrorCode));
 
         if(U_SUCCESS(*pErrorCode)) {
-            s=ures_getStringByKey(rb, tableKey, &length, pErrorCode);
+            s=ures_getStringByKey(rb.getAlias(), tableKey, &length, pErrorCode);
             /* see comment about closing rb near "return item;" in _res_getTableStringWithFallback() */
-            ures_close(rb);
         }
     } else {
         /* Language code should not be a number. If it is, set the error code. */
@@ -375,7 +379,12 @@ _getDisplayNameForComponent(const char *locale,
         return 0;
     }
     if(length==0) {
-        return u_terminateUChars(dest, destCapacity, 0, pErrorCode);
+        // For the display name, we treat this as unknown language (ICU-20273).
+        if (getter == uloc_getLanguage) {
+            uprv_strcpy(localeBuffer, "und");
+        } else {
+            return u_terminateUChars(dest, destCapacity, 0, pErrorCode);
+        }
     }
 
     root = tag == _kCountries ? U_ICUDATA_REGION : U_ICUDATA_LANG;
@@ -402,20 +411,26 @@ uloc_getDisplayScript(const char* locale,
                       UChar *dest, int32_t destCapacity,
                       UErrorCode *pErrorCode)
 {
-	UErrorCode err = U_ZERO_ERROR;
-	int32_t res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
+    UErrorCode err = U_ZERO_ERROR;
+    int32_t res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
                 uloc_getScript, _kScriptsStandAlone, &err);
-	
-	if ( err == U_USING_DEFAULT_WARNING ) {
+
+    if (destCapacity == 0 && err == U_BUFFER_OVERFLOW_ERROR) {
+        // For preflight, return the max of the value and the fallback.
+        int32_t fallback_res = _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
+                                                           uloc_getScript, _kScripts, pErrorCode);
+        return (fallback_res > res) ? fallback_res : res;
+    }
+    if ( err == U_USING_DEFAULT_WARNING ) {
         return _getDisplayNameForComponent(locale, displayLocale, dest, destCapacity,
-                    uloc_getScript, _kScripts, pErrorCode);
-	} else {
-		*pErrorCode = err;
-		return res;
-	}
+                                           uloc_getScript, _kScripts, pErrorCode);
+    } else {
+        *pErrorCode = err;
+        return res;
+    }
 }
 
-U_INTERNAL int32_t U_EXPORT2
+static int32_t
 uloc_getDisplayScriptInContext(const char* locale,
                       const char* displayLocale,
                       UChar *dest, int32_t destCapacity,
@@ -509,15 +524,14 @@ uloc_getDisplayName(const char *locale,
 
     {
         UErrorCode status = U_ZERO_ERROR;
-        UResourceBundle* locbundle=ures_open(U_ICUDATA_LANG, displayLocale, &status);
-        UResourceBundle* dspbundle=ures_getByKeyWithFallback(locbundle, _kLocaleDisplayPattern,
-                                                             NULL, &status);
 
-        separator=ures_getStringByKeyWithFallback(dspbundle, _kSeparator, &sepLen, &status);
-        pattern=ures_getStringByKeyWithFallback(dspbundle, _kPattern, &patLen, &status);
+        icu::LocalUResourceBundlePointer locbundle(
+                ures_open(U_ICUDATA_LANG, displayLocale, &status));
+        icu::LocalUResourceBundlePointer dspbundle(
+                ures_getByKeyWithFallback(locbundle.getAlias(), _kLocaleDisplayPattern, NULL, &status));
 
-        ures_close(dspbundle);
-        ures_close(locbundle);
+        separator=ures_getStringByKeyWithFallback(dspbundle.getAlias(), _kSeparator, &sepLen, &status);
+        pattern=ures_getStringByKeyWithFallback(dspbundle.getAlias(), _kPattern, &patLen, &status);
     }
 
     /* If we couldn't find any data, then use the defaults */
@@ -541,7 +555,7 @@ uloc_getDisplayName(const char *locale,
             return 0;
         }
         separator = (const UChar *)p0 + subLen;
-        sepLen = p1 - separator;
+        sepLen = static_cast<int32_t>(p1 - separator);
     }
 
     if(patLen==0 || (patLen==defaultPatLen && !u_strncmp(pattern, defaultPattern, patLen))) {
@@ -557,8 +571,8 @@ uloc_getDisplayName(const char *locale,
             *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
             return 0;
         }
-        sub0Pos=p0-pattern;
-        sub1Pos=p1-pattern;
+        sub0Pos = static_cast<int32_t>(p0-pattern);
+        sub1Pos = static_cast<int32_t>(p1-pattern);
         if (sub1Pos < sub0Pos) { /* a very odd pattern */
             int32_t t=sub0Pos; sub0Pos=sub1Pos; sub1Pos=t;
             langi=1;
@@ -585,7 +599,7 @@ uloc_getDisplayName(const char *locale,
         int32_t langPos=0; /* position in output of language substitution */
         int32_t restLen=0; /* length of 'everything else' substitution */
         int32_t restPos=0; /* position in output of 'everything else' substitution */
-        UEnumeration* kenum = NULL; /* keyword enumeration */
+        icu::LocalUEnumerationPointer kenum; /* keyword enumeration */
 
         /* prefix of pattern, extremely likely to be empty */
         if(sub0Pos) {
@@ -638,12 +652,11 @@ uloc_getDisplayName(const char *locale,
                             len=uloc_getDisplayVariant(locale, displayLocale, p, cap, pErrorCode);
                             break;
                         case 3:
-                            kenum = uloc_openKeywords(locale, pErrorCode);
-                            /* fall through */
+                            kenum.adoptInstead(uloc_openKeywords(locale, pErrorCode));
+                            U_FALLTHROUGH;
                         default: {
-                            const char* kw=uenum_next(kenum, &len, pErrorCode);
+                            const char* kw=uenum_next(kenum.getAlias(), &len, pErrorCode);
                             if (kw == NULL) {
-                                uenum_close(kenum);
                                 len=0; /* mark that we didn't add a component */
                                 subdone=TRUE;
                             } else {
@@ -725,7 +738,7 @@ uloc_getDisplayName(const char *locale,
                     int32_t padLen;
                     patPos+=subLen;
                     padLen=(subi==0 ? sub1Pos : patLen)-patPos;
-                    if(length+padLen < destCapacity) {
+                    if(length+padLen <= destCapacity) {
                         p=dest+length;
                         for(int32_t i=0;i<padLen;++i) {
                             *p++=pattern[patPos++];
@@ -803,10 +816,6 @@ uloc_getDisplayKeywordValue(   const char* locale,
                                UErrorCode* status){
 
 
-    char keywordValue[ULOC_FULLNAME_CAPACITY*4];
-    int32_t capacity = ULOC_FULLNAME_CAPACITY*4;
-    int32_t keywordValueLen =0;
-
     /* argument checking */
     if(status==NULL || U_FAILURE(*status)) {
         return 0;
@@ -818,8 +827,11 @@ uloc_getDisplayKeywordValue(   const char* locale,
     }
 
     /* get the keyword value */
-    keywordValue[0]=0;
-    keywordValueLen = uloc_getKeywordValue(locale, keyword, keywordValue, capacity, status);
+    CharString keywordValue;
+    {
+        CharStringByteSink sink(&keywordValue);
+        ulocimp_getKeywordValue(locale, keyword, sink, status);
+    }
 
     /* 
      * if the keyword is equal to currency .. then to get the display name 
@@ -829,18 +841,16 @@ uloc_getDisplayKeywordValue(   const char* locale,
 
         int32_t dispNameLen = 0;
         const UChar *dispName = NULL;
-        
-        UResourceBundle *bundle     = ures_open(U_ICUDATA_CURR, displayLocale, status);
-        UResourceBundle *currencies = ures_getByKey(bundle, _kCurrencies, NULL, status);
-        UResourceBundle *currency   = ures_getByKeyWithFallback(currencies, keywordValue, NULL, status);
-        
-        dispName = ures_getStringByIndex(currency, UCURRENCY_DISPLAY_NAME_INDEX, &dispNameLen, status);
-        
-        /*close the bundles */
-        ures_close(currency);
-        ures_close(currencies);
-        ures_close(bundle);
-        
+
+        icu::LocalUResourceBundlePointer bundle(
+                ures_open(U_ICUDATA_CURR, displayLocale, status));
+        icu::LocalUResourceBundlePointer currencies(
+                ures_getByKey(bundle.getAlias(), _kCurrencies, NULL, status));
+        icu::LocalUResourceBundlePointer currency(
+                ures_getByKeyWithFallback(currencies.getAlias(), keywordValue.data(), NULL, status));
+
+        dispName = ures_getStringByIndex(currency.getAlias(), UCURRENCY_DISPLAY_NAME_INDEX, &dispNameLen, status);
+
         if(U_FAILURE(*status)){
             if(*status == U_MISSING_RESOURCE_ERROR){
                 /* we just want to write the value over if nothing is available */
@@ -853,7 +863,7 @@ uloc_getDisplayKeywordValue(   const char* locale,
         /* now copy the dispName over if not NULL */
         if(dispName != NULL){
             if(dispNameLen <= destCapacity){
-                uprv_memcpy(dest, dispName, dispNameLen * U_SIZEOF_UCHAR);
+                u_memcpy(dest, dispName, dispNameLen);
                 return u_terminateUChars(dest, destCapacity, dispNameLen, status);
             }else{
                 *status = U_BUFFER_OVERFLOW_ERROR;
@@ -861,12 +871,12 @@ uloc_getDisplayKeywordValue(   const char* locale,
             }
         }else{
             /* we have not found the display name for the value .. just copy over */
-            if(keywordValueLen <= destCapacity){
-                u_charsToUChars(keywordValue, dest, keywordValueLen);
-                return u_terminateUChars(dest, destCapacity, keywordValueLen, status);
+            if(keywordValue.length() <= destCapacity){
+                u_charsToUChars(keywordValue.data(), dest, keywordValue.length());
+                return u_terminateUChars(dest, destCapacity, keywordValue.length(), status);
             }else{
                  *status = U_BUFFER_OVERFLOW_ERROR;
-                return keywordValueLen;
+                return keywordValue.length();
             }
         }
 
@@ -875,8 +885,8 @@ uloc_getDisplayKeywordValue(   const char* locale,
 
         return _getStringOrCopyKey(U_ICUDATA_LANG, displayLocale,
                                    _kTypes, keyword, 
-                                   keywordValue,
-                                   keywordValue,
+                                   keywordValue.data(),
+                                   keywordValue.data(),
                                    dest, destCapacity,
                                    status);
     }

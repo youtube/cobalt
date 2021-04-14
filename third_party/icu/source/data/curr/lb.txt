@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/lb.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 lb{
     Currencies{
         ADP{
@@ -196,9 +191,13 @@ lb{
             "BYB",
             "Wäissrussesche Rubel (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "Wäissrussesche Rubel",
+        }
         BYR{
             "BYR",
-            "Wäissrussesche Rubel",
+            "Wäissrussesche Rubel (2000–2016)",
         }
         BZD{
             "BZD",
@@ -614,6 +613,10 @@ lb{
         }
         MRO{
             "MRO",
+            "Mauretaneschen Ouguiya (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Mauretaneschen Ouguiya",
         }
         MTL{
@@ -710,11 +713,11 @@ lb{
         }
         PEN{
             "PEN",
-            "Peruaneschen Neie Sol",
+            "Peruaneschen Sol",
         }
         PES{
             "PES",
-            "Peruanesche Sol (1863–1965)",
+            "Peruaneschen Sol (1863–1965)",
         }
         PGK{
             "PGK",
@@ -842,6 +845,10 @@ lb{
         }
         STD{
             "STD",
+            "São-toméeschen Dobra (1977–2017)",
+        }
+        STN{
+            "STN",
             "São-toméeschen Dobra",
         }
         SUR{
@@ -958,6 +965,10 @@ lb{
         }
         VEF{
             "VEF",
+            "Venezolanesche Bolívar (2008–2018)",
+        }
+        VES{
+            "VES",
             "Venezolanesche Bolívar",
         }
         VND{
@@ -1045,7 +1056,7 @@ lb{
             "Testwährung",
         }
         XXX{
-            "XXX",
+            "¤",
             "Onbekannt Währung",
         }
         YDD{
@@ -1310,9 +1321,13 @@ lb{
             one{"Wäissrussesche Rubel (1994–1999)"}
             other{"Wäissrussesch Rubel (1994–1999)"}
         }
-        BYR{
+        BYN{
             one{"Wäissrussesche Rubel"}
             other{"Wäissrussesch Rubel"}
+        }
+        BYR{
+            one{"Wäissrussesche Rubel (2000–2016)"}
+            other{"Wäissrussesch Rubel (2000–2016)"}
         }
         BZD{
             one{"Belize-Dollar"}
@@ -1727,6 +1742,10 @@ lb{
             other{"Macau-Pataca"}
         }
         MRO{
+            one{"Mauretaneschen Ouguiya (1973–2017)"}
+            other{"Mauretanesch Ouguiya (1973–2017)"}
+        }
+        MRU{
             one{"Mauretaneschen Ouguiya"}
             other{"Mauretanesch Ouguiya"}
         }
@@ -1823,11 +1842,11 @@ lb{
             other{"Peruanesch Inti"}
         }
         PEN{
-            one{"Peruaneschen Neie Sol"}
-            other{"Peruanesch Nei Soles"}
+            one{"Peruaneschen Sol"}
+            other{"Peruanesch Soles"}
         }
         PES{
-            one{"Peruanesche Sol (1863–1965)"}
+            one{"Peruaneschen Sol (1863–1965)"}
             other{"Peruanesch Soles (1863–1965)"}
         }
         PGK{
@@ -1955,6 +1974,10 @@ lb{
             other{"Südsudanesesch Pond"}
         }
         STD{
+            one{"São-toméeschen Dobra (1977–2017)"}
+            other{"São-toméesch Dobra (1977–2017)"}
+        }
+        STN{
             one{"São-toméeschen Dobra"}
             other{"São-toméesch Dobra"}
         }
@@ -2071,6 +2094,10 @@ lb{
             other{"Venezolanesch Bolívares (1871–2008)"}
         }
         VEF{
+            one{"Venezolanesche Bolívar (2008–2018)"}
+            other{"Venezolanesch Bolívares (2008–2018)"}
+        }
+        VES{
             one{"Venezolanesche Bolívar"}
             other{"Venezolanesch Bolívares"}
         }
@@ -2223,5 +2250,4 @@ lb{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.14"}
 }

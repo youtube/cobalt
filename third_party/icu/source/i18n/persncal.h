@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
  * Copyright (C) 2003-2013, International Business Machines Corporation
@@ -162,7 +164,7 @@ class PersianCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual Calendar* clone() const;
+  virtual PersianCalendar* clone() const;
 
  private:
   /**
@@ -293,7 +295,7 @@ class PersianCalendar : public Calendar {
   virtual UBool inDaylightTime(UErrorCode& status) const;
 
   /**
-   * Returns TRUE because the Persian Calendar does have a default century
+   * Returns true because the Persian Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

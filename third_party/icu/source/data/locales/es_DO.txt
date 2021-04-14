@@ -1,22 +1,15 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_DO.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_DO{
     %%Parent{"es_419"}
     NumberElements{
         latn{
             patterns{
                 accountingFormat{"¤#,##0.00;(¤#,##0.00)"}
-                percentFormat{"#,##0%"}
             }
         }
     }
-    Version{"2.1.19.14"}
     calendar{
         generic{
             DateTimePatterns{
@@ -46,13 +39,26 @@ es_DO{
                 "d MMM y",
                 "d/M/yy",
                 "{1} {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} 'a' 'las' {0}",
+                "{1} 'a' 'las' {0}",
                 "{1} {0}",
                 "{1} {0}",
             }
             availableFormats{
                 yMMMd{"d MMM 'de' y"}
+            }
+            dayNames{
+                format{
+                    narrow{
+                        "D",
+                        "L",
+                        "M",
+                        "M",
+                        "J",
+                        "V",
+                        "S",
+                    }
+                }
             }
             dayPeriod{
                 format{
@@ -61,6 +67,7 @@ es_DO{
                         morning1{"día"}
                         morning2{"mañana"}
                         night1{"noche"}
+                        noon{"mediodía"}
                     }
                 }
                 stand-alone{

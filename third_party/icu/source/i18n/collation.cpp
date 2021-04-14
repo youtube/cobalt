@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2010-2014, International Business Machines
@@ -13,7 +15,9 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "collation.h"
 #include "uassert.h"
 

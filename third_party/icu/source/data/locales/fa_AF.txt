@@ -1,34 +1,120 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fa_AF.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fa_AF{
     AuxExemplarCharacters{
         "[\u200E\u200F \u064E \u0650 \u064F \u0652 \u0656 \u0670 \u200C \u200D إ ټ ځ "
         "څ ډ ړ ږ ښ ك ګ ڼ ى ي]"
     }
-    Version{"2.1.19.77"}
+    NumberElements{
+        arabext{
+            patterns{
+                currencyFormat{"¤ #,##0.00"}
+            }
+        }
+        latn{
+            patterns{
+                accountingFormat{"¤ #,##0.00;‎(¤ #,##0.00)"}
+                currencyFormat{"¤ #,##0.00"}
+            }
+        }
+    }
     calendar{
         gregorian{
+            appendItems{
+                Timezone{"{0} {1}"}
+            }
+            availableFormats{
+                EHm{"E HH:mm"}
+                EHms{"E HH:mm:ss"}
+                Ed{"d E"}
+                GyMMMEd{"E, MMM d, y G"}
+                GyMMMd{"MMM d, y G"}
+                H{"HH"}
+                Hm{"HH:mm"}
+                Hms{"HH:mm:ss"}
+                MEd{"E, M/d"}
+                MMMEd{"E, MMM d"}
+                MMMMd{"MMMM d"}
+                MMMd{"MMM d"}
+                yM{"M/y"}
+                yMEd{"E, M/d/y"}
+                yMMMEd{"E, MMM d, y"}
+                yMMMd{"MMM d, y"}
+                yMd{"M/d/y"}
+                yQQQ{"QQQ y"}
+            }
+            dayPeriod{
+                format{
+                    abbreviated{
+                        afternoon1{"ظهر"}
+                        afternoon2{"بعدازچاشت"}
+                        morning1{"بامداد"}
+                        morning2{"صبح"}
+                        night1{"شب"}
+                        night2{"نیمه‌شب"}
+                    }
+                    wide{
+                        afternoon1{"ظهر"}
+                        afternoon2{"بعدازچاشت"}
+                        morning1{"بامداد"}
+                        morning2{"صبح"}
+                        night1{"شب"}
+                        night2{"نیمه‌شب"}
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        afternoon1{"ظهر"}
+                        afternoon2{"بعدازچاشت"}
+                        morning1{"بامداد"}
+                        morning2{"صبح"}
+                        night1{"شب"}
+                        night2{"نیمه‌شب"}
+                    }
+                    narrow{
+                        afternoon1{"بعد از چاشت"}
+                        morning1{"ب"}
+                        night1{"ش"}
+                    }
+                    wide{
+                        afternoon1{"ظهر"}
+                        afternoon2{"بعدازچاشت"}
+                        morning1{"بامداد"}
+                        morning2{"صبح"}
+                        night2{"نیمه‌شب"}
+                    }
+                }
+            }
             monthNames{
                 format{
                     abbreviated{
                         "جنو",
-                        "فوریهٔ",
-                        "مارس",
-                        "آوریل",
+                        "فبروری",
+                        "مارچ",
+                        "اپریل",
                         "می",
-                        "ژوئن",
+                        "جون",
                         "جول",
-                        "اوت",
-                        "سپتامبر",
-                        "اکتبر",
-                        "نوامبر",
+                        "اگست",
+                        "سپتمبر",
+                        "اکتوبر",
+                        "نومبر",
                         "دسم",
+                    }
+                    narrow{
+                        "ج",
+                        "ف",
+                        "م",
+                        "ا",
+                        "م",
+                        "ج",
+                        "ج",
+                        "ا",
+                        "س",
+                        "ا",
+                        "ن",
+                        "د",
                     }
                     wide{
                         "جنوری",
@@ -46,6 +132,20 @@ fa_AF{
                     }
                 }
                 stand-alone{
+                    abbreviated{
+                        "جنوری",
+                        "فبروری",
+                        "مارچ",
+                        "اپریل",
+                        "می",
+                        "جون",
+                        "جولای",
+                        "اگست",
+                        "سپتمبر",
+                        "اکتوبر",
+                        "نومبر",
+                        "دسمبر",
+                    }
                     narrow{
                         "ج",
                         "ف",
@@ -59,6 +159,50 @@ fa_AF{
                         "ا",
                         "ن",
                         "د",
+                    }
+                    wide{
+                        "جنوری",
+                        "فبروری",
+                        "مارچ",
+                        "اپریل",
+                        "می",
+                        "جون",
+                        "جولای",
+                        "اگست",
+                        "سپتمبر",
+                        "اکتوبر",
+                        "نومبر",
+                        "دسمبر",
+                    }
+                }
+            }
+            quarters{
+                format{
+                    abbreviated{
+                        "ر۱",
+                        "ر۲",
+                        "ر۳",
+                        "ر۴",
+                    }
+                    wide{
+                        "ربع اول",
+                        "ربع دوم",
+                        "ربع سوم",
+                        "ربع چهارم",
+                    }
+                }
+                stand-alone{
+                    abbreviated{
+                        "ر۱",
+                        "ر۲",
+                        "ر۳",
+                        "ر۴",
+                    }
+                    wide{
+                        "ربع اول",
+                        "ربع دوم",
+                        "ربع سوم",
+                        "ربع چهارم",
                     }
                 }
             }

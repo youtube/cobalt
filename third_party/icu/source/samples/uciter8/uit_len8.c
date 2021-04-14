@@ -1,12 +1,18 @@
 /*
 *******************************************************************************
 *
+*   © 2016 and later: Unicode, Inc. and others.
+*   License & terms of use: http://www.unicode.org/copyright.html
+*
+*******************************************************************************
+*******************************************************************************
+*
 *   Copyright (C) 2003-2006, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  uit_len8.c
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -211,24 +217,24 @@ lenient8IteratorMove(UCharIterator *iter, int32_t delta, UCharIteratorOrigin ori
     case UITER_ZERO:
     case UITER_START:
         pos=delta;
-        havePos=TRUE;
+        havePos=true;
         /* iter->index<0 (unknown) is possible */
         break;
     case UITER_CURRENT:
         if(iter->index>=0) {
             pos=iter->index+delta;
-            havePos=TRUE;
+            havePos=true;
         } else {
             /* the current UTF-16 index is unknown after setState(), use only delta */
             pos=0;
-            havePos=FALSE;
+            havePos=false;
         }
         break;
     case UITER_LIMIT:
     case UITER_LENGTH:
         if(iter->length>=0) {
             pos=iter->length+delta;
-            havePos=TRUE;
+            havePos=true;
         } else {
             /* pin to the end, avoid counting the length */
             iter->index=-1;
@@ -239,7 +245,7 @@ lenient8IteratorMove(UCharIterator *iter, int32_t delta, UCharIteratorOrigin ori
             } else {
                 /* the current UTF-16 index is unknown, use only delta */
                 pos=0;
-                havePos=FALSE;
+                havePos=false;
             }
         }
         break;
@@ -545,7 +551,7 @@ uiter_setLenient8(UCharIterator *iter, const char *s, int32_t length) {
             if(length>=0) {
                 iter->limit=length;
             } else {
-                iter->limit=strlen(s);
+                iter->limit=(int32_t)strlen(s);
             }
             iter->length= iter->limit<=1 ? iter->limit : -1;
         } else {

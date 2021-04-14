@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
  *******************************************************************************
  * Copyright (C) 2001-2014, International Business Machines Corporation and    *
@@ -10,7 +12,9 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"
@@ -25,7 +29,6 @@
 
 U_NAMESPACE_BEGIN
 
-static UMutex llock = U_MUTEX_INITIALIZER;
 ICULocaleService::ICULocaleService()
   : fallbackLocale(Locale::getDefault())
 {
@@ -263,6 +266,7 @@ ICULocaleService::validateFallbackLocale() const
 {
     const Locale&     loc    = Locale::getDefault();
     ICULocaleService* ncThis = (ICULocaleService*)this;
+    static UMutex llock;
     {
         Mutex mutex(&llock);
         if (loc != fallbackLocale) {

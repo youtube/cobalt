@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/id.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 id{
     Countries{
         001{"Dunia"}
@@ -37,6 +32,7 @@ id{
         151{"Eropa Bagian Timur"}
         154{"Eropa Bagian Utara"}
         155{"Eropa Bagian Barat"}
+        202{"Afrika Sub-Sahara"}
         419{"Amerika Latin"}
         AC{"Pulau Ascension"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ id{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antilla Belanda"}
         AO{"Angola"}
         AQ{"Antarktika"}
         AR{"Argentina"}
@@ -65,11 +60,11 @@ id{
         BH{"Bahrain"}
         BI{"Burundi"}
         BJ{"Benin"}
-        BL{"Saint Barthelemy"}
+        BL{"Saint Barthélemy"}
         BM{"Bermuda"}
         BN{"Brunei"}
         BO{"Bolivia"}
-        BQ{"Karibia Belanda"}
+        BQ{"Belanda Karibia"}
         BR{"Brasil"}
         BS{"Bahama"}
         BT{"Bhutan"}
@@ -78,25 +73,25 @@ id{
         BY{"Belarus"}
         BZ{"Belize"}
         CA{"Kanada"}
-        CC{"Kepulauan Cocos"}
+        CC{"Kepulauan Cocos (Keeling)"}
         CD{"Kongo - Kinshasa"}
         CF{"Republik Afrika Tengah"}
         CG{"Kongo - Brazzaville"}
         CH{"Swiss"}
-        CI{"Cote d’Ivoire"}
+        CI{"Côte d’Ivoire"}
         CK{"Kepulauan Cook"}
         CL{"Cile"}
         CM{"Kamerun"}
-        CN{"China"}
+        CN{"Tiongkok"}
         CO{"Kolombia"}
         CP{"Pulau Clipperton"}
         CR{"Kosta Rika"}
         CU{"Kuba"}
         CV{"Tanjung Verde"}
         CW{"Curaçao"}
-        CX{"Pulau Christmas"}
+        CX{"Pulau Natal"}
         CY{"Siprus"}
-        CZ{"Republik Cheska"}
+        CZ{"Ceko"}
         DE{"Jerman"}
         DG{"Diego Garcia"}
         DJ{"Jibuti"}
@@ -113,21 +108,22 @@ id{
         ES{"Spanyol"}
         ET{"Etiopia"}
         EU{"Uni Eropa"}
+        EZ{"Zona Euro"}
         FI{"Finlandia"}
         FJ{"Fiji"}
-        FK{"Kepulauan Malvinas"}
+        FK{"Kepulauan Falkland (Malvinas)"}
         FM{"Mikronesia"}
         FO{"Kepulauan Faroe"}
         FR{"Prancis"}
         GA{"Gabon"}
-        GB{"Inggris"}
+        GB{"Inggris Raya"}
         GD{"Grenada"}
         GE{"Georgia"}
         GF{"Guyana Prancis"}
         GG{"Guernsey"}
         GH{"Ghana"}
         GI{"Gibraltar"}
-        GL{"Grinlandia"}
+        GL{"Greenland"}
         GM{"Gambia"}
         GN{"Guinea"}
         GP{"Guadeloupe"}
@@ -144,7 +140,7 @@ id{
         HR{"Kroasia"}
         HT{"Haiti"}
         HU{"Hungaria"}
-        IC{"Kepulauan Canary"}
+        IC{"Kepulauan Canaria"}
         ID{"Indonesia"}
         IE{"Irlandia"}
         IL{"Israel"}
@@ -160,7 +156,7 @@ id{
         JO{"Yordania"}
         JP{"Jepang"}
         KE{"Kenya"}
-        KG{"Kirgistan"}
+        KG{"Kirgizstan"}
         KH{"Kamboja"}
         KI{"Kiribati"}
         KM{"Komoro"}
@@ -169,7 +165,7 @@ id{
         KR{"Korea Selatan"}
         KW{"Kuwait"}
         KY{"Kepulauan Cayman"}
-        KZ{"Kazakstan"}
+        KZ{"Kazakhstan"}
         LA{"Laos"}
         LB{"Lebanon"}
         LC{"Saint Lucia"}
@@ -180,7 +176,7 @@ id{
         LT{"Lituania"}
         LU{"Luksemburg"}
         LV{"Latvia"}
-        LY{"Libia"}
+        LY{"Libya"}
         MA{"Maroko"}
         MC{"Monako"}
         MD{"Moldova"}
@@ -188,7 +184,7 @@ id{
         MF{"Saint Martin"}
         MG{"Madagaskar"}
         MH{"Kepulauan Marshall"}
-        MK{"Makedonia"}
+        MK{"Makedonia Utara"}
         ML{"Mali"}
         MM{"Myanmar (Burma)"}
         MN{"Mongolia"}
@@ -258,17 +254,17 @@ id{
         SV{"El Salvador"}
         SX{"Sint Maarten"}
         SY{"Suriah"}
-        SZ{"Swaziland"}
+        SZ{"eSwatini"}
         TA{"Tristan da Cunha"}
         TC{"Kepulauan Turks dan Caicos"}
-        TD{"Cad"}
-        TF{"Wilayah Kutub Selatan Prancis"}
+        TD{"Chad"}
+        TF{"Wilayah Selatan Prancis"}
         TG{"Togo"}
         TH{"Thailand"}
         TJ{"Tajikistan"}
         TK{"Tokelau"}
         TL{"Timor Leste"}
-        TM{"Turkimenistan"}
+        TM{"Turkmenistan"}
         TN{"Tunisia"}
         TO{"Tonga"}
         TR{"Turki"}
@@ -278,19 +274,22 @@ id{
         TZ{"Tanzania"}
         UA{"Ukraina"}
         UG{"Uganda"}
-        UM{"Kepulauan Terluar A.S."}
+        UM{"Kepulauan Terluar AS"}
+        UN{"Perserikatan Bangsa-Bangsa"}
         US{"Amerika Serikat"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
         VA{"Vatikan"}
-        VC{"Saint Vincent dan Grenadines"}
+        VC{"Saint Vincent dan Grenadine"}
         VE{"Venezuela"}
-        VG{"Kepulauan Virgin Inggris"}
-        VI{"Kepulauan Virgin A.S."}
+        VG{"Kepulauan Virgin Britania Raya"}
+        VI{"Kepulauan Virgin Amerika Serikat"}
         VN{"Vietnam"}
         VU{"Vanuatu"}
         WF{"Kepulauan Wallis dan Futuna"}
         WS{"Samoa"}
+        XA{"Aksen Asing"}
+        XB{"Pseudo-Bidi"}
         XK{"Kosovo"}
         YE{"Yaman"}
         YT{"Mayotte"}
@@ -300,16 +299,14 @@ id{
         ZZ{"Wilayah Tidak Dikenal"}
     }
     Countries%short{
-        GB{"GB"}
-        US{"A.S."}
+        GB{"UK"}
+        UN{"PBB"}
+        US{"AS"}
     }
     Countries%variant{
         CD{"Kongo (RDK)"}
         CG{"Kongo (Republik)"}
-        CI{"Ivory Coast"}
-        FK{"Kepulauan Malvinas (Falkland)"}
-        MK{"Makedonia (BRY)"}
+        CZ{"Republik Ceko"}
         TL{"Timor Timur"}
     }
-    Version{"2.1.19.17"}
 }

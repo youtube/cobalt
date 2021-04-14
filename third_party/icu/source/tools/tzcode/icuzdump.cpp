@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
-*   Copyright (C) 2007-2014, International Business Machines
+*   Copyright (C) 2007-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 *******************************************************************************
 *   file name:  icuzdump.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -34,9 +36,11 @@
 #include "unicode/ustream.h"
 #include "unicode/putil.h"
 
+#include "cmemory.h"
 #include "uoptions.h"
 
 using namespace std;
+using namespace icu;
 
 class DumpFormatter {
 public:
@@ -133,12 +137,12 @@ public:
 
         getCutOverTimes(cutlo, cuthi);
         t = cutlo;
-        timezone->getOffset(t, FALSE, rawOffset, dstOffset, status);
+        timezone->getOffset(t, false, rawOffset, dstOffset, status);
         while (t < cuthi) {
             int32_t newRawOffset, newDstOffset;
             UDate newt = t + SEARCH_INCREMENT;
 
-            timezone->getOffset(newt, FALSE, newRawOffset, newDstOffset, status);
+            timezone->getOffset(newt, false, newRawOffset, newDstOffset, status);
 
             UBool bSameOffset = (rawOffset + dstOffset) == (newRawOffset + newDstOffset);
             UBool bSameDst = ((dstOffset != 0) && (newDstOffset != 0)) || ((dstOffset == 0) && (newDstOffset == 0));
@@ -154,7 +158,7 @@ public:
                     }
                     UDate medt = lot + ((diff / 2) / tick) * tick;
                     int32_t medRawOffset, medDstOffset;
-                    timezone->getOffset(medt, FALSE, medRawOffset, medDstOffset, status);
+                    timezone->getOffset(medt, false, medRawOffset, medDstOffset, status);
 
                     bSameOffset = (rawOffset + dstOffset) == (medRawOffset + medDstOffset);
                     bSameDst = ((dstOffset != 0) && (medDstOffset != 0)) || ((dstOffset == 0) && (medDstOffset == 0));
@@ -167,10 +171,10 @@ public:
                 }
                 // write out the boundary
                 str.remove();
-                formatter->format(lot, rawOffset + dstOffset, (dstOffset == 0 ? FALSE : TRUE), str);
+                formatter->format(lot, rawOffset + dstOffset, (dstOffset == 0 ? false : true), str);
                 out << str << " > ";
                 str.remove();
-                formatter->format(hit, newRawOffset + newDstOffset, (newDstOffset == 0 ? FALSE : TRUE), str);
+                formatter->format(hit, newRawOffset + newDstOffset, (newDstOffset == 0 ? false : true), str);
                 out << str;
                 if (linesep != NULL) {
                     out << linesep;
@@ -207,7 +211,7 @@ private:
 
 class ZoneIterator {
 public:
-    ZoneIterator(UBool bAll = FALSE) {
+    ZoneIterator(UBool bAll = false) {
         if (bAll) {
             zenum = TimeZone::createEnumeration();
         }
@@ -284,12 +288,12 @@ extern int
 main(int argc, char *argv[]) {
     int32_t low = 1902;
     int32_t high = 2038;
-    UBool bAll = FALSE;
+    UBool bAll = false;
     const char *dir = NULL;
     const char *linesep = NULL;
 
     U_MAIN_INIT_ARGS(argc, argv);
-    argc = u_parseArgs(argc, argv, sizeof(options)/sizeof(options[0]), options);
+    argc = u_parseArgs(argc, argv, UPRV_LENGTHOF(options), options);
 
     if (argc < 0) {
         cerr << "Illegal command line argument(s)" << endl << endl;
@@ -351,7 +355,7 @@ main(int argc, char *argv[]) {
 
     ZoneIterator* zit;
     if (bAll) {
-        zit = new ZoneIterator(TRUE);
+        zit = new ZoneIterator(true);
     } else {
         if (argc <= 1) {
             zit = new ZoneIterator();
@@ -384,7 +388,7 @@ main(int argc, char *argv[]) {
 
             ofstream* fout = new ofstream(path.str().c_str(), mode);
             if (fout->fail()) {
-                cerr << "Cannot open file " << path << endl;
+                cerr << "Cannot open file " << path.str() << endl;
                 delete fout;
                 delete tz;
                 break;
@@ -398,7 +402,7 @@ main(int argc, char *argv[]) {
 
     } else {
         // stdout
-        UBool bFirst = TRUE;
+        UBool bFirst = true;
         for (;;) {
             TimeZone* tz = zit->next();
             if (tz == NULL) {
@@ -407,7 +411,7 @@ main(int argc, char *argv[]) {
             dumper.setTimeZone(tz);
             tz->getID(id);
             if (bFirst) {
-                bFirst = FALSE;
+                bFirst = false;
             } else {
                 cout << endl;
             }

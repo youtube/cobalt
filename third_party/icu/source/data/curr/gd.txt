@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/gd.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 gd{
     Currencies{
         ADP{
@@ -224,9 +219,13 @@ gd{
             "BYB",
             "Rùbal ùr Bealaruiseach (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "Rùbal Bealaruiseach",
+        }
         BYR{
             "BYR",
-            "Rùbal Bealaruiseach",
+            "Rùbal Bealaruiseach (2000–2016)",
         }
         BZD{
             "BZD",
@@ -263,6 +262,10 @@ gd{
         CLP{
             "CLP",
             "Peso Sileach",
+        }
+        CNH{
+            "CNH",
+            "Yuan Sìneach (far-thìreach)",
         }
         CNX{
             "CNX",
@@ -682,6 +685,10 @@ gd{
         }
         MRO{
             "MRO",
+            "Ouguiya Moratàineach (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ouguiya Moratàineach",
         }
         MTL{
@@ -782,7 +789,7 @@ gd{
         }
         PEN{
             "PEN",
-            "Sol ùr Pearùthach",
+            "Sol Pearùthach",
         }
         PES{
             "PES",
@@ -914,6 +921,10 @@ gd{
         }
         STD{
             "STD",
+            "Dobra São Tomé agus Príncipe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Dobra São Tomé agus Príncipe",
         }
         SUR{
@@ -1024,6 +1035,10 @@ gd{
             "UYU",
             "Peso Uruguaidheach",
         }
+        UYW{
+            "UYW",
+            "Aonad inneacs tuarastail ainmeach Uruguaidh",
+        }
         UZS{
             "UZS",
             "Som Usbagach",
@@ -1034,6 +1049,10 @@ gd{
         }
         VEF{
             "VEF",
+            "Bolívar Bheinisealach (2008–2018)",
+        }
+        VES{
+            "VES",
             "Bolívar Bheinisealach",
         }
         VND{
@@ -1210,7 +1229,7 @@ gd{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1228,6 +1247,7 @@ gd{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -1270,6 +1290,7 @@ gd{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"leu"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"RF"}
@@ -1279,7 +1300,7 @@ gd{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1623,11 +1644,17 @@ gd{
             other{"rùbal ùr Bealaruiseach (1994–1999)"}
             two{"rùbal ùr Bealaruiseach (1994–1999)"}
         }
-        BYR{
+        BYN{
             few{"rùbalan Bealaruiseach"}
             one{"rùbal Bealaruiseach"}
             other{"rùbal Bealaruiseach"}
             two{"rùbal Bealaruiseach"}
+        }
+        BYR{
+            few{"rùbalan Bealaruiseach (2000–2016)"}
+            one{"rùbal Bealaruiseach (2000–2016)"}
+            other{"rùbal Bealaruiseach (2000–2016)"}
+            two{"rùbal Bealaruiseach (2000–2016)"}
         }
         BZD{
             few{"dolaran Beilìseach"}
@@ -1682,6 +1709,12 @@ gd{
             one{"pheso Sileach"}
             other{"peso Sileach"}
             two{"pheso Sileach"}
+        }
+        CNH{
+            few{"yuan Sìneach (far-thìreach)"}
+            one{"yuan Sìneach (far-thìreach)"}
+            other{"yuan Sìneach (far-thìreach)"}
+            two{"yuan Sìneach (far-thìreach)"}
         }
         CNX{
             few{"dolaran an t-sluagh-bhanca Shìnich"}
@@ -2308,6 +2341,12 @@ gd{
             two{"phataca Macàthuach"}
         }
         MRO{
+            few{"ouguiya Moratàineach (1973–2017)"}
+            one{"ouguiya Moratàineach (1973–2017)"}
+            other{"ouguiya Moratàineach (1973–2017)"}
+            two{"ouguiya Moratàineach (1973–2017)"}
+        }
+        MRU{
             few{"ouguiya Moratàineach"}
             one{"ouguiya Moratàineach"}
             other{"ouguiya Moratàineach"}
@@ -2458,10 +2497,10 @@ gd{
             two{"inti Pearùthach"}
         }
         PEN{
-            few{"sol ùra Pearùthach"}
-            one{"sol ùr Pearùthach"}
-            other{"sol ùr Pearùthach"}
-            two{"shol ùr Pearùthach"}
+            few{"sol Pearùthach"}
+            one{"sol Pearùthach"}
+            other{"sol Pearùthach"}
+            two{"shol Pearùthach"}
         }
         PES{
             few{"sol Pearùthach (1863–1965)"}
@@ -2656,6 +2695,12 @@ gd{
             two{"phunnd Sudàin a Deas"}
         }
         STD{
+            few{"dobra São Tomé agus Príncipe (1977–2017)"}
+            one{"dobra São Tomé agus Príncipe (1977–2017)"}
+            other{"dobra São Tomé agus Príncipe (1977–2017)"}
+            two{"dhobra São Tomé agus Príncipe (1977–2017)"}
+        }
+        STN{
             few{"dobra São Tomé agus Príncipe"}
             one{"dobra São Tomé agus Príncipe"}
             other{"dobra São Tomé agus Príncipe"}
@@ -2823,6 +2868,12 @@ gd{
             other{"peso Uruguaidheach"}
             two{"pheso Uruguaidheach"}
         }
+        UYW{
+            few{"aonadan inneacs tuarastail ainmeach Uruguaidh"}
+            one{"aonad inneacs tuarastail ainmeach Uruguaidh"}
+            other{"aonad inneacs tuarastail ainmeach Uruguaidh"}
+            two{"aonad inneacs tuarastail ainmeach Uruguaidh"}
+        }
         UZS{
             few{"som Usbagach"}
             one{"som Usbagach"}
@@ -2836,6 +2887,12 @@ gd{
             two{"bholívar Bheinisealach (1871–2008)"}
         }
         VEF{
+            few{"bolívar Bheinisealach (2008–2018)"}
+            one{"bholívar Bheinisealach (2008–2018)"}
+            other{"bolívar Bheinisealach (2008–2018)"}
+            two{"bholívar Bheinisealach (2008–2018)"}
+        }
+        VES{
             few{"bolívar Bheinisealach"}
             one{"bholívar Bheinisealach"}
             other{"bolívar Bheinisealach"}
@@ -3088,5 +3145,4 @@ gd{
         other{"{0} {1}"}
         two{"{0} {1}"}
     }
-    Version{"2.1.20.4"}
 }

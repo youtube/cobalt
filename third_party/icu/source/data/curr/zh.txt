@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zh.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zh{
     Currencies{
         ADP{
@@ -86,7 +81,7 @@ zh{
         }
         AWG{
             "AWG",
-            "阿鲁巴基尔德元",
+            "阿鲁巴弗罗林",
         }
         AZM{
             "AZM",
@@ -138,7 +133,7 @@ zh{
         }
         BGN{
             "BGN",
-            "保加利亚新列弗",
+            "保加利亚列弗",
         }
         BGO{
             "BGO",
@@ -224,9 +219,13 @@ zh{
             "BYB",
             "白俄罗斯新卢布 (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "白俄罗斯卢布",
+        }
         BYR{
             "BYR",
-            "白俄罗斯卢布",
+            "白俄罗斯卢布 (2000–2016)",
         }
         BZD{
             "BZD",
@@ -264,8 +263,16 @@ zh{
             "CLP",
             "智利比索",
         }
+        CNH{
+            "CNH",
+            "人民币（离岸）",
+        }
+        CNX{
+            "CNX",
+            "中国人民银行元",
+        }
         CNY{
-            "￥",
+            "¥",
             "人民币",
         }
         COP{
@@ -286,7 +293,7 @@ zh{
         }
         CSK{
             "CSK",
-            "捷克硬克郎",
+            "捷克硬克朗",
         }
         CUC{
             "CUC",
@@ -306,7 +313,7 @@ zh{
         }
         CZK{
             "CZK",
-            "捷克克郎",
+            "捷克克朗",
         }
         DDM{
             "DDM",
@@ -674,10 +681,14 @@ zh{
         }
         MOP{
             "MOP",
-            "澳门元",
+            "澳门币",
         }
         MRO{
             "MRO",
+            "毛里塔尼亚乌吉亚 (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "毛里塔尼亚乌吉亚",
         }
         MTL{
@@ -691,6 +702,10 @@ zh{
         MUR{
             "MUR",
             "毛里求斯卢比",
+        }
+        MVP{
+            "MVP",
+            "马尔代夫卢比(1947–1981)",
         }
         MVR{
             "MVR",
@@ -742,7 +757,7 @@ zh{
         }
         NIO{
             "NIO",
-            "尼加拉瓜金科多巴",
+            "尼加拉瓜科多巴",
         }
         NLG{
             "NLG",
@@ -774,7 +789,7 @@ zh{
         }
         PEN{
             "PEN",
-            "秘鲁新索尔",
+            "秘鲁索尔",
         }
         PES{
             "PES",
@@ -906,6 +921,10 @@ zh{
         }
         STD{
             "STD",
+            "圣多美和普林西比多布拉 (1977–2017)",
+        }
+        STN{
+            "STN",
             "圣多美和普林西比多布拉",
         }
         SUR{
@@ -1016,6 +1035,10 @@ zh{
             "UYU",
             "乌拉圭比索",
         }
+        UYW{
+            "UYW",
+            "乌拉圭票面工资指数单位",
+        }
         UZS{
             "UZS",
             "乌兹别克斯坦苏姆",
@@ -1026,6 +1049,10 @@ zh{
         }
         VEF{
             "VEF",
+            "委内瑞拉玻利瓦尔 (2008–2018)",
+        }
+        VES{
+            "VES",
             "委内瑞拉玻利瓦尔",
         }
         VND{
@@ -1046,7 +1073,7 @@ zh{
         }
         XAF{
             "FCFA",
-            "中非金融合作法郎",
+            "中非法郎",
         }
         XAG{
             "XAG",
@@ -1094,7 +1121,7 @@ zh{
         }
         XOF{
             "CFA",
-            "非洲金融共同体法郎",
+            "西非法郎",
         }
         XPD{
             "XPD",
@@ -1112,9 +1139,17 @@ zh{
             "XRE",
             "RINET 基金",
         }
+        XSU{
+            "XSU",
+            "苏克雷",
+        }
         XTS{
             "XTS",
             "测试货币代码",
+        }
+        XUA{
+            "XUA",
+            "非洲开发银行记账单位",
         }
         XXX{
             "XXX",
@@ -1194,7 +1229,7 @@ zh{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1212,6 +1247,7 @@ zh{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -1252,6 +1288,7 @@ zh{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"lei"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"RF"}
@@ -1261,7 +1298,7 @@ zh{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1337,7 +1374,7 @@ zh{
             other{"澳大利亚元"}
         }
         AWG{
-            other{"阿鲁巴基尔德元"}
+            other{"阿鲁巴弗罗林"}
         }
         AZM{
             other{"阿塞拜疆马纳特 (1993–2006)"}
@@ -1438,8 +1475,11 @@ zh{
         BYB{
             other{"白俄罗斯新卢布 (1994–1999)"}
         }
-        BYR{
+        BYN{
             other{"白俄罗斯卢布"}
+        }
+        BYR{
+            other{"白俄罗斯卢布 (2000–2016)"}
         }
         BZD{
             other{"伯利兹元"}
@@ -1468,6 +1508,12 @@ zh{
         CLP{
             other{"智利比索"}
         }
+        CNH{
+            other{"人民币（离岸）"}
+        }
+        CNX{
+            other{"中国人民银行元"}
+        }
         CNY{
             other{"人民币"}
         }
@@ -1484,7 +1530,7 @@ zh{
             other{"旧塞尔维亚第纳尔"}
         }
         CSK{
-            other{"捷克硬克郎"}
+            other{"捷克硬克朗"}
         }
         CUC{
             other{"古巴可兑换比索"}
@@ -1499,7 +1545,7 @@ zh{
             other{"塞浦路斯镑"}
         }
         CZK{
-            other{"捷克克郎"}
+            other{"捷克克朗"}
         }
         DDM{
             other{"东德奥斯特马克"}
@@ -1772,6 +1818,9 @@ zh{
             other{"澳门元"}
         }
         MRO{
+            other{"毛里塔尼亚乌吉亚 (1973–2017)"}
+        }
+        MRU{
             other{"毛里塔尼亚乌吉亚"}
         }
         MTL{
@@ -1782,6 +1831,9 @@ zh{
         }
         MUR{
             other{"毛里求斯卢比"}
+        }
+        MVP{
+            other{"马尔代夫卢比(1947–1981)"}
         }
         MVR{
             other{"马尔代夫卢菲亚"}
@@ -1844,7 +1896,7 @@ zh{
             other{"秘鲁印第"}
         }
         PEN{
-            other{"秘鲁新索尔"}
+            other{"秘鲁索尔"}
         }
         PES{
             other{"秘鲁索尔 (1863–1965)"}
@@ -1943,6 +1995,9 @@ zh{
             other{"南苏丹镑"}
         }
         STD{
+            other{"圣多美和普林西比多布拉 (1977–2017)"}
+        }
+        STN{
             other{"圣多美和普林西比多布拉"}
         }
         SUR{
@@ -2023,6 +2078,9 @@ zh{
         UYU{
             other{"乌拉圭比索"}
         }
+        UYW{
+            other{"乌拉圭票面工资指数单位"}
+        }
         UZS{
             other{"乌兹别克斯坦苏姆"}
         }
@@ -2030,6 +2088,9 @@ zh{
             other{"委内瑞拉玻利瓦尔 (1871–2008)"}
         }
         VEF{
+            other{"委内瑞拉玻利瓦尔 (2008–2018)"}
+        }
+        VES{
             other{"委内瑞拉玻利瓦尔"}
         }
         VND{
@@ -2042,7 +2103,7 @@ zh{
             other{"萨摩亚塔拉"}
         }
         XAF{
-            other{"中非金融合作法郎"}
+            other{"中非法郎"}
         }
         XCD{
             other{"东加勒比元"}
@@ -2051,10 +2112,16 @@ zh{
             other{"欧洲货币单位"}
         }
         XOF{
-            other{"非洲金融共同体法郎"}
+            other{"西非法郎"}
         }
         XPF{
             other{"太平洋法郎"}
+        }
+        XSU{
+            other{"苏克雷"}
+        }
+        XUA{
+            other{"非洲开发银行记账单位"}
         }
         XXX{
             other{"（未知货币）"}
@@ -2108,5 +2175,4 @@ zh{
     CurrencyUnitPatterns{
         other{"{0}{1}"}
     }
-    Version{"2.1.20.31"}
 }
