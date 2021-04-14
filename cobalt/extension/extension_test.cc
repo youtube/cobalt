@@ -99,6 +99,7 @@ TEST(ExtensionTest, Graphics) {
 
   if (extension_api->version >= 5) {
     EXPECT_NE(extension_api->GetMapToMeshColorAdjustments, nullptr);
+    EXPECT_NE(extension_api->GetRenderRootTransform, nullptr);
   }
 
   const ExtensionApi* second_extension_api =

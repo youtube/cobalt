@@ -98,6 +98,15 @@ typedef struct CobaltExtensionGraphicsApi {
   // for details.
   bool (*GetMapToMeshColorAdjustments)(
       CobaltExtensionGraphicsMapToMeshColorAdjustment* adjustment);
+
+  // This function can be used to insert a custom transform at the root of
+  // rendering. This allows custom scaling, rotating, etc. of the frame. This
+  // only impacts rendering of the frame -- the web app will not know about this
+  // transform, so it may not layout elements appropriately. This function
+  // should return true if a custom transform should be used.
+  bool (*GetRenderRootTransform)(float* m00, float* m01, float* m02, float* m10,
+                                 float* m11, float* m12, float* m20, float* m21,
+                                 float* m22);
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus

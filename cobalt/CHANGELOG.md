@@ -130,6 +130,13 @@ This document records all notable changes made to Cobalt since the last release.
    Platforms which support 360 videos may adjust the colors of the video frame
    using `CobaltExtensionGraphicsApi::GetMapToMeshColorAdjustments`.
 
+ - **Added support for rendering the frame with a custom root transform.**
+
+   Platforms can force frame rendering to use a custom root transform by using
+   `CobaltExtensionGraphicsApi::GetRenderRootTransform`. This only impacts
+   rendering; the web app does not know about the custom transform so may not
+   layout elements appropriately.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
