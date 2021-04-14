@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-precision mediump float;
+precision highp float;
 uniform vec4 u_include;   // include scissor (x_min, y_min, x_max, y_max)
 varying vec2 v_offset;
 varying vec4 v_color;
