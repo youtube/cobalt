@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (c) 2001-2011, International Business Machines
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/uchar.h"
 #include "unicode/utf16.h"
 #include "unesctrn.h"
@@ -86,7 +90,7 @@ static UChar* copySpec(const UChar* spec) {
     UChar *result = (UChar *)uprv_malloc(len*sizeof(UChar));
     // Check for memory allocation error. 
     if (result != NULL) {
-    	uprv_memcpy(result, spec, len*sizeof(result[0]));
+    	uprv_memcpy(result, spec, (size_t)len*sizeof(result[0]));
     }
     return result;
 }
@@ -163,7 +167,7 @@ UnescapeTransliterator::~UnescapeTransliterator() {
 /**
  * Transliterator API.
  */
-Transliterator* UnescapeTransliterator::clone() const {
+UnescapeTransliterator* UnescapeTransliterator::clone() const {
     return new UnescapeTransliterator(*this);
 }
 

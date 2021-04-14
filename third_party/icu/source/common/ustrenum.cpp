@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2002-2014, International Business Machines
@@ -8,7 +10,9 @@
 * Since: ICU 2.4
 **********************************************************************
 */
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
+#endif  // defined(STARBOARD)
 #include "utypeinfo.h"  // for 'typeid' to work 
 
 #include "unicode/ustring.h"

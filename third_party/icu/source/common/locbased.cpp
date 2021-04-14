@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 * Copyright (c) 2004-2014, International Business Machines
@@ -8,7 +10,9 @@
 * Since: ICU 2.8
 **********************************************************************
 */
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "locbased.h"
 #include "cstring.h"
 

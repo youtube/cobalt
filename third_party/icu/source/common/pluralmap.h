@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 2015, International Business Machines Corporation and
@@ -232,7 +234,7 @@ public:
     }
 
     /**
-     * Returns TRUE if this object equals rhs.
+     * Returns true if this object equals rhs.
      */
     UBool equals(
             const PluralMap<T> &rhs,
@@ -242,13 +244,13 @@ public:
                 continue;
             }
             if (fVariants[i] == NULL || rhs.fVariants[i] == NULL) {
-                return FALSE;
+                return false;
             }
             if (!eqFunc(*fVariants[i], *rhs.fVariants[i])) {
-                return FALSE;
+                return false;
             }
         }
-        return TRUE;
+        return true;
     }
 
 private:

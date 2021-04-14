@@ -1,30 +1,40 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/de_CH.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 de_CH{
     Currencies{
+        BYN{
+            "BYN",
+            "Weissrussischer Rubel",
+        }
         BYR{
             "BYR",
-            "Weissrussischer Rubel",
+            "Weissrussischer Rubel (2000–2016)",
         }
         EUR{
             "EUR",
             "Euro",
+        }
+        STN{
+            "STN",
+            "São-toméischer Dobra (2018)",
         }
     }
     Currencies%narrow{
         EUR{"EUR"}
     }
     CurrencyPlurals{
-        BYR{
+        BYN{
             one{"Weissrussischer Rubel"}
             other{"Weissrussische Rubel"}
         }
+        BYR{
+            one{"Weissrussischer Rubel (2000–2016)"}
+            other{"Weissrussische Rubel (2000–2016)"}
+        }
+        STN{
+            one{"São-toméischer Dobra (2018)"}
+            other{"São-toméischer Dobra (2018)"}
+        }
     }
-    Version{"2.1.19.87"}
 }

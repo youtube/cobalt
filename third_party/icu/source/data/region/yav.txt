@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/yav.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 yav{
     Countries{
         AD{"Aŋtúla"}
@@ -15,7 +10,6 @@ yav{
         AI{"Aŋkíla"}
         AL{"Alpaní"}
         AM{"Almanía"}
-        AN{"andíiy u nitililáand"}
         AO{"Aŋkúla"}
         AR{"Alsaŋtín"}
         AS{"Sámua u Amelíka"}
@@ -134,7 +128,6 @@ yav{
         MD{"moltafí"}
         MG{"matakaskáal"}
         MH{"ílmalasáal"}
-        MK{"masetuán"}
         ML{"malí"}
         MM{"miaŋmáal"}
         MN{"mongolí"}
@@ -233,5 +226,4 @@ yav{
         ZM{"saambíi"}
         ZW{"simbapuwé"}
     }
-    Version{"2.1.19.14"}
 }

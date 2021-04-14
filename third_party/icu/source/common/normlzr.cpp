@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  *************************************************************************
  * COPYRIGHT: 
@@ -10,7 +12,9 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"
 #include "unicode/chariter.h"
@@ -21,6 +25,12 @@
 #include "cmemory.h"
 #include "normalizer2impl.h"
 #include "uprops.h"  // for uniset_getUnicode32Instance()
+
+#if defined(move32)
+ // System can define move32 intrinsics, but the char iters define move32 method
+ // using same undef trick in headers, so undef here to re-enable the method.
+#undef move32
+#endif
 
 U_NAMESPACE_BEGIN
 
@@ -39,7 +49,7 @@ Normalizer::Normalizer(const UnicodeString& str, UNormalizationMode mode) :
     init();
 }
 
-Normalizer::Normalizer(const UChar *str, int32_t length, UNormalizationMode mode) :
+Normalizer::Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode) :
     UObject(), fFilteredNorm2(NULL), fNorm2(NULL), fUMode(mode), fOptions(0),
     text(new UCharCharacterIterator(str, length)),
     currentIndex(0), nextIndex(0),
@@ -434,7 +444,7 @@ Normalizer::setText(const CharacterIterator& newText,
 }
 
 void
-Normalizer::setText(const UChar* newText,
+Normalizer::setText(ConstChar16Ptr newText,
                     int32_t length,
                     UErrorCode &status)
 {

@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/brx.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 brx{
     Currencies{
         ADP{
@@ -192,9 +187,13 @@ brx{
             "BYB",
             "बेलारुसी नया रूबल (194–1999)",
         }
+        BYN{
+            "BYN",
+            "बेलारुसी रूबल",
+        }
         BYR{
             "BYR",
-            "बेलारुसी रूबल",
+            "बेलारुसी रूबल (2000–2016)",
         }
         BZD{
             "BZD",
@@ -610,6 +609,10 @@ brx{
         }
         MRO{
             "MRO",
+            "मौरिटानी ऊगुया (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "मौरिटानी ऊगुया",
         }
         MTL{
@@ -706,11 +709,11 @@ brx{
         }
         PEN{
             "PEN",
-            "पेरुवाई नया सोल",
+            "पेरुवाई सोल",
         }
         PES{
             "PES",
-            "पेरुवाई सोल",
+            "पेरुवाई सोल (1863–1965)",
         }
         PGK{
             "PGK",
@@ -826,6 +829,10 @@ brx{
         }
         STD{
             "STD",
+            "साँव तोमे एवं प्रीन्सीपे का डोब्रा (1977–2017)",
+        }
+        STN{
+            "STN",
             "साँव तोमे एवं प्रीन्सीपे का डोब्रा",
         }
         SUR{
@@ -942,6 +949,10 @@ brx{
         }
         VEF{
             "VEF",
+            "वेनेज़ुएलाई बोलिवार (2008–2018)",
+        }
+        VES{
+            "VES",
             "वेनेज़ुएलाई बोलिवार",
         }
         VND{
@@ -1029,7 +1040,7 @@ brx{
             "टेस्टींग करनसी कोड",
         }
         XXX{
-            "XXX",
+            "¤",
             "अज्ञात या अवैध मुद्रा",
         }
         YDD{
@@ -1077,5 +1088,4 @@ brx{
             "ज़ीम्बाबवेई डॉलर",
         }
     }
-    Version{"2.1.19.74"}
 }

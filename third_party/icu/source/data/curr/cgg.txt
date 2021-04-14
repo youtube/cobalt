@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/cgg.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 cgg{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ cgg{
         }
         MRO{
             "MRO",
+            "Ougwiya ya Mouriteeniya (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Ougwiya ya Mouriteeniya",
         }
         MUR{
@@ -186,6 +185,10 @@ cgg{
         }
         STD{
             "STD",
+            "Dobra ya Sao Tome na Purinsipo (1977–2017)",
+        }
+        STN{
+            "STN",
             "Dobra ya Sao Tome na Purinsipo",
         }
         TND{
@@ -229,5 +232,4 @@ cgg{
             "Doora ya Zimbabwe",
         }
     }
-    Version{"2.1.19.14"}
 }

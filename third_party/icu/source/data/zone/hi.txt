@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/hi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 hi{
-    Version{"2.1.19.47"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"अबिदजान"}
@@ -190,10 +184,10 @@ hi{
             ec{"साल्टा"}
         }
         "America:Argentina:San_Juan"{
-            ec{"सान जुआन"}
+            ec{"सैन ह्वान"}
         }
         "America:Argentina:San_Luis"{
-            ec{"सान लुईस"}
+            ec{"सैन लूई"}
         }
         "America:Argentina:Tucuman"{
             ec{"टोकूमन"}
@@ -202,7 +196,7 @@ hi{
             ec{"उशुआइया"}
         }
         "America:Aruba"{
-            ec{"अरुबा"}
+            ec{"अरूबा"}
         }
         "America:Asuncion"{
             ec{"एसनशियॉन"}
@@ -232,7 +226,7 @@ hi{
             ec{"बोगोटा"}
         }
         "America:Boise"{
-            ec{"बॉइस"}
+            ec{"बॉइसी"}
         }
         "America:Buenos_Aires"{
             ec{"ब्यूनस आयरस"}
@@ -309,17 +303,20 @@ hi{
         "America:El_Salvador"{
             ec{"अल सल्वाडोर"}
         }
+        "America:Fort_Nelson"{
+            ec{"फ़ोर्ट नेल्सन"}
+        }
         "America:Fortaleza"{
             ec{"फ़ोर्टालेज़ा"}
         }
         "America:Glace_Bay"{
-            ec{"ग्लेस खा़ड़ी"}
+            ec{"ग्लेस खाड़ी"}
         }
         "America:Godthab"{
             ec{"नुक"}
         }
         "America:Goose_Bay"{
-            ec{"गूस खा़ड़ी"}
+            ec{"गूस खाड़ी"}
         }
         "America:Grand_Turk"{
             ec{"ग्रांड टर्क"}
@@ -510,6 +507,9 @@ hi{
         "America:Puerto_Rico"{
             ec{"पोर्टो रिको"}
         }
+        "America:Punta_Arenas"{
+            ec{"पुंटा एरिनास"}
+        }
         "America:Rainy_River"{
             ec{"रेनी नदी"}
         }
@@ -544,7 +544,7 @@ hi{
             ec{"साओ पाउलो"}
         }
         "America:Scoresbysund"{
-            ec{"इटोकोर्टोरमियाट"}
+            ec{"इटोकोर्टोरमिट"}
         }
         "America:Sitka"{
             ec{"सिट्का"}
@@ -660,6 +660,9 @@ hi{
         "Asia:Ashgabat"{
             ec{"अश्गाबात"}
         }
+        "Asia:Atyrau"{
+            ec{"एतराउ"}
+        }
         "Asia:Baghdad"{
             ec{"बगदाद"}
         }
@@ -671,6 +674,9 @@ hi{
         }
         "Asia:Bangkok"{
             ec{"बैंकॉक"}
+        }
+        "Asia:Barnaul"{
+            ec{"बर्नोल"}
         }
         "Asia:Beirut"{
             ec{"बेरुत"}
@@ -707,6 +713,9 @@ hi{
         }
         "Asia:Dushanbe"{
             ec{"दुशांबे"}
+        }
+        "Asia:Famagusta"{
+            ec{"फ़ामागुस्ता"}
         }
         "Asia:Gaza"{
             ec{"गाज़ा"}
@@ -801,6 +810,9 @@ hi{
         "Asia:Qatar"{
             ec{"कतर"}
         }
+        "Asia:Qostanay"{
+            ec{"कोस्टाने"}
+        }
         "Asia:Qyzylorda"{
             ec{"केज़ेलोर्डा"}
         }
@@ -848,6 +860,9 @@ hi{
         }
         "Asia:Tokyo"{
             ec{"टोक्यो"}
+        }
+        "Asia:Tomsk"{
+            ec{"तोम्स्क"}
         }
         "Asia:Ulaanbaatar"{
             ec{"उलानबातर"}
@@ -939,6 +954,9 @@ hi{
         "Australia:Sydney"{
             ec{"सिडनी"}
         }
+        "Etc:UTC"{
+            ls{"समन्वित वैश्विक समय"}
+        }
         "Etc:Unknown"{
             ec{"अज्ञात शहर"}
         }
@@ -947,6 +965,9 @@ hi{
         }
         "Europe:Andorra"{
             ec{"अंडोरा"}
+        }
+        "Europe:Astrakhan"{
+            ec{"आस्ट्राखान"}
         }
         "Europe:Athens"{
             ec{"एथेंस"}
@@ -1006,6 +1027,9 @@ hi{
         "Europe:Kiev"{
             ec{"कीव"}
         }
+        "Europe:Kirov"{
+            ec{"किरोव"}
+        }
         "Europe:Lisbon"{
             ec{"लिस्बन"}
         }
@@ -1064,6 +1088,9 @@ hi{
         "Europe:Sarajevo"{
             ec{"साराजेवो"}
         }
+        "Europe:Saratov"{
+            ec{"सारातोव"}
+        }
         "Europe:Simferopol"{
             ec{"सिम्फ़ेरोपोल"}
         }
@@ -1081,6 +1108,9 @@ hi{
         }
         "Europe:Tirane"{
             ec{"टाइरेन"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"उल्यानोव्स्क"}
         }
         "Europe:Uzhgorod"{
             ec{"अज़्गोरोद"}
@@ -1152,10 +1182,10 @@ hi{
             ec{"ऑकलैंड"}
         }
         "Pacific:Bougainville"{
-            ec{"बोगनविल"}
+            ec{"बोगनविले"}
         }
         "Pacific:Chatham"{
-            ec{"चाथम"}
+            ec{"चैथम"}
         }
         "Pacific:Easter"{
             ec{"ईस्टर"}
@@ -1189,6 +1219,8 @@ hi{
         }
         "Pacific:Honolulu"{
             ec{"होनोलुलु"}
+            sg{"एचएसटी"}
+            ss{"एचएसटी"}
         }
         "Pacific:Johnston"{
             ec{"जॉनस्टन"}
@@ -1227,7 +1259,7 @@ hi{
             ec{"पागो पागो"}
         }
         "Pacific:Palau"{
-            ec{"पालाऊ"}
+            ec{"पलाऊ"}
         }
         "Pacific:Pitcairn"{
             ec{"पिटकैर्न"}
@@ -1272,7 +1304,7 @@ hi{
             ls{"पूर्वी अफ़्रीका समय"}
         }
         "meta:Africa_Southern"{
-            ls{"दक्षिण अफ़्रीका समय"}
+            ls{"दक्षिण अफ़्रीका मानक समय"}
         }
         "meta:Africa_Western"{
             ld{"पश्चिम अफ़्रीका ग्रीष्मकालीन समय"}
@@ -1386,12 +1418,12 @@ hi{
             ls{"बोलीविया समय"}
         }
         "meta:Brasilia"{
-            ld{"ब्राजीलिया ग्रीष्मकालीन समय"}
-            lg{"ब्राजीलिया समय"}
-            ls{"ब्राजीलिया मानक समय"}
+            ld{"ब्राज़ीलिया ग्रीष्मकालीन समय"}
+            lg{"ब्राज़ीलिया समय"}
+            ls{"ब्राज़ीलिया मानक समय"}
         }
         "meta:Brunei"{
-            ls{"ब्रूनेई दारूस्सलाम समय"}
+            ls{"ब्रूनेई दारूस्सलम समय"}
         }
         "meta:Cape_Verde"{
             ld{"केप वर्ड ग्रीष्मकालीन समय"}
@@ -1446,7 +1478,7 @@ hi{
             ls{"डेविस समय"}
         }
         "meta:DumontDUrville"{
-            ls{"ड्यूमोंट डर्विल समय"}
+            ls{"ड्यूमोंट डी अर्विले समय"}
         }
         "meta:East_Timor"{
             ls{"पूर्वी तिमोर समय"}
@@ -1691,7 +1723,9 @@ hi{
             ls{"नीयू समय"}
         }
         "meta:Norfolk"{
-            ls{"नॉरफ़ॉक द्वीप समय"}
+            ld{"नॉरफ़ॉक द्वीप डेलाइट समय"}
+            lg{"नॉरफ़ॉक द्वीप समय"}
+            ls{"नॉरफ़ॉक द्वीप मानक समय"}
         }
         "meta:Noronha"{
             ld{"फ़र्नांर्डो डे नोरोन्हा ग्रीष्मकालीन समय"}
@@ -1738,15 +1772,18 @@ hi{
             ls{"फ़ीनिक्स द्वीपसमूह समय"}
         }
         "meta:Pierre_Miquelon"{
-            ld{"सेंट पियरे और मिकेलान डेलाइट समय"}
-            lg{"सेंट पियरे और मिकेलान समय"}
-            ls{"सेंट पियरे और मिकेलान मानक समय"}
+            ld{"सेंट पिएरे और मिक्वेलान डेलाइट समय"}
+            lg{"सेंट पिएरे और मिक्वेलान समय"}
+            ls{"सेंट पिएरे और मिक्वेलान मानक समय"}
         }
         "meta:Pitcairn"{
             ls{"पिटकैर्न समय"}
         }
         "meta:Ponape"{
             ls{"पोनापे समय"}
+        }
+        "meta:Pyongyang"{
+            ls{"प्योंगयांग समय"}
         }
         "meta:Reunion"{
             ls{"रीयूनियन समय"}
@@ -1770,7 +1807,7 @@ hi{
             ls{"समोआ मानक समय"}
         }
         "meta:Seychelles"{
-            ls{"सेशल्स समय"}
+            ls{"सेशेल्स समय"}
         }
         "meta:Singapore"{
             ls{"सिंगापुर समय"}
@@ -1807,7 +1844,7 @@ hi{
             ls{"टोंगा मानक समय"}
         }
         "meta:Truk"{
-            ls{"चूक समय"}
+            ls{"चुक समय"}
         }
         "meta:Turkmenistan"{
             ld{"तुर्कमेनिस्तान ग्रीष्मकालीन समय"}

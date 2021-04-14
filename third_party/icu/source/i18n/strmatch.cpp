@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (c) 2001-2012, International Business Machines Corporation
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "strmatch.h"
 #include "rbt_data.h"
 #include "util.h"
@@ -57,7 +61,7 @@ StringMatcher::~StringMatcher() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringMatcher::clone() const {
+StringMatcher* StringMatcher::clone() const {
     return new StringMatcher(*this);
 }
 

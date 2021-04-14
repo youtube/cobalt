@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/bm.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 bm{
     Countries{
         AD{"Andɔr"}
@@ -15,7 +10,6 @@ bm{
         AI{"Angiya"}
         AL{"Alibani"}
         AM{"Arimeni"}
-        AN{"Peyiba ka Antiyi"}
         AO{"Angola"}
         AR{"Arizantin"}
         AS{"Samowa amerikani"}
@@ -134,7 +128,6 @@ bm{
         MD{"Molidavi"}
         MG{"Madagasikari"}
         MH{"Marisali Gun"}
-        MK{"Macedɔni"}
         ML{"Mali"}
         MM{"Myanimari"}
         MN{"Moŋoli"}
@@ -234,5 +227,4 @@ bm{
         ZM{"Zanbi"}
         ZW{"Zimbabuwe"}
     }
-    Version{"2.1.19.14"}
 }

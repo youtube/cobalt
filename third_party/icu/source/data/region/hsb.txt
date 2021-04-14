@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/hsb.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 hsb{
     Countries{
         001{"swět"}
@@ -114,7 +109,7 @@ hsb{
         EU{"Europska unija"}
         FI{"Finska"}
         FJ{"Fidźi"}
-        FK{"Falklandske kupy"}
+        FK{"Falklandske kupy (Malwiny)"}
         FM{"Mikroneziska"}
         FO{"Färöske kupy"}
         FR{"Francoska"}
@@ -187,7 +182,6 @@ hsb{
         MF{"St. Martin"}
         MG{"Madagaskar"}
         MH{"Marshallowe kupy"}
-        MK{"Makedonska"}
         ML{"Mali"}
         MM{"Myanmar"}
         MN{"Mongolska"}
@@ -278,6 +272,7 @@ hsb{
         UA{"Ukraina"}
         UG{"Uganda"}
         UM{"Ameriska Oceaniska"}
+        UN{"Zjednoćene narody"}
         US{"Zjednoćene staty Ameriki"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
@@ -306,9 +301,6 @@ hsb{
         CD{"Kongo (Demokratiska republika)"}
         CG{"Kongo (Republika)"}
         CI{"Słonowinowy pobrjóh"}
-        FK{"Falklandske kupy (Malwiny)"}
-        MK{"Makedonska (FYROM)"}
         TL{"Wuchodny Timor"}
     }
-    Version{"2.1.19.14"}
 }

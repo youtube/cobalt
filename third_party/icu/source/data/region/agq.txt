@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/agq.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 agq{
     Countries{
         AD{"Àndolà"}
@@ -15,7 +10,6 @@ agq{
         AI{"Àŋgwilà"}
         AL{"Àabɛnìa"}
         AM{"Àmɛnyìa"}
-        AN{"Nedàlân Antàe"}
         AO{"Àŋgolà"}
         AR{"Àdzɛ̀ntinà"}
         AS{"Àmɛlekan Samwà"}
@@ -134,7 +128,6 @@ agq{
         MD{"Mòodovà"}
         MG{"Màdàgasɨkà"}
         MH{"Chwɨlà fɨ Mashà"}
-        MK{"Mɨ̀sɨ̀donyìa"}
         ML{"Malè"}
         MM{"Mǐanmà"}
         MN{"Mùŋgolìa"}
@@ -234,5 +227,4 @@ agq{
         ZM{"Zambìa"}
         ZW{"Zìmbagbɛ̀"}
     }
-    Version{"2.1.19.14"}
 }

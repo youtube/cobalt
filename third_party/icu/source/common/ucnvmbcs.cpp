@@ -1,12 +1,14 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2000-2015, International Business Machines
+*   Copyright (C) 2000-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
 *   file name:  ucnvmbcs.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -44,7 +46,9 @@
 
 #if !UCONFIG_NO_CONVERSION && !UCONFIG_NO_LEGACY_CONVERSION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/ucnv.h"
 #include "unicode/ucnv_cb.h"
 #include "unicode/udata.h"
@@ -58,6 +62,7 @@
 #include "cmemory.h"
 #include "cstring.h"
 #include "umutex.h"
+#include "ustr_imp.h"
 
 /* control optimizations according to the platform */
 #define MBCS_UNROLL_SINGLE_TO_BMP 1
@@ -376,53 +381,55 @@
 typedef UBool U_CALLCONV
 UConverterEnumToUCallback(const void *context, uint32_t value, UChar32 codePoints[32]);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSLoad(UConverterSharedData *sharedData,
           UConverterLoadArgs *pArgs,
           const uint8_t *raw,
           UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSUnload(UConverterSharedData *sharedData);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSOpen(UConverter *cnv,
               UConverterLoadArgs *pArgs,
               UErrorCode *pErrorCode);
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetStarters(const UConverter* cnv,
                  UBool starters[256],
                  UErrorCode *pErrorCode);
 
-static const char *
+U_CDECL_BEGIN
+static const char* U_CALLCONV
 ucnv_MBCSGetName(const UConverter *cnv);
+U_CDECL_END
 
-static void
+static void U_CALLCONV
 ucnv_MBCSWriteSub(UConverterFromUnicodeArgs *pArgs,
               int32_t offsetIndex,
               UErrorCode *pErrorCode);
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
                    const USetAdder *sa,
                    UConverterUnicodeSet which,
                    UErrorCode *pErrorCode);
 
-static void
+static void U_CALLCONV
 ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode);
@@ -503,7 +510,6 @@ static const UConverterImpl _MBCSImpl={
     NULL,
     NULL
 };
-
 
 /* Static data is in tools/makeconv/ucnvstat.c for data-based
  * converters. Be sure to update it as well.
@@ -846,7 +852,7 @@ ucnv_MBCSEnumToUnicode(UConverterMBCSTable *mbcsTable,
     }
 }
 
-U_CFUNC void
+U_CFUNC void 
 ucnv_MBCSGetFilteredUnicodeSetForUnicode(const UConverterSharedData *sharedData,
                                          const USetAdder *sa,
                                          UConverterUnicodeSet which,
@@ -964,11 +970,14 @@ ucnv_MBCSGetFilteredUnicodeSetForUnicode(const UConverterSharedData *sharedData,
                                     switch(st3Multiplier) {
                                     case 4:
                                         b|=*stage3++;
-                                    case 3: /*fall through*/
+                                        U_FALLTHROUGH;
+                                    case 3:
                                         b|=*stage3++;
-                                    case 2: /*fall through*/
+                                        U_FALLTHROUGH;
+                                    case 2:
                                         b|=stage3[0]|stage3[1];
                                         stage3+=2;
+                                        U_FALLTHROUGH;
                                     default:
                                         break;
                                     }
@@ -1065,7 +1074,7 @@ ucnv_MBCSGetUnicodeSetForUnicode(const UConverterSharedData *sharedData,
         pErrorCode);
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetUnicodeSet(const UConverter *cnv,
                    const USetAdder *sa,
                    UConverterUnicodeSet which,
@@ -1377,7 +1386,7 @@ _EBCDICSwapLFNL(UConverterSharedData *sharedData, UErrorCode *pErrorCode) {
     uprv_strcat(name, UCNV_SWAP_LFNL_OPTION_STRING);
 
     /* set the pointers */
-    umtx_lock(NULL);
+    icu::umtx_lock(NULL);
     if(mbcsTable->swapLFNLStateTable==NULL) {
         mbcsTable->swapLFNLStateTable=newStateTable;
         mbcsTable->swapLFNLFromUnicodeBytes=(uint8_t *)newResults;
@@ -1385,7 +1394,7 @@ _EBCDICSwapLFNL(UConverterSharedData *sharedData, UErrorCode *pErrorCode) {
 
         newStateTable=NULL;
     }
-    umtx_unlock(NULL);
+    icu::umtx_unlock(NULL);
 
     /* release the allocated memory if another thread beat us to it */
     if(newStateTable!=NULL) {
@@ -1545,7 +1554,7 @@ reconstituteData(UConverterMBCSTable *mbcsTable,
 
 /* MBCS setup functions ----------------------------------------------------- */
 
-static void
+static void U_CALLCONV
 ucnv_MBCSLoad(UConverterSharedData *sharedData,
           UConverterLoadArgs *pArgs,
           const uint8_t *raw,
@@ -1870,7 +1879,7 @@ ucnv_MBCSLoad(UConverterSharedData *sharedData,
     }
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSUnload(UConverterSharedData *sharedData) {
     UConverterMBCSTable *mbcsTable=&sharedData->mbcs;
 
@@ -1888,7 +1897,7 @@ ucnv_MBCSUnload(UConverterSharedData *sharedData) {
     }
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSOpen(UConverter *cnv,
               UConverterLoadArgs *pArgs,
               UErrorCode *pErrorCode) {
@@ -1913,9 +1922,9 @@ ucnv_MBCSOpen(UConverter *cnv,
         /* do this because double-checked locking is broken */
         UBool isCached;
 
-        umtx_lock(NULL);
+        icu::umtx_lock(NULL);
         isCached=mbcsTable->swapLFNLStateTable!=NULL;
-        umtx_unlock(NULL);
+        icu::umtx_unlock(NULL);
 
         if(!isCached) {
             if(!_EBCDICSwapLFNL(cnv->sharedData, pErrorCode)) {
@@ -1979,7 +1988,9 @@ ucnv_MBCSOpen(UConverter *cnv,
 #endif
 }
 
-static const char *
+U_CDECL_BEGIN
+
+static const char* U_CALLCONV
 ucnv_MBCSGetName(const UConverter *cnv) {
     if((cnv->options&UCNV_OPTION_SWAP_LFNL)!=0 && cnv->sharedData->mbcs.swapLFNLName!=NULL) {
         return cnv->sharedData->mbcs.swapLFNLName;
@@ -1987,10 +1998,12 @@ ucnv_MBCSGetName(const UConverter *cnv) {
         return cnv->sharedData->staticData->name;
     }
 }
+U_CDECL_END
+
 
 /* MBCS-to-Unicode conversion functions ------------------------------------- */
 
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetFallback(UConverterMBCSTable *mbcsTable, uint32_t offset) {
     const _MBCSToUFallback *toUFallbacks;
     uint32_t i, start, limit;
@@ -2953,7 +2966,7 @@ ucnv_MBCSSingleGetNextUChar(UConverterToUnicodeArgs *pArgs,
  *
  * All normal mappings and errors are handled here.
  */
-static UChar32
+static UChar32 U_CALLCONV
 ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
                   UErrorCode *pErrorCode) {
     UConverter *cnv;
@@ -4154,8 +4167,8 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     nextSourceIndex=0;
 
     /* Get the SI/SO character for the converter */
-    siLength = getSISOBytes(SI, cnv->options, siBytes);
-    soLength = getSISOBytes(SO, cnv->options, soBytes);
+    siLength = static_cast<uint8_t>(getSISOBytes(SI, cnv->options, siBytes));
+    soLength = static_cast<uint8_t>(getSISOBytes(SO, cnv->options, soBytes));
 
     /* conversion loop */
     /*
@@ -4635,12 +4648,16 @@ unassigned:
                         /* each branch falls through to the next one */
                     case 4:
                         *target++=(uint8_t)(value>>24);
-                    case 3: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 3:
                         *target++=(uint8_t)(value>>16);
-                    case 2: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 2:
                         *target++=(uint8_t)(value>>8);
-                    case 1: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 1:
                         *target++=(uint8_t)value;
+                        U_FALLTHROUGH;
                     default:
                         /* will never occur */
                         break;
@@ -4651,15 +4668,19 @@ unassigned:
                     case 4:
                         *target++=(uint8_t)(value>>24);
                         *offsets++=sourceIndex;
-                    case 3: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 3:
                         *target++=(uint8_t)(value>>16);
                         *offsets++=sourceIndex;
-                    case 2: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 2:
                         *target++=(uint8_t)(value>>8);
                         *offsets++=sourceIndex;
-                    case 1: /*fall through*/
+                        U_FALLTHROUGH;
+                    case 1:
                         *target++=(uint8_t)value;
                         *offsets++=sourceIndex;
+                        U_FALLTHROUGH;
                     default:
                         /* will never occur */
                         break;
@@ -4682,10 +4703,13 @@ unassigned:
                     /* each branch falls through to the next one */
                 case 3:
                     *charErrorBuffer++=(uint8_t)(value>>16);
-                case 2: /*fall through*/
+                    U_FALLTHROUGH;
+                case 2:
                     *charErrorBuffer++=(uint8_t)(value>>8);
-                case 1: /*fall through*/
+                    U_FALLTHROUGH;
+                case 1:
                     *charErrorBuffer=(uint8_t)value;
+                    U_FALLTHROUGH;
                 default:
                     /* will never occur */
                     break;
@@ -4701,16 +4725,19 @@ unassigned:
                     if(offsets!=NULL) {
                         *offsets++=sourceIndex;
                     }
-                case 2: /*fall through*/
+                    U_FALLTHROUGH;
+                case 2:
                     *target++=(uint8_t)(value>>8);
                     if(offsets!=NULL) {
                         *offsets++=sourceIndex;
                     }
-                case 1: /*fall through*/
+                    U_FALLTHROUGH;
+                case 1:
                     *target++=(uint8_t)value;
                     if(offsets!=NULL) {
                         *offsets++=sourceIndex;
                     }
+                    U_FALLTHROUGH;
                 default:
                     /* will never occur */
                     break;
@@ -4988,15 +5015,11 @@ ucnv_MBCSSingleFromUChar32(UConverterSharedData *sharedData,
 
 /* MBCS-from-UTF-8 conversion functions ------------------------------------- */
 
-/* minimum code point values for n-byte UTF-8 sequences, n=0..4 */
-static const UChar32
-utf8_minLegal[5]={ 0, 0, 0x80, 0x800, 0x10000 };
-
 /* offsets for n-byte UTF-8 sequences that were calculated with ((lead<<6)+trail)<<6+trail... */
 static const UChar32
-utf8_offsets[7]={ 0, 0, 0x3080, 0xE2080, 0x3C82080 };
+utf8_offsets[5]={ 0, 0, 0x3080, 0xE2080, 0x3C82080 };
 
-static void
+static void U_CALLCONV
 ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode) {
@@ -5014,7 +5037,7 @@ ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     uint8_t b, t1, t2;
 
     uint32_t asciiRoundtrips;
-    uint16_t value, minValue;
+    uint16_t value, minValue = 0;
     UBool hasSupplementary;
 
     /* set up the local pointers */
@@ -5044,36 +5067,36 @@ ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     hasSupplementary=(UBool)(cnv->sharedData->mbcs.unicodeMask&UCNV_HAS_SUPPLEMENTARY);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
-    if(c!=0) {
+    if(utf8->toULength > 0) {
         toULength=oldToULength=utf8->toULength;
         toULimit=(int8_t)utf8->mode;
+        c=(UChar32)utf8->toUnicodeStatus;
     } else {
         toULength=oldToULength=toULimit=0;
+        c = 0;
     }
 
-    /*
-     * Make sure that the last byte sequence before sourceLimit is complete
-     * or runs into a lead byte.
-     * Do not go back into the bytes that will be read for finishing a partial
-     * sequence from the previous buffer.
-     * In the conversion loop compare source with sourceLimit only once
-     * per multi-byte character.
-     */
+    // The conversion loop checks source<sourceLimit only once per 1/2/3-byte character.
+    // If the buffer ends with a truncated 2- or 3-byte sequence,
+    // then we reduce the sourceLimit to before that,
+    // and collect the remaining bytes after the conversion loop.
     {
-        int32_t i, length;
-
-        length=(int32_t)(sourceLimit-source) - (toULimit-oldToULength);
-        for(i=0; i<3 && i<length;) {
-            b=*(sourceLimit-i-1);
-            if(U8_IS_TRAIL(b)) {
-                ++i;
-            } else {
-                if(i<U8_COUNT_TRAIL_BYTES(b)) {
-                    /* exit the conversion loop before the lead byte if there are not enough trail bytes for it */
-                    sourceLimit-=i+1;
+        // Do not go back into the bytes that will be read for finishing a partial
+        // sequence from the previous buffer.
+        int32_t length=(int32_t)(sourceLimit-source) - (toULimit-oldToULength);
+        if(length>0) {
+            uint8_t b1=*(sourceLimit-1);
+            if(U8_IS_SINGLE(b1)) {
+                // common ASCII character
+            } else if(U8_IS_TRAIL(b1) && length>=2) {
+                uint8_t b2=*(sourceLimit-2);
+                if(0xe0<=b2 && b2<0xf0 && U8_IS_VALID_LEAD3_AND_T1(b2, b1)) {
+                    // truncated 3-byte sequence
+                    sourceLimit-=2;
                 }
-                break;
+            } else if(0xc2<=b1 && b1<0xf0) {
+                // truncated 2- or 3-byte sequence
+                --sourceLimit;
             }
         }
     }
@@ -5107,7 +5130,7 @@ ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     while(source<sourceLimit) {
         if(targetCapacity>0) {
             b=*source++;
-            if((int8_t)b>=0) {
+            if(U8_IS_SINGLE(b)) {
                 /* convert ASCII */
                 if(IS_ASCII_ROUNDTRIP(b, asciiRoundtrips)) {
                     *target++=(uint8_t)b;
@@ -5162,7 +5185,7 @@ ucnv_SBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     /* handle "complicated" and error cases, and continuing partial characters */
                     oldToULength=0;
                     toULength=1;
-                    toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+                    toULimit=U8_COUNT_BYTES_NON_ASCII(b);
                     c=b;
 moreBytes:
                     while(toULength<toULimit) {
@@ -5175,7 +5198,7 @@ moreBytes:
                          */
                         if(source<(uint8_t *)pToUArgs->sourceLimit) {
                             b=*source;
-                            if(U8_IS_TRAIL(b)) {
+                            if(icu::UTF8::isValidTrail(c, b, toULength, toULimit)) {
                                 ++source;
                                 ++toULength;
                                 c=(c<<6)+b;
@@ -5197,22 +5220,18 @@ moreBytes:
                         }
                     }
 
-                    if( toULength==toULimit &&      /* consumed all trail bytes */
-                        (toULength==3 || toULength==2) &&             /* BMP */
-                        (c-=utf8_offsets[toULength])>=utf8_minLegal[toULength] &&
-                        (c<=0xd7ff || 0xe000<=c)    /* not a surrogate */
-                    ) {
-                        value=MBCS_SINGLE_RESULT_FROM_U(table, results, c);
-                    } else if(
-                        toULength==toULimit && toULength==4 &&
-                        (0x10000<=(c-=utf8_offsets[4]) && c<=0x10ffff)
-                    ) {
-                        /* supplementary code point */
-                        if(!hasSupplementary) {
-                            /* BMP-only codepages are stored without stage 1 entries for supplementary code points */
-                            value=0;
-                        } else {
+                    if(toULength==toULimit) {
+                        c-=utf8_offsets[toULength];
+                        if(toULength<=3) {  /* BMP */
                             value=MBCS_SINGLE_RESULT_FROM_U(table, results, c);
+                        } else {
+                            /* supplementary code point */
+                            if(!hasSupplementary) {
+                                /* BMP-only codepages are stored without stage 1 entries for supplementary code points */
+                                value=0;
+                            } else {
+                                value=MBCS_SINGLE_RESULT_FROM_U(table, results, c);
+                            }
                         }
                     } else {
                         /* error handling: illegal UTF-8 byte sequence */
@@ -5287,7 +5306,7 @@ moreBytes:
             source<(sourceLimit=(uint8_t *)pToUArgs->sourceLimit)) {
         c=utf8->toUBytes[0]=b=*source++;
         toULength=1;
-        toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+        toULimit=U8_COUNT_BYTES(b);
         while(source<sourceLimit) {
             utf8->toUBytes[toULength++]=b=*source++;
             c=(c<<6)+b;
@@ -5302,7 +5321,7 @@ moreBytes:
     pFromUArgs->target=(char *)target;
 }
 
-static void
+static void U_CALLCONV
 ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                   UConverterToUnicodeArgs *pToUArgs,
                   UErrorCode *pErrorCode) {
@@ -5321,7 +5340,7 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
 
     uint32_t stage2Entry;
     uint32_t asciiRoundtrips;
-    uint16_t value;
+    uint16_t value = 0;
     UBool hasSupplementary;
 
     /* set up the local pointers */
@@ -5344,36 +5363,36 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     hasSupplementary=(UBool)(cnv->sharedData->mbcs.unicodeMask&UCNV_HAS_SUPPLEMENTARY);
 
     /* get the converter state from the UTF-8 UConverter */
-    c=(UChar32)utf8->toUnicodeStatus;
-    if(c!=0) {
+    if(utf8->toULength > 0) {
         toULength=oldToULength=utf8->toULength;
         toULimit=(int8_t)utf8->mode;
+        c=(UChar32)utf8->toUnicodeStatus;
     } else {
         toULength=oldToULength=toULimit=0;
+        c = 0;
     }
 
-    /*
-     * Make sure that the last byte sequence before sourceLimit is complete
-     * or runs into a lead byte.
-     * Do not go back into the bytes that will be read for finishing a partial
-     * sequence from the previous buffer.
-     * In the conversion loop compare source with sourceLimit only once
-     * per multi-byte character.
-     */
+    // The conversion loop checks source<sourceLimit only once per 1/2/3-byte character.
+    // If the buffer ends with a truncated 2- or 3-byte sequence,
+    // then we reduce the sourceLimit to before that,
+    // and collect the remaining bytes after the conversion loop.
     {
-        int32_t i, length;
-
-        length=(int32_t)(sourceLimit-source) - (toULimit-oldToULength);
-        for(i=0; i<3 && i<length;) {
-            b=*(sourceLimit-i-1);
-            if(U8_IS_TRAIL(b)) {
-                ++i;
-            } else {
-                if(i<U8_COUNT_TRAIL_BYTES(b)) {
-                    /* exit the conversion loop before the lead byte if there are not enough trail bytes for it */
-                    sourceLimit-=i+1;
+        // Do not go back into the bytes that will be read for finishing a partial
+        // sequence from the previous buffer.
+        int32_t length=(int32_t)(sourceLimit-source) - (toULimit-oldToULength);
+        if(length>0) {
+            uint8_t b1=*(sourceLimit-1);
+            if(U8_IS_SINGLE(b1)) {
+                // common ASCII character
+            } else if(U8_IS_TRAIL(b1) && length>=2) {
+                uint8_t b2=*(sourceLimit-2);
+                if(0xe0<=b2 && b2<0xf0 && U8_IS_VALID_LEAD3_AND_T1(b2, b1)) {
+                    // truncated 3-byte sequence
+                    sourceLimit-=2;
                 }
-                break;
+            } else if(0xc2<=b1 && b1<0xf0) {
+                // truncated 2- or 3-byte sequence
+                --sourceLimit;
             }
         }
     }
@@ -5389,7 +5408,7 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     while(source<sourceLimit) {
         if(targetCapacity>0) {
             b=*source++;
-            if((int8_t)b>=0) {
+            if(U8_IS_SINGLE(b)) {
                 /* convert ASCII */
                 if(IS_ASCII_ROUNDTRIP(b, asciiRoundtrips)) {
                     *target++=b;
@@ -5403,13 +5422,13 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     }
                 }
             } else {
-                if(b>0xe0) {
-                    if( /* handle U+1000..U+D7FF inline */
-                        (((t1=(uint8_t)(source[0]-0x80), b<0xed) && (t1 <= 0x3f)) ||
-                                                        (b==0xed && (t1 <= 0x1f))) &&
+                if(b>=0xe0) {
+                    if( /* handle U+0800..U+D7FF inline */
+                        b<=0xed &&  // do not assume maxFastUChar>0xd7ff
+                        U8_IS_VALID_LEAD3_AND_T1(b, t1=source[0]) &&
                         (t2=(uint8_t)(source[1]-0x80)) <= 0x3f
                     ) {
-                        c=((b&0xf)<<6)|t1;
+                        c=((b&0xf)<<6)|(t1&0x3f);
                         source+=2;
                         value=DBCS_RESULT_FROM_UTF8(mbcsIndex, results, c, t2);
                         if(value==0) {
@@ -5419,7 +5438,7 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     } else {
                         c=-1;
                     }
-                } else if(b<0xe0) {
+                } else {
                     if( /* handle U+0080..U+07FF inline */
                         b>=0xc2 &&
                         (t1=(uint8_t)(*source-0x80)) <= 0x3f
@@ -5434,15 +5453,13 @@ ucnv_DBCSFromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
                     } else {
                         c=-1;
                     }
-                } else {
-                    c=-1;
                 }
 
                 if(c<0) {
                     /* handle "complicated" and error cases, and continuing partial characters */
                     oldToULength=0;
                     toULength=1;
-                    toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+                    toULimit=U8_COUNT_BYTES_NON_ASCII(b);
                     c=b;
 moreBytes:
                     while(toULength<toULimit) {
@@ -5455,7 +5472,7 @@ moreBytes:
                          */
                         if(source<(uint8_t *)pToUArgs->sourceLimit) {
                             b=*source;
-                            if(U8_IS_TRAIL(b)) {
+                            if(icu::UTF8::isValidTrail(c, b, toULength, toULimit)) {
                                 ++source;
                                 ++toULength;
                                 c=(c<<6)+b;
@@ -5477,22 +5494,18 @@ moreBytes:
                         }
                     }
 
-                    if( toULength==toULimit &&      /* consumed all trail bytes */
-                        (toULength==3 || toULength==2) &&             /* BMP */
-                        (c-=utf8_offsets[toULength])>=utf8_minLegal[toULength] &&
-                        (c<=0xd7ff || 0xe000<=c)    /* not a surrogate */
-                    ) {
-                        stage2Entry=MBCS_STAGE_2_FROM_U(table, c);
-                    } else if(
-                        toULength==toULimit && toULength==4 &&
-                        (0x10000<=(c-=utf8_offsets[4]) && c<=0x10ffff)
-                    ) {
-                        /* supplementary code point */
-                        if(!hasSupplementary) {
-                            /* BMP-only codepages are stored without stage 1 entries for supplementary code points */
-                            stage2Entry=0;
-                        } else {
+                    if(toULength==toULimit) {
+                        c-=utf8_offsets[toULength];
+                        if(toULength<=3) {  /* BMP */
                             stage2Entry=MBCS_STAGE_2_FROM_U(table, c);
+                        } else {
+                            /* supplementary code point */
+                            if(!hasSupplementary) {
+                                /* BMP-only codepages are stored without stage 1 entries for supplementary code points */
+                                stage2Entry=0;
+                            } else {
+                                stage2Entry=MBCS_STAGE_2_FROM_U(table, c);
+                            }
                         }
                     } else {
                         /* error handling: illegal UTF-8 byte sequence */
@@ -5597,7 +5610,7 @@ unassigned:
             source<(sourceLimit=(uint8_t *)pToUArgs->sourceLimit)) {
         c=utf8->toUBytes[0]=b=*source++;
         toULength=1;
-        toULimit=U8_COUNT_TRAIL_BYTES(b)+1;
+        toULimit=U8_COUNT_BYTES(b);
         while(source<sourceLimit) {
             utf8->toUBytes[toULength++]=b=*source++;
             c=(c<<6)+b;
@@ -5614,7 +5627,7 @@ unassigned:
 
 /* miscellaneous ------------------------------------------------------------ */
 
-static void
+static void U_CALLCONV
 ucnv_MBCSGetStarters(const UConverter* cnv,
                  UBool starters[256],
                  UErrorCode *) {
@@ -5637,7 +5650,7 @@ ucnv_MBCSIsLeadByte(UConverterSharedData *sharedData, char byte) {
     return (UBool)MBCS_ENTRY_IS_TRANSITION(sharedData->mbcs.stateTable[0][(uint8_t)byte]);
 }
 
-static void
+static void U_CALLCONV
 ucnv_MBCSWriteSub(UConverterFromUnicodeArgs *pArgs,
               int32_t offsetIndex,
               UErrorCode *pErrorCode) {

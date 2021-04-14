@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/tr.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 tr{
     Currencies{
         ADP{
@@ -210,7 +205,7 @@ tr{
         }
         BTN{
             "BTN",
-            "Bhutan Ngultrumu",
+            "Butan Ngultrumu",
         }
         BUK{
             "BUK",
@@ -224,9 +219,13 @@ tr{
             "BYB",
             "Yeni Beyaz Rusya Rublesi (1994–1999)",
         }
+        BYN{
+            "BYN",
+            "Belarus Rublesi",
+        }
         BYR{
             "BYR",
-            "Beyaz Rusya Rublesi",
+            "Beyaz Rusya Rublesi (2000–2016)",
         }
         BZD{
             "BZD",
@@ -263,6 +262,10 @@ tr{
         CLP{
             "CLP",
             "Şili Pesosu",
+        }
+        CNH{
+            "CNH",
+            "Çin Yuanı (offshore)",
         }
         CNX{
             "CNX",
@@ -310,7 +313,7 @@ tr{
         }
         CZK{
             "CZK",
-            "Çek Cumhuriyeti Korunası",
+            "Çek Korunası",
         }
         DDM{
             "DDM",
@@ -478,7 +481,7 @@ tr{
         }
         IDR{
             "IDR",
-            "Endonezya Rupiahı",
+            "Endonezya Rupisi",
         }
         IEP{
             "IEP",
@@ -682,7 +685,11 @@ tr{
         }
         MRO{
             "MRO",
-            "Moritanya Ouguiyası",
+            "Moritanya Ugiyası (1973–2017)",
+        }
+        MRU{
+            "MRU",
+            "Moritanya Ugiyası",
         }
         MTL{
             "MTL",
@@ -782,11 +789,11 @@ tr{
         }
         PEN{
             "PEN",
-            "Peru Nuevo Solü",
+            "Peru Solü",
         }
         PES{
             "PES",
-            "Peru Solu",
+            "Peru Solü (1863–1965)",
         }
         PGK{
             "PGK",
@@ -914,7 +921,11 @@ tr{
         }
         STD{
             "STD",
-            "São Tomé ve Príncipe Dobrası",
+            "São Tomé ve Príncipe Dobrası (1977–2017)",
+        }
+        STN{
+            "STN",
+            "Sao Tome ve Principe Dobrası",
         }
         SUR{
             "SUR",
@@ -1039,6 +1050,10 @@ tr{
         }
         VEF{
             "VEF",
+            "Venezuela Bolivarı (2008–2018)",
+        }
+        VES{
+            "VES",
             "Venezuela Bolivarı",
         }
         VND{
@@ -1059,7 +1074,7 @@ tr{
         }
         XAF{
             "FCFA",
-            "CFA Frangı BEAC",
+            "Orta Afrika CFA Frangı",
         }
         XAG{
             "XAG",
@@ -1107,7 +1122,7 @@ tr{
         }
         XOF{
             "CFA",
-            "CFA Frangı BCEAO",
+            "Batı Afrika CFA Frangı",
         }
         XPD{
             "XPD",
@@ -1138,7 +1153,7 @@ tr{
             "ADB Hesap Birimi",
         }
         XXX{
-            "XXX",
+            "¤",
             "Bilinmeyen Para Birimi",
         }
         YDD{
@@ -1215,7 +1230,7 @@ tr{
         BRL{"R$"}
         BSD{"$"}
         BWP{"P"}
-        BYR{"р."}
+        BYN{"р."}
         BZD{"$"}
         CAD{"$"}
         CLP{"$"}
@@ -1233,6 +1248,7 @@ tr{
         FJD{"$"}
         FKP{"£"}
         GBP{"£"}
+        GEL{"₾"}
         GIP{"£"}
         GNF{"FG"}
         GTQ{"Q"}
@@ -1273,6 +1289,7 @@ tr{
         PKR{"Rs"}
         PLN{"zł"}
         PYG{"₲"}
+        RON{"L"}
         RUB{"₽"}
         RUR{"р."}
         RWF{"RF"}
@@ -1282,7 +1299,7 @@ tr{
         SHP{"£"}
         SRD{"$"}
         SSP{"£"}
-        STD{"Db"}
+        STN{"Db"}
         SYP{"£"}
         THB{"฿"}
         TOP{"T$"}
@@ -1492,8 +1509,8 @@ tr{
             other{"Bahama doları"}
         }
         BTN{
-            one{"Bhutan ngultrumu"}
-            other{"Bhutan ngultrumu"}
+            one{"Butan ngultrumu"}
+            other{"Butan ngultrumu"}
         }
         BUK{
             one{"Burma Kyatı"}
@@ -1507,9 +1524,13 @@ tr{
             one{"Yeni Beyaz Rusya Rublesi (1994–1999)"}
             other{"Yeni Beyaz Rusya Rublesi (1994–1999)"}
         }
+        BYN{
+            one{"Belarus rublesi"}
+            other{"Belarus rublesi"}
+        }
         BYR{
-            one{"Beyaz Rusya rublesi"}
-            other{"Beyaz Rusya rublesi"}
+            one{"Beyaz Rusya rublesi (2000–2016)"}
+            other{"Beyaz Rusya rublesi (2000–2016)"}
         }
         BZD{
             one{"Belize doları"}
@@ -1546,6 +1567,10 @@ tr{
         CLP{
             one{"Şili pesosu"}
             other{"Şili pesosu"}
+        }
+        CNH{
+            one{"Çin yuanı (offshore)"}
+            other{"Çin yuanı (offshore)"}
         }
         CNX{
             one{"Çin Halk Cumhuriyeti Merkez Bankası doları"}
@@ -1592,8 +1617,8 @@ tr{
             other{"Güney Kıbrıs Lirası"}
         }
         CZK{
-            one{"Çek Cumhuriyeti korunası"}
-            other{"Çek Cumhuriyeti korunası"}
+            one{"Çek korunası"}
+            other{"Çek korunası"}
         }
         DDM{
             one{"Doğu Alman Markı"}
@@ -1740,8 +1765,8 @@ tr{
             other{"Macar forinti"}
         }
         IDR{
-            one{"Endonezya rupiahı"}
-            other{"Endonezya rupiahı"}
+            one{"Endonezya rupisi"}
+            other{"Endonezya rupisi"}
         }
         IEP{
             one{"İrlanda Lirası"}
@@ -1928,8 +1953,12 @@ tr{
             other{"Makao patakası"}
         }
         MRO{
-            one{"Moritanya ouguiyası"}
-            other{"Moritanya ouguiyası"}
+            one{"Moritanya ugiyası (1973–2017)"}
+            other{"Moritanya ugiyası (1973–2017)"}
+        }
+        MRU{
+            one{"Moritanya ugiyası"}
+            other{"Moritanya ugiyası"}
         }
         MTL{
             one{"Malta Lirası"}
@@ -2020,12 +2049,12 @@ tr{
             other{"Peru İnti"}
         }
         PEN{
-            one{"Peru nuevo solü"}
-            other{"Peru nuevo solü"}
+            one{"Peru solü"}
+            other{"Peru solü"}
         }
         PES{
-            one{"Peru Solu"}
-            other{"Peru Solu"}
+            one{"Peru Solü (1863–1965)"}
+            other{"Peru Solü (1863–1965)"}
         }
         PGK{
             one{"Papua Yeni Gine kinası"}
@@ -2140,8 +2169,12 @@ tr{
             other{"Güney Sudan lirası"}
         }
         STD{
-            one{"São Tomé ve Príncipe dobrası"}
-            other{"São Tomé ve Príncipe dobrası"}
+            one{"São Tomé ve Príncipe dobrası (1977–2017)"}
+            other{"São Tomé ve Príncipe dobrası (1977–2017)"}
+        }
+        STN{
+            one{"Sao Tome ve Principe dobrası"}
+            other{"Sao Tome ve Principe dobrası"}
         }
         SUR{
             one{"Sovyet Rublesi"}
@@ -2256,6 +2289,10 @@ tr{
             other{"Venezuela Bolivarı (1871–2008)"}
         }
         VEF{
+            one{"Venezuela bolivarı (2008–2018)"}
+            other{"Venezuela bolivarı (2008–2018)"}
+        }
+        VES{
             one{"Venezuela bolivarı"}
             other{"Venezuela bolivarı"}
         }
@@ -2276,8 +2313,8 @@ tr{
             other{"Samoa talası"}
         }
         XAF{
-            one{"CFA frangı BEAC"}
-            other{"CFA frangı BEAC"}
+            one{"Orta Afrika CFA frangı"}
+            other{"Orta Afrika CFA frangı"}
         }
         XAG{
             one{"Gümüş"}
@@ -2296,8 +2333,8 @@ tr{
             other{"Avrupa Para Birimi"}
         }
         XOF{
-            one{"CFA frangı BCEAO"}
-            other{"CFA frangı BCEAO"}
+            one{"Batı Afrika CFA frangı"}
+            other{"Batı Afrika CFA frangı"}
         }
         XPF{
             one{"CFP frangı"}
@@ -2364,5 +2401,4 @@ tr{
         one{"{0} {1}"}
         other{"{0} {1}"}
     }
-    Version{"2.1.19.17"}
 }
