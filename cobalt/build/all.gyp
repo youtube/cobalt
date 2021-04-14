@@ -46,6 +46,8 @@
         '<(DEPTH)/cobalt/dom/testing/dom_testing.gyp:*',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:*',
         '<(DEPTH)/cobalt/dom_parser/dom_parser_test.gyp:*',
+        '<(DEPTH)/cobalt/encoding/encoding.gyp:*',
+        '<(DEPTH)/cobalt/encoding/encoding_test.gyp:*',
         '<(DEPTH)/cobalt/extension/extension.gyp:*',
         '<(DEPTH)/cobalt/h5vcc/h5vcc.gyp:*',
         '<(DEPTH)/cobalt/input/input.gyp:*',

@@ -114,6 +114,7 @@
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
+        '<(DEPTH)/cobalt/encoding/encoding.gyp:text_encoding',
         '<(DEPTH)/cobalt/fetch/fetch.gyp:fetch',
         '<(DEPTH)/cobalt/h5vcc/h5vcc.gyp:h5vcc',
         '<(DEPTH)/cobalt/input/input.gyp:input',

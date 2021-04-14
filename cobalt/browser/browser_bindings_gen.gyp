@@ -163,6 +163,9 @@
         '../dom/xml_document.idl',
         '../dom/xml_serializer.idl',
 
+        '../encoding/text_decoder.idl',
+        '../encoding/text_encoder.idl',
+
         '../fetch/fetch_internal.idl',
 
         '../h5vcc/dial/dial_http_request.idl',
@@ -283,6 +286,9 @@
         '../dom/ui_event_init.idl',
         '../dom/visibility_state.idl',
         '../dom/wheel_event_init.idl',
+        '../encoding/text_decode_options.idl',
+        '../encoding/text_decoder_options.idl',
+        '../encoding/text_encoder_encode_into_result.idl',
         '../h5vcc/h5vcc_crash_type.idl',
         '../media_capture/blob_event_init.idl',
         '../media_capture/media_device_kind.idl',

@@ -174,6 +174,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'sql_unittests',
         'storage_test',
         'storage_upgrade_test',
+        'text_encoding_test',
         'web_animations_test',
         'webdriver_test',
         'websocket_test',
