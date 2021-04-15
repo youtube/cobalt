@@ -72,7 +72,9 @@ class NativeCallback : public PerformanceObserver::CallbackInternal {
 PerformanceObserver::PerformanceObserver(
     const NativePerformanceObserverCallback& native_callback,
     const scoped_refptr<Performance>& performance)
-    : performance_(base::AsWeakPtr(performance.get())) {
+    : performance_(base::AsWeakPtr(performance.get())),
+    observer_type_(PerformanceObserverType::kUndefined),
+    is_registered_(false) {
   callback_.reset(new NativeCallback(native_callback));
 }
 
