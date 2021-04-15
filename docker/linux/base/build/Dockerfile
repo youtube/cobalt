@@ -15,6 +15,8 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-base}
 
+ARG gn_hash=vC0rxqiqGTD3ls9KJHrgJoWP2OBiPk_QEO_xbDItKYoC
+
 # === Install common build tools, required by all platforms
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
@@ -22,6 +24,7 @@ RUN apt update -qqy \
         bison \
         ninja-build \
         pkgconf \
+        unzip \
         yasm \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
@@ -42,6 +45,13 @@ RUN . $NVM_DIR/nvm.sh \
 
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
+
+
+# === Get GN via CIPD
+RUN curl --silent --output /tmp/gn.zip \
+    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${gn_hash}"
+RUN unzip gn.zip -e /usr/local/bin
+RUN gn.zip
 
 
 # === Configure common env vars
