@@ -16,7 +16,7 @@
     "target_arch_sub": {
       "type": "string",
       "description": "The targeted sub-architecture.",
-      "enum": ["v6zk", "v7a", "v8a", ""]
+      "enum": ["v7a", "v8a", ""]
     },
     "word_size": {
       "type": "integer",
