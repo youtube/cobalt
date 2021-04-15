@@ -159,7 +159,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
-    asm_path = 'ml.exe'
+    asm_path = environment_variables['ML']
     ar_path = environment_variables['AR']
     ld_path = environment_variables['LD']
     return self.GetToolsetToolchain(cc_path, cxx_path, asm_path, ar_path,
@@ -169,7 +169,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_HOST']
     cxx_path = environment_variables['CXX_HOST']
-    asm_path = 'ml.exe'
+    asm_path = environment_variables['ML']
     ar_path = environment_variables['AR_HOST']
     ld_path = environment_variables['LD_HOST']
     return self.GetToolsetToolchain(cc_path, cxx_path, asm_path, ar_path,

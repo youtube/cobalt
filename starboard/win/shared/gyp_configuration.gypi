@@ -21,10 +21,7 @@
 
     'cobalt_splash_screen_file': '<(DEPTH)/cobalt/browser/splash_screen/youtube_splash_screen.html',
 
-    # MSVS has a hard limit of 65535 bytes per string and the embedded builtins which is a very long
-    # string of assembly can not be compiled. Change this if we can switch to clang or use MASM(ml.exe)
-    # to compile .S/.asm files someday.
-    'cobalt_v8_enable_embedded_builtins': 0,
+    'cobalt_compiled_by_msvc': 1,
 
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
@@ -191,6 +188,8 @@
                '/MDd', # Use debug multithreaded library.
                '/GS',
                '/bigobj', # unit tests can have huge object files.
+               '/EHsc',
+               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -203,6 +202,8 @@
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
                '/Zm10', # Increase compiler heap limit.
+               '/EHsc',
+               '/std:c++14',
              ],
            }],
          ],
@@ -216,6 +217,8 @@
                '/MDd', # Use debug multithreaded library.
                '/GS',
                '/bigobj', # unit tests can have huge object files.
+               '/EHsc',
+               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -228,6 +231,8 @@
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
                '/Zm10', # Increase compiler heap limit.
+               '/EHsc',
+               '/std:c++14',
              ],
            }],
          ],
@@ -239,6 +244,8 @@
              'Optimization': '2',
              'AdditionalOptions': [
                '/MD', # Use release multithreaded library.
+               '/EHsc',
+               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -258,6 +265,8 @@
              'cflags_host': [
                '/MD', # Use release multithreaded library.
                '/Zm10', # Increase compiler heap limit.
+               '/EHsc',
+               '/std:c++14',
              ],
            }],
          ],
@@ -269,6 +278,8 @@
              'Optimization': '2',
              'AdditionalOptions': [
                '/MD', # Use release multithreaded library.
+               '/EHsc',
+               '/std:c++14',
              ],
            },
            'VCLinkerTool': {
@@ -287,6 +298,8 @@
              'cflags_host': [
                '/MD', # Use release multithreaded library.
                '/Zm10', # Increase compiler heap limit.
+               '/EHsc',
+               '/std:c++14',
              ],
            }],
          ],
@@ -394,6 +407,8 @@
       4305,
       # cast truncates constant value.
       # We do not care.
+      4309,
+      # casting constant number.
       4310,
       # An rvalue cannot be bound to a non-const reference.
       # In previous versions of Visual C++, it was possible to bind an rvalue
@@ -436,6 +451,9 @@
       # Digraphs not supported.
       # Thanks god!
       4628,
+      # Sometimes template definitions and declarations are separate and MSVC
+      # complains when it fails to find the definition on seeing the template.
+      4661,
       # Symbol is not defined as a preprocessor macro, replacing with '0'.
       # Seems like common practice, used in Windows SDK and gtest.
       4668,
@@ -450,6 +468,8 @@
       # Unsurprisingly, most of the structs become larger because of padding
       # but it's a universally acceptable price for better performance.
       4820,
+      # Following V8 upstream to disable narrowing conversion.
+      4838,
       # Disable static analyzer warning for std::min and std::max with
       # objects.
       # https://connect.microsoft.com/VisualStudio/feedback/details/783808/static-analyzer-warning-c28285-for-std-min-and-std-max

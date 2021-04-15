@@ -122,6 +122,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
              sdk.vs_host_tools_path, 'cl.exe'))
     lib = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'lib.exe'))
     link = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'link.exe'))
+    ml = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'ml64.exe'))
     rc = _QuotePath(os.path.join(sdk.windows_sdk_host_tools, 'rc.exe'))
     env_variables = {
         'AR': lib,
@@ -130,6 +131,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
         'CXX': cl,
         'LD': link,
         'RC': rc,
+        'ML': ml,
         'VS_INSTALL_DIR': sdk.vs_install_dir,
         'CC_HOST': cl,
         'CXX_HOST': cl,
