@@ -245,7 +245,7 @@ class AndroidConfiguration(PlatformConfiguration):
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
             clang_build.GetClangSpecification(), self.build_accelerator)
-      cc_path = self.host_compiler_environment['CC_host'],
+      cc_path = self.host_compiler_environment['CC_host']
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [
           clang.CCompiler(path=cc_path),
