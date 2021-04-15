@@ -21,12 +21,13 @@
         '<(DEPTH)/third_party/lz4_lib',
       ],
       'defines': [
+        # Make LZ4 use our implementations for its memory management functions.
+        'LZ4_USER_MEMORY_FUNCTIONS',
         'XXH_NAMESPACE=LZ4_',
       ],
       'sources': [
-        '<(DEPTH)/third_party/lz4_lib/lz4.c',
-        '<(DEPTH)/third_party/lz4_lib/lz4frame.c',
-        '<(DEPTH)/third_party/lz4_lib/lz4hc.c',
+        '<(DEPTH)/third_party/lz4_lib/lz4_all.c',
+        '<(DEPTH)/third_party/lz4_lib/lz4starboard.c',
         '<(DEPTH)/third_party/lz4_lib/xxhash.c',
       ],
     },
