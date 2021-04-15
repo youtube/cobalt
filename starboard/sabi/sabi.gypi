@@ -56,10 +56,6 @@
         'arm_fpu': '<(floating_point_fpu)',
 
         'conditions': [
-          ['target_arch_sub=="v6zk"', {
-            'arm_version': 6,
-            'armv7': 0,
-          }],
           ['target_arch_sub=="v7a"', {
             'arm_version': 7,
             'armv7': 1,
@@ -132,4 +128,3 @@
     '<(DEPTH)/<(sabi_json_path)',
   ],
 }
-
