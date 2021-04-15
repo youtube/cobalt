@@ -93,6 +93,17 @@ services:
       PLATFORM: stub
       CONFIG: ${CONFIG:-debug}
 
+  stub-gn:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: stub/gn/Dockerfile
+    image: cobalt-build-linux-stub-gn
+    environment:
+      <<: *shared-build-env
+      - PLATFORM=stub
+      - CONFIG=${CONFIG:-debug}
+
   linux-x64x11:
     <<: *build-common-definitions
     build:
