@@ -19,6 +19,7 @@
 #include "cobalt/extension/font.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/extension/installation_manager.h"
+#include "cobalt/extension/javascript_cache.h"
 #include "cobalt/extension/platform_service.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -219,6 +220,29 @@ TEST(ExtensionTest, Font) {
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
 }
+
+TEST(ExtensionTest, JavaScriptCache) {
+  typedef CobaltExtensionJavaScriptCacheApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionJavaScriptCacheName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->GetCachedScript, nullptr);
+  EXPECT_NE(extension_api->ReleaseCachedScriptData, nullptr);
+  EXPECT_NE(extension_api->StoreCachedScript, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
 }  // namespace extension
 }  // namespace cobalt
 #endif  // SB_API_VERSION >= 11

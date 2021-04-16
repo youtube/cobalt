@@ -25,6 +25,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/embedded_resources.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/v8c_script_value_factory.h"
@@ -32,6 +33,8 @@
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "nb/memory_scope.h"
+#include "starboard/common/murmurhash2.h"
+
 
 namespace cobalt {
 namespace script {
@@ -69,6 +72,18 @@ std::string ToStringOrNull(v8::Isolate* isolate, v8::Local<v8::Value> value) {
     return "";
   }
   return *v8::String::Utf8Value(isolate, value.As<v8::String>());
+}
+
+uint32_t CreateJavaScriptCacheKey(const std::string& javascript_engine_version,
+                                  uint32_t cached_data_version_tag,
+                                  const std::string& source,
+                                  const std::string& origin) {
+  uint32_t res = starboard::MurmurHash2_32(javascript_engine_version.c_str(),
+                                           javascript_engine_version.size(),
+                                           cached_data_version_tag);
+  res = starboard::MurmurHash2_32(source.c_str(), source.size(), res);
+  res = starboard::MurmurHash2_32(origin.c_str(), origin.size(), res);
+  return res;
 }
 
 }  // namespace
@@ -419,7 +434,29 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
 
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
   v8::Local<v8::Script> script;
-  {
+
+  bool used_cache = false;
+#if SB_API_VERSION >= 11
+  const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension =
+      static_cast<const CobaltExtensionJavaScriptCacheApi*>(
+          SbSystemGetExtension(kCobaltExtensionJavaScriptCacheName));
+  if (javascript_cache_extension &&
+      SbStringCompareAll(javascript_cache_extension->name,
+                         kCobaltExtensionJavaScriptCacheName) == 0 &&
+      javascript_cache_extension->version >= 1) {
+    TRACE_EVENT0("cobalt::script",
+                 "V8cGlobalEnvironment::CompileWithCaching()");
+    if (CompileWithCaching(javascript_cache_extension, context, v8c_source_code,
+                           source, &script_origin)
+            .ToLocal(&script)) {
+      used_cache = true;
+    } else {
+      LOG(WARNING) << "Failed to compile script.";
+      return {};
+    }
+  }
+#endif
+  if (!used_cache) {
     TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
     if (!v8::Script::Compile(context, source, &script_origin)
              .ToLocal(&script)) {
@@ -438,6 +475,78 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
   }
 
   return result;
+}
+
+v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
+    const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension,
+    v8::Local<v8::Context> context, V8cSourceCode* v8c_source_code,
+    v8::Local<v8::String> source, v8::ScriptOrigin* script_origin) {
+  const base::SourceLocation& source_location = v8c_source_code->location();
+
+  DLOG(INFO) << "CompileWithCaching: " << source_location.file_path.c_str()
+             << " " << v8c_source_code->location().file_path;
+
+  bool successful_cache = false;
+
+  std::string javascript_engine_version =
+      script::GetJavaScriptEngineNameAndVersion();
+  uint32_t javascript_cache_key = CreateJavaScriptCacheKey(
+      javascript_engine_version, v8::ScriptCompiler::CachedDataVersionTag(),
+      v8c_source_code->source_utf8(), source_location.file_path);
+  const uint8_t* cache_data_buf = nullptr;
+  int cache_data_size = -1;
+  v8::Local<v8::Script> script;
+  if (javascript_cache_extension->GetCachedScript(
+          javascript_cache_key, v8c_source_code->source_utf8().size(),
+          &cache_data_buf, &cache_data_size)) {
+    DLOG(INFO) << "CompileWithCaching:  Using cached resource";
+    v8::ScriptCompiler::CachedData* cached_code =
+        new v8::ScriptCompiler::CachedData(
+            cache_data_buf, cache_data_size,
+            v8::ScriptCompiler::CachedData::BufferNotOwned);
+    // The script_source owns the cached_code object.
+    v8::ScriptCompiler::Source script_source(source, *script_origin,
+                                             cached_code);
+
+    {
+      TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
+      successful_cache =
+          v8::ScriptCompiler::Compile(context, &script_source,
+                                      v8::ScriptCompiler::kConsumeCodeCache)
+              .ToLocal(&script) &&
+          !cached_code->rejected;
+      if (!successful_cache) {
+        LOG(WARNING)
+            << "CompileWithCaching: Failed to reuse the cached script rejected="
+            << cached_code->rejected;
+      }
+    }
+  }
+
+  if (cache_data_buf != nullptr) {
+    javascript_cache_extension->ReleaseCachedScriptData(cache_data_buf);
+    cache_data_buf = nullptr;
+  }
+
+  if (!successful_cache) {
+    DLOG(INFO) << "CompileWithCaching: compile";
+    {
+      TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
+      if (!v8::Script::Compile(context, source, script_origin)
+               .ToLocal(&script)) {
+        LOG(WARNING) << "CompileWithCaching: Failed to compile script.";
+        return {};
+      }
+    }
+    std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
+        v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    if (!javascript_cache_extension->StoreCachedScript(
+            javascript_cache_key, v8c_source_code->source_utf8().size(),
+            cached_data->data, cached_data->length)) {
+      LOG(WARNING) << "CompileWithCaching: Failed to store cached script";
+    }
+  }
+  return script;
 }
 
 void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,

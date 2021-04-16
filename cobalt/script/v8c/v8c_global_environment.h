@@ -26,9 +26,11 @@
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/extension/javascript_cache.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/v8c_heap_tracer.h"
+#include "cobalt/script/v8c/v8c_source_code.h"
 #include "cobalt/script/v8c/wrapper_factory.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8.h"
@@ -144,6 +146,11 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
       const scoped_refptr<SourceCode>& source_code);
+
+  v8::MaybeLocal<v8::Script> CompileWithCaching(
+      const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension,
+      v8::Local<v8::Context> context, V8cSourceCode* v8c_source_code,
+      v8::Local<v8::String> source, v8::ScriptOrigin* script_origin);
 
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
                               const char* filename);
