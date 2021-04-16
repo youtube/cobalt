@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/ro.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 ro{
     Countries{
         001{"Lume"}
@@ -37,6 +32,7 @@ ro{
         151{"Europa Orientală"}
         154{"Europa Septentrională"}
         155{"Europa Occidentală"}
+        202{"Africa Subsahariană"}
         419{"America Latină"}
         AC{"Insula Ascension"}
         AD{"Andorra"}
@@ -46,7 +42,6 @@ ro{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antilele Olandeze"}
         AO{"Angola"}
         AQ{"Antarctica"}
         AR{"Argentina"}
@@ -65,7 +60,7 @@ ro{
         BH{"Bahrain"}
         BI{"Burundi"}
         BJ{"Benin"}
-        BL{"Sfântul Bartolomeu"}
+        BL{"Saint-Barthélemy"}
         BM{"Bermuda"}
         BN{"Brunei"}
         BO{"Bolivia"}
@@ -96,7 +91,7 @@ ro{
         CW{"Curaçao"}
         CX{"Insula Christmas"}
         CY{"Cipru"}
-        CZ{"Republica Cehă"}
+        CZ{"Cehia"}
         DE{"Germania"}
         DG{"Diego Garcia"}
         DJ{"Djibouti"}
@@ -113,9 +108,10 @@ ro{
         ES{"Spania"}
         ET{"Etiopia"}
         EU{"Uniunea Europeană"}
+        EZ{"Zona euro"}
         FI{"Finlanda"}
         FJ{"Fiji"}
-        FK{"Insulele Falkland"}
+        FK{"Insulele Falkland (Insulele Malvine)"}
         FM{"Micronezia"}
         FO{"Insulele Feroe"}
         FR{"Franța"}
@@ -188,7 +184,7 @@ ro{
         MF{"Sfântul Martin"}
         MG{"Madagascar"}
         MH{"Insulele Marshall"}
-        MK{"Macedonia"}
+        MK{"Macedonia de Nord"}
         ML{"Mali"}
         MM{"Myanmar (Birmania)"}
         MN{"Mongolia"}
@@ -254,11 +250,11 @@ ro{
         SO{"Somalia"}
         SR{"Suriname"}
         SS{"Sudanul de Sud"}
-        ST{"Sao Tome și Principe"}
+        ST{"São Tomé și Príncipe"}
         SV{"El Salvador"}
         SX{"Sint-Maarten"}
         SY{"Siria"}
-        SZ{"Swaziland"}
+        SZ{"Eswatini"}
         TA{"Tristan da Cunha"}
         TC{"Insulele Turks și Caicos"}
         TD{"Ciad"}
@@ -267,7 +263,7 @@ ro{
         TH{"Thailanda"}
         TJ{"Tadjikistan"}
         TK{"Tokelau"}
-        TL{"Timorul de Est"}
+        TL{"Timor-Leste"}
         TM{"Turkmenistan"}
         TN{"Tunisia"}
         TO{"Tonga"}
@@ -279,6 +275,7 @@ ro{
         UA{"Ucraina"}
         UG{"Uganda"}
         UM{"Insulele Îndepărtate ale S.U.A."}
+        UN{"Națiunile Unite"}
         US{"Statele Unite ale Americii"}
         UY{"Uruguay"}
         UZ{"Uzbekistan"}
@@ -286,11 +283,13 @@ ro{
         VC{"Saint Vincent și Grenadinele"}
         VE{"Venezuela"}
         VG{"Insulele Virgine Britanice"}
-        VI{"Insulele Virgine S.U.A."}
+        VI{"Insulele Virgine Americane"}
         VN{"Vietnam"}
         VU{"Vanuatu"}
         WF{"Wallis și Futuna"}
         WS{"Samoa"}
+        XA{"Pseudo-accente"}
+        XB{"Pseudo-Bidi"}
         XK{"Kosovo"}
         YE{"Yemen"}
         YT{"Mayotte"}
@@ -300,15 +299,15 @@ ro{
         ZZ{"Regiune necunoscută"}
     }
     Countries%short{
-        GB{"Regatul Unit"}
+        UN{"ONU"}
         US{"S.U.A."}
     }
     Countries%variant{
         CD{"Congo (Republica Democrată Congo)"}
         CG{"Congo (Republica)"}
         CI{"Coasta de Fildeș"}
-        FK{"Insulele Falkland (Insulele Malvine)"}
-        MK{"Macedonia (FRIM)"}
+        CZ{"Republica Cehă"}
+        SZ{"Swaziland"}
+        TL{"Timorul de Est"}
     }
-    Version{"2.1.19.17"}
 }

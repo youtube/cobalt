@@ -169,6 +169,8 @@
         'trace_util.h',
         'video_decoder.cc',
         'video_decoder.h',
+        'video_frame_tracker.cc',
+        'video_frame_tracker.h',
         'video_render_algorithm.cc',
         'video_render_algorithm.h',
         'video_window.cc',

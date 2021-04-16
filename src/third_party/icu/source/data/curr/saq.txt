@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/saq.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 saq{
     Currencies{
         AED{
@@ -130,6 +125,10 @@ saq{
         }
         MRO{
             "MRO",
+            "Njilingi eel Moritania (1973–2017)",
+        }
+        MRU{
+            "MRU",
             "Njilingi eel Moritania",
         }
         MUR{
@@ -182,6 +181,10 @@ saq{
         }
         STD{
             "STD",
+            "Njilingi eel Sao Tome na Principe (1977–2017)",
+        }
+        STN{
+            "STN",
             "Njilingi eel Sao Tome na Principe",
         }
         SZL{
@@ -229,5 +232,4 @@ saq{
             "Dola eel Zimbabwe",
         }
     }
-    Version{"2.1.19.14"}
 }

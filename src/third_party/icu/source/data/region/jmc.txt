@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/jmc.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 jmc{
     Countries{
         AD{"Andora"}
@@ -15,7 +10,6 @@ jmc{
         AI{"Anguilla"}
         AL{"Albania"}
         AM{"Armenia"}
-        AN{"Antili za Uholanzi"}
         AO{"Angola"}
         AR{"Ajentina"}
         AS{"Samoa ya Marekani"}
@@ -134,7 +128,6 @@ jmc{
         MD{"Moldova"}
         MG{"Bukini"}
         MH{"Visiwa vya Marshal"}
-        MK{"Masedonia"}
         ML{"Mali"}
         MM{"Myama"}
         MN{"Mongolia"}
@@ -234,5 +227,4 @@ jmc{
         ZM{"Zambia"}
         ZW{"Zimbabwe"}
     }
-    Version{"2.1.19.14"}
 }

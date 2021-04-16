@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 1999-2015, International Business Machines
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/rep.h"
 #include "unicode/uniset.h"
 #include "rbt_pars.h"
@@ -26,7 +30,6 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RuleBasedTransliterator)
 
-static UMutex transliteratorDataMutex = U_MUTEX_INITIALIZER;
 static Replaceable *gLockedText = NULL;
 
 void RuleBasedTransliterator::_construct(const UnicodeString& rules,
@@ -191,8 +194,8 @@ RuleBasedTransliterator::~RuleBasedTransliterator() {
     }
 }
 
-Transliterator* // Covariant return NOT ALLOWED (for portability)
-RuleBasedTransliterator::clone(void) const {
+RuleBasedTransliterator*
+RuleBasedTransliterator::clone() const {
     return new RuleBasedTransliterator(*this);
 }
 
@@ -241,31 +244,29 @@ RuleBasedTransliterator::handleTransliterate(Replaceable& text, UTransPosition& 
     //   Double-locking must be prevented in these cases.
     //   
 
-    // If the transliteration data is exclusively owned by this transliterator object,
-    //   we don't need to do any locking.  No sharing between transliterators is possible,
-    //   so no concurrent access from multiple threads is possible.
     UBool    lockedMutexAtThisLevel = FALSE;
-    if (isDataOwned == FALSE) {
-        // Test whether this request is operating on the same text string as
-        //   some other transliteration that is still in progress and holding the 
-        //   transliteration mutex.  If so, do not lock the transliteration
-        //    mutex again.
-        //
-        //  gLockedText variable is protected by the global ICU mutex.
-        //  Shared RBT data protected by transliteratorDataMutex.
-        //
-        // TODO(andy): Need a better scheme for handling this.
-        UBool needToLock;
-        {
-            Mutex m;
-            needToLock = (&text != gLockedText);
-        }
-        if (needToLock) {
-            umtx_lock(&transliteratorDataMutex);  // Contention, longish waits possible here.
-            Mutex m;
-            gLockedText = &text;
-            lockedMutexAtThisLevel = TRUE;
-        }
+
+    // Test whether this request is operating on the same text string as
+    //   some other transliteration that is still in progress and holding the 
+    //   transliteration mutex.  If so, do not lock the transliteration
+    //    mutex again.
+    //
+    //  gLockedText variable is protected by the global ICU mutex.
+    //  Shared RBT data protected by transliteratorDataMutex.
+    //
+    // TODO(andy): Need a better scheme for handling this.
+
+    static UMutex transliteratorDataMutex;
+    UBool needToLock;
+    {
+        Mutex m;
+        needToLock = (&text != gLockedText);
+    }
+    if (needToLock) {
+        umtx_lock(&transliteratorDataMutex);  // Contention, longish waits possible here.
+        Mutex m;
+        gLockedText = &text;
+        lockedMutexAtThisLevel = TRUE;
     }
     
     // Check to make sure we don't dereference a null pointer.

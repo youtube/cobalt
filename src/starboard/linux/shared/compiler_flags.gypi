@@ -74,9 +74,9 @@
           '-fvisibility=hidden',
           # Warn for implicit type conversions that may change a value.
           '-Wconversion',
-          '-Wno-c++11-compat',
+          '-Wno-c++14-compat',
           # This complains about 'override', which we use heavily.
-          '-Wno-c++11-extensions',
+          '-Wno-c++14-extensions',
           # Warns on switches on enums that cover all enum values but
           # also contain a default: branch. Chrome is full of that.
           '-Wno-covered-switch-default',
@@ -115,20 +115,6 @@
         ],
       }],
     ],
-    'defines_debug': [
-      # Enable debug mode for the C++ standard library.
-      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
-      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
-      '_GLIBCXX_DEBUG',
-      '_LIBCPP_DEBUG=1',
-    ],
-    'defines_devel': [
-      # Enable debug mode for the C++ standard library.
-      # https://gcc.gnu.org/onlinedocs/libstdc%2B%2B/manual/debug_mode_using.html
-      # https://libcxx.llvm.org/docs/DesignDocs/DebugMode.html
-      '_GLIBCXX_DEBUG',
-      '_LIBCPP_DEBUG=0',
-    ],
   },
 
   'target_defaults': {
@@ -143,7 +129,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      '-std=gnu++11',
+      '-std=gnu++14',
     ],
     'ldflags': [
       '-Wl,-rpath=$ORIGIN/lib',

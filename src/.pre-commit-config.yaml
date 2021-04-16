@@ -5,7 +5,7 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
-exclude: '^third_party/'
+exclude: '^(third_party|v8)/'
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
@@ -129,6 +129,7 @@ repos:
         entry: python precommit_hooks/osslint_wrapper.py
         language: python
         types: [text]
+        stages: [manual]
     -   id: internal-file-check
         name: Internal File Check
         entry: python precommit_hooks/internal_file_check_wrapper.py

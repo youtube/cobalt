@@ -229,7 +229,7 @@ class AndroidConfiguration(PlatformConfiguration):
               path=cxx_path,
               defines=clang_defines,
               extra_flags=clang_flags + [
-                  '-std=c++11',
+                  '-std=c++14',
               ]),
           clang.AssemblerWithCPreprocessor(
               path=cc_path, defines=clang_defines, extra_flags=clang_flags),
@@ -298,6 +298,11 @@ class AndroidConfiguration(PlatformConfiguration):
           # This test is failing because localhost is not defined for IPv6 in
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+
+          # This test is taking ~1.3ms per call on android. Work is underway to
+          # investigate whether this is acceptable.
+          'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
+
           # SbDirectory has problems with empty Asset dirs.
           'SbDirectoryCanOpenTest.SunnyDayStaticContent',
           'SbDirectoryGetNextTest.SunnyDayStaticContent',

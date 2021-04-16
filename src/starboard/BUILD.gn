@@ -1,4 +1,4 @@
-# Copyright 2017 The Cobalt Authors. All Rights Reserved.
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,29 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("all") {
+group("gn_all") {
   testonly = true
-  deps = [
-    # TODO: uncomment as each of these are implemented
-    # "//starboard/client_porting/eztime:all",
-    # "//starboard/client_porting/icu_init:all",
-    # "//starboard/client_porting/poem:all",
-    "//starboard/examples",
-    # "//starboard/nplb/blitter_pixel_tests:all",
-    "//starboard/nplb:all",
-    ":starboard",
-  ]
 
-  has_platform_tests =
-      exec_script("//build/dir_exists.py",
-                  [ rebase_path("//$starboard_path/tests", root_build_dir) ],
-                  "string") == "True"
-  if (has_platform_tests) {
-    deps += [ "//$starboard_path/tests" ]
-  }
+  deps = [ ":starboard_headers_only" ]
 }
 
-source_set("starboard") {
+source_set("starboard_headers_only") {
   sources = [
     "atomic.h",
     "audio_sink.h",
@@ -43,13 +27,17 @@ source_set("starboard") {
     "character.h",
     "condition_variable.h",
     "configuration.h",
+    "configuration_constants.h",
+    "cpu_features.h",
     "decode_target.h",
     "directory.h",
     "double.h",
     "drm.h",
+    "egl.h",
     "event.h",
     "export.h",
     "file.h",
+    "gles.h",
     "input.h",
     "key.h",
     "log.h",
@@ -73,24 +61,8 @@ source_set("starboard") {
     "types.h",
     "user.h",
     "window.h",
+
+    # Include private headers, if present.
+    # "<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)",
   ]
-
-  private_sources = exec_script("tools/find_private_files.py",
-                                [
-                                  rebase_path("//", root_build_dir),
-                                  "*.h",
-                                ],
-                                "list lines",
-                                [ "//starboard/private" ])
-  sources += rebase_path(private_sources, ".", root_build_dir)
-
-  deps = [
-    "//starboard/common",
-  ]
-
-  public_deps = [
-    "//$starboard_path:starboard_platform",
-  ]
-
-  # TODO: handle shared_main_adapter.cc
 }

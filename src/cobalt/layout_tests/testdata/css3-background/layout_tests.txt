@@ -70,6 +70,10 @@
 4-0-border-set-using-border-color-border-width-and-border-style
 4-0-border-set-using-border-width-and-border-style
 4-0-border-set-using-border-width-border-color-and-border-style-with-empty-content
+4-0-border-1-individual-edge
+4-0-border-1-individual-edge-with-rounded-corners
+4-0-border-2-individual-edges
+4-0-border-2-individual-edges-with-rounded-corners
 4-0-border-style-hidden-with-only-background-color
 4-0-border-width-with-solid-border-style
 4-0-different-border-styles-with-different-border-widths
@@ -126,4 +130,3 @@
 7-1-circle-box-shadow-with-spread
 7-1-simple-black-box-shadow
 7-1-simple-red-box-shadow
-

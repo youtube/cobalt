@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2014 IBM and others. All rights reserved.
@@ -11,7 +13,9 @@
 
 #if !UCONFIG_NO_COLLATION && !UCONFIG_NO_BREAK_ITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/stsearch.h"
 #include "usrchimp.h"
 #include "cmemory.h"
@@ -281,7 +285,7 @@ void StringSearch::reset()
     usearch_reset(m_strsrch_);
 }
 
-SearchIterator * StringSearch::safeClone(void) const
+StringSearch * StringSearch::safeClone() const
 {
     UErrorCode status = U_ZERO_ERROR;
     StringSearch *result = new StringSearch(m_pattern_, m_text_,

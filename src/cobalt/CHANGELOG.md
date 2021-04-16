@@ -125,6 +125,18 @@ This document records all notable changes made to Cobalt since the last release.
    This behavior can now be overridden by implementing the cobalt extension
    function `CobaltExtensionGraphicsApi::ShouldClearFrameOnShutdown`.
 
+ - **Added support for adjusting colors of 360 videos.**
+
+   Platforms which support 360 videos may adjust the colors of the video frame
+   using `CobaltExtensionGraphicsApi::GetMapToMeshColorAdjustments`.
+
+ - **Added support for rendering the frame with a custom root transform.**
+
+   Platforms can force frame rendering to use a custom root transform by using
+   `CobaltExtensionGraphicsApi::GetRenderRootTransform`. This only impacts
+   rendering; the web app does not know about the custom transform so may not
+   layout elements appropriately.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**
@@ -483,7 +495,7 @@ This document records all notable changes made to Cobalt since the last release.
    The Cobalt splash screen is customizable. Documents may use a link element
    with attribute rel="splashscreen" to reference the splash screen which will
    be cached if local cache is implemented on the platform. Additionally
-   fallbacks may be specified via command line parmeter or gypi variable.
+   fallbacks may be specified via command line parameter or gypi variable.
    For more information, see [doc/splash_screen.md](doc/splash_screen.md).
 
  - **Introduce C\+\+11**

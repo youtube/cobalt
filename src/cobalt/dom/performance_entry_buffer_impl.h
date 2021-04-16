@@ -18,25 +18,24 @@
 #include <string>
 
 #include "base/strings/string_piece.h"
-#include "cobalt/dom/performance_high_resolution_time.h"
-#include "cobalt/dom/performance_observer_entry_list.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-typedef PerformanceEntryList PerformanceEntryBuffer;
+class PerformanceEntry;
+typedef script::Sequence<scoped_refptr<PerformanceEntry>> PerformanceEntryList;
 
 class PerformanceEntryBufferImpl {
  public:
-  static PerformanceEntryBuffer GetEntries(
-      PerformanceEntryBuffer performance_entry_buffer);
-  static PerformanceEntryBuffer GetEntriesByType(
-      PerformanceEntryBuffer performance_entry_buffer,
+  static PerformanceEntryList GetEntries(
+      PerformanceEntryList performance_entry_buffer);
+  static PerformanceEntryList GetEntriesByType(
+      PerformanceEntryList performance_entry_buffer,
       const std::string& entry_type);
-  static PerformanceEntryBuffer GetEntriesByName(
-      PerformanceEntryBuffer performance_entry_buffer,
+  static PerformanceEntryList GetEntriesByName(
+      PerformanceEntryList performance_entry_buffer,
       const std::string& name,
       const base::StringPiece& type);
 };

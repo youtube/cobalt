@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**************************************************************************
 *
-*   Copyright (C) 2000-2011, International Business Machines
+*   Copyright (C) 2000-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ***************************************************************************
@@ -15,6 +17,7 @@
 *  common types for pkgdata
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "unicode/utypes.h"
@@ -221,7 +224,7 @@ CharList *pkg_appendUniqueDirToList(CharList *l, CharList** end, const char *str
     if(!rPtr) {
         return l; /* no dir path */
     }
-    if((rPtr-strAlias) >= (sizeof(aBuf)/sizeof(aBuf[0]))) {
+    if((rPtr-strAlias) >= UPRV_LENGTHOF(aBuf)) {
         fprintf(stderr, "## ERR: Path too long [%d chars]: %s\n", (int)sizeof(aBuf), strAlias);
         return l;
     }
@@ -290,9 +293,9 @@ UBool  pkg_listContains(CharList *l, const char *str)
 {
   for(;l;l=l->next){
     if(!uprv_strcmp(l->str, str)) {
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }

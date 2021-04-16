@@ -18,15 +18,12 @@
 #include <string>
 
 #include "base/strings/string_piece.h"
-#include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/performance_entry_buffer_impl.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
-
-class PerformanceEntry;
-typedef script::Sequence<PerformanceEntry*> PerformanceEntryList;
 
 // Implements the PerformanceObserverEntryList IDL interface, as described here:
 //   https://www.w3.org/TR/performance-timeline-2/#performanceobserverentrylist-interface

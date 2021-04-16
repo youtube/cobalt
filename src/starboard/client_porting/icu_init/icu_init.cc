@@ -16,9 +16,6 @@
 
 #include "starboard/client_porting/icu_init/icu_init.h"
 
-#include <unicode/putil.h>
-#include <unicode/udata.h>
-
 #include <string>
 #include <vector>
 
@@ -28,6 +25,8 @@
 #include "starboard/file.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
+#include "third_party/icu/source/common/unicode/putil.h"
+#include "third_party/icu/source/common/unicode/udata.h"
 
 namespace {
 
@@ -65,9 +64,9 @@ void Initialize() {
 #endif
   data_path += kSbFileSepString;
 #if U_IS_BIG_ENDIAN
-  data_path += "icudt56b";
+  data_path += "icudt68b";
 #else
-  data_path += "icudt56l";
+  data_path += "icudt68l";
 #endif
   // set this as the data directory.
   u_setDataDirectory(data_path.c_str());

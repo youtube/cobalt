@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (C) 1999-2011, International Business Machines
@@ -12,7 +14,9 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "unicode/rep.h"
 #include "unicode/unifilt.h"
 #include "unicode/uniset.h"
@@ -175,17 +179,17 @@ TransliterationRule::TransliterationRule(TransliterationRule& other) :
     segmentsCount = 0;
     if (other.segmentsCount > 0) {
         segments = (UnicodeFunctor **)uprv_malloc(other.segmentsCount * sizeof(UnicodeFunctor *));
-        uprv_memcpy(segments, other.segments, other.segmentsCount*sizeof(segments[0]));
+        uprv_memcpy(segments, other.segments, (size_t)other.segmentsCount*sizeof(segments[0]));
     }
 
     if (other.anteContext != NULL) {
-        anteContext = (StringMatcher*) other.anteContext->clone();
+        anteContext = other.anteContext->clone();
     }
     if (other.key != NULL) {
-        key = (StringMatcher*) other.key->clone();
+        key = other.key->clone();
     }
     if (other.postContext != NULL) {
-        postContext = (StringMatcher*) other.postContext->clone();
+        postContext = other.postContext->clone();
     }
     output = other.output->clone();
 }

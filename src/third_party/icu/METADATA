@@ -1,7 +1,8 @@
 name: "icu"
 description:
   "Subtree at third_party/icu."
-
+  "ICU is a library that provides cross-platform support for Unicode and "
+  "software internationalization."
 third_party {
   url {
     type: LOCAL_SOURCE
@@ -11,10 +12,10 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/deps/icu"
   }
-  version: "6018b6f0668cdf38fda2db1462dfe830b63cbdcb"
+  version: "d1e2bd28c490a92d410c8014b68527941e124212"
   last_upgrade_date {
-    year: 2016
-    month: 8
-    day: 9
+    year: 2021
+    month: 1
+    day: 26
   }
 }

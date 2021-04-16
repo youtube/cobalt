@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/sk.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 sk{
-    Version{"2.1.19.14"}
     zoneStrings{
         "Africa:Abidjan"{
             ec{"Abidjan"}
@@ -309,6 +303,9 @@ sk{
         "America:El_Salvador"{
             ec{"Salvádor"}
         }
+        "America:Fort_Nelson"{
+            ec{"Fort Nelson"}
+        }
         "America:Fortaleza"{
             ec{"Fortaleza"}
         }
@@ -510,6 +507,9 @@ sk{
         "America:Puerto_Rico"{
             ec{"Portoriko"}
         }
+        "America:Punta_Arenas"{
+            ec{"Punta Arenas"}
+        }
         "America:Rainy_River"{
             ec{"Rainy River"}
         }
@@ -610,7 +610,7 @@ sk{
             ec{"Davis"}
         }
         "Antarctica:DumontDUrville"{
-            ec{"Dumont D’Urville"}
+            ec{"Dumont d’Urville"}
         }
         "Antarctica:Macquarie"{
             ec{"Macquarie"}
@@ -660,6 +660,9 @@ sk{
         "Asia:Ashgabat"{
             ec{"Ašchabad"}
         }
+        "Asia:Atyrau"{
+            ec{"Atyrau"}
+        }
         "Asia:Baghdad"{
             ec{"Bagdad"}
         }
@@ -671,6 +674,9 @@ sk{
         }
         "Asia:Bangkok"{
             ec{"Bangkok"}
+        }
+        "Asia:Barnaul"{
+            ec{"Barnaul"}
         }
         "Asia:Beirut"{
             ec{"Bejrút"}
@@ -707,6 +713,9 @@ sk{
         }
         "Asia:Dushanbe"{
             ec{"Dušanbe"}
+        }
+        "Asia:Famagusta"{
+            ec{"Famagusta"}
         }
         "Asia:Gaza"{
             ec{"Gaza"}
@@ -801,6 +810,9 @@ sk{
         "Asia:Qatar"{
             ec{"Katar"}
         }
+        "Asia:Qostanay"{
+            ec{"Kostanaj"}
+        }
         "Asia:Qyzylorda"{
             ec{"Kyzylorda"}
         }
@@ -848,6 +860,9 @@ sk{
         }
         "Asia:Tokyo"{
             ec{"Tokio"}
+        }
+        "Asia:Tomsk"{
+            ec{"Tomsk"}
         }
         "Asia:Ulaanbaatar"{
             ec{"Ulanbátar"}
@@ -939,6 +954,10 @@ sk{
         "Australia:Sydney"{
             ec{"Sydney"}
         }
+        "Etc:UTC"{
+            ls{"koordinovaný svetový čas"}
+            ss{"UTC"}
+        }
         "Etc:Unknown"{
             ec{"neznáme mesto"}
         }
@@ -947,6 +966,9 @@ sk{
         }
         "Europe:Andorra"{
             ec{"Andorra"}
+        }
+        "Europe:Astrakhan"{
+            ec{"Astrachán"}
         }
         "Europe:Athens"{
             ec{"Atény"}
@@ -1006,6 +1028,9 @@ sk{
         "Europe:Kiev"{
             ec{"Kyjev"}
         }
+        "Europe:Kirov"{
+            ec{"Kirov"}
+        }
         "Europe:Lisbon"{
             ec{"Lisabon"}
         }
@@ -1064,6 +1089,9 @@ sk{
         "Europe:Sarajevo"{
             ec{"Sarajevo"}
         }
+        "Europe:Saratov"{
+            ec{"Saratov"}
+        }
         "Europe:Simferopol"{
             ec{"Simferopol"}
         }
@@ -1081,6 +1109,9 @@ sk{
         }
         "Europe:Tirane"{
             ec{"Tirana"}
+        }
+        "Europe:Ulyanovsk"{
+            ec{"Uľjanovsk"}
         }
         "Europe:Uzhgorod"{
             ec{"Užhorod"}
@@ -1189,6 +1220,9 @@ sk{
         }
         "Pacific:Honolulu"{
             ec{"Honolulu"}
+            sd{"HDT"}
+            sg{"HST"}
+            ss{"HST"}
         }
         "Pacific:Johnston"{
             ec{"Johnston"}
@@ -1262,6 +1296,11 @@ sk{
         "Pacific:Wallis"{
             ec{"Wallis"}
         }
+        "meta:Acre"{
+            ld{"acrejský letný čas"}
+            lg{"acrejský čas"}
+            ls{"acrejský štandardný čas"}
+        }
         "meta:Afghanistan"{
             ls{"afganský čas"}
         }
@@ -1283,6 +1322,11 @@ sk{
             ld{"aljašský letný čas"}
             lg{"aljašský čas"}
             ls{"aljašský štandardný čas"}
+        }
+        "meta:Almaty"{
+            ld{"almaatský letný čas"}
+            lg{"almaatský čas"}
+            ls{"almaatský štandardný čas"}
         }
         "meta:Amazon"{
             ld{"amazonský letný čas"}
@@ -1318,6 +1362,16 @@ sk{
             ld{"apijský letný čas"}
             lg{"apijský čas"}
             ls{"apijský štandardný čas"}
+        }
+        "meta:Aqtau"{
+            ld{"aktauský letný čas"}
+            lg{"aktauský čas"}
+            ls{"aktauský štandardný čas"}
+        }
+        "meta:Aqtobe"{
+            ld{"aktobský letný čas"}
+            lg{"aktobský čas"}
+            ls{"aktobský štandardný čas"}
         }
         "meta:Arabian"{
             ld{"arabský letný čas"}
@@ -1398,8 +1452,11 @@ sk{
             lg{"kapverdský čas"}
             ls{"kapverdský štandardný čas"}
         }
+        "meta:Casey"{
+            ls{"čas Caseyho stanice"}
+        }
         "meta:Chamorro"{
-            ls{"chamorrský štandardný čas"}
+            ls{"chamorrský čas"}
         }
         "meta:Chatham"{
             ld{"chathamský letný čas"}
@@ -1523,6 +1580,9 @@ sk{
             lg{"západogrónsky čas"}
             ls{"západogrónsky štandardný čas"}
         }
+        "meta:Guam"{
+            ls{"guamský čas"}
+        }
         "meta:Gulf"{
             ls{"štandardný čas Perzského zálivu"}
         }
@@ -1609,6 +1669,9 @@ sk{
         "meta:Kyrgystan"{
             ls{"kirgizský čas"}
         }
+        "meta:Lanka"{
+            ls{"srílanský čas"}
+        }
         "meta:Line_Islands"{
             ls{"čas Rovníkových ostrovov"}
         }
@@ -1616,6 +1679,11 @@ sk{
             ld{"letný čas ostrova lorda Howa"}
             lg{"čas ostrova lorda Howa"}
             ls{"štandardný čas ostrova lorda Howa"}
+        }
+        "meta:Macau"{
+            ld{"macajský letný čas"}
+            lg{"macajský čas"}
+            ls{"macajský štandardný čas"}
         }
         "meta:Macquarie"{
             ls{"čas ostrova Macquarie"}
@@ -1693,12 +1761,17 @@ sk{
             ls{"niuejský čas"}
         }
         "meta:Norfolk"{
-            ls{"norfolský čas"}
+            ld{"norfolský letný čas"}
+            lg{"norfolský čas"}
+            ls{"norfolský štandardný čas"}
         }
         "meta:Noronha"{
             ld{"letný čas súostrovia Fernando de Noronha"}
             lg{"čas súostrovia Fernando de Noronha"}
             ls{"štandardný čas súostrovia Fernando de Noronha"}
+        }
+        "meta:North_Mariana"{
+            ls{"severomariánsky čas"}
         }
         "meta:Novosibirsk"{
             ld{"novosibirský letný čas"}
@@ -1749,6 +1822,14 @@ sk{
         }
         "meta:Ponape"{
             ls{"ponapský čas"}
+        }
+        "meta:Pyongyang"{
+            ls{"pchjongjanský čas"}
+        }
+        "meta:Qyzylorda"{
+            ld{"kyzylordský letný čas"}
+            lg{"kyzylordský čas"}
+            ls{"kyzylordský štandardný čas"}
         }
         "meta:Reunion"{
             ls{"réunionský čas"}

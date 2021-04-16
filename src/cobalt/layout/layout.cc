@@ -24,12 +24,14 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/extension/graphics.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout_boxes.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 
 namespace cobalt {
 namespace layout {
@@ -194,8 +196,25 @@ scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
   // status for animated images.
   used_style_provider->UpdateAnimatedImages();
 
-  render_tree::CompositionNode* static_root_node =
+  render_tree::Node* static_root_node =
       new render_tree::CompositionNode(std::move(render_tree_root_builder));
+
+#if SB_API_VERSION >= 11
+  // Support insertion of a custom transform at the render tree root.
+  static const CobaltExtensionGraphicsApi* s_graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  float m00, m01, m02, m10, m11, m12, m20, m21, m22;
+  if (s_graphics_extension &&
+      strcmp(s_graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
+      s_graphics_extension->version >= 5 &&
+      s_graphics_extension->GetRenderRootTransform(&m00, &m01, &m02, &m10, &m11,
+                                                   &m12, &m20, &m21, &m22)) {
+    static_root_node = new render_tree::MatrixTransformNode(
+        static_root_node, math::Matrix3F::FromValues(m00, m01, m02, m10, m11,
+                                                     m12, m20, m21, m22));
+  }
+#endif  // SB_API_VERSION >= 11
 
   // Make it easy to animate the entire tree by placing an AnimateNode at the
   // root to merge any sub-AnimateNodes.

@@ -24,7 +24,7 @@ namespace dom {
 namespace {
 
 PerformanceEntryList FilterBufferByNameAndType(
-    PerformanceEntryBuffer performance_entry_buffer,
+    PerformanceEntryList performance_entry_buffer,
     const std::string& name,
     const base::StringPiece& entry_type) {
   // Algorithm for filtering buffers.
@@ -68,7 +68,7 @@ PerformanceEntryList FilterBufferByNameAndType(
 
 // static
 PerformanceEntryList PerformanceEntryBufferImpl::GetEntries(
-    PerformanceEntryBuffer performance_entry_buffer) {
+    PerformanceEntryList performance_entry_buffer) {
   std::string empty_name_type;
   return FilterBufferByNameAndType(
       performance_entry_buffer, empty_name_type, empty_name_type);
@@ -76,7 +76,7 @@ PerformanceEntryList PerformanceEntryBufferImpl::GetEntries(
 
 // static
 PerformanceEntryList PerformanceEntryBufferImpl::GetEntriesByType(
-    PerformanceEntryBuffer performance_entry_buffer,
+    PerformanceEntryList performance_entry_buffer,
     const std::string& entry_type) {
   std::string empty_name;
   return FilterBufferByNameAndType(
@@ -85,7 +85,7 @@ PerformanceEntryList PerformanceEntryBufferImpl::GetEntriesByType(
 
 // static
 PerformanceEntryList PerformanceEntryBufferImpl::GetEntriesByName(
-    PerformanceEntryBuffer performance_entry_buffer,
+    PerformanceEntryList performance_entry_buffer,
     const std::string& name,
     const base::StringPiece& type) {
   if (!type.data()) {

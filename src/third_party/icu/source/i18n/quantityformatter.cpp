@@ -1,6 +1,8 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
-* Copyright (C) 2014-2015, International Business Machines
+* Copyright (C) 2014-2016, International Business Machines
 * Corporation and others.  All Rights Reserved.
 ******************************************************************************
 * quantityformatter.cpp
@@ -10,10 +12,12 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
+#include "unicode/simpleformatter.h"
 #include "quantityformatter.h"
-#include "simplepatternformatter.h"
 #include "uassert.h"
 #include "unicode/unistr.h"
 #include "unicode/decimfmt.h"
@@ -23,8 +27,10 @@
 #include "unicode/fmtable.h"
 #include "unicode/fieldpos.h"
 #include "standardplural.h"
-#include "visibledigits.h"
 #include "uassert.h"
+#include "number_decimalquantity.h"
+#include "number_utypes.h"
+#include "formatted_string_builder.h"
 
 U_NAMESPACE_BEGIN
 
@@ -39,7 +45,7 @@ QuantityFormatter::QuantityFormatter(const QuantityFormatter &other) {
         if (other.formatters[i] == NULL) {
             formatters[i] = NULL;
         } else {
-            formatters[i] = new SimplePatternFormatter(*other.formatters[i]);
+            formatters[i] = new SimpleFormatter(*other.formatters[i]);
         }
     }
 }
@@ -54,7 +60,7 @@ QuantityFormatter &QuantityFormatter::operator=(
         if (other.formatters[i] == NULL) {
             formatters[i] = NULL;
         } else {
-            formatters[i] = new SimplePatternFormatter(*other.formatters[i]);
+            formatters[i] = new SimpleFormatter(*other.formatters[i]);
         }
     }
     return *this;
@@ -84,7 +90,7 @@ UBool QuantityFormatter::addIfAbsent(
     if (formatters[pluralIndex] != NULL) {
         return TRUE;
     }
-    SimplePatternFormatter *newFmt = new SimplePatternFormatter(rawPattern, 0, 1, status);
+    SimpleFormatter *newFmt = new SimpleFormatter(rawPattern, 0, 1, status);
     if (newFmt == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return FALSE;
@@ -101,11 +107,11 @@ UBool QuantityFormatter::isValid() const {
     return formatters[StandardPlural::OTHER] != NULL;
 }
 
-const SimplePatternFormatter *QuantityFormatter::getByVariant(
+const SimpleFormatter *QuantityFormatter::getByVariant(
         const char *variant) const {
     U_ASSERT(isValid());
     int32_t pluralIndex = StandardPlural::indexOrOtherIndexFromString(variant);
-    const SimplePatternFormatter *pattern = formatters[pluralIndex];
+    const SimpleFormatter *pattern = formatters[pluralIndex];
     if (pattern == NULL) {
         pattern = formatters[StandardPlural::OTHER];
     }
@@ -124,7 +130,7 @@ UnicodeString &QuantityFormatter::format(
     if (U_FAILURE(status)) {
         return appendTo;
     }
-    const SimplePatternFormatter *pattern = formatters[p];
+    const SimpleFormatter *pattern = formatters[p];
     if (pattern == NULL) {
         pattern = formatters[StandardPlural::OTHER];
         if (pattern == NULL) {
@@ -136,7 +142,7 @@ UnicodeString &QuantityFormatter::format(
 }
 
 // The following methods live here so that class PluralRules does not depend on number formatting,
-// and the SimplePatternFormatter does not depend on FieldPosition.
+// and the SimpleFormatter does not depend on FieldPosition.
 
 StandardPlural::Form QuantityFormatter::selectPlural(
             const Formattable &number,
@@ -149,15 +155,15 @@ StandardPlural::Form QuantityFormatter::selectPlural(
         return StandardPlural::OTHER;
     }
     UnicodeString pluralKeyword;
-    VisibleDigitsWithExponent digits;
     const DecimalFormat *decFmt = dynamic_cast<const DecimalFormat *>(&fmt);
     if (decFmt != NULL) {
-        decFmt->initVisibleDigitsWithExponent(number, digits, status);
+        number::impl::DecimalQuantity dq;
+        decFmt->formatToDecimalQuantity(number, dq, status);
         if (U_FAILURE(status)) {
             return StandardPlural::OTHER;
         }
-        pluralKeyword = rules.select(digits);
-        decFmt->format(digits, formattedNumber, pos, status);
+        pluralKeyword = rules.select(dq);
+        decFmt->format(number, formattedNumber, pos, status);
     } else {
         if (number.getType() == Formattable::kDouble) {
             pluralKeyword = rules.select(number.getDouble());
@@ -174,8 +180,46 @@ StandardPlural::Form QuantityFormatter::selectPlural(
     return StandardPlural::orOtherFromString(pluralKeyword);
 }
 
+void QuantityFormatter::formatAndSelect(
+        double quantity,
+        const NumberFormat& fmt,
+        const PluralRules& rules,
+        FormattedStringBuilder& output,
+        StandardPlural::Form& pluralForm,
+        UErrorCode& status) {
+    UnicodeString pluralKeyword;
+    const DecimalFormat* df = dynamic_cast<const DecimalFormat*>(&fmt);
+    if (df != nullptr) {
+        number::impl::UFormattedNumberData fn;
+        fn.quantity.setToDouble(quantity);
+        const number::LocalizedNumberFormatter* lnf = df->toNumberFormatter(status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        lnf->formatImpl(&fn, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        output = std::move(fn.getStringRef());
+        pluralKeyword = rules.select(fn.quantity);
+    } else {
+        UnicodeString result;
+        fmt.format(quantity, result, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        // This code path is probably RBNF. Use the generic numeric field.
+        output.append(result, kGeneralNumericField, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        pluralKeyword = rules.select(quantity);
+    }
+    pluralForm = StandardPlural::orOtherFromString(pluralKeyword);
+}
+
 UnicodeString &QuantityFormatter::format(
-            const SimplePatternFormatter &pattern,
+            const SimpleFormatter &pattern,
             const UnicodeString &value,
             UnicodeString &appendTo,
             FieldPosition &pos,

@@ -1,12 +1,18 @@
 /*
  *******************************************************************************
  *
+ *   © 2016 and later: Unicode, Inc. and others.
+ *   License & terms of use: http://www.unicode.org/copyright.html
+ *
+ *******************************************************************************
+ *******************************************************************************
+ *
  *   Copyright (C) 1999-2009, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  *
  *******************************************************************************
  *   file name:  reader.c
- *   encoding:   US-ASCII
+ *   encoding:   UTF-8
  *   tab size:   8 (not used)
  *   indentation:4
  *
@@ -63,9 +69,9 @@ isAcceptable(void *context,
         pInfo->dataFormat[3]==0x74 &&
         pInfo->formatVersion[0]==1 &&
         pInfo->dataVersion[0]==1   ) {
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 
 

@@ -1,18 +1,10 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/es_GT.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 es_GT{
     %%Parent{"es_419"}
     NumberElements{
         latn{
-            miscPatterns{
-                range{"{0} al {1}"}
-            }
             patternsShort{
                 currencyFormat{
                     1000{
@@ -51,23 +43,10 @@ es_GT{
                         one{"¤000MRD "}
                         other{"¤000MRD "}
                     }
-                    1000000000000{
-                        one{"¤0 B"}
-                        other{"¤0 B"}
-                    }
-                    10000000000000{
-                        one{"¤00 B"}
-                        other{"¤00 B"}
-                    }
-                    100000000000000{
-                        one{"¤000 B"}
-                        other{"¤000 B"}
-                    }
                 }
             }
         }
     }
-    Version{"2.1.20.32"}
     calendar{
         generic{
             DateTimePatterns{
@@ -143,8 +122,8 @@ es_GT{
                 "d/MM/y",
                 "d/MM/yy",
                 "{1} {0}",
-                "{1}, {0}",
-                "{1}, {0}",
+                "{1} 'a' 'las' {0}",
+                "{1} 'a' 'las' {0}",
                 "{1} {0}",
                 "{1} {0}",
             }
@@ -197,13 +176,6 @@ es_GT{
                     d{"d/MM/y – d/MM/y"}
                     y{"d/MM/y – d/MM/y"}
                 }
-            }
-        }
-    }
-    fields{
-        day{
-            relative{
-                "-2"{"antier"}
             }
         }
     }

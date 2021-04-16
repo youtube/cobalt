@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/media.h"
-
+#include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -194,5 +194,38 @@ TEST(SbMediaBufferTest, VideoBudget) {
     }
   }
 }
+
+TEST(SbMediaBufferTest, ValidatePerformance) {
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferAllocationUnit);
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetAudioBufferBudget);
+  TEST_PERF_FUNCNOARGS_DEFAULT(
+      SbMediaGetBufferGarbageCollectionDurationThreshold);
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetInitialBufferCapacity);
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferPoolAllocateOnDemand);
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
+  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
+
+  for (auto type : kMediaTypes) {
+    TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferAlignment, type);
+    TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferPadding, type);
+  }
+
+  for (auto resolution : kVideoResolutions) {
+    for (auto bits_per_pixel : kBitsPerPixelValues) {
+      for (auto codec : kVideoCodecs) {
+        TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetMaxBufferCapacity, codec,
+                                       resolution[0], resolution[1],
+                                       bits_per_pixel);
+        TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetProgressiveBufferBudget, codec,
+                                       resolution[0], resolution[1],
+                                       bits_per_pixel);
+        TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetVideoBufferBudget, codec,
+                                       resolution[0], resolution[1],
+                                       bits_per_pixel);
+      }
+    }
+  }
+}
+
 }  // namespace nplb
 }  // namespace starboard

@@ -1,13 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/cy.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 cy{
-    Version{"2.1.20.4"}
     durationUnits{
         hm{"h:mm"}
         hms{"h:mm:ss"}
@@ -17,41 +11,41 @@ cy{
         acceleration{
             g-force{
                 dnam{"grym disgyrchedd"}
-                few{"{0} grym disgyrchedd"}
-                many{"{0} grym disgyrchedd"}
+                few{"{0} G"}
+                many{"{0} G"}
                 one{"{0} grym disgyrchedd"}
                 other{"{0} grym disgyrchedd"}
-                two{"{0} rym disgyrchedd"}
-                zero{"{0} grym disgyrchedd"}
+                two{"{0} G"}
+                zero{"{0} G"}
             }
-            meter-per-second-squared{
+            meter-per-square-second{
                 dnam{"metrau yr eiliad sgwâr"}
-                few{"{0} metr yr eiliad sgwâr"}
-                many{"{0} metr yr eiliad sgwâr"}
+                few{"{0} m/eil²"}
+                many{"{0} m/eil²"}
                 one{"{0} metr yr eiliad sgwâr"}
                 other{"{0} metr yr eiliad sgwâr"}
-                two{"{0} fetr yr eiliad sgwâr"}
-                zero{"{0} metr yr eiliad sgwâr"}
+                two{"{0} m/eil²"}
+                zero{"{0} m/eil²"}
             }
         }
         angle{
             arc-minute{
-                dnam{"arcfunudau"}
-                few{"{0} arcfunud"}
-                many{"{0} arcfunud"}
-                one{"{0} arcfunud"}
-                other{"{0} arcfunud"}
-                two{"{0} arcfunud"}
-                zero{"{0} arcfunud"}
+                dnam{"archfunudau"}
+                few{"{0} archfunud"}
+                many{"{0} archfunud"}
+                one{"{0} archfunud"}
+                other{"{0} archfunud"}
+                two{"{0} archfunud"}
+                zero{"{0} archfunud"}
             }
             arc-second{
-                dnam{"arceiliadau"}
-                few{"{0} arceiliad"}
-                many{"{0} arceiliad"}
-                one{"{0} arceiliad"}
-                other{"{0} arceiliad"}
-                two{"{0} arceiliad"}
-                zero{"{0} arceiliad"}
+                dnam{"archeiliadau"}
+                few{"{0} archeiliad"}
+                many{"{0} archeiliad"}
+                one{"{0} archeiliad"}
+                other{"{0} archeiliad"}
+                two{"{0} archeiliad"}
+                zero{"{0} archeiliad"}
             }
             degree{
                 dnam{"graddau"}
@@ -65,11 +59,11 @@ cy{
             radian{
                 dnam{"radianau"}
                 few{"{0} radian"}
-                many{"{0} radian"}
+                many{"{0} rad"}
                 one{"{0} radian"}
                 other{"{0} radian"}
                 two{"{0} radian"}
-                zero{"{0} radian"}
+                zero{"{0} rad"}
             }
             revolution{
                 dnam{"cylchdroeon"}
@@ -83,6 +77,7 @@ cy{
         }
         area{
             acre{
+                dnam{"erw"}
                 few{"{0} erw"}
                 many{"{0} erw"}
                 one{"{0} erw"}
@@ -90,24 +85,33 @@ cy{
                 two{"{0} erw"}
                 zero{"{0} erw"}
             }
+            dunam{
+                dnam{"dunamau"}
+                few{"{0} dunam"}
+                many{"{0} dunam"}
+                one{"{0} dunam"}
+                other{"{0} dunam"}
+                two{"{0} ddunam"}
+                zero{"{0} dunam"}
+            }
             hectare{
                 dnam{"hectarau"}
-                few{"{0} hectar"}
-                many{"{0} hectar"}
+                few{"{0} ha"}
+                many{"{0} ha"}
                 one{"{0} hectar"}
                 other{"{0} hectar"}
-                two{"{0} hectar"}
-                zero{"{0} hectar"}
+                two{"{0} ha"}
+                zero{"{0} ha"}
             }
             square-centimeter{
                 dnam{"centimetrau sgwâr"}
-                few{"{0} chentimetr sgwâr"}
-                many{"{0} chentimetr sgwâr"}
+                few{"{0} cm²"}
+                many{"{0} cm²"}
                 one{"{0} centimetr sgwâr"}
                 other{"{0} centimetr sgwâr"}
                 per{"{0} y centimetr sgwâr"}
-                two{"{0} gentimetr sgwâr"}
-                zero{"{0} centimetr sgwâr"}
+                two{"{0} cm²"}
+                zero{"{0} cm²"}
             }
             square-foot{
                 dnam{"troedfeddi sgwâr"}
@@ -130,22 +134,23 @@ cy{
             }
             square-kilometer{
                 dnam{"cilometrau sgwâr"}
-                few{"{0} chilometr sgwâr"}
-                many{"{0} chilometr sgwâr"}
-                one{"{0} cilometr sgwâr"}
+                few{"{0} km²"}
+                many{"{0} km²"}
+                one{"{0} km²"}
                 other{"{0} cilometr sgwâr"}
-                two{"{0} gilometr sgwâr"}
-                zero{"{0} cilometr sgwâr"}
+                per{"{0} y cilometr sgwâr"}
+                two{"{0} km²"}
+                zero{"{0} km²"}
             }
             square-meter{
                 dnam{"metrau sgwâr"}
-                few{"{0} metr sgwâr"}
-                many{"{0} metr sgwâr"}
+                few{"{0} m²"}
+                many{"{0} m²"}
                 one{"{0} metr sgwâr"}
                 other{"{0} metr sgwâr"}
                 per{"{0} y metr sgwâr"}
-                two{"{0} fetr sgwâr"}
-                zero{"{0} metr sgwâr"}
+                two{"{0} m²"}
+                zero{"{0} m²"}
             }
             square-mile{
                 dnam{"milltiroedd sgwâr"}
@@ -153,6 +158,7 @@ cy{
                 many{"{0} milltir sgwâr"}
                 one{"{0} filltir sgwâr"}
                 other{"{0} milltir sgwâr"}
+                per{"{0}/mi²"}
                 two{"{0} filltir sgwâr"}
                 zero{"{0} milltir sgwâr"}
             }
@@ -169,36 +175,120 @@ cy{
         compound{
             per{"{0}/{1}"}
         }
+        concentr{
+            karat{
+                dnam{"karatau"}
+                few{"{0} kt"}
+                many{"{0} kt"}
+                one{"{0} karat"}
+                other{"{0} karat"}
+                two{"{0} kt"}
+                zero{"{0} karat"}
+            }
+            milligram-per-deciliter{
+                dnam{"miligramau y declilitr"}
+                few{"{0} mg/dL"}
+                many{"{0} mg/dL"}
+                one{"{0} miligram y decilitr"}
+                other{"{0} miligram y decilitr"}
+                two{"{0} mg/dL"}
+                zero{"{0} mg/dL"}
+            }
+            millimole-per-liter{
+                dnam{"milimolau y litr"}
+                few{"{0} mmol/L"}
+                many{"{0} mmol/L"}
+                one{"{0} milimôl y litr"}
+                other{"{0} milimôl y litr"}
+                two{"{0} mmol/L"}
+                zero{"{0} mmol/L"}
+            }
+            mole{
+                dnam{"molau"}
+                few{"{0} môl"}
+                many{"{0} môl"}
+                one{"{0} môl"}
+                other{"{0} môl"}
+                two{"{0} môl"}
+                zero{"{0} môl"}
+            }
+            percent{
+                dnam{"y cant"}
+                few{"{0}%"}
+                many{"{0}%"}
+                one{"{0} y cant"}
+                other{"{0} y cant"}
+                two{"{0}%"}
+                zero{"{0}%"}
+            }
+            permille{
+                dnam{"permille"}
+                few{"{0}‰"}
+                many{"{0}‰"}
+                one{"{0} permille"}
+                other{"{0} permille"}
+                two{"{0}‰"}
+                zero{"{0}‰"}
+            }
+            permillion{
+                dnam{"rhannau pob miliwn"}
+                few{"{0} rhan pob miliwn"}
+                many{"{0} rhan pob miliwn"}
+                one{"{0} rhan pob miliwn"}
+                other{"{0} rhan pob miliwn"}
+                two{"{0} ran pob miliwn"}
+                zero{"{0} rhan pob miliwn"}
+            }
+            permyriad{
+                dnam{"permyriad"}
+                few{"{0}‱"}
+                many{"{0}‱"}
+                one{"{0} permyriad"}
+                other{"{0} permyriad"}
+                two{"{0}‱"}
+                zero{"{0}‱"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
-                dnam{"litrau wrth y 100 cilometr"}
-                few{"{0} litr wrth y 100 cilometr"}
-                many{"{0} litr wrth y 100 cilometr"}
-                one{"{0} litr wrth y 100 cilometr"}
-                other{"{0} litr wrth y 100 cilometr"}
-                two{"{0} litr wrth y 100 cilometr"}
-                zero{"{0} litr wrth y 100 cilometr"}
+            liter-per-100-kilometer{
+                dnam{"litrau y 100 cilometr"}
+                few{"{0} L/100km"}
+                many{"{0} L/100km"}
+                one{"{0} litr y 100 cilometr"}
+                other{"{0} litr y 100 cilometr"}
+                two{"{0} L/100km"}
+                zero{"{0} L/100km"}
             }
             liter-per-kilometer{
                 dnam{"litrau y cilometr"}
-                few{"{0} litr y cilometr"}
-                many{"{0} litr y cilometr"}
+                few{"{0} L/km"}
+                many{"{0} L/km"}
                 one{"{0} litr y cilometr"}
                 other{"{0} litr y cilometr"}
-                two{"{0} litr y cilometr"}
-                zero{"{0} litr y cilometr"}
+                two{"{0} L/km"}
+                zero{"{0} L/km"}
             }
             mile-per-gallon{
                 dnam{"milltiroedd y galwyn"}
-                few{"{0} milltir y galwyn"}
-                many{"{0} milltir y galwyn"}
+                few{"{0} mpg"}
+                many{"{0} mpg"}
                 one{"{0} filltir y galwyn"}
                 other{"{0} milltir y galwyn"}
-                two{"{0} filltir y galwyn"}
-                zero{"{0} milltir y galwyn"}
+                two{"{0} mpg"}
+                zero{"{0} mpg"}
+            }
+            mile-per-gallon-imperial{
+                dnam{"milltiroedd y galwyn Imp."}
+                few{"{0} mpg Imp."}
+                many{"{0} mpg Imp."}
+                one{"{0} milltir y galwyn Imp."}
+                other{"{0} milltir y galwyn Imp."}
+                two{"{0} mpg Imp."}
+                zero{"{0} mpg Imp."}
             }
         }
         coordinate{
+            dnam{"cyfeiriad cardinal"}
             east{"{0} i’r dwyrain"}
             north{"{0} i’r gogledd"}
             south{"{0} i’r de"}
@@ -211,7 +301,7 @@ cy{
                 many{"{0} did"}
                 one{"{0} did"}
                 other{"{0} did"}
-                two{"{0} ddid"}
+                two{"{0} did"}
                 zero{"{0} did"}
             }
             byte{
@@ -225,75 +315,84 @@ cy{
             }
             gigabit{
                 dnam{"gigadidau"}
-                few{"{0} gigadid"}
-                many{"{0} gigadid"}
+                few{"{0} Gb"}
+                many{"{0} Gb"}
                 one{"{0} gigadid"}
                 other{"{0} gigadid"}
-                two{"{0} gigadid"}
-                zero{"{0} gigadid"}
+                two{"{0} Gb"}
+                zero{"{0} Gb"}
             }
             gigabyte{
                 dnam{"gigabeitiau"}
-                few{"{0} gigabeit"}
-                many{"{0} gigabeit"}
+                few{"{0} GB"}
+                many{"{0} GB"}
                 one{"{0} gigabeit"}
                 other{"{0} gigabeit"}
-                two{"{0} gigabeit"}
-                zero{"{0} gigabeit"}
+                two{"{0} GB"}
+                zero{"{0} GB"}
             }
             kilobit{
                 dnam{"cilodidau"}
-                few{"{0} cilodid"}
-                many{"{0} cilodid"}
+                few{"{0} kb"}
+                many{"{0} kb"}
                 one{"{0} cilodid"}
                 other{"{0} cilodid"}
-                two{"{0} cilodid"}
-                zero{"{0} cilodid"}
+                two{"{0} kb"}
+                zero{"{0} kb"}
             }
             kilobyte{
                 dnam{"cilobeitiau"}
-                few{"{0} cilobeit"}
-                many{"{0} cilobeit"}
+                few{"{0} kB"}
+                many{"{0} kB"}
                 one{"{0} cilobeit"}
                 other{"{0} cilobeit"}
-                two{"{0} gilobeit"}
-                zero{"{0} cilobeit"}
+                two{"{0} kB"}
+                zero{"{0} kB"}
             }
             megabit{
                 dnam{"megadidau"}
-                few{"{0} megadid"}
-                many{"{0} megadid"}
+                few{"{0} Mb"}
+                many{"{0} Mb"}
                 one{"{0} megadid"}
                 other{"{0} megadid"}
-                two{"{0} fegadid"}
-                zero{"{0} megadid"}
+                two{"{0} Mb"}
+                zero{"{0} Mb"}
             }
             megabyte{
                 dnam{"megabeitiau"}
-                few{"{0} megabeit"}
-                many{"{0} megabeit"}
+                few{"{0} MB"}
+                many{"{0} MB"}
                 one{"{0} megabeit"}
                 other{"{0} megabeit"}
-                two{"{0} fegabeit"}
-                zero{"{0} megabeit"}
+                two{"{0} MB"}
+                zero{"{0} MB"}
+            }
+            petabyte{
+                dnam{"petabyte"}
+                few{"{0} PB"}
+                many{"{0} PB"}
+                one{"{0} petabyte"}
+                other{"{0} petabyte"}
+                two{"{0} PB"}
+                zero{"{0} PB"}
             }
             terabit{
                 dnam{"teradidau"}
-                few{"{0} teradid"}
-                many{"{0} teradid"}
+                few{"{0} Tb"}
+                many{"{0} Tb"}
                 one{"{0} teradid"}
                 other{"{0} teradid"}
-                two{"{0} deradid"}
-                zero{"{0} teradid"}
+                two{"{0} Tb"}
+                zero{"{0} Tb"}
             }
             terabyte{
                 dnam{"terabeitiau"}
-                few{"{0} terabeit"}
-                many{"{0} terabeit"}
+                few{"{0} TB"}
+                many{"{0} TB"}
                 one{"{0} terabeit"}
                 other{"{0} terabeit"}
-                two{"{0} derabeit"}
-                zero{"{0} terabeit"}
+                two{"{0} TB"}
+                zero{"{0} TB"}
             }
         }
         duration{
@@ -315,6 +414,15 @@ cy{
                 per{"{0} y diwrnod"}
                 two{"{0} ddiwrnod"}
                 zero{"{0} diwrnod"}
+            }
+            decade{
+                dnam{"degawdau"}
+                few{"{0} degawd"}
+                many{"{0} degawd"}
+                one{"{0} degawd"}
+                other{"{0} degawd"}
+                two{"{0} degawd"}
+                zero{"{0} degawd"}
             }
             hour{
                 dnam{"oriau"}
@@ -407,124 +515,238 @@ cy{
         electric{
             ampere{
                 dnam{"amperau"}
-                few{"{0} amper"}
-                many{"{0} amper"}
+                few{"{0} A"}
+                many{"{0} A"}
                 one{"{0} amper"}
                 other{"{0} amper"}
-                two{"{0} amper"}
-                zero{"{0} amper"}
+                two{"{0} A"}
+                zero{"{0} A"}
             }
             milliampere{
                 dnam{"miliamperau"}
-                few{"{0} miliamper"}
-                many{"{0} miliamper"}
+                few{"{0} mA"}
+                many{"{0} mA"}
                 one{"{0} miliamper"}
                 other{"{0} miliamper"}
-                two{"{0} filiamper"}
-                zero{"{0} miliamper"}
+                two{"{0} mA"}
+                zero{"{0} mA"}
             }
             ohm{
                 dnam{"ohmau"}
-                few{"{0} ohm"}
-                many{"{0} ohm"}
+                few{"{0} Ω"}
+                many{"{0} Ω"}
                 one{"{0} ohm"}
                 other{"{0} ohm"}
-                two{"{0} ohm"}
-                zero{"{0} ohm"}
+                two{"{0} Ω"}
+                zero{"{0} Ω"}
             }
             volt{
                 dnam{"foltiau"}
-                few{"{0} folt"}
-                many{"{0} folt"}
+                few{"{0} V"}
+                many{"{0} V"}
                 one{"{0} folt"}
                 other{"{0} folt"}
-                two{"{0} folt"}
-                zero{"{0} folt"}
+                two{"{0} V"}
+                zero{"{0} V"}
             }
         }
         energy{
+            british-thermal-unit{
+                dnam{"unedau thermol Prydain"}
+                few{"{0} Btu"}
+                many{"{0} Btu"}
+                one{"{0} uned thermol Prydain"}
+                other{"{0} uned thermol Prydain"}
+                two{"{0} Btu"}
+                zero{"{0} Btu"}
+            }
             calorie{
                 dnam{"calorïau"}
-                few{"{0} chalori"}
-                many{"{0} chalori"}
+                few{"{0} cal"}
+                many{"{0} cal"}
                 one{"{0} calori"}
                 other{"{0} calori"}
-                two{"{0} galori"}
-                zero{"{0} calori"}
+                two{"{0} cal"}
+                zero{"{0} cal"}
+            }
+            electronvolt{
+                dnam{"electronfoltiau"}
+                few{"{0} eV"}
+                many{"{0} eV"}
+                one{"{0} electronfolt"}
+                other{"{0} electronfolt"}
+                two{"{0} eV"}
+                zero{"{0} eV"}
             }
             foodcalorie{
                 dnam{"Calorïau"}
-                few{"{0} Chalori"}
-                many{"{0} Chalori"}
+                few{"{0} Cal"}
+                many{"{0} Cal"}
                 one{"{0} Calori"}
                 other{"{0} Calori"}
-                two{"{0} Galori"}
-                zero{"{0} Calori"}
+                two{"{0} Cal"}
+                zero{"{0} Cal"}
             }
             joule{
                 dnam{"jouleau"}
-                few{"{0} joule"}
-                many{"{0} joule"}
+                few{"{0} J"}
+                many{"{0} J"}
                 one{"{0} joule"}
                 other{"{0} joule"}
-                two{"{0} joule"}
-                zero{"{0} joule"}
+                two{"{0} J"}
+                zero{"{0} J"}
             }
             kilocalorie{
                 dnam{"cilocalorïau"}
-                few{"{0} chilocalori"}
-                many{"{0} chilocalori"}
+                few{"{0} kcal"}
+                many{"{0} kcal"}
                 one{"{0} cilocalori"}
                 other{"{0} cilocalori"}
-                two{"{0} gilocalori"}
-                zero{"{0} cilocalori"}
+                two{"{0} kcal"}
+                zero{"{0} kcal"}
             }
             kilojoule{
                 dnam{"cilojouleau"}
-                few{"{0} chilojoule"}
-                many{"{0} chilojoule"}
+                few{"{0} kJ"}
+                many{"{0} kJ"}
                 one{"{0} cilojoule"}
                 other{"{0} cilojoule"}
-                two{"{0} gilojoule"}
-                zero{"{0} cilojoule"}
+                two{"{0} kJ"}
+                zero{"{0} kJ"}
+            }
+            kilowatt-hour{
+                dnam{"cilowat oriau"}
+                few{"{0} kW-awr"}
+                many{"{0} kW-awr"}
+                one{"{0} cilowat awr"}
+                other{"{0} cilowat awr"}
+                two{"{0} kW-awr"}
+                zero{"{0} kW-awr"}
+            }
+        }
+        force{
+            newton{
+                dnam{"newtonau"}
+                few{"{0} N"}
+                many{"{0} N"}
+                one{"{0} newton"}
+                other{"{0} newton"}
+                two{"{0} N"}
+                zero{"{0} N"}
+            }
+            pound-force{
+                dnam{"pwysau o rym"}
+                few{"{0} lbf"}
+                many{"{0} lbf"}
+                one{"{0} pwys o rym"}
+                other{"{0} pwysau o rym"}
+                two{"{0} lbf"}
+                zero{"{0} lbf"}
             }
         }
         frequency{
             gigahertz{
                 dnam{"gigaherts"}
-                few{"{0} gigaherts"}
-                many{"{0} gigaherts"}
+                few{"{0} GHz"}
+                many{"{0} GHz"}
                 one{"{0} gigaherts"}
                 other{"{0} gigaherts"}
-                two{"{0} gigaherts"}
-                zero{"{0} gigaherts"}
+                two{"{0} GHz"}
+                zero{"{0} GHz"}
             }
             hertz{
                 dnam{"herts"}
-                few{"{0} herts"}
-                many{"{0} herts"}
+                few{"{0} Hz"}
+                many{"{0} Hz"}
                 one{"{0} herts"}
                 other{"{0} herts"}
-                two{"{0} herts"}
-                zero{"{0} herts"}
+                two{"{0} Hz"}
+                zero{"{0} Hz"}
             }
             kilohertz{
                 dnam{"ciloherts"}
-                few{"{0} ciloherts"}
-                many{"{0} ciloherts"}
+                few{"{0} kHz"}
+                many{"{0} kHz"}
                 one{"{0} ciloherts"}
                 other{"{0} ciloherts"}
-                two{"{0} ciloherts"}
-                zero{"{0} ciloherts"}
+                two{"{0} kHz"}
+                zero{"{0} kHz"}
             }
             megahertz{
                 dnam{"megaherts"}
-                few{"{0} megaherts"}
-                many{"{0} megaherts"}
+                few{"{0} MHz"}
+                many{"{0} MHz"}
                 one{"{0} megaherts"}
                 other{"{0} megaherts"}
-                two{"{0} fegaherts"}
+                two{"{0} MHz"}
                 zero{"{0} megaherts"}
+            }
+        }
+        graphics{
+            dot{
+                few{"{0} dot"}
+                many{"{0} dot"}
+                one{"{0} dot"}
+                other{"{0} dot"}
+                two{"{0} ddot"}
+                zero{"{0} dot"}
+            }
+            dot-per-centimeter{
+                dnam{"dotiau mewn centimedr"}
+                few{"{0} dpcm"}
+                many{"{0} dpcm"}
+                one{"{0} dot mewn centimedr"}
+                other{"{0} mewn centimedr"}
+                two{"{0} dpcm"}
+                zero{"{0} dpcm"}
+            }
+            dot-per-inch{
+                dnam{"dotiau mewn modfedd"}
+                few{"{0} dpi"}
+                many{"{0} dpi"}
+                one{"{0} dot mewn modfedd"}
+                other{"{0} dot mewn modfedd"}
+                two{"{0} dpi"}
+                zero{"{0} dpi"}
+            }
+            em{
+                dnam{"em argraffyddol"}
+            }
+            megapixel{
+                dnam{"megapicseli"}
+                few{"{0} MP"}
+                many{"{0} MP"}
+                one{"{0} megapicsel"}
+                other{"{0} megapicsel"}
+                two{"{0} MP"}
+                zero{"{0} MP"}
+            }
+            pixel{
+                dnam{"picseli"}
+                few{"{0} px"}
+                many{"{0} px"}
+                one{"{0} picsel"}
+                other{"{0} picsel"}
+                two{"{0} px"}
+                zero{"{0} px"}
+            }
+            pixel-per-centimeter{
+                dnam{"picseli mewn centimedr"}
+                few{"{0} ppcm"}
+                many{"{0} ppcm"}
+                one{"{0} picsel mewn centimedr"}
+                other{"{0} picsel mewn centimedr"}
+                two{"{0} ppcm"}
+                zero{"{0} ppcm"}
+            }
+            pixel-per-inch{
+                dnam{"picseli mewn modfedd"}
+                few{"{0} ppi"}
+                many{"{0} ppi"}
+                one{"{0} picsel mewn modfedd"}
+                other{"{0} picsel mewn modfedd"}
+                two{"{0} ppi"}
+                zero{"{0} ppi"}
             }
         }
         length{
@@ -539,22 +761,31 @@ cy{
             }
             centimeter{
                 dnam{"centimetrau"}
-                few{"{0} chentimetr"}
-                many{"{0} chentimetr"}
+                few{"{0} cm"}
+                many{"{0} cm"}
                 one{"{0} centimetr"}
                 other{"{0} centimetr"}
                 per{"{0} y centimetr"}
-                two{"{0} gentimetr"}
-                zero{"{0} centimetr"}
+                two{"{0} cm"}
+                zero{"{0} cm"}
             }
             decimeter{
                 dnam{"decimetrau"}
-                few{"{0} decimetr"}
-                many{"{0} decimetr"}
+                few{"{0} dm"}
+                many{"{0} dm"}
                 one{"{0} decimetr"}
                 other{"{0} decimetr"}
-                two{"{0} decimetr"}
-                zero{"{0} decimetr"}
+                two{"{0} dm"}
+                zero{"{0} dm"}
+            }
+            earth-radius{
+                dnam{"radiws y Ddaear"}
+                few{"{0} R⊕"}
+                many{"{0} R⊕"}
+                one{"{0} radiws y Ddaear"}
+                other{"{0} radiws y Ddaear"}
+                two{"{0} R⊕"}
+                zero{"{0} R⊕"}
             }
             fathom{
                 dnam{"gwrhydau"}
@@ -596,13 +827,13 @@ cy{
             }
             kilometer{
                 dnam{"cilometrau"}
-                few{"{0} chilometr"}
-                many{"{0} chilometr"}
+                few{"{0} km"}
+                many{"{0} km"}
                 one{"{0} cilometr"}
                 other{"{0} cilometr"}
                 per{"{0} y cilometr"}
-                two{"{0} gilometr"}
-                zero{"{0} cilometr"}
+                two{"{0} km"}
+                zero{"{0} km"}
             }
             light-year{
                 dnam{"blynyddoedd golau"}
@@ -615,22 +846,22 @@ cy{
             }
             meter{
                 dnam{"metrau"}
-                few{"{0} metr"}
-                many{"{0} metr"}
+                few{"{0} m"}
+                many{"{0} m"}
                 one{"{0} metr"}
                 other{"{0} metr"}
                 per{"{0} y metr"}
-                two{"{0} fetr"}
-                zero{"{0} metr"}
+                two{"{0} m"}
+                zero{"{0} m"}
             }
             micrometer{
                 dnam{"micrometrau"}
-                few{"{0} micrometr"}
-                many{"{0} micrometr"}
+                few{"{0} µm"}
+                many{"{0} µm"}
                 one{"{0} micrometr"}
                 other{"{0} micrometr"}
-                two{"{0} ficrometr"}
-                zero{"{0} micrometr"}
+                two{"{0} µm"}
+                zero{"{0} µm"}
             }
             mile{
                 dnam{"milltiroedd"}
@@ -639,10 +870,10 @@ cy{
                 one{"{0} filltir"}
                 other{"{0} milltir"}
                 two{"{0} filltir"}
-                zero{"{0} milltir"}
+                zero{"{0} mi"}
             }
             mile-scandinavian{
-                dnam{"milltir Sgandinafia"}
+                dnam{"milltiroedd Sgandinafia"}
                 few{"{0} milltir Sgandinafia"}
                 many{"{0} milltir Sgandinafia"}
                 one{"{0} filltir Sgandinafia"}
@@ -652,21 +883,21 @@ cy{
             }
             millimeter{
                 dnam{"milimetrau"}
-                few{"{0} milimetr"}
-                many{"{0} milimetr"}
+                few{"{0} mm"}
+                many{"{0} mm"}
                 one{"{0} milimetr"}
                 other{"{0} milimetr"}
                 two{"{0} filimetr"}
-                zero{"{0} milimetr"}
+                zero{"{0} mm"}
             }
             nanometer{
                 dnam{"nanometrau"}
-                few{"{0} nanometr"}
-                many{"{0} nanometr"}
+                few{"{0} nm"}
+                many{"{0} nm"}
                 one{"{0} nanometr"}
                 other{"{0} nanometr"}
-                two{"{0} nanometr"}
-                zero{"{0} nanometr"}
+                two{"{0} nm"}
+                zero{"{0} nm"}
             }
             nautical-mile{
                 dnam{"milltiroedd môr"}
@@ -679,21 +910,39 @@ cy{
             }
             parsec{
                 dnam{"parsecau"}
-                few{"{0} pharsec"}
-                many{"{0} pharsec"}
+                few{"{0} pc"}
+                many{"{0} pc"}
                 one{"{0} parsec"}
                 other{"{0} parsec"}
-                two{"{0} barsec"}
+                two{"{0} pc"}
                 zero{"{0} parsec"}
             }
             picometer{
                 dnam{"picometrau"}
-                few{"{0} phicometr"}
-                many{"{0} phicometr"}
+                few{"{0} pm"}
+                many{"{0} pm"}
                 one{"{0} picometr"}
                 other{"{0} picometr"}
-                two{"{0} bicometr"}
-                zero{"{0} picometr"}
+                two{"{0} pm"}
+                zero{"{0} pm"}
+            }
+            point{
+                dnam{"pwyntiau"}
+                few{"{0} pt"}
+                many{"{0} pt"}
+                one{"{0} pwynt"}
+                other{"{0} pwynt"}
+                two{"{0} bwynt"}
+                zero{"{0} pwynt"}
+            }
+            solar-radius{
+                dnam{"radiysau solar"}
+                few{"{0} R☉"}
+                many{"{0} R☉"}
+                one{"{0} radiws solar"}
+                other{"{0} radiws solar"}
+                two{"{0} R☉"}
+                zero{"{0} R☉"}
             }
             yard{
                 dnam{"llathenni"}
@@ -706,59 +955,110 @@ cy{
             }
         }
         light{
+            candela{
+                dnam{"candela"}
+            }
+            lumen{
+                dnam{"lwmen"}
+            }
             lux{
                 dnam{"lycsau"}
-                few{"{0} lwcs"}
-                many{"{0} lwcs"}
+                few{"{0} lx"}
+                many{"{0} lx"}
                 one{"{0} lwcs"}
                 other{"{0} lwcs"}
-                two{"{0} lwcs"}
+                two{"{0} lx"}
                 zero{"{0} lwcs"}
+            }
+            solar-luminosity{
+                dnam{"goleueddau solar"}
+                few{"{0} L☉"}
+                many{"{0} L☉"}
+                one{"{0} goleuedd solar"}
+                other{"{0} goleueddau solar"}
+                two{"{0} L☉"}
+                zero{"{0} L☉"}
             }
         }
         mass{
+            carat{
+                dnam{"caratau"}
+                few{"{0} CD"}
+                many{"{0} CD"}
+                one{"{0} carat"}
+                other{"{0} carat"}
+                two{"{0} CD"}
+                zero{"{0} carat"}
+            }
+            dalton{
+                dnam{"daltonau"}
+                few{"{0} Da"}
+                many{"{0} Da"}
+                one{"{0} dalton"}
+                other{"{0} dalton"}
+                two{"{0} Da"}
+                zero{"{0} Da"}
+            }
+            earth-mass{
+                dnam{"masau ddaear"}
+                few{"{0} M⊕"}
+                many{"{0} M⊕"}
+                one{"{0} más ddaear"}
+                other{"{0} más ddaear"}
+                two{"{0} M⊕"}
+                zero{"{0} M⊕"}
+            }
+            grain{
+                dnam{"graen"}
+                few{"{0} graen"}
+                many{"{0} graen"}
+                one{"{0} graen"}
+                other{"{0} graen"}
+                two{"{0} raen"}
+                zero{"{0} graen"}
+            }
             gram{
                 dnam{"gramau"}
-                few{"{0} gram"}
-                many{"{0} gram"}
+                few{"{0} g"}
+                many{"{0} g"}
                 one{"{0} gram"}
                 other{"{0} gram"}
                 per{"{0} y gram"}
-                two{"{0} gram"}
-                zero{"{0} gram"}
+                two{"{0} g"}
+                zero{"{0} g"}
             }
             kilogram{
                 dnam{"cilogramau"}
-                few{"{0} chilogram"}
-                many{"{0} chilogram"}
+                few{"{0} kg"}
+                many{"{0} kg"}
                 one{"{0} cilogram"}
                 other{"{0} cilogram"}
                 per{"{0} y cilogram"}
-                two{"{0} gilogram"}
-                zero{"{0} cilogram"}
+                two{"{0} kg"}
+                zero{"{0} kg"}
             }
             metric-ton{
                 dnam{"tunelli metrig"}
-                few{"{0} tunnell fetrig"}
-                many{"{0} tunnell fetrig"}
+                few{"{0} t"}
+                many{"{0} t"}
                 one{"{0} dunnell fetrig"}
                 other{"{0} tunnell fetrig"}
-                two{"{0} dunnell fetrig"}
-                zero{"{0} tunnell fetrig"}
+                two{"{0} t"}
+                zero{"{0} t"}
             }
             microgram{
                 dnam{"microgramau"}
-                few{"{0} microgram"}
-                many{"{0} microgram"}
+                few{"{0} µg"}
+                many{"{0} µg"}
                 one{"{0} microgram"}
                 other{"{0} microgram"}
-                two{"{0} ficrogram"}
-                zero{"{0} microgram"}
+                two{"{0} µg"}
+                zero{"{0} µg"}
             }
             milligram{
                 dnam{"miligramau"}
-                few{"{0} miligram"}
-                many{"{0} miligram"}
+                few{"{0} mg"}
+                many{"{0} mg"}
                 one{"{0} miligram"}
                 other{"{0} miligram"}
                 two{"{0} filigram"}
@@ -793,6 +1093,15 @@ cy{
                 two{"{0} bwys"}
                 zero{"{0} pwys"}
             }
+            solar-mass{
+                dnam{"masau solar"}
+                few{"{0} M☉"}
+                many{"{0} M☉"}
+                one{"{0} más solar"}
+                other{"{0} más solar"}
+                two{"{0} M☉"}
+                zero{"{0} M☉"}
+            }
             stone{
                 dnam{"stonau"}
                 few{"{0} stôn"}
@@ -809,7 +1118,7 @@ cy{
                 one{"{0} dunnell"}
                 other{"{0} tunnell"}
                 two{"{0} dunnell"}
-                zero{"{0} tunnell"}
+                zero{"{0} tn"}
             }
         }
         power{
@@ -824,26 +1133,26 @@ cy{
             }
             horsepower{
                 dnam{"marchnerth"}
-                few{"{0} marchnerth"}
-                many{"{0} marchnerth"}
+                few{"{0} hp"}
+                many{"{0} hp"}
                 one{"{0} marchnerth"}
                 other{"{0} marchnerth"}
-                two{"{0} farchnerth"}
-                zero{"{0} marchnerth"}
+                two{"{0} hp"}
+                zero{"{0} hp"}
             }
             kilowatt{
-                dnam{"cilawatiau"}
-                few{"{0} chilowat"}
-                many{"{0} chilowat"}
+                dnam{"cilowatiau"}
+                few{"{0} kW"}
+                many{"{0} kW"}
                 one{"{0} cilowat"}
                 other{"{0} cilowat"}
-                two{"{0} gilowat"}
-                zero{"{0} cilowat"}
+                two{"{0} kW"}
+                zero{"{0} kW"}
             }
             megawatt{
                 dnam{"megawatiau"}
-                few{"{0} megawat"}
-                many{"{0} megawat"}
+                few{"{0} MW"}
+                many{"{0} MW"}
                 one{"{0} megawat"}
                 other{"{0} megawat"}
                 two{"{0} fegawat"}
@@ -851,12 +1160,12 @@ cy{
             }
             milliwatt{
                 dnam{"miliwatiau"}
-                few{"{0} miliwat"}
-                many{"{0} miliwat"}
+                few{"{0} mW"}
+                many{"{0} mW"}
                 one{"{0} miliwat"}
                 other{"{0} miliwat"}
-                two{"{0} filiwat"}
-                zero{"{0} miliwat"}
+                two{"{0} mW"}
+                zero{"{0} mW"}
             }
             watt{
                 dnam{"watiau"}
@@ -869,61 +1178,86 @@ cy{
             }
         }
         pressure{
+            atmosphere{
+                dnam{"atmosfferau"}
+                few{"{0} atm"}
+                many{"{0} atm"}
+                one{"{0} atmosffer"}
+                other{"{0} atmosffer"}
+                two{"{0} atm"}
+                zero{"{0} atm"}
+            }
             hectopascal{
                 dnam{"hectopascalau"}
-                few{"{0} hectopascal"}
-                many{"{0} hectopascal"}
+                few{"{0} hPa"}
+                many{"{0} hPa"}
                 one{"{0} hectopascal"}
                 other{"{0} hectopascal"}
-                two{"{0} hectopascal"}
-                zero{"{0} hectopascal"}
+                two{"{0} hPa"}
+                zero{"{0} hPa"}
             }
-            inch-hg{
+            inch-ofhg{
                 dnam{"modfeddi o fercwri"}
-                few{"{0} modfedd o fercwri"}
-                many{"{0} modfedd o fercwri"}
+                few{"{0} inHg"}
+                many{"{0} inHg"}
                 one{"{0} fodfedd o fercwri"}
                 other{"{0} modfedd o fercwri"}
-                two{"{0} fodfedd o fercwri"}
-                zero{"{0} modfedd o fercwri"}
+                two{"{0} inHg"}
+                zero{"{0} inHg"}
+            }
+            kilopascal{
+                dnam{"cilopascalau"}
+                few{"{0} kPa"}
+                many{"{0} kPa"}
+                one{"{0} cilopascal"}
+                other{"{0} cilopascalau"}
+                two{"{0} kPa"}
+                zero{"{0} kPa"}
+            }
+            megapascal{
+                dnam{"megapascalau"}
+                few{"{0} MPa"}
+                many{"{0} MPa"}
+                one{"{0} megapascal"}
+                other{"{0} megapascalau"}
+                two{"{0} MPa"}
+                zero{"{0} MPa"}
             }
             millibar{
-                dnam{"milibarrau"}
+                dnam{"milibarau"}
                 few{"{0} milibar"}
-                many{"{0} milibar"}
+                many{"{0} mbar"}
                 one{"{0} milibar"}
                 other{"{0} milibar"}
                 two{"{0} filibar"}
-                zero{"{0} milibar"}
+                zero{"{0} mbar"}
             }
-            millimeter-of-mercury{
+            millimeter-ofhg{
                 dnam{"milimetrau o fercwri"}
-                few{"{0} milimetr o fercwri"}
-                many{"{0} milimetr o fercwri"}
+                few{"{0} mmHg"}
+                many{"{0} mmHg"}
                 one{"{0} milimetr o fercwri"}
                 other{"{0} milimetr o fercwri"}
-                two{"{0} filimetr o fercwri"}
-                zero{"{0} milimetr o fercwri"}
+                two{"{0} mmHg"}
+                zero{"{0} mmHg"}
             }
-            pound-per-square-inch{
+            pascal{
+                dnam{"pascalau"}
+                few{"{0} Pa"}
+                many{"{0} Pa"}
+                one{"{0} pascal"}
+                other{"{0} pascal"}
+                two{"{0} Pa"}
+                zero{"{0} Pa"}
+            }
+            pound-force-per-square-inch{
                 dnam{"pwysau y fodfedd sgwar"}
-                few{"{0} pwys y fodfedd sgwar"}
-                many{"{0} pwys y fodfedd sgwar"}
+                few{"{0} psi"}
+                many{"{0} psi"}
                 one{"{0} pwys y fodfedd sgwar"}
                 other{"{0} pwys y fodfedd sgwar"}
-                two{"{0} bwys y fodfedd sgwar"}
-                zero{"{0} pwys y fodfedd sgwar"}
-            }
-        }
-        proportion{
-            karat{
-                dnam{"karatau"}
-                few{"{0} karat"}
-                many{"{0} karat"}
-                one{"{0} karat"}
-                other{"{0} karat"}
-                two{"{0} karat"}
-                zero{"{0} karat"}
+                two{"{0} psi"}
+                zero{"{0} psi"}
             }
         }
         speed{
@@ -967,21 +1301,21 @@ cy{
         temperature{
             celsius{
                 dnam{"graddau Celsius"}
-                few{"{0} gradd Celsius"}
-                many{"{0} gradd Celsius"}
+                few{"{0}°C"}
+                many{"{0}°C"}
                 one{"{0} radd Celsius"}
                 other{"{0} gradd Celsius"}
-                two{"{0} radd Celsius"}
+                two{"{0}°C"}
                 zero{"{0} gradd Celsius"}
             }
             fahrenheit{
                 dnam{"gradd Fahrenheit"}
-                few{"{0} gradd Fahrenheit"}
-                many{"{0} gradd Fahrenheit"}
+                few{"{0}°F"}
+                many{"{0}°F"}
                 one{"{0} radd Fahrenheit"}
                 other{"{0} gradd Fahrenheit"}
-                two{"{0} radd Fahrenheit"}
-                zero{"{0} gradd Fahrenheit"}
+                two{"{0}°F"}
+                zero{"{0}°F"}
             }
             generic{
                 dnam{"°"}
@@ -994,97 +1328,135 @@ cy{
             }
             kelvin{
                 dnam{"celfinau"}
-                few{"{0} chelfin"}
-                many{"{0} celfin"}
+                few{"{0} K"}
+                many{"{0} K"}
                 one{"{0} celfin"}
                 other{"{0} celfin"}
-                two{"{0} gelfin"}
-                zero{"{0} celfin"}
+                two{"{0} K"}
+                zero{"{0} K"}
+            }
+        }
+        torque{
+            newton-meter{
+                dnam{"newton-metrau"}
+                few{"{0} N⋅m"}
+                many{"{0} N⋅m"}
+                one{"{0} newton-metr"}
+                other{"{0} newton-metrau"}
+                two{"{0} N⋅m"}
+                zero{"{0} N⋅m"}
+            }
+            pound-force-foot{
+                dnam{"pwys-troedfeddi"}
+                few{"{0} lbf⋅ft"}
+                many{"{0} lbf⋅ft"}
+                one{"{0} pwys o rym⋅droedfedd"}
+                other{"{0} pwys-troedfeddi"}
+                two{"{0} lbf⋅ft"}
+                zero{"{0} lbf⋅ft"}
             }
         }
         volume{
+            acre-foot{
+                dnam{"erw-droedfeddi"}
+                few{"{0} erw-droedfedd"}
+                many{"{0} erw-droedfedd"}
+                one{"{0} erw-droedfedd"}
+                other{"{0} erw-droedfedd"}
+                two{"{0} erw-droedfedd"}
+                zero{"{0} erw-droedfedd"}
+            }
+            barrel{
+                dnam{"bareli"}
+                few{"{0} bbl"}
+                many{"{0} bbl"}
+                one{"{0} barel"}
+                other{"{0} barel"}
+                two{"{0} bbl"}
+                zero{"{0} bbl"}
+            }
             bushel{
                 dnam{"bwsielau"}
-                few{"{0} bwsiel"}
-                many{"{0} bwsiel"}
+                few{"{0} bw"}
+                many{"{0} bw"}
                 one{"{0} bwsiel"}
                 other{"{0} bwsiel"}
-                two{"{0} bwsiel"}
-                zero{"{0} bwsiel"}
+                two{"{0} bw"}
+                zero{"{0} bw"}
             }
             centiliter{
                 dnam{"centilitrau"}
-                few{"{0} chentilitr"}
-                many{"{0} chentilitr"}
+                few{"{0} cL"}
+                many{"{0} cL"}
                 one{"{0} centilitr"}
                 other{"{0} centilitr"}
                 two{"{0} gentilitr"}
-                zero{"{0} centilitr"}
+                zero{"{0} cL"}
             }
             cubic-centimeter{
                 dnam{"centimetrau ciwbig"}
-                few{"{0} chentimetr ciwbig"}
-                many{"{0} centimetr ciwbig"}
+                few{"{0} cm³"}
+                many{"{0} cm³"}
                 one{"{0} centimetr ciwbig"}
                 other{"{0} chentimetr ciwbig"}
                 per{"{0} y centimetr ciwbig"}
-                two{"{0} gentimetr ciwbig"}
-                zero{"{0} centimetr ciwbig"}
+                two{"{0} cm³"}
+                zero{"{0} cm³"}
             }
             cubic-foot{
                 dnam{"troedfeddi ciwbig"}
-                few{"{0} troedfedd giwbig"}
-                many{"{0} troedfedd giwbig"}
+                few{"{0} tr³"}
+                many{"{0} tr³"}
                 one{"{0} droedfedd giwbig"}
                 other{"{0} troedfedd giwbig"}
-                two{"{0} droedfedd giwbig"}
-                zero{"{0} troedfedd giwbig"}
+                two{"{0} tr³"}
+                zero{"{0} tr³"}
             }
             cubic-inch{
                 dnam{"modfeddi ciwbig"}
-                few{"{0} modfedd giwbig"}
-                many{"{0} modfedd giwbig"}
+                few{"{0} modfedd³"}
+                many{"{0} modfedd³"}
                 one{"{0} fodfedd giwbig"}
                 other{"{0} modfedd giwbig"}
-                two{"{0} fodfedd giwbig"}
-                zero{"{0} modfedd giwbig"}
+                two{"{0} fodfedd³"}
+                zero{"{0} modfedd³"}
             }
             cubic-kilometer{
                 dnam{"cilometrau ciwbig"}
-                few{"{0} chilometr ciwbig"}
-                many{"{0} chilometr ciwbig"}
+                few{"{0} km³"}
+                many{"{0} km³"}
                 one{"{0} cilometr ciwbig"}
                 other{"{0} cilometr ciwbig"}
-                two{"{0} gilometr ciwbig"}
-                zero{"{0} cilometr ciwbig"}
+                two{"{0} km³"}
+                zero{"{0} km³"}
             }
             cubic-meter{
                 dnam{"metrau ciwbig"}
-                few{"{0} metr ciwbig"}
-                many{"{0} metr ciwbig"}
+                few{"{0} m³"}
+                many{"{0} m³"}
                 one{"{0} metr ciwbig"}
                 other{"{0} metr ciwbig"}
                 per{"{0} y metr ciwbig"}
-                two{"{0} fetr ciwbig"}
-                zero{"{0} metr ciwbig"}
+                two{"{0} m³"}
+                zero{"{0} m³"}
             }
             cubic-mile{
                 dnam{"milltiroedd ciwbig"}
-                few{"{0} milltir giwbig"}
-                many{"{0} milltir giwbig"}
+                few{"{0} mi³"}
+                many{"{0} mi³"}
                 one{"{0} filltir giwbig"}
                 other{"{0} milltir giwbig"}
-                two{"{0} filltir giwbig"}
+                two{"{0} mi³"}
                 zero{"{0} milltir giwbig"}
             }
             cubic-yard{
                 dnam{"llathenni ciwbig"}
-                few{"{0} llath giwbig"}
-                many{"{0} llath giwbig"}
+                few{"{0} llath³"}
+                many{"{0} llath³"}
                 one{"{0} llathen giwbig"}
                 other{"{0} llath giwbig"}
-                two{"{0} lath giwbig"}
-                zero{"{0} llath giwbig"}
+                two{"{0} lath³"}
+                zero{"{0} llath³"}
             }
             cup{
                 dnam{"cwpaneidiau"}
@@ -1097,21 +1469,57 @@ cy{
             }
             cup-metric{
                 dnam{"cwpaneidiau metrig"}
-                few{"{0} cwpanaid metrig"}
-                many{"{0} cwpanaid metrig"}
+                few{"{0} mc"}
+                many{"{0} mc"}
                 one{"{0} cwpanaid metrig"}
                 other{"{0} cwpanaid metrig"}
-                two{"{0} gwpanaid metrig"}
-                zero{"{0} cwpanaid metrig"}
+                two{"{0} mc"}
+                zero{"{0} mc"}
             }
             deciliter{
                 dnam{"decilitrau"}
-                few{"{0} decilitr"}
-                many{"{0} decilitr"}
+                few{"{0} dL"}
+                many{"{0} dL"}
                 one{"{0} decilitr"}
                 other{"{0} decilitr"}
-                two{"{0} decilitr"}
-                zero{"{0} decilitr"}
+                two{"{0} dL"}
+                zero{"{0} dL"}
+            }
+            dessert-spoon{
+                dnam{"llond llwy bwdin"}
+                few{"{0} dstspn"}
+                many{"{0} dstspn"}
+                one{"{0} llond llwy bwdin"}
+                other{"{0} llond llwy bwdin"}
+                two{"{0} dstspn"}
+                zero{"{0} dstspn"}
+            }
+            dessert-spoon-imperial{
+                dnam{"llond llwy bwdin imp."}
+                few{"{0} dstspn Imp"}
+                many{"{0} dstspn Imp"}
+                one{"{0} llond llwy bwdin imp."}
+                other{"{0} llond llwy bwdin imp."}
+                two{"{0} dstspn Imp"}
+                zero{"{0} dstspn Imp"}
+            }
+            dram{
+                dnam{"dracmon hylifol"}
+                few{"{0} dracmon hy"}
+                many{"{0} dracmon hy"}
+                one{"{0} dracmon hy"}
+                other{"{0} dracmon hy"}
+                two{"{0} ddracmon hy"}
+                zero{"{0} dracmon hy"}
+            }
+            drop{
+                dnam{"diferyn"}
+                few{"{0} diferyn"}
+                many{"{0} diferyn"}
+                one{"{0} diferyn"}
+                other{"{0} diferyn"}
+                two{"{0} ddiferyn"}
+                zero{"{0} diferyn"}
             }
             fluid-ounce{
                 dnam{"ownsiau hylifol"}
@@ -1121,6 +1529,15 @@ cy{
                 other{"{0} owns hylifol"}
                 two{"{0} owns hylifol"}
                 zero{"{0} owns hylifol"}
+            }
+            fluid-ounce-imperial{
+                dnam{"Ownsiau hylifol Imp."}
+                few{"{0} fl oz Imp."}
+                many{"{0} fl oz Imp."}
+                one{"{0} owns hylifol Imp."}
+                other{"{0} owns hylifol Imp."}
+                two{"{0} fl oz Imp."}
+                zero{"{0} fl oz Imp."}
             }
             gallon{
                 dnam{"galwyni"}
@@ -1132,19 +1549,38 @@ cy{
                 two{"{0} alwyn"}
                 zero{"{0} galwyn"}
             }
+            gallon-imperial{
+                dnam{"Galwyni Imp."}
+                few{"{0} galwyn Imp."}
+                many{"{0} galwyn Imp."}
+                one{"{0} galwyn Imp."}
+                other{"{0} galwyn Imp."}
+                per{"{0} y galwyn Imp."}
+                two{"{0} galwyn Imp."}
+                zero{"{0} galwyn Imp."}
+            }
             hectoliter{
                 dnam{"hectolitrau"}
-                few{"{0} hectolitr"}
-                many{"{0} hectolitr"}
+                few{"{0} hL"}
+                many{"{0} hL"}
                 one{"{0} hectolitr"}
                 other{"{0} hectolitr"}
-                two{"{0} hectolitr"}
-                zero{"{0} hectolitr"}
+                two{"{0} hL"}
+                zero{"{0} hL"}
+            }
+            jigger{
+                dnam{"joch"}
+                few{"{0} joch"}
+                many{"{0} joch"}
+                one{"{0} joch"}
+                other{"{0} joch"}
+                two{"{0} joch"}
+                zero{"{0} joch"}
             }
             liter{
                 dnam{"litrau"}
-                few{"{0} litr"}
-                many{"{0} litr"}
+                few{"{0} L"}
+                many{"{0} L"}
                 one{"{0} litr"}
                 other{"{0} litr"}
                 per{"{0} y litr"}
@@ -1153,21 +1589,30 @@ cy{
             }
             megaliter{
                 dnam{"megalitrau"}
-                few{"{0} megalitr"}
-                many{"{0} megalitr"}
+                few{"{0} ML"}
+                many{"{0} ML"}
                 one{"{0} megalitr"}
                 other{"{0} megalitr"}
-                two{"{0} fegalitr"}
-                zero{"{0} megalitr"}
+                two{"{0} ML"}
+                zero{"{0} ML"}
             }
             milliliter{
                 dnam{"mililitrau"}
-                few{"{0} mililitr"}
-                many{"{0} mililitr"}
+                few{"{0} mL"}
+                many{"{0} mL"}
                 one{"{0} mililitr"}
                 other{"{0} mililitr"}
-                two{"{0} mililitr"}
-                zero{"{0} mililitr"}
+                two{"{0} mL"}
+                zero{"{0} mL"}
+            }
+            pinch{
+                dnam{"pinsiad"}
+                few{"{0} phinsiad"}
+                many{"{0} pinsiad"}
+                one{"{0} pinsiad"}
+                other{"{0} pinsiad"}
+                two{"{0} binsiad"}
+                zero{"{0} pinsiad"}
             }
             pint{
                 dnam{"peintiau"}
@@ -1180,12 +1625,12 @@ cy{
             }
             pint-metric{
                 dnam{"peintiau metrig"}
-                few{"{0} peint metrig"}
-                many{"{0} peint metrig"}
+                few{"{0} mpt"}
+                many{"{0} mpt"}
                 one{"{0} peint metrig"}
                 other{"{0} peint metrig"}
-                two{"{0} peint metrig"}
-                zero{"{0} peint metrig"}
+                two{"{0} mpt"}
+                zero{"{0} mpt"}
             }
             quart{
                 dnam{"chwartiau"}
@@ -1195,6 +1640,15 @@ cy{
                 other{"{0} chwart"}
                 two{"{0} gwart"}
                 zero{"{0} chwart"}
+            }
+            quart-imperial{
+                dnam{"chwart Imp"}
+                few{"{0} cht Imp."}
+                many{"{0} cht Imp."}
+                one{"{0} cht Imp."}
+                other{"{0} cht Imp."}
+                two{"{0} cht Imp."}
+                zero{"{0} cht Imp."}
             }
             tablespoon{
                 dnam{"llond llwy fwrdd"}
@@ -1332,8 +1786,19 @@ cy{
         compound{
             per{"{0}/{1}"}
         }
+        concentr{
+            percent{
+                dnam{"%"}
+                few{"{0}%"}
+                many{"{0}%"}
+                one{"{0}%"}
+                other{"{0}%"}
+                two{"{0}%"}
+                zero{"{0}%"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
+            liter-per-100-kilometer{
                 dnam{"L/100km"}
                 few{"{0}L/100km"}
                 many{"{0}L/100km"}
@@ -1351,6 +1816,13 @@ cy{
                 two{"{0}L/km"}
                 zero{"{0}L/km"}
             }
+        }
+        coordinate{
+            dnam{"cyfeiriad"}
+            east{"{0}dn"}
+            north{"{0}g"}
+            south{"{0}d"}
+            west{"{0}gn"}
         }
         digital{
             bit{
@@ -1487,14 +1959,14 @@ cy{
                 zero{"{0} eil"}
             }
             week{
-                dnam{"w"}
-                few{"{0}w"}
-                many{"{0}w"}
+                dnam{"ws"}
+                few{"{0} ws"}
+                many{"{0} ws"}
                 one{"{0}w"}
                 other{"{0}w"}
                 per{"{0}/w"}
-                two{"{0}w"}
-                zero{"{0}w"}
+                two{"{0} ws"}
+                zero{"{0} ws"}
             }
             year{
                 dnam{"bl"}
@@ -1661,12 +2133,12 @@ cy{
             }
             fathom{
                 dnam{"gwrhydau"}
-                few{"{0}fm"}
-                many{"{0}fm"}
-                one{"{0}fm"}
-                other{"{0}fm"}
-                two{"{0}fm"}
-                zero{"{0}fm"}
+                few{"{0}fth"}
+                many{"{0}fth"}
+                one{"{0}fth"}
+                other{"{0}fth"}
+                two{"{0}fth"}
+                zero{"{0}fth"}
             }
             foot{
                 dnam{"troedfedd"}
@@ -1708,7 +2180,7 @@ cy{
                 zero{"{0}ly"}
             }
             meter{
-                dnam{"metr"}
+                dnam{"m"}
                 few{"{0}m"}
                 many{"{0}m"}
                 one{"{0}m"}
@@ -1817,13 +2289,13 @@ cy{
             }
             kilogram{
                 dnam{"kg"}
-                few{"{0}kg"}
-                many{"{0}kg"}
-                one{"{0}kg"}
+                few{"{0} kg"}
+                many{"{0} kg"}
+                one{"{0} kg"}
                 other{"{0}kg"}
                 per{"{0}/kg"}
-                two{"{0}kg"}
-                zero{"{0}kg"}
+                two{"{0} kg"}
+                zero{"{0} kg"}
             }
             metric-ton{
                 dnam{"t"}
@@ -1948,7 +2420,7 @@ cy{
                 two{"{0}hPa"}
                 zero{"{0}hPa"}
             }
-            inch-hg{
+            inch-ofhg{
                 dnam{"″ Hg"}
                 few{"{0}\u0022 Hg"}
                 many{"{0}\u0022 Hg"}
@@ -1966,16 +2438,16 @@ cy{
                 two{"{0}mb"}
                 zero{"{0}mb"}
             }
-            millimeter-of-mercury{
-                dnam{"mm Hg"}
-                few{"{0}mm Hg"}
-                many{"{0}mm Hg"}
-                one{"{0}mm Hg"}
-                other{"{0}mm Hg"}
-                two{"{0}mm Hg"}
-                zero{"{0}mm Hg"}
+            millimeter-ofhg{
+                dnam{"mmHg"}
+                few{"{0}mmHg"}
+                many{"{0}mmHg"}
+                one{"{0}mmHg"}
+                other{"{0}mmHg"}
+                two{"{0}mmHg"}
+                zero{"{0}mmHg"}
             }
-            pound-per-square-inch{
+            pound-force-per-square-inch{
                 dnam{"psi"}
                 few{"{0}psi"}
                 many{"{0}psi"}
@@ -2026,11 +2498,11 @@ cy{
         temperature{
             celsius{
                 dnam{"°C"}
-                few{"{0}°"}
-                many{"{0}°"}
-                one{"{0}°"}
-                other{"{0}°"}
-                two{"{0}°"}
+                few{"{0}°C"}
+                many{"{0}°C"}
+                one{"{0}°C"}
+                other{"{0}°C"}
+                two{"{0}°C"}
                 zero{"{0}°"}
             }
             fahrenheit{
@@ -2179,14 +2651,8 @@ cy{
         acceleration{
             g-force{
                 dnam{"grym disgyrchedd"}
-                few{"{0} G"}
-                many{"{0} G"}
-                one{"{0} G"}
-                other{"{0} G"}
-                two{"{0} G"}
-                zero{"{0} G"}
             }
-            meter-per-second-squared{
+            meter-per-square-second{
                 dnam{"metrau/eil²"}
                 few{"{0} m/eil²"}
                 many{"{0} m/eil²"}
@@ -2198,22 +2664,22 @@ cy{
         }
         angle{
             arc-minute{
-                dnam{"arcfunudau"}
-                few{"{0}′"}
-                many{"{0}′"}
-                one{"{0}′"}
-                other{"{0}′"}
-                two{"{0}′"}
-                zero{"{0}′"}
+                dnam{"archfunudau"}
+                few{"{0} archfun"}
+                many{"{0} archfun"}
+                one{"{0} archfun"}
+                other{"{0} archfun"}
+                two{"{0} archfun"}
+                zero{"{0} archfun"}
             }
             arc-second{
-                dnam{"arceiliadau"}
-                few{"{0}″"}
-                many{"{0}″"}
-                one{"{0}″"}
-                other{"{0}″"}
-                two{"{0}″"}
-                zero{"{0}″"}
+                dnam{"archeiliadau"}
+                few{"{0} archeiliad"}
+                many{"{0} archeiliad"}
+                one{"{0} archeiliad"}
+                other{"{0} archeiliad"}
+                two{"{0} archeiliad"}
+                zero{"{0} archeiliad"}
             }
             degree{
                 dnam{"gradd"}
@@ -2245,12 +2711,22 @@ cy{
         }
         area{
             acre{
+                dnam{"erw"}
                 few{"{0} erw"}
                 many{"{0} erw"}
                 one{"{0} erw"}
                 other{"{0} erw"}
                 two{"{0} erw"}
                 zero{"{0} erw"}
+            }
+            dunam{
+                dnam{"dunamau"}
+                few{"{0} dunam"}
+                many{"{0} dunam"}
+                one{"{0} dunam"}
+                other{"{0} dunam"}
+                two{"{0} ddunam"}
+                zero{"{0} dunam"}
             }
             hectare{
                 dnam{"hectarau"}
@@ -2296,6 +2772,7 @@ cy{
                 many{"{0} km²"}
                 one{"{0} km²"}
                 other{"{0} km²"}
+                per{"{0}/km²"}
                 two{"{0} km²"}
                 zero{"{0} km²"}
             }
@@ -2314,10 +2791,12 @@ cy{
                 many{"{0} mi²"}
                 one{"{0} mi²"}
                 other{"{0} mi²"}
+                per{"{0}/mi²"}
                 two{"{0} mi²"}
                 zero{"{0} mi²"}
             }
             square-yard{
+                dnam{"llath²"}
                 few{"{0} llath²"}
                 many{"{0} llath²"}
                 one{"{0} llath²"}
@@ -2329,8 +2808,75 @@ cy{
         compound{
             per{"{0}/{1}"}
         }
+        concentr{
+            karat{
+                dnam{"karatau"}
+                few{"{0} kt"}
+                many{"{0} kt"}
+                one{"{0} kt"}
+                other{"{0} kt"}
+                two{"{0} kt"}
+                zero{"{0} kt"}
+            }
+            milligram-per-deciliter{
+                few{"{0} mg/dL"}
+                many{"{0} mg/dL"}
+                one{"{0} mg/dL"}
+                other{"{0} mg/dL"}
+                two{"{0} mg/dL"}
+                zero{"{0} mg/dL"}
+            }
+            millimole-per-liter{
+                dnam{"milimôl/litr"}
+                few{"{0} mmol/L"}
+                many{"{0} mmol/L"}
+                one{"{0} mmol/L"}
+                other{"{0} mmol/L"}
+                two{"{0} mmol/L"}
+                zero{"{0} mmol/L"}
+            }
+            mole{
+                dnam{"môl"}
+                few{"{0} môl"}
+                many{"{0} môl"}
+                one{"{0} môl"}
+                other{"{0} môl"}
+                two{"{0} môl"}
+                zero{"{0} môl"}
+            }
+            percent{
+                dnam{"y cant"}
+                few{"{0}%"}
+                many{"{0}%"}
+                one{"{0}%"}
+                other{"{0}%"}
+                two{"{0}%"}
+                zero{"{0}%"}
+            }
+            permille{
+                dnam{"permille"}
+                few{"{0}‰"}
+                many{"{0}‰"}
+                one{"{0}‰"}
+                other{"{0}‰"}
+                two{"{0}‰"}
+                zero{"{0}‰"}
+            }
+            permillion{
+                dnam{"rhan/miliwn"}
+                few{"{0} ppm"}
+                many{"{0} ppm"}
+                one{"{0} ppm"}
+                other{"{0} ppm"}
+                two{"{0} ppm"}
+                zero{"{0} ppm"}
+            }
+            permyriad{
+                dnam{"permyriad"}
+            }
+        }
         consumption{
-            liter-per-100kilometers{
+            liter-per-100-kilometer{
                 dnam{"L/100km"}
                 few{"{0} L/100km"}
                 many{"{0} L/100km"}
@@ -2357,6 +2903,22 @@ cy{
                 two{"{0} mpg"}
                 zero{"{0} mpg"}
             }
+            mile-per-gallon-imperial{
+                dnam{"milltir/gal Imp."}
+                few{"{0} mpg Imp."}
+                many{"{0} mpg Imp."}
+                one{"{0} mpg Imp."}
+                other{"{0} mpg Imp."}
+                two{"{0} mpg Imp."}
+                zero{"{0} mpg Imp."}
+            }
+        }
+        coordinate{
+            dnam{"cyfeiriad"}
+            east{"{0} dn"}
+            north{"{0} g"}
+            south{"{0} d"}
+            west{"{0} gn"}
         }
         digital{
             bit{
@@ -2365,7 +2927,7 @@ cy{
                 many{"{0} did"}
                 one{"{0} did"}
                 other{"{0} did"}
-                two{"{0} ddid"}
+                two{"{0} did"}
                 zero{"{0} did"}
             }
             byte{
@@ -2378,7 +2940,7 @@ cy{
                 zero{"{0} beit"}
             }
             gigabit{
-                dnam{"Gb"}
+                dnam{"Gbit"}
                 few{"{0} Gb"}
                 many{"{0} Gb"}
                 one{"{0} Gb"}
@@ -2396,13 +2958,7 @@ cy{
                 zero{"{0} GB"}
             }
             kilobit{
-                dnam{"kb"}
-                few{"{0} kb"}
-                many{"{0} kb"}
-                one{"{0} kb"}
-                other{"{0} kb"}
-                two{"{0} kb"}
-                zero{"{0} kb"}
+                dnam{"kbit"}
             }
             kilobyte{
                 dnam{"kBeit"}
@@ -2414,22 +2970,19 @@ cy{
                 zero{"{0} kB"}
             }
             megabit{
-                dnam{"Mb"}
-                few{"{0} Mb"}
-                many{"{0} Mb"}
-                one{"{0} Mb"}
-                other{"{0} Mb"}
-                two{"{0} Mb"}
-                zero{"{0} Mb"}
+                dnam{"Mbit"}
             }
             megabyte{
                 dnam{"MBeit"}
-                few{"{0} MB"}
-                many{"{0} MB"}
-                one{"{0} MB"}
-                other{"{0} MB"}
-                two{"{0} MB"}
-                zero{"{0} MB"}
+            }
+            petabyte{
+                dnam{"PByte"}
+                few{"{0} PB"}
+                many{"{0} PB"}
+                one{"{0} PB"}
+                other{"{0} PB"}
+                two{"{0} PB"}
+                zero{"{0} PB"}
             }
             terabit{
                 dnam{"Tb"}
@@ -2470,12 +3023,22 @@ cy{
                 two{"{0} ddiwrnod"}
                 zero{"{0} diwrnod"}
             }
+            decade{
+                dnam{"deg"}
+                few{"{0} deg"}
+                many{"{0} deg"}
+                one{"{0} deg"}
+                other{"{0} deg"}
+                two{"{0} degawd"}
+                zero{"{0} deg"}
+            }
             hour{
                 dnam{"oriau"}
                 few{"{0} awr"}
                 many{"{0} awr"}
                 one{"{0} awr"}
                 other{"{0} awr"}
+                per{"{0}/a"}
                 two{"{0} awr"}
                 zero{"{0} awr"}
             }
@@ -2538,13 +3101,13 @@ cy{
             }
             week{
                 dnam{"wythnosau"}
-                few{"{0} wythnos"}
-                many{"{0} wythnos"}
-                one{"{0} wythnos"}
-                other{"{0} wythnos"}
-                per{"{0}/wythnos"}
-                two{"{0} wythnos"}
-                zero{"{0} wythnos"}
+                few{"{0} ws"}
+                many{"{0} ws"}
+                one{"{0} ws"}
+                other{"{0} ws"}
+                per{"{0}/ws"}
+                two{"{0} ws"}
+                zero{"{0} ws"}
             }
             year{
                 dnam{"blynyddoedd"}
@@ -2559,6 +3122,7 @@ cy{
         }
         electric{
             ampere{
+                dnam{"ampau"}
                 few{"{0} A"}
                 many{"{0} A"}
                 one{"{0} A"}
@@ -2567,6 +3131,7 @@ cy{
                 zero{"{0} A"}
             }
             milliampere{
+                dnam{"miliampau"}
                 few{"{0} mA"}
                 many{"{0} mA"}
                 one{"{0} mA"}
@@ -2594,14 +3159,11 @@ cy{
             }
         }
         energy{
-            calorie{
-                dnam{"cal"}
-                few{"{0} cal"}
-                many{"{0} cal"}
-                one{"{0} cal"}
-                other{"{0} cal"}
-                two{"{0} cal"}
-                zero{"{0} cal"}
+            british-thermal-unit{
+                dnam{"BTU"}
+            }
+            electronvolt{
+                dnam{"electronfolt"}
             }
             foodcalorie{
                 dnam{"Cal"}
@@ -2621,23 +3183,25 @@ cy{
                 two{"{0} J"}
                 zero{"{0} J"}
             }
-            kilocalorie{
-                dnam{"kcal"}
-                few{"{0} kcal"}
-                many{"{0} kcal"}
-                one{"{0} kcal"}
-                other{"{0} kcal"}
-                two{"{0} kcal"}
-                zero{"{0} kcal"}
-            }
             kilojoule{
                 dnam{"cilojouleau"}
-                few{"{0} kJ"}
-                many{"{0} kJ"}
-                one{"{0} kJ"}
-                other{"{0} kJ"}
-                two{"{0} kJ"}
-                zero{"{0} kJ"}
+            }
+            kilowatt-hour{
+                dnam{"kW-awr"}
+                few{"{0} kW-awr"}
+                many{"{0} kW-awr"}
+                one{"{0} kW-awr"}
+                other{"{0} kW-awr"}
+                two{"{0} kW-awr"}
+                zero{"{0} kW-awr"}
+            }
+        }
+        force{
+            newton{
+                dnam{"newton"}
+            }
+            pound-force{
+                dnam{"pwys-grym"}
             }
         }
         frequency{
@@ -2676,6 +3240,22 @@ cy{
                 other{"{0} MHz"}
                 two{"{0} MHz"}
                 zero{"{0} MHz"}
+            }
+        }
+        graphics{
+            dot{
+                few{"{0} dot"}
+                many{"{0} dot"}
+                one{"{0} dot"}
+                other{"{0} dot"}
+                two{"{0} ddot"}
+                zero{"{0} dot"}
+            }
+            megapixel{
+                dnam{"megapicseli"}
+            }
+            pixel{
+                dnam{"picseli"}
             }
         }
         length{
@@ -2728,6 +3308,12 @@ cy{
             }
             furlong{
                 dnam{"ystadenni"}
+                few{"{0} yst"}
+                many{"{0} yst"}
+                one{"{0} yst"}
+                other{"{0} yst"}
+                two{"{0} yst"}
+                zero{"{0} yst"}
             }
             inch{
                 dnam{"modfeddi"}
@@ -2751,20 +3337,20 @@ cy{
             }
             light-year{
                 dnam{"bl golau"}
-                few{"{0} blwyddyn golau"}
-                many{"{0} blwyddyn golau"}
-                one{"{0} flwyddyn golau"}
-                other{"{0} blwyddyn golau"}
-                two{"{0} flwyddyn golau"}
-                zero{"{0} blwyddyn golau"}
+                few{"{0} bg"}
+                many{"{0} bg"}
+                one{"{0} bg"}
+                other{"{0} bg"}
+                two{"{0} bg"}
+                zero{"{0} bg"}
             }
             meter{
-                dnam{"metrau"}
+                dnam{"m"}
                 few{"{0} m"}
                 many{"{0} m"}
                 one{"{0} m"}
                 other{"{0} m"}
-                per{"{0} y metr"}
+                per{"{0}/m"}
                 two{"{0} m"}
                 zero{"{0} m"}
             }
@@ -2840,6 +3426,18 @@ cy{
                 two{"{0} pm"}
                 zero{"{0} pm"}
             }
+            point{
+                dnam{"pt"}
+                few{"{0} pt"}
+                many{"{0} pt"}
+                one{"{0} pt"}
+                other{"{0} pt"}
+                two{"{0} pt"}
+                zero{"{0} pt"}
+            }
+            solar-radius{
+                dnam{"radiysau solar"}
+            }
             yard{
                 dnam{"llathenni"}
                 few{"{0} llath"}
@@ -2860,6 +3458,9 @@ cy{
                 two{"{0} lx"}
                 zero{"{0} lx"}
             }
+            solar-luminosity{
+                dnam{"goleueddau solar"}
+            }
         }
         mass{
             carat{
@@ -2870,6 +3471,21 @@ cy{
                 other{"{0} CD"}
                 two{"{0} CD"}
                 zero{"{0} CD"}
+            }
+            dalton{
+                dnam{"daltonau"}
+            }
+            earth-mass{
+                dnam{"masau ddaear"}
+            }
+            grain{
+                dnam{"graen"}
+                few{"{0} graen"}
+                many{"{0} graen"}
+                one{"{0} graen"}
+                other{"{0} graen"}
+                two{"{0} raen"}
+                zero{"{0} graen"}
             }
             gram{
                 dnam{"gramau"}
@@ -2947,6 +3563,9 @@ cy{
                 two{"{0} bwys"}
                 zero{"{0} pwys"}
             }
+            solar-mass{
+                dnam{"masau solar"}
+            }
             stone{
                 dnam{"stonau"}
                 few{"{0} st"}
@@ -2975,15 +3594,6 @@ cy{
                 other{"{0} GW"}
                 two{"{0} GW"}
                 zero{"{0} GW"}
-            }
-            horsepower{
-                dnam{"hp"}
-                few{"{0} hp"}
-                many{"{0} hp"}
-                one{"{0} hp"}
-                other{"{0} hp"}
-                two{"{0} hp"}
-                zero{"{0} hp"}
             }
             kilowatt{
                 dnam{"kW"}
@@ -3023,6 +3633,15 @@ cy{
             }
         }
         pressure{
+            atmosphere{
+                dnam{"atm"}
+                few{"{0} atm"}
+                many{"{0} atm"}
+                one{"{0} atm"}
+                other{"{0} atm"}
+                two{"{0} atm"}
+                zero{"{0} atm"}
+            }
             hectopascal{
                 dnam{"hPa"}
                 few{"{0} hPa"}
@@ -3032,14 +3651,14 @@ cy{
                 two{"{0} hPa"}
                 zero{"{0} hPa"}
             }
-            inch-hg{
-                dnam{"modfeddi o fercwri"}
-                few{"{0} ″ Hg"}
-                many{"{0} ″ Hg"}
-                one{"{0} ″ Hg"}
-                other{"{0} ″ Hg"}
-                two{"{0} ″ Hg"}
-                zero{"{0} ″ Hg"}
+            inch-ofhg{
+                dnam{"inHg"}
+                few{"{0} inHg"}
+                many{"{0} inHg"}
+                one{"{0} inHg"}
+                other{"{0} inHg"}
+                two{"{0} inHg"}
+                zero{"{0} inHg"}
             }
             millibar{
                 dnam{"mbar"}
@@ -3050,34 +3669,22 @@ cy{
                 two{"{0} mbar"}
                 zero{"{0} mbar"}
             }
-            millimeter-of-mercury{
-                dnam{"mm Hg"}
-                few{"{0} mm Hg"}
-                many{"{0} mm Hg"}
-                one{"{0} mm Hg"}
-                other{"{0} mm Hg"}
-                two{"{0} mm Hg"}
-                zero{"{0} mm Hg"}
+            millimeter-ofhg{
+                dnam{"mmHg"}
+                few{"{0} mmHg"}
+                many{"{0} mmHg"}
+                one{"{0} mmHg"}
+                other{"{0} mmHg"}
+                two{"{0} mmHg"}
+                zero{"{0} mmHg"}
             }
-            pound-per-square-inch{
-                dnam{"psi"}
+            pound-force-per-square-inch{
                 few{"{0} psi"}
                 many{"{0} psi"}
                 one{"{0} psi"}
                 other{"{0} psi"}
                 two{"{0} psi"}
                 zero{"{0} psi"}
-            }
-        }
-        proportion{
-            karat{
-                dnam{"karatau"}
-                few{"{0} kt"}
-                many{"{0} kt"}
-                one{"{0} kt"}
-                other{"{0} kt"}
-                two{"{0} kt"}
-                zero{"{0} kt"}
             }
         }
         speed{
@@ -3121,21 +3728,9 @@ cy{
         temperature{
             celsius{
                 dnam{"gradd C"}
-                few{"{0}°C"}
-                many{"{0}°C"}
-                one{"{0}°C"}
-                other{"{0}°C"}
-                two{"{0}°C"}
-                zero{"{0}°C"}
             }
             fahrenheit{
                 dnam{"gradd F"}
-                few{"{0}°F"}
-                many{"{0}°F"}
-                one{"{0}°F"}
-                other{"{0}°F"}
-                two{"{0}°F"}
-                zero{"{0}°F"}
             }
             generic{
                 dnam{"°"}
@@ -3145,15 +3740,6 @@ cy{
                 other{"{0}°"}
                 two{"{0}°"}
                 zero{"{0}°"}
-            }
-            kelvin{
-                dnam{"K"}
-                few{"{0} K"}
-                many{"{0} K"}
-                one{"{0} K"}
-                other{"{0} K"}
-                two{"{0} K"}
-                zero{"{0} K"}
             }
         }
         volume{
@@ -3166,14 +3752,17 @@ cy{
                 two{"{0} erw tr"}
                 zero{"{0} erw tr"}
             }
+            barrel{
+                dnam{"barel"}
+            }
             bushel{
                 dnam{"bwsielau"}
-                few{"{0} bwsiel"}
-                many{"{0} bwsiel"}
-                one{"{0} bwsiel"}
-                other{"{0} bwsiel"}
-                two{"{0} bwsiel"}
-                zero{"{0} bwsiel"}
+                few{"{0} bw"}
+                many{"{0} bw"}
+                one{"{0} bw"}
+                other{"{0} bw"}
+                two{"{0} bw"}
+                zero{"{0} bw"}
             }
             centiliter{
                 dnam{"cL"}
@@ -3196,12 +3785,12 @@ cy{
             }
             cubic-foot{
                 dnam{"troedfedd³"}
-                few{"{0} troedfedd³"}
-                many{"{0} troedfedd³"}
-                one{"{0} troedfedd³"}
-                other{"{0} troedfedd³"}
-                two{"{0} droedfedd³"}
-                zero{"{0} troedfedd³"}
+                few{"{0} tr³"}
+                many{"{0} tr³"}
+                one{"{0} tr³"}
+                other{"{0} tr³"}
+                two{"{0} tr³"}
+                zero{"{0} tr³"}
             }
             cubic-inch{
                 dnam{"modfeddi³"}
@@ -3213,7 +3802,6 @@ cy{
                 zero{"{0} modfedd³"}
             }
             cubic-kilometer{
-                dnam{"cilometrau ciwbig"}
                 few{"{0} km³"}
                 many{"{0} km³"}
                 one{"{0} km³"}
@@ -3276,6 +3864,24 @@ cy{
                 two{"{0} dL"}
                 zero{"{0} dL"}
             }
+            dram{
+                dnam{"dracmon hylifol"}
+                few{"{0} dracmon hy"}
+                many{"{0} dracmon hy"}
+                one{"{0} dracmon hy"}
+                other{"{0} dracmon hy"}
+                two{"{0} ddracmon hy"}
+                zero{"{0} dracmon hy"}
+            }
+            drop{
+                dnam{"diferyn"}
+                few{"{0} diferyn"}
+                many{"{0} diferyn"}
+                one{"{0} diferyn"}
+                other{"{0} diferyn"}
+                two{"{0} ddiferyn"}
+                zero{"{0} diferyn"}
+            }
             fluid-ounce{
                 dnam{"fl oz"}
                 few{"{0} fl oz"}
@@ -3295,6 +3901,16 @@ cy{
                 two{"{0} gal"}
                 zero{"{0} gal"}
             }
+            gallon-imperial{
+                dnam{"Gal Imp."}
+                few{"{0} gal Imp."}
+                many{"{0} gal Imp."}
+                one{"{0} gal Imp."}
+                other{"{0} gal Imp."}
+                per{"{0}/gal Imp."}
+                two{"{0} gal Imp."}
+                zero{"{0} gal Imp."}
+            }
             hectoliter{
                 dnam{"hL"}
                 few{"{0} hL"}
@@ -3303,6 +3919,15 @@ cy{
                 other{"{0} hL"}
                 two{"{0} hL"}
                 zero{"{0} hL"}
+            }
+            jigger{
+                dnam{"joch"}
+                few{"{0} joch"}
+                many{"{0} joch"}
+                one{"{0} joch"}
+                other{"{0} joch"}
+                two{"{0} joch"}
+                zero{"{0} joch"}
             }
             liter{
                 dnam{"litrau"}
@@ -3332,6 +3957,15 @@ cy{
                 two{"{0} mL"}
                 zero{"{0} mL"}
             }
+            pinch{
+                dnam{"pinsiad"}
+                few{"{0} phinsiad"}
+                many{"{0} pinsiad"}
+                one{"{0} pinsiad"}
+                other{"{0} pinsiad"}
+                two{"{0} binsiad"}
+                zero{"{0} pinsiad"}
+            }
             pint{
                 dnam{"peintiau"}
                 few{"{0} pt"}
@@ -3358,6 +3992,15 @@ cy{
                 other{"{0} qt"}
                 two{"{0} qt"}
                 zero{"{0} qt"}
+            }
+            quart-imperial{
+                dnam{"cht Imp."}
+                few{"{0} cht Imp."}
+                many{"{0} cht Imp."}
+                one{"{0} cht Imp."}
+                other{"{0} cht Imp."}
+                two{"{0} cht Imp."}
+                zero{"{0} cht Imp."}
             }
             tablespoon{
                 dnam{"tbsp"}

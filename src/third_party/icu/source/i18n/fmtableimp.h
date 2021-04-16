@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2010-2014, International Business Machines Corporation and    *
@@ -8,19 +10,11 @@
 #ifndef FMTABLEIMP_H
 #define FMTABLEIMP_H
 
-#include "digitlst.h"
+#include "number_decimalquantity.h"
+
+#if !UCONFIG_NO_FORMATTING
 
 U_NAMESPACE_BEGIN
-
-/**
- * @internal
- */
-struct FmtStackData {
-  DigitList stackDecimalNum;   // 128
-  //CharString stackDecimalStr;  // 64
-  //                         -----
-  //                         192 total
-};
 
 /** 
  * Maximum int64_t value that can be stored in a double without chancing losing precision.
@@ -33,4 +27,5 @@ static const int64_t MAX_INT64_IN_DOUBLE = 0x001FFFFFFFFFFFFFLL;
 
 U_NAMESPACE_END
 
+#endif // #if !UCONFIG_NO_FORMATTING
 #endif

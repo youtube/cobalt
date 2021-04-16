@@ -1,43 +1,7 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/zh_Hans_HK.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 zh_Hans_HK{
-    NumberElements{
-        latn{
-            patternsLong{
-                decimalFormat{
-                    1000000000000{
-                        other{"0万亿"}
-                    }
-                    10000000000000{
-                        other{"00万亿"}
-                    }
-                    100000000000000{
-                        other{"000万亿"}
-                    }
-                }
-            }
-            patternsShort{
-                decimalFormat{
-                    1000000000000{
-                        other{"0万亿"}
-                    }
-                    10000000000000{
-                        other{"00万亿"}
-                    }
-                    100000000000000{
-                        other{"000万亿"}
-                    }
-                }
-            }
-        }
-    }
-    Version{"2.1.19.79"}
     calendar{
         buddhist{
             DateTimePatterns{
@@ -78,7 +42,7 @@ zh_Hans_HK{
                     "U年MMMd日",
                     "hanidec",
                 }
-                "r-M-d",
+                "r/M/d",
                 "{1} {0}",
                 "{1} {0}",
                 "{1} {0}",
@@ -104,7 +68,6 @@ zh_Hans_HK{
             }
             availableFormats{
                 HHmm{"HH:mm"}
-                M{"L"}
                 MEd{"E, d/M"}
                 MMM{"M月"}
                 MMMMdd{"M月d日"}
@@ -120,9 +83,6 @@ zh_Hans_HK{
                 }
                 Hv{
                     H{"vHH–HH"}
-                }
-                MMM{
-                    M{"M月至M月"}
                 }
                 fallback{"{0}–{1}"}
                 h{
@@ -156,10 +116,10 @@ zh_Hans_HK{
                 "y年M月d日",
                 "y年M月d日",
                 "d/M/yy",
+                "{1}{0}",
+                "{1}{0}",
                 "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
-                "{1} {0}",
+                "{1}{0}",
                 "{1} {0}",
             }
             availableFormats{

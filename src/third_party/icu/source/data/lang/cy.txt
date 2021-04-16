@@ -1,18 +1,14 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/cy.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 cy{
     Keys{
         calendar{"Calendr"}
+        cf{"Fformat Arian"}
         collation{"Trefn"}
-        currency{"Arian Breiniol"}
+        currency{"Math o Arian"}
         hc{"Cylched Awr (12 vs 24)"}
-        lb{"Arddull Torriad Llinell"}
+        lb{"Arddull Toriad Llinell"}
         ms{"System Fesur"}
         numbers{"Rhifau"}
     }
@@ -71,7 +67,9 @@ cy{
         bfq{"Badaga"}
         bg{"Bwlgareg"}
         bgn{"Balochi Gorllewinol"}
+        bho{"Bhojpuri"}
         bi{"Bislama"}
+        bin{"Bini"}
         bkm{"Comeg"}
         bla{"Siksika"}
         bm{"Bambareg"}
@@ -83,14 +81,19 @@ cy{
         bs{"Bosnieg"}
         bss{"Acwseg"}
         bua{"Bwriateg"}
+        bug{"Bwginaeg"}
         bum{"Bwlw"}
+        byn{"Blin"}
         ca{"Catalaneg"}
         cad{"Cado"}
         car{"Caribeg"}
         cch{"Atsameg"}
+        ccp{"Tsiacma"}
         ce{"Tsietsieneg"}
+        ceb{"Cebuano"}
         cgg{"Tsiga"}
         ch{"Tsiamorro"}
+        chk{"Chuukaeg"}
         chm{"Marieg"}
         cho{"Siocto"}
         chr{"Tsierocî"}
@@ -100,6 +103,7 @@ cy{
         cop{"Copteg"}
         cr{"Cri"}
         crh{"Tyrceg y Crimea"}
+        crs{"Ffrangeg Seselwa Creole"}
         cs{"Tsieceg"}
         cu{"Hen Slafoneg"}
         cv{"Tshwfasheg"}
@@ -111,8 +115,9 @@ cy{
         de{"Almaeneg"}
         de_AT{"Almaeneg Awstria"}
         de_CH{"Almaeneg Safonol y Swistir"}
+        dgr{"Dogrib"}
         din{"Dinca"}
-        dje{"Zarmaeg"}
+        dje{"Sarmaeg"}
         doi{"Dogri"}
         dsb{"Sorbeg Isaf"}
         dua{"Diwaleg"}
@@ -120,9 +125,12 @@ cy{
         dv{"Difehi"}
         dyo{"Jola-Fonyi"}
         dz{"Dzongkha"}
+        dzg{"Dazaga"}
         ebu{"Embw"}
         ee{"Ewe"}
+        efi{"Efik"}
         egy{"Hen Eiffteg"}
+        eka{"Ekajuk"}
         el{"Groeg"}
         elx{"Elameg"}
         en{"Saesneg"}
@@ -141,6 +149,7 @@ cy{
         ewo{"Ewondo"}
         ext{"Extremadureg"}
         fa{"Perseg"}
+        fa_AF{"Dari"}
         fat{"Ffanti"}
         ff{"Ffwla"}
         fi{"Ffinneg"}
@@ -148,6 +157,7 @@ cy{
         fit{"Ffinneg Tornedal"}
         fj{"Ffijïeg"}
         fo{"Ffaröeg"}
+        fon{"Fon"}
         fr{"Ffrangeg"}
         fr_CA{"Ffrangeg Canada"}
         fr_CH{"Ffrangeg y Swistir"}
@@ -155,38 +165,44 @@ cy{
         frm{"Ffrangeg Canol"}
         fro{"Hen Ffrangeg"}
         frp{"Arpitaneg"}
-        frr{"Ffriseg y Gogledd"}
+        frr{"Ffriseg Gogleddol"}
         frs{"Ffriseg y Dwyrain"}
         fur{"Ffriwleg"}
         fy{"Ffriseg y Gorllewin"}
         ga{"Gwyddeleg"}
+        gaa{"Ga"}
         gag{"Gagauz"}
         gay{"Gaio"}
         gba{"Gbaia"}
         gbz{"Dareg y Zoroastriaid"}
         gd{"Gaeleg yr Alban"}
+        gez{"Geez"}
         gil{"Gilberteg"}
         gl{"Galisieg"}
-        gmh{"Uchel Almaeneg Canol"}
+        gmh{"Almaeneg Uchel Canol"}
         gn{"Guaraní"}
-        goh{"Hen Uchel Almaeneg"}
+        goh{"Hen Almaeneg Uchel"}
+        gor{"Gorontalo"}
         got{"Gotheg"}
         grc{"Hen Roeg"}
         gsw{"Almaeneg y Swistir"}
         gu{"Gwjarati"}
         guz{"Gusii"}
         gv{"Manaweg"}
+        gwi{"Gwichʼin"}
         ha{"Hawsa"}
         hai{"Haida"}
         haw{"Hawäieg"}
         he{"Hebraeg"}
         hi{"Hindi"}
+        hil{"Hiligaynon"}
         hit{"Hetheg"}
         hmn{"Hmongeg"}
         hr{"Croateg"}
         hsb{"Sorbeg Uchaf"}
         ht{"Creol Haiti"}
         hu{"Hwngareg"}
+        hup{"Hupa"}
         hy{"Armeneg"}
         hz{"Herero"}
         ia{"Interlingua"}
@@ -199,10 +215,12 @@ cy{
         ik{"Inwpiaceg"}
         ilo{"Ilocaneg"}
         inh{"Ingwsieg"}
+        io{"Ido"}
         is{"Islandeg"}
         it{"Eidaleg"}
         iu{"Inwctitwt"}
         ja{"Japaneeg"}
+        jbo{"Lojban"}
         jgo{"Ngomba"}
         jmc{"Matsiame"}
         jpr{"Iddew-Bersieg"}
@@ -211,26 +229,35 @@ cy{
         ka{"Georgeg"}
         kaa{"Cara-Calpaceg"}
         kab{"Cabileg"}
+        kac{"Kachin"}
+        kaj{"Jju"}
         kam{"Camba"}
-        kbd{"Circaseg Dwyreiniol"}
+        kbd{"Cabardieg"}
         kcg{"Tyapeg"}
         kde{"Macondeg"}
         kea{"Caboferdianeg"}
+        kfo{"Koro"}
         kg{"Congo"}
         kha{"Càseg"}
         khq{"Koyra Chiini"}
         khw{"Chowareg"}
         ki{"Kikuyu"}
+        kj{"Kuanyama"}
         kk{"Casacheg"}
+        kkj{"Kako"}
         kl{"Kalaallisut"}
         kln{"Kalenjin"}
         km{"Chmereg"}
+        kmb{"Kimbundu"}
         kn{"Kannada"}
         ko{"Coreeg"}
         koi{"Komi-Permyak"}
         kok{"Concani"}
+        kpe{"Kpelle"}
         kr{"Canwri"}
+        krc{"Karachay-Balkar"}
         krl{"Careleg"}
+        kru{"Kurukh"}
         ks{"Cashmireg"}
         ksb{"Shambala"}
         ksf{"Baffia"}
@@ -259,6 +286,7 @@ cy{
         lt{"Lithwaneg"}
         ltg{"Latgaleg"}
         lu{"Luba-Katanga"}
+        lua{"Luba-Lulua"}
         lun{"Lwnda"}
         luo{"Lŵo"}
         lus{"Lwshaieg"}
@@ -282,6 +310,7 @@ cy{
         mh{"Marsialeg"}
         mi{"Maori"}
         mic{"Micmaceg"}
+        min{"Minangkabau"}
         mk{"Macedoneg"}
         ml{"Malayalam"}
         mn{"Mongoleg"}
@@ -294,27 +323,33 @@ cy{
         ms{"Maleieg"}
         mt{"Malteg"}
         mua{"Mundang"}
-        mul{"mwy nag un iaith"}
+        mul{"Mwy nag un iaith"}
+        mus{"Creek"}
         mwl{"Mirandeg"}
         mwr{"Marwari"}
         my{"Byrmaneg"}
+        myv{"Erzya"}
         mzn{"Masanderani"}
         na{"Nawrŵeg"}
         nap{"Naplieg"}
         naq{"Nama"}
         nb{"Norwyeg Bokmål"}
         nd{"Ndebele Gogleddol"}
-        nds{"Isel Almaeneg"}
+        nds{"Almaeneg Isel"}
         nds_NL{"Sacsoneg Isel"}
         ne{"Nepaleg"}
         new{"Newaeg"}
         ng{"Ndonga"}
+        nia{"Nias"}
+        niu{"Niuean"}
         njo{"Ao Naga"}
         nl{"Iseldireg"}
         nl_BE{"Fflemeg"}
         nmg{"Kwasio"}
         nn{"Norwyeg Nynorsk"}
+        nnh{"Ngiemboon"}
         no{"Norwyeg"}
+        nog{"Nogai"}
         non{"Hen Norseg"}
         nqo{"N’Ko"}
         nr{"Ndebele Deheuol"}
@@ -330,7 +365,7 @@ cy{
         oc{"Ocsitaneg"}
         oj{"Ojibwa"}
         om{"Oromo"}
-        or{"Oriya"}
+        or{"Odia"}
         os{"Oseteg"}
         osa{"Osageg"}
         ota{"Tyrceg Otoman"}
@@ -338,7 +373,10 @@ cy{
         pag{"Pangasineg"}
         pal{"Pahlafi"}
         pam{"Pampanga"}
+        pap{"Papiamento"}
+        pau{"Palawan"}
         pcd{"Picardeg"}
+        pcm{"Pidgin Nigeria"}
         pdc{"Almaeneg Pensylfania"}
         peo{"Hen Bersieg"}
         pfl{"Almaeneg Palatin"}
@@ -351,9 +389,9 @@ cy{
         prg{"Prwseg"}
         pro{"Hen Brofensaleg"}
         ps{"Pashto"}
-        pt{"Portiwgeeg"}
-        pt_BR{"Portiwgeeg Brasil"}
-        pt_PT{"Portiwgeeg Ewrop"}
+        pt{"Portiwgaleg"}
+        pt_BR{"Portiwgaleg Brasil"}
+        pt_PT{"Portiwgaleg Ewrop"}
         qu{"Quechua"}
         quc{"K’iche’"}
         raj{"Rajasthaneg"}
@@ -365,7 +403,7 @@ cy{
         ro_MD{"Moldofeg"}
         rof{"Rombo"}
         rom{"Romani"}
-        root{"y Gwraidd"}
+        root{"Y Gwraidd"}
         rtm{"Rotumaneg"}
         ru{"Rwseg"}
         rup{"Aromaneg"}
@@ -373,6 +411,7 @@ cy{
         rwk{"Rwa"}
         sa{"Sansgrit"}
         sad{"Sandäweg"}
+        sah{"Sakha"}
         sam{"Aramaeg Samaria"}
         saq{"Sambŵrw"}
         sas{"Sasaceg"}
@@ -396,6 +435,7 @@ cy{
         sgs{"Samogiteg"}
         sh{"Serbo-Croateg"}
         shi{"Tachelhit"}
+        shn{"Shan"}
         shu{"Arabeg Chad"}
         si{"Sinhaleg"}
         sid{"Sidamo"}
@@ -405,7 +445,7 @@ cy{
         sm{"Samöeg"}
         sma{"Sami Deheuol"}
         smj{"Sami Lwle"}
-        smn{"Sami Inari"}
+        smn{"Inari Sami"}
         sms{"Sami Scolt"}
         sn{"Shona"}
         snk{"Soninceg"}
@@ -413,9 +453,11 @@ cy{
         sog{"Sogdeg"}
         sq{"Albaneg"}
         sr{"Serbeg"}
+        srn{"Sranan Tongo"}
         srr{"Serereg"}
         ss{"Swati"}
-        st{"Sesotheg"}
+        ssy{"Saho"}
+        st{"Sesotheg Deheuol"}
         stq{"Ffriseg Saterland"}
         su{"Swndaneg"}
         suk{"Swcwma"}
@@ -423,8 +465,8 @@ cy{
         sux{"Swmereg"}
         sv{"Swedeg"}
         sw{"Swahili"}
+        sw_CD{"Swahili’r Congo"}
         swb{"Comoreg"}
-        swc{"Swahili’r Congo"}
         syc{"Hen Syrieg"}
         syr{"Syrieg"}
         szl{"Silesieg"}
@@ -440,7 +482,7 @@ cy{
         ti{"Tigrinya"}
         tig{"Tigreg"}
         tiv{"Tifeg"}
-        tk{"Twrcmeneg"}
+        tk{"Tyrcmeneg"}
         tkl{"Tocelaweg"}
         tkr{"Tsakhureg"}
         tl{"Tagalog"}
@@ -460,13 +502,15 @@ cy{
         tvl{"Twfalweg"}
         tw{"Twi"}
         twq{"Tasawaq"}
-        tzm{"Tamaseit Canolbarth Moroco"}
+        ty{"Tahitïeg"}
+        tyv{"Twfwnieg"}
+        tzm{"Tamazight Canol yr Atlas"}
         udm{"Fotiaceg"}
         ug{"Uighur"}
         uga{"Wgariteg"}
         uk{"Wcreineg"}
         umb{"Umbundu"}
-        und{"Iaith Anhysbys"}
+        und{"Iaith anhysbys"}
         ur{"Wrdw"}
         uz{"Wsbeceg"}
         vai{"Faieg"}
@@ -475,6 +519,7 @@ cy{
         vep{"Feps"}
         vi{"Fietnameg"}
         vls{"Fflemeg Gorllewinol"}
+        vo{"Folapük"}
         vot{"Foteg"}
         vun{"Funjo"}
         wa{"Walwneg"}
@@ -487,6 +532,7 @@ cy{
         xal{"Calmyceg"}
         xh{"Xhosa"}
         xog{"Soga"}
+        yav{"Iangben"}
         ybb{"Iembaeg"}
         yi{"Iddew-Almaeneg"}
         yo{"Iorwba"}
@@ -494,23 +540,30 @@ cy{
         zap{"Zapoteceg"}
         zbl{"Blisssymbols"}
         zea{"Zêlandeg"}
-        zgh{"Tamaseit Safonol"}
-        zh{"Tsieineeg"}
-        zh_Hans{"Tsieineeg Symledig"}
-        zh_Hant{"Tsieineeg Traddodiadol"}
+        zgh{"Tamaseit Moroco Safonol"}
+        zh{"Tsieinëeg"}
+        zh_Hans{"Tsieinëeg Symledig"}
+        zh_Hant{"Tsieinëeg Traddodiadol"}
         zu{"Swlw"}
-        zun{"Zuni"}
+        zun{"Swni"}
         zxx{"Dim cynnwys ieithyddol"}
-        zza{"Zazäeg"}
+        zza{"Sasäeg"}
+    }
+    Languages%long{
+        zh_Hans{"Tsieinëeg Mandarin Symledig"}
+        zh_Hant{"Tsieinëeg Mandarin Traddodiadol"}
+    }
+    Languages%menu{
+        yue{"Tsieinëeg, Cantoneg"}
+        zh{"Tsieinëeg, Mandarin"}
     }
     Languages%short{
-        en_GB{"Saesneg (DU)"}
-        en_US{"Saesneg (UDA)"}
+        az{"Aseri"}
     }
     Scripts{
         Arab{"Arabaidd"}
         Armn{"Armenaidd"}
-        Beng{"Bengalaidd"}
+        Beng{"Bangla"}
         Bopo{"Bopomofo"}
         Brai{"Braille"}
         Cyrl{"Cyrilig"}
@@ -520,12 +573,15 @@ cy{
         Grek{"Groegaidd"}
         Gujr{"Gwjarataidd"}
         Guru{"Gwrmwci"}
+        Hanb{"Han gyda Bopomofo"}
         Hang{"Hangul"}
         Hani{"Han"}
         Hans{"Symledig"}
         Hant{"Traddodiadol"}
         Hebr{"Hebreig"}
         Hira{"Hiragana"}
+        Hrkt{"Syllwyddor Japaneaidd"}
+        Jamo{"Jamo"}
         Jpan{"Japaneaidd"}
         Kana{"Catacana"}
         Khmr{"Chmeraidd"}
@@ -536,7 +592,6 @@ cy{
         Mlym{"Malayalamaidd"}
         Mong{"Mongolaidd"}
         Mymr{"Myanmaraidd"}
-        Ogam{"Ogam"}
         Orya{"Orïaidd"}
         Sinh{"Sinhanaidd"}
         Taml{"Tamilaidd"}
@@ -544,6 +599,8 @@ cy{
         Thaa{"Thaana"}
         Thai{"Tai"}
         Tibt{"Tibetaidd"}
+        Zmth{"Nodiant Mathemategol"}
+        Zsye{"Emoji"}
         Zsym{"Symbolau"}
         Zxxx{"Anysgrifenedig"}
         Zyyy{"Cyffredin"}
@@ -555,20 +612,24 @@ cy{
     }
     Types{
         calendar{
-            buddhist{"Calendr y Bwdiaid"}
+            buddhist{"Calendr Bwdaidd"}
             chinese{"Calendr Tseina"}
             coptic{"Calendr y Coptiaid"}
             dangi{"Calendr Dangi"}
             ethiopic{"Calendr Ethiopia"}
             ethiopic-amete-alem{"Calendr Amete Alem Ethiopia"}
             gregorian{"Calendr Gregori"}
-            hebrew{"Calendr yr Hebraed"}
+            hebrew{"Calendr Hebreaidd"}
             indian{"Calendr Cenedlaethol India"}
             islamic{"Calendr Islam"}
             iso8601{"Calendr ISO-8601"}
             japanese{"Calendr Japan"}
             persian{"Calendr Persia"}
             roc{"Calendr Gweriniaeth Tseina"}
+        }
+        cf{
+            account{"Fformat Arian Cyfrifeg"}
+            standard{"Fformat Arian Safonol"}
         }
         collation{
             big5han{"Trefn Traddodiadol Tsieina - Big5"}
@@ -591,8 +652,8 @@ cy{
             h24{"System 24 Awr (1–24)"}
         }
         lb{
-            loose{"Arddull Torriad Llinell Rhydd"}
-            normal{"Arddull Torriad Llinell Arferol"}
+            loose{"Arddull Toriad Llinell Rhydd"}
+            normal{"Arddull Toriad Llinell Arferol"}
             strict{"Arddull Torriad Llinell Caeth"}
         }
         ms{
@@ -648,23 +709,13 @@ cy{
         ALUKU{"tafodiaith Aluku"}
         AREVELA{"Armeneg Dwyreiniol"}
         AREVMDA{"Armeneg Gorllewinol"}
-        BAUDDHA{"BAUDDHA"}
-        BISCAYAN{"BISCAYAN"}
         BOHORIC{"Gwyddor Bohorič"}
         DAJNKO{"gwyddor Dajnko"}
         EMODENG{"Saesneg Modern Cynnar"}
         FONIPA{"Seineg IPA"}
         FONUPA{"Seineg UPA"}
-        FONXSAMP{"FONXSAMP"}
-        HOGNORSK{"HOGNORSK"}
-        ITIHASA{"ITIHASA"}
-        JAUER{"JAUER"}
-        JYUTPING{"JYUTPING"}
         KKCOR{"yr Orgraff Gyffredin"}
-        KOCIEWIE{"KOCIEWIE"}
         KSCOR{"yr Orgraff Safonol"}
-        LAUKIKA{"LAUKIKA"}
-        LUNA1918{"LUNA1918"}
         METELKO{"gwyddor Metelko"}
         NDYUKA{"tafodiaith Ndyuka"}
         NEDIS{"tafodiaith Natisone"}
@@ -673,13 +724,28 @@ cy{
         PAMAKA{"tafodiaith Pamaka"}
         POSIX{"Cyfrifiadur"}
         SCOTLAND{"Saesneg Safonol yr Alban"}
-        SURMIRAN{"SURMIRAN"}
-        SURSILV{"SURSILV"}
-        SUTSILV{"SUTSILV"}
-        VAIDIKA{"VAIDIKA"}
-        VALLADER{"VALLADER"}
     }
-    Version{"2.1.20.4"}
+    characterLabelPattern{
+        all{"{0} — y cwbl"}
+        category-list{"{0}: {1}"}
+        compatibility{"{0} — cydweddoldeb"}
+        enclosed{"{0} — amgaeedig"}
+        extended{"{0} — estynedig"}
+        historic{"{0} — hanesyddol"}
+        miscellaneous{"{0} — amrywiol"}
+        other{"{0} — arall"}
+        scripts{"sgriptiau — {0}"}
+        strokes{
+            few{"{0} strôc"}
+            many{"{0} strôc"}
+            one{"{0} strôc"}
+            other{"{0} strôc"}
+            two{"{0} strôc"}
+            zero{"{0} strôc"}
+        }
+        subscript{"is-sgript {0}"}
+        superscript{"uwch-sgript {0}"}
+    }
     codePatterns{
         language{"Iaith: {0}"}
         script{"Sgript: {0}"}

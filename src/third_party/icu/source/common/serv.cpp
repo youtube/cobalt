@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /**
 *******************************************************************************
 * Copyright (C) 2001-2014, International Business Machines Corporation.
@@ -9,7 +11,9 @@
 
 #if !UCONFIG_NO_SERVICE
 
+#if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // defined(STARBOARD)
 #include "serv.h"
 #include "umutex.h"
 
@@ -332,7 +336,7 @@ U_CDECL_END
 ******************************************************************
 */
 
-static UMutex lock = U_MUTEX_INITIALIZER;
+static UMutex lock;
 
 ICUService::ICUService()
 : name()
@@ -546,16 +550,15 @@ outerEnd:
             if (putInCache && cacheResult) {
                 serviceCache->put(result->actualDescriptor, result, status);
                 if (U_FAILURE(status)) {
-                    delete result;
                     return NULL;
                 }
 
                 if (cacheDescriptorList._obj != NULL) {
                     for (int32_t i = cacheDescriptorList._obj->size(); --i >= 0;) {
                         UnicodeString* desc = (UnicodeString*)cacheDescriptorList._obj->elementAt(i);
+
                         serviceCache->put(*desc, result, status);
                         if (U_FAILURE(status)) {
-                            delete result;
                             return NULL;
                         }
 
@@ -702,9 +705,9 @@ ICUService::getDisplayName(const UnicodeString& id, UnicodeString& result, const
             }
 
             // fallback
-            UErrorCode status = U_ZERO_ERROR;
+            status = U_ZERO_ERROR;
             ICUServiceKey* fallbackKey = createKey(&id, status);
-            while (fallbackKey->fallback()) {
+            while (fallbackKey != NULL && fallbackKey->fallback()) {
                 UnicodeString us;
                 fallbackKey->currentID(us);
                 f = (ICUServiceFactory*)map->get(us);

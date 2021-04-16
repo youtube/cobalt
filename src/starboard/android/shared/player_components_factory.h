@@ -27,6 +27,7 @@
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
@@ -46,9 +47,8 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-// Tunnel mode is disabled by default.  Set the following variable to true to
-// enable tunnel mode.
-constexpr bool kTunnelModeEnabled = false;
+using starboard::shared::starboard::media::MimeType;
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -162,8 +162,43 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(error_message);
 
     int tunnel_mode_audio_session_id = -1;
+    bool enable_tunnel_mode = false;
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      MimeType audio_mime_type(creation_parameters.audio_mime());
+      MimeType video_mime_type(creation_parameters.video_mime());
+      auto enable_tunnel_mode_audio_parameter_value =
+          audio_mime_type.GetParamStringValue("tunnelmode", "");
+      auto enable_tunnel_mode_video_parameter_value =
+          video_mime_type.GetParamStringValue("tunnelmode", "");
+      if (enable_tunnel_mode_audio_parameter_value == "true" &&
+          enable_tunnel_mode_video_parameter_value == "true") {
+        enable_tunnel_mode = true;
+      } else {
+        if (enable_tunnel_mode_audio_parameter_value.empty()) {
+          enable_tunnel_mode_audio_parameter_value = "not provided";
+        }
+        if (enable_tunnel_mode_video_parameter_value.empty()) {
+          enable_tunnel_mode_video_parameter_value = "not provided";
+        }
+        SB_LOG(INFO) << "Tunnel mode is disabled. Audio mime parameter "
+                        "\"tunnelmode\" value: "
+                     << enable_tunnel_mode_audio_parameter_value
+                     << ", video mime parameter \"tunnelmode\" value: "
+                     << enable_tunnel_mode_video_parameter_value << ".";
+      }
+    } else {
+      SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
+                   << "Audio codec: "
+                   << GetMediaAudioCodecName(creation_parameters.audio_codec())
+                   << ", Video codec: "
+                   << GetMediaVideoCodecName(creation_parameters.video_codec())
+                   << ". Tunnel mode is disabled.";
+    }
+
     bool force_secure_pipeline_under_tunnel_mode = false;
-    if (IsTunnelModeSupported(creation_parameters,
+    if (enable_tunnel_mode &&
+        IsTunnelModeSupported(creation_parameters,
                               &force_secure_pipeline_under_tunnel_mode)) {
       tunnel_mode_audio_session_id =
           GenerateAudioSessionId(creation_parameters);
@@ -205,16 +240,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
       bool enable_audio_routing = true;
-      starboard::shared::starboard::media::MimeType mime_type(
-          creation_parameters.audio_mime());
+      MimeType audio_mime_type(creation_parameters.audio_mime());
       auto enable_audio_routing_parameter_value =
-          mime_type.GetParamStringValue("enableaudiorouting", "");
+          audio_mime_type.GetParamStringValue("enableaudiorouting", "");
       if (enable_audio_routing_parameter_value.empty() ||
           enable_audio_routing_parameter_value == "true") {
         SB_LOG(INFO) << "AudioRouting is enabled.";
       } else {
         enable_audio_routing = false;
-        SB_LOG(INFO) << "Mime attribute enableaudiorouting is set to: "
+        SB_LOG(INFO) << "Mime attribute \"enableaudiorouting\" is set to: "
                      << enable_audio_routing_parameter_value
                      << ". AudioRouting is disabled.";
       }
@@ -297,11 +331,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(force_secure_pipeline_under_tunnel_mode);
     *force_secure_pipeline_under_tunnel_mode = false;
 
-    if (!kTunnelModeEnabled) {
-      SB_LOG(INFO) << "Tunnel mode is disabled globally.";
-      return false;
-    }
-
     if (!SbAudioSinkIsAudioSampleTypeSupported(
             kSbMediaAudioSampleTypeInt16Deprecated)) {
       SB_LOG(INFO) << "Disable tunnel mode because int16 sample is required "
@@ -341,8 +370,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     bool is_encrypted = !!j_media_crypto;
     if (env->CallStaticBooleanMethodOrAbort(
-            "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
-            "(Ljava/lang/String;Z)Z", j_mime.Get(), is_encrypted) == JNI_TRUE) {
+            "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
+            "(Ljava/lang/String;ZIIIIZZ)Z", j_mime.Get(), is_encrypted, 0, 0, 0,
+            0, false, true) == JNI_TRUE) {
       return true;
     }
 
@@ -350,8 +380,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
           env->CallStaticBooleanMethodOrAbort(
-              "dev/cobalt/media/MediaCodecUtil", "hasTunneledCapableDecoder",
-              "(Ljava/lang/String;Z)Z", j_mime.Get(), kIsEncrypted) == JNI_TRUE;
+              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
+              "(Ljava/lang/String;ZIIIIZZ)Z", j_mime.Get(), kIsEncrypted, 0, 0,
+              0, 0, false, true) == JNI_TRUE;
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;

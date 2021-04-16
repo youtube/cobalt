@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/fur.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 fur{
     Countries{
         001{"Mont"}
@@ -45,7 +40,6 @@ fur{
         AI{"Anguilla"}
         AL{"Albanie"}
         AM{"Armenie"}
-        AN{"Antilis olandesis"}
         AO{"Angola"}
         AQ{"Antartic"}
         AR{"Argjentine"}
@@ -112,7 +106,7 @@ fur{
         EU{"Union europeane"}
         FI{"Finlandie"}
         FJ{"Fizi"}
-        FK{"Isulis Falkland"}
+        FK{"Isulis Falkland (Isulis Malvinas)"}
         FM{"Micronesie"}
         FO{"Isulis Faroe"}
         FR{"France"}
@@ -185,7 +179,6 @@ fur{
         MF{"Sant Martin"}
         MG{"Madagascar"}
         MH{"Isulis Marshall"}
-        MK{"Macedonie"}
         ML{"Mali"}
         MM{"Birmanie"}
         MN{"Mongolie"}
@@ -296,8 +289,5 @@ fur{
     Countries%variant{
         CD{"Congo (RDC)"}
         CG{"Congo (Republiche)"}
-        FK{"Isulis Falkland (Isulis Malvinas)"}
-        MK{"Macedonie (FYROM)"}
     }
-    Version{"2.1.19.14"}
 }

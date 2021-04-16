@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2001-2012, International Business Machines
@@ -45,7 +47,7 @@ Quantifier::~Quantifier() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* Quantifier::clone() const {
+Quantifier* Quantifier::clone() const {
     return new Quantifier(*this);
 }
 

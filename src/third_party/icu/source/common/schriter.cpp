@@ -1,3 +1,5 @@
+// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 1998-2012, International Business Machines Corporation and
@@ -99,7 +101,7 @@ StringCharacterIterator::operator==(const ForwardCharacterIterator& that) const 
         && end == realThat.end;
 }
 
-CharacterIterator*
+StringCharacterIterator*
 StringCharacterIterator::clone() const {
     return new StringCharacterIterator(*this);
 }

@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,4 @@
 # limitations under the License.
 
 # The location of the build configuration file.
-buildconfig = "//cobalt/build/config/BUILDCONFIG.gn"
-
-# TODO: add exec_script_whitelist
+buildconfig = "//starboard/build/config/BUILDCONFIG.gn"

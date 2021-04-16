@@ -58,10 +58,6 @@
           '-fvisibility=hidden',
           # Warn for implicit type conversions that may change a value.
           '-Wconversion',
-          '-Wno-c++11-compat',
-          # This (rightfully) complains about 'override', which we use
-          # heavily.
-          '-Wno-c++11-extensions',
           # Warns on switches on enums that cover all enum values but
           # also contain a default: branch. Chrome is full of that.
           '-Wno-covered-switch-default',
@@ -115,7 +111,7 @@
       #'-std=c99',
     ],
     'cflags_cc': [
-      '-std=gnu++11',
+      '-std=gnu++14',
     ],
     'default_configuration': 'stub_debug',
     'configurations': {

@@ -29,27 +29,27 @@ v8::Local<v8::Value> ToV8cException(v8::Isolate* isolate,
           .ToLocalChecked();
   switch (type) {
     case kError:
-      error = v8::Exception::Error(message);
+      error = v8::Exception::Error(message, isolate);
       break;
     case kTypeError:
-      error = v8::Exception::TypeError(message);
+      error = v8::Exception::TypeError(message, isolate);
       break;
     case kRangeError:
-      error = v8::Exception::RangeError(message);
+      error = v8::Exception::RangeError(message, isolate);
       break;
     case kReferenceError:
-      error = v8::Exception::ReferenceError(message);
+      error = v8::Exception::ReferenceError(message, isolate);
       break;
     case kSyntaxError:
-      error = v8::Exception::SyntaxError(message);
+      error = v8::Exception::SyntaxError(message, isolate);
       break;
     case kURIError:
       // TODO: Don't see anything for this...
-      error = v8::Exception::Error(message);
+      error = v8::Exception::Error(message, isolate);
       break;
     default:
       NOTREACHED();
-      error = v8::Exception::Error(message);
+      error = v8::Exception::Error(message, isolate);
   }
 
   return error;
@@ -79,7 +79,7 @@ void V8cExceptionState::SetException(
 
 void V8cExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
                                              const char* format,
-                                             va_list & arguments) {
+                                             va_list& arguments) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!is_exception_set_);
 

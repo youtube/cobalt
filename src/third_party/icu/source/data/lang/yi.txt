@@ -1,11 +1,6 @@
-﻿// ***************************************************************************
-// *
-// * Copyright (C) 2015 International Business Machines
-// * Corporation and others. All Rights Reserved.
-// * Tool: org.unicode.cldr.icu.NewLdml2IcuConverter
-// * Source File: <path>/common/main/yi.xml
-// *
-// ***************************************************************************
+﻿// © 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 yi{
     Keys{
         numbers{"נומערן"}
@@ -132,7 +127,6 @@ yi{
         sk{"סלאוואַקיש"}
         sl{"סלאוועניש"}
         sli{"אונטער שלעזיש"}
-        sly{"sly"}
         sm{"סאַמאאַניש"}
         sn{"שאנאַ"}
         so{"סאמאַליש"}
@@ -141,8 +135,8 @@ yi{
         sux{"סומעריש"}
         sv{"שוועדיש"}
         sw{"סוואַהיליש"}
+        sw_CD{"קאנגא־סוואַהיליש"}
         swb{"קאמאריש"}
-        swc{"קאנגא־סוואַהיליש"}
         szl{"שלעזיש"}
         ta{"טאַמיל"}
         tig{"טיגרע"}
@@ -169,7 +163,7 @@ yi{
         Cyrl{"ציריליש"}
         Deva{"דעוואַנאַגאַרי"}
         Grek{"גריכיש"}
-        Hebr{"Hebr"}
+        Hebr{"העברעיש"}
         Latn{"גַלחיש"}
     }
     Types{
@@ -177,7 +171,6 @@ yi{
             gregorian{"גרעגארישער קאַלענדאַר"}
         }
     }
-    Version{"2.1.19.94"}
     codePatterns{
         language{"שפראַך: {0}"}
         script{"שריפֿט: {0}"}

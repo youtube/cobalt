@@ -14,11 +14,6 @@
 
 #include "starboard/client_porting/eztime/eztime.h"
 
-#include <unicode/ucal.h>
-#include <unicode/udata.h>
-#include <unicode/uloc.h>
-#include <unicode/ustring.h>
-
 #include <string>
 
 #include "starboard/client_porting/icu_init/icu_init.h"
@@ -26,6 +21,11 @@
 #include "starboard/once.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
+
+#include "third_party/icu/source/common/unicode/udata.h"
+#include "third_party/icu/source/common/unicode/uloc.h"
+#include "third_party/icu/source/common/unicode/ustring.h"
+#include "third_party/icu/source/i18n/unicode/ucal.h"
 
 namespace {
 
