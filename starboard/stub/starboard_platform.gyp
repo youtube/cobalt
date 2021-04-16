@@ -29,6 +29,8 @@
         'configuration_constants.cc',
         'font.cc',
         'font.h',
+        'javascript_cache.h',
+        'javascript_cache.cc',
         'main.cc',
         'system_get_extensions.cc',
         'thread_types_public.h',

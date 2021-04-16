@@ -16,9 +16,11 @@
 
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/font.h"
+#include "cobalt/extension/javascript_cache.h"
 #include "starboard/common/string.h"
 #include "starboard/stub/configuration.h"
 #include "starboard/stub/font.h"
+#include "starboard/stub/javascript_cache.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
@@ -26,6 +28,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (SbStringCompareAll(name, kCobaltExtensionFontName) == 0) {
     return starboard::stub::GetFontApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionJavaScriptCacheName) == 0) {
+    return starboard::stub::GetJavaScriptCacheApi();
   }
   return NULL;
 }
