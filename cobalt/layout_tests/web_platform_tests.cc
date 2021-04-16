@@ -428,6 +428,11 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")),
     GetTestName());
 
+INSTANTIATE_TEST_CASE_P(
+    performance_timeline, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("performance_timeline")),
+    GetTestName());
+
 INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests(
                             "streams", "'ReadableStream' in this")),
