@@ -19,4 +19,10 @@ interface Performance {
 
   // Chromium custom member.
   readonly attribute MemoryInfo memory;
+
+  // Performance Resource Timing extensions to the Performance interface.
+  //   https://w3c.github.io/resource-timing/#sec-extensions-performance-interface
+  void clearResourceTimings ();
+  void setResourceTimingBufferSize (unsigned long maxSize);
+  attribute EventHandler onresourcetimingbufferfull;
 };

@@ -72,7 +72,18 @@ class PerformanceObserver : public script::Wrappable {
   // Internal helper class to allow creation of a PerformanceObserver with either a
   // native or script callback. Must be public so it can be inherited from in
   // the .cc file.
-  class CallbackInternal;
+  class CallbackInternal {
+   public:
+    virtual bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
+                             const scoped_refptr<PerformanceObserver>& observer) = 0;
+    virtual ~CallbackInternal() {}
+  };
+
+  void EmptyObserverBuffer() { observer_buffer_.clear();}
+  PerformanceEntryList GetObserverBuffer() { return observer_buffer_; }
+  std::unique_ptr<CallbackInternal>& GetPerformanceObserverCallback() {
+    return callback_;
+  }
 
   DEFINE_WRAPPABLE_TYPE(PerformanceObserver);
   void TraceMembers(script::Tracer* tracer) override;

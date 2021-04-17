@@ -20,6 +20,7 @@
 #include "cobalt/dom/performance_observer.h"
 #include "cobalt/dom/performance_observer_init.h"
 #include "cobalt/dom/performance_resource_timing.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,6 +55,7 @@ class PerformanceObserverTest : public ::testing::Test {
   PerformanceObserverTest();
   ~PerformanceObserverTest() override {}
 
+  testing::StubEnvironmentSettings environment_settings_;
   scoped_refptr<base::SystemMonotonicClock> clock_;
   scoped_refptr<Performance> performance_;
   scoped_refptr<MockPerformanceObserver> observer_;
@@ -62,7 +64,7 @@ class PerformanceObserverTest : public ::testing::Test {
 
 PerformanceObserverTest::PerformanceObserverTest()
     : clock_(new base::SystemMonotonicClock()),
-    performance_(new Performance(clock_)),
+    performance_(new Performance(&environment_settings_, clock_)),
     observer_(new MockPerformanceObserver(
         base::Bind(&PerformanceObserverCallbackMock::NativePerformanceObserverCallback,
                    base::Unretained(&callback_mock_)),
