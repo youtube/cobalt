@@ -91,8 +91,8 @@ def main(args):
   arch = DetectHostArch()
   if arch == 'x64':
     return FetchAndExtract(arch)
-  if arch == 'x86':
-    ret = FetchAndExtract('ia32')
+  if arch == 'ia32':
+    ret = FetchAndExtract(arch)
     if ret != 0:
       return ret
     # Fetch the x64 toolchain as well for official bots with 64-bit kernels.

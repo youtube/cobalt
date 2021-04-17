@@ -16,6 +16,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/prototype.h"
@@ -80,12 +81,13 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
 }
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object>
-Accessors::ReplaceAccessorWithDataProperty(Handle<Object> receiver,
+Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
+                                           Handle<Object> receiver,
                                            Handle<JSObject> holder,
                                            Handle<Name> name,
                                            Handle<Object> value) {
-  LookupIterator it(receiver, name, holder,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(isolate, receiver, LookupIterator::Key(isolate, name),
+                    holder, LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
   // situation where the caller does not have access.
   if (it.state() == LookupIterator::ACCESS_CHECK) {
@@ -113,8 +115,8 @@ void Accessors::ReconfigureToDataProperty(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result =
-      Accessors::ReplaceAccessorWithDataProperty(receiver, holder, name, value);
+  MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
+      isolate, receiver, holder, name, value);
   if (result.is_null()) {
     isolate->OptionalRescheduleException(false);
   } else {
@@ -179,13 +181,14 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array)) &&
-      length != array->length().Number()) {
+  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array))) {
     // AnythingToArrayLength() may have called setter re-entrantly and modified
     // its property descriptor. Don't perform this check if "length" was
     // previously readonly, as this may have been called during
     // DefineOwnPropertyIgnoreAttributes().
-    if (info.ShouldThrowOnError()) {
+    if (length == array->length().Number()) {
+      info.GetReturnValue().Set(true);
+    } else if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
       isolate->Throw(*factory->NewTypeError(
           MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
@@ -460,16 +463,20 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     return ArgumentsForInlinedFunction(frame, function_index);
   }
 
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  const int length = frame->GetActualArgumentCount();
+#else
   // Find the frame that holds the actual arguments passed to the function.
   if (it->frame()->has_adapted_arguments()) {
     it->AdvanceOneFrame();
     DCHECK(it->frame()->is_arguments_adaptor());
   }
   frame = it->frame();
-
-  // Get the number of arguments and construct an arguments object
-  // mirror for the right frame and the underlying function.
   const int length = frame->ComputeParametersCount();
+#endif
+
+  // Construct an arguments object mirror for the right frame and the underlying
+  // function.
   Handle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
@@ -838,6 +845,33 @@ void Accessors::ErrorStackSetter(
 Handle<AccessorInfo> Accessors::MakeErrorStackInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->stack_string(),
                       &ErrorStackGetter, &ErrorStackSetter);
+}
+
+//
+// Accessors::RegExpResultIndices
+//
+
+void Accessors::RegExpResultIndicesGetter(
+    v8::Local<v8::Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSRegExpResult> regexp_result(
+      Handle<JSRegExpResult>::cast(Utils::OpenHandle(*info.Holder())));
+  MaybeHandle<JSArray> maybe_indices(
+      JSRegExpResult::GetAndCacheIndices(isolate, regexp_result));
+  Handle<JSArray> indices;
+  if (!maybe_indices.ToHandle(&indices)) {
+    isolate->OptionalRescheduleException(false);
+    Handle<Object> result = isolate->factory()->undefined_value();
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(indices));
+  }
+}
+
+Handle<AccessorInfo> Accessors::MakeRegExpResultIndicesInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->indices_string(),
+                      &RegExpResultIndicesGetter, nullptr);
 }
 
 }  // namespace internal

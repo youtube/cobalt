@@ -6,6 +6,7 @@
 #define V8_LIBSAMPLER_SAMPLER_H_
 
 #include <atomic>
+#include <memory>
 #include <unordered_map>
 
 #include "include/v8.h"
@@ -71,7 +72,7 @@ class V8_EXPORT_PRIVATE Sampler {
 
  protected:
   // Counts stack samples taken in various VM states.
-  bool is_counting_samples_ = 0;
+  bool is_counting_samples_ = false;
   unsigned js_sample_count_ = 0;
   unsigned external_sample_count_ = 0;
 

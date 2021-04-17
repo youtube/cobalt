@@ -22,6 +22,7 @@
 #define V8_BASE_PLATFORM_PLATFORM_H_
 
 #include <cstdarg>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,10 @@
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
 #endif
+
+#ifdef V8_USE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif  // V8_USE_ADDRESS_SANITIZER
 
 namespace v8 {
 
@@ -168,7 +173,10 @@ class V8_BASE_EXPORT OS {
     kReadWrite,
     // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
-    kReadExecute
+    kReadExecute,
+    // TODO(jkummerow): Remove this when Wasm has a platform-independent
+    // w^x implementation.
+    kNoAccessWillJitLater
   };
 
   static bool HasLazyCommits();
@@ -275,6 +283,13 @@ class V8_BASE_EXPORT OS {
                                               size_t alignment,
                                               MemoryPermission access);
 
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(size_t size,
+                                                    MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static void* RemapShared(void* old_address,
+                                                 void* new_address,
+                                                 size_t size);
+
   V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
 
   V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
@@ -339,18 +354,21 @@ class V8_BASE_EXPORT Thread {
 
   // Create new thread.
   explicit Thread(const Options& options);
+  Thread(const Thread&) = delete;
+  Thread& operator=(const Thread&) = delete;
   virtual ~Thread();
 
   // Start new thread by calling the Run() method on the new thread.
-  void Start();
+  V8_WARN_UNUSED_RESULT bool Start();
 
   // Start new thread and wait until Run() method is called on the new thread.
-  void StartSynchronously() {
+  bool StartSynchronously() {
     start_semaphore_ = new Semaphore(0);
-    Start();
+    if (!Start()) return false;
     start_semaphore_->Wait();
     delete start_semaphore_;
     start_semaphore_ = nullptr;
+    return true;
   }
 
   // Wait until thread terminates.
@@ -411,8 +429,51 @@ class V8_BASE_EXPORT Thread {
   char name_[kMaxThreadNameLength];
   int stack_size_;
   Semaphore* start_semaphore_;
+};
 
-  DISALLOW_COPY_AND_ASSIGN(Thread);
+// TODO(v8:10354): Make use of the stack utilities here in V8.
+class V8_BASE_EXPORT Stack {
+ public:
+  // Convenience wrapper to use stack slots as unsigned values or void*
+  // pointers.
+  struct StackSlot {
+    // NOLINTNEXTLINE
+    StackSlot(void* value) : value(reinterpret_cast<uintptr_t>(value)) {}
+    StackSlot(uintptr_t value) : value(value) {}  // NOLINT
+
+    // NOLINTNEXTLINE
+    operator void*() const { return reinterpret_cast<void*>(value); }
+    operator uintptr_t() const { return value; }  // NOLINT
+
+    uintptr_t value;
+  };
+
+  // Gets the start of the stack of the current thread.
+  static StackSlot GetStackStart();
+
+  // Returns the current stack top. Works correctly with ASAN and SafeStack.
+  // GetCurrentStackPosition() should not be inlined, because it works on stack
+  // frames if it were inlined into a function with a huge stack frame it would
+  // return an address significantly above the actual current stack position.
+  static V8_NOINLINE StackSlot GetCurrentStackPosition();
+
+  // Returns the real stack frame if slot is part of a fake frame, and slot
+  // otherwise.
+  static StackSlot GetRealStackAddressForSlot(StackSlot slot) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    // ASAN fetches the real stack deeper in the __asan_addr_is_in_fake_stack()
+    // call (precisely, deeper in __asan_stack_malloc_()), which results in a
+    // real frame that could be outside of stack bounds. Adjust for this
+    // impreciseness here.
+    constexpr size_t kAsanRealFrameOffsetBytes = 32;
+    void* real_frame = __asan_addr_is_in_fake_stack(
+        __asan_get_current_fake_stack(), slot, nullptr, nullptr);
+    return real_frame
+               ? (static_cast<char*>(real_frame) + kAsanRealFrameOffsetBytes)
+               : slot;
+#endif  // V8_USE_ADDRESS_SANITIZER
+    return slot;
+  }
 };
 
 }  // namespace base

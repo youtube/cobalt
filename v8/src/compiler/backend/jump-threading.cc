@@ -69,12 +69,16 @@ bool IsBlockWithBranchPoisoning(InstructionSequence* code,
 }  // namespace
 
 bool JumpThreading::ComputeForwarding(Zone* local_zone,
-                                      ZoneVector<RpoNumber>& result,
+                                      ZoneVector<RpoNumber>* result,
                                       InstructionSequence* code,
                                       bool frame_at_start) {
   ZoneStack<RpoNumber> stack(local_zone);
-  JumpThreadingState state = {false, result, stack};
+  JumpThreadingState state = {false, *result, stack};
   state.Clear(code->InstructionBlockCount());
+  RpoNumber empty_deconstruct_frame_return_block = RpoNumber::Invalid();
+  int32_t empty_deconstruct_frame_return_size;
+  RpoNumber empty_no_deconstruct_frame_return_block = RpoNumber::Invalid();
+  int32_t empty_no_deconstruct_frame_return_size;
 
   // Iterate over the blocks forward, pushing the blocks onto the stack.
   for (auto const block : code->instruction_blocks()) {
@@ -117,6 +121,44 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
               fw = code->InputRpo(instr, 0);
             }
             fallthru = false;
+          } else if (instr->IsRet()) {
+            TRACE("  ret\n");
+            if (fallthru) {
+              CHECK_IMPLIES(block->must_construct_frame(),
+                            block->must_deconstruct_frame());
+              // Only handle returns with immediate/constant operands, since
+              // they must always be the same for all returns in a function.
+              // Dynamic return values might use different registers at
+              // different return sites and therefore cannot be shared.
+              if (instr->InputAt(0)->IsImmediate()) {
+                int32_t return_size =
+                    ImmediateOperand::cast(instr->InputAt(0))->inline_value();
+                // Instructions can be shared only for blocks that share
+                // the same |must_deconstruct_frame| attribute.
+                if (block->must_deconstruct_frame()) {
+                  if (empty_deconstruct_frame_return_block ==
+                      RpoNumber::Invalid()) {
+                    empty_deconstruct_frame_return_block = block->rpo_number();
+                    empty_deconstruct_frame_return_size = return_size;
+                  } else if (empty_deconstruct_frame_return_size ==
+                             return_size) {
+                    fw = empty_deconstruct_frame_return_block;
+                    block->clear_must_deconstruct_frame();
+                  }
+                } else {
+                  if (empty_no_deconstruct_frame_return_block ==
+                      RpoNumber::Invalid()) {
+                    empty_no_deconstruct_frame_return_block =
+                        block->rpo_number();
+                    empty_no_deconstruct_frame_return_size = return_size;
+                  } else if (empty_no_deconstruct_frame_return_size ==
+                             return_size) {
+                    fw = empty_no_deconstruct_frame_return_block;
+                  }
+                }
+              }
+            }
+            fallthru = false;
           } else {
             // can't skip other instructions.
             TRACE("  other\n");
@@ -135,15 +177,15 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
   }
 
 #ifdef DEBUG
-  for (RpoNumber num : result) {
+  for (RpoNumber num : *result) {
     DCHECK(num.IsValid());
   }
 #endif
 
   if (FLAG_trace_turbo_jt) {
-    for (int i = 0; i < static_cast<int>(result.size()); i++) {
+    for (int i = 0; i < static_cast<int>(result->size()); i++) {
       TRACE("B%d ", i);
-      int to = result[i].ToInt();
+      int to = (*result)[i].ToInt();
       if (i != to) {
         TRACE("-> B%d\n", to);
       } else {
@@ -156,7 +198,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 }
 
 void JumpThreading::ApplyForwarding(Zone* local_zone,
-                                    ZoneVector<RpoNumber>& result,
+                                    ZoneVector<RpoNumber> const& result,
                                     InstructionSequence* code) {
   if (!FLAG_turbo_jt) return;
 
@@ -165,8 +207,19 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
   // Skip empty blocks when the previous block doesn't fall through.
   bool prev_fallthru = true;
   for (auto const block : code->instruction_blocks()) {
-    int block_num = block->rpo_number().ToInt();
-    skip[block_num] = !prev_fallthru && result[block_num].ToInt() != block_num;
+    RpoNumber block_rpo = block->rpo_number();
+    int block_num = block_rpo.ToInt();
+    RpoNumber result_rpo = result[block_num];
+    skip[block_num] = !prev_fallthru && result_rpo != block_rpo;
+
+    if (result_rpo != block_rpo) {
+      // We need the handler information to be propagated, so that branch
+      // targets are annotated as necessary for control flow integrity
+      // checks (when enabled).
+      if (code->InstructionBlockAt(block_rpo)->IsHandler()) {
+        code->InstructionBlockAt(result_rpo)->MarkHandler();
+      }
+    }
 
     bool fallthru = true;
     for (int i = block->code_start(); i < block->code_end(); ++i) {
@@ -174,11 +227,14 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
       FlagsMode mode = FlagsModeField::decode(instr->opcode());
       if (mode == kFlags_branch || mode == kFlags_branch_and_poison) {
         fallthru = false;  // branches don't fall through to the next block.
-      } else if (instr->arch_opcode() == kArchJmp) {
+      } else if (instr->arch_opcode() == kArchJmp ||
+                 instr->arch_opcode() == kArchRet) {
         if (skip[block_num]) {
           // Overwrite a redundant jump with a nop.
           TRACE("jt-fw nop @%d\n", i);
           instr->OverwriteWithNop();
+          // If this block was marked as a handler, it can be unmarked now.
+          code->InstructionBlockAt(block_rpo)->UnmarkHandler();
         }
         fallthru = false;  // jumps don't fall through to the next block.
       }

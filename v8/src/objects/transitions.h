@@ -38,9 +38,14 @@ namespace internal {
 // cleared when the map they refer to is not otherwise reachable.
 class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
+  // For concurrent access, use the other constructor.
   inline TransitionsAccessor(Isolate* isolate, Map map,
                              DisallowHeapAllocation* no_gc);
-  inline TransitionsAccessor(Isolate* isolate, Handle<Map> map);
+  // {concurrent_access} signals that the TransitionsAccessor will only be used
+  // in background threads. It acquires a reader lock for critical paths, as
+  // well as blocking the accessor from modifying the TransitionsArray.
+  inline TransitionsAccessor(Isolate* isolate, Handle<Map> map,
+                             bool concurrent_access = false);
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary.
   // Requires the constructor that takes a Handle<Map> to have been used.
@@ -143,6 +148,10 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     return encoding_;
   }
 
+  inline int Capacity();
+
+  inline TransitionArray transitions();
+
  private:
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;
@@ -175,13 +184,12 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void TraverseTransitionTreeInternal(TraverseCallback callback, void* data,
                                       DisallowHeapAllocation* no_gc);
 
-  inline TransitionArray transitions();
-
   Isolate* isolate_;
   Handle<Map> map_handle_;
   Map map_;
   MaybeObject raw_transitions_;
   Encoding encoding_;
+  bool concurrent_access_;
 #if DEBUG
   bool needs_reload_;
 #endif
@@ -221,16 +229,17 @@ class TransitionArray : public WeakFixedArray {
                                 Map* target);
 
   // Required for templatized Search interface.
+  inline Name GetKey(InternalIndex index);
   static constexpr int kNotFound = -1;
 
   inline Name GetSortedKey(int transition_number);
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
   inline int number_of_entries() const;
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates(int valid_entries = -1);
+  V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 #endif
 
-  void Sort();
+  V8_EXPORT_PRIVATE void Sort();
 
   void PrintInternal(std::ostream& os);
 
@@ -258,6 +267,9 @@ class TransitionArray : public WeakFixedArray {
 
   inline int SearchNameForTesting(Name name,
                                   int* out_insertion_index = nullptr);
+
+  inline Map SearchAndGetTargetForTesting(PropertyKind kind, Name name,
+                                          PropertyAttributes attributes);
 
  private:
   friend class Factory;
@@ -295,8 +307,8 @@ class TransitionArray : public WeakFixedArray {
   int Search(PropertyKind kind, Name name, PropertyAttributes attributes,
              int* out_insertion_index = nullptr);
 
-  Map SearchAndGetTarget(PropertyKind kind, Name name,
-                         PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE Map SearchAndGetTarget(PropertyKind kind, Name name,
+                                           PropertyAttributes attributes);
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
@@ -336,8 +348,6 @@ class TransitionArray : public WeakFixedArray {
                                    PropertyAttributes attributes2);
 
   inline void Set(int transition_number, Name key, MaybeObject target);
-
-  void Zap(Isolate* isolate);
 
   OBJECT_CONSTRUCTORS(TransitionArray, WeakFixedArray);
 };

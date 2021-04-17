@@ -8,10 +8,13 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
@@ -19,6 +22,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/ppc/frame-constants-ppc.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
@@ -41,8 +45,6 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 class PPCDebugger {
  public:
   explicit PPCDebugger(Simulator* sim) : sim_(sim) {}
-
-  void Stop(Instruction* instr);
   void Debug();
 
  private:
@@ -57,34 +59,20 @@ class PPCDebugger {
   bool GetValue(const char* desc, intptr_t* value);
   bool GetFPDoubleValue(const char* desc, double* value);
 
-  // Set or delete a breakpoint. Returns true if successful.
+  // Set or delete breakpoint (there can be only one).
   bool SetBreakpoint(Instruction* break_pc);
-  bool DeleteBreakpoint(Instruction* break_pc);
+  void DeleteBreakpoint();
 
-  // Undo and redo all breakpoints. This is needed to bracket disassembly and
-  // execution to skip past breakpoints when run from the debugger.
-  void UndoBreakpoints();
-  void RedoBreakpoints();
+  // Undo and redo the breakpoint. This is needed to bracket disassembly and
+  // execution to skip past the breakpoint when run from the debugger.
+  void UndoBreakpoint();
+  void RedoBreakpoint();
 };
 
-void PPCDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  // use of kStopCodeMask not right on PowerPC
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char* msg = *reinterpret_cast<char**>(sim_->get_pc() + kInstrSize);
-  // Update this stop description.
-  if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
-    sim_->watched_stops_[code].desc = msg;
-  }
-  // Print the stop message and code if it is not the default code.
-  if (code != kMaxStopCode) {
-    PrintF("Simulator hit stop %u: %s\n", code, msg);
-  } else {
-    PrintF("Simulator hit %s\n", msg);
-  }
-  sim_->set_pc(sim_->get_pc() + kInstrSize + kPointerSize);
-  Debug();
+void Simulator::DebugAtNextPC() {
+  PrintF("Starting debugger on the next instruction:\n");
+  set_pc(get_pc() + kInstrSize);
+  PPCDebugger(this).Debug();
 }
 
 intptr_t PPCDebugger::GetRegisterValue(int regnum) {
@@ -139,25 +127,33 @@ bool PPCDebugger::SetBreakpoint(Instruction* break_pc) {
   return true;
 }
 
-bool PPCDebugger::DeleteBreakpoint(Instruction* break_pc) {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
-  }
+namespace {
+// This function is dangerous, but it's only available in non-production
+// (simulator) builds.
+void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
+                                   Heap* heap) {
+  CodeSpaceMemoryModificationScope scope(heap);
+  instr->SetInstructionBits(value);
+}
+}  // namespace
 
+void PPCDebugger::DeleteBreakpoint() {
+  UndoBreakpoint();
   sim_->break_pc_ = nullptr;
   sim_->break_instr_ = 0;
-  return true;
 }
 
-void PPCDebugger::UndoBreakpoints() {
+void PPCDebugger::UndoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, sim_->break_instr_,
+                                  sim_->isolate_->heap());
   }
 }
 
-void PPCDebugger::RedoBreakpoints() {
+void PPCDebugger::RedoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, kBreakpointInstr,
+                                  sim_->isolate_->heap());
   }
 }
 
@@ -181,9 +177,9 @@ void PPCDebugger::Debug() {
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
 
-  // Undo all set breakpoints while running in the debugger shell. This will
-  // make them invisible to all commands.
-  UndoBreakpoints();
+  // Unset breakpoint while running in the debugger shell, making it invisible
+  // to all commands.
+  UndoBreakpoint();
   // Disable tracing while simulating
   bool trace = ::v8::internal::FLAG_trace_sim;
   ::v8::internal::FLAG_trace_sim = false;
@@ -361,7 +357,8 @@ void PPCDebugger::Debug() {
           continue;
         }
         sim_->set_pc(value);
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+                 strcmp(cmd, "dump") == 0) {
         intptr_t* cur = nullptr;
         intptr_t* end = nullptr;
         int next_arg = 1;
@@ -388,20 +385,23 @@ void PPCDebugger::Debug() {
         }
         end = cur + words;
 
+        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08" V8PRIxPTR " %10" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (obj.IsSmi() ||
-              IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-            PrintF(" (");
-            if (obj.IsSmi()) {
-              PrintF("smi %d", Smi::ToInt(obj));
-            } else {
-              obj.ShortPrint();
+          if (!skip_obj_print) {
+            if (obj.IsSmi() ||
+                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+              PrintF(" (");
+              if (obj.IsSmi()) {
+                PrintF("smi %d", Smi::ToInt(obj));
+              } else {
+                obj.ShortPrint();
+              }
+              PrintF(")");
             }
-            PrintF(")");
           }
           PrintF("\n");
           cur++;
@@ -471,9 +471,7 @@ void PPCDebugger::Debug() {
           PrintF("break <address>\n");
         }
       } else if (strcmp(cmd, "del") == 0) {
-        if (!DeleteBreakpoint(nullptr)) {
-          PrintF("deleting breakpoint failed\n");
-        }
+        DeleteBreakpoint();
       } else if (strcmp(cmd, "cr") == 0) {
         PrintF("Condition reg: %08x\n", sim_->condition_reg_);
       } else if (strcmp(cmd, "lr") == 0) {
@@ -486,14 +484,15 @@ void PPCDebugger::Debug() {
         PrintF("FPSCR: %08x\n", sim_->fp_condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
-        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kPointerSize);
+        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kSystemPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
             reinterpret_cast<Instruction*>(stop_pc + kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
-            stop_instr->SetInstructionBits(kNopInstr);
+            SetInstructionBitsInCodeSpace(stop_instr, kNopInstr,
+                                          sim_->isolate_->heap());
             msg_address->SetInstructionBits(kNopInstr);
           } else {
             PrintF("Not at debugger stop.\n");
@@ -573,6 +572,10 @@ void PPCDebugger::Debug() {
         PrintF("  dump stack content, default dump 10 words)\n");
         PrintF("mem <address> [<num words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
+        PrintF("dump [<words>]\n");
+        PrintF(
+            "  dump memory content without pretty printing JS objects, default "
+            "dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
         PrintF("disasm [<address/register>]\n");
         PrintF("disasm [[<address/register>] <instructions>]\n");
@@ -613,9 +616,9 @@ void PPCDebugger::Debug() {
     }
   }
 
-  // Add all the breakpoints back to stop execution and enter the debugger
-  // shell when hit.
-  RedoBreakpoints();
+  // Reinstall breakpoint to stop execution and enter the debugger shell when
+  // hit.
+  RedoBreakpoint();
   // Restore tracing
   ::v8::internal::FLAG_trace_sim = trace;
 
@@ -712,7 +715,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
                        cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    base::Memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -726,7 +729,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   size_t stack_size = MB;  // allocate 1MB for stack
 #endif
   stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -757,7 +760,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-Simulator::~Simulator() { free(stack_); }
+Simulator::~Simulator() { base::Free(stack_); }
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -798,8 +801,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[sizeof(fp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  base::Memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  base::Memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
 #endif
   return (dm_val);
 }
@@ -869,7 +872,7 @@ RW_VAR_LIST(GENERATE_RW_FUNC)
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -931,10 +934,12 @@ using SimulatorRuntimeCall = intptr_t (*)(intptr_t arg0, intptr_t arg1,
                                           intptr_t arg2, intptr_t arg3,
                                           intptr_t arg4, intptr_t arg5,
                                           intptr_t arg6, intptr_t arg7,
-                                          intptr_t arg8);
+                                          intptr_t arg8, intptr_t arg9);
 using SimulatorRuntimePairCall = ObjectPair (*)(intptr_t arg0, intptr_t arg1,
                                                 intptr_t arg2, intptr_t arg3,
-                                                intptr_t arg4, intptr_t arg5);
+                                                intptr_t arg4, intptr_t arg5,
+                                                intptr_t arg6, intptr_t arg7,
+                                                intptr_t arg8, intptr_t arg9);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int (*)(double darg0, double darg1);
@@ -964,7 +969,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
           0;
       Redirection* redirection = Redirection::FromInstruction(instr);
-      const int kArgCount = 9;
+      const int kArgCount = 10;
       const int kRegisterArgCount = 8;
       int arg0_regnum = 3;
       intptr_t result_buffer = 0;
@@ -982,9 +987,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       }
       intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
       // Remaining argument on stack
-      arg[kRegisterArgCount] = stack_pointer[kStackFrameExtraParamSlot];
-      STATIC_ASSERT(kArgCount == kRegisterArgCount + 1);
-      STATIC_ASSERT(kMaxCParameters == 9);
+      for (int i = kRegisterArgCount, j = 0; i < kArgCount; i++, j++) {
+        arg[i] = stack_pointer[kStackFrameExtraParamSlot + j];
+      }
+      STATIC_ASSERT(kArgCount == kRegisterArgCount + 2);
+      STATIC_ASSERT(kMaxCParameters == kArgCount);
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
           (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1161,9 +1168,10 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "Call to host function at %p,\n"
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
-              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR,
               reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
-              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    get_register(sp));
@@ -1174,8 +1182,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
           SimulatorRuntimePairCall target =
               reinterpret_cast<SimulatorRuntimePairCall>(external);
-          ObjectPair result =
-              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+          ObjectPair result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
+                                     arg[5], arg[6], arg[7], arg[8], arg[9]);
           intptr_t x;
           intptr_t y;
           decodeObjectPair(&result, &x, &y);
@@ -1186,8 +1194,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             set_register(r3, x);
             set_register(r4, y);
           } else {
-            memcpy(reinterpret_cast<void*>(result_buffer), &result,
-                   sizeof(ObjectPair));
+            base::Memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                         sizeof(ObjectPair));
             set_register(r3, result_buffer);
           }
         } else {
@@ -1195,7 +1203,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           SimulatorRuntimeCall target =
               reinterpret_cast<SimulatorRuntimeCall>(external);
           intptr_t result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
-                                   arg[5], arg[6], arg[7], arg[8]);
+                                   arg[5], arg[6], arg[7], arg[8], arg[9]);
           if (::v8::internal::FLAG_trace_sim) {
             PrintF("Returned %08" V8PRIxPTR "\n", result);
           }
@@ -1205,13 +1213,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       set_pc(saved_lr);
       break;
     }
-    case kBreakpoint: {
-      PPCDebugger dbg(this);
-      dbg.Debug();
+    case kBreakpoint:
+      PPCDebugger(this).Debug();
       break;
-    }
     // stop uses all codes greater than 1 << 23.
-    default: {
+    default:
       if (svc >= (1 << 23)) {
         uint32_t code = svc & kStopCodeMask;
         if (isWatchedStop(code)) {
@@ -1220,17 +1226,19 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // Stop if it is enabled, otherwise go on jumping over the stop
         // and the message address.
         if (isEnabledStop(code)) {
-          PPCDebugger dbg(this);
-          dbg.Stop(instr);
+          if (code != kMaxStopCode) {
+            PrintF("Simulator hit stop %u. ", code);
+          } else {
+            PrintF("Simulator hit stop. ");
+          }
+          DebugAtNextPC();
         } else {
-          set_pc(get_pc() + kInstrSize + kPointerSize);
+          set_pc(get_pc() + kInstrSize + kSystemPointerSize);
         }
       } else {
         // This is not a valid svc code.
         UNREACHABLE();
-        break;
       }
-    }
   }
 }
 
@@ -2211,7 +2219,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
       int32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
       int64_t alu_out = (int64_t)ra_val * (int64_t)rb_val;
-      alu_out >>= 32;
+      // High 32 bits of the result is undefined,
+      // Which is simulated here by adding random bits.
+      alu_out = (alu_out >> 32) | 0x421000000000000;
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(static_cast<intptr_t>(alu_out));
@@ -2225,7 +2235,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint32_t ra_val = (get_register(ra) & 0xFFFFFFFF);
       uint32_t rb_val = (get_register(rb) & 0xFFFFFFFF);
       uint64_t alu_out = (uint64_t)ra_val * (uint64_t)rb_val;
-      alu_out >>= 32;
+      // High 32 bits of the result is undefined,
+      // Which is simulated here by adding random bits.
+      alu_out = (alu_out >> 32) | 0x421000000000000;
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(static_cast<intptr_t>(alu_out));
@@ -3326,6 +3338,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t frt_val;
       int64_t kMinVal = kMinInt;
       int64_t kMaxVal = kMaxInt;
+      bool invalid_convert = false;
 
       if (std::isnan(frb_val)) {
         frt_val = kMinVal;
@@ -3355,13 +3368,60 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         }
         if (frb_val < kMinVal) {
           frt_val = kMinVal;
+          invalid_convert = true;
         } else if (frb_val > kMaxVal) {
           frt_val = kMaxVal;
+          invalid_convert = true;
         } else {
           frt_val = (int64_t)frb_val;
         }
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
+      return;
+    }
+    case FCTIWU:
+    case FCTIWUZ: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIWUZ)
+                     ? kRoundToZero
+                     : (fp_condition_reg_ & kFPRoundingModeMask);
+      uint64_t frt_val;
+      uint64_t kMinVal = 0;
+      uint64_t kMaxVal = kMinVal - 1;
+      bool invalid_convert = false;
+
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
+      } else {
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < kMinVal) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val > kMaxVal) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (uint64_t)frb_val;
+        }
+      }
+      set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FNEG: {
@@ -3866,8 +3926,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // +2 is a hack for the LR slot + old SP on PPC
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack) + kStackFrameExtraParamSlot;
-  memcpy(stack_argument, arguments + reg_arg_count,
-         stack_arg_count * sizeof(*arguments));
+  base::Memcpy(stack_argument, arguments + reg_arg_count,
+               stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);

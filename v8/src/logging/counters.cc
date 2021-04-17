@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/execution/isolate.h"
 #include "src/logging/counters-inl.h"
@@ -16,11 +17,6 @@
 
 namespace v8 {
 namespace internal {
-
-std::atomic_uint TracingFlags::runtime_stats{0};
-std::atomic_uint TracingFlags::gc{0};
-std::atomic_uint TracingFlags::gc_stats{0};
-std::atomic_uint TracingFlags::ic_stats{0};
 
 StatsTable::StatsTable(Counters* counters)
     : lookup_function_(nullptr),
@@ -84,6 +80,15 @@ void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
+void TimedHistogram::AddTimedSample(base::TimeDelta sample) {
+  if (Enabled()) {
+    int64_t sample_int = resolution_ == HistogramTimerResolution::MICROSECOND
+                             ? sample.InMicroseconds()
+                             : sample.InMilliseconds();
+    AddSample(static_cast<int>(sample_int));
+  }
+}
+
 void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
   if (Enabled()) timer->Start();
   if (isolate) Logger::CallEventLogger(isolate, name(), Logger::START, true);
@@ -91,11 +96,9 @@ void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
 
 void TimedHistogram::Stop(base::ElapsedTimer* timer, Isolate* isolate) {
   if (Enabled()) {
-    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
-                         ? timer->Elapsed().InMicroseconds()
-                         : timer->Elapsed().InMilliseconds();
+    base::TimeDelta delta = timer->Elapsed();
     timer->Stop();
-    AddSample(static_cast<int>(sample));
+    AddTimedSample(delta);
   }
   if (isolate != nullptr) {
     Logger::CallEventLogger(isolate, name(), Logger::END, true);
@@ -125,7 +128,7 @@ Counters::Counters(Isolate* isolate)
       STATS_COUNTER_TS_LIST(SC)
 #undef SC
       // clang format on
-      runtime_call_stats_(),
+      runtime_call_stats_(RuntimeCallStats::kMainIsolateThread),
       worker_thread_runtime_call_stats_() {
   static const struct {
     Histogram Counters::*member;
@@ -319,6 +322,11 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 base::TimeTicks (*RuntimeCallTimer::Now)() =
     &base::TimeTicks::HighResolutionNow;
 
+base::TimeTicks RuntimeCallTimer::NowCPUTime() {
+  base::ThreadTicks ticks = base::ThreadTicks::Now();
+  return base::TimeTicks::FromInternalValue(ticks.ToInternalValue());
+}
+
 class RuntimeCallStatEntries {
  public:
   void Print(std::ostream& os) {
@@ -426,7 +434,8 @@ void RuntimeCallTimer::Snapshot() {
   Resume(now);
 }
 
-RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
+RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
+    : in_use_(false), thread_type_(thread_type) {
   static const char* const kNames[] = {
 #define CALL_BUILTIN_COUNTER(name) "GC_" #name,
       FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
@@ -446,10 +455,50 @@ RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
 #define CALL_BUILTIN_COUNTER(name) #name,
       FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
+#define THREAD_SPECIFIC_COUNTER(name) #name,
+      FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)  //
+#undef THREAD_SPECIFIC_COUNTER
   };
   for (int i = 0; i < kNumberOfCounters; i++) {
     this->counters_[i] = RuntimeCallCounter(kNames[i]);
   }
+  if (FLAG_rcs_cpu_time) {
+    CHECK(base::ThreadTicks::IsSupported());
+    base::ThreadTicks::WaitUntilInitialized();
+    RuntimeCallTimer::Now = &RuntimeCallTimer::NowCPUTime;
+  }
+}
+
+namespace {
+constexpr RuntimeCallCounterId FirstCounter(RuntimeCallCounterId first, ...) {
+  return first;
+}
+
+#define THREAD_SPECIFIC_COUNTER(name) k##name,
+constexpr RuntimeCallCounterId kFirstThreadVariantCounter =
+    FirstCounter(FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER) 0);
+#undef THREAD_SPECIFIC_COUNTER
+
+#define THREAD_SPECIFIC_COUNTER(name) +1
+constexpr int kThreadVariantCounterCount =
+    0 FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER);
+#undef THREAD_SPECIFIC_COUNTER
+
+constexpr auto kLastThreadVariantCounter = static_cast<RuntimeCallCounterId>(
+    kFirstThreadVariantCounter + kThreadVariantCounterCount - 1);
+}  // namespace
+
+bool RuntimeCallStats::HasThreadSpecificCounterVariants(
+    RuntimeCallCounterId id) {
+  // Check that it's in the range of the thread-specific variant counters and
+  // also that it's one of the background counters.
+  return id >= kFirstThreadVariantCounter && id <= kLastThreadVariantCounter;
+}
+
+bool RuntimeCallStats::IsBackgroundThreadSpecificVariant(
+    RuntimeCallCounterId id) {
+  return HasThreadSpecificCounterVariants(id) &&
+         (id - kFirstThreadVariantCounter) % 2 == 1;
 }
 
 void RuntimeCallStats::Enter(RuntimeCallTimer* timer,
@@ -479,9 +528,14 @@ void RuntimeCallStats::Add(RuntimeCallStats* other) {
 }
 
 // static
-void RuntimeCallStats::CorrectCurrentCounterId(
-    RuntimeCallCounterId counter_id) {
+void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallCounterId counter_id,
+                                               CounterMode mode) {
   DCHECK(IsCalledOnTheSameThread());
+  if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
+    counter_id = CounterIdForThread(counter_id);
+  }
+  DCHECK(IsCounterAppropriateForThread(counter_id));
+
   RuntimeCallTimer* timer = current_timer();
   if (timer == nullptr) return;
   RuntimeCallCounter* counter = GetCounter(counter_id);
@@ -511,6 +565,17 @@ void RuntimeCallStats::Print(std::ostream& os) {
   entries.Print(os);
 }
 
+void RuntimeCallStats::EnumerateCounters(
+    debug::RuntimeCallCounterCallback callback) {
+  if (current_timer_.Value() != nullptr) {
+    current_timer_.Value()->Snapshot();
+  }
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    RuntimeCallCounter* counter = GetCounter(i);
+    callback(counter->name(), counter->count(), counter->time());
+  }
+}
+
 void RuntimeCallStats::Reset() {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
@@ -536,13 +601,15 @@ void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
   in_use_ = false;
 }
 
-WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats() {}
+WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats()
+    : isolate_thread_id_(ThreadId::Current()) {}
 
 WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
   if (tls_key_) base::Thread::DeleteThreadLocalKey(*tls_key_);
 }
 
 base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
+  base::MutexGuard lock(&mutex_);
   DCHECK(TracingFlags::is_runtime_stats_enabled());
   if (!tls_key_) tls_key_ = base::Thread::CreateThreadLocalKey();
   return *tls_key_;
@@ -550,8 +617,10 @@ base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
 
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
   DCHECK(TracingFlags::is_runtime_stats_enabled());
+  // Never create a new worker table on the isolate's main thread.
+  DCHECK_NE(ThreadId::Current(), isolate_thread_id_);
   std::unique_ptr<RuntimeCallStats> new_table =
-      base::make_unique<RuntimeCallStats>();
+      std::make_unique<RuntimeCallStats>(RuntimeCallStats::kWorkerThread);
   RuntimeCallStats* result = new_table.get();
 
   base::MutexGuard lock(&mutex_);

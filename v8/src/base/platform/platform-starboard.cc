@@ -401,10 +401,11 @@ void Thread::set_name(const char* name) {
   name_[sizeof(name_) - 1] = '\0';
 }
 
-void Thread::Start() {
+bool Thread::Start() {
   data_->thread_ =
       SbThreadCreate(stack_size_, kSbThreadNoPriority, kSbThreadNoAffinity,
                      true, name_, ThreadEntry, this);
+  return SbThreadIsValid(data_->thread_);
 }
 
 void Thread::Join() { SbThreadJoin(data_->thread_, nullptr); }
@@ -474,6 +475,17 @@ void OS::AdjustSchedulingParams() {}
 bool OS::DiscardSystemPages(void* address, size_t size) {
   // Starboard API does not support this function yet.
   return true;
+}
+
+// static
+Stack::StackSlot Stack::GetCurrentStackPosition() {
+  void* addresses[1];
+  const size_t count = SbSystemGetStack(addresses, 1);
+  if (count > 0) {
+    return addresses[0];
+  } else {
+    return nullptr;
+  }
 }
 
 }  // namespace base

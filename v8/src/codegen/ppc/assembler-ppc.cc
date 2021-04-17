@@ -36,7 +36,7 @@
 
 #include "src/codegen/ppc/assembler-ppc.h"
 
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
@@ -123,6 +123,11 @@ void CpuFeatures::PrintTarget() {
 
 void CpuFeatures::PrintFeatures() {
   printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+  printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
+  printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
+  printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
+  printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
+  printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
 }
 
 Register ToRegister(int num) {
@@ -200,8 +205,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   AllocationType::kOld);
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
         break;
       }
       case HeapObjectRequest::kStringConstant: {
@@ -243,6 +248,15 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
 
@@ -506,7 +520,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
                                 reinterpret_cast<byte*>(buffer_start_ + pos),
-                                kPointerSize / kInstrSize);
+                                kSystemPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
       patcher.dp(target_pos);
       break;
@@ -1121,20 +1135,6 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
-// Function descriptor for AIX.
-// Code address skips the function descriptor "header".
-// TOC and static chain are ignored and set to 0.
-void Assembler::function_descriptor() {
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    Label instructions;
-    DCHECK_EQ(pc_offset(), 0);
-    emit_label_addr(&instructions);
-    dp(0);
-    dp(0);
-    bind(&instructions);
-  }
-}
-
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
@@ -1640,6 +1640,10 @@ void Assembler::fctiw(const DoubleRegister frt, const DoubleRegister frb) {
   emit(EXT4 | FCTIW | frt.code() * B21 | frb.code() * B11);
 }
 
+void Assembler::fctiwuz(const DoubleRegister frt, const DoubleRegister frb) {
+  emit(EXT4 | FCTIWUZ | frt.code() * B21 | frb.code() * B11);
+}
+
 void Assembler::frin(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FRIN | frt.code() * B21 | frb.code() * B11 | rc);
@@ -1764,6 +1768,45 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
                       RCBit rc) {
   emit(EXT4 | FMSUB | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        frc.code() * B6 | rc);
+}
+
+// Vector instructions
+void Assembler::mfvsrd(const Register ra, const Simd128Register rs) {
+  int SX = 1;
+  emit(MFVSRD | rs.code() * B21 | ra.code() * B16 | SX);
+}
+
+void Assembler::mfvsrwz(const Register ra, const Simd128Register rs) {
+  int SX = 1;
+  emit(MFVSRWZ | rs.code() * B21 | ra.code() * B16 | SX);
+}
+
+void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
+  int TX = 1;
+  emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
+}
+
+void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
+                        const Register rb) {
+  int TX = 1;
+  emit(MTVSRDD | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | TX);
+}
+
+void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
+  int SX = 1;
+  emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
+  int TX = 1;
+  emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
 // Pseudo instructions.
@@ -1969,4 +2012,4 @@ Register UseScratchRegisterScope::Acquire() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

@@ -16,6 +16,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -25,9 +26,6 @@ namespace internal {
 namespace compiler {
 
 namespace {
-
-using Label = CodeAssemblerLabel;
-using Variable = CodeAssemblerVariable;
 
 class TestTorqueAssembler : public CodeStubAssembler {
  public:
@@ -114,8 +112,7 @@ TEST(TestBuiltinSpecialization) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
-    m.TestBuiltinSpecialization(m.UncheckedCast<Context>(temp));
+    m.TestBuiltinSpecialization();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -140,8 +137,7 @@ TEST(TestFunctionPointers) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Context> context =
-        m.UncheckedCast<Context>(m.Parameter(kNumParams + 2));
+    TNode<Context> context = m.UncheckedParameter<Context>(kNumParams + 2);
     m.Return(m.TestFunctionPointers(context));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -151,10 +147,10 @@ TEST(TestFunctionPointers) {
 TEST(TestTernaryOperator) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(0));
+    TNode<Smi> arg = m.UncheckedParameter<Smi>(1);
     m.Return(m.TestTernaryOperator(arg));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -171,8 +167,7 @@ TEST(TestFunctionPointerToGeneric) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
-    m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
+    m.TestFunctionPointerToGeneric();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -184,8 +179,8 @@ TEST(TestUnsafeCast) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
-    Node* n = m.SmiConstant(10);
+    TNode<Object> temp = m.SmiConstant(0);
+    TNode<Smi> n = m.SmiConstant(10);
     m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
                               m.UncheckedCast<Number>(n)));
   }
@@ -328,7 +323,7 @@ TEST(TestCatch1) {
     TNode<Smi> result =
         m.TestCatch1(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(1)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(1)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -347,7 +342,7 @@ TEST(TestCatch2) {
     TNode<Smi> result =
         m.TestCatch2(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -366,7 +361,7 @@ TEST(TestCatch3) {
     TNode<Smi> result =
         m.TestCatch3(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -484,6 +479,36 @@ TEST(TestReferences) {
   ft.Call();
 }
 
+TEST(TestSlices) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestSlices();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestSliceEnumeration) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestSliceEnumeration(m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 TEST(TestStaticAssert) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());
@@ -580,7 +605,262 @@ TEST(TestGenericStruct2) {
   i::HandleScope scope(isolate);
   CodeAssemblerTester asm_tester(isolate);
   TestTorqueAssembler m(asm_tester.state());
-  { m.Return(m.TestGenericStruct2().fst); }
+  { m.Return(m.TestGenericStruct2().snd.fst); }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestBranchOnBoolOptimization) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestBranchOnBoolOptimization(
+        m.UncheckedCast<Context>(m.HeapConstant(context)),
+        m.UncheckedParameter<Smi>(0));
+    m.Return(m.UndefinedConstant());
+  }
+  asm_tester.GenerateCode();
+}
+
+TEST(TestBitFieldLoad) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 5;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    // Untag all of the parameters to get plain integer values.
+    TNode<Uint8T> val =
+        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
+    TNode<BoolT> expected_a =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
+    TNode<Uint16T> expected_b =
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(3))));
+    TNode<Uint32T> expected_c =
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(4))));
+    TNode<BoolT> expected_d =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(5))));
+
+    // Call the Torque-defined macro, which verifies that reading each bitfield
+    // out of val yields the correct result.
+    m.TestBitFieldLoad(val, expected_a, expected_b, expected_c, expected_d);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // Test every possible bit combination for this 8-bit value.
+  for (int a = 0; a <= 1; ++a) {
+    for (int b = 0; b <= 7; ++b) {
+      for (int c = 0; c <= 7; ++c) {
+        for (int d = 0; d <= 1; ++d) {
+          int val = a | ((b & 7) << 1) | (c << 4) | (d << 7);
+          ft.Call(ft.Val(val), ft.Val(a), ft.Val(b), ft.Val(c), ft.Val(d));
+        }
+      }
+    }
+  }
+}
+
+TEST(TestBitFieldStore) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    // Untag the parameters to get a plain integer value.
+    TNode<Uint8T> val =
+        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
+
+    m.TestBitFieldStore(val);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // Test every possible bit combination for this 8-bit value.
+  for (int i = 0; i < 256; ++i) {
+    ft.Call(ft.Val(i));
+  }
+}
+
+TEST(TestBitFieldInit) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 4;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    // Untag all of the parameters to get plain integer values.
+    TNode<BoolT> a =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
+    TNode<Uint16T> b =
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
+    TNode<Uint32T> c =
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(3))));
+    TNode<BoolT> d =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(4))));
+
+    // Call the Torque-defined macro, which verifies that reading each bitfield
+    // out of val yields the correct result.
+    m.TestBitFieldInit(a, b, c, d);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // Test every possible bit combination for this 8-bit value.
+  for (int a = 0; a <= 1; ++a) {
+    for (int b = 0; b <= 7; ++b) {
+      for (int c = 0; c <= 7; ++c) {
+        for (int d = 0; d <= 1; ++d) {
+          ft.Call(ft.Val(a), ft.Val(b), ft.Val(c), ft.Val(d));
+        }
+      }
+    }
+  }
+}
+
+TEST(TestBitFieldUintptrOps) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    // Untag the parameters to get a plain integer value.
+    TNode<Uint32T> val2 =
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
+    TNode<UintPtrT> val3 = m.UncheckedCast<UintPtrT>(
+        m.ChangeUint32ToWord(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2)))));
+
+    m.TestBitFieldUintptrOps(val2, val3);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // Construct the expected test values.
+  int val2 = 3 | (61 << 5);
+  int val3 = 1 | (500 << 1) | (0x1cc << 10);
+
+  ft.Call(ft.Val(val2), ft.Val(val3));
+}
+
+TEST(TestBitFieldMultipleFlags) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    TNode<BoolT> a =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(0))));
+    TNode<Int32T> b = m.SmiToInt32(m.Parameter<Smi>(1));
+    TNode<BoolT> c =
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
+    m.TestBitFieldMultipleFlags(a, b, c);
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  // No need to call it; we just checked StaticAsserts during compilation.
+}
+
+TEST(TestTestParentFrameArguments) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestParentFrameArguments(
+        m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  asm_tester.GenerateCode();
+}
+
+TEST(TestFullyGeneratedClassFromCpp) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  { m.Return(m.TestFullyGeneratedClassFromCpp()); }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  Handle<ExportedSubClass> result =
+      Handle<ExportedSubClass>::cast(ft.Call().ToHandleChecked());
+  CHECK_EQ(result->c_field(), 7);
+  CHECK_EQ(result->d_field(), 8);
+  CHECK_EQ(result->e_field(), 9);
+}
+
+TEST(TestFullyGeneratedClassWithElements) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestFullyGeneratedClassWithElements();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestGeneratedCastOperators) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    Handle<Context> context =
+        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+    m.TestGeneratedCastOperators(
+        m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestNewPretenured) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    Handle<Context> context =
+        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+    m.TestNewPretenured(m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestWord8Phi) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestWord8Phi();
+    m.Return(m.UndefinedConstant());
+  }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.Call();
 }

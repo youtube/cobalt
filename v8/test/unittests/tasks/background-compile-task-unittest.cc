@@ -9,7 +9,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -30,12 +29,17 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
  public:
   BackgroundCompileTaskTest() : allocator_(isolate()->allocator()) {}
   ~BackgroundCompileTaskTest() override = default;
+  BackgroundCompileTaskTest(const BackgroundCompileTaskTest&) = delete;
+  BackgroundCompileTaskTest& operator=(const BackgroundCompileTaskTest&) =
+      delete;
 
   AccountingAllocator* allocator() { return allocator_; }
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    FLAG_finalize_streaming_on_background = false;
     TestWithNativeContext::SetUpTestCase();
   }
 
@@ -49,8 +53,9 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
   BackgroundCompileTask* NewBackgroundCompileTask(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       size_t stack_size = FLAG_stack_size) {
+    UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared);
+        test::OuterParseInfoForShared(isolate, shared, &state);
     AstValueFactory* ast_value_factory =
         outer_parse_info->GetOrCreateAstValueFactory();
     AstNodeFactory ast_node_factory(ast_value_factory,
@@ -58,10 +63,11 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
 
     const AstRawString* function_name =
         ast_value_factory->GetOneByteString("f");
-    DeclarationScope* script_scope = new (outer_parse_info->zone())
-        DeclarationScope(outer_parse_info->zone(), ast_value_factory);
+    DeclarationScope* script_scope =
+        outer_parse_info->zone()->New<DeclarationScope>(
+            outer_parse_info->zone(), ast_value_factory);
     DeclarationScope* function_scope =
-        new (outer_parse_info->zone()) DeclarationScope(
+        outer_parse_info->zone()->New<DeclarationScope>(
             outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
     function_scope->set_start_position(shared->StartPosition());
     function_scope->set_end_position(shared->EndPosition());
@@ -71,12 +77,12 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
         ast_node_factory.NewFunctionLiteral(
             function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
-            FunctionLiteral::kAnonymousExpression,
+            FunctionSyntaxKind::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 
     return new BackgroundCompileTask(
-        allocator(), outer_parse_info.get(), function_name, function_literal,
+        outer_parse_info.get(), function_name, function_literal,
         isolate->counters()->worker_thread_runtime_call_stats(),
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);
   }
@@ -84,8 +90,6 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
  private:
   AccountingAllocator* allocator_;
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTaskTest);
 };
 
 SaveFlags* BackgroundCompileTaskTest::save_flags_ = nullptr;
@@ -170,6 +174,8 @@ class CompileTask : public Task {
   CompileTask(BackgroundCompileTask* task, base::Semaphore* semaphore)
       : task_(task), semaphore_(semaphore) {}
   ~CompileTask() override = default;
+  CompileTask(const CompileTask&) = delete;
+  CompileTask& operator=(const CompileTask&) = delete;
 
   void Run() override {
     task_->Run();
@@ -179,7 +185,6 @@ class CompileTask : public Task {
  private:
   BackgroundCompileTask* task_;
   base::Semaphore* semaphore_;
-  DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
 TEST_F(BackgroundCompileTaskTest, CompileOnBackgroundThread) {
@@ -198,7 +203,7 @@ TEST_F(BackgroundCompileTaskTest, CompileOnBackgroundThread) {
       NewBackgroundCompileTask(isolate(), shared));
 
   base::Semaphore semaphore(0);
-  auto background_task = base::make_unique<CompileTask>(task.get(), &semaphore);
+  auto background_task = std::make_unique<CompileTask>(task.get(), &semaphore);
 
   V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(background_task));
   semaphore.Wait();

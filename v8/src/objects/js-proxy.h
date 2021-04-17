@@ -6,13 +6,15 @@
 #define V8_OBJECTS_JS_PROXY_H_
 
 #include "src/objects/js-objects.h"
-#include "torque-generated/builtin-definitions-tq.h"
+#include "torque-generated/builtin-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-proxy-tq.inc"
 
 // The JSProxy describes EcmaScript Harmony proxies
 class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
@@ -128,7 +130,7 @@ class JSProxyRevocableResult : public JSObject {
  public:
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSPROXY_REVOCABLE_RESULT_FIELDS)
+      JSObject::kHeaderSize, TORQUE_GENERATED_JS_PROXY_REVOCABLE_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kProxyIndex = 0;

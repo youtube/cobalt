@@ -12,6 +12,7 @@
 #include <limits>
 #include <string>
 
+#include "../../third_party/inspector_protocol/crdtp/cbor.h"
 #include "src/base/platform/platform.h"
 #include "src/inspector/v8-string-conversions.h"
 #include "src/numbers/conversions.h"
@@ -40,7 +41,8 @@ int64_t charactersToInteger(const UChar* characters, size_t length,
   buffer.push_back('\0');
 
   char* endptr;
-  int64_t result = static_cast<int64_t>(strtoll(buffer.data(), &endptr, 10));
+  int64_t result =
+      static_cast<int64_t>(std::strtoll(buffer.data(), &endptr, 10));
   if (ok) *ok = !(*endptr);
   return result;
 }
@@ -79,6 +81,13 @@ String16 String16::fromInteger(size_t number) {
 #else
   v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
 #endif
+  return String16(buffer);
+}
+
+// static
+String16 String16::fromInteger64(int64_t number) {
+  char buffer[50];
+  v8::base::OS::SNPrintF(buffer, arraysize(buffer), "%" PRId64 "", number);
   return String16(buffer);
 }
 
@@ -187,6 +196,14 @@ void String16Builder::appendUnsignedAsHex(uint32_t number) {
   m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
+void String16Builder::appendUnsignedAsHex(uint8_t number) {
+  constexpr int kBufferSize = 3;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%02" PRIx8, number);
+  DCHECK_LE(0, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
 String16 String16Builder::toString() {
   return String16(m_buffer.data(), m_buffer.size());
 }
@@ -221,3 +238,13 @@ std::string String16::utf8() const {
 }
 
 }  // namespace v8_inspector
+
+namespace v8_crdtp {
+void SerializerTraits<v8_inspector::String16>::Serialize(
+    const v8_inspector::String16& str, std::vector<uint8_t>* out) {
+  cbor::EncodeFromUTF16(
+      span<uint16_t>(reinterpret_cast<const uint16_t*>(str.characters16()),
+                     str.length()),
+      out);
+}
+}  // namespace v8_crdtp

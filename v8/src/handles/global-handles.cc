@@ -4,6 +4,10 @@
 
 #include "src/handles/global-handles.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <map>
+
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/execution/vm-state-inl.h"
@@ -14,13 +18,19 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
+#include "src/sanitizer/asan.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+// Specifies whether V8 expects the holder memory of a global handle to be live
+// or dead.
+enum class HandleHolder { kLive, kDead };
 
 constexpr size_t kBlockSize = 256;
 
@@ -32,6 +42,7 @@ class GlobalHandles::NodeBlock final {
   using BlockType = NodeBlock<_NodeType>;
   using NodeType = _NodeType;
 
+  V8_INLINE static const NodeBlock* From(const NodeType* node);
   V8_INLINE static NodeBlock* From(NodeType* node);
 
   NodeBlock(GlobalHandles* global_handles,
@@ -67,11 +78,19 @@ class GlobalHandles::NodeBlock final {
 };
 
 template <class NodeType>
+const GlobalHandles::NodeBlock<NodeType>*
+GlobalHandles::NodeBlock<NodeType>::From(const NodeType* node) {
+  const NodeType* firstNode = node - node->index();
+  const BlockType* block = reinterpret_cast<const BlockType*>(firstNode);
+  DCHECK_EQ(node, block->at(node->index()));
+  return block;
+}
+
+template <class NodeType>
 GlobalHandles::NodeBlock<NodeType>* GlobalHandles::NodeBlock<NodeType>::From(
     NodeType* node) {
-  uintptr_t ptr =
-      reinterpret_cast<uintptr_t>(node) - sizeof(NodeType) * node->index();
-  BlockType* block = reinterpret_cast<BlockType*>(ptr);
+  NodeType* firstNode = node - node->index();
+  BlockType* block = reinterpret_cast<BlockType*>(firstNode);
   DCHECK_EQ(node, block->at(node->index()));
   return block;
 }
@@ -166,6 +185,9 @@ class GlobalHandles::NodeSpace final {
   iterator begin() { return iterator(first_used_block_); }
   iterator end() { return iterator(nullptr); }
 
+  size_t TotalSize() const { return blocks_ * sizeof(NodeType) * kBlockSize; }
+  size_t handles_count() const { return handles_count_; }
+
  private:
   void PutNodesOnFreeList(BlockType* block);
   V8_INLINE void Free(NodeType* node);
@@ -174,6 +196,8 @@ class GlobalHandles::NodeSpace final {
   BlockType* first_block_ = nullptr;
   BlockType* first_used_block_ = nullptr;
   NodeType* first_free_ = nullptr;
+  size_t blocks_ = 0;
+  size_t handles_count_ = 0;
 };
 
 template <class NodeType>
@@ -190,6 +214,7 @@ template <class NodeType>
 NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
   if (first_free_ == nullptr) {
     first_block_ = new BlockType(global_handles_, this, first_block_);
+    blocks_++;
     PutNodesOnFreeList(first_block_);
   }
   DCHECK_NOT_NULL(first_free_);
@@ -201,7 +226,7 @@ NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
     block->ListAdd(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Increment();
-  global_handles_->handles_count_++;
+  handles_count_++;
   DCHECK(node->IsInUse());
   return node;
 }
@@ -233,12 +258,16 @@ void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
     block->ListRemove(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Decrement();
-  global_handles_->handles_count_--;
+  handles_count_--;
 }
 
 template <class Child>
 class NodeBase {
  public:
+  static const Child* FromLocation(const Address* location) {
+    return reinterpret_cast<const Child*>(location);
+  }
+
   static Child* FromLocation(Address* location) {
     return reinterpret_cast<Child*>(location);
   }
@@ -351,10 +380,11 @@ namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
   int field_count = jsobject.GetEmbedderFieldCount();
+  IsolateRoot isolate = GetIsolateForPtrCompr(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
-    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(&pointer)) {
+    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(isolate, &pointer)) {
       embedder_fields[i] = pointer;
     }
   }
@@ -532,7 +562,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
+    DCHECK_EQ(HandleHolder::kLive, handle_holder);
     DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
     DCHECK_EQ(PENDING, state());
     DCHECK_NULL(weak_callback_);
@@ -543,7 +574,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   void PostGarbageCollectionProcessing(Isolate* isolate) {
     // This method invokes a finalizer. Updating the method name would require
-    // adjusting CFI blacklist as weak_callback_ is invoked on the wrong type.
+    // adjusting CFI blocklist as weak_callback_ is invoked on the wrong type.
     CHECK(IsPendingFinalizer());
     set_state(NEAR_DEATH);
     // Check that we are not passing a finalized external string to
@@ -580,10 +611,9 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
-  class NodeState : public BitField8<State, 0, 3> {};
-  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
-  class NodeWeaknessType
-      : public BitField8<WeaknessType, IsInYoungList::kNext, 2> {};
+  using NodeState = base::BitField8<State, 0, 3>;
+  using IsInYoungList = NodeState::Next<bool, 1>;
+  using NodeWeaknessType = IsInYoungList::Next<WeaknessType, 2>;
 
   // Handle specific callback - might be a weak reference in disguise.
   WeakCallbackInfo<void>::Callback weak_callback_;
@@ -597,6 +627,12 @@ class GlobalHandles::TracedNode final
     : public NodeBase<GlobalHandles::TracedNode> {
  public:
   TracedNode() { set_in_young_list(false); }
+
+  // Copy and move ctors are used when constructing a TracedNode when recording
+  // a node for on-stack data structures. (Older compilers may refer to copy
+  // instead of move ctor.)
+  TracedNode(TracedNode&& other) V8_NOEXCEPT = default;
+  TracedNode(const TracedNode& other) V8_NOEXCEPT = default;
 
   enum State { FREE = 0, NORMAL, NEAR_DEATH };
 
@@ -615,12 +651,24 @@ class GlobalHandles::TracedNode final
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
 
+  bool has_destructor() const { return HasDestructor::decode(flags_); }
+  void set_has_destructor(bool v) { flags_ = HasDestructor::update(flags_, v); }
+
+  bool markbit() const { return Markbit::decode(flags_); }
+  void clear_markbit() { flags_ = Markbit::update(flags_, false); }
+  void set_markbit() { flags_ = Markbit::update(flags_, true); }
+
+  bool is_on_stack() const { return IsOnStack::decode(flags_); }
+  void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
     callback_ = callback;
   }
   bool HasFinalizationCallback() const { return callback_ != nullptr; }
+
+  void CopyObjectReference(const TracedNode& other) { object_ = other.object_; }
 
   void CollectPhantomCallbackData(
       std::vector<std::pair<TracedNode*, PendingPhantomCallback>>*
@@ -641,40 +689,244 @@ class GlobalHandles::TracedNode final
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
     DCHECK(IsInUse());
-    Address** handle = reinterpret_cast<Address**>(data_.parameter);
-    *handle = nullptr;
+    if (handle_holder == HandleHolder::kLive) {
+      Address** handle = reinterpret_cast<Address**>(data_.parameter);
+      *handle = nullptr;
+    }
     NodeSpace<TracedNode>::Release(this);
     DCHECK(!IsInUse());
   }
 
+  static void Verify(GlobalHandles* global_handles, const Address* const* slot);
+
  protected:
-  class NodeState : public BitField8<State, 0, 2> {};
-  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
-  class IsRoot : public BitField8<bool, IsInYoungList::kNext, 1> {};
+  using NodeState = base::BitField8<State, 0, 2>;
+  using IsInYoungList = NodeState::Next<bool, 1>;
+  using IsRoot = IsInYoungList::Next<bool, 1>;
+  using HasDestructor = IsRoot::Next<bool, 1>;
+  using Markbit = HasDestructor::Next<bool, 1>;
+  using IsOnStack = Markbit::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
+    // Nodes are black allocated for simplicity.
+    set_markbit();
     callback_ = nullptr;
+    set_is_on_stack(false);
+    set_has_destructor(false);
   }
 
   void CheckImplFieldsAreCleared() const {
     DCHECK(is_root());
+    DCHECK(markbit());
     DCHECK_NULL(callback_);
   }
 
   WeakCallbackInfo<void>::Callback callback_;
 
   friend class NodeBase<GlobalHandles::TracedNode>;
-
-  DISALLOW_COPY_AND_ASSIGN(TracedNode);
 };
+
+// Space to keep track of on-stack handles (e.g. TracedReference). Such
+// references are treated as root for any V8 garbage collection. The data
+// structure is self healing and pessimistally filters outdated entries on
+// insertion and iteration.
+//
+// Design doc: http://bit.ly/on-stack-traced-reference
+class GlobalHandles::OnStackTracedNodeSpace final {
+ public:
+  static GlobalHandles* GetGlobalHandles(const TracedNode* on_stack_node) {
+    DCHECK(on_stack_node->is_on_stack());
+    return reinterpret_cast<const NodeEntry*>(on_stack_node)->global_handles;
+  }
+
+  explicit OnStackTracedNodeSpace(GlobalHandles* global_handles)
+      : global_handles_(global_handles) {}
+
+  void SetStackStart(void* stack_start) {
+    CHECK(on_stack_nodes_.empty());
+    stack_start_ = base::Stack::GetRealStackAddressForSlot(stack_start);
+  }
+
+  V8_INLINE bool IsOnStack(uintptr_t slot) const;
+
+  void Iterate(RootVisitor* v);
+  TracedNode* Acquire(Object value, uintptr_t address);
+  void CleanupBelowCurrentStackPosition();
+  void NotifyEmptyEmbedderStack();
+
+  size_t NumberOfHandlesForTesting() const { return on_stack_nodes_.size(); }
+
+ private:
+  struct NodeEntry {
+    TracedNode node;
+    // Used to find back to GlobalHandles from a Node on copy. Needs to follow
+    // node.
+    GlobalHandles* global_handles;
+  };
+
+  // Keeps track of registered handles. The data structure is cleaned on
+  // iteration and when adding new references using the current stack address.
+  // Cleaning is based on current stack address and the key of the map which is
+  // slightly different for ASAN configs -- see below.
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // Mapping from stack slots or real stack frames to the corresponding nodes.
+  // In case a reference is part of a fake frame, we map it to the real stack
+  // frame base instead of the actual stack slot. The list keeps all nodes for
+  // a particular real frame.
+  std::map<uintptr_t, std::list<NodeEntry>> on_stack_nodes_;
+#else   // !V8_USE_ADDRESS_SANITIZER
+  // Mapping from stack slots to the corresponding nodes. We don't expect
+  // aliasing with overlapping lifetimes of nodes.
+  std::map<uintptr_t, NodeEntry> on_stack_nodes_;
+#endif  // !V8_USE_ADDRESS_SANITIZER
+
+  uintptr_t stack_start_ = 0;
+  GlobalHandles* global_handles_ = nullptr;
+  size_t acquire_count_ = 0;
+};
+
+bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
+                                   reinterpret_cast<void*>(slot), nullptr,
+                                   nullptr)) {
+    return true;
+  }
+#endif  // V8_USE_ADDRESS_SANITIZER
+  return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
+}
+
+void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
+  on_stack_nodes_.clear();
+}
+
+void GlobalHandles::OnStackTracedNodeSpace::Iterate(RootVisitor* v) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  for (auto& pair : on_stack_nodes_) {
+    for (auto& node_entry : pair.second) {
+      TracedNode& node = node_entry.node;
+      if (node.IsRetainer()) {
+        v->VisitRootPointer(Root::kGlobalHandles, "on-stack TracedReference",
+                            node.location());
+      }
+    }
+  }
+#else   // !V8_USE_ADDRESS_SANITIZER
+  // Handles have been cleaned from the GC entry point which is higher up the
+  // stack.
+  for (auto& pair : on_stack_nodes_) {
+    TracedNode& node = pair.second.node;
+    if (node.IsRetainer()) {
+      v->VisitRootPointer(Root::kGlobalHandles, "on-stack TracedReference",
+                          node.location());
+    }
+  }
+#endif  // !V8_USE_ADDRESS_SANITIZER
+}
+
+GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
+    Object value, uintptr_t slot) {
+  constexpr size_t kAcquireCleanupThresholdLog2 = 8;
+  constexpr size_t kAcquireCleanupThresholdMask =
+      (size_t{1} << kAcquireCleanupThresholdLog2) - 1;
+  DCHECK(IsOnStack(slot));
+  if (((acquire_count_++) & kAcquireCleanupThresholdMask) == 0) {
+    CleanupBelowCurrentStackPosition();
+  }
+  NodeEntry entry;
+  entry.node.Free(nullptr);
+  entry.global_handles = global_handles_;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  auto pair = on_stack_nodes_.insert(
+      {base::Stack::GetRealStackAddressForSlot(slot), {}});
+  pair.first->second.push_back(std::move(entry));
+  TracedNode* result = &(pair.first->second.back().node);
+#else   // !V8_USE_ADDRESS_SANITIZER
+  auto pair = on_stack_nodes_.insert(
+      {base::Stack::GetRealStackAddressForSlot(slot), std::move(entry)});
+  if (!pair.second) {
+    // Insertion failed because there already was an entry present for that
+    // stack address. This can happen because cleanup is conservative in which
+    // stack limits it used. Reusing the entry is fine as there's no aliasing of
+    // different references with the same stack slot.
+    pair.first->second.node.Free(nullptr);
+  }
+  TracedNode* result = &(pair.first->second.node);
+#endif  // !V8_USE_ADDRESS_SANITIZER
+  result->Acquire(value);
+  result->set_is_on_stack(true);
+  return result;
+}
+
+void GlobalHandles::OnStackTracedNodeSpace::CleanupBelowCurrentStackPosition() {
+  if (on_stack_nodes_.empty()) return;
+  const auto it =
+      on_stack_nodes_.upper_bound(base::Stack::GetCurrentStackPosition());
+  on_stack_nodes_.erase(on_stack_nodes_.begin(), it);
+}
+
+// static
+void GlobalHandles::TracedNode::Verify(GlobalHandles* global_handles,
+                                       const Address* const* slot) {
+#ifdef DEBUG
+  const TracedNode* node = FromLocation(*slot);
+  DCHECK(node->IsInUse());
+  DCHECK_IMPLIES(!node->has_destructor(), nullptr == node->parameter());
+  DCHECK_IMPLIES(node->has_destructor() && !node->HasFinalizationCallback(),
+                 node->parameter());
+  bool slot_on_stack = global_handles->on_stack_nodes_->IsOnStack(
+      reinterpret_cast<uintptr_t>(slot));
+  DCHECK_EQ(slot_on_stack, node->is_on_stack());
+  if (!node->is_on_stack()) {
+    // On-heap nodes have seprate lists for young generation processing.
+    bool is_young_gen_object = ObjectInYoungGeneration(node->object());
+    DCHECK_IMPLIES(is_young_gen_object, node->is_in_young_list());
+  }
+  bool in_young_list =
+      std::find(global_handles->traced_young_nodes_.begin(),
+                global_handles->traced_young_nodes_.end(),
+                node) != global_handles->traced_young_nodes_.end();
+  DCHECK_EQ(in_young_list, node->is_in_young_list());
+#endif  // DEBUG
+}
+
+void GlobalHandles::CleanupOnStackReferencesBelowCurrentStackPosition() {
+  on_stack_nodes_->CleanupBelowCurrentStackPosition();
+}
+
+size_t GlobalHandles::NumberOfOnStackHandlesForTesting() {
+  return on_stack_nodes_->NumberOfHandlesForTesting();
+}
+
+size_t GlobalHandles::TotalSize() const {
+  return regular_nodes_->TotalSize() + traced_nodes_->TotalSize();
+}
+
+size_t GlobalHandles::UsedSize() const {
+  return regular_nodes_->handles_count() * sizeof(Node) +
+         traced_nodes_->handles_count() * sizeof(TracedNode);
+}
+
+size_t GlobalHandles::handles_count() const {
+  return regular_nodes_->handles_count() + traced_nodes_->handles_count();
+}
+
+void GlobalHandles::SetStackStart(void* stack_start) {
+  on_stack_nodes_->SetStackStart(stack_start);
+}
+
+void GlobalHandles::NotifyEmptyEmbedderStack() {
+  on_stack_nodes_->NotifyEmptyEmbedderStack();
+}
 
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
       regular_nodes_(new NodeSpace<GlobalHandles::Node>(this)),
-      traced_nodes_(new NodeSpace<GlobalHandles::TracedNode>(this)) {}
+      traced_nodes_(new NodeSpace<GlobalHandles::TracedNode>(this)),
+      on_stack_nodes_(new OnStackTracedNodeSpace(this)) {}
 
 GlobalHandles::~GlobalHandles() { regular_nodes_.reset(nullptr); }
 
@@ -691,18 +943,34 @@ Handle<Object> GlobalHandles::Create(Address value) {
   return Create(Object(value));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot) {
-  GlobalHandles::TracedNode* result = traced_nodes_->Acquire(value);
-  if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
-    traced_young_nodes_.push_back(result);
-    result->set_in_young_list(true);
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           bool has_destructor) {
+  return CreateTraced(
+      value, slot, has_destructor,
+      on_stack_nodes_->IsOnStack(reinterpret_cast<uintptr_t>(slot)));
+}
+
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           bool has_destructor,
+                                           bool is_on_stack) {
+  GlobalHandles::TracedNode* result;
+  if (is_on_stack) {
+    result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
+  } else {
+    result = traced_nodes_->Acquire(value);
+    if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
+      traced_young_nodes_.push_back(result);
+      result->set_in_young_list(true);
+    }
   }
-  result->set_parameter(slot);
+  result->set_has_destructor(has_destructor);
+  result->set_parameter(has_destructor ? slot : nullptr);
   return result->handle();
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot) {
-  return CreateTraced(Object(value), slot);
+Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
+                                           bool has_destructor) {
+  return CreateTraced(Object(value), slot, has_destructor);
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -715,6 +983,39 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
+}
+
+namespace {
+void SetSlotThreadSafe(Address** slot, Address* val) {
+  reinterpret_cast<std::atomic<Address*>*>(slot)->store(
+      val, std::memory_order_relaxed);
+}
+}  // namespace
+
+// static
+void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
+  DCHECK_NOT_NULL(*from);
+  DCHECK_NULL(*to);
+  const TracedNode* node = TracedNode::FromLocation(*from);
+  // Copying a traced handle with finalization callback is prohibited because
+  // the callback may require knowing about multiple copies of the traced
+  // handle.
+  CHECK_WITH_MSG(!node->HasFinalizationCallback(),
+                 "Copying of references is not supported when "
+                 "SetFinalizationCallback is set.");
+
+  GlobalHandles* global_handles =
+      GlobalHandles::From(const_cast<TracedNode*>(node));
+  Handle<Object> o = global_handles->CreateTraced(
+      node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
+  SetSlotThreadSafe(to, o.location());
+  TracedNode::Verify(global_handles, from);
+  TracedNode::Verify(global_handles, to);
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    Object(**to).ObjectVerify(global_handles->isolate());
+  }
+#endif  // VERIFY_HEAP
 }
 
 void GlobalHandles::MoveGlobal(Address** from, Address** to) {
@@ -732,16 +1033,94 @@ void GlobalHandles::MoveGlobal(Address** from, Address** to) {
 }
 
 void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
-  DCHECK_NOT_NULL(*from);
-  DCHECK_NOT_NULL(*to);
-  DCHECK_EQ(*from, *to);
-  TracedNode* node = TracedNode::FromLocation(*from);
-  // Only set the backpointer for clearing a phantom handle when there is no
-  // finalization callback attached. As soon as a callback is attached to a node
-  // the embedder is on its own when resetting a handle.
-  if (!node->HasFinalizationCallback()) {
-    node->set_parameter(to);
+  // Fast path for moving from an empty reference.
+  if (!*from) {
+    DestroyTraced(*to);
+    SetSlotThreadSafe(to, nullptr);
+    return;
   }
+
+  // Determining whether from or to are on stack.
+  TracedNode* from_node = TracedNode::FromLocation(*from);
+  DCHECK(from_node->IsInUse());
+  TracedNode* to_node = TracedNode::FromLocation(*to);
+  GlobalHandles* global_handles = nullptr;
+#ifdef DEBUG
+  global_handles = GlobalHandles::From(from_node);
+#endif  // DEBUG
+  bool from_on_stack = from_node->is_on_stack();
+  bool to_on_stack = false;
+  if (!to_node) {
+    // Figure out whether stack or heap to allow fast path for heap->heap move.
+    global_handles = GlobalHandles::From(from_node);
+    to_on_stack = global_handles->on_stack_nodes_->IsOnStack(
+        reinterpret_cast<uintptr_t>(to));
+  } else {
+    to_on_stack = to_node->is_on_stack();
+  }
+
+  // Moving a traced handle with finalization callback is prohibited because
+  // the callback may require knowing about multiple copies of the traced
+  // handle.
+  CHECK_WITH_MSG(!from_node->HasFinalizationCallback(),
+                 "Moving of references is not supported when "
+                 "SetFinalizationCallback is set.");
+  // Types in v8.h ensure that we only copy/move handles that have the same
+  // destructor behavior.
+  DCHECK_IMPLIES(to_node,
+                 to_node->has_destructor() == from_node->has_destructor());
+
+  // Moving.
+  if (from_on_stack || to_on_stack) {
+    // Move involving a stack slot.
+    if (!to_node) {
+      DCHECK(global_handles);
+      Handle<Object> o = global_handles->CreateTraced(
+          from_node->object(), reinterpret_cast<Address*>(to),
+          from_node->has_destructor(), to_on_stack);
+      SetSlotThreadSafe(to, o.location());
+      to_node = TracedNode::FromLocation(*to);
+      DCHECK(to_node->markbit());
+    } else {
+      DCHECK(to_node->IsInUse());
+      to_node->CopyObjectReference(*from_node);
+      if (!to_node->is_on_stack() && !to_node->is_in_young_list() &&
+          ObjectInYoungGeneration(to_node->object())) {
+        global_handles = GlobalHandles::From(from_node);
+        global_handles->traced_young_nodes_.push_back(to_node);
+        to_node->set_in_young_list(true);
+      }
+    }
+    DestroyTraced(*from);
+    SetSlotThreadSafe(from, nullptr);
+  } else {
+    // Pure heap move.
+    DestroyTraced(*to);
+    SetSlotThreadSafe(to, *from);
+    to_node = from_node;
+    DCHECK_NOT_NULL(*from);
+    DCHECK_NOT_NULL(*to);
+    DCHECK_EQ(*from, *to);
+    // Fixup back reference for destructor.
+    if (to_node->has_destructor()) {
+      to_node->set_parameter(to);
+    }
+    SetSlotThreadSafe(from, nullptr);
+  }
+  TracedNode::Verify(global_handles, to);
+}
+
+// static
+GlobalHandles* GlobalHandles::From(const TracedNode* node) {
+  return node->is_on_stack()
+             ? OnStackTracedNodeSpace::GetGlobalHandles(node)
+             : NodeBlock<TracedNode>::From(node)->global_handles();
+}
+
+void GlobalHandles::MarkTraced(Address* location) {
+  TracedNode* node = TracedNode::FromLocation(location);
+  node->set_markbit();
+  DCHECK(node->IsInUse());
 }
 
 void GlobalHandles::Destroy(Address* location) {
@@ -752,7 +1131,12 @@ void GlobalHandles::Destroy(Address* location) {
 
 void GlobalHandles::DestroyTraced(Address* location) {
   if (location != nullptr) {
-    NodeSpace<TracedNode>::Release(TracedNode::FromLocation(location));
+    TracedNode* node = TracedNode::FromLocation(location);
+    if (node->is_on_stack()) {
+      node->Release(nullptr);
+    } else {
+      NodeSpace<TracedNode>::Release(node);
+    }
   }
 }
 
@@ -809,7 +1193,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
         node->MarkPending();
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(HandleHolder::kLive);
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
@@ -818,10 +1202,29 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     }
   }
   for (TracedNode* node : *traced_nodes_) {
-    if (node->IsInUse() &&
-        should_reset_handle(isolate()->heap(), node->location())) {
+    if (!node->IsInUse()) continue;
+    // Detect unreachable nodes first.
+    if (!node->markbit() && node->IsPhantomResetHandle() &&
+        !node->has_destructor()) {
+      // The handle is unreachable and does not have a callback and a
+      // destructor associated with it. We can clear it even if the target V8
+      // object is alive. Note that the desctructor and the callback may
+      // access the handle, that is why we avoid clearing it.
+      node->ResetPhantomHandle(HandleHolder::kDead);
+      ++number_of_phantom_handle_resets_;
+      continue;
+    } else if (node->markbit()) {
+      // Clear the markbit for the next GC.
+      node->clear_markbit();
+    }
+    DCHECK(node->IsInUse());
+    // Detect nodes with unreachable target objects.
+    if (should_reset_handle(isolate()->heap(), node->location())) {
+      // If the node allows eager resetting, then reset it here. Otherwise,
+      // collect its callback that will reset it.
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(node->has_destructor() ? HandleHolder::kLive
+                                                        : HandleHolder::kDead);
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
@@ -844,6 +1247,8 @@ void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
 
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
+  if (!FLAG_reclaim_unmodified_wrappers) return;
+
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
@@ -851,8 +1256,13 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
       DCHECK(node->is_root());
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
-        node->set_root(tracer->IsRootForNonTracingGC(
-            *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
+        if (node->has_destructor()) {
+          node->set_root(tracer->IsRootForNonTracingGC(
+              *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
+        } else {
+          node->set_root(tracer->IsRootForNonTracingGC(
+              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
+        }
       }
     }
   }
@@ -872,7 +1282,7 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
-void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
+void GlobalHandles::MarkYoungWeakDeadObjectsPending(
     WeakSlotCallbackWithHeap is_dead) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -884,8 +1294,7 @@ void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
   }
 }
 
-void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
-    RootVisitor* v) {
+void GlobalHandles::IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
     if (node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
@@ -898,7 +1307,7 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
   }
 }
 
-void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
+void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
@@ -907,7 +1316,7 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
         DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
         if (node->IsPhantomResetHandle()) {
           node->MarkPending();
-          node->ResetPhantomHandle();
+          node->ResetPhantomHandle(HandleHolder::kLive);
           ++number_of_phantom_handle_resets_;
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
@@ -922,6 +1331,11 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       }
     }
   }
+
+  if (!FLAG_reclaim_unmodified_wrappers) return;
+
+  LocalEmbedderHeapTracer* const tracer =
+      isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
@@ -929,7 +1343,18 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
                    !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        if (node->has_destructor()) {
+          // For handles with destructor it is guaranteed that the embedder
+          // memory is still alive as the destructor would have otherwise
+          // removed the memory.
+          node->ResetPhantomHandle(HandleHolder::kLive);
+        } else {
+          v8::Value* value = ToApi<v8::Value>(node->handle());
+          tracer->ResetHandleInNonTracingGC(
+              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+          DCHECK(!node->IsInUse());
+        }
+
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
@@ -946,6 +1371,8 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
 void GlobalHandles::InvokeSecondPassPhantomCallbacksFromTask() {
   DCHECK(second_pass_callbacks_task_posted_);
   second_pass_callbacks_task_posted_ = false;
+  Heap::DevToolsTraceEventScope devtools_trace_event_scope(
+      isolate()->heap(), "MajorGC", "invoke weak phantom callbacks");
   TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
   isolate()->heap()->CallGCPrologueCallbacks(
       GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
@@ -1072,6 +1499,8 @@ void GlobalHandles::InvokeOrScheduleSecondPassPhantomCallbacks(
     bool synchronous_second_pass) {
   if (!second_pass_callbacks_.empty()) {
     if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
+      Heap::DevToolsTraceEventScope devtools_trace_event_scope(
+          isolate()->heap(), "MajorGC", "invoke weak phantom callbacks");
       isolate()->heap()->CallGCPrologueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
       InvokeSecondPassPhantomCallbacks();
@@ -1138,6 +1567,10 @@ void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
   }
 }
 
+void GlobalHandles::IterateStrongStackRoots(RootVisitor* v) {
+  on_stack_nodes_->Iterate(v);
+}
+
 void GlobalHandles::IterateWeakRoots(RootVisitor* v) {
   for (Node* node : *regular_nodes_) {
     if (node->IsWeak()) {
@@ -1165,6 +1598,7 @@ void GlobalHandles::IterateAllRoots(RootVisitor* v) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
+  on_stack_nodes_->Iterate(v);
 }
 
 DISABLE_CFI_PERF
@@ -1180,6 +1614,7 @@ void GlobalHandles::IterateAllYoungRoots(RootVisitor* v) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
+  on_stack_nodes_->Iterate(v);
 }
 
 DISABLE_CFI_PERF
@@ -1207,8 +1642,13 @@ void GlobalHandles::IterateTracedNodes(
   for (TracedNode* node : *traced_nodes_) {
     if (node->IsInUse()) {
       v8::Value* value = ToApi<v8::Value>(node->handle());
-      visitor->VisitTracedGlobalHandle(
-          *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+      if (node->has_destructor()) {
+        visitor->VisitTracedGlobalHandle(
+            *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+      } else {
+        visitor->VisitTracedReference(
+            *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+      }
     }
   }
 }

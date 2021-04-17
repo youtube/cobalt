@@ -5,13 +5,13 @@
 #ifndef V8_OBJECTS_TRANSITIONS_INL_H_
 #define V8_OBJECTS_TRANSITIONS_INL_H_
 
-#include "src/objects/transitions.h"
-
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/objects/transitions.h"
+#include "src/snapshot/deserializer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -64,6 +64,10 @@ Name TransitionArray::GetKey(int transition_number) {
       Get(ToKeyIndex(transition_number))->GetHeapObjectAssumeStrong());
 }
 
+Name TransitionArray::GetKey(InternalIndex index) {
+  return GetKey(index.as_int());
+}
+
 Name TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
@@ -95,8 +99,8 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 // static
 PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
   DCHECK(!IsSpecialTransition(name.GetReadOnlyRoots(), name));
-  int descriptor = target.LastAdded();
-  DescriptorArray descriptors = target.instance_descriptors();
+  InternalIndex descriptor = target.LastAdded();
+  DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
   // Transitions are allowed only for the last added property.
   DCHECK(descriptors.GetKey(descriptor).Equals(name));
   return descriptors.GetDetails(descriptor);
@@ -108,8 +112,8 @@ PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
 
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
-  int descriptor = transition.LastAdded();
-  return transition.instance_descriptors().GetKey(descriptor);
+  InternalIndex descriptor = transition.LastAdded();
+  return transition.instance_descriptors(kRelaxedLoad).GetKey(descriptor);
 }
 
 // static
@@ -153,6 +157,14 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
                                         Map* target) {
   MaybeObject raw = GetRawTarget(transition_number);
   HeapObject heap_object;
+  // If the raw target is a Smi, then this TransitionArray is in the process of
+  // being deserialized, and doesn't yet have an initialized entry for this
+  // transition.
+  if (raw.IsSmi()) {
+    DCHECK(isolate->has_active_deserializer());
+    DCHECK_EQ(raw.ToSmi(), Deserializer::uninitialized_field_value());
+    return false;
+  }
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
       heap_object.IsUndefined(isolate)) {
     return false;
@@ -165,25 +177,37 @@ int TransitionArray::SearchNameForTesting(Name name, int* out_insertion_index) {
   return SearchName(name, out_insertion_index);
 }
 
+Map TransitionArray::SearchAndGetTargetForTesting(
+    PropertyKind kind, Name name, PropertyAttributes attributes) {
+  return SearchAndGetTarget(kind, name, attributes);
+}
+
 int TransitionArray::SearchSpecial(Symbol symbol, int* out_insertion_index) {
   return SearchName(symbol, out_insertion_index);
 }
 
 int TransitionArray::SearchName(Name name, int* out_insertion_index) {
   DCHECK(name.IsUniqueName());
+  // The name is taken from DescriptorArray, so it must already has a computed
+  // hash.
+  DCHECK(name.HasHashCode());
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
                                        out_insertion_index);
 }
 
 TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Map map,
                                          DisallowHeapAllocation* no_gc)
-    : isolate_(isolate), map_(map) {
+    : isolate_(isolate), map_(map), concurrent_access_(false) {
   Initialize();
   USE(no_gc);
 }
 
-TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Handle<Map> map)
-    : isolate_(isolate), map_handle_(map), map_(*map) {
+TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Handle<Map> map,
+                                         bool concurrent_access)
+    : isolate_(isolate),
+      map_handle_(map),
+      map_(*map),
+      concurrent_access_(concurrent_access) {
   Initialize();
 }
 
@@ -192,6 +216,8 @@ void TransitionsAccessor::Reload() {
   map_ = *map_handle_;
   Initialize();
 }
+
+int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
 
 void TransitionsAccessor::Initialize() {
   raw_transitions_ = map_.raw_transitions(isolate_);

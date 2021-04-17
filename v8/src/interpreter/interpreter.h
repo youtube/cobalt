@@ -18,10 +18,11 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
+class BytecodeArray;
 class Callable;
 class UnoptimizedCompilationJob;
 class FunctionLiteral;
+class Isolate;
 class ParseInfo;
 class RootVisitor;
 class SetupIsolateDelegate;
@@ -36,9 +37,8 @@ class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() = default;
-
-  // Returns the interrupt budget which should be used for the profiler counter.
-  V8_EXPORT_PRIVATE static int InterruptBudget();
+  Interpreter(const Interpreter&) = delete;
+  Interpreter& operator=(const Interpreter&) = delete;
 
   // Creates a compilation job which will generate bytecode for |literal|.
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
@@ -48,6 +48,14 @@ class Interpreter {
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals);
 
+  // Creates a compilation job which will generate source positions for
+  // |literal| and when finalized, store the result into |existing_bytecode|.
+  static std::unique_ptr<UnoptimizedCompilationJob>
+  NewSourcePositionCollectionJob(ParseInfo* parse_info,
+                                 FunctionLiteral* literal,
+                                 Handle<BytecodeArray> existing_bytecode,
+                                 AccountingAllocator* allocator);
+
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
   V8_EXPORT_PRIVATE Code GetBytecodeHandler(Bytecode bytecode,
@@ -56,9 +64,6 @@ class Interpreter {
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Code handler);
-
-  // GC support.
-  void IterateDispatchTable(RootVisitor* v);
 
   // Disassembler support.
   V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
@@ -102,8 +107,6 @@ class Interpreter {
   Address dispatch_table_[kDispatchTableSize];
   std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
   Address interpreter_entry_trampoline_instruction_start_;
-
-  DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };
 
 }  // namespace interpreter

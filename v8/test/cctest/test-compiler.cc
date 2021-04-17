@@ -27,9 +27,12 @@
 
 #include <stdlib.h>
 #include <wchar.h>
+#include <memory>
 
 #include "src/init/v8.h"
 
+#include "include/v8-profiler.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -39,6 +42,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -329,7 +333,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
-  CHECK(f->IsOptimized());
+  CHECK(f->HasAttachedOptimizedCode());
   object = f->feedback_vector().Get(slot_for_a);
   {
     HeapObject heap_object;
@@ -409,8 +413,10 @@ TEST(OptimizedCodeSharing1) {
             env->Global()
                 ->Get(env.local(), v8_str("closure2"))
                 .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun1->HasAttachedOptimizedCode() ||
+          !CcTest::i_isolate()->use_optimizer());
+    CHECK(fun2->HasAttachedOptimizedCode() ||
+          !CcTest::i_isolate()->use_optimizer());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
@@ -802,30 +808,6 @@ TEST(InvocationCount) {
   CHECK_EQ(4, foo->feedback_vector().invocation_count());
 }
 
-TEST(SafeToSkipArgumentsAdaptor) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  CompileRun(
-      "function a() { \"use strict\"; }; a();"
-      "function b() { }; b();"
-      "function c() { \"use strict\"; return arguments; }; c();"
-      "function d(...args) { return args; }; d();"
-      "function e() { \"use strict\"; return eval(\"\"); }; e();"
-      "function f(x, y) { \"use strict\"; return x + y; }; f(1, 2);");
-  Handle<JSFunction> a = Handle<JSFunction>::cast(GetGlobalProperty("a"));
-  CHECK(a->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> b = Handle<JSFunction>::cast(GetGlobalProperty("b"));
-  CHECK(!b->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> c = Handle<JSFunction>::cast(GetGlobalProperty("c"));
-  CHECK(!c->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> d = Handle<JSFunction>::cast(GetGlobalProperty("d"));
-  CHECK(!d->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> e = Handle<JSFunction>::cast(GetGlobalProperty("e"));
-  CHECK(!e->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> f = Handle<JSFunction>::cast(GetGlobalProperty("f"));
-  CHECK(f->shared().is_safe_to_skip_arguments_adaptor());
-}
-
 TEST(ShallowEagerCompilation) {
   i::FLAG_always_opt = false;
   CcTest::InitializeVM();
@@ -907,7 +889,7 @@ TEST(DeepEagerCompilationPeakMemory) {
       "  }"
       "}");
   v8::ScriptCompiler::Source script_source(source);
-  CcTest::i_isolate()->compilation_cache()->Disable();
+  CcTest::i_isolate()->compilation_cache()->DisableScriptAndEval();
 
   v8::HeapStatistics heap_statistics;
   CcTest::isolate()->GetHeapStatistics(&heap_statistics);
@@ -964,18 +946,20 @@ static int AllocationSitesCount(Heap* heap) {
 TEST(DecideToPretenureDuringCompilation) {
   // The test makes use of optimization and relies on deterministic
   // compilation.
-  if (!i::FLAG_opt || i::FLAG_always_opt ||
-      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size
-#ifdef ENABLE_MINOR_MC
-      || i::FLAG_minor_mc
-#endif
-  )
+  if (!i::FLAG_opt || i::FLAG_always_opt || i::FLAG_minor_mc ||
+      i::FLAG_stress_incremental_marking || i::FLAG_optimize_for_size ||
+      i::FLAG_turbo_nci || i::FLAG_turbo_nci_as_midtier ||
+      i::FLAG_stress_concurrent_allocation) {
     return;
+  }
 
   FLAG_stress_gc_during_compilation = true;
   FLAG_allow_natives_syntax = true;
   FLAG_allocation_site_pretenuring = true;
   FLAG_flush_bytecode = false;
+  // Turn on lazy feedback allocation, so we create exactly one allocation site.
+  // Without lazy feedback allocation, we create two allocation sites.
+  FLAG_lazy_feedback_allocation = true;
 
   // We want to trigger exactly 1 optimization.
   FLAG_use_osr = false;
@@ -1051,11 +1035,77 @@ TEST(DecideToPretenureDuringCompilation) {
               .ToHandleChecked();
       Handle<JSFunction> bar = Handle<JSFunction>::cast(foo_obj);
 
-      CHECK(bar->IsOptimized());
+      CHECK(bar->HasAttachedOptimizedCode());
     }
   }
   isolate->Exit();
   isolate->Dispose();
+}
+
+namespace {
+
+// Dummy external source stream which returns the whole source in one go.
+class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit DummySourceStream(const char* source) : done_(false) {
+    source_length_ = static_cast<int>(strlen(source));
+    source_buffer_ = source;
+  }
+
+  size_t GetMoreData(const uint8_t** dest) override {
+    if (done_) {
+      return 0;
+    }
+    uint8_t* buf = new uint8_t[source_length_ + 1];
+    memcpy(buf, source_buffer_, source_length_ + 1);
+    *dest = buf;
+    done_ = true;
+    return source_length_;
+  }
+
+ private:
+  int source_length_;
+  const char* source_buffer_;
+  bool done_;
+};
+
+}  // namespace
+
+// Tests that doing something that causes source positions to need to be
+// collected after a background compilation task has started does result in
+// source positions being collected.
+TEST(ProfilerEnabledDuringBackgroundCompile) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  const char* source = "var a = 0;";
+
+  v8::ScriptCompiler::StreamedSource streamed_source(
+      std::make_unique<DummySourceStream>(source),
+      v8::ScriptCompiler::StreamedSource::UTF8);
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
+      v8::ScriptCompiler::StartStreaming(isolate, &streamed_source));
+
+  // Run the background compilation task on the main thread.
+  task->Run();
+
+  // Enable the CPU profiler.
+  auto* cpu_profiler = v8::CpuProfiler::New(isolate, v8::kStandardNaming);
+  v8::Local<v8::String> profile = v8_str("profile");
+  cpu_profiler->StartProfiling(profile);
+
+  // Finalize the background compilation task ensuring it completed
+  // successfully.
+  v8::Local<v8::Script> script =
+      v8::ScriptCompiler::Compile(isolate->GetCurrentContext(),
+                                  &streamed_source, v8_str(source),
+                                  v8::ScriptOrigin(v8_str("foo")))
+          .ToLocalChecked();
+
+  i::Handle<i::Object> obj = Utils::OpenHandle(*script);
+  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable());
+
+  cpu_profiler->StopProfiling(profile);
 }
 
 }  // namespace internal

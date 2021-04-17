@@ -11,7 +11,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/roots/roots-inl.h"
-#include "torque-generated/class-definitions-tq-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,15 +18,15 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/struct-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Struct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple2)
-TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple3)
-OBJECT_CONSTRUCTORS_IMPL(AccessorPair, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorPair)
 
-OBJECT_CONSTRUCTORS_IMPL(ClassPositions, Struct)
+NEVER_READ_ONLY_SPACE_IMPL(AccessorPair)
 
-CAST_ACCESSOR(AccessorPair)
-CAST_ACCESSOR(ClassPositions)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ClassPositions)
 
 void Struct::InitializeBody(int object_size) {
   Object value = GetReadOnlyRoots().undefined_value();
@@ -35,12 +34,6 @@ void Struct::InitializeBody(int object_size) {
     WRITE_FIELD(*this, offset, value);
   }
 }
-
-ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
-ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
-
-SMI_ACCESSORS(ClassPositions, start, kStartOffset)
-SMI_ACCESSORS(ClassPositions, end, kEndOffset)
 
 Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();

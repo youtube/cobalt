@@ -15,6 +15,23 @@
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"
 
+template <typename T>
+int Compare(const T& a, const T& b) {
+  if (a == b)
+    return 0;
+  else if (a < b)
+    return -1;
+  else
+    return 1;
+}
+
+// Returns the negative absolute value of its argument.
+template <typename T,
+          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+T Nabs(T a) {
+  return a < 0 ? a : -a;
+}
+
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
@@ -573,8 +590,7 @@ class Simulator : public SimulatorBase {
   uint32_t MSACSR_;
 
   // Simulator support.
-  // Allocate 1MB for stack.
-  static const size_t stack_size_ = 1 * 1024 * 1024;
+  size_t stack_size_;
   char* stack_;
   bool pc_modified_;
   uint64_t icount_;

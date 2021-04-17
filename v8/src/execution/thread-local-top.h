@@ -8,6 +8,11 @@
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
 #include "src/objects/contexts.h"
+#include "src/utils/utils.h"
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/base/stack.h"
+#endif
 
 namespace v8 {
 
@@ -25,7 +30,11 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 23 * kSystemPointerSize;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+#else
+  static constexpr uint32_t kSizeInBytes = 24 * kSystemPointerSize;
+#endif
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -56,6 +65,31 @@ class ThreadLocalTop {
         v8::TryCatch::JSStackComparableAddress(try_catch_handler_));
   }
 
+  // Call depth represents nested v8 api calls. Instead of storing the nesting
+  // level as an integer, we store the stack height of the last API entry. This
+  // additional information is used when we decide whether to trigger a debug
+  // break at a function entry.
+  template <typename Scope>
+  void IncrementCallDepth(Scope* stack_allocated_scope) {
+    stack_allocated_scope->previous_stack_height_ = last_api_entry_;
+#if defined(USE_SIMULATOR) || defined(V8_USE_ADDRESS_SANITIZER)
+    StoreCurrentStackPosition();
+#else
+    last_api_entry_ = reinterpret_cast<i::Address>(stack_allocated_scope);
+#endif
+  }
+
+#if defined(USE_SIMULATOR) || defined(V8_USE_ADDRESS_SANITIZER)
+  void StoreCurrentStackPosition();
+#endif
+
+  template <typename Scope>
+  void DecrementCallDepth(Scope* stack_allocated_scope) {
+    last_api_entry_ = stack_allocated_scope->previous_stack_height_;
+  }
+
+  bool CallDepthIsZero() const { return last_api_entry_ == kNullAddress; }
+
   void Free();
 
   Isolate* isolate_ = nullptr;
@@ -76,6 +110,8 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_ = kNullAddress;
   Address pending_handler_fp_ = kNullAddress;
   Address pending_handler_sp_ = kNullAddress;
+
+  Address last_api_entry_ = kNullAddress;
 
   // Communication channel between Isolate::Throw and message consumers.
   Object pending_message_obj_;
@@ -114,6 +150,10 @@ class ThreadLocalTop {
 
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_ = kNullAddress;
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  ::heap::base::Stack stack_ = ::heap::base::Stack(nullptr);
+#endif
 };
 
 }  // namespace internal

@@ -31,7 +31,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
   CurrentSourceFile::Scope source_id_scope(source_id);
 
   // path might be either a normal file path or an encoded URI.
-  auto maybe_content = ReadFile(SourceFileMap::PathFromV8Root(source_id));
+  auto maybe_content = ReadFile(SourceFileMap::AbsolutePath(source_id));
   if (!maybe_content) {
     if (auto maybe_path = FileUriDecode(path)) {
       maybe_content = ReadFile(*maybe_path);
@@ -53,7 +53,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.force_assert_statements) {
     GlobalContext::SetForceAssertStatements();
   }
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   TypeOracle::Scope type_oracle;
+  CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 
   // Two-step process of predeclaration + resolution allows to resolve type
   // declarations independent of the order they are given.
@@ -72,23 +74,29 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   ImplementationVisitor implementation_visitor;
   implementation_visitor.SetDryRun(output_directory.length() == 0);
 
-  implementation_visitor.BeginCSAFiles();
+  implementation_visitor.GenerateInstanceTypes(output_directory);
+  implementation_visitor.BeginGeneratedFiles();
+  implementation_visitor.BeginRuntimeMacrosFile();
 
   implementation_visitor.VisitAllDeclarables();
 
   ReportAllUnusedMacros();
 
-  implementation_visitor.GenerateBuiltinDefinitions(output_directory);
+  implementation_visitor.GenerateBuiltinDefinitionsAndInterfaceDescriptors(
+      output_directory);
   implementation_visitor.GenerateClassFieldOffsets(output_directory);
+  implementation_visitor.GenerateBitFields(output_directory);
   implementation_visitor.GeneratePrintDefinitions(output_directory);
   implementation_visitor.GenerateClassDefinitions(output_directory);
   implementation_visitor.GenerateClassVerifiers(output_directory);
+  implementation_visitor.GenerateClassDebugReaders(output_directory);
+  implementation_visitor.GenerateEnumVerifiers(output_directory);
+  implementation_visitor.GenerateBodyDescriptors(output_directory);
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
-  implementation_visitor.GenerateInstanceTypes(output_directory);
-  implementation_visitor.GenerateCppForInternalClasses(output_directory);
 
-  implementation_visitor.EndCSAFiles();
+  implementation_visitor.EndGeneratedFiles();
+  implementation_visitor.EndRuntimeMacrosFile();
   implementation_visitor.GenerateImplementation(output_directory);
 
   if (GlobalContext::collect_language_server_data()) {

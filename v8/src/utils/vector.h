@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cstring>
 #include <iterator>
+#include <memory>
+#include <type_traits>
 
 #include "src/common/checks.h"
 #include "src/common/globals.h"
@@ -19,12 +21,14 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
+  using value_type = T;
+  using iterator = T*;
+  using const_iterator = const T*;
+
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
-#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
-    DCHECK(length == 0 || data != nullptr);
-#endif
+    CONSTEXPR_DCHECK(length == 0 || data != nullptr);
   }
 
   static Vector<T> New(size_t length) {
@@ -70,6 +74,9 @@ class Vector {
   // Returns a pointer to the start of the data in the vector.
   constexpr T* begin() const { return start_; }
 
+  // For consistency with other containers, do also provide a {data} accessor.
+  constexpr T* data() const { return start_; }
+
   // Returns a pointer past the end of the data in the vector.
   constexpr T* end() const { return start_ + length_; }
 
@@ -106,25 +113,26 @@ class Vector {
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
-  inline operator Vector<const T>() const {
-    return Vector<const T>::cast(*this);
-  }
+  operator Vector<const T>() const { return {start_, length_}; }
 
   template <typename S>
-  static constexpr Vector<T> cast(Vector<S> input) {
+  static Vector<T> cast(Vector<S> input) {
+    // Casting is potentially dangerous, so be really restrictive here. This
+    // might be lifted once we have use cases for that.
+    STATIC_ASSERT(std::is_pod<S>::value);
+    STATIC_ASSERT(std::is_pod<T>::value);
+    DCHECK_EQ(0, (input.size() * sizeof(S)) % sizeof(T));
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
-                     input.length() * sizeof(S) / sizeof(T));
+                     input.size() * sizeof(S) / sizeof(T));
   }
 
   bool operator==(const Vector<const T> other) const {
-    if (length_ != other.length_) return false;
-    if (start_ == other.start_) return true;
-    for (size_t i = 0; i < length_; ++i) {
-      if (start_[i] != other.start_[i]) {
-        return false;
-      }
-    }
-    return true;
+    return std::equal(begin(), end(), other.begin(), other.end());
+  }
+
+  bool operator!=(const Vector<const T> other) const {
+    return !operator==(other);
   }
 
  private:
@@ -151,6 +159,7 @@ class OwnedVector {
       : data_(std::move(data)), length_(length) {
     DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
   }
+
   // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
   // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
   // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
@@ -201,8 +210,17 @@ class OwnedVector {
   }
 
   // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are value-initialized.
   static OwnedVector<T> New(size_t size) {
     if (size == 0) return {};
+    return OwnedVector<T>(std::make_unique<T[]>(size), size);
+  }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  // Elements in the new vector are default-initialized.
+  static OwnedVector<T> NewForOverwrite(size_t size) {
+    if (size == 0) return {};
+    // TODO(v8): Use {std::make_unique_for_overwrite} once we allow C++20.
     return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
   }
 
@@ -221,7 +239,9 @@ class OwnedVector {
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
 #endif
-    OwnedVector<T> vec = New(std::distance(begin, end));
+    using non_const_t = typename std::remove_const<T>::type;
+    auto vec =
+        OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));
     std::copy(begin, end, vec.start());
     return vec;
   }
@@ -237,31 +257,34 @@ class OwnedVector {
   size_t length_ = 0;
 };
 
+// The vectors returned by {StaticCharVector}, {CStrVector}, or {OneByteVector}
+// do not contain a null-termination byte. If you want the null byte, use
+// {ArrayVector}.
+
+// Known length, constexpr.
 template <size_t N>
-constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
-  return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));
+constexpr Vector<const char> StaticCharVector(const char (&array)[N]) {
+  return {array, N - 1};
 }
 
-// The resulting vector does not contain a null-termination byte. If you want
-// the null byte, use ArrayVector("foo").
+// Unknown length, not constexpr.
 inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, strlen(data));
+  return {data, strlen(data)};
 }
 
+// OneByteVector is never constexpr because the data pointer is
+// {reinterpret_cast}ed.
 inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {
-  return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
+  return {reinterpret_cast<const uint8_t*>(data), length};
 }
 
 inline Vector<const uint8_t> OneByteVector(const char* data) {
   return OneByteVector(data, strlen(data));
 }
 
-inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, strlen(data));
-}
-
-inline Vector<char> MutableCStrVector(char* data, size_t max) {
-  return Vector<char>(data, strnlen(data, max));
+template <size_t N>
+Vector<const uint8_t> StaticOneByteVector(const char (&array)[N]) {
+  return OneByteVector(array, N - 1);
 }
 
 // For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]
@@ -269,13 +292,13 @@ inline Vector<char> MutableCStrVector(char* data, size_t max) {
 // If you want ['f', 'o', 'o'], use CStrVector("foo").
 template <typename T, size_t N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
-  return Vector<T>{arr, N};
+  return {arr, N};
 }
 
 // Construct a Vector from a start pointer and a size.
 template <typename T>
 inline constexpr Vector<T> VectorOf(T* start, size_t size) {
-  return Vector<T>(start, size);
+  return {start, size};
 }
 
 // Construct a Vector from anything providing a {data()} and {size()} accessor.
@@ -283,6 +306,14 @@ template <typename Container>
 inline constexpr auto VectorOf(Container&& c)
     -> decltype(VectorOf(c.data(), c.size())) {
   return VectorOf(c.data(), c.size());
+}
+
+// Construct a Vector from an initializer list. The vector can obviously only be
+// used as long as the initializer list is live. Valid uses include direct use
+// in parameter lists: F(VectorOf({1, 2, 3}));
+template <typename T>
+inline constexpr Vector<const T> VectorOf(std::initializer_list<T> list) {
+  return VectorOf(list.begin(), list.size());
 }
 
 template <typename T, size_t kSize>

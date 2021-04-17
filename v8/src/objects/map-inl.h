@@ -5,21 +5,23 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
-#include "src/objects/map.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-function-inl.h"
 #include "src/objects/layout-descriptor-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/transitions.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,25 +29,25 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/map-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
-DEF_GETTER(Map, instance_descriptors, DescriptorArray) {
-  return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(isolate,
-                                                                        *this);
-}
-
-SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,
-                       kInstanceDescriptorsOffset)
+RELAXED_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+                  kInstanceDescriptorsOffset)
+RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, DescriptorArray,
+                          kInstanceDescriptorsOffset)
 
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
 // layout descriptor.
-SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
-                               kLayoutDescriptorOffset,
-                               FLAG_unbox_double_fields)
-WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
+RELEASE_ACQUIRE_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
+                                  kLayoutDescriptorOffset,
+                                  FLAG_unbox_double_fields)
+SYNCHRONIZED_WEAK_ACCESSORS(Map, raw_transitions,
+                            kTransitionsOrPrototypeInfoOffset)
 
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSReceiver())
@@ -55,42 +57,46 @@ ACCESSORS_CHECKED(Map, prototype_info, Object,
 
 // |bit_field| fields.
 // Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
-// is explicitly whitelisted here. The former is never modified after the map
+// is explicitly allowlisted here. The former is never modified after the map
 // is setup but it's being read by concurrent marker when pointer compression
 // is enabled. The latter bit can be modified on a live objects.
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
-                    Map::HasNonInstancePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::IsCallableBit)
+                    Map::Bits1::HasNonInstancePrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
-                    Map::HasNamedInterceptorBit)
+                    Map::Bits1::HasNamedInterceptorBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, has_indexed_interceptor,
-                    Map::HasIndexedInterceptorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
+                    Map::Bits1::HasIndexedInterceptorBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable,
+                    Map::Bits1::IsUndetectableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
-                    Map::IsAccessCheckNeededBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor, Map::IsConstructorBit)
+                    Map::Bits1::IsAccessCheckNeededBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor,
+                    Map::Bits1::IsConstructorBit)
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
-                    Map::HasPrototypeSlotBit)
+                    Map::Bits1::HasPrototypeSlotBit)
 
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
-                    Map::NewTargetIsBaseBit)
+                    Map::Bits2::NewTargetIsBaseBit)
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
-                    Map::IsImmutablePrototypeBit)
+                    Map::Bits2::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors,
+                    Map::Bits3::OwnsDescriptorsBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::Bits3::IsDeprecatedBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
-                    Map::IsInRetainedMapListBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map, Map::IsPrototypeMapBit)
+                    Map::Bits3::IsInRetainedMapListBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map,
+                    Map::Bits3::IsPrototypeMapBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
-                    Map::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::IsExtensibleBit)
+                    Map::Bits3::IsMigrationTargetBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
-                    Map::MayHaveInterestingSymbolsBit)
+                    Map::Bits3::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
-                    Map::ConstructionCounterBits)
+                    Map::Bits3::ConstructionCounterBits)
 
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
@@ -112,11 +118,17 @@ bool Map::IsMostGeneralFieldType(Representation representation,
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
   return instance_type == JS_ARRAY_TYPE ||
          instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||
-         instance_type == JS_ARGUMENTS_TYPE;
+         instance_type == JS_ARGUMENTS_OBJECT_TYPE;
 }
 
 bool Map::CanHaveFastTransitionableElementsKind() const {
   return CanHaveFastTransitionableElementsKind(instance_type());
+}
+
+bool Map::IsDetached(Isolate* isolate) const {
+  if (is_prototype_map()) return true;
+  return instance_type() == JS_OBJECT_TYPE && NumberOfOwnDescriptors() > 0 &&
+         GetBackPointer().IsUndefined(isolate);
 }
 
 // static
@@ -145,21 +157,22 @@ bool Map::EquivalentToForNormalization(const Map other,
 }
 
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return IsUnboxedDoubleField(isolate, index);
 }
 
-bool Map::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
+bool Map::IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;
-  return !layout_descriptor(isolate).IsTagged(index.property_index());
+  return !layout_descriptor(isolate, kAcquireLoad)
+              .IsTagged(index.property_index());
 }
 
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
   if (store_origin == StoreOrigin::kNamed) {
-    int limit = Max(kMaxFastProperties, GetInObjectProperties());
+    int limit = std::max({kMaxFastProperties, GetInObjectProperties()});
     FieldCounts counts = GetFieldCounts();
     // Only count mutable fields so that objects with large numbers of
     // constant functions do not go to dictionary mode. That would be bad
@@ -167,34 +180,41 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     int external = counts.mutable_count() - GetInObjectProperties();
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
-    int limit = Max(kFastPropertiesSoftLimit, GetInObjectProperties());
+    int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
     int external = NumberOfFields() - GetInObjectProperties();
     return external > limit;
   }
 }
 
 PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate).GetDetails(LastAdded());
+  return instance_descriptors(isolate, kRelaxedLoad).GetDetails(LastAdded());
 }
 
-int Map::LastAdded() const {
+InternalIndex Map::LastAdded() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK_GT(number_of_own_descriptors, 0);
-  return number_of_own_descriptors - 1;
+  return InternalIndex(number_of_own_descriptors - 1);
 }
 
 int Map::NumberOfOwnDescriptors() const {
-  return NumberOfOwnDescriptorsBits::decode(bit_field3());
+  return Bits3::NumberOfOwnDescriptorsBits::decode(bit_field3());
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK_LE(number, instance_descriptors().number_of_descriptors());
+  DCHECK_LE(number, instance_descriptors(kRelaxedLoad).number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
-  set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
+  set_bit_field3(
+      Bits3::NumberOfOwnDescriptorsBits::update(bit_field3(), number));
 }
 
-int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
+InternalIndex::Range Map::IterateOwnDescriptors() const {
+  return InternalIndex::Range(NumberOfOwnDescriptors());
+}
+
+int Map::EnumLength() const {
+  return Bits3::EnumLengthBits::decode(bit_field3());
+}
 
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
@@ -202,15 +222,14 @@ void Map::SetEnumLength(int length) {
     CHECK_LE(static_cast<unsigned>(length),
              static_cast<unsigned>(kMaxNumberOfDescriptors));
   }
-  set_bit_field3(EnumLengthBits::update(bit_field3(), length));
+  set_bit_field3(Bits3::EnumLengthBits::update(bit_field3(), length));
 }
 
 FixedArrayBase Map::GetInitialElements() const {
   FixedArrayBase result;
-  if (has_fast_elements() || has_fast_string_wrapper_elements()) {
+  if (has_fast_elements() || has_fast_string_wrapper_elements() ||
+      has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
-  } else if (has_fast_sloppy_arguments_elements()) {
-    result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_typed_array_elements()) {
     result = GetReadOnlyRoots().empty_byte_array();
   } else if (has_dictionary_elements()) {
@@ -460,11 +479,12 @@ bool Map::should_be_fast_prototype_map() const {
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
-  set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
+  set_bit_field2(
+      Map::Bits2::ElementsKindBits::update(bit_field2(), elements_kind));
 }
 
 ElementsKind Map::elements_kind() const {
-  return Map::ElementsKindBits::decode(bit_field2());
+  return Map::Bits2::ElementsKindBits::decode(bit_field2());
 }
 
 bool Map::has_fast_smi_elements() const {
@@ -507,8 +527,12 @@ bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }
 
-bool Map::has_frozen_or_sealed_elements() const {
-  return IsFrozenOrSealedElementsKind(elements_kind());
+bool Map::has_any_nonextensible_elements() const {
+  return IsAnyNonextensibleElementsKind(elements_kind());
+}
+
+bool Map::has_nonextensible_elements() const {
+  return IsNonextensibleElementsKind(elements_kind());
 }
 
 bool Map::has_sealed_elements() const {
@@ -520,28 +544,31 @@ bool Map::has_frozen_elements() const {
 }
 
 void Map::set_is_dictionary_map(bool value) {
-  uint32_t new_bit_field3 = IsDictionaryMapBit::update(bit_field3(), value);
-  new_bit_field3 = IsUnstableBit::update(new_bit_field3, value);
+  uint32_t new_bit_field3 =
+      Bits3::IsDictionaryMapBit::update(bit_field3(), value);
+  new_bit_field3 = Bits3::IsUnstableBit::update(new_bit_field3, value);
   set_bit_field3(new_bit_field3);
 }
 
 bool Map::is_dictionary_map() const {
-  return IsDictionaryMapBit::decode(bit_field3());
+  return Bits3::IsDictionaryMapBit::decode(bit_field3());
 }
 
 void Map::mark_unstable() {
-  set_bit_field3(IsUnstableBit::update(bit_field3(), true));
+  set_bit_field3(Bits3::IsUnstableBit::update(bit_field3(), true));
 }
 
-bool Map::is_stable() const { return !IsUnstableBit::decode(bit_field3()); }
+bool Map::is_stable() const {
+  return !Bits3::IsUnstableBit::decode(bit_field3());
+}
 
 bool Map::CanBeDeprecated() const {
-  int descriptor = LastAdded();
-  for (int i = 0; i <= descriptor; i++) {
-    PropertyDetails details = instance_descriptors().GetDetails(i);
+  for (InternalIndex i : IterateOwnDescriptors()) {
+    PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
     if (details.representation().IsNone()) return true;
     if (details.representation().IsSmi()) return true;
-    if (details.representation().IsDouble()) return true;
+    if (details.representation().IsDouble() && FLAG_unbox_double_fields)
+      return true;
     if (details.representation().IsHeapObject()) return true;
     if (details.kind() == kData && details.location() == kDescriptor) {
       return true;
@@ -554,7 +581,7 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
     dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPrototypeCheckGroup);
+        DependentCode::kPrototypeCheckGroup);
   }
 }
 
@@ -580,7 +607,7 @@ bool Map::IsNullOrUndefinedMap() const {
 }
 
 bool Map::IsPrimitiveMap() const {
-  return instance_type() <= LAST_PRIMITIVE_TYPE;
+  return instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
 LayoutDescriptor Map::layout_descriptor_gc_safe() const {
@@ -607,17 +634,17 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
                             int number_of_own_descriptors) {
   SetInstanceDescriptors(isolate, descriptors, number_of_own_descriptors);
   if (FLAG_unbox_double_fields) {
-    if (layout_descriptor().IsSlowLayout()) {
-      set_layout_descriptor(layout_desc);
+    if (layout_descriptor(kAcquireLoad).IsSlowLayout()) {
+      set_layout_descriptor(layout_desc, kReleaseStore);
     }
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor().IsConsistentWithMap(*this));
+      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
       CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
     DCHECK(visitor_id() == Map::GetVisitorId(*this));
 #endif
   }
@@ -629,14 +656,14 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
                          descriptors.number_of_descriptors());
 
   if (FLAG_unbox_double_fields) {
-    set_layout_descriptor(layout_desc);
+    set_layout_descriptor(layout_desc, kReleaseStore);
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor().IsConsistentWithMap(*this));
+      CHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor(kAcquireLoad).IsConsistentWithMap(*this));
 #endif
     set_visitor_id(Map::GetVisitorId(*this));
   }
@@ -658,12 +685,12 @@ void Map::clear_padding() {
 }
 
 LayoutDescriptor Map::GetLayoutDescriptor() const {
-  return FLAG_unbox_double_fields ? layout_descriptor()
+  return FLAG_unbox_double_fields ? layout_descriptor(kAcquireLoad)
                                   : LayoutDescriptor::FastPointerLayout();
 }
 
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
-  DescriptorArray descriptors = instance_descriptors();
+  DescriptorArray descriptors = instance_descriptors(kRelaxedLoad);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   {
@@ -671,8 +698,9 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
     // barrier.
     descriptors.Append(desc);
     SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
-    MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
-                                     number_of_own_descriptors + 1);
+#ifndef V8_DISABLE_WRITE_BARRIERS
+    WriteBarrier::Marking(descriptors, number_of_own_descriptors + 1);
+#endif
   }
   // Properly mark the map if the {desc} is an "interesting symbol".
   if (desc->GetKey()->IsInterestingSymbol()) {
@@ -693,7 +721,10 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
   Object object = constructor_or_backpointer(isolate);
-  if (object.IsMap(isolate)) {
+  // This is the equivalent of IsMap() but avoids reading the instance type so
+  // it can be used concurrently without acquire load.
+  if (object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
+                                   GetReadOnlyRoots(isolate).meta_map()) {
     return Map::cast(object);
   }
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
@@ -719,8 +750,15 @@ Map Map::ElementsTransitionMap(Isolate* isolate) {
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
-ACCESSORS(Map, constructor_or_backpointer, Object,
-          kConstructorOrBackPointerOffset)
+ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
+                   kConstructorOrBackPointerOrNativeContextOffset,
+                   !IsContextMap(), value.IsNull() || !IsContextMap())
+ACCESSORS_CHECKED(Map, native_context, NativeContext,
+                  kConstructorOrBackPointerOrNativeContextOffset,
+                  IsContextMap())
+ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
+                  kConstructorOrBackPointerOrNativeContextOffset,
+                  IsWasmStructMap() || IsWasmArrayMap())
 
 bool Map::IsPrototypeValidityCellValid() const {
   Object validity_cell = prototype_validity_cell();
@@ -733,6 +771,17 @@ DEF_GETTER(Map, GetConstructor, Object) {
   Object maybe_constructor = constructor_or_backpointer(isolate);
   // Follow any back pointers.
   while (maybe_constructor.IsMap(isolate)) {
+    maybe_constructor =
+        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
+  }
+  return maybe_constructor;
+}
+
+Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
+  Object maybe_constructor = constructor_or_backpointer(isolate);
+  // Follow any back pointers.
+  while (maybe_constructor.IsMap(isolate)) {
+    if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
         Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
   }
@@ -784,7 +833,7 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
     DCHECK_LE(1, max_slack);
     return 1;
   }
-  return Min(max_slack, old_size / 4);
+  return std::min(max_slack, old_size / 4);
 }
 
 int Map::InstanceSizeFromSlack(int slack) const {

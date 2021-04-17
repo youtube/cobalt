@@ -9,6 +9,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/handles/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -32,6 +33,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final = default;
+  LoadElimination(const LoadElimination&) = delete;
+  LoadElimination& operator=(const LoadElimination&) = delete;
 
   const char* reducer_name() const override { return "LoadElimination"; }
 
@@ -58,7 +61,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractElements const* Extend(Node* object, Node* index, Node* value,
                                    MachineRepresentation representation,
                                    Zone* zone) const {
-      AbstractElements* that = new (zone) AbstractElements(*this);
+      AbstractElements* that = zone->New<AbstractElements>(*this);
       that->elements_[that->next_index_] =
           Element(object, index, value, representation);
       that->next_index_ = (that->next_index_ + 1) % arraysize(elements_);
@@ -100,20 +103,25 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   struct FieldInfo {
     FieldInfo() = default;
-    FieldInfo(Node* value, MachineRepresentation representation)
-        : value(value), name(), representation(representation) {}
-    FieldInfo(Node* value, MaybeHandle<Name> name,
-              MachineRepresentation representation)
-        : value(value), name(name), representation(representation) {}
+    FieldInfo(Node* value, MachineRepresentation representation,
+              MaybeHandle<Name> name = {},
+              ConstFieldInfo const_field_info = ConstFieldInfo::None())
+        : value(value),
+          representation(representation),
+          name(name),
+          const_field_info(const_field_info) {}
 
     bool operator==(const FieldInfo& other) const {
-      return value == other.value && name.address() == other.name.address() &&
-             representation == other.representation;
+      return value == other.value && representation == other.representation &&
+             name.address() == other.name.address() &&
+             const_field_info == other.const_field_info;
     }
+    bool operator!=(const FieldInfo& other) const { return !(*this == other); }
 
     Node* value = nullptr;
-    MaybeHandle<Name> name;
     MachineRepresentation representation = MachineRepresentation::kNone;
+    MaybeHandle<Name> name;
+    ConstFieldInfo const_field_info;
   };
 
   // Abstract state to approximate the current state of a certain field along
@@ -128,12 +136,13 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     AbstractField const* Extend(Node* object, FieldInfo info,
                                 Zone* zone) const {
-      AbstractField* that = new (zone) AbstractField(zone);
+      AbstractField* that = zone->New<AbstractField>(zone);
       that->info_for_node_ = this->info_for_node_;
       that->info_for_node_[object] = info;
       return that;
     }
     FieldInfo const* Lookup(Node* object) const;
+    AbstractField const* KillConst(Node* object, Zone* zone) const;
     AbstractField const* Kill(const AliasStateInfo& alias_info,
                               MaybeHandle<Name> name, Zone* zone) const;
     bool Equals(AbstractField const* that) const {
@@ -141,7 +150,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     }
     AbstractField const* Merge(AbstractField const* that, Zone* zone) const {
       if (this->Equals(that)) return this;
-      AbstractField* copy = new (zone) AbstractField(zone);
+      AbstractField* copy = zone->New<AbstractField>(zone);
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
         FieldInfo this_second = this_it.second;
@@ -186,10 +195,41 @@ class V8_EXPORT_PRIVATE LoadElimination final
     ZoneMap<Node*, ZoneHandleSet<Map>> info_for_node_;
   };
 
+  class IndexRange {
+   public:
+    IndexRange(int begin, int size) : begin_(begin), end_(begin + size) {
+      DCHECK_LE(0, begin);
+      DCHECK_LE(1, size);
+      if (end_ > static_cast<int>(kMaxTrackedFields)) {
+        *this = IndexRange::Invalid();
+      }
+    }
+    static IndexRange Invalid() { return IndexRange(); }
+
+    bool operator==(const IndexRange& other) {
+      return begin_ == other.begin_ && end_ == other.end_;
+    }
+    bool operator!=(const IndexRange& other) { return !(*this == other); }
+
+    struct Iterator {
+      int i;
+      int operator*() { return i; }
+      void operator++() { ++i; }
+      bool operator!=(Iterator other) { return i != other.i; }
+    };
+
+    Iterator begin() { return {begin_}; }
+    Iterator end() { return {end_}; }
+
+   private:
+    int begin_;
+    int end_;
+
+    IndexRange() : begin_(-1), end_(-1) {}
+  };
+
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {}
-
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
@@ -200,19 +240,20 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                   Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
-    AbstractState const* AddField(Node* object, size_t index, FieldInfo info,
-                                  PropertyConstness constness,
-                                  Zone* zone) const;
+    AbstractState const* AddField(Node* object, IndexRange index,
+                                  FieldInfo info, Zone* zone) const;
+    AbstractState const* KillConstField(Node* object, IndexRange index_range,
+                                        Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
-                                   size_t index, MaybeHandle<Name> name,
+                                   IndexRange index, MaybeHandle<Name> name,
                                    Zone* zone) const;
-    AbstractState const* KillField(Node* object, size_t index,
+    AbstractState const* KillField(Node* object, IndexRange index,
                                    MaybeHandle<Name> name, Zone* zone) const;
     AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,
                                     Zone* zone) const;
     AbstractState const* KillAll(Zone* zone) const;
-    FieldInfo const* LookupField(Node* object, size_t index,
-                                 PropertyConstness constness) const;
+    FieldInfo const* LookupField(Node* object, IndexRange index,
+                                 ConstFieldInfo const_field_info) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
                                     MachineRepresentation representation,
@@ -280,8 +321,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
   AbstractState const* UpdateStateForPhi(AbstractState const* state,
                                          Node* effect_phi, Node* phi);
 
-  static int FieldIndexOf(int offset);
-  static int FieldIndexOf(FieldAccess const& access);
+  static IndexRange FieldIndexOf(int offset, int representation_size);
+  static IndexRange FieldIndexOf(FieldAccess const& access);
 
   static AbstractState const* empty_state() {
     return AbstractState::empty_state();
@@ -296,8 +337,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
-
-  DISALLOW_COPY_AND_ASSIGN(LoadElimination);
 };
 
 }  // namespace compiler

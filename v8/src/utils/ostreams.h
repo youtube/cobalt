@@ -13,6 +13,7 @@
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -37,7 +38,7 @@ class V8_EXPORT_PRIVATE OFStreamBase : public std::streambuf {
 class V8_EXPORT_PRIVATE DbgStreamBuf : public std::streambuf {
  public:
   DbgStreamBuf();
-  ~DbgStreamBuf();
+  ~DbgStreamBuf() override;
 
  private:
   int sync() override;
@@ -49,7 +50,7 @@ class V8_EXPORT_PRIVATE DbgStreamBuf : public std::streambuf {
 class DbgStdoutStream : public std::ostream {
  public:
   DbgStdoutStream();
-  ~DbgStdoutStream() = default;
+  ~DbgStdoutStream() override = default;
 
  private:
   DbgStreamBuf streambuf_;
@@ -84,7 +85,10 @@ class StdoutStream : public std::ostream {
   StdoutStream() : std::ostream(&stream_) {}
 
  private:
+  static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
+
   AndroidLogStream stream_;
+  base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #else
 class StdoutStream : public OFStream {
@@ -94,6 +98,11 @@ class StdoutStream : public OFStream {
 #else
   StdoutStream() : OFStream(stdout) {}
 #endif
+
+ private:
+  static V8_EXPORT_PRIVATE base::RecursiveMutex* GetStdoutMutex();
+
+  base::RecursiveMutexGuard mutex_guard_{GetStdoutMutex()};
 };
 #endif
 

@@ -26,8 +26,6 @@ namespace internal {
   V(kInputStringTooLong, "Input string too long")                             \
   V(kInvalidBytecode, "Invalid bytecode")                                     \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")             \
-  V(kInvalidElementsKindForInternalPackedArray,                               \
-    "Invalid ElementsKind for InternalPackedArray")                           \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                    \
   V(kInvalidJumpTableIndex, "Invalid jump table index")                       \
   V(kInvalidParametersAndRegistersInGenerator,                                \
@@ -59,6 +57,7 @@ namespace internal {
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")        \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
+  V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")         \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \
@@ -66,8 +65,6 @@ namespace internal {
     "Unexpected runtime function id for the InvokeIntrinsic bytecode")        \
   V(kUnexpectedInitialMapForArrayFunction,                                    \
     "Unexpected initial map for Array function")                              \
-  V(kUnexpectedInitialMapForInternalArrayFunction,                            \
-    "Unexpected initial map for InternalArray function")                      \
   V(kUnexpectedLevelAfterReturnFromApiCall,                                   \
     "Unexpected level after return from api call")                            \
   V(kUnexpectedNegativeValue, "Unexpected negative value")                    \
@@ -86,8 +83,6 @@ namespace internal {
     "Wrong number of arguments for intrinsic")                                \
   V(kWrongFunctionCodeStart, "Wrong value in code start register passed")     \
   V(kWrongFunctionContext, "Wrong context passed to function")                \
-  V(kWrongNumberOfArgumentsForInternalPackedArray,                            \
-    "Wrong number of arguments for InternalPackedArray")                      \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")        \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")
 

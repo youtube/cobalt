@@ -18,7 +18,16 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+#if !defined(__clang__) && defined(_M_ARM64)
+// _M_ARM64 is an MSVC-specific macro that clang-cl emulates.
+#define NO_INLINE_FOR_ARM64_MSVC __declspec(noinline)
+#else
+#define NO_INLINE_FOR_ARM64_MSVC
+#endif
+
 namespace v8 {
+class CFunctionInfo;
+
 namespace internal {
 
 class CallInterfaceDescriptor;
@@ -28,18 +37,31 @@ namespace compiler {
 
 const RegList kNoCalleeSaved = 0;
 
-class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
 class LinkageLocation {
  public:
   bool operator==(const LinkageLocation& other) const {
-    return bit_field_ == other.bit_field_;
+    return bit_field_ == other.bit_field_ &&
+           machine_type_ == other.machine_type_;
   }
 
   bool operator!=(const LinkageLocation& other) const {
     return !(*this == other);
+  }
+
+  static bool IsSameLocation(const LinkageLocation& a,
+                             const LinkageLocation& b) {
+    // Different MachineTypes may end up at the same physical location. With the
+    // sub-type check we make sure that types like {AnyTagged} and
+    // {TaggedPointer} which would end up with the same physical location are
+    // considered equal here.
+    return (a.bit_field_ == b.bit_field_) &&
+           (IsSubtype(a.machine_type_.representation(),
+                      b.machine_type_.representation()) ||
+            IsSubtype(b.machine_type_.representation(),
+                      a.machine_type_.representation()));
   }
 
   static LinkageLocation ForAnyRegister(
@@ -121,7 +143,9 @@ class LinkageLocation {
            LocationField::kShift;
   }
 
-  bool IsRegister() const { return TypeField::decode(bit_field_) == REGISTER; }
+  NO_INLINE_FOR_ARM64_MSVC bool IsRegister() const {
+    return TypeField::decode(bit_field_) == REGISTER;
+  }
   bool IsAnyRegister() const {
     return IsRegister() && GetLocation() == ANY_REGISTER;
   }
@@ -144,8 +168,8 @@ class LinkageLocation {
  private:
   enum LocationType { REGISTER, STACK_SLOT };
 
-  class TypeField : public BitField<LocationType, 0, 1> {};
-  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+  using TypeField = base::BitField<LocationType, 0, 1>;
+  using LocationField = TypeField::Next<int32_t, 31>;
 
   static constexpr int32_t ANY_REGISTER = -1;
   static constexpr int32_t MAX_STACK_SLOT = 32767;
@@ -181,6 +205,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallBuiltinPointer,     // target is a builtin pointer
   };
 
+  // NOTE: The lowest 10 bits of the Flags field are encoded in InstructionCode
+  // (for use in the code generator). All higher bits are lost.
+  static constexpr int kFlagsBitsEncodedInInstructionCode = 10;
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
@@ -190,14 +217,39 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
-    // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 5,
     // Use retpoline for this call if indirect.
-    kRetpoline = 1u << 6,
+    kRetpoline = 1u << 5,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
-    kFixedTargetRegister = 1u << 7,
-    kAllowCallThroughSlot = 1u << 8
+    kFixedTargetRegister = 1u << 6,
+    kCallerSavedRegisters = 1u << 7,
+    // The kCallerSavedFPRegisters only matters (and set) when the more general
+    // flag for kCallerSavedRegisters above is also set.
+    kCallerSavedFPRegisters = 1u << 8,
+    // Tail calls for tier up are special (in fact they are different enough
+    // from normal tail calls to warrant a dedicated opcode; but they also have
+    // enough similar aspects that reusing the TailCall opcode is pragmatic).
+    // Specifically:
+    //
+    // 1. Caller and callee are both JS-linkage Code objects.
+    // 2. JS runtime arguments are passed unchanged from caller to callee.
+    // 3. JS runtime arguments are not attached as inputs to the TailCall node.
+    // 4. Prior to the tail call, frame and register state is torn down to just
+    //    before the caller frame was constructed.
+    // 5. Unlike normal tail calls, arguments adaptor frames (if present) are
+    //    *not* torn down.
+    //
+    // In other words, behavior is identical to a jmp instruction prior caller
+    // frame construction.
+    kIsTailCallForTierUp = 1u << 9,
+
+    // Flags past here are *not* encoded in InstructionCode and are thus not
+    // accessible from the code generator. See also
+    // kFlagsBitsEncodedInInstructionCode.
+
+    // AIX has a function descriptor by default but it can be disabled for a
+    // certain CFunction call (only used for Kind::kCallAddress).
+    kNoFunctionDescriptor = 1u << 10,
   };
   using Flags = base::Flags<Flag>;
 
@@ -207,6 +259,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
+                 StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
                  const RegList allocatable_registers = 0,
                  size_t stack_return_count = 0)
       : kind_(kind),
@@ -220,7 +273,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         callee_saved_fp_registers_(callee_saved_fp_registers),
         allocatable_registers_(allocatable_registers),
         flags_(flags),
+        stack_order_(stack_order),
         debug_name_(debug_name) {}
+
+  CallDescriptor(const CallDescriptor&) = delete;
+  CallDescriptor& operator=(const CallDescriptor&) = delete;
 
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
@@ -262,6 +319,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return stack_param_count_;
   }
 
+  int GetStackIndexFromSlot(int slot_index) const {
+    switch (GetStackArgumentOrder()) {
+      case StackArgumentOrder::kDefault:
+        return -slot_index - 1;
+      case StackArgumentOrder::kJS:
+        return slot_index + static_cast<int>(StackParameterCount());
+    }
+  }
+
   // The total number of inputs to this call, which includes the target,
   // receiver, context, etc.
   // TODO(titzer): this should input the framestate input too.
@@ -272,10 +338,17 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
   }
+  bool NeedsCallerSavedRegisters() const {
+    return flags() & kCallerSavedRegisters;
+  }
+  bool NeedsCallerSavedFPRegisters() const {
+    return flags() & kCallerSavedFPRegisters;
+  }
+  bool IsTailCallForTierUp() const { return flags() & kIsTailCallForTierUp; }
+  bool NoFunctionDescriptor() const { return flags() & kNoFunctionDescriptor; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);
@@ -301,6 +374,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return location_sig_->GetParam(index).GetType();
   }
 
+  StackArgumentOrder GetStackArgumentOrder() const { return stack_order_; }
+
   // Operator properties describe how this call can be optimized, if at all.
   Operator::Properties properties() const { return properties_; }
 
@@ -314,8 +389,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool UsesOnlyRegisters() const;
 
-  bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
-
   // Returns the first stack slot that is not used by the stack parameters.
   int GetFirstUnusedStackSlot() const;
 
@@ -323,9 +396,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   int GetTaggedParameterSlots() const;
 
-  bool CanTailCall(const Node* call) const;
+  bool CanTailCall(const CallDescriptor* callee) const;
 
-  int CalculateFixedFrameSize(Code::Kind code_kind) const;
+  int CalculateFixedFrameSize(CodeKind code_kind) const;
 
   RegList AllocatableRegisters() const { return allocatable_registers_; }
 
@@ -333,13 +406,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return allocatable_registers_ != 0;
   }
 
-  void set_save_fp_mode(SaveFPRegsMode mode) { save_fp_mode_ = mode; }
-
-  SaveFPRegsMode get_save_fp_mode() const { return save_fp_mode_; }
+  // Stores the signature information for a fast API call - C++ functions
+  // that can be called directly from TurboFan.
+  void SetCFunctionInfo(const CFunctionInfo* c_function_info) {
+    c_function_info_ = c_function_info;
+  }
+  const CFunctionInfo* GetCFunctionInfo() const { return c_function_info_; }
 
  private:
   friend class Linkage;
-  SaveFPRegsMode save_fp_mode_ = kSaveFPRegs;
 
   const Kind kind_;
   const MachineType target_type_;
@@ -354,9 +429,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // register allocator to use.
   const RegList allocatable_registers_;
   const Flags flags_;
+  const StackArgumentOrder stack_order_;
   const char* const debug_name_;
-
-  DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
+  const CFunctionInfo* c_function_info_ = nullptr;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
@@ -382,6 +457,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
+  Linkage(const Linkage&) = delete;
+  Linkage& operator=(const Linkage&) = delete;
 
   static CallDescriptor* ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info);
@@ -400,7 +477,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static CallDescriptor* GetCEntryStubCallDescriptor(
       Zone* zone, int return_count, int js_parameter_count,
       const char* debug_name, Operator::Properties properties,
-      CallDescriptor::Flags flags);
+      CallDescriptor::Flags flags,
+      StackArgumentOrder stack_order = StackArgumentOrder::kDefault);
 
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -418,7 +496,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
       Zone* zone, const MachineSignature* sig,
-      bool set_initialize_root_flag = false);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {
@@ -454,22 +532,22 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   // A special {Parameter} index for JSCalls that represents the new target.
-  static int GetJSCallNewTargetParamIndex(int parameter_count) {
+  static constexpr int GetJSCallNewTargetParamIndex(int parameter_count) {
     return parameter_count + 0;  // Parameter (arity + 0) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the argument count.
-  static int GetJSCallArgCountParamIndex(int parameter_count) {
+  static constexpr int GetJSCallArgCountParamIndex(int parameter_count) {
     return parameter_count + 1;  // Parameter (arity + 1) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the context.
-  static int GetJSCallContextParamIndex(int parameter_count) {
+  static constexpr int GetJSCallContextParamIndex(int parameter_count) {
     return parameter_count + 2;  // Parameter (arity + 2) is special.
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.
-  static const int kJSCallClosureParamIndex = -1;
+  static constexpr int kJSCallClosureParamIndex = -1;
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;
@@ -479,12 +557,11 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
  private:
   CallDescriptor* const incoming_;
-
-  DISALLOW_COPY_AND_ASSIGN(Linkage);
 };
 
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+#undef NO_INLINE_FOR_ARM64_MSVC
 
 #endif  // V8_COMPILER_LINKAGE_H_

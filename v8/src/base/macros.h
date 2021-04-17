@@ -6,9 +6,11 @@
 #define V8_BASE_MACROS_H_
 
 #include <limits>
+#include <type_traits>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(x) x
@@ -103,16 +105,20 @@ V8_INLINE Dest bit_cast(Source const& source) {
   static_assert(sizeof(Dest) == sizeof(Source),
                 "source and dest must be same size");
   Dest dest;
-  memcpy(&dest, &source, sizeof(dest));
+  v8::base::Memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 
 // Explicitly declare the assignment operator as deleted.
+// Note: This macro is deprecated and will be removed soon. Please explicitly
+// delete the assignment operator instead.
 #define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
 
 // Explicitly declare the copy constructor and assignment operator as deleted.
 // This also deletes the implicit move constructor and implicit move assignment
 // operator, but still allows to manually define them.
+// Note: This macro is deprecated and will be removed soon. Please explicitly
+// delete the copy constructor and assignment operator instead.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \
   DISALLOW_ASSIGN(TypeName)
@@ -143,11 +149,11 @@ V8_INLINE Dest bit_cast(Source const& source) {
 // Extract from 3.2.2 of C++11 spec:
 //  [...] A non-placement deallocation function for a class is
 //  odr-used by the definition of the destructor of that class, [...]
-#define DISALLOW_NEW_AND_DELETE()                            \
-  void* operator new(size_t) { base::OS::Abort(); }          \
-  void* operator new[](size_t) { base::OS::Abort(); }        \
-  void operator delete(void*, size_t) { base::OS::Abort(); } \
-  void operator delete[](void*, size_t) { base::OS::Abort(); }
+#define DISALLOW_NEW_AND_DELETE()                                \
+  void* operator new(size_t) { v8::base::OS::Abort(); }          \
+  void* operator new[](size_t) { v8::base::OS::Abort(); }        \
+  void operator delete(void*, size_t) { v8::base::OS::Abort(); } \
+  void operator delete[](void*, size_t) { v8::base::OS::Abort(); }
 
 // Define V8_USE_ADDRESS_SANITIZER macro.
 #if defined(__has_feature)
@@ -170,22 +176,19 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
-// Helper macro to define no_sanitize attributes only with clang.
-#if defined(__clang__) && defined(__has_attribute)
-#if __has_attribute(no_sanitize)
-#define CLANG_NO_SANITIZE(what) __attribute__((no_sanitize(what)))
-#endif
-#endif
-#if !defined(CLANG_NO_SANITIZE)
-#define CLANG_NO_SANITIZE(what)
-#endif
-
 // DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
-#define DISABLE_CFI_PERF CLANG_NO_SANITIZE("cfi")
+#define DISABLE_CFI_PERF V8_CLANG_NO_SANITIZE("cfi")
 
 // DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
 // useful because calls into JITed code can not be CFI verified.
-#define DISABLE_CFI_ICALL CLANG_NO_SANITIZE("cfi-icall")
+#ifdef V8_OS_WIN
+// On Windows, also needs __declspec(guard(nocf)) for CFG.
+#define DISABLE_CFI_ICALL           \
+  V8_CLANG_NO_SANITIZE("cfi-icall") \
+  __declspec(guard(nocf))
+#else
+#define DISABLE_CFI_ICALL V8_CLANG_NO_SANITIZE("cfi-icall")
+#endif
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
@@ -232,35 +235,16 @@ struct is_trivially_copyable {
       // the standard does not, so let's skip this check.)
       // Trivial non-deleted destructor.
       std::is_trivially_destructible<T>::value;
-
-#elif defined(__GNUC__) && __GNUC__ < 5
-  // WARNING:
-  // On older libstdc++ versions, there is no way to correctly implement
-  // is_trivially_copyable. The workaround below is an approximation (neither
-  // over- nor underapproximation). E.g. it wrongly returns true if the move
-  // constructor is non-trivial, and it wrongly returns false if the copy
-  // constructor is deleted, but copy assignment is trivial.
-  // TODO(rongjie) Remove this workaround once we require gcc >= 5.0
-  static constexpr bool value =
-      __has_trivial_copy(T) && __has_trivial_destructor(T);
-
 #else
   static constexpr bool value = std::is_trivially_copyable<T>::value;
 #endif
 };
-#if defined(__GNUC__) && __GNUC__ < 5
-// On older libstdc++ versions, base::is_trivially_copyable<T>::value is only an
-// approximation (see above), so make ASSERT_{NOT_,}TRIVIALLY_COPYABLE a noop.
-#define ASSERT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
-#define ASSERT_NOT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
-#else
 #define ASSERT_TRIVIALLY_COPYABLE(T)                         \
   static_assert(::v8::base::is_trivially_copyable<T>::value, \
                 #T " should be trivially copyable")
 #define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
                 #T " should not be trivially copyable")
-#endif
 
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
@@ -346,24 +330,24 @@ V8_INLINE A implicit_cast(A x) {
 #define V8PRIuPTR "lxu"
 #endif
 
-// The following macro works on both 32 and 64-bit platforms.
-// Usage: instead of writing 0x1234567890123456
-//      write V8_2PART_UINT64_C(0x12345678,90123456);
-#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
+// Make a uint64 from two uint32_t halves.
+inline uint64_t make_uint64(uint32_t high, uint32_t low) {
+  return (uint64_t{high} << 32) + low;
+}
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
-  return x & -m;
+  return x & static_cast<T>(-m);
 }
 template <intptr_t m, typename T>
 constexpr inline T RoundDown(T x) {
   STATIC_ASSERT(std::is_integral<T>::value);
   // m must be a power of two.
   STATIC_ASSERT(m != 0 && ((m & (m - 1)) == 0));
-  return x & -m;
+  return x & static_cast<T>(-m);
 }
 
 // Return the smallest multiple of m which is >= x.
@@ -405,6 +389,9 @@ bool is_inbounds(float_t v) {
   constexpr bool kUpperBoundIsMax =
       static_cast<biggest_int_t>(kUpperBound) ==
       static_cast<biggest_int_t>(std::numeric_limits<int_t>::max());
+  // Using USE(var) is only a workaround for a GCC 8.1 bug.
+  USE(kLowerBoundIsMin);
+  USE(kUpperBoundIsMax);
   return (kLowerBoundIsMin ? (kLowerBound <= v) : (kLowerBound < v)) &&
          (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
 }

@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecode-generator-inl.h"
+#include "src/regexp/regexp-bytecode-peephole.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -18,6 +19,7 @@ RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
       buffer_(Vector<byte>::New(1024)),
       pc_(0),
       advance_current_end_(kInvalidPC),
+      jump_edges_(zone),
       isolate_(isolate) {}
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
@@ -39,6 +41,7 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
       int fixup = pos;
       pos = *reinterpret_cast<int32_t*>(buffer_.begin() + fixup);
       *reinterpret_cast<uint32_t*>(buffer_.begin() + fixup) = pc_;
+      jump_edges_.emplace(fixup, pc_);
     }
   }
   l->bind_to(pc_);
@@ -46,16 +49,17 @@ void RegExpBytecodeGenerator::Bind(Label* l) {
 
 void RegExpBytecodeGenerator::EmitOrLink(Label* l) {
   if (l == nullptr) l = &backtrack_;
+  int pos = 0;
   if (l->is_bound()) {
-    Emit32(l->pos());
+    pos = l->pos();
+    jump_edges_.emplace(pc_, pos);
   } else {
-    int pos = 0;
     if (l->is_linked()) {
       pos = l->pos();
     }
     l->link_to(pc_);
-    Emit32(pos);
   }
+  Emit32(pos);
 }
 
 void RegExpBytecodeGenerator::PopRegister(int register_index) {
@@ -128,7 +132,11 @@ void RegExpBytecodeGenerator::PopCurrentPosition() { Emit(BC_POP_CP, 0); }
 
 void RegExpBytecodeGenerator::PushCurrentPosition() { Emit(BC_PUSH_CP, 0); }
 
-void RegExpBytecodeGenerator::Backtrack() { Emit(BC_POP_BT, 0); }
+void RegExpBytecodeGenerator::Backtrack() {
+  int error_code =
+      can_fallback() ? RegExp::RE_FALLBACK_TO_EXPERIMENTAL : RegExp::RE_FAILURE;
+  Emit(BC_POP_BT, error_code);
+}
 
 void RegExpBytecodeGenerator::GoTo(Label* l) {
   if (advance_current_end_ == pc_) {
@@ -171,10 +179,19 @@ void RegExpBytecodeGenerator::CheckGreedyLoop(
   EmitOrLink(on_tos_equals_current_position);
 }
 
-void RegExpBytecodeGenerator::LoadCurrentCharacter(int cp_offset,
-                                                   Label* on_failure,
-                                                   bool check_bounds,
-                                                   int characters) {
+void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
+                                                       Label* on_failure,
+                                                       bool check_bounds,
+                                                       int characters,
+                                                       int eats_at_least) {
+  DCHECK_GE(eats_at_least, characters);
+  if (eats_at_least > characters && check_bounds) {
+    DCHECK(is_int24(cp_offset + eats_at_least));
+    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
+    EmitOrLink(on_failure);
+    check_bounds = false;  // Load below doesn't need to check.
+  }
+
   DCHECK_LE(kMinCPOffset, cp_offset);
   DCHECK_GE(kMaxCPOffset, cp_offset);
   int bytecode;
@@ -221,8 +238,8 @@ void RegExpBytecodeGenerator::CheckCharacter(uint32_t c, Label* on_equal) {
   EmitOrLink(on_equal);
 }
 
-void RegExpBytecodeGenerator::CheckAtStart(Label* on_at_start) {
-  Emit(BC_CHECK_AT_START, 0);
+void RegExpBytecodeGenerator::CheckAtStart(int cp_offset, Label* on_at_start) {
+  Emit(BC_CHECK_AT_START, cp_offset);
   EmitOrLink(on_at_start);
 }
 
@@ -355,9 +372,17 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
 
 Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Bind(&backtrack_);
-  Emit(BC_POP_BT, 0);
-  Handle<ByteArray> array = isolate_->factory()->NewByteArray(length());
-  Copy(array->GetDataStartAddress());
+  Backtrack();
+
+  Handle<ByteArray> array;
+  if (FLAG_regexp_peephole_optimization) {
+    array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
+        isolate_, zone(), source, buffer_.begin(), length(), jump_edges_);
+  } else {
+    array = isolate_->factory()->NewByteArray(length());
+    Copy(array->GetDataStartAddress());
+  }
+
   return array;
 }
 

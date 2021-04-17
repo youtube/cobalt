@@ -91,19 +91,9 @@ void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
 Safepoint SafepointTableBuilder::DefineSafepoint(
     Assembler* assembler, Safepoint::DeoptMode deopt_mode) {
   deoptimization_info_.push_back(
-      DeoptimizationInfo(zone_, assembler->pc_offset()));
-  if (deopt_mode == Safepoint::kNoLazyDeopt) {
-    last_lazy_safepoint_ = deoptimization_info_.size();
-  }
+      DeoptimizationInfo(zone_, assembler->pc_offset_for_safepoint()));
   DeoptimizationInfo& new_info = deoptimization_info_.back();
   return Safepoint(new_info.indexes);
-}
-
-void SafepointTableBuilder::RecordLazyDeoptimizationIndex(int index) {
-  for (auto it = deoptimization_info_.Find(last_lazy_safepoint_);
-       it != deoptimization_info_.end(); it++, last_lazy_safepoint_++) {
-    it->deopt_index = index;
-  }
 }
 
 unsigned SafepointTableBuilder::GetCodeOffset() const {
@@ -112,12 +102,14 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
 }
 
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
-                                                    int start) {
+                                                    int start,
+                                                    unsigned deopt_index) {
   int index = start;
   for (auto it = deoptimization_info_.Find(start);
        it != deoptimization_info_.end(); it++, index++) {
     if (static_cast<int>(it->pc) == pc) {
       it->trampoline = trampoline;
+      it->deopt_index = deopt_index;
       return index;
     }
   }
@@ -128,7 +120,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(kIntSize);
+  assembler->Align(Code::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 

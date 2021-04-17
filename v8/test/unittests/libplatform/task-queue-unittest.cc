@@ -18,7 +18,7 @@ namespace task_queue_unittest {
 namespace {
 
 struct MockTask : public Task {
-  MOCK_METHOD0(Run, void());
+  MOCK_METHOD(void, Run, (), (override));
 };
 
 
@@ -51,8 +51,8 @@ TEST(TaskQueueTest, TerminateMultipleReaders) {
   TaskQueue queue;
   TaskQueueThread thread1(&queue);
   TaskQueueThread thread2(&queue);
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   queue.Terminate();
   thread1.Join();
   thread2.Join();

@@ -27,7 +27,7 @@ class AllocationBuilder final {
   // Primitive allocation of static size.
   void Allocate(int size, AllocationType allocation = AllocationType::kYoung,
                 Type type = Type::Any()) {
-    DCHECK_LE(size, kMaxRegularHeapObjectSize);
+    DCHECK_LE(size, Heap::MaxRegularHeapObjectSize(allocation));
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
@@ -49,16 +49,17 @@ class AllocationBuilder final {
   }
 
   // Compound allocation of a context.
-  inline void AllocateContext(int variadic_part_length, Handle<Map> map);
+  inline void AllocateContext(int variadic_part_length, MapRef map);
 
   // Compound allocation of a FixedArray.
-  inline void AllocateArray(int length, Handle<Map> map,
+  inline void AllocateArray(int length, MapRef map,
                             AllocationType allocation = AllocationType::kYoung);
 
-  // Compound store of a constant into a field.
-  void Store(const FieldAccess& access, Handle<Object> value) {
-    Store(access, jsgraph()->Constant(value));
-  }
+  // Compound allocation of a SloppyArgumentsElements
+  inline void AllocateSloppyArgumentElements(
+      int length, MapRef map,
+      AllocationType allocation = AllocationType::kYoung);
+
   // Compound store of a constant into a field.
   void Store(const FieldAccess& access, const ObjectRef& value) {
     Store(access, jsgraph()->Constant(value));

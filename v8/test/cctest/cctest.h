@@ -36,9 +36,11 @@
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/isolate.h"
+#include "src/execution/simulator.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -135,10 +137,16 @@ class CcTest {
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
 
-  static void CollectGarbage(i::AllocationSpace space);
+  static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
+                                v8::FunctionCallback callback);
+  static void CollectGarbage(i::AllocationSpace space,
+                             i::Isolate* isolate = nullptr);
   static void CollectAllGarbage(i::Isolate* isolate = nullptr);
   static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
   static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
+
+  static i::Handle<i::String> MakeString(const char* str);
+  static i::Handle<i::String> MakeName(const char* str, int suffix);
 
   static v8::base::RandomNumberGenerator* random_number_generator();
 
@@ -169,6 +177,11 @@ class CcTest {
   static v8::Local<v8::Context> NewContext(
       CcTestExtensionFlags extension_flags,
       v8::Isolate* isolate = CcTest::isolate());
+  static v8::Local<v8::Context> NewContext(
+      std::initializer_list<CcTestExtensionId> extensions,
+      v8::Isolate* isolate = CcTest::isolate()) {
+    return NewContext(CcTestExtensionFlags{extensions}, isolate);
+  }
 
   static void TearDown();
 
@@ -307,7 +320,7 @@ class LocalContext {
   v8::Context* operator*() { return operator->(); }
   bool IsReady() { return !context_.IsEmpty(); }
 
-  v8::Local<v8::Context> local() {
+  v8::Local<v8::Context> local() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
@@ -353,16 +366,13 @@ static inline v8::Local<v8::Integer> v8_int(int32_t x) {
 }
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
-                                 v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
 
 
 static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
                                            const char* x) {
-  return v8::String::NewFromUtf8(isolate, x, v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
 }
 
 
@@ -373,18 +383,23 @@ static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
 
 static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
   v8::Local<v8::Script> result;
-  if (v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
-          .ToLocal(&result)) {
-    return result;
-  }
-  return v8::Local<v8::Script>();
+  CHECK(v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
+            .ToLocal(&result));
+  return result;
 }
-
 
 static inline v8::Local<v8::Script> v8_compile(const char* x) {
   return v8_compile(v8_str(x));
 }
 
+static inline v8::MaybeLocal<v8::Script> v8_try_compile(
+    v8::Local<v8::String> x) {
+  return v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x);
+}
+
+static inline v8::MaybeLocal<v8::Script> v8_try_compile(const char* x) {
+  return v8_try_compile(v8_str(x));
+}
 
 static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
@@ -427,8 +442,7 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
 static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
                                                      const char* source) {
   v8::Local<v8::String> source_string =
-      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8(isolate, source).ToLocalChecked();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, source_string).ToLocalChecked();
@@ -603,7 +617,7 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope();
+  explicit HandleAndZoneScope(bool support_zone_compression = false);
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -633,6 +647,8 @@ class ManualGCScope {
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
         flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+        flag_stress_concurrent_allocation_(
+            i::FLAG_stress_concurrent_allocation),
         flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
         flag_parallel_marking_(i::FLAG_parallel_marking),
         flag_detect_ineffective_gcs_near_heap_limit_(
@@ -640,6 +656,7 @@ class ManualGCScope {
     i::FLAG_concurrent_marking = false;
     i::FLAG_concurrent_sweeping = false;
     i::FLAG_stress_incremental_marking = false;
+    i::FLAG_stress_concurrent_allocation = false;
     // Parallel marking has a dependency on concurrent marking.
     i::FLAG_parallel_marking = false;
     i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
@@ -647,6 +664,7 @@ class ManualGCScope {
   ~ManualGCScope() {
     i::FLAG_concurrent_marking = flag_concurrent_marking_;
     i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+    i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
     i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
     i::FLAG_parallel_marking = flag_parallel_marking_;
     i::FLAG_detect_ineffective_gcs_near_heap_limit =
@@ -656,6 +674,7 @@ class ManualGCScope {
  private:
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
+  bool flag_stress_concurrent_allocation_;
   bool flag_stress_incremental_marking_;
   bool flag_parallel_marking_;
   bool flag_detect_ineffective_gcs_near_heap_limit_;
@@ -666,6 +685,9 @@ class ManualGCScope {
 // of construction.
 class TestPlatform : public v8::Platform {
  public:
+  TestPlatform(const TestPlatform&) = delete;
+  TestPlatform& operator=(const TestPlatform&) = delete;
+
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override {
     return old_platform_->GetPageAllocator();
@@ -697,15 +719,10 @@ class TestPlatform : public v8::Platform {
     old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
-                                     double delay_in_seconds) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
+  std::unique_ptr<v8::JobHandle> PostJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
+    return old_platform_->PostJob(priority, std::move(job_task));
   }
 
   double MonotonicallyIncreasingTime() override {
@@ -714,12 +731,6 @@ class TestPlatform : public v8::Platform {
 
   double CurrentClockTimeMillis() override {
     return old_platform_->CurrentClockTimeMillis();
-  }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  v8::IdleTask* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override {
@@ -738,8 +749,67 @@ class TestPlatform : public v8::Platform {
 
  private:
   v8::Platform* old_platform_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
+
+#if defined(USE_SIMULATOR)
+class SimulatorHelper {
+ public:
+  inline bool Init(v8::Isolate* isolate) {
+    simulator_ = reinterpret_cast<v8::internal::Isolate*>(isolate)
+                     ->thread_local_top()
+                     ->simulator_;
+    // Check if there is active simulator.
+    return simulator_ != nullptr;
+  }
+
+  inline void FillRegisters(v8::RegisterState* state) {
+#if V8_TARGET_ARCH_ARM
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::r11));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::lr));
+#elif V8_TARGET_ARCH_ARM64
+    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
+      // It's possible that the simulator is interrupted while it is updating
+      // the sp or fp register. ARM64 simulator does this in two steps:
+      // first setting it to zero and then setting it to a new value.
+      // Bailout if sp/fp doesn't contain the new value.
+      return;
+    }
+    state->pc = reinterpret_cast<void*>(simulator_->pc());
+    state->sp = reinterpret_cast<void*>(simulator_->sp());
+    state->fp = reinterpret_cast<void*>(simulator_->fp());
+    state->lr = reinterpret_cast<void*>(simulator_->lr());
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(simulator_->get_lr());
+#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::ra));
+#endif
+  }
+
+ private:
+  v8::internal::Simulator* simulator_;
+};
+#endif  // USE_SIMULATOR
 
 #endif  // ifndef CCTEST_H_

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
@@ -31,7 +32,12 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
     isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
-    return isolate->factory()->undefined_value();
+    // TODO(verwaest): We would like to throw using the calling context instead
+    // of the entered context but we don't currently have access to that.
+    HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+    SaveAndSwitchContext save(
+        isolate, impl->LastEnteredOrMicrotaskContext()->native_context());
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kNoAccess), Object);
   }
 
   // Build the source string.
@@ -74,6 +80,14 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     }
   }
 
+  bool is_code_like = true;
+  for (int i = 0; i < argc; ++i) {
+    if (!args.at(i + 1)->IsCodeLike(isolate)) {
+      is_code_like = false;
+      break;
+    }
+  }
+
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
   Handle<JSFunction> function;
@@ -82,7 +96,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         isolate, function,
         Compiler::GetFunctionFromString(
             handle(target->native_context(), isolate), source,
-            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos),
+            ONLY_SINGLE_FUNCTION_LITERAL, parameters_end_pos, is_code_like),
         Object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -200,8 +214,9 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
       isolate, function,
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
-  LookupIterator length_lookup(target, isolate->factory()->length_string(),
-                               target, LookupIterator::OWN);
+  LookupIterator length_lookup(isolate, target,
+                               isolate->factory()->length_string(), target,
+                               LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
@@ -209,7 +224,7 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   if (!target->IsJSFunction() ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
       !length_lookup.GetAccessors()->IsAccessorInfo()) {
-    Handle<Object> length(Smi::kZero, isolate);
+    Handle<Object> length(Smi::zero(), isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
     if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
@@ -222,7 +237,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
             0.0, DoubleToInteger(target_length->Number()) - argv.length()));
       }
     }
-    LookupIterator it(function, isolate->factory()->length_string(), function);
+    LookupIterator it(isolate, function, isolate->factory()->length_string(),
+                      function);
     DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -233,7 +249,8 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // If the target's name is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
-  LookupIterator name_lookup(target, isolate->factory()->name_string(), target);
+  LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
+                             target);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors()->IsAccessorInfo() ||

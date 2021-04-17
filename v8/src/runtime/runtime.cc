@@ -5,6 +5,7 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -107,9 +108,13 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       return false;
     case Runtime::kAddPrivateField:
     case Runtime::kAddPrivateBrand:
+    case Runtime::kCreatePrivateAccessors:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
     case Runtime::kCreatePrivateNameSymbol:
+    case Runtime::kCreatePrivateBrandSymbol:
+    case Runtime::kLoadPrivateGetter:
+    case Runtime::kLoadPrivateSetter:
     case Runtime::kReThrow:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:
@@ -188,6 +193,35 @@ bool Runtime::MayAllocate(FunctionId id) {
   }
 }
 
+bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
+  CHECK(FLAG_fuzzing);
+  switch (id) {
+    // Runtime functions allowlisted for all fuzzers. Only add functions that
+    // help increase coverage.
+    case Runtime::kArrayBufferDetach:
+    case Runtime::kDeoptimizeFunction:
+    case Runtime::kDeoptimizeNow:
+    case Runtime::kEnableCodeLoggingForTesting:
+    case Runtime::kGetUndetectable:
+    case Runtime::kNeverOptimizeFunction:
+    case Runtime::kOptimizeFunctionOnNextCall:
+    case Runtime::kOptimizeOsr:
+    case Runtime::kPrepareFunctionForOptimization:
+    case Runtime::kSetAllocationTimeout:
+    case Runtime::kSimulateNewspaceFull:
+      return true;
+    // Runtime functions only permitted for non-differential fuzzers.
+    // This list may contain functions performing extra checks or returning
+    // different values in the context of different flags passed to V8.
+    case Runtime::kGetOptimizationStatus:
+    case Runtime::kHeapObjectVerify:
+    case Runtime::kIsBeingInterpreted:
+      return !FLAG_allow_natives_for_differential_fuzzing;
+    default:
+      return false;
+  }
+}
+
 const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
                                                   int length) {
   base::CallOnce(&initialize_function_name_map_once,
@@ -223,8 +257,8 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
   if (!isolate->runtime_state()->redirected_intrinsic_functions()) {
     size_t function_count = arraysize(kIntrinsicFunctions);
     Function* redirected_functions = new Function[function_count];
-    memcpy(redirected_functions, kIntrinsicFunctions,
-           sizeof(kIntrinsicFunctions));
+    base::Memcpy(redirected_functions, kIntrinsicFunctions,
+                 sizeof(kIntrinsicFunctions));
     for (size_t i = 0; i < function_count; i++) {
       ExternalReference redirected_entry =
           ExternalReference::Create(static_cast<Runtime::FunctionId>(i));

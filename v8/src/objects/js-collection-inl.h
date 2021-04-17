@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_JS_COLLECTION_INL_H_
 #define V8_OBJECTS_JS_COLLECTION_INL_H_
 
-#include "src/objects/js-collection.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/js-collection-iterator-inl.h"
+#include "src/objects/js-collection.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/roots/roots-inl.h"
@@ -19,17 +19,15 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSCollection, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSMap, JSCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSSet, JSCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakCollection, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakMap, JSWeakCollection)
-OBJECT_CONSTRUCTORS_IMPL(JSWeakSet, JSWeakCollection)
+#include "torque-generated/src/objects/js-collection-tq-inl.inc"
 
-// TODO(jkummerow): Move JSCollectionIterator to js-collection.h?
-// TODO(jkummerow): Introduce IsJSCollectionIterator() check? Or unchecked
-// version of OBJECT_CONSTRUCTORS_IMPL macro?
-JSCollectionIterator::JSCollectionIterator(Address ptr) : JSObject(ptr) {}
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSCollection)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSMap)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSet)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakCollection)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakMap)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakSet)
+
 template <class Derived, class TableType>
 OrderedHashTableIterator<Derived, TableType>::OrderedHashTableIterator(
     Address ptr)
@@ -45,25 +43,15 @@ JSSetIterator::JSSetIterator(Address ptr)
   SLOW_DCHECK(IsJSSetIterator());
 }
 
-ACCESSORS(JSCollection, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
-
-ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
-
-CAST_ACCESSOR(JSCollection)
-CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSMapIterator)
-CAST_ACCESSOR(JSWeakCollection)
-CAST_ACCESSOR(JSWeakMap)
-CAST_ACCESSOR(JSWeakSet)
 
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object value = table.ValueAt(index);
+  DCHECK_GE(index, 0);
+  InternalIndex entry(index);
+  Object value = table.ValueAt(entry);
   DCHECK(!value.IsTheHole());
   return value;
 }

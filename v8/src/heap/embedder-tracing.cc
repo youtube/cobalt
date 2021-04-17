@@ -24,7 +24,6 @@ void LocalEmbedderHeapTracer::TracePrologue(
     EmbedderHeapTracer::TraceFlags flags) {
   if (!InUse()) return;
 
-  num_v8_marking_worklist_was_empty_ = 0;
   embedder_worklist_empty_ = false;
   remote_tracer_->TracePrologue(flags);
 }
@@ -51,7 +50,8 @@ void LocalEmbedderHeapTracer::EnterFinalPause() {
   remote_tracer_->EnterFinalPause(embedder_stack_state_);
   // Resetting to state unknown as there may be follow up garbage collections
   // triggered from callbacks that have a different stack state.
-  embedder_stack_state_ = EmbedderHeapTracer::kUnknown;
+  embedder_stack_state_ =
+      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
 }
 
 bool LocalEmbedderHeapTracer::Trace(double deadline) {
@@ -69,6 +69,9 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   if (!InUse()) return;
 
   embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state) {
+    remote_tracer()->NotifyEmptyEmbedderStack();
+  }
 }
 
 LocalEmbedderHeapTracer::ProcessingScope::ProcessingScope(
@@ -83,16 +86,33 @@ LocalEmbedderHeapTracer::ProcessingScope::~ProcessingScope() {
   }
 }
 
+// static
+LocalEmbedderHeapTracer::WrapperInfo
+LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
+                                            JSObject js_object) {
+  DCHECK_GE(js_object.GetEmbedderFieldCount(), 2);
+  DCHECK(js_object.IsApiWrapper());
+
+  WrapperInfo info;
+  if (EmbedderDataSlot(js_object, 0)
+          .ToAlignedPointerSafe(isolate, &info.first) &&
+      info.first &&
+      EmbedderDataSlot(js_object, 1)
+          .ToAlignedPointerSafe(isolate, &info.second)) {
+    return info;
+  }
+  return {nullptr, nullptr};
+}
+
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
   DCHECK(js_object.IsApiWrapper());
   if (js_object.GetEmbedderFieldCount() < 2) return;
 
-  void* pointer0;
-  void* pointer1;
-  if (EmbedderDataSlot(js_object, 0).ToAlignedPointer(&pointer0) && pointer0 &&
-      EmbedderDataSlot(js_object, 1).ToAlignedPointer(&pointer1)) {
-    wrapper_cache_.push_back({pointer0, pointer1});
+  WrapperInfo info =
+      LocalEmbedderHeapTracer::ExtractWrapperInfo(tracer_->isolate_, js_object);
+  if (VerboseWrapperInfo(info).is_valid()) {
+    wrapper_cache_.push_back(std::move(info));
   }
   FlushWrapperCacheIfFull();
 }
@@ -112,7 +132,7 @@ void LocalEmbedderHeapTracer::ProcessingScope::AddWrapperInfoForTesting(
 }
 
 void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
-  if (!FLAG_global_gc_scheduling) return;
+  if (!FLAG_global_gc_scheduling || !FLAG_incremental_marking) return;
 
   Heap* heap = isolate_->heap();
   heap->StartIncrementalMarkingIfAllocationLimitIsReached(

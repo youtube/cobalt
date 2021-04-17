@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/literal-objects-tq-inl.inc"
+
 //
 // ObjectBoilerplateDescription
 //
@@ -27,11 +29,12 @@ SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
 
 Object ObjectBoilerplateDescription::name(int index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return name(isolate, index);
 }
 
-Object ObjectBoilerplateDescription::name(Isolate* isolate, int index) const {
+Object ObjectBoilerplateDescription::name(IsolateRoot isolate,
+                                          int index) const {
   // get() already checks for out of bounds access, but we do not want to allow
   // access to the last element, if it is the number of properties.
   DCHECK_NE(size(), index);
@@ -39,11 +42,12 @@ Object ObjectBoilerplateDescription::name(Isolate* isolate, int index) const {
 }
 
 Object ObjectBoilerplateDescription::value(int index) const {
-  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return value(isolate, index);
 }
 
-Object ObjectBoilerplateDescription::value(Isolate* isolate, int index) const {
+Object ObjectBoilerplateDescription::value(IsolateRoot isolate,
+                                           int index) const {
   return get(isolate, 2 * index + 1 + kDescriptionStartIndex);
 }
 
@@ -93,14 +97,8 @@ void ObjectBoilerplateDescription::set_backing_store_size(
 OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
 CAST_ACCESSOR(ClassBoilerplate)
 
-BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, install_class_name_accessor,
-                    ClassBoilerplate::Flags::InstallClassNameAccessorBit)
-
-BIT_FIELD_ACCESSORS(ClassBoilerplate, flags, arguments_count,
-                    ClassBoilerplate::Flags::ArgumentsCountBits)
-
-SMI_ACCESSORS(ClassBoilerplate, flags,
-              FixedArray::OffsetOfElementAt(kFlagsIndex))
+SMI_ACCESSORS(ClassBoilerplate, arguments_count,
+              FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
 
 ACCESSORS(ClassBoilerplate, static_properties_template, Object,
           FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))
@@ -124,14 +122,7 @@ ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
 // ArrayBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription, Struct)
-
-CAST_ACCESSOR(ArrayBoilerplateDescription)
-
-SMI_ACCESSORS(ArrayBoilerplateDescription, flags, kFlagsOffset)
-
-ACCESSORS(ArrayBoilerplateDescription, constant_elements, FixedArrayBase,
-          kConstantElementsOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags());

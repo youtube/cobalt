@@ -158,16 +158,16 @@ static void InitializeVM() {
 
 #define RUN() simulator.RunFrom(reinterpret_cast<Instruction*>(code->entry()))
 
-#define END()                                                       \
-  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);         \
-  core.Dump(&masm);                                                 \
-  __ PopCalleeSavedRegisters();                                     \
-  __ Ret();                                                         \
-  {                                                                 \
-    CodeDesc desc;                                                  \
-    __ GetCode(masm.isolate(), &desc);                              \
-    code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build(); \
-    if (FLAG_print_code) code->Print();                             \
+#define END()                                                                  \
+  __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
+  core.Dump(&masm);                                                            \
+  __ PopCalleeSavedRegisters();                                                \
+  __ Ret();                                                                    \
+  {                                                                            \
+    CodeDesc desc;                                                             \
+    __ GetCode(masm.isolate(), &desc);                                         \
+    code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
+    if (FLAG_print_code) code->Print();                                        \
   }
 
 #else  // ifdef USE_SIMULATOR.
@@ -186,6 +186,7 @@ static void InitializeVM() {
 #define RESET()                                                \
   owned_buf->MakeWritable();                                   \
   __ Reset();                                                  \
+  __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
   __ Msr(NZCV, xzr);                                           \
   __ Msr(FPCR, xzr);
@@ -193,8 +194,8 @@ static void InitializeVM() {
 #define START_AFTER_RESET()                                                    \
   __ PushCalleeSavedRegisters();
 
-#define START()                                                                \
-  RESET();                                                                     \
+#define START() \
+  RESET();      \
   START_AFTER_RESET();
 
 #define RUN()                                      \
@@ -203,15 +204,15 @@ static void InitializeVM() {
     f.Call();                                      \
   }
 
-#define END()                                                       \
-  core.Dump(&masm);                                                 \
-  __ PopCalleeSavedRegisters();                                     \
-  __ Ret();                                                         \
-  {                                                                 \
-    CodeDesc desc;                                                  \
-    __ GetCode(masm.isolate(), &desc);                              \
-    code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build(); \
-    if (FLAG_print_code) code->Print();                             \
+#define END()                                                                  \
+  core.Dump(&masm);                                                            \
+  __ PopCalleeSavedRegisters();                                                \
+  __ Ret();                                                                    \
+  {                                                                            \
+    CodeDesc desc;                                                             \
+    __ GetCode(masm.isolate(), &desc);                                         \
+    code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
+    if (FLAG_print_code) code->Print();                                        \
   }
 
 #endif  // ifdef USE_SIMULATOR.
@@ -233,6 +234,15 @@ static void InitializeVM() {
 
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
   CHECK(Equal64(expected->ptr(), &core, result))
+
+#define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
+  {                                                 \
+    int64_t value0 = core.xreg(reg0.code());        \
+    int64_t value1 = core.xreg(reg1.code());        \
+    CHECK_NE(0, value0);                            \
+    CHECK_NE(0, value1);                            \
+    CHECK_NE(value0, value1);                       \
+  }
 
 #define CHECK_EQUAL_FP64(expected, result)                                    \
   CHECK(EqualFP64(expected, &core, result))
@@ -1640,27 +1650,27 @@ TEST(adr) {
   __ Adr(x3, &label_1);
   __ Adr(x4, &label_1);
 
-  __ Bind(&label_2);
+  __ Bind(&label_2, BranchTargetIdentifier::kBtiJump);
   __ Eor(x5, x2, Operand(x3));  // Ensure that x2,x3 and x4 are identical.
   __ Eor(x6, x2, Operand(x4));
   __ Orr(x0, x0, Operand(x5));
   __ Orr(x0, x0, Operand(x6));
   __ Br(x2);  // label_1, label_3
 
-  __ Bind(&label_3);
+  __ Bind(&label_3, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Self-reference (offset 0).
   __ Eor(x1, x1, Operand(x2));
   __ Adr(x2, &label_4);   // Simple forward reference.
   __ Br(x2);  // label_4
 
-  __ Bind(&label_1);
+  __ Bind(&label_1, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Multiple reverse references to the same label.
   __ Adr(x3, &label_3);
   __ Adr(x4, &label_3);
   __ Adr(x5, &label_2);   // Simple reverse reference.
   __ Br(x5);  // label_2
 
-  __ Bind(&label_4);
+  __ Bind(&label_4, BranchTargetIdentifier::kBtiJump);
   END();
 
   RUN();
@@ -1686,11 +1696,11 @@ TEST(adr_far) {
   __ Adr(x10, &near_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&near_backward);
+  __ Bind(&near_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 1);
   __ B(&test_far);
 
-  __ Bind(&near_forward);
+  __ Bind(&near_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 0);
   __ Adr(x10, &near_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1699,7 +1709,7 @@ TEST(adr_far) {
   __ Adr(x10, &far_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&far_backward);
+  __ Bind(&far_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 3);
   __ B(&done);
 
@@ -1713,8 +1723,7 @@ TEST(adr_far) {
     }
   }
 
-
-  __ Bind(&far_forward);
+  __ Bind(&far_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 2);
   __ Adr(x10, &far_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1823,7 +1832,7 @@ TEST(branch_to_reg) {
   SETUP();
 
   // Test br.
-  Label fn1, after_fn1;
+  Label fn1, after_fn1, after_bl1;
 
   START();
   __ Mov(x29, lr);
@@ -1838,9 +1847,10 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn1);
   __ Bl(&fn1);
+  __ Bind(&after_bl1, BranchTargetIdentifier::kBtiJump);  // For Br(x0) in fn1.
 
   // Test blr.
-  Label fn2, after_fn2;
+  Label fn2, after_fn2, after_bl2;
 
   __ Mov(x2, 0);
   __ B(&after_fn2);
@@ -1852,6 +1862,7 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn2);
   __ Bl(&fn2);
+  __ Bind(&after_bl2, BranchTargetIdentifier::kBtiCall);  // For Blr(x0) in fn2.
   __ Mov(x3, lr);
 
   __ Mov(lr, x29);
@@ -1862,6 +1873,93 @@ TEST(branch_to_reg) {
   CHECK_EQUAL_64(core.xreg(3) + kInstrSize, x0);
   CHECK_EQUAL_64(42, x1);
   CHECK_EQUAL_64(84, x2);
+}
+
+static void BtiHelper(Register ipreg) {
+  SETUP();
+
+  Label jump_target, jump_call_target, call_target, test_pacibsp,
+      pacibsp_target, done;
+  START();
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(ipreg);
+
+  __ Adr(x0, &jump_target);
+  __ Br(x0);
+  __ Nop();
+
+  __ Bind(&jump_target, BranchTargetIdentifier::kBtiJump);
+  __ Adr(x0, &call_target);
+  __ Blr(x0);
+
+  __ Adr(ipreg, &jump_call_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &test_pacibsp);  // Make Ret return to test_pacibsp.
+  __ Br(ipreg);
+
+  __ Bind(&test_pacibsp, BranchTargetIdentifier::kNone);
+  __ Adr(ipreg, &pacibsp_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &done);  // Make Ret return to done label.
+  __ Br(ipreg);
+
+  __ Bind(&call_target, BranchTargetIdentifier::kBtiCall);
+  __ Ret();
+
+  __ Bind(&jump_call_target, BranchTargetIdentifier::kBtiJumpCall);
+  __ Ret();
+
+  __ Bind(&pacibsp_target, BranchTargetIdentifier::kPacibsp);
+  __ Autibsp();
+  __ Ret();
+
+  __ Bind(&done);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(true);
+  RUN();
+#endif  // USE_SIMULATOR
+}
+
+TEST(bti) {
+  BtiHelper(x16);
+  BtiHelper(x17);
+}
+
+TEST(unguarded_bti_is_nop) {
+  SETUP();
+
+  Label start, none, c, j, jc;
+  START();
+  __ B(&start);
+  __ Bind(&none, BranchTargetIdentifier::kBti);
+  __ Bind(&c, BranchTargetIdentifier::kBtiCall);
+  __ Bind(&j, BranchTargetIdentifier::kBtiJump);
+  __ Bind(&jc, BranchTargetIdentifier::kBtiJumpCall);
+  CHECK(__ SizeOfCodeGeneratedSince(&none) == 4 * kInstrSize);
+  __ Ret();
+
+  Label jump_to_c, call_to_j;
+  __ Bind(&start);
+  __ Adr(x0, &none);
+  __ Adr(lr, &jump_to_c);
+  __ Br(x0);
+
+  __ Bind(&jump_to_c);
+  __ Adr(x0, &c);
+  __ Adr(lr, &call_to_j);
+  __ Br(x0);
+
+  __ Bind(&call_to_j);
+  __ Adr(x0, &j);
+  __ Blr(x0);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(false);
+  RUN();
+#endif  // USE_SIMULATOR
 }
 
 TEST(compare_branch) {
@@ -1982,75 +2080,144 @@ TEST(test_branch) {
   CHECK_EQUAL_64(0, x3);
 }
 
+namespace {
+// Generate a block of code that, when hit, always jumps to `landing_pad`.
+void GenerateLandingNops(MacroAssembler* masm, int n, Label* landing_pad) {
+  for (int i = 0; i < (n - 1); i++) {
+    if (i % 100 == 0) {
+      masm->B(landing_pad);
+    } else {
+      masm->Nop();
+    }
+  }
+  masm->B(landing_pad);
+}
+}  // namespace
+
 TEST(far_branch_backward) {
   INIT_V8();
 
-  // Test that the MacroAssembler correctly resolves backward branches to labels
-  // that are outside the immediate range of branch instructions.
-  int max_range =
-    std::max(Instruction::ImmBranchRange(TestBranchType),
-             std::max(Instruction::ImmBranchRange(CompareBranchType),
-                      Instruction::ImmBranchRange(CondBranchType)));
+  ImmBranchType branch_types[] = {TestBranchType, CompareBranchType,
+                                  CondBranchType};
 
-  SETUP_SIZE(max_range + 1000 * kInstrSize);
+  for (ImmBranchType type : branch_types) {
+    int range = Instruction::ImmBranchRange(type);
 
-  START();
+    SETUP_SIZE(range + 1000 * kInstrSize);
 
-  Label done, fail;
-  Label test_tbz, test_cbz, test_bcond;
-  Label success_tbz, success_cbz, success_bcond;
+    START();
 
-  __ Mov(x0, 0);
-  __ Mov(x1, 1);
-  __ Mov(x10, 0);
+    Label done, fail;
+    // Avoid using near and far as variable name because both are defined as
+    // macro in minwindef.h from Windows SDK.
+    Label near_label, far_label, in_range, out_of_range;
 
-  __ B(&test_tbz);
-  __ Bind(&success_tbz);
-  __ Orr(x0, x0, 1 << 0);
-  __ B(&test_cbz);
-  __ Bind(&success_cbz);
-  __ Orr(x0, x0, 1 << 1);
-  __ B(&test_bcond);
-  __ Bind(&success_bcond);
-  __ Orr(x0, x0, 1 << 2);
+    __ Mov(x0, 0);
+    __ Mov(x1, 1);
+    __ Mov(x10, 0);
 
-  __ B(&done);
+    __ B(&near_label);
+    __ Bind(&in_range);
+    __ Orr(x0, x0, 1 << 0);
 
-  // Generate enough code to overflow the immediate range of the three types of
-  // branches below.
-  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      __ B(&fail);
-    } else {
-      __ Nop();
+    __ B(&far_label);
+    __ Bind(&out_of_range);
+    __ Orr(x0, x0, 1 << 1);
+
+    __ B(&done);
+
+    // We use a slack and an approximate budget instead of checking precisely
+    // when the branch limit is hit, since veneers and literal pool can mess
+    // with our calculation of where the limit is.
+    // In this test, we want to make sure we support backwards branches and the
+    // range is more-or-less correct. It's not a big deal if the macro-assembler
+    // got the range a little wrong, as long as it's not far off which could
+    // affect performance.
+
+    int budget =
+        (range - static_cast<int>(__ SizeOfCodeGeneratedSince(&in_range))) /
+        kInstrSize;
+
+    const int kSlack = 100;
+
+    // Generate enough code so that the next branch will be in range but we are
+    // close to the limit.
+    GenerateLandingNops(&masm, budget - kSlack, &fail);
+
+    __ Bind(&near_label);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 3, &in_range);
+        // This should be:
+        //     TBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &in_range);
+        // This should be:
+        //     CBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &in_range);
+        // This should be:
+        //     CMP
+        //     B.EQ <in_range>
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      default:
+        UNREACHABLE();
+        break;
     }
+
+    // Now go past the limit so that branches are now out of range.
+    GenerateLandingNops(&masm, kSlack * 2, &fail);
+
+    __ Bind(&far_label);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 5, &out_of_range);
+        // This should be:
+        //     TBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &out_of_range);
+        // This should be:
+        //     CBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &out_of_range);
+        // This should be:
+        //     CMP
+        //     B.NE <skip>
+        //     B <out_of_range>
+        //  skip:
+        CHECK_EQ(3 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+
+    __ Bind(&fail);
+    __ Mov(x1, 0);
+    __ Bind(&done);
+
+    END();
+
+    RUN();
+
+    CHECK_EQUAL_64(0x3, x0);
+    CHECK_EQUAL_64(1, x1);
   }
-  __ B(&fail);
-
-  __ Bind(&test_tbz);
-  __ Tbz(x10, 7, &success_tbz);
-  __ Bind(&test_cbz);
-  __ Cbz(x10, &success_cbz);
-  __ Bind(&test_bcond);
-  __ Cmp(x10, 0);
-  __ B(eq, &success_bcond);
-
-  // For each out-of-range branch instructions, at least two instructions should
-  // have been generated.
-  CHECK_GE(7 * kInstrSize, __ SizeOfCodeGeneratedSince(&test_tbz));
-
-  __ Bind(&fail);
-  __ Mov(x1, 0);
-  __ Bind(&done);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x7, x0);
-  CHECK_EQUAL_64(0x1, x1);
 }
 
 TEST(far_branch_simple_veneer) {
@@ -2177,18 +2344,7 @@ TEST(far_branch_veneer_link_chain) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      // Also, the branches give the MacroAssembler the opportunity to emit the
-      // veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
-  }
-  __ B(&fail);
+  GenerateLandingNops(&masm, (max_range / kInstrSize) + 1, &fail);
 
   __ Bind(&success_tbz);
   __ Orr(x0, x0, 1 << 0);
@@ -2219,7 +2375,58 @@ TEST(far_branch_veneer_broken_link_chain) {
   // a branch from the link chain of a label and the two links on each side of
   // the removed branch cannot be linked together (out of range).
   //
-  // We test with tbz because it has a small range.
+  // We want to generate the following code, we test with tbz because it has a
+  // small range:
+  //
+  // ~~~
+  // 1: B <far>
+  //          :
+  //          :
+  //          :
+  // 2: TBZ <far> -------.
+  //          :          |
+  //          :          | out of range
+  //          :          |
+  // 3: TBZ <far>        |
+  //          |          |
+  //          | in range |
+  //          V          |
+  // far:              <-'
+  // ~~~
+  //
+  // If we say that the range of TBZ is 3 lines on this graph, then we can get
+  // into a situation where the link chain gets broken. When emitting the two
+  // TBZ instructions, we are in range of the previous branch in the chain so
+  // we'll generate a TBZ and not a TBNZ+B sequence that can encode a bigger
+  // range.
+  //
+  // However, the first TBZ (2), is out of range of the far label so a veneer
+  // will be generated after the second TBZ (3). And this will result in a
+  // broken chain because we can no longer link from (3) back to (1).
+  //
+  // ~~~
+  // 1: B <far>     <-.
+  //                  :
+  //                  : out of range
+  //                  :
+  // 2: TBZ <veneer>  :
+  //                  :
+  //                  :
+  //                  :
+  // 3: TBZ <far> ----'
+  //
+  //    B <skip>
+  // veneer:
+  //    B <far>
+  // skip:
+  //
+  // far:
+  // ~~~
+  //
+  // This test makes sure the MacroAssembler is able to resolve this case by,
+  // for instance, resolving (1) early and making it jump to <veneer> instead of
+  // <far>.
+
   int max_range = Instruction::ImmBranchRange(TestBranchType);
   int inter_range = max_range / 2 + max_range / 10;
 
@@ -2240,43 +2447,41 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 1);
   __ B(&far_target);
 
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
-  }
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Will need a veneer to point to reach the target.
   __ Bind(&test_2);
   __ Mov(x0, 2);
-  __ Tbz(x10, 7, &far_target);
-
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Does not need a veneer to reach the target, but the initial branch
   // instruction is out of range.
   __ Bind(&test_3);
   __ Mov(x0, 3);
-  __ Tbz(x10, 7, &far_target);
-
-  for (int i = 0; i < inter_range / kInstrSize; ++i) {
-    if (i % 100 == 0) {
-      // Allow generating veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  // A veneer will be generated for the first TBZ, which will then remove the
+  // label from the chain and break it because the second TBZ is out of range of
+  // the first branch.
+  // The MacroAssembler should be able to cope with this.
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   __ B(&fail);
 
@@ -6515,11 +6720,7 @@ static void LdrLiteralRangeHelper(
 
   size_t expected_pool_size = 0;
 
-#if defined(_M_ARM64) && !defined(__clang__)
-  auto PoolSizeAt = [pool_entries, kEntrySize](int pc_offset) {
-#else
-  auto PoolSizeAt = [unaligned_emission](int pc_offset) {
-#endif
+  auto PoolSizeAt = [&](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
@@ -10947,6 +11148,110 @@ TEST(fcvtzs) {
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
 }
 
+static void FjcvtzsHelper(uint64_t value, uint64_t expected,
+                          uint32_t expected_z) {
+  SETUP();
+  START();
+  __ Fmov(d0, bit_cast<double>(value));
+  __ Fjcvtzs(w0, d0);
+  __ Mrs(x1, NZCV);
+  END();
+
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    RUN();
+
+    CHECK_EQUAL_64(expected, x0);
+    CHECK_EQUAL_32(expected_z, w1);
+  }
+}
+
+TEST(fjcvtzs) {
+  // Simple values.
+  FjcvtzsHelper(0x0000000000000000, 0, ZFlag);   // 0.0
+  FjcvtzsHelper(0x0010000000000000, 0, NoFlag);  // The smallest normal value.
+  FjcvtzsHelper(0x3fdfffffffffffff, 0, NoFlag);  // The value just below 0.5.
+  FjcvtzsHelper(0x3fe0000000000000, 0, NoFlag);  // 0.5
+  FjcvtzsHelper(0x3fe0000000000001, 0, NoFlag);  // The value just above 0.5.
+  FjcvtzsHelper(0x3fefffffffffffff, 0, NoFlag);  // The value just below 1.0.
+  FjcvtzsHelper(0x3ff0000000000000, 1, ZFlag);   // 1.0
+  FjcvtzsHelper(0x3ff0000000000001, 1, NoFlag);  // The value just above 1.0.
+  FjcvtzsHelper(0x3ff8000000000000, 1, NoFlag);  // 1.5
+  FjcvtzsHelper(0x4024000000000000, 10, ZFlag);  // 10
+  FjcvtzsHelper(0x7fefffffffffffff, 0, NoFlag);  // The largest finite value.
+
+  // Infinity.
+  FjcvtzsHelper(0x7ff0000000000000, 0, NoFlag);
+
+  // NaNs.
+  //  - Quiet NaNs
+  FjcvtzsHelper(0x7ff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff8000000000000, 0, NoFlag);
+  //  - Signalling NaNs
+  FjcvtzsHelper(0x7ff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff0000000000001, 0, NoFlag);
+
+  // Subnormals.
+  //  - A recognisable bit pattern.
+  FjcvtzsHelper(0x000123456789abcd, 0, NoFlag);
+  //  - The largest subnormal value.
+  FjcvtzsHelper(0x000fffffffffffff, 0, NoFlag);
+  //  - The smallest subnormal value.
+  FjcvtzsHelper(0x0000000000000001, 0, NoFlag);
+
+  // The same values again, but negated.
+  FjcvtzsHelper(0x8000000000000000, 0, NoFlag);
+  FjcvtzsHelper(0x8010000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfdfffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0xbfefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbff0000000000000, 0xffffffff, ZFlag);
+  FjcvtzsHelper(0xbff0000000000001, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xbff8000000000000, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xc024000000000000, 0xfffffff6, ZFlag);
+  FjcvtzsHelper(0xffefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff8000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0x800123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x800fffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0x8000000000000001, 0, NoFlag);
+  // Test floating-point numbers of every possible exponent, most of the
+  // expected values are zero but there is a range of exponents where the
+  // results are shifted parts of this mantissa.
+  uint64_t mantissa = 0x0001234567890abc;
+
+  // Between an exponent of 0 and 52, only some of the top bits of the
+  // mantissa are above the decimal position of doubles so the mantissa is
+  // shifted to the right down to just those top bits. Above 52, all bits
+  // of the mantissa are shifted left above the decimal position until it
+  // reaches 52 + 64 where all the bits are shifted out of the range of 64-bit
+  // integers.
+  int first_exp_boundary = 52;
+  int second_exp_boundary = first_exp_boundary + 64;
+  for (int exponent = 0; exponent < 2048; exponent++) {
+    int e = exponent - 1023;
+
+    uint64_t expected = 0;
+    if (e < 0) {
+      expected = 0;
+    } else if (e <= first_exp_boundary) {
+      expected = (UINT64_C(1) << e) | (mantissa >> (52 - e));
+      expected &= 0xffffffff;
+    } else if (e < second_exp_boundary) {
+      expected = (mantissa << (e - 52)) & 0xffffffff;
+    } else {
+      expected = 0;
+    }
+
+    uint64_t value = (static_cast<uint64_t>(exponent) << 52) | mantissa;
+    FjcvtzsHelper(value, expected, NoFlag);
+    FjcvtzsHelper(value | kDSignMask, (-expected) & 0xffffffff, NoFlag);
+  }
+}
+
 TEST(fcvtzu) {
   INIT_V8();
   SETUP();
@@ -11415,9 +11720,9 @@ TEST(system_msr) {
   const uint64_t fpcr_core = 0x07C00000;
 
   // All FPCR fields (including fields which may be read-as-zero):
-  //  Stride, Len
+  //  Stride, FZ16, Len
   //  IDE, IXE, UFE, OFE, DZE, IOE
-  const uint64_t fpcr_all = fpcr_core | 0x00379F00;
+  const uint64_t fpcr_all = fpcr_core | 0x003F9F00;
 
   SETUP();
 
@@ -11476,6 +11781,82 @@ TEST(system_msr) {
   CHECK_EQUAL_64(fpcr_core, x8);
   CHECK_EQUAL_64(fpcr_core, x9);
   CHECK_EQUAL_64(0, x10);
+}
+
+TEST(system_pauth_b) {
+#ifdef DEBUG
+  i::FLAG_sim_abort_on_bad_auth = false;
+#endif
+  SETUP();
+  START();
+
+  // Exclude x16 and x17 from the scratch register list so we can use
+  // Pac/Autib1716 safely.
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(x16, x17);
+  temps.Include(x10, x11);
+
+  // Backup stack pointer.
+  __ Mov(x20, sp);
+
+  // Modifiers
+  __ Mov(x16, 0x477d469dec0b8768);
+  __ Mov(sp, 0x477d469dec0b8760);
+
+  // Generate PACs using the 3 system instructions.
+  __ Mov(x17, 0x0000000012345678);
+  __ Pacib1716();
+  __ Mov(x0, x17);
+
+  __ Mov(lr, 0x0000000012345678);
+  __ Pacibsp();
+  __ Mov(x2, lr);
+
+  // Authenticate the pointers above.
+  __ Mov(x17, x0);
+  __ Autib1716();
+  __ Mov(x3, x17);
+
+  __ Mov(lr, x2);
+  __ Autibsp();
+  __ Mov(x5, lr);
+
+  // Attempt to authenticate incorrect pointers.
+  __ Mov(x17, x2);
+  __ Autib1716();
+  __ Mov(x6, x17);
+
+  __ Mov(lr, x0);
+  __ Autibsp();
+  __ Mov(x8, lr);
+
+  // Restore stack pointer.
+  __ Mov(sp, x20);
+
+  // Mask out just the PAC code bits.
+  __ And(x0, x0, 0x007f000000000000);
+  __ And(x2, x2, 0x007f000000000000);
+
+  END();
+
+// TODO(all): test on real hardware when available
+#ifdef USE_SIMULATOR
+  RUN();
+
+  // Check PAC codes have been generated and aren't equal.
+  // NOTE: with a different ComputePAC implementation, there may be a collision.
+  CHECK_NE(0, core.xreg(2));
+  CHECK_NOT_ZERO_AND_NOT_EQUAL_64(x0, x2);
+
+  // Pointers correctly authenticated.
+  CHECK_EQUAL_64(0x0000000012345678, x3);
+  CHECK_EQUAL_64(0x0000000012345678, x5);
+
+  // Pointers corrupted after failing to authenticate.
+  CHECK_EQUAL_64(0x0040000012345678, x6);
+  CHECK_EQUAL_64(0x0040000012345678, x8);
+
+#endif  // USE_SIMULATOR
 }
 
 TEST(system) {
@@ -11629,27 +12010,27 @@ TEST(register_bit) {
   // teardown.
 
   // Simple tests.
-  CHECK(x0.bit() == (1ULL << 0));
-  CHECK(x1.bit() == (1ULL << 1));
-  CHECK(x10.bit() == (1ULL << 10));
+  CHECK_EQ(x0.bit(), 1ULL << 0);
+  CHECK_EQ(x1.bit(), 1ULL << 1);
+  CHECK_EQ(x10.bit(), 1ULL << 10);
 
   // AAPCS64 definitions.
-  CHECK(fp.bit() == (1ULL << kFramePointerRegCode));
-  CHECK(lr.bit() == (1ULL << kLinkRegCode));
+  CHECK_EQ(fp.bit(), 1ULL << kFramePointerRegCode);
+  CHECK_EQ(lr.bit(), 1ULL << kLinkRegCode);
 
   // Fixed (hardware) definitions.
-  CHECK(xzr.bit() == (1ULL << kZeroRegCode));
+  CHECK_EQ(xzr.bit(), 1ULL << kZeroRegCode);
 
   // Internal ABI definitions.
-  CHECK(sp.bit() == (1ULL << kSPRegInternalCode));
-  CHECK(sp.bit() != xzr.bit());
+  CHECK_EQ(sp.bit(), 1ULL << kSPRegInternalCode);
+  CHECK_NE(sp.bit(), xzr.bit());
 
   // xn.bit() == wn.bit() at all times, for the same n.
-  CHECK(x0.bit() == w0.bit());
-  CHECK(x1.bit() == w1.bit());
-  CHECK(x10.bit() == w10.bit());
-  CHECK(xzr.bit() == wzr.bit());
-  CHECK(sp.bit() == wsp.bit());
+  CHECK_EQ(x0.bit(), w0.bit());
+  CHECK_EQ(x1.bit(), w1.bit());
+  CHECK_EQ(x10.bit(), w10.bit());
+  CHECK_EQ(xzr.bit(), wzr.bit());
+  CHECK_EQ(sp.bit(), wsp.bit());
 }
 
 TEST(peek_poke_simple) {
@@ -11932,9 +12313,10 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
   // Registers in the TmpList can be used by the macro assembler for debug code
   // (for example in 'Pop'), so we can't use them here.
   // x18 is reserved for the platform register.
-  // Disallow x31 / xzr, to ensure this list has an even number of elements, to
-  // ensure alignment.
-  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | x31.bit());
+  // For simplicity, exclude LR as well, as we would need to sign it when
+  // pushing it. This also ensures that the list has an even number of elements,
+  // which is needed for alignment.
+  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | lr.bit());
   if (reg_count == kPushPopMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -11968,7 +12350,8 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push(r[i-1], r[i-2], r[i-3], r[i-4]);
+          __ Push<TurboAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
+                                                r[i - 4]);
         }
         // Finish off the leftovers.
         switch (i) {
@@ -11981,7 +12364,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size);
+        __ PushSizeRegList<TurboAssembler::kDontStoreLR>(list, reg_size);
         break;
     }
 
@@ -11992,7 +12375,8 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop(r[i], r[i+1], r[i+2], r[i+3]);
+          __ Pop<TurboAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
+                                              r[i + 3]);
         }
         // Finish off the leftovers.
         switch (reg_count - i) {
@@ -12000,12 +12384,12 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
           case 2:  __ Pop(r[i], r[i+1]);         break;
           case 1:  __ Pop(r[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size);
+        __ PopSizeRegList<TurboAssembler::kDontLoadLR>(list, reg_size);
         break;
     }
   }
@@ -12149,7 +12533,7 @@ static void PushPopFPSimpleHelper(int reg_count, int reg_size,
           case 2:  __ Pop(v[i], v[i+1]);         break;
           case 1:  __ Pop(v[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
@@ -12336,10 +12720,10 @@ TEST(push_pop) {
   __ Claim(2);
   __ PushXRegList(0);
   __ PopXRegList(0);
-  // Don't push/pop x18 (platform register) or xzr (for alignment)
-  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | x31.bit());
-  __ PushXRegList(all_regs);
-  __ PopXRegList(all_regs);
+  // Don't push/pop x18 (platform register) or lr
+  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | lr.bit());
+  __ PushXRegList<TurboAssembler::kDontStoreLR>(all_regs);
+  __ PopXRegList<TurboAssembler::kDontLoadLR>(all_regs);
   __ Drop(12);
 
   END();
@@ -12683,12 +13067,12 @@ TEST(copy_noop) {
 TEST(noreg) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to NoReg.
-  CHECK(NoReg.Is(NoVReg));
-  CHECK(NoVReg.Is(NoReg));
-  CHECK(NoReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoReg));
-  CHECK(NoVReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoVReg));
+  CHECK_EQ(NoReg, NoVReg);
+  CHECK_EQ(NoVReg, NoReg);
+  CHECK_EQ(NoReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoReg);
+  CHECK_EQ(NoVReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoVReg);
 
   CHECK(NoReg.IsNone());
   CHECK(NoVReg.IsNone());
@@ -13148,24 +13532,24 @@ TEST(vreg) {
 TEST(isvalid) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to IsValid().
-  CHECK(!NoReg.IsValid());
-  CHECK(!NoVReg.IsValid());
-  CHECK(!NoCPUReg.IsValid());
+  CHECK(!NoReg.is_valid());
+  CHECK(!NoVReg.is_valid());
+  CHECK(!NoCPUReg.is_valid());
 
-  CHECK(x0.IsValid());
-  CHECK(w0.IsValid());
-  CHECK(x30.IsValid());
-  CHECK(w30.IsValid());
-  CHECK(xzr.IsValid());
-  CHECK(wzr.IsValid());
+  CHECK(x0.is_valid());
+  CHECK(w0.is_valid());
+  CHECK(x30.is_valid());
+  CHECK(w30.is_valid());
+  CHECK(xzr.is_valid());
+  CHECK(wzr.is_valid());
 
-  CHECK(sp.IsValid());
-  CHECK(wsp.IsValid());
+  CHECK(sp.is_valid());
+  CHECK(wsp.is_valid());
 
-  CHECK(d0.IsValid());
-  CHECK(s0.IsValid());
-  CHECK(d31.IsValid());
-  CHECK(s31.IsValid());
+  CHECK(d0.is_valid());
+  CHECK(s0.is_valid());
+  CHECK(d31.is_valid());
+  CHECK(s31.is_valid());
 
   CHECK(x0.IsRegister());
   CHECK(w0.IsRegister());
@@ -13187,20 +13571,20 @@ TEST(isvalid) {
 
   // Test the same as before, but using CPURegister types. This shouldn't make
   // any difference.
-  CHECK(static_cast<CPURegister>(x0).IsValid());
-  CHECK(static_cast<CPURegister>(w0).IsValid());
-  CHECK(static_cast<CPURegister>(x30).IsValid());
-  CHECK(static_cast<CPURegister>(w30).IsValid());
-  CHECK(static_cast<CPURegister>(xzr).IsValid());
-  CHECK(static_cast<CPURegister>(wzr).IsValid());
+  CHECK(static_cast<CPURegister>(x0).is_valid());
+  CHECK(static_cast<CPURegister>(w0).is_valid());
+  CHECK(static_cast<CPURegister>(x30).is_valid());
+  CHECK(static_cast<CPURegister>(w30).is_valid());
+  CHECK(static_cast<CPURegister>(xzr).is_valid());
+  CHECK(static_cast<CPURegister>(wzr).is_valid());
 
-  CHECK(static_cast<CPURegister>(sp).IsValid());
-  CHECK(static_cast<CPURegister>(wsp).IsValid());
+  CHECK(static_cast<CPURegister>(sp).is_valid());
+  CHECK(static_cast<CPURegister>(wsp).is_valid());
 
-  CHECK(static_cast<CPURegister>(d0).IsValid());
-  CHECK(static_cast<CPURegister>(s0).IsValid());
-  CHECK(static_cast<CPURegister>(d31).IsValid());
-  CHECK(static_cast<CPURegister>(s31).IsValid());
+  CHECK(static_cast<CPURegister>(d0).is_valid());
+  CHECK(static_cast<CPURegister>(s0).is_valid());
+  CHECK(static_cast<CPURegister>(d31).is_valid());
+  CHECK(static_cast<CPURegister>(s31).is_valid());
 
   CHECK(static_cast<CPURegister>(x0).IsRegister());
   CHECK(static_cast<CPURegister>(w0).IsRegister());
@@ -13308,10 +13692,10 @@ TEST(cpureglist_utils_x) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == x0.type());
+  CHECK_EQ(test.type(), x0.type());
 
-  CHECK(test.PopHighestIndex().Is(x3));
-  CHECK(test.PopLowestIndex().Is(x0));
+  CHECK_EQ(test.PopHighestIndex(), x3);
+  CHECK_EQ(test.PopLowestIndex(), x0);
 
   CHECK(test.IncludesAliasOf(x1));
   CHECK(test.IncludesAliasOf(x2));
@@ -13322,8 +13706,8 @@ TEST(cpureglist_utils_x) {
   CHECK(!test.IncludesAliasOf(w0));
   CHECK(!test.IncludesAliasOf(w3));
 
-  CHECK(test.PopHighestIndex().Is(x2));
-  CHECK(test.PopLowestIndex().Is(x1));
+  CHECK_EQ(test.PopHighestIndex(), x2);
+  CHECK_EQ(test.PopLowestIndex(), x1);
 
   CHECK(!test.IncludesAliasOf(x1));
   CHECK(!test.IncludesAliasOf(x2));
@@ -13373,10 +13757,10 @@ TEST(cpureglist_utils_w) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == w10.type());
+  CHECK_EQ(test.type(), w10.type());
 
-  CHECK(test.PopHighestIndex().Is(w13));
-  CHECK(test.PopLowestIndex().Is(w10));
+  CHECK_EQ(test.PopHighestIndex(), w13);
+  CHECK_EQ(test.PopLowestIndex(), w10);
 
   CHECK(test.IncludesAliasOf(x11));
   CHECK(test.IncludesAliasOf(x12));
@@ -13387,8 +13771,8 @@ TEST(cpureglist_utils_w) {
   CHECK(!test.IncludesAliasOf(w10));
   CHECK(!test.IncludesAliasOf(w13));
 
-  CHECK(test.PopHighestIndex().Is(w12));
-  CHECK(test.PopLowestIndex().Is(w11));
+  CHECK_EQ(test.PopHighestIndex(), w12);
+  CHECK_EQ(test.PopLowestIndex(), w11);
 
   CHECK(!test.IncludesAliasOf(x11));
   CHECK(!test.IncludesAliasOf(x12));
@@ -13439,10 +13823,10 @@ TEST(cpureglist_utils_d) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == d20.type());
+  CHECK_EQ(test.type(), d20.type());
 
-  CHECK(test.PopHighestIndex().Is(d23));
-  CHECK(test.PopLowestIndex().Is(d20));
+  CHECK_EQ(test.PopHighestIndex(), d23);
+  CHECK_EQ(test.PopLowestIndex(), d20);
 
   CHECK(test.IncludesAliasOf(d21));
   CHECK(test.IncludesAliasOf(d22));
@@ -13453,8 +13837,8 @@ TEST(cpureglist_utils_d) {
   CHECK(!test.IncludesAliasOf(s20));
   CHECK(!test.IncludesAliasOf(s23));
 
-  CHECK(test.PopHighestIndex().Is(d22));
-  CHECK(test.PopLowestIndex().Is(d21));
+  CHECK_EQ(test.PopHighestIndex(), d22);
+  CHECK_EQ(test.PopLowestIndex(), d21);
 
   CHECK(!test.IncludesAliasOf(d21));
   CHECK(!test.IncludesAliasOf(d22));
@@ -13720,7 +14104,7 @@ TEST(blr_lr) {
   __ Mov(x0, 0xDEADBEEF);
   __ B(&end);
 
-  __ Bind(&target);
+  __ Bind(&target, BranchTargetIdentifier::kBtiCall);
   __ Mov(x0, 0xC001C0DE);
 
   __ Bind(&end);
@@ -14338,13 +14722,11 @@ TEST(near_call_no_relocation) {
 
   __ Bind(&test);
   __ Mov(x0, 0x0);
-  __ Push(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
     int offset = (function.pos() - __ pc_offset()) / kInstrSize;
     __ near_call(offset, RelocInfo::NONE);
   }
-  __ Pop(xzr, lr);
   END();
 
   RUN();
@@ -14501,7 +14883,7 @@ TEST(pool_size) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  code = Factory::CodeBuilder(isolate, desc, Code::STUB)
+  code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING)
              .set_self_reference(masm.CodeObject())
              .Build();
 
@@ -14511,11 +14893,11 @@ TEST(pool_size) {
   for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
-      CHECK(info->data() == constant_pool_size);
+      CHECK_EQ(info->data(), constant_pool_size);
       ++pool_count;
     }
     if (RelocInfo::IsVeneerPool(info->rmode())) {
-      CHECK(info->data() == veneer_pool_size);
+      CHECK_EQ(info->data(), veneer_pool_size);
       ++pool_count;
     }
   }
@@ -14564,7 +14946,7 @@ TEST(jump_tables_forward) {
   }
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -14612,7 +14994,7 @@ TEST(jump_tables_backward) {
   __ B(&loop);
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -14674,7 +15056,7 @@ TEST(internal_reference_linked) {
   __ dcptr(&done);
   __ Tbz(x0, 1, &done);
 
-  __ Bind(&done);
+  __ Bind(&done, BranchTargetIdentifier::kBtiJump);
   __ Mov(x0, 1);
 
   END();
@@ -14703,6 +15085,7 @@ TEST(internal_reference_linked) {
 #undef CHECK_EQUAL_FP32
 #undef CHECK_EQUAL_64
 #undef CHECK_FULL_HEAP_OBJECT_IN_REGISTER
+#undef CHECK_NOT_ZERO_AND_NOT_EQUAL_64
 #undef CHECK_EQUAL_FP64
 #undef CHECK_EQUAL_128
 #undef CHECK_CONSTANT_POOL_SIZE

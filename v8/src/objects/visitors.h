@@ -16,30 +16,29 @@ namespace internal {
 
 class CodeDataContainer;
 
-#define ROOT_ID_LIST(V)                                \
-  V(kStringTable, "(Internalized strings)")            \
-  V(kExternalStringsTable, "(External strings)")       \
-  V(kReadOnlyRootList, "(Read-only roots)")            \
-  V(kStrongRootList, "(Strong roots)")                 \
-  V(kSmiRootList, "(Smi roots)")                       \
-  V(kBootstrapper, "(Bootstrapper)")                   \
-  V(kTop, "(Isolate)")                                 \
-  V(kRelocatable, "(Relocatable)")                     \
-  V(kDebug, "(Debugger)")                              \
-  V(kCompilationCache, "(Compilation cache)")          \
-  V(kHandleScope, "(Handle scope)")                    \
-  V(kDispatchTable, "(Dispatch table)")                \
-  V(kBuiltins, "(Builtins)")                           \
-  V(kGlobalHandles, "(Global handles)")                \
-  V(kEternalHandles, "(Eternal handles)")              \
-  V(kThreadManager, "(Thread manager)")                \
-  V(kStrongRoots, "(Strong roots)")                    \
-  V(kExtensions, "(Extensions)")                       \
-  V(kCodeFlusher, "(Code flusher)")                    \
-  V(kPartialSnapshotCache, "(Partial snapshot cache)") \
-  V(kReadOnlyObjectCache, "(Read-only object cache)")  \
-  V(kWeakCollections, "(Weak collections)")            \
-  V(kWrapperTracing, "(Wrapper tracing)")              \
+#define ROOT_ID_LIST(V)                               \
+  V(kStringTable, "(Internalized strings)")           \
+  V(kExternalStringsTable, "(External strings)")      \
+  V(kReadOnlyRootList, "(Read-only roots)")           \
+  V(kStrongRootList, "(Strong roots)")                \
+  V(kSmiRootList, "(Smi roots)")                      \
+  V(kBootstrapper, "(Bootstrapper)")                  \
+  V(kTop, "(Isolate)")                                \
+  V(kRelocatable, "(Relocatable)")                    \
+  V(kDebug, "(Debugger)")                             \
+  V(kCompilationCache, "(Compilation cache)")         \
+  V(kHandleScope, "(Handle scope)")                   \
+  V(kBuiltins, "(Builtins)")                          \
+  V(kGlobalHandles, "(Global handles)")               \
+  V(kEternalHandles, "(Eternal handles)")             \
+  V(kThreadManager, "(Thread manager)")               \
+  V(kStrongRoots, "(Strong roots)")                   \
+  V(kExtensions, "(Extensions)")                      \
+  V(kCodeFlusher, "(Code flusher)")                   \
+  V(kStartupObjectCache, "(Startup object cache)")    \
+  V(kReadOnlyObjectCache, "(Read-only object cache)") \
+  V(kWeakCollections, "(Weak collections)")           \
+  V(kWrapperTracing, "(Wrapper tracing)")             \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
@@ -71,6 +70,20 @@ class RootVisitor {
   virtual void VisitRootPointer(Root root, const char* description,
                                 FullObjectSlot p) {
     VisitRootPointers(root, description, p, p + 1);
+  }
+
+  // Visits a contiguous arrays of off-heap pointers in the half-open range
+  // [start, end). Any or all of the values may be modified on return.
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 OffHeapObjectSlot start,
+                                 OffHeapObjectSlot end) {
+    // This should be implemented for any visitor that visits the string table.
+    // If we ever add new off-heap data-structures that we want to walk as roots
+    // using this function, we should make it generic, by
+    //
+    //   1) Making this function pure virtual, and
+    //   2) Implementing it for all visitors.
+    UNREACHABLE();
   }
 
   // Intended for serialization/deserialization checking: insert, or

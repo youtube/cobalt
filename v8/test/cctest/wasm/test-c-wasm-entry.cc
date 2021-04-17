@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-arguments.h"
@@ -32,17 +33,15 @@ class CWasmEntryArgTester {
  public:
   CWasmEntryArgTester(std::initializer_list<uint8_t> wasm_function_bytes,
                       std::function<ReturnType(Args...)> expected_fn)
-      : runner_(ExecutionTier::kTurbofan),
+      : runner_(TestExecutionTier::kTurbofan),
         isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
         sig_(runner_.template CreateSig<ReturnType, Args...>()) {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
-    Handle<WasmInstanceObject> instance(runner_.builder().instance_object());
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    c_wasm_entry_ = WasmDebugInfo::GetCWasmEntry(debug_info, sig_);
+    c_wasm_entry_ = compiler::CompileCWasmEntry(
+        isolate_, sig_, wasm_code_->native_module()->module());
   }
 
   template <typename... Rest>
@@ -81,7 +80,7 @@ class CWasmEntryArgTester {
   WasmRunner<ReturnType, Args...> runner_;
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
-  FunctionSig* sig_;
+  const FunctionSig* sig_;
   Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };
@@ -117,7 +116,11 @@ TEST(TestCWasmEntryArgPassing_int64_double) {
        WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
       [](double d) { return static_cast<int64_t>(d); });
 
-  FOR_INT64_INPUTS(i) { tester.CheckCall(i); }
+  FOR_FLOAT64_INPUTS(d) {
+    if (base::IsValueInRangeForNumericType<int64_t>(d)) {
+      tester.CheckCall(d);
+    }
+  }
 }
 
 // Pass float, return double.

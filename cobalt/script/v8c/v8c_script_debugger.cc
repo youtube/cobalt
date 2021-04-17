@@ -28,7 +28,49 @@
 #include "nb/memory_scope.h"
 #include "v8/include/libplatform/v8-tracing.h"
 #include "v8/include/v8-inspector.h"
-#include "v8/third_party/inspector_protocol/encoding/encoding.h"
+#include "v8/third_party/inspector_protocol/crdtp/json.h"
+#include "v8/third_party/inspector_protocol/crdtp/protocol_core.h"
+
+namespace v8_crdtp {
+template <typename T>
+struct ProtocolTypeTraits<
+    std::unique_ptr<T>,
+    typename std::enable_if<
+        std::is_base_of<v8_inspector::protocol::Exported, T>::value>::type> {
+  static bool Deserialize(DeserializerState* state, std::unique_ptr<T>* value) {
+    if (state->tokenizer()->TokenTag() != cbor::CBORTokenTag::ENVELOPE) {
+      state->RegisterError(Error::CBOR_INVALID_ENVELOPE);
+      return false;
+    }
+    span<uint8_t> env = state->tokenizer()->GetEnvelope();
+    auto res = T::fromBinary(env.data(), env.size());
+    if (!res) {
+      // TODO(caseq): properly plumb an error rather than returning a bogus code.
+      state->RegisterError(Error::MESSAGE_MUST_BE_AN_OBJECT);
+      return false;
+    }
+    *value = std::move(res);
+    return true;
+  }
+  static void Serialize(const std::unique_ptr<T>& value, std::vector<uint8_t>* bytes) {
+    // Use virtual method, so that outgoing protocol objects could be retained
+    // by a pointer to ProtocolObject.
+    value->AppendSerialized(bytes);
+  }
+};
+
+template <typename T>
+struct ProtocolTypeTraits<
+    T,
+    typename std::enable_if<
+        std::is_base_of<v8_inspector::protocol::Exported, T>::value>::type> {
+  static void Serialize(const T& value, std::vector<uint8_t>* bytes) {
+    // Use virtual method, so that outgoing protocol objects could be retained
+    // by a pointer to ProtocolObject.
+    value.AppendSerialized(bytes);
+  }
+};
+}
 
 namespace cobalt {
 namespace script {
@@ -42,21 +84,6 @@ constexpr const char* kInspectorDomains[] = {
 constexpr int kContextGroupId = 1;
 constexpr char kContextName[] = "Cobalt";
 
-// The following implementation is based on Platform in V8's encoding_test.cc.
-class CobaltJsonPlatform
-    : public v8_inspector_protocol_encoding::json::Platform {
-  bool StrToD(const char* str, double* result) const override {
-    return base::StringToDouble(std::string(str), result);
-  }
-  std::unique_ptr<char[]> DToStr(double value) const override {
-    std::string str = base::NumberToString(value);
-    if (str.empty()) return nullptr;
-    std::unique_ptr<char[]> result(new char[str.length() + 1]);
-    SbMemoryCopy(result.get(), str.data(), str.length() + 1);
-    DCHECK_EQ(0, result[str.length()]);
-    return result;
-  }
-};
 
 V8cTracingController* GetTracingController() {
   return base::polymorphic_downcast<V8cTracingController*>(
@@ -129,14 +156,13 @@ std::string V8cScriptDebugger::Detach() {
   DCHECK(inspector_session_);
   std::vector<uint8_t> state = inspector_session_->state();
   inspector_session_.reset();
-  CobaltJsonPlatform platform;
   std::string state_str;
   // TODO: there might be an opportunity to utilize the already encoded json to
   // reduce network traffic size on the wire.
-  v8_inspector_protocol_encoding::json::ConvertCBORToJSON(
-      platform,
-      v8_inspector_protocol_encoding::span<uint8_t>(state.data(), state.size()),
+  v8_crdtp::Status status = v8_crdtp::json::ConvertCBORToJSON(
+      v8_crdtp::span<uint8_t>(state.data(), state.size()),
       &state_str);
+  CHECK(status.ok()) << status.Message();
   return state_str;
 }
 
@@ -216,7 +242,11 @@ std::string V8cScriptDebugger::CreateRemoteObject(
   std::unique_ptr<v8_inspector::protocol::Runtime::API::RemoteObject>
       remote_object = inspector_session_->wrapObject(
           context, v8_value, ToStringView(group), false /*generatePreview*/);
-  return FromStringView(remote_object->toJSONString()->string());
+  v8_crdtp::ObjectSerializer serializer;
+  serializer.AddField(v8_crdtp::MakeSpan("remoteObject"), remote_object);
+  std::unique_ptr<v8_crdtp::Serializable> result = serializer.Finish();
+  std::vector<uint8> serialized = result->Serialize();
+  return std::string(serialized.begin(), serialized.end());
 }
 
 const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(

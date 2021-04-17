@@ -8,6 +8,8 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/pending-optimization-table.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles.h"
@@ -35,6 +37,14 @@ static const int kOSRBytecodeSizeAllowancePerTick = 48;
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
 static const int kMaxBytecodeSizeForEarlyOpt = 90;
+
+// Number of times a function has to be seen on the stack before it is
+// OSRed in TurboProp
+// This value is chosen so TurboProp OSRs at similar time as TurboFan. The
+// current interrupt budger of TurboFan is approximately 10 times that of
+// TurboProp and we wait for 3 ticks (2 for marking for optimization and an
+// additional tick to mark it for OSR) and hence this is set to 3 * 10.
+static const int kProfilerTicksForTurboPropOSR = 3 * 10;
 
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
@@ -64,22 +74,57 @@ std::ostream& operator<<(std::ostream& os, OptimizationReason reason) {
   return os << OptimizationReasonToString(reason);
 }
 
-RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
-    : isolate_(isolate), any_ic_changed_(false) {}
+namespace {
 
-static void TraceRecompile(JSFunction function, const char* reason,
-                           const char* type) {
-  if (FLAG_trace_opt) {
-    PrintF("[marking ");
-    function.ShortPrint();
-    PrintF(" for %s recompilation, reason: %s", type, reason);
-    PrintF("]\n");
+void TraceInOptimizationQueue(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[function ");
+    function.PrintName();
+    PrintF(" is already in optimization queue]\n");
   }
 }
 
-void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason) {
+void TraceHeuristicOptimizationDisallowed(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[function ");
+    function.PrintName();
+    PrintF(" has been marked manually for optimization]\n");
+  }
+}
+
+// TODO(jgruber): Remove this once we include this tracing with --trace-opt.
+void TraceNCIRecompile(JSFunction function, OptimizationReason reason) {
+  if (FLAG_trace_turbo_nci) {
+    StdoutStream os;
+    os << "NCI tierup mark: " << Brief(function) << ", "
+       << OptimizationReasonToString(reason) << std::endl;
+  }
+}
+
+void TraceRecompile(JSFunction function, OptimizationReason reason,
+                    CodeKind code_kind, Isolate* isolate) {
+  if (code_kind == CodeKind::NATIVE_CONTEXT_INDEPENDENT) {
+    TraceNCIRecompile(function, reason);
+  }
+  if (FLAG_trace_opt) {
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[marking ");
+    function.ShortPrint(scope.file());
+    PrintF(scope.file(), " for optimized recompilation, reason: %s",
+           OptimizationReasonToString(reason));
+    PrintF(scope.file(), "]\n");
+  }
+}
+
+}  // namespace
+
+RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
+    : isolate_(isolate), any_ic_changed_(false) {}
+
+void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason,
+                               CodeKind code_kind) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
-  TraceRecompile(function, OptimizationReasonToString(reason), "optimized");
+  TraceRecompile(function, reason, code_kind, isolate_);
   function.MarkForOptimization(ConcurrencyMode::kConcurrent);
 }
 
@@ -98,9 +143,10 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
   // BytecodeArray header so that certain back edges in any interpreter frame
   // for this bytecode will trigger on-stack replacement for that frame.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - arming back edges in ");
-    function.PrintName();
-    PrintF("]\n");
+    CodeTracer::Scope scope(isolate_->GetCodeTracer());
+    PrintF(scope.file(), "[OSR - arming back edges in ");
+    function.PrintName(scope.file());
+    PrintF(scope.file(), "]\n");
   }
 
   DCHECK_EQ(StackFrame::INTERPRETED, frame->type());
@@ -109,31 +155,42 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
-void RuntimeProfiler::MaybeOptimize(JSFunction function,
-                                    InterpretedFrame* frame) {
+void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
+                                         JavaScriptFrame* frame,
+                                         CodeKind code_kind) {
+  DCHECK(CodeKindCanTierUp(code_kind));
   if (function.IsInOptimizationQueue()) {
-    if (FLAG_trace_opt_verbose) {
-      PrintF("[function ");
-      function.PrintName();
-      PrintF(" is already in optimization queue]\n");
-    }
+    TraceInOptimizationQueue(function);
     return;
   }
 
-  if (FLAG_always_osr) {
-    AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
-    // Fall through and do a normal optimized compile as well.
-  } else if (MaybeOSR(function, frame)) {
+  if (FLAG_testing_d8_test_runner &&
+      !PendingOptimizationTable::IsHeuristicOptimizationAllowed(isolate_,
+                                                                function)) {
+    TraceHeuristicOptimizationDisallowed(function);
     return;
   }
 
   if (function.shared().optimization_disabled()) return;
 
+  // Note: We currently do not trigger OSR compilation from NCI or TP code.
+  // TODO(jgruber,v8:8888): But we should.
+  if (frame->is_interpreted()) {
+    DCHECK_EQ(code_kind, CodeKind::INTERPRETED_FUNCTION);
+    if (FLAG_always_osr) {
+      AttemptOnStackReplacement(InterpretedFrame::cast(frame),
+                                AbstractCode::kMaxLoopNestingMarker);
+      // Fall through and do a normal optimized compile as well.
+    } else if (MaybeOSR(function, InterpretedFrame::cast(frame))) {
+      return;
+    }
+  }
+
   OptimizationReason reason =
       ShouldOptimize(function, function.shared().GetBytecodeArray());
 
   if (reason != OptimizationReason::kDoNotOptimize) {
-    Optimize(function, reason);
+    Optimize(function, reason, code_kind);
   }
 }
 
@@ -142,11 +199,20 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
+  // Turboprop optimizes quite early. So don't attempt to OSR if the loop isn't
+  // hot enough.
+  if (FLAG_turboprop && ticks < kProfilerTicksForTurboPropOSR) {
+    return false;
+  }
+
   if (function.IsMarkedForOptimization() ||
       function.IsMarkedForConcurrentOptimization() ||
-      function.HasOptimizedCode()) {
+      function.HasAvailableOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
+    // TODO(turboprop, mythria): Currently we don't tier up from Turboprop code
+    // to Turbofan OSR code. When we start supporting this, the ticks have to be
+    // scaled accordingly
     int64_t allowance =
         kOSRBytecodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
@@ -160,22 +226,34 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
+  if (function.ActiveTierIsTurbofan()) {
+    return OptimizationReason::kDoNotOptimize;
+  }
+  if (V8_UNLIKELY(FLAG_turboprop) && function.ActiveTierIsToptierTurboprop()) {
+    return OptimizationReason::kDoNotOptimize;
+  }
   int ticks = function.feedback_vector().profiler_ticks();
+  int scale_factor = function.ActiveTierIsMidtierTurboprop()
+                         ? FLAG_ticks_scale_factor_for_top_tier
+                         : 1;
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
+  ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (!any_ic_changed_ &&
              bytecode.length() < kMaxBytecodeSizeForEarlyOpt) {
+    // TODO(turboprop, mythria): Do we need to support small function
+    // optimization for TP->TF tier up. If so, do we want to scale the bytecode
+    // size?
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
   } else if (FLAG_trace_opt_verbose) {
     PrintF("[not yet optimizing ");
     function.PrintName();
-    PrintF(", not enough ticks: %d/%d and ", ticks,
-           kProfilerTicksBeforeOptimization);
+    PrintF(", not enough ticks: %d/%d and ", ticks, ticks_for_optimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
     } else {
@@ -186,22 +264,24 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
   return OptimizationReason::kDoNotOptimize;
 }
 
-void RuntimeProfiler::MarkCandidatesForOptimization() {
-  HandleScope scope(isolate_);
-
-  if (!isolate_->use_optimizer()) return;
-
-  DisallowHeapAllocation no_gc;
+RuntimeProfiler::MarkCandidatesForOptimizationScope::
+    MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler)
+    : handle_scope_(profiler->isolate_), profiler_(profiler) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.MarkCandidatesForOptimization");
+}
 
-  // Run through the JavaScript frames and collect them. If we already
-  // have a sample of the function, we mark it for optimizations
-  // (eagerly or lazily).
-  int frame_count = 0;
-  int frame_count_limit = FLAG_frame_count;
-  for (JavaScriptFrameIterator it(isolate_);
-       frame_count++ < frame_count_limit && !it.done(); it.Advance()) {
+RuntimeProfiler::MarkCandidatesForOptimizationScope::
+    ~MarkCandidatesForOptimizationScope() {
+  profiler_->any_ic_changed_ = false;
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+  if (!isolate_->use_optimizer()) return;
+  MarkCandidatesForOptimizationScope scope(this);
+  int i = 0;
+  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
+       i++, it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (!frame->is_interpreted()) continue;
 
@@ -211,16 +291,36 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     if (!function.has_feedback_vector()) continue;
 
-    MaybeOptimize(function, InterpretedFrame::cast(frame));
+    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
-    int ticks = function.feedback_vector().profiler_ticks();
-    if (ticks < Smi::kMaxValue) {
-      function.feedback_vector().set_profiler_ticks(ticks + 1);
-    }
+    function.feedback_vector().SaturatingIncrementProfilerTicks();
   }
-  any_ic_changed_ = false;
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
+  if (!isolate_->use_optimizer()) return;
+  MarkCandidatesForOptimizationScope scope(this);
+  int i = 0;
+  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
+       i++, it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    if (!frame->is_optimized()) continue;
+
+    JSFunction function = frame->function();
+    auto code_kind = function.code().kind();
+    if (!CodeKindIsOptimizedAndCanTierUp(code_kind)) {
+      continue;
+    }
+
+    DCHECK(function.shared().is_compiled());
+    DCHECK(function.has_feedback_vector());
+
+    function.feedback_vector().SaturatingIncrementProfilerTicks();
+
+    MaybeOptimizeFrame(function, frame, code_kind);
+  }
 }
 
 }  // namespace internal

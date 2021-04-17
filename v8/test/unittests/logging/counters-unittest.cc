@@ -149,16 +149,11 @@ class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
   SnapshotNativeCounterTest() {}
 
   bool SupportsNativeCounters() const {
-#ifdef V8_USE_SNAPSHOT
 #ifdef V8_SNAPSHOT_NATIVE_CODE_COUNTERS
     return true;
 #else
     return false;
 #endif  // V8_SNAPSHOT_NATIVE_CODE_COUNTERS
-#else
-    // If we do not have a snapshot then we rely on the runtime option.
-    return internal::FLAG_native_code_counters;
-#endif  // V8_USE_SNAPSHOT
   }
 
 #define SC(name, caption)                                        \
@@ -653,6 +648,7 @@ static void CustomCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 TEST_F(RuntimeCallStatsTest, CallbackFunction) {
   FLAG_allow_natives_syntax = true;
+  FLAG_incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -731,6 +727,7 @@ TEST_F(RuntimeCallStatsTest, CallbackFunction) {
 
 TEST_F(RuntimeCallStatsTest, ApiGetter) {
   FLAG_allow_natives_syntax = true;
+  FLAG_incremental_marking = false;
 
   RuntimeCallCounter* callback_counter =
       stats()->GetCounter(RuntimeCallCounterId::kFunctionCallback);
@@ -843,7 +840,7 @@ TEST_F(SnapshotNativeCounterTest, SubStringNative) {
 TEST_F(SnapshotNativeCounterTest, WriteBarrier) {
   RunJS("let o = {a: 42};");
 
-  if (SupportsNativeCounters()) {
+  if (!FLAG_single_generation && SupportsNativeCounters()) {
     EXPECT_NE(0, write_barriers());
   } else {
     EXPECT_EQ(0, write_barriers());

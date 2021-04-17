@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-dynamic-import
+//
+// Note: This test fails with top level await due to test1, which tries to
+//       import a module using top level await and expects it to fail.
 
 var ran = false;
 
@@ -47,7 +50,7 @@ async function test3() {
     let x = await import('nonexistent-file.mjs');
     %AbortJS('failure: should be unreachable');
   } catch(e) {
-    assertTrue(e.startsWith('Error reading'));
+    assertTrue(e.startsWith('d8: Error reading'));
     ran = true;
   }
 }

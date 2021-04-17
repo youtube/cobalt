@@ -15,7 +15,7 @@
 {
   'variables': {
     'sb_target_platform': 'linux-x64x11-clang-3-6',
-    'cobalt_v8_emit_builtins_as_inline_asm': 0,
+    'cobalt_v8_emit_builtins_as_inline_asm': 1,
     'sb_disable_cpp14_audit': 1,
   },
 

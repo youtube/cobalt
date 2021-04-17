@@ -41,6 +41,7 @@
 #define V8_CODEGEN_PPC_ASSEMBLER_PPC_H_
 
 #include <stdio.h>
+#include <memory>
 #include <vector>
 
 #include "src/codegen/assembler.h"
@@ -229,10 +230,6 @@ class Assembler : public AssemblerBase {
     return link(L) - pc_offset();
   }
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
-
   V8_INLINE static bool IsConstantPoolLoadStart(
       Address pc, ConstantPoolEntry::Access* access = nullptr);
   V8_INLINE static bool IsConstantPoolLoadEnd(
@@ -256,6 +253,18 @@ class Assembler : public AssemblerBase {
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  inline Handle<Object> code_target_object_handle_at(Address pc,
+                                                     Address constant_pool);
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
 
   // This sets the branch destination.
   // This is for calls and branches within generated code.
@@ -418,6 +427,23 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
 
+#define DECLARE_PPC_XX2_INSTRUCTIONS(name, instr_name, instr_value)      \
+  inline void name(const Simd128Register rt, const Simd128Register rb) { \
+    xx2_form(instr_name, rt, rb);                                        \
+  }
+
+  inline void xx2_form(Instr instr, Simd128Register t, Simd128Register b) {
+    // Using VR (high VSR) registers.
+    int BX = 1;
+    int TX = 1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (b.code() & 0x1F) * B11 | BX * B1 |
+         TX);
+  }
+
+  PPC_XX2_OPCODE_A_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
+#undef DECLARE_PPC_XX2_INSTRUCTIONS
+
 #define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
   inline void name(const DoubleRegister rt, const DoubleRegister ra, \
                    const DoubleRegister rb) {                        \
@@ -426,9 +452,10 @@ class Assembler : public AssemblerBase {
 
   inline void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
                        DoubleRegister b) {
-    int AX = ((a.code() & 0x20) >> 5) & 0x1;
-    int BX = ((b.code() & 0x20) >> 5) & 0x1;
-    int TX = ((t.code() & 0x20) >> 5) & 0x1;
+    // Using VR (high VSR) registers.
+    int AX = 1;
+    int BX = 1;
+    int TX = 1;
 
     emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
@@ -436,6 +463,70 @@ class Assembler : public AssemblerBase {
 
   PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
 #undef DECLARE_PPC_XX3_INSTRUCTIONS
+
+#define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register rb,    \
+                   const Operand& imm) {                                  \
+    vx_form(instr_name, rt, rb, imm);                                     \
+  }
+#define DECLARE_PPC_VX_INSTRUCTIONS_B_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register ra,    \
+                   const Simd128Register rb) {                            \
+    vx_form(instr_name, rt, ra, rb);                                      \
+  }
+#define DECLARE_PPC_VX_INSTRUCTIONS_C_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register rb) {  \
+    vx_form(instr_name, rt, rb);                                          \
+  }
+
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
+                      const Operand& imm) {
+    emit(instr | rt.code() * B21 | imm.immediate() * B16 | rb.code() * B11);
+  }
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+  }
+  inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb) {
+    emit(instr | rt.code() * B21 | rb.code() * B11);
+  }
+
+  PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
+  PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
+  PPC_VX_OPCODE_C_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_C_FORM)
+#undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_C_FORM
+
+#define DECLARE_PPC_VA_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register ra,    \
+                   const Simd128Register rb, const Simd128Register rc) {  \
+    va_form(instr_name, rt, ra, rb, rc);                                  \
+  }
+
+  inline void va_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb, Simd128Register rc) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+         rc.code() * B6);
+  }
+
+  PPC_VA_OPCODE_A_FORM_LIST(DECLARE_PPC_VA_INSTRUCTIONS_A_FORM)
+#undef DECLARE_PPC_VA_INSTRUCTIONS_A_FORM
+
+#define DECLARE_PPC_VC_INSTRUCTIONS(name, instr_name, instr_value)       \
+  inline void name(const Simd128Register rt, const Simd128Register ra,   \
+                   const Simd128Register rb, const RCBit rc = LeaveRC) { \
+    vc_form(instr_name, rt, ra, rb, rc);                                 \
+  }
+
+  inline void vc_form(Instr instr, Simd128Register rt, Simd128Register ra,
+                      Simd128Register rb, int rc) {
+    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
+         rc * B10);
+  }
+
+  PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
+#undef DECLARE_PPC_VC_INSTRUCTIONS
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
@@ -839,8 +930,6 @@ class Assembler : public AssemblerBase {
   void mtfprwa(DoubleRegister dst, Register src);
 #endif
 
-  void function_descriptor();
-
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
             CRegister cr = cr7);
@@ -877,6 +966,7 @@ class Assembler : public AssemblerBase {
            RCBit rc = LeaveRC);
   void fctiwz(const DoubleRegister frt, const DoubleRegister frb);
   void fctiw(const DoubleRegister frt, const DoubleRegister frb);
+  void fctiwuz(const DoubleRegister frt, const DoubleRegister frb);
   void frin(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
   void friz(const DoubleRegister frt, const DoubleRegister frb,
@@ -925,6 +1015,15 @@ class Assembler : public AssemblerBase {
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
 
+  // Vector instructions
+  void mfvsrd(const Register ra, const Simd128Register r);
+  void mfvsrwz(const Register ra, const Simd128Register r);
+  void mtvsrd(const Simd128Register rt, const Register ra);
+  void mtvsrdd(const Simd128Register rt, const Register ra, const Register rb);
+  void lxvd(const Simd128Register rt, const MemOperand& src);
+  void stxvd(const Simd128Register rt, const MemOperand& src);
+  void xxspltib(const Simd128Register rt, const Operand& imm);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -946,9 +1045,9 @@ class Assembler : public AssemblerBase {
 
   void push(Register src) {
 #if V8_TARGET_ARCH_PPC64
-    stdu(src, MemOperand(sp, -kPointerSize));
+    stdu(src, MemOperand(sp, -kSystemPointerSize));
 #else
-    stwu(src, MemOperand(sp, -kPointerSize));
+    stwu(src, MemOperand(sp, -kSystemPointerSize));
 #endif
   }
 
@@ -958,10 +1057,10 @@ class Assembler : public AssemblerBase {
 #else
     lwz(dst, MemOperand(sp));
 #endif
-    addi(sp, sp, Operand(kPointerSize));
+    addi(sp, sp, Operand(kSystemPointerSize));
   }
 
-  void pop() { addi(sp, sp, Operand(kPointerSize)); }
+  void pop() { addi(sp, sp, Operand(kSystemPointerSize)); }
 
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L); }
@@ -1159,6 +1258,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   RelocInfoWriter reloc_info_writer;
 

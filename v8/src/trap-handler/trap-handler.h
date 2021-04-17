@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <atomic>
+
 #include "src/base/build_config.h"
 
 #if V8_OS_STARBOARD
@@ -27,6 +29,8 @@ namespace trap_handler {
 #elif V8_TARGET_ARCH_X64 && V8_OS_WIN
 #define V8_TRAP_HANDLER_SUPPORTED true
 #elif V8_TARGET_ARCH_X64 && V8_OS_MACOSX
+#define V8_TRAP_HANDLER_SUPPORTED true
+#elif V8_TARGET_ARCH_X64 && V8_OS_FREEBSD
 #define V8_TRAP_HANDLER_SUPPORTED true
 #else
 #define V8_TRAP_HANDLER_SUPPORTED false
@@ -69,21 +73,38 @@ void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 #endif
 #endif
 
+// Initially false, set to true if when trap handlers are enabled. Never goes
+// back to false then.
 extern bool g_is_trap_handler_enabled;
+
+// Initially true, set to false when either {IsTrapHandlerEnabled} or
+// {EnableTrapHandler} is called to prevent calling {EnableTrapHandler}
+// repeatedly, or after {IsTrapHandlerEnabled}. Needs to be atomic because
+// {IsTrapHandlerEnabled} can be called from any thread. Updated using relaxed
+// semantics, since it's not used for synchronization.
+extern std::atomic<bool> g_can_enable_trap_handler;
+
 // Enables trap handling for WebAssembly bounds checks.
 //
 // use_v8_handler indicates that V8 should install its own handler
 // rather than relying on the embedder to do it.
-bool EnableTrapHandler(bool use_v8_handler);
+V8_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
 
 inline bool IsTrapHandlerEnabled() {
   DCHECK_IMPLIES(g_is_trap_handler_enabled, V8_TRAP_HANDLER_SUPPORTED);
+  // Disallow enabling the trap handler after retrieving the current value.
+  // Re-enabling them late can produce issues because code or objects might have
+  // been generated under the assumption that trap handlers are disabled.
+  // Note: We test before setting to avoid contention by an unconditional write.
+  if (g_can_enable_trap_handler.load(std::memory_order_relaxed)) {
+    g_can_enable_trap_handler.store(false, std::memory_order_relaxed);
+  }
   return g_is_trap_handler_enabled;
 }
 
+#if defined(V8_OS_STARBOARD)
 V8_NOINLINE V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
 
-#if defined(V8_OS_STARBOARD)
 inline bool IsThreadInWasm() {
   SB_NOTREACHED();
   return false;

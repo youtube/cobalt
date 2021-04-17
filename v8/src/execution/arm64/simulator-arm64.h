@@ -11,12 +11,13 @@
 #if defined(USE_SIMULATOR)
 
 #include <stdarg.h>
+
 #include <vector>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/arm64/decoder-arm64.h"
-#include "src/codegen/arm64/instrument-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/simulator-base.h"
@@ -250,7 +251,7 @@ class SimMemory {
     DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) ||
            (sizeof(value) == 4) || (sizeof(value) == 8) ||
            (sizeof(value) == 16));
-    memcpy(&value, reinterpret_cast<const char*>(address), sizeof(value));
+    base::Memcpy(&value, reinterpret_cast<const char*>(address), sizeof(value));
     return value;
   }
 
@@ -260,7 +261,7 @@ class SimMemory {
     DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) ||
            (sizeof(value) == 4) || (sizeof(value) == 8) ||
            (sizeof(value) == 16));
-    memcpy(reinterpret_cast<char*>(address), &value, sizeof(value));
+    base::Memcpy(reinterpret_cast<char*>(address), &value, sizeof(value));
   }
 };
 
@@ -326,7 +327,7 @@ class SimRegisterBase {
       // All AArch64 registers are zero-extending.
       memset(value_ + sizeof(new_value), 0, kSizeInBytes - sizeof(new_value));
     }
-    memcpy(&value_, &new_value, sizeof(T));
+    base::Memcpy(&value_, &new_value, sizeof(T));
     NotifyRegisterWrite();
   }
 
@@ -339,7 +340,8 @@ class SimRegisterBase {
     DCHECK_GE(lane, 0);
     DCHECK_LE(sizeof(new_value) + (lane * sizeof(new_value)),
               static_cast<unsigned>(kSizeInBytes));
-    memcpy(&value_[lane * sizeof(new_value)], &new_value, sizeof(new_value));
+    base::Memcpy(&value_[lane * sizeof(new_value)], &new_value,
+                 sizeof(new_value));
     NotifyRegisterWrite();
   }
 
@@ -349,7 +351,7 @@ class SimRegisterBase {
     DCHECK_GE(lane, 0);
     DCHECK_LE(sizeof(result) + (lane * sizeof(result)),
               static_cast<unsigned>(kSizeInBytes));
-    memcpy(&result, &value_[lane * sizeof(result)], sizeof(result));
+    base::Memcpy(&result, &value_[lane * sizeof(result)], sizeof(result));
     return result;
   }
 
@@ -437,7 +439,7 @@ class LogicVRegister {
   int64_t IntLeftJustified(VectorFormat vform, int index) const {
     uint64_t value = UintLeftJustified(vform, index);
     int64_t result;
-    memcpy(&result, &value, sizeof(result));
+    base::Memcpy(&result, &value, sizeof(result));
     return result;
   }
 
@@ -673,13 +675,13 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     explicit CallArgument(T argument) {
       bits_ = 0;
       DCHECK(sizeof(argument) <= sizeof(bits_));
-      memcpy(&bits_, &argument, sizeof(argument));
+      base::Memcpy(&bits_, &argument, sizeof(argument));
       type_ = X_ARG;
     }
 
     explicit CallArgument(double argument) {
       DCHECK(sizeof(argument) == sizeof(bits_));
-      memcpy(&bits_, &argument, sizeof(argument));
+      base::Memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
 
@@ -690,10 +692,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
       // Make the D register a NaN to try to trap errors if the callee expects a
       // double. If it expects a float, the callee should ignore the top word.
       DCHECK(sizeof(kFP64SignallingNaN) == sizeof(bits_));
-      memcpy(&bits_, &kFP64SignallingNaN, sizeof(kFP64SignallingNaN));
+      base::Memcpy(&bits_, &kFP64SignallingNaN, sizeof(kFP64SignallingNaN));
       // Write the float payload to the S register.
       DCHECK(sizeof(argument) <= sizeof(bits_));
-      memcpy(&bits_, &argument, sizeof(argument));
+      base::Memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
 
@@ -756,7 +758,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   template <typename T>
   void set_pc(T new_pc) {
     DCHECK(sizeof(T) == sizeof(pc_));
-    memcpy(&pc_, &new_pc, sizeof(T));
+    base::Memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
   Instruction* pc() { return pc_; }
@@ -771,8 +773,125 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   virtual void Decode(Instruction* instr) { decoder_->Decode(instr); }
 
+  // Branch Target Identification (BTI)
+  //
+  // Executing an instruction updates PSTATE.BTYPE, as described in the table
+  // below. Execution of an instruction on a guarded page is allowed if either:
+  // * PSTATE.BTYPE is 00, or
+  // * it is a BTI or PACI[AB]SP instruction that accepts the current value of
+  //   PSTATE.BTYPE (as described in the table below), or
+  // * it is BRK or HLT instruction that causes some higher-priority exception.
+  //
+  //  --------------------------------------------------------------------------
+  //  | Last-executed instruction    | Sets     | Accepted by                  |
+  //  |                              | BTYPE to | BTI | BTI j | BTI c | BTI jc |
+  //  --------------------------------------------------------------------------
+  //  | - BR from an unguarded page. |          |     |       |       |        |
+  //  | - BR from guarded page,      |          |     |       |       |        |
+  //  |   to x16 or x17.             |    01    |     |   X   |   X   |   X    |
+  //  --------------------------------------------------------------------------
+  //  | BR from guarded page,        |          |     |       |       |        |
+  //  | not to x16 or x17.           |    11    |     |   X   |       |   X    |
+  //  --------------------------------------------------------------------------
+  //  | BLR                          |    10    |     |       |   X   |   X    |
+  //  --------------------------------------------------------------------------
+  //  | Any other instruction        |          |     |       |       |        |
+  //  |(including RET).              |    00    |  X  |   X   |   X   |   X    |
+  //  --------------------------------------------------------------------------
+  //
+  // PACI[AB]SP is treated either like "BTI c" or "BTI jc", according to the
+  // value of SCTLR_EL1.BT0. Details available in ARM DDI 0487E.a, D5-2580.
+
+  enum BType {
+    // Set when executing any instruction, except those cases listed below.
+    DefaultBType = 0,
+
+    // Set when an indirect branch is taken from an unguarded page, or from a
+    // guarded page to ip0 or ip1 (x16 or x17), eg "br ip0".
+    BranchFromUnguardedOrToIP = 1,
+
+    // Set when an indirect branch and link (call) is taken, eg. "blr x0".
+    BranchAndLink = 2,
+
+    // Set when an indirect branch is taken from a guarded page to a register
+    // that is not ip0 or ip1 (x16 or x17), eg, "br x0".
+    BranchFromGuardedNotToIP = 3
+  };
+
+  BType btype() const { return btype_; }
+  void ResetBType() { btype_ = DefaultBType; }
+  void set_btype(BType btype) { btype_ = btype; }
+
+  // Helper function to determine BType for branches.
+  BType GetBTypeFromInstruction(const Instruction* instr) const;
+
+  bool PcIsInGuardedPage() const { return guard_pages_; }
+  void SetGuardedPages(bool guard_pages) { guard_pages_ = guard_pages; }
+
+  void CheckBTypeForPAuth() {
+    DCHECK(pc_->IsPAuth());
+    Instr instr = pc_->Mask(SystemPAuthMask);
+    // Only PACI[AB]SP allowed here, and we only support PACIBSP.
+    CHECK(instr == PACIBSP);
+    // Check BType allows PACI[AB]SP instructions.
+    switch (btype()) {
+      case BranchFromGuardedNotToIP:
+        // This case depends on the value of SCTLR_EL1.BT0, which we assume
+        // here to be set. This makes PACI[AB]SP behave like "BTI c",
+        // disallowing its execution when BTYPE is BranchFromGuardedNotToIP
+        // (0b11).
+        FATAL("Executing PACIBSP with wrong BType.");
+      case BranchFromUnguardedOrToIP:
+      case BranchAndLink:
+        break;
+      case DefaultBType:
+        UNREACHABLE();
+    }
+  }
+
+  void CheckBTypeForBti() {
+    DCHECK(pc_->IsBti());
+    switch (pc_->ImmHint()) {
+      case BTI_jc:
+        break;
+      case BTI: {
+        DCHECK(btype() != DefaultBType);
+        FATAL("Executing BTI with wrong BType (expected 0, got %d).", btype());
+        break;
+      }
+      case BTI_c:
+        if (btype() == BranchFromGuardedNotToIP) {
+          FATAL("Executing BTI c with wrong BType (3).");
+        }
+        break;
+      case BTI_j:
+        if (btype() == BranchAndLink) {
+          FATAL("Executing BTI j with wrong BType (2).");
+        }
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
+  }
+
+  void CheckBType() {
+    // On guarded pages, if BType is not zero, take an exception on any
+    // instruction other than BTI, PACI[AB]SP, HLT or BRK.
+    if (PcIsInGuardedPage() && (btype() != DefaultBType)) {
+      if (pc_->IsPAuth()) {
+        CheckBTypeForPAuth();
+      } else if (pc_->IsBti()) {
+        CheckBTypeForBti();
+      } else if (!pc_->IsException()) {
+        FATAL("Executing non-BTI instruction with wrong BType.");
+      }
+    }
+  }
+
   void ExecuteInstruction() {
     DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstrSize));
+    CheckBType();
+    ResetBType();
     CheckBreakNext();
     Decode(pc_);
     increment_pc();
@@ -931,7 +1050,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     static_assert(sizeof(result) <= sizeof(raw),
                   "Template type must be <= 64 bits.");
     // Copy the result and truncate to fit. This assumes a little-endian host.
-    memcpy(&result, &raw, sizeof(result));
+    base::Memcpy(&result, &raw, sizeof(result));
     return result;
   }
 
@@ -1273,6 +1392,48 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   static inline const char* VRegNameForCode(unsigned code);
   static inline int CodeFromName(const char* name);
 
+  enum PointerType { kDataPointer, kInstructionPointer };
+
+  struct PACKey {
+    uint64_t high;
+    uint64_t low;
+    int number;
+  };
+
+  static const PACKey kPACKeyIB;
+
+  // Current implementation is that all pointers are tagged.
+  static bool HasTBI(uint64_t ptr, PointerType type) {
+    USE(ptr, type);
+    return true;
+  }
+
+  // Current implementation uses 48-bit virtual addresses.
+  static int GetBottomPACBit(uint64_t ptr, int ttbr) {
+    USE(ptr, ttbr);
+    DCHECK((ttbr == 0) || (ttbr == 1));
+    return 48;
+  }
+
+  // The top PAC bit is 55 for the purposes of relative bit fields with TBI,
+  // however bit 55 is the TTBR bit regardless of TBI so isn't part of the PAC
+  // codes in pointers.
+  static int GetTopPACBit(uint64_t ptr, PointerType type) {
+    return HasTBI(ptr, type) ? 55 : 63;
+  }
+
+  // Armv8.3 Pointer authentication helpers.
+  V8_EXPORT_PRIVATE static uint64_t CalculatePACMask(uint64_t ptr,
+                                                     PointerType type,
+                                                     int ext_bit);
+  V8_EXPORT_PRIVATE static uint64_t ComputePAC(uint64_t data, uint64_t context,
+                                               PACKey key);
+  V8_EXPORT_PRIVATE static uint64_t AuthPAC(uint64_t ptr, uint64_t context,
+                                            PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t AddPAC(uint64_t ptr, uint64_t context,
+                                           PACKey key, PointerType type);
+  V8_EXPORT_PRIVATE static uint64_t StripPAC(uint64_t ptr, PointerType type);
+
  protected:
   // Simulation helpers ------------------------------------
   bool ConditionPassed(Condition cond) {
@@ -1344,7 +1505,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                   (sizeof(value) == 4) || (sizeof(value) == 8) ||
                   (sizeof(value) == 16));
-    memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
+    base::Memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
     return value;
   }
 
@@ -1354,7 +1515,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                   (sizeof(value) == 4) || (sizeof(value) == 8) ||
                   (sizeof(value) == 16));
-    memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));
+    base::Memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));
   }
 
   template <typename T>
@@ -2021,6 +2182,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   int64_t FPToInt64(double value, FPRounding rmode);
   uint32_t FPToUInt32(double value, FPRounding rmode);
   uint64_t FPToUInt64(double value, FPRounding rmode);
+  int32_t FPToFixedJS(double value);
 
   template <typename T>
   T FPAdd(T op1, T op2);
@@ -2099,9 +2261,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   PrintDisassembler* print_disasm_;
   void PRINTF_FORMAT(2, 3) TraceSim(const char* format, ...);
 
-  // Instrumentation.
-  Instrument* instrument_;
-
   // General purpose registers. Register 31 is the stack pointer.
   SimRegister registers_[kNumberOfRegisters];
 
@@ -2153,6 +2312,13 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // automatically incremented.
   bool pc_modified_;
   Instruction* pc_;
+
+  // Branch type register, used for branch target identification.
+  BType btype_;
+
+  // Global flag for enabling guarded pages.
+  // TODO(arm64): implement guarding at page granularity, rather than globally.
+  bool guard_pages_;
 
   static const char* xreg_names[];
   static const char* wreg_names[];
@@ -2330,6 +2496,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   int log_parameters_;
+  // Instruction counter only valid if FLAG_stop_sim_at isn't 0.
+  int icount_for_stop_sim_at_;
   Isolate* isolate_;
 };
 

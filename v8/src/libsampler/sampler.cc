@@ -270,6 +270,7 @@ void SamplerManager::RemoveSampler(Sampler* sampler) {
 
 void SamplerManager::DoSample(const v8::RegisterState& state) {
   AtomicGuard atomic_guard(&samplers_access_counter_, false);
+  // TODO(petermarshall): Add stat counters for the bailouts here.
   if (!atomic_guard.is_success()) return;
   pthread_t thread_id = pthread_self();
   auto it = sampler_map_.find(thread_id);
@@ -281,7 +282,6 @@ void SamplerManager::DoSample(const v8::RegisterState& state) {
     Isolate* isolate = sampler->isolate();
     // We require a fully initialized and entered isolate.
     if (isolate == nullptr || !isolate->IsInUse()) continue;
-    if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
     sampler->SampleStack(state);
   }
 }
@@ -372,9 +372,9 @@ class SignalHandler {
     sa.sa_sigaction = &HandleProfilerSignal;
     sigemptyset(&sa.sa_mask);
 #if V8_OS_QNX
-    sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
 #else
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    sa.sa_flags = SA_RESTART | SA_SIGINFO | SA_ONSTACK;
 #endif
     signal_handler_installed_ =
         (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
@@ -415,7 +415,9 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-#if !(V8_OS_OPENBSD || (V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390)))
+#if !(V8_OS_OPENBSD || \
+      (V8_OS_LINUX &&  \
+       (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390 || V8_HOST_ARCH_PPC64)))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
 #if V8_OS_LINUX
@@ -456,7 +458,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext.pc);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);
   state->fp = reinterpret_cast<void*>(mcontext.gregs[30]);
-#elif V8_HOST_ARCH_PPC
+#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 #if V8_LIBC_GLIBC
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);
   state->sp =
@@ -509,7 +511,14 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__eip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__esp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__ebp);
-#endif  // V8_HOST_ARCH_IA32
+#elif V8_HOST_ARCH_ARM64
+  state->pc =
+      reinterpret_cast<void*>(arm_thread_state64_get_pc(mcontext->__ss));
+  state->sp =
+      reinterpret_cast<void*>(arm_thread_state64_get_sp(mcontext->__ss));
+  state->fp =
+      reinterpret_cast<void*>(arm_thread_state64_get_fp(mcontext->__ss));
+#endif  // V8_HOST_ARCH_*
 #elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32
   state->pc = reinterpret_cast<void*>(mcontext.mc_eip);
@@ -520,9 +529,9 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(mcontext.mc_rsp);
   state->fp = reinterpret_cast<void*>(mcontext.mc_rbp);
 #elif V8_HOST_ARCH_ARM
-  state->pc = reinterpret_cast<void*>(mcontext.mc_r15);
-  state->sp = reinterpret_cast<void*>(mcontext.mc_r13);
-  state->fp = reinterpret_cast<void*>(mcontext.mc_r11);
+  state->pc = reinterpret_cast<void*>(mcontext.__gregs[_REG_PC]);
+  state->sp = reinterpret_cast<void*>(mcontext.__gregs[_REG_SP]);
+  state->fp = reinterpret_cast<void*>(mcontext.__gregs[_REG_FP]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_NETBSD
 #if V8_HOST_ARCH_IA32
@@ -569,7 +578,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // USE_SIGNALS
 
 Sampler::Sampler(Isolate* isolate)
-    : isolate_(isolate), data_(base::make_unique<PlatformData>()) {}
+    : isolate_(isolate), data_(std::make_unique<PlatformData>()) {}
 
 Sampler::~Sampler() {
   DCHECK(!IsActive());

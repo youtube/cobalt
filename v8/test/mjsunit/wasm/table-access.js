@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref
+// Flags: --expose-wasm --experimental-wasm-reftypes
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -11,22 +11,22 @@ function addTableWithAccessors(builder, type, size, name) {
   const table = builder.addTable(type, size);
   const set_sig = makeSig([kWasmI32, type], []);
   builder.addFunction('set_' + name, set_sig)
-      .addBody([kExprGetLocal, 0,
-          kExprGetLocal, 1,
+      .addBody([kExprLocalGet, 0,
+          kExprLocalGet, 1,
           kExprTableSet, table.index])
       .exportFunc();
 
   const get_sig = makeSig([kWasmI32], [type]);
   builder.addFunction('get_' + name, get_sig)
-      .addBody([kExprGetLocal, 0, kExprTableGet, table.index])
+      .addBody([kExprLocalGet, 0, kExprTableGet, table.index])
       .exportFunc();
 }
 
 const builder = new WasmModuleBuilder();
 
 addTableWithAccessors(builder, kWasmAnyFunc, 10, 'table_func1');
-addTableWithAccessors(builder, kWasmAnyRef, 20, 'table_ref1');
-addTableWithAccessors(builder, kWasmAnyRef, 9, 'table_ref2');
+addTableWithAccessors(builder, kWasmExternRef, 20, 'table_ref1');
+addTableWithAccessors(builder, kWasmExternRef, 9, 'table_ref2');
 addTableWithAccessors(builder, kWasmAnyFunc, 12, 'table_func2');
 
 let exports = builder.instantiate().exports;
@@ -109,10 +109,10 @@ const dummy_func = exports.set_table_func1;
   const f2 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value2]);
   const f3 = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, value3]);
   builder.addFunction('get_t1', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprTableGet, t1])
+      .addBody([kExprLocalGet, 0, kExprTableGet, t1])
       .exportFunc();
   builder.addFunction('get_t2', kSig_a_i)
-      .addBody([kExprGetLocal, 0, kExprTableGet, t2])
+      .addBody([kExprLocalGet, 0, kExprTableGet, t2])
       .exportFunc();
 
   const offset1 = 3;
@@ -138,6 +138,7 @@ const dummy_func = exports.set_table_func1;
   const function_index = builder.addFunction('hidden', sig_index)
                              .addBody([kExprI32Const, expected])
                              .index;
+  builder.addDeclarativeElementSegment([function_index]);
 
   builder.addFunction('main', kSig_i_v)
       .addBody([

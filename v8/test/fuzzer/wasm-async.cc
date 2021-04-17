@@ -45,12 +45,16 @@ class AsyncFuzzerResolver : public i::wasm::CompilationResultResolver {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FlagScope<bool> turn_on_async_compile(
-      &v8::internal::FLAG_wasm_async_compilation, true);
-  FlagScope<uint32_t> max_mem_flag_scope(&v8::internal::FLAG_wasm_max_mem_pages,
-                                         32);
-  FlagScope<uint32_t> max_table_size_scope(
-      &v8::internal::FLAG_wasm_max_table_size, 100);
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  OneTimeEnableStagedWasmFeatures();
+
+  // Set some more flags.
+  FLAG_wasm_async_compilation = true;
+  FLAG_wasm_max_mem_pages = 32;
+  FLAG_wasm_max_table_size = 100;
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<v8::internal::Isolate*>(isolate);
@@ -68,7 +72,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   testing::SetupIsolateForWasmModule(i_isolate);
 
   bool done = false;
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   constexpr const char* kAPIMethodName = "WasmAsyncFuzzer.compile";
   i_isolate->wasm_engine()->AsyncCompile(
       i_isolate, enabled_features,
@@ -78,7 +82,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Wait for the promise to resolve.
   while (!done) {
     support->PumpMessageLoop(platform::MessageLoopBehavior::kWaitForWork);
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
   }
   return 0;
 }

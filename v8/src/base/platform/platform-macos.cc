@@ -93,5 +93,10 @@ void OS::AdjustSchedulingParams() {
 #endif
 }
 
+// static
+Stack::StackSlot Stack::GetStackStart() {
+  return pthread_get_stackaddr_np(pthread_self());
+}
+
 }  // namespace base
 }  // namespace v8

@@ -47,6 +47,16 @@ void CobaltPlatform::CobaltV8TaskRunner::PostDelayedTask(
   }
 }
 
+// Since we put these v8 tasks direclty on the message loop, all the tasks are
+// "NonNestable".
+void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableTask(std::unique_ptr<v8::Task> task) {
+  return PostTask(std::move(task));
+}
+void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
+                                    double delay_in_seconds) {
+  return PostDelayedTask(std::move(task), 0);
+}
+
 void CobaltPlatform::CobaltV8TaskRunner::SetTaskRunner(
     base::SingleThreadTaskRunner* task_runner) {
   base::AutoLock auto_lock(lock_);
@@ -104,18 +114,6 @@ void CobaltPlatform::UnregisterIsolateOnThread(v8::Isolate* isolate) {
   } else {
     DLOG(WARNING) << "Isolate is not in the map and can not be unregistered.";
   }
-}
-
-void CobaltPlatform::CallOnForegroundThread(v8::Isolate* isolate,
-                                            v8::Task* task) {
-  GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<v8::Task>(task));
-}
-
-void CobaltPlatform::CallDelayedOnForegroundThread(v8::Isolate* isolate,
-                                                   v8::Task* task,
-                                                   double delay_in_seconds) {
-  GetForegroundTaskRunner(isolate)->PostDelayedTask(
-      std::unique_ptr<v8::Task>(task), delay_in_seconds);
 }
 
 }  // namespace v8c

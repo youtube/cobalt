@@ -5,7 +5,8 @@
 #ifndef V8_API_API_H_
 #define V8_API_API_H_
 
-#include "include/v8-testing.h"
+#include <memory>
+
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/bigint.h"
@@ -25,11 +26,14 @@ namespace v8 {
 
 namespace internal {
 class JSArrayBufferView;
+class JSFinalizationRegistry;
 }  // namespace internal
 
 namespace debug {
+class AccessorPair;
 class GeneratorObject;
 class Script;
+class WasmValue;
 class WeakMap;
 }  // namespace debug
 
@@ -124,6 +128,8 @@ class RegisteredExtension {
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
   V(debug::WeakMap, JSWeakMap)                 \
+  V(debug::AccessorPair, AccessorPair)         \
+  V(debug::WasmValue, WasmValue)               \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
@@ -140,6 +146,8 @@ class Utils {
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
                                const char* location, bool is_heap_oom);
 
+  static inline Local<debug::AccessorPair> ToLocal(
+      v8::internal::Handle<v8::internal::AccessorPair> obj);
   static inline Local<Context> ToLocal(
       v8::internal::Handle<v8::internal::Context> obj);
   static inline Local<Value> ToLocal(
@@ -248,9 +256,9 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-  template <class T>
+  template <class T, class M>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-      const v8::Persistent<T>& persistent) {
+      const v8::Persistent<T, M>& persistent) {
     return v8::internal::Handle<v8::internal::Object>(
         reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
@@ -264,11 +272,6 @@ class Utils {
   template <class From, class To>
   static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
-  }
-
-  static inline CompiledWasmModule Convert(
-      std::shared_ptr<i::wasm::NativeModule> native_module) {
-    return CompiledWasmModule{std::move(native_module)};
   }
 
  private:
@@ -299,30 +302,7 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
 
 namespace internal {
 
-class V8_EXPORT_PRIVATE DeferredHandles {
- public:
-  ~DeferredHandles();
-
- private:
-  DeferredHandles(Address* first_block_limit, Isolate* isolate)
-      : next_(nullptr),
-        previous_(nullptr),
-        first_block_limit_(first_block_limit),
-        isolate_(isolate) {
-    isolate->LinkDeferredHandles(this);
-  }
-
-  void Iterate(RootVisitor* v);
-
-  std::vector<Address*> blocks_;
-  DeferredHandles* next_;
-  DeferredHandles* previous_;
-  Address* first_block_limit_;
-  Isolate* isolate_;
-
-  friend class HandleScopeImplementer;
-  friend class Isolate;
-};
+class PersistentHandles;
 
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
@@ -354,7 +334,6 @@ class HandleScopeImplementer {
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         spare_(nullptr),
-        call_depth_(0),
         last_handle_before_deferred_block_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
@@ -372,11 +351,6 @@ class HandleScopeImplementer {
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
-
-  // Call depth represents nested v8 api calls.
-  inline void IncrementCallDepth() { call_depth_++; }
-  inline void DecrementCallDepth() { call_depth_--; }
-  inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Context context);
   inline void LeaveContext();
@@ -414,7 +388,6 @@ class HandleScopeImplementer {
     saved_contexts_.detach();
     spare_ = nullptr;
     last_handle_before_deferred_block_ = nullptr;
-    call_depth_ = 0;
   }
 
   void Free() {
@@ -431,11 +404,11 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = nullptr;
     }
-    DCHECK_EQ(call_depth_, 0);
+    DCHECK(isolate_->thread_local_top()->CallDepthIsZero());
   }
 
   void BeginDeferredScope();
-  DeferredHandles* Detach(Address* prev_limit);
+  std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;
@@ -451,8 +424,6 @@ class HandleScopeImplementer {
   // Used as a stack to keep track of saved contexts.
   DetachableVector<Context> saved_contexts_;
   Address* spare_;
-  int call_depth_;
-
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
@@ -461,9 +432,8 @@ class HandleScopeImplementer {
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
-  friend class DeferredHandles;
-  friend class DeferredHandleScope;
   friend class HandleScopeImplementerOffsets;
+  friend class PersistentHandlesScope;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
@@ -557,16 +527,10 @@ void InvokeAccessorGetterCallback(
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);
 
-class Testing {
- public:
-  static v8::Testing::StressType stress_type() { return stress_type_; }
-  static void set_stress_type(v8::Testing::StressType stress_type) {
-    stress_type_ = stress_type;
-  }
-
- private:
-  static v8::Testing::StressType stress_type_;
-};
+void InvokeFinalizationRegistryCleanupFromTask(
+    Handle<Context> context,
+    Handle<JSFinalizationRegistry> finalization_registry,
+    Handle<Object> callback);
 
 }  // namespace internal
 }  // namespace v8

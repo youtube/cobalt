@@ -40,6 +40,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -452,8 +453,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber(request.heap_number(),
-                                                   AllocationType::kOld);
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
         break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
@@ -551,6 +552,15 @@ Assembler::~Assembler() { DCHECK_EQ(const_pool_blocked_nesting_, 0); }
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
@@ -2620,6 +2630,70 @@ static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
   *hi = i >> 32;
 }
 
+static void WriteVmovIntImmEncoding(uint8_t imm, uint32_t* encoding) {
+  // Integer promotion from uint8_t to int makes these all okay.
+  *encoding = ((imm & 0x80) << (24 - 7));   // a
+  *encoding |= ((imm & 0x70) << (16 - 4));  // bcd
+  *encoding |= (imm & 0x0f);                //  efgh
+}
+
+// This checks if imm can be encoded into an immediate for vmov.
+// See Table A7-15 in ARM DDI 0406C.d.
+// Currently only supports the first row and op=0 && cmode=1110.
+static bool FitsVmovIntImm(uint64_t imm, uint32_t* encoding, uint8_t* cmode) {
+  uint32_t lo = imm & 0xFFFFFFFF;
+  uint32_t hi = imm >> 32;
+  if ((lo == hi && ((lo & 0xffffff00) == 0))) {
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0;
+    return true;
+  } else if ((lo == hi) && ((lo & 0xffff) == (lo >> 16)) &&
+             ((lo & 0xff) == (lo >> 24))) {
+    // Check that all bytes in imm are the same.
+    WriteVmovIntImmEncoding(imm & 0xff, encoding);
+    *cmode = 0xe;
+    return true;
+  }
+
+  return false;
+}
+
+void Assembler::vmov(const DwVfpRegister dst, uint64_t imm) {
+  uint32_t enc;
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
+    // Instruction details available in ARM DDI 0406C.b, A8-937.
+    // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
+    // | 0(7) | 0(6) | op(5) | 4(1) | imm4(3-0)
+    int vd, d;
+    dst.split_code(&vd, &d);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         op * B5 | 0x1 * B4 | enc);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
+  uint32_t enc;
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
+    // Instruction details available in ARM DDI 0406C.b, A8-937.
+    // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
+    // | 0(7) | Q(6) | op(5) | 4(1) | imm4(3-0)
+    int vd, d;
+    dst.split_code(&vd, &d);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         0x1 * B6 | op * B5 | 0x1 * B4 | enc);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
 static bool FitsVmovFPImmediate(Double d, uint32_t* encoding) {
@@ -3630,6 +3704,39 @@ void Assembler::vld1(NeonSize size, const NeonListOperand& dst,
        src.rm().code());
 }
 
+// vld1s(ingle element to one lane).
+void Assembler::vld1s(NeonSize size, const NeonListOperand& dst, uint8_t index,
+                      const NeonMemOperand& src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.322.
+  // 1111(31-28) | 01001(27-23) | D(22) | 10(21-20) | Rn(19-16) |
+  // Vd(15-12) | size(11-10) | index_align(7-4) | Rm(3-0)
+  // See vld1 (single element to all lanes) if size == 0x3, implemented as
+  // vld1r(eplicate).
+  DCHECK_NE(size, 0x3);
+  // Check for valid lane indices.
+  DCHECK_GT(1 << (3 - size), index);
+  // Specifying alignment not supported, use standard alignment.
+  uint8_t index_align = index << (size + 1);
+
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 4 * B24 | 1 * B23 | d * B22 | 2 * B20 |
+       src.rn().code() * B16 | vd * B12 | size * B10 | index_align * B4 |
+       src.rm().code());
+}
+
+// vld1r(eplicate)
+void Assembler::vld1r(NeonSize size, const NeonListOperand& dst,
+                      const NeonMemOperand& src) {
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 4 * B24 | 1 * B23 | d * B22 | 2 * B20 |
+       src.rn().code() * B16 | vd * B12 | 0xC * B8 | size * B6 |
+       dst.length() * B5 | src.rm().code());
+}
+
 void Assembler::vst1(NeonSize size, const NeonListOperand& src,
                      const NeonMemOperand& dst) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.404.
@@ -3657,17 +3764,19 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
        0xA * B8 | m * B5 | B4 | vm);
 }
 
-void Assembler::vqmovn(NeonDataType dt, DwVfpRegister dst, QwNeonRegister src) {
+void Assembler::vqmovn(NeonDataType dst_dt, NeonDataType src_dt,
+                       DwVfpRegister dst, QwNeonRegister src) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.1004.
   // vqmovn.<type><size> Dd, Qm. ARM vector narrowing move with saturation.
+  // vqmovun.<type><size> Dd, Qm. Same as above, but produces unsigned results.
   DCHECK(IsEnabled(NEON));
+  DCHECK_IMPLIES(NeonU(src_dt), NeonU(dst_dt));
   int vd, d;
   dst.split_code(&vd, &d);
   int vm, m;
   src.split_code(&vm, &m);
-  int size = NeonSz(dt);
-  int u = NeonU(dt);
-  int op = u != 0 ? 3 : 2;
+  int size = NeonSz(dst_dt);
+  int op = NeonU(src_dt) ? 0b11 : NeonU(dst_dt) ? 0b01 : 0b10;
   emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | 0x2 * B16 | vd * B12 |
        0x2 * B8 | op * B6 | m * B5 | vm);
 }
@@ -3846,7 +3955,18 @@ void Assembler::vcvt_u32_f32(QwNeonRegister dst, QwNeonRegister src) {
   emit(EncodeNeonVCVT(U32, dst, F32, src));
 }
 
-enum UnaryOp { VMVN, VSWP, VABS, VABSF, VNEG, VNEGF };
+enum UnaryOp {
+  VMVN,
+  VSWP,
+  VABS,
+  VABSF,
+  VNEG,
+  VNEGF,
+  VRINTM,
+  VRINTN,
+  VRINTP,
+  VRINTZ
+};
 
 static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
                                int dst_code, int src_code) {
@@ -3873,6 +3993,18 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VNEGF:
       DCHECK_EQ(Neon32, size);
       op_encoding = B16 | B10 | 0x7 * B7;
+      break;
+    case VRINTM:
+      op_encoding = B17 | 0xD * B7;
+      break;
+    case VRINTN:
+      op_encoding = B17 | 0x8 * B7;
+      break;
+    case VRINTP:
+      op_encoding = B17 | 0xF * B7;
+      break;
+    case VRINTZ:
+      op_encoding = B17 | 0xB * B7;
       break;
     default:
       UNREACHABLE();
@@ -3990,6 +4122,15 @@ void Assembler::vand(QwNeonRegister dst, QwNeonRegister src1,
                                  src2.code()));
 }
 
+void Assembler::vbic(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = vbic(Qn, Qm) SIMD AND.
+  // Instruction details available in ARM DDI 0406C.b, A8-840.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VBIC, NEON_Q, dst.code(), src1.code(),
+                                 src2.code()));
+}
+
 void Assembler::vbsl(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   // Qd = vbsl(Qn, Qm) SIMD bitwise select.
@@ -4097,7 +4238,8 @@ enum IntegerBinOp {
   VTST,
   VCEQ,
   VCGE,
-  VCGT
+  VCGT,
+  VRHADD
 };
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
@@ -4137,6 +4279,9 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
       break;
     case VCGT:
       op_encoding = 0x3 * B8;
+      break;
+    case VRHADD:
+      op_encoding = B8;
       break;
     default:
       UNREACHABLE();
@@ -4208,6 +4353,25 @@ void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VQSUB, dt, dst, src1, src2));
 }
 
+void Assembler::vmlal(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmlal(Dn, Dm) Vector Multiply Accumulate Long (integer)
+  // Instruction details available in ARM DDI 0406C.b, A8-931.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  if (!u) UNIMPLEMENTED();
+  DCHECK_NE(size, 3);  // SEE "Related encodings"
+  emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
+       vd * B12 | 0x8 * B8 | n * B7 | m * B5 | vm);
+}
+
 void Assembler::vmul(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4222,6 +4386,23 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vadd(Qn, Qm) SIMD integer multiply.
   // Instruction details available in ARM DDI 0406C.b, A8-960.
   emit(EncodeNeonBinOp(VMUL, size, dst, src1, src2));
+}
+
+void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
+                      DwVfpRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmull(Dn, Dm) Vector Multiply Long (integer).
+  // Instruction details available in ARM DDI 0406C.b, A8-960.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+  emit(0xFU * B28 | B25 | u * B24 | B23 | d * B22 | size * B20 | vn * B16 |
+       vd * B12 | 0xC * B8 | n * B7 | m * B5 | vm);
 }
 
 void Assembler::vmin(QwNeonRegister dst, QwNeonRegister src1,
@@ -4258,12 +4439,29 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
 
 enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI };
 
+static Instr EncodeNeonShiftRegisterOp(NeonShiftOp op, NeonDataType dt,
+                                       NeonRegType reg_type, int dst_code,
+                                       int src_code, int shift_code) {
+  DCHECK_EQ(op, VSHL);
+  int op_encoding = 0;
+  int vd, d;
+  NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
+  int vm, m;
+  NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
+  int vn, n;
+  NeonSplitCode(reg_type, shift_code, &vn, &n, &op_encoding);
+  int size = NeonSz(dt);
+  int u = NeonU(dt);
+
+  return 0x1E4U * B23 | u * B24 | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         0x4 * B8 | n * B7 | m * B5 | vm | op_encoding;
+}
+
 static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
                                NeonRegType reg_type, int dst_code, int src_code,
                                int shift) {
-  int imm6 = 0;
   int size_in_bits = kBitsPerByte << static_cast<int>(size);
-  int op_encoding = 0;
+  int op_encoding = 0, imm6 = 0, L = 0;
   switch (op) {
     case VSHL: {
       DCHECK(shift >= 0 && size_in_bits > shift);
@@ -4280,30 +4478,29 @@ static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
     case VSLI: {
       DCHECK(shift >= 0 && size_in_bits > shift);
       imm6 = size_in_bits + shift;
-      int L = imm6 >> 6;
-      imm6 &= 0x3F;
-      op_encoding = B24 | 0x5 * B8 | L * B7;
+      op_encoding = B24 | 0x5 * B8;
       break;
     }
     case VSRI: {
       DCHECK(shift > 0 && size_in_bits >= shift);
       imm6 = 2 * size_in_bits - shift;
-      int L = imm6 >> 6;
-      imm6 &= 0x3F;
-      op_encoding = B24 | 0x4 * B8 | L * B7;
+      op_encoding = B24 | 0x4 * B8;
       break;
     }
     default:
       UNREACHABLE();
   }
 
+  L = imm6 >> 6;
+  imm6 &= 0x3F;
+
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
   int vm, m;
   NeonSplitCode(reg_type, src_code, &vm, &m, &op_encoding);
 
-  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | m * B5 | B4 | vm |
-         op_encoding;
+  return 0x1E5U * B23 | d * B22 | imm6 * B16 | vd * B12 | L * B7 | m * B5 | B4 |
+         vm | op_encoding;
 }
 
 void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4313,6 +4510,15 @@ void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
   // Instruction details available in ARM DDI 0406C.b, A8-1046.
   emit(EncodeNeonShiftOp(VSHL, NeonDataTypeToSize(dt), false, NEON_Q,
                          dst.code(), src.code(), shift));
+}
+
+void Assembler::vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
+                     QwNeonRegister shift) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vshl(Qm, Qn) SIMD shift left Register.
+  // Instruction details available in ARM DDI 0487A.a, F8-3340..
+  emit(EncodeNeonShiftRegisterOp(VSHL, dt, NEON_Q, dst.code(), src.code(),
+                                 shift.code()));
 }
 
 void Assembler::vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
@@ -4454,6 +4660,38 @@ void Assembler::vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
   emit(EncodeNeonPairwiseOp(VPMAX, dt, dst, src1, src2));
 }
 
+void Assembler::vrintm(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards -Infinity.
+  // See ARM DDI 0487F.b, F6-5493.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTM, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintn(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer to Nearest.
+  // See ARM DDI 0487F.b, F6-5497.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTN, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintp(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards +Infinity.
+  // See ARM DDI 0487F.b, F6-5501.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTP, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
+void Assembler::vrintz(NeonDataType dt, const QwNeonRegister dst,
+                       const QwNeonRegister src) {
+  // SIMD vector round floating-point to integer towards Zero.
+  // See ARM DDI 0487F.b, F6-5511.
+  DCHECK(IsEnabled(ARMv8));
+  emit(EncodeNeonUnaryOp(VRINTZ, NEON_Q, NeonSize(dt), dst.code(), src.code()));
+}
+
 void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4508,6 +4746,14 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
   emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
+}
+
+void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                       QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vrhadd(Qn, Qm) SIMD integer rounding halving add.
+  // Instruction details available in ARM DDI 0406C.b, A8-1030.
+  emit(EncodeNeonBinOp(VRHADD, dt, dst, src1, src2));
 }
 
 void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
@@ -4775,15 +5021,17 @@ void Assembler::GrowBuffer() {
   int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
   size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
   MemMove(new_start, buffer_start_, pc_offset());
-  MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          reloc_size);
+  byte* new_reloc_start = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.pos()) + rc_delta);
+  MemMove(new_reloc_start, reloc_info_writer.pos(), reloc_size);
 
   // Switch buffers.
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
-  pc_ += pc_delta;
-  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
-                               reloc_info_writer.last_pc() + pc_delta);
+  pc_ = reinterpret_cast<byte*>(reinterpret_cast<Address>(pc_) + pc_delta);
+  byte* new_last_pc = reinterpret_cast<byte*>(
+      reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
+  reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
@@ -4804,7 +5052,7 @@ void Assembler::dd(uint32_t data) {
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), data);
   pc_ += sizeof(uint32_t);
 }
 
@@ -4813,7 +5061,7 @@ void Assembler::dq(uint64_t value) {
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  *reinterpret_cast<uint64_t*>(pc_) = value;
+  base::WriteUnalignedValue(reinterpret_cast<Address>(pc_), value);
   pc_ += sizeof(uint64_t);
 }
 

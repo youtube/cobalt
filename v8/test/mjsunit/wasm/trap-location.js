@@ -32,7 +32,7 @@ function testTrapLocations(instance, expected_stack_length) {
   testWasmTrap(0, kTrapDivByZero, 14);
   testWasmTrap(1, kTrapMemOutOfBounds, 15);
   testWasmTrap(2, kTrapUnreachable, 28);
-  testWasmTrap(3, kTrapFuncInvalid, 32);
+  testWasmTrap(3, kTrapTableOutOfBounds, 32);
 }
 
 var builder = new WasmModuleBuilder();
@@ -54,27 +54,27 @@ builder.addFunction("main", kSig_i_i)
   .addBody([
       // offset 1
         kExprBlock, kWasmI32,
-            kExprGetLocal, 0,
+            kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32LtU,
         kExprIf, kWasmStmt,
         // offset 9
               kExprI32Const, 0x7e /* -2 */,
-              kExprGetLocal, 0,
+              kExprLocalGet, 0,
             kExprI32DivU,
           // offset 15
           kExprI32LoadMem, 0, 0,
           kExprBr, 1,
         kExprEnd,
         // offset 21
-            kExprGetLocal, 0,
+            kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32Eq,
         kExprIf, kWasmStmt,
           kExprUnreachable,
         kExprEnd,
         // offset 30
-        kExprGetLocal, 0,
+        kExprLocalGet, 0,
         kExprCallIndirect, sig_index, kTableZero,
       kExprEnd,
   ])

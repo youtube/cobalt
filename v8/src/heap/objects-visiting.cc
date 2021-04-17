@@ -87,16 +87,16 @@ static void ClearWeakList(Heap* heap, Object list) {
 template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code code, Object next) {
-    code.code_data_container().set_next_code_link(next,
-                                                  UPDATE_WEAK_WRITE_BARRIER);
+    code.code_data_container(kAcquireLoad)
+        .set_next_code_link(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
   static Object WeakNext(Code code) {
-    return code.code_data_container().next_code_link();
+    return code.code_data_container(kAcquireLoad).next_code_link();
   }
 
   static HeapObject WeakNextHolder(Code code) {
-    return code.code_data_container();
+    return code.code_data_container(kAcquireLoad);
   }
 
   static int WeakNextOffset() { return CodeDataContainer::kNextCodeLinkOffset; }
@@ -185,10 +185,37 @@ struct WeakListVisitor<AllocationSite> {
   static void VisitPhantomObject(Heap*, AllocationSite) {}
 };
 
+template <>
+struct WeakListVisitor<JSFinalizationRegistry> {
+  static void SetWeakNext(JSFinalizationRegistry obj, Object next) {
+    obj.set_next_dirty(next, UPDATE_WEAK_WRITE_BARRIER);
+  }
+
+  static Object WeakNext(JSFinalizationRegistry obj) {
+    return obj.next_dirty();
+  }
+
+  static HeapObject WeakNextHolder(JSFinalizationRegistry obj) { return obj; }
+
+  static int WeakNextOffset() {
+    return JSFinalizationRegistry::kNextDirtyOffset;
+  }
+
+  static void VisitLiveObject(Heap* heap, JSFinalizationRegistry obj,
+                              WeakObjectRetainer*) {
+    heap->set_dirty_js_finalization_registries_list_tail(obj);
+  }
+
+  static void VisitPhantomObject(Heap*, JSFinalizationRegistry) {}
+};
+
 template Object VisitWeakList<Context>(Heap* heap, Object list,
                                        WeakObjectRetainer* retainer);
 
 template Object VisitWeakList<AllocationSite>(Heap* heap, Object list,
                                               WeakObjectRetainer* retainer);
+
+template Object VisitWeakList<JSFinalizationRegistry>(
+    Heap* heap, Object list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8

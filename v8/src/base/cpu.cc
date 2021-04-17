@@ -20,7 +20,7 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
-#if V8_OS_LINUX && V8_HOST_ARCH_PPC
+#if V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64)
 #include <elf.h>
 #endif
 #if V8_OS_AIX
@@ -41,9 +41,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <algorithm>
 
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"  // NOLINT
 #endif
@@ -79,7 +81,8 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS || \
+    V8_HOST_ARCH_MIPS64
 
 #if V8_OS_LINUX
 
@@ -112,15 +115,63 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #define HWCAP_IDIV  (HWCAP_IDIVA | HWCAP_IDIVT)
 #define HWCAP_LPAE  (1 << 20)
 
+#endif  // V8_HOST_ARCH_ARM
+
+#if V8_HOST_ARCH_ARM64
+
+// See <uapi/asm/hwcap.h> kernel header.
+/*
+ * HWCAP flags - for elf_hwcap (in kernel) and AT_HWCAP
+ */
+#define HWCAP_FP (1 << 0)
+#define HWCAP_ASIMD (1 << 1)
+#define HWCAP_EVTSTRM (1 << 2)
+#define HWCAP_AES (1 << 3)
+#define HWCAP_PMULL (1 << 4)
+#define HWCAP_SHA1 (1 << 5)
+#define HWCAP_SHA2 (1 << 6)
+#define HWCAP_CRC32 (1 << 7)
+#define HWCAP_ATOMICS (1 << 8)
+#define HWCAP_FPHP (1 << 9)
+#define HWCAP_ASIMDHP (1 << 10)
+#define HWCAP_CPUID (1 << 11)
+#define HWCAP_ASIMDRDM (1 << 12)
+#define HWCAP_JSCVT (1 << 13)
+#define HWCAP_FCMA (1 << 14)
+#define HWCAP_LRCPC (1 << 15)
+#define HWCAP_DCPOP (1 << 16)
+#define HWCAP_SHA3 (1 << 17)
+#define HWCAP_SM3 (1 << 18)
+#define HWCAP_SM4 (1 << 19)
+#define HWCAP_ASIMDDP (1 << 20)
+#define HWCAP_SHA512 (1 << 21)
+#define HWCAP_SVE (1 << 22)
+#define HWCAP_ASIMDFHM (1 << 23)
+#define HWCAP_DIT (1 << 24)
+#define HWCAP_USCAT (1 << 25)
+#define HWCAP_ILRCPC (1 << 26)
+#define HWCAP_FLAGM (1 << 27)
+#define HWCAP_SSBS (1 << 28)
+#define HWCAP_SB (1 << 29)
+#define HWCAP_PACA (1 << 30)
+#define HWCAP_PACG (1UL << 31)
+
+#endif  // V8_HOST_ARCH_ARM64
+
+#if V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
+
 static uint32_t ReadELFHWCaps() {
   uint32_t result = 0;
 #if V8_GLIBC_PREREQ(2, 16)
   result = static_cast<uint32_t>(getauxval(AT_HWCAP));
 #else
   // Read the ELF HWCAP flags by parsing /proc/self/auxv.
-  FILE* fp = fopen("/proc/self/auxv", "r");
+  FILE* fp = base::Fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
-    struct { uint32_t tag; uint32_t value; } entry;
+    struct {
+      uint32_t tag;
+      uint32_t value;
+    } entry;
     for (;;) {
       size_t n = fread(&entry, sizeof(entry), 1, fp);
       if (n == 0 || (entry.tag == 0 && entry.value == 0)) {
@@ -131,13 +182,13 @@ static uint32_t ReadELFHWCaps() {
         break;
       }
     }
-    fclose(fp);
+    base::Fclose(fp);
   }
 #endif
   return result;
 }
 
-#endif  // V8_HOST_ARCH_ARM
+#endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
 
 #if V8_HOST_ARCH_MIPS
 int __detect_fp64_mode(void) {
@@ -189,7 +240,7 @@ class CPUInfo final {
     // required because files under /proc do not always return a valid size
     // when using fseek(0, SEEK_END) + ftell(). Nor can the be mmap()-ed.
     static const char PATHNAME[] = "/proc/cpuinfo";
-    FILE* fp = fopen(PATHNAME, "r");
+    FILE* fp = base::Fopen(PATHNAME, "r");
     if (fp != nullptr) {
       for (;;) {
         char buffer[256];
@@ -199,12 +250,12 @@ class CPUInfo final {
         }
         datalen_ += n;
       }
-      fclose(fp);
+      base::Fclose(fp);
     }
 
     // Read the contents of the cpuinfo file.
     data_ = new char[datalen_ + 1];
-    fp = fopen(PATHNAME, "r");
+    fp = base::Fopen(PATHNAME, "r");
     if (fp != nullptr) {
       for (size_t offset = 0; offset < datalen_; ) {
         size_t n = fread(data_ + offset, 1, datalen_ - offset, fp);
@@ -213,7 +264,7 @@ class CPUInfo final {
         }
         offset += n;
       }
-      fclose(fp);
+      base::Fclose(fp);
     }
 
     // Zero-terminate the data.
@@ -262,7 +313,7 @@ class CPUInfo final {
     size_t len = q - p;
     char* result = new char[len + 1];
     if (result != nullptr) {
-      memcpy(result, p, len);
+      base::Memcpy(result, p, len);
       result[len] = '\0';
     }
     return result;
@@ -299,7 +350,8 @@ static bool HasListItem(const char* list, const char* item) {
 
 #endif  // V8_OS_LINUX
 
-#endif  //  V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
+        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 #if defined(STARBOARD)
 
@@ -386,10 +438,11 @@ CPU::CPU()
       has_vfp_(false),
       has_vfp3_(false),
       has_vfp3_d32_(false),
+      has_jscvt_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       has_msa_(false) {
-  memcpy(vendor_, "Unknown", 8);
+  base::Memcpy(vendor_, "Unknown", 8);
 
 #if defined(STARBOARD)
   if (StarboardDetectCPU()) {
@@ -410,7 +463,7 @@ CPU::CPU()
   __cpuid(cpu_info, 0);
   unsigned num_ids = cpu_info[0];
   std::swap(cpu_info[2], cpu_info[3]);
-  memcpy(vendor_, cpu_info + 1, 12);
+  base::Memcpy(vendor_, cpu_info + 1, 12);
   vendor_[12] = '\0';
 
   // Interpret CPU feature information.
@@ -661,15 +714,32 @@ CPU::CPU()
 #endif
 
 #elif V8_HOST_ARCH_ARM64
-// Implementer, variant and part are currently unused under ARM64.
+#ifdef V8_OS_WIN
+  // Windows makes high-resolution thread timing information available in
+  // user-space.
+  has_non_stop_time_stamp_counter_ = true;
 
-#elif V8_HOST_ARCH_PPC
+#elif V8_OS_LINUX
+  // Try to extract the list of CPU features from ELF hwcaps.
+  uint32_t hwcaps = ReadELFHWCaps();
+  if (hwcaps != 0) {
+    has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
+  } else {
+    // Try to fallback to "Features" CPUInfo field
+    CPUInfo cpu_info;
+    char* features = cpu_info.ExtractField("Features");
+    has_jscvt_ = HasListItem(features, "jscvt");
+    delete[] features;
+  }
+#endif  // V8_OS_WIN
+
+#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX
   // Read processor info from /proc/self/auxv.
   char* auxv_cpu_type = nullptr;
-  FILE* fp = fopen("/proc/self/auxv", "r");
+  FILE* fp = base::Fopen("/proc/self/auxv", "r");
   if (fp != nullptr) {
 #if V8_TARGET_ARCH_PPC64
     Elf64_auxv_t entry;
@@ -693,7 +763,7 @@ CPU::CPU()
           break;
       }
     }
-    fclose(fp);
+    base::Fclose(fp);
   }
 
   part_ = -1;
@@ -737,7 +807,7 @@ CPU::CPU()
   }
 #endif  // V8_OS_AIX
 #endif  // !USE_SIMULATOR
-#endif  // V8_HOST_ARCH_PPC
+#endif  // V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 }
 
 }  // namespace base

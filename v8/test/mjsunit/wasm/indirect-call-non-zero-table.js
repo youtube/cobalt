@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-anyref --experimental-wasm-return-call
+// Flags: --expose-wasm --experimental-wasm-reftypes --experimental-wasm-return-call
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -41,28 +41,28 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .index;
 
   builder.addFunction('call1', kSig_i_i)
-    .addBody([kExprGetLocal, 0,   // function index
+    .addBody([kExprLocalGet, 0,   // function index
       kExprCallIndirect, sig_index, table1])
     .exportAs('call1');
   builder.addFunction('return_call1', kSig_i_i)
-    .addBody([kExprGetLocal, 0,   // function index
+    .addBody([kExprLocalGet, 0,   // function index
       kExprReturnCallIndirect, sig_index, table1])
     .exportAs('return_call1');
   builder.addFunction('call2', kSig_i_i)
-    .addBody([kExprGetLocal, 0,   // function index
+    .addBody([kExprLocalGet, 0,   // function index
       kExprCallIndirect, sig_index, table2])
     .exportAs('call2');
   builder.addFunction('return_call2', kSig_i_i)
-    .addBody([kExprGetLocal, 0,   // function index
+    .addBody([kExprLocalGet, 0,   // function index
       kExprReturnCallIndirect, sig_index, table2])
     .exportAs('return_call2');
 
   builder.addFunction('call_invalid_sig', kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 0,   // function index + param
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 0,   // function index + param
       kExprCallIndirect, other_sig, table2])
     .exportAs('call_invalid_sig');
   builder.addFunction('return_call_invalid_sig', kSig_i_i)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 0,   // function index + param
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 0,   // function index + param
       kExprReturnCallIndirect, other_sig, table2])
     .exportAs('return_call_invalid_sig');
 
@@ -79,11 +79,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(v1, instance.exports.call1(0));
   assertEquals(v2, instance.exports.call1(1));
   assertEquals(v3, instance.exports.call1(2));
-  assertTraps(kTrapFuncInvalid, () => instance.exports.call1(3));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.call1(3));
   assertEquals(v1, instance.exports.return_call1(0));
   assertEquals(v2, instance.exports.return_call1(1));
   assertEquals(v3, instance.exports.return_call1(2));
-  assertTraps(kTrapFuncInvalid, () => instance.exports.return_call1(3));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.return_call1(3));
 
   // Try to call through the uninitialized table entry.
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.call2(0));
@@ -119,10 +119,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const sig_index = builder.addType(kSig_i_v);
   const f1 = builder.addFunction("foo", sig_index)
-    .addBody([kExprGetGlobal, g, kExprI32Const, 12, kExprI32Add]);
+    .addBody([kExprGlobalGet, g, kExprI32Const, 12, kExprI32Add]);
 
   builder.addFunction('call', kSig_i_i)
-    .addBody([kExprGetLocal, 0,   // function index
+    .addBody([kExprLocalGet, 0,   // function index
       kExprCallIndirect, sig_index, t1])
     .exportAs('call');
 
@@ -167,14 +167,14 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let sig_index = builder.addType(kSig_i_ii);
   builder.addFunction("placeholder", sig_index)
-    .addBody([kExprGetLocal, 0]);
+    .addBody([kExprLocalGet, 0]);
 
   builder.addElementSegment(table_index, g, true, [div]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 55,  // --
-      kExprGetLocal, 0,   // --
-      kExprGetLocal, 1,   // --
+      kExprLocalGet, 0,   // --
+      kExprLocalGet, 1,   // --
       kExprCallIndirect, 0, table_index])  // --
     .exportAs("main");
 
