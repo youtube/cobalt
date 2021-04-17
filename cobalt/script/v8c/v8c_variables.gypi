@@ -19,8 +19,8 @@
         'generated_bindings_prefix': 'v8c',
         'engine_include_dirs': [],
         'engine_dependencies': [
-          '<(DEPTH)/v8/src/v8.gyp:v8',
-          '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+          '<(DEPTH)/v8/v8.gyp:v8',
+          '<(DEPTH)/v8/v8.gyp:v8_libplatform',
           '<(DEPTH)/net/net.gyp:net',
         ],
         'engine_defines': [],

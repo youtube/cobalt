@@ -7,8 +7,9 @@
 
 #include "src/compiler/js-operator.h"
 #include "src/compiler/js-type-hint-lowering.h"
-#include "src/utils/utils.h"
 #include "src/handles/handles.h"
+#include "src/objects/code-kind.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 
@@ -39,14 +40,13 @@ using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
 // Note: {invocation_frequency} is taken by reference to work around a GCC bug
 // on AIX (v8:8193).
 void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
-                            Handle<BytecodeArray> bytecode_array,
-                            Handle<SharedFunctionInfo> shared,
-                            Handle<FeedbackVector> feedback_vector,
+                            SharedFunctionInfoRef const& shared_info,
+                            FeedbackCellRef const& feedback_cell,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            Handle<NativeContext> native_context,
-                            int inlining_id, BytecodeGraphBuilderFlags flags,
+                            int inlining_id, CodeKind code_kind,
+                            BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter);
 
 }  // namespace compiler

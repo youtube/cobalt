@@ -248,7 +248,7 @@ class ValueHelper {
     return ArrayVector(uint32_array);
   }
 
-  static constexpr Vector<const int32_t> int32_vector() {
+  static Vector<const int32_t> int32_vector() {
     return Vector<const int32_t>::cast(uint32_vector());
   }
 
@@ -273,6 +273,8 @@ class ValueHelper {
       0x000007FFFFFFFFFF, 0x000003FFFFFFFFFF, 0x000001FFFFFFFFFF,
       0x8000008000000000, 0x8000008000000001, 0x8000000000000400,
       0x8000000000000401, 0x0000000000000020,
+      0x8000000000000000,  // int64_t min
+      0x7FFFFFFFFFFFFFFF,  // int64_t max
       // Bit pattern of a quiet NaN and signaling NaN, with or without
       // additional payload.
       0x7FF8000000000000, 0x7FF0000000000000, 0x7FF8123456789ABC,
@@ -282,7 +284,7 @@ class ValueHelper {
     return ArrayVector(uint64_array);
   }
 
-  static constexpr Vector<const int64_t> int64_vector() {
+  static Vector<const int64_t> int64_vector() {
     return Vector<const int64_t>::cast(uint64_vector());
   }
 
@@ -293,7 +295,7 @@ class ValueHelper {
     return ArrayVector(int16_array);
   }
 
-  static constexpr Vector<const uint16_t> uint16_vector() {
+  static Vector<const uint16_t> uint16_vector() {
     return Vector<const uint16_t>::cast(int16_vector());
   }
 
@@ -304,7 +306,7 @@ class ValueHelper {
     return ArrayVector(int8_array);
   }
 
-  static constexpr Vector<const uint8_t> uint8_vector() {
+  static Vector<const uint8_t> uint8_vector() {
     return Vector<const uint8_t>::cast(ArrayVector(int8_array));
   }
 
@@ -315,7 +317,45 @@ class ValueHelper {
   static constexpr Vector<const uint32_t> ror_vector() {
     return ArrayVector(ror_array);
   }
+
+  template <typename T>
+  static inline Vector<const T> GetVector();
 };
+
+template <>
+inline Vector<const int8_t> ValueHelper::GetVector() {
+  return int8_vector();
+}
+
+template <>
+inline Vector<const uint8_t> ValueHelper::GetVector() {
+  return uint8_vector();
+}
+
+template <>
+inline Vector<const int16_t> ValueHelper::GetVector() {
+  return int16_vector();
+}
+
+template <>
+inline Vector<const uint16_t> ValueHelper::GetVector() {
+  return uint16_vector();
+}
+
+template <>
+inline Vector<const int32_t> ValueHelper::GetVector() {
+  return int32_vector();
+}
+
+template <>
+inline Vector<const uint32_t> ValueHelper::GetVector() {
+  return uint32_vector();
+}
+
+template <>
+inline Vector<const int64_t> ValueHelper::GetVector() {
+  return int64_vector();
+}
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
 #define FOR_INPUTS(ctype, itype, var) \

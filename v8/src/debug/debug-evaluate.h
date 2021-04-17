@@ -14,7 +14,7 @@
 #include "src/execution/frames.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/string-table.h"
+#include "src/objects/string-set.h"
 
 namespace v8 {
 namespace internal {
@@ -24,7 +24,8 @@ class FrameInspector;
 class DebugEvaluate : public AllStatic {
  public:
   static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
-                                    bool throw_on_side_effect);
+                                    debug::EvaluateGlobalMode mode,
+                                    REPLMode repl_mode = REPLMode::kNo);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:
@@ -35,6 +36,10 @@ class DebugEvaluate : public AllStatic {
                                    int inlined_jsframe_index,
                                    Handle<String> source,
                                    bool throw_on_side_effect);
+
+  static V8_EXPORT MaybeHandle<Object> WebAssembly(
+      Handle<WasmInstanceObject> instance, StackFrameId frame_id,
+      Handle<String> source, bool throw_on_side_effect);
 
   // This is used for break-at-entry for builtins and API functions.
   // Evaluate a piece of JavaScript in the native context, but with the
@@ -83,7 +88,7 @@ class DebugEvaluate : public AllStatic {
     struct ContextChainElement {
       Handle<Context> wrapped_context;
       Handle<JSObject> materialized_object;
-      Handle<StringSet> whitelist;
+      Handle<StringSet> blocklist;
     };
 
     Handle<Context> evaluation_context_;
@@ -100,7 +105,6 @@ class DebugEvaluate : public AllStatic {
                                       Handle<String> source,
                                       bool throw_on_side_effect);
 };
-
 
 }  // namespace internal
 }  // namespace v8

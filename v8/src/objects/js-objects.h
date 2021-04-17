@@ -6,10 +6,11 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects/embedder-data-slot.h"
+// TODO(jkummerow): Consider forward-declaring instead.
+#include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
-#include "torque-generated/class-definitions-tq.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,10 +18,17 @@
 namespace v8 {
 namespace internal {
 
+// Enum for functions that offer a second mode that does not cause allocations.
+// Used in conjunction with LookupIterator and unboxed double fields.
+enum class AllocationPolicy { kAllocationAllowed, kAllocationDisallowed };
+
 enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 class NativeContext;
+class IsCompiledScope;
+
+#include "torque-generated/src/objects/js-objects-tq.inc"
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
@@ -36,8 +44,13 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects.
+  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
+  // not set).
   DECL_GETTER(property_dictionary, NameDictionary)
+
+  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
+  // set).
+  DECL_GETTER(property_dictionary_ordered, OrderedNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -66,7 +79,8 @@ class JSReceiver : public HeapObject {
   inline void initialize_properties(Isolate* isolate);
 
   // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
+  static void DeleteNormalizedProperty(Handle<JSReceiver> object,
+                                       InternalIndex entry);
 
   DECL_CAST(JSReceiver)
   DECL_VERIFIER(JSReceiver)
@@ -199,15 +213,17 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
       Handle<JSReceiver> object);
 
-  // Returns the class name ([[Class]] property in the specification).
+  // Returns the class name.
   V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
   static MaybeHandle<JSFunction> GetConstructor(Handle<JSReceiver> receiver);
 
-  // Returns the constructor name (the name (possibly, inferred name) of the
-  // function that was used to instantiate the object).
+  // Returns the constructor name (the (possibly inferred) name of the function
+  // that was used to instantiate the object), if any. If a FunctionTemplate is
+  // used to instantiate the object, the class_name of the FunctionTemplate is
+  // returned instead.
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
@@ -228,13 +244,15 @@ class JSReceiver : public HeapObject {
       LookupIterator* it);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
       Handle<JSReceiver> object, Handle<Object> value, bool from_javascript,
       ShouldThrow should_throw);
 
   inline static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
                                                Handle<Name> name);
-  V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(LookupIterator* it);
+  V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(
+      LookupIterator* it, AllocationPolicy allocation_policy =
+                              AllocationPolicy::kAllocationAllowed);
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
@@ -264,11 +282,11 @@ class JSReceiver : public HeapObject {
   static const int kHashMask = PropertyArray::HashField::kMask;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_JSRECEIVER_FIELDS)
+                                TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetPrivateEntries(
-      Isolate* isolate, Handle<JSReceiver> receiver);
+  // TC39 "Dynamic Code Brand Checks"
+  bool IsCodeLike(Isolate* isolate) const;
 
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
@@ -323,8 +341,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Returns true if an object has elements of PACKED_ELEMENTS
   DECL_GETTER(HasPackedElements, bool)
-  DECL_GETTER(HasFrozenOrSealedElements, bool)
+  DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
+  DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayElements, bool)
 
@@ -378,7 +397,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                  PropertyAttributes attributes);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  SetOwnElementIgnoreAttributes(Handle<JSObject> object, uint32_t index,
+  SetOwnElementIgnoreAttributes(Handle<JSObject> object, size_t index,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
@@ -473,7 +492,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
 
   // Defines an AccessorPair property on the given object.
-  // TODO(mstarzinger): Rename to SetAccessor().
   V8_EXPORT_PRIVATE static MaybeHandle<Object> DefineAccessor(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
       Handle<Object> setter, PropertyAttributes attributes);
@@ -509,7 +527,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                               uint32_t length,
                                               EnsureElementsMode mode);
   static void EnsureCanContainElements(Handle<JSObject> object,
-                                       Arguments* arguments, uint32_t first_arg,
+                                       JavaScriptArguments* arguments,
                                        uint32_t arg_count,
                                        EnsureElementsMode mode);
 
@@ -558,6 +576,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
+  inline void InitializeEmbedderField(Isolate* isolate, int index);
   inline Object GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
@@ -611,14 +630,14 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   const char* reason);
 
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(Isolate* isolate, FieldIndex index) const;
+  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
   inline double RawFastDoublePropertyAt(FieldIndex index) const;
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
@@ -630,7 +649,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
-  inline void WriteToField(int descriptor, PropertyDetails details,
+  inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 
   // Access to in object properties.
@@ -713,7 +732,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -805,6 +824,29 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
+// An abstract superclass for JSObjects that may have elements while having an
+// empty fixed array as elements backing store. It doesn't carry any
+// functionality but allows function classes to be identified in the type
+// system.
+class JSCustomElementsObject
+    : public TorqueGeneratedJSCustomElementsObject<JSCustomElementsObject,
+                                                   JSObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSCustomElementsObject)
+};
+
+// An abstract superclass for JSObjects that require non-standard element
+// access. It doesn't carry any functionality but allows function classes to be
+// identified in the type system.
+class JSSpecialObject
+    : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
+                                            JSCustomElementsObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
+};
+
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
 // map. This initial map adds in-object properties for "get", "set",
 // "enumerable" and "configurable" properties, as assigned by the
@@ -892,257 +934,6 @@ class JSIteratorResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
-// JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction : public JSObject {
- public:
-  // [bound_target_function]: The wrapped function object.
-  DECL_ACCESSORS(bound_target_function, JSReceiver)
-
-  // [bound_this]: The value that is always passed as the this value when
-  // calling the wrapped function.
-  DECL_ACCESSORS(bound_this, Object)
-
-  // [bound_arguments]: A list of values whose elements are used as the first
-  // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
-
-  static MaybeHandle<String> GetName(Isolate* isolate,
-                                     Handle<JSBoundFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate,
-                              Handle<JSBoundFunction> function);
-  static MaybeHandle<NativeContext> GetFunctionRealm(
-      Handle<JSBoundFunction> function);
-
-  DECL_CAST(JSBoundFunction)
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSBoundFunction)
-  DECL_VERIFIER(JSBoundFunction)
-
-  // The bound function's string representation implemented according
-  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSBOUND_FUNCTION_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
-};
-
-// JSFunction describes JavaScript functions.
-class JSFunction : public JSObject {
- public:
-  // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
-
-  // [shared]: The information about the function that
-  // can be shared by instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
-
-  static const int kLengthDescriptorIndex = 0;
-  static const int kNameDescriptorIndex = 1;
-  // Home object descriptor index when function has a [[HomeObject]] slot.
-  static const int kMaybeHomeObjectDescriptorIndex = 2;
-
-  // [context]: The context for this function.
-  inline Context context();
-  inline bool has_context() const;
-  inline void set_context(HeapObject context);
-  inline JSGlobalProxy global_proxy();
-  inline NativeContext native_context();
-  inline int length();
-
-  static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
-
-  // [code]: The generated code object for this function.  Executed
-  // when the function is invoked, e.g. foo() or new foo(). See
-  // [[Call]] and [[Construct]] description in ECMA-262, section
-  // 8.6.2, page 27.
-  inline Code code() const;
-  inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
-
-  // Get the abstract code associated with the function, which will either be
-  // a Code object or a BytecodeArray.
-  inline AbstractCode abstract_code();
-
-  // Tells whether or not this function is interpreted.
-  //
-  // Note: function->IsInterpreted() does not necessarily return the same value
-  // as function->shared()->IsInterpreted() because the closure might have been
-  // optimized.
-  inline bool IsInterpreted();
-
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
-
-  // Tells whether or not this function holds optimized code.
-  //
-  // Note: Returning false does not necessarily mean that this function hasn't
-  // been optimized, as it may have optimized code on its feedback vector.
-  inline bool IsOptimized();
-
-  // Tells whether or not this function has optimized code available to it,
-  // either because it is optimized or because it has optimized code in its
-  // feedback vector.
-  inline bool HasOptimizedCode();
-
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
-
-  // Mark this function for lazy recompilation. The function will be recompiled
-  // the next time it is executed.
-  void MarkForOptimization(ConcurrencyMode mode);
-
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
-
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
-
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
-
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
-
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
-
-  // If slack tracking is active, it computes instance size of the initial map
-  // with minimum permissible object slack.  If it is not active, it simply
-  // returns the initial map's instance size.
-  int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
-
-  // Completes inobject slack tracking on initial map if it is active.
-  inline void CompleteInobjectSlackTrackingIfActive();
-
-  // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
-  /// FeedbackVector eventually. Generally this shouldn't be used to get the
-  // feedback_vector, instead use feedback_vector() which correctly deals with
-  // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
-
-  // Functions related to feedback vector. feedback_vector() can be used once
-  // the function has feedback vectors allocated. feedback vectors may not be
-  // available after compile when lazily allocating feedback vectors.
-  inline FeedbackVector feedback_vector() const;
-  inline bool has_feedback_vector() const;
-  V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function);
-
-  // Functions related to clousre feedback cell array that holds feedback cells
-  // used to create closures from this function. We allocate closure feedback
-  // cell arrays after compile, when we want to allocate feedback vectors
-  // lazily.
-  inline bool has_closure_feedback_cell_array() const;
-  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
-
-  // Initializes the feedback cell of |function|. In lite mode, this would be
-  // initialized to the closure feedback cell array that holds the feedback
-  // cells for create closure calls from this function. In the regular mode,
-  // this allocates feedback vector.
-  static void InitializeFeedbackCell(Handle<JSFunction> function);
-
-  // Unconditionally clear the type feedback vector.
-  void ClearTypeFeedbackInfo();
-
-  // Resets function to clear compiled data after bytecode has been flushed.
-  inline bool NeedsResetDueToFlushedBytecode();
-  inline void ResetIfBytecodeFlushed();
-
-  DECL_GETTER(has_prototype_slot, bool)
-
-  // The initial map for an object created by this constructor.
-  DECL_GETTER(initial_map, Map)
-
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
-  DECL_GETTER(has_initial_map, bool)
-  V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
-      Handle<JSFunction> function);
-
-  // Creates a map that matches the constructor's initial map, but with
-  // [[prototype]] being new.target.prototype. Because new.target can be a
-  // JSProxy, this can call back into JavaScript.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
-      Isolate* isolate, Handle<JSFunction> constructor,
-      Handle<JSReceiver> new_target);
-
-  // Get and set the prototype property on a JSFunction. If the
-  // function has an initial map the prototype is set on the initial
-  // map. Otherwise, the prototype is put in the initial map field
-  // until an initial map is needed.
-  DECL_GETTER(has_prototype, bool)
-  DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Object)
-  DECL_GETTER(instance_prototype, HeapObject)
-  DECL_GETTER(has_prototype_property, bool)
-  DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
-  static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
-
-  // Returns if this function has been compiled to native code yet.
-  inline bool is_compiled() const;
-
-  static int GetHeaderSize(bool function_has_prototype_slot) {
-    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
-                                       : JSFunction::kSizeWithoutPrototype;
-  }
-
-  // Prints the name of the function using PrintF.
-  void PrintName(FILE* out = stdout);
-
-  DECL_CAST(JSFunction)
-
-  // Calculate the instance size and in-object properties count.
-  static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
-      Isolate* isolate, Handle<JSFunction> function);
-  static void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                          bool has_prototype_slot,
-                                          int requested_embedder_fields,
-                                          int requested_in_object_properties,
-                                          int* instance_size,
-                                          int* in_object_properties);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSFunction)
-  DECL_VERIFIER(JSFunction)
-
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
-  static Handle<String> GetName(Handle<JSFunction> function);
-
-  // ES6 section 9.2.11 SetFunctionName
-  // Because of the way this abstract operation is used in the spec,
-  // it should never fail, but in practice it will fail if the generated
-  // function name's length exceeds String::kMaxLength.
-  static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
-                                            Handle<Name> name,
-                                            Handle<String> prefix);
-
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
-  // debug name.
-  static Handle<String> GetDebugName(Handle<JSFunction> function);
-
-  // The function's string representation implemented according to
-  // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSFunction> function);
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSFUNCTION_FIELDS)
-
-  static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = kSize;
-
-  OBJECT_CONSTRUCTORS(JSFunction, JSObject);
-};
-
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
 // and the prototype is hidden. JSGlobalProxy always delegates
 // property accesses to its prototype if the prototype is not null.
@@ -1152,9 +943,10 @@ class JSFunction : public JSObject {
 // Accessing a JSGlobalProxy requires security check.
 
 class JSGlobalProxy
-    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSObject> {
+    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(JSGlobalObject global) const;
+  V8_EXPORT_PRIVATE bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1166,7 +958,7 @@ class JSGlobalProxy
 };
 
 // JavaScript global object.
-class JSGlobalObject : public JSObject {
+class JSGlobalObject : public JSSpecialObject {
  public:
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, NativeContext)
@@ -1180,29 +972,30 @@ class JSGlobalObject : public JSObject {
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
-  // Ensure that the global object has a cell for the given property name.
-  static Handle<PropertyCell> EnsureEmptyPropertyCell(
-      Handle<JSGlobalObject> global, Handle<Name> name,
-      PropertyCellType cell_type, int* entry_out = nullptr);
 
   DECL_CAST(JSGlobalObject)
 
   inline bool IsDetached();
+
+  // May be called by the concurrent GC when the global object is not
+  // fully initialized.
+  DECL_GETTER(native_context_unchecked, Object)
 
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSGLOBAL_OBJECT_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSSpecialObject::kHeaderSize,
+                                TORQUE_GENERATED_JS_GLOBAL_OBJECT_FIELDS)
 
-  OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
+  OBJECT_CONSTRUCTORS(JSGlobalObject, JSSpecialObject);
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
 class JSPrimitiveWrapper
-    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper, JSObject> {
+    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper,
+                                               JSCustomElementsObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSPrimitiveWrapper)
@@ -1213,33 +1006,10 @@ class JSPrimitiveWrapper
 class DateCache;
 
 // Representation for JS date objects.
-class JSDate : public JSObject {
+class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
  public:
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target, double tv);
-
-  // If one component is NaN, all of them are, indicating a NaN time value.
-  // [value]: the time value.
-  DECL_ACCESSORS(value, Object)
-  // [year]: caches year. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(year, Object)
-  // [month]: caches month. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(month, Object)
-  // [day]: caches day. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(day, Object)
-  // [weekday]: caches day of week. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(weekday, Object)
-  // [hour]: caches hours. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(hour, Object)
-  // [min]: caches minutes. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(min, Object)
-  // [sec]: caches seconds. Either undefined, smi, or NaN.
-  DECL_ACCESSORS(sec, Object)
-  // [cache stamp]: sample of the date cache stamp at the
-  // moment when chached fields were cached.
-  DECL_ACCESSORS(cache_stamp, Object)
-
-  DECL_CAST(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
@@ -1251,7 +1021,8 @@ class JSDate : public JSObject {
   // {raw_date} is a tagged Object pointer.
   // {smi_index} is a tagged Smi.
   // The return value is a tagged Object pointer.
-  static Address GetField(Address raw_date, Address smi_index);
+  static Address GetField(Isolate* isolate, Address raw_date,
+                          Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
@@ -1290,18 +1061,14 @@ class JSDate : public JSObject {
     kTimezoneOffset
   };
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSDATE_FIELDS)
-
  private:
-  inline Object DoGetField(FieldIndex index);
-
+  Object DoGetField(Isolate* isolate, FieldIndex index);
   Object GetUTCField(FieldIndex index, double value, DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
 
-  OBJECT_CONSTRUCTORS(JSDate, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSDate)
 };
 
 // Representation of message objects used for error reporting through
@@ -1360,12 +1127,13 @@ class JSMessageObject : public JSObject {
   DECL_VERIFIER(JSMessageObject)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSMESSAGE_OBJECT_FIELDS)
+                                TORQUE_GENERATED_JS_MESSAGE_OBJECT_FIELDS)
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
-  using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
-                                             kPointerFieldsEndOffset, kSize>;
+  using BodyDescriptor =
+      FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
+                          kHeaderSize>;
 
  private:
   friend class Factory;
@@ -1396,48 +1164,29 @@ class JSMessageObject : public JSObject {
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
-class JSAsyncFromSyncIterator : public JSObject {
+class JSAsyncFromSyncIterator
+    : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
+                                                    JSObject> {
  public:
-  DECL_CAST(JSAsyncFromSyncIterator)
   DECL_PRINTER(JSAsyncFromSyncIterator)
-  DECL_VERIFIER(JSAsyncFromSyncIterator)
 
   // Async-from-Sync Iterator instances are ordinary objects that inherit
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
   // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
-  DECL_ACCESSORS(sync_iterator, JSReceiver)
 
-  // The "next" method is loaded during GetIterator, and is not reloaded for
-  // subsequent "next" invocations.
-  DECL_ACCESSORS(next, Object)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSASYNC_FROM_SYNC_ITERATOR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };
 
-class JSStringIterator : public JSObject {
+class JSStringIterator
+    : public TorqueGeneratedJSStringIterator<JSStringIterator, JSObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  DECL_CAST(JSStringIterator)
-
-  // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS(string, String)
-
-  // [index]: The [[StringIteratorNextIndex]] inobject property.
-  inline int index() const;
-  inline void set_index(int value);
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSSTRING_ITERATOR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSStringIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSStringIterator)
 };
 
 }  // namespace internal

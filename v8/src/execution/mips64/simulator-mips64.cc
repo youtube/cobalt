@@ -10,9 +10,12 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
@@ -420,7 +423,8 @@ void MipsDebugger::Debug() {
         } else {
           PrintF("printobject <value>\n");
         }
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+                 strcmp(cmd, "dump") == 0) {
         int64_t* cur = nullptr;
         int64_t* end = nullptr;
         int next_arg = 1;
@@ -447,20 +451,23 @@ void MipsDebugger::Debug() {
         }
         end = cur + words;
 
+        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
         while (cur < end) {
           PrintF("  0x%012" PRIxPTR " :  0x%016" PRIx64 "  %14" PRId64 " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (obj.IsSmi() ||
-              IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-            PrintF(" (");
-            if (obj.IsSmi()) {
-              PrintF("smi %d", Smi::ToInt(obj));
-            } else {
-              obj.ShortPrint();
+          if (!skip_obj_print) {
+            if (obj.IsSmi() ||
+                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+              PrintF(" (");
+              if (obj.IsSmi()) {
+                PrintF("smi %d", Smi::ToInt(obj));
+              } else {
+                obj.ShortPrint();
+              }
+              PrintF(")");
             }
-            PrintF(")");
           }
           PrintF("\n");
           cur++;
@@ -644,6 +651,10 @@ void MipsDebugger::Debug() {
         PrintF("  dump stack content, default dump 10 words)\n");
         PrintF("mem <address> [<words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
+        PrintF("dump [<words>]\n");
+        PrintF(
+            "  dump memory content without pretty printing JS objects, default "
+            "dump 10 words)\n");
         PrintF("flags\n");
         PrintF("  print flags\n");
         PrintF("disasm [<instructions>]\n");
@@ -780,7 +791,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
                        cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    base::Memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -789,7 +800,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_size_ = FLAG_sim_stack_size * KB;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size_));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
@@ -827,7 +838,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
-  free(stack_);
+  base::Free(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -921,8 +932,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[sizeof(registers_[0])];
-  memcpy(buffer, &registers_[reg], sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, sizeof(registers_[0]));
+  base::Memcpy(buffer, &registers_[reg], sizeof(registers_[0]));
+  base::Memcpy(&dm_val, buffer, sizeof(registers_[0]));
   return (dm_val);
 }
 
@@ -959,13 +970,13 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 template <typename T>
 void Simulator::get_msa_register(int wreg, T* value) {
   DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
+  base::Memcpy(value, FPUregisters_ + wreg * 2, kSimd128Size);
 }
 
 template <typename T>
 void Simulator::set_msa_register(int wreg, const T* value) {
   DCHECK((wreg >= 0) && (wreg < kNumMSARegisters));
-  memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
+  base::Memcpy(FPUregisters_ + wreg * 2, value, kSimd128Size);
 }
 
 // Runtime FP routines take up to two double arguments and zero
@@ -987,14 +998,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
     // Registers a0 and a1 -> x.
     reg_buffer[0] = get_register(a0);
     reg_buffer[1] = get_register(a1);
-    memcpy(x, buffer, sizeof(buffer));
+    base::Memcpy(x, buffer, sizeof(buffer));
     // Registers a2 and a3 -> y.
     reg_buffer[0] = get_register(a2);
     reg_buffer[1] = get_register(a3);
-    memcpy(y, buffer, sizeof(buffer));
+    base::Memcpy(y, buffer, sizeof(buffer));
     // Register 2 -> z.
     reg_buffer[0] = get_register(a2);
-    memcpy(z, buffer, sizeof(*z));
+    base::Memcpy(z, buffer, sizeof(*z));
   }
 }
 
@@ -1005,7 +1016,7 @@ void Simulator::SetFpResult(const double& result) {
   } else {
     char buffer[2 * sizeof(registers_[0])];
     int64_t* reg_buffer = reinterpret_cast<int64_t*>(buffer);
-    memcpy(buffer, &result, sizeof(buffer));
+    base::Memcpy(buffer, &result, sizeof(buffer));
     // Copy result to v0 and v1.
     set_register(v0, reg_buffer[0]);
     set_register(v1, reg_buffer[1]);
@@ -1582,7 +1593,7 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
       float f[4];
       double df[2];
     } v;
-    memcpy(v.b, value, kSimd128Size);
+    base::Memcpy(v.b, value, kSimd128Size);
     switch (t) {
       case BYTE:
         SNPrintF(trace_buf_,
@@ -1635,7 +1646,7 @@ void Simulator::TraceMSARegWr(T* value) {
       float f[kMSALanesWord];
       double df[kMSALanesDword];
     } v;
-    memcpy(v.b, value, kMSALanesByte);
+    base::Memcpy(v.b, value, kMSALanesByte);
 
     if (std::is_same<T, int32_t>::value) {
       SNPrintF(trace_buf_,
@@ -2132,7 +2143,7 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -2159,7 +2170,7 @@ using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
                                             int64_t arg2, int64_t arg3,
                                             int64_t arg4, int64_t arg5,
                                             int64_t arg6, int64_t arg7,
-                                            int64_t arg8);
+                                            int64_t arg8, int64_t arg9);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
@@ -2200,7 +2211,8 @@ void Simulator::SoftwareInterrupt() {
     int64_t arg6 = get_register(a6);
     int64_t arg7 = get_register(a7);
     int64_t arg8 = stack_pointer[0];
-    STATIC_ASSERT(kMaxCParameters == 9);
+    int64_t arg9 = stack_pointer[1];
+    STATIC_ASSERT(kMaxCParameters == 10);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2372,12 +2384,12 @@ void Simulator::SoftwareInterrupt() {
             "Call to host function at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
-            " , %08" PRIx64 " \n",
+            " , %08" PRIx64 " , %08" PRIx64 " \n",
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8);
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       }
       ObjectPair result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       set_register(v0, (int64_t)(result.x));
       set_register(v1, (int64_t)(result.y));
     }
@@ -7438,8 +7450,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
-         stack_args_count * sizeof(*arguments));
+  base::Memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+               stack_args_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -7459,9 +7471,9 @@ double Simulator::CallFP(Address entry, double d0, double d1) {
   } else {
     int buffer[2];
     DCHECK(sizeof(buffer[0]) * 2 == sizeof(d0));
-    memcpy(buffer, &d0, sizeof(d0));
+    base::Memcpy(buffer, &d0, sizeof(d0));
     set_dw_register(a0, buffer);
-    memcpy(buffer, &d1, sizeof(d1));
+    base::Memcpy(buffer, &d1, sizeof(d1));
     set_dw_register(a2, buffer);
   }
   CallInternal(entry);

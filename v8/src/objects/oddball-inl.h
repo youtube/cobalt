@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/oddball-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
@@ -25,13 +27,9 @@ void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
-byte Oddball::kind() const {
-  return Smi::ToInt(TorqueGeneratedOddball::kind());
-}
+byte Oddball::kind() const { return TorqueGeneratedOddball::kind(); }
 
-void Oddball::set_kind(byte value) {
-  TorqueGeneratedOddball::set_kind(Smi::FromInt(value));
-}
+void Oddball::set_kind(byte value) { TorqueGeneratedOddball::set_kind(value); }
 
 // static
 Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {

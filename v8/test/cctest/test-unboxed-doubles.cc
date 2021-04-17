@@ -45,20 +45,6 @@ static void InitializeVerifiedMapDescriptors(
   CHECK(layout_descriptor.IsConsistentWithMap(map, true));
 }
 
-static Handle<String> MakeString(const char* str) {
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  return factory->InternalizeUtf8String(str);
-}
-
-
-static Handle<String> MakeName(const char* str, int suffix) {
-  EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.begin());
-}
-
-
 Handle<JSObject> GetObject(const char* name) {
   return Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
@@ -73,13 +59,14 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
     return obj.RawFastDoublePropertyAt(field_index);
   } else {
     Object value = obj.RawFastPropertyAt(field_index);
-    CHECK(value.IsMutableHeapNumber());
-    return MutableHeapNumber::cast(value).value();
+    CHECK(value.IsHeapNumber());
+    return HeapNumber::cast(value).value();
   }
 }
 
-void WriteToField(JSObject object, int descriptor, Object value) {
-  DescriptorArray descriptors = object.map().instance_descriptors();
+void WriteToField(JSObject object, int index, Object value) {
+  DescriptorArray descriptors = object.map().instance_descriptors(kRelaxedLoad);
+  InternalIndex descriptor(index);
   PropertyDetails details = descriptors.GetDetails(descriptor);
   object.WriteToField(descriptor, details, value);
 }
@@ -686,7 +673,8 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     }
     map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
-  Handle<LayoutDescriptor> layout_descriptor(map->layout_descriptor(), isolate);
+  Handle<LayoutDescriptor> layout_descriptor(
+      map->layout_descriptor(kAcquireLoad), isolate);
   CHECK(layout_descriptor->IsConsistentWithMap(*map, true));
   return layout_descriptor;
 }
@@ -811,9 +799,9 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   Handle<Map> map;
   // Now check layout descriptors of all intermediate maps.
   for (int i = 0; i < number_of_descriptors; i++) {
-    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
     map = maps[i];
-    LayoutDescriptor layout_desc = map->layout_descriptor();
+    LayoutDescriptor layout_desc = map->layout_descriptor(kAcquireLoad);
 
     if (layout_desc.IsSlowLayout()) {
       switched_to_slow_mode = true;
@@ -833,7 +821,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
         CHECK(layout_desc.IsTagged(field_index + field_width_in_words));
       }
     }
-    CHECK(map->layout_descriptor().IsConsistentWithMap(*map));
+    CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map));
   }
 
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
@@ -962,7 +950,7 @@ TEST(Regress436816) {
   CHECK(fake_object.IsHeapObject());
 
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
-  for (int i = 0; i < kPropsCount; i++) {
+  for (InternalIndex i : InternalIndex::Range(kPropsCount)) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     CHECK(map->IsUnboxedDoubleField(index));
     object->RawFastDoublePropertyAsBitsAtPut(index, boom_value);
@@ -994,19 +982,20 @@ TEST(DescriptorArrayTrimming) {
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, kFieldCount);
   for (int i = 0; i < kSplitFieldIndex; i++) {
-    map = Map::CopyWithField(isolate, map, MakeName("prop", i), any_type, NONE,
-                             PropertyConstness::kMutable, Representation::Smi(),
-                             INSERT_TRANSITION)
+    map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", i),
+                             any_type, NONE, PropertyConstness::kMutable,
+                             Representation::Smi(), INSERT_TRANSITION)
               .ToHandleChecked();
   }
-  map = Map::CopyWithField(isolate, map, MakeName("dbl", kSplitFieldIndex),
-                           any_type, NONE, PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map,
+                           CcTest::MakeName("dbl", kSplitFieldIndex), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map, true));
-  CHECK(map->layout_descriptor().IsSlowLayout());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map, true));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
   CHECK(map->owns_descriptors());
-  CHECK_EQ(8, map->layout_descriptor().length());
+  CHECK_EQ(8, map->layout_descriptor(kAcquireLoad).length());
 
   {
     // Add transitions to double fields.
@@ -1014,39 +1003,42 @@ TEST(DescriptorArrayTrimming) {
 
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount; i++) {
-      tmp_map = Map::CopyWithField(isolate, tmp_map, MakeName("dbl", i),
+      tmp_map = Map::CopyWithField(isolate, tmp_map, CcTest::MakeName("dbl", i),
                                    any_type, NONE, PropertyConstness::kMutable,
                                    Representation::Double(), INSERT_TRANSITION)
                     .ToHandleChecked();
-      CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+      CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+                .IsConsistentWithMap(*tmp_map, true));
     }
     // Check that descriptors are shared.
     CHECK(tmp_map->owns_descriptors());
-    CHECK_EQ(map->instance_descriptors(), tmp_map->instance_descriptors());
-    CHECK_EQ(map->layout_descriptor(), tmp_map->layout_descriptor());
+    CHECK_EQ(map->instance_descriptors(kRelaxedLoad),
+             tmp_map->instance_descriptors(kRelaxedLoad));
+    CHECK_EQ(map->layout_descriptor(kAcquireLoad),
+             tmp_map->layout_descriptor(kAcquireLoad));
   }
-  CHECK(map->layout_descriptor().IsSlowLayout());
-  CHECK_EQ(16, map->layout_descriptor().length());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
+  CHECK_EQ(16, map->layout_descriptor(kAcquireLoad).length());
 
   // The unused tail of the layout descriptor is now "durty" because of sharing.
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map));
   for (int i = kSplitFieldIndex + 1; i < kTrimmedLayoutDescriptorLength; i++) {
-    CHECK(!map->layout_descriptor().IsTagged(i));
+    CHECK(!map->layout_descriptor(kAcquireLoad).IsTagged(i));
   }
   CHECK_LT(map->NumberOfOwnDescriptors(),
-           map->instance_descriptors().number_of_descriptors());
+           map->instance_descriptors(kRelaxedLoad).number_of_descriptors());
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
   CcTest::CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map, true));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map, true));
   CHECK(map->owns_descriptors());
   CHECK_EQ(map->NumberOfOwnDescriptors(),
-           map->instance_descriptors().number_of_descriptors());
-  CHECK(map->layout_descriptor().IsSlowLayout());
-  CHECK_EQ(8, map->layout_descriptor().length());
+           map->instance_descriptors(kRelaxedLoad).number_of_descriptors());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
+  CHECK_EQ(8, map->layout_descriptor(kAcquireLoad).length());
 
   {
     // Add transitions to tagged fields.
@@ -1054,22 +1046,26 @@ TEST(DescriptorArrayTrimming) {
 
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount - 1; i++) {
-      tmp_map = Map::CopyWithField(isolate, tmp_map, MakeName("tagged", i),
-                                   any_type, NONE, PropertyConstness::kMutable,
-                                   Representation::Tagged(), INSERT_TRANSITION)
-                    .ToHandleChecked();
-      CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+      tmp_map =
+          Map::CopyWithField(isolate, tmp_map, CcTest::MakeName("tagged", i),
+                             any_type, NONE, PropertyConstness::kMutable,
+                             Representation::Tagged(), INSERT_TRANSITION)
+              .ToHandleChecked();
+      CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+                .IsConsistentWithMap(*tmp_map, true));
     }
-    tmp_map = Map::CopyWithField(isolate, tmp_map, MakeString("dbl"), any_type,
-                                 NONE, PropertyConstness::kMutable,
+    tmp_map = Map::CopyWithField(isolate, tmp_map, CcTest::MakeString("dbl"),
+                                 any_type, NONE, PropertyConstness::kMutable,
                                  Representation::Double(), INSERT_TRANSITION)
                   .ToHandleChecked();
-    CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+    CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+              .IsConsistentWithMap(*tmp_map, true));
     // Check that descriptors are shared.
     CHECK(tmp_map->owns_descriptors());
-    CHECK_EQ(map->instance_descriptors(), tmp_map->instance_descriptors());
+    CHECK_EQ(map->instance_descriptors(kRelaxedLoad),
+             tmp_map->instance_descriptors(kRelaxedLoad));
   }
-  CHECK(map->layout_descriptor().IsSlowLayout());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
 }
 
 
@@ -1086,8 +1082,8 @@ TEST(DoScavenge) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 0), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 0), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
 
@@ -1100,7 +1096,7 @@ TEST(DoScavenge) {
 
   {
     // Ensure the object is properly set up.
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(0));
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
@@ -1119,8 +1115,9 @@ TEST(DoScavenge) {
   Address fake_object = temp->ptr() + kSystemPointerSize;
   double boom_value = bit_cast<double>(fake_object);
 
-  FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
-  auto boom_number = factory->NewMutableHeapNumber(boom_value);
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(obj->map(), InternalIndex(0));
+  auto boom_number = factory->NewHeapNumber(boom_value);
   obj->FastPropertyAtPut(field_index, *boom_number);
 
   // Now |obj| moves to old gen and it has a double field that looks like
@@ -1151,12 +1148,12 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 0), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 0), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 1), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 1), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Tagged(), INSERT_TRANSITION)
             .ToHandleChecked();
 
@@ -1182,12 +1179,12 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
 
   {
     // Ensure the object is properly set up.
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(0));
     CHECK(field_index.is_inobject() && field_index.is_double());
     CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
     CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
 
-    field_index = FieldIndex::ForDescriptor(*map, 1);
+    field_index = FieldIndex::ForDescriptor(*map, InternalIndex(1));
     CHECK(field_index.is_inobject() && !field_index.is_double());
     CHECK(!map->IsUnboxedDoubleField(field_index));
   }
@@ -1225,7 +1222,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // |obj_value| must be evacuated.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  FieldIndex field_index = FieldIndex::ForDescriptor(*map, 1);
+  FieldIndex field_index = FieldIndex::ForDescriptor(*map, InternalIndex(1));
   CHECK_EQ(*obj_value, obj->RawFastPropertyAt(field_index));
 }
 
@@ -1248,7 +1245,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
 
   int end_offset = instance_size * 2;
   int first_non_tagged_field_offset = end_offset;
-  for (int i = 0; i < number_of_descriptors; i++) {
+  for (InternalIndex i : InternalIndex::Range(number_of_descriptors)) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
@@ -1388,51 +1385,52 @@ TEST(LayoutDescriptorSharing) {
   {
     Handle<Map> map = Map::Create(isolate, 64);
     for (int i = 0; i < 32; i++) {
-      Handle<String> name = MakeName("prop", i);
+      Handle<String> name = CcTest::MakeName("prop", i);
       map = Map::CopyWithField(isolate, map, name, any_type, NONE,
                                PropertyConstness::kMutable,
                                Representation::Smi(), INSERT_TRANSITION)
                 .ToHandleChecked();
     }
-    split_map = Map::CopyWithField(isolate, map, MakeString("dbl"), any_type,
-                                   NONE, PropertyConstness::kMutable,
+    split_map = Map::CopyWithField(isolate, map, CcTest::MakeString("dbl"),
+                                   any_type, NONE, PropertyConstness::kMutable,
                                    Representation::Double(), INSERT_TRANSITION)
                     .ToHandleChecked();
   }
   Handle<LayoutDescriptor> split_layout_descriptor(
-      split_map->layout_descriptor(), isolate);
+      split_map->layout_descriptor(kAcquireLoad), isolate);
   CHECK(split_layout_descriptor->IsConsistentWithMap(*split_map, true));
   CHECK(split_layout_descriptor->IsSlowLayout());
   CHECK(split_map->owns_descriptors());
 
   Handle<Map> map1 =
-      Map::CopyWithField(isolate, split_map, MakeString("foo"), any_type, NONE,
-                         PropertyConstness::kMutable, Representation::Double(),
-                         INSERT_TRANSITION)
+      Map::CopyWithField(isolate, split_map, CcTest::MakeString("foo"),
+                         any_type, NONE, PropertyConstness::kMutable,
+                         Representation::Double(), INSERT_TRANSITION)
           .ToHandleChecked();
   CHECK(!split_map->owns_descriptors());
-  CHECK_EQ(*split_layout_descriptor, split_map->layout_descriptor());
+  CHECK_EQ(*split_layout_descriptor,
+           split_map->layout_descriptor(kAcquireLoad));
 
   // Layout descriptors should be shared with |split_map|.
   CHECK(map1->owns_descriptors());
-  CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor());
-  CHECK(map1->layout_descriptor().IsConsistentWithMap(*map1, true));
+  CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor(kAcquireLoad));
+  CHECK(map1->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map1, true));
 
   Handle<Map> map2 =
-      Map::CopyWithField(isolate, split_map, MakeString("bar"), any_type, NONE,
-                         PropertyConstness::kMutable, Representation::Tagged(),
-                         INSERT_TRANSITION)
+      Map::CopyWithField(isolate, split_map, CcTest::MakeString("bar"),
+                         any_type, NONE, PropertyConstness::kMutable,
+                         Representation::Tagged(), INSERT_TRANSITION)
           .ToHandleChecked();
 
   // Layout descriptors should not be shared with |split_map|.
   CHECK(map2->owns_descriptors());
-  CHECK_NE(*split_layout_descriptor, map2->layout_descriptor());
-  CHECK(map2->layout_descriptor().IsConsistentWithMap(*map2, true));
+  CHECK_NE(*split_layout_descriptor, map2->layout_descriptor(kAcquireLoad));
+  CHECK(map2->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map2, true));
 }
 
-
 static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
-                             int tagged_descriptor, int double_descriptor,
+                             InternalIndex tagged_descriptor,
+                             InternalIndex double_descriptor,
                              bool check_tagged_value = true) {
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
@@ -1491,10 +1489,9 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
-
 static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
-                                        int tagged_descriptor,
-                                        int double_descriptor,
+                                        InternalIndex tagged_descriptor,
+                                        InternalIndex double_descriptor,
                                         bool check_tagged_value = true) {
   if (FLAG_never_compact || !FLAG_incremental_marking) return;
   ManualGCScope manual_gc_scope;
@@ -1594,27 +1591,29 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   Handle<JSObject> func = GetObject("func");
 
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithConstant(isolate, map, MakeName("prop", 0), func, NONE,
-                              INSERT_TRANSITION)
+  map = Map::CopyWithConstant(isolate, map, CcTest::MakeName("prop", 0), func,
+                              NONE, INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 1), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 1), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  map = Map::CopyWithField(isolate, map, MakeName("prop", 2), any_type, NONE,
-                           PropertyConstness::kMutable,
+  map = Map::CopyWithField(isolate, map, CcTest::MakeName("prop", 2), any_type,
+                           NONE, PropertyConstness::kMutable,
                            Representation::Tagged(), INSERT_TRANSITION)
             .ToHandleChecked();
 
   // Shift fields right by turning constant property to a field.
-  Handle<Map> new_map = Map::ReconfigureProperty(
-      isolate, map, 0, kData, NONE, Representation::Tagged(), any_type);
+  Handle<Map> new_map =
+      Map::ReconfigureProperty(isolate, map, InternalIndex(0), kData, NONE,
+                               Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
-    TestWriteBarrier(map, new_map, 2, 1);
+    TestWriteBarrier(map, new_map, InternalIndex(2), InternalIndex(1));
   } else {
     CHECK_EQ(OLD_TO_OLD_WRITE_BARRIER, write_barrier_kind);
-    TestIncrementalWriteBarrier(map, new_map, 2, 1);
+    TestIncrementalWriteBarrier(map, new_map, InternalIndex(2),
+                                InternalIndex(1));
   }
 }
 

@@ -31,22 +31,21 @@ bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
   return reg.code() % 2 == 0;
 }
 
-void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI32AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  /* Register t4 correspond to f12 FPU register. */
-  const Register default_stub_registers[] = {a0, a1, t4};
+  const Register default_stub_registers[] = {a0, a1, a2, a3};
   CHECK_EQ(static_cast<size_t>(kParameterCount),
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  /* Register t4 correspond to f12 FPU register. */
-  const Register default_stub_registers[] = {a0, a1, a2, t4};
-  CHECK_EQ(static_cast<size_t>(kParameterCount),
+  const Register default_stub_registers[] = {a0, a1, a2, a3, t0};
+  CHECK_EQ(static_cast<size_t>(kParameterCount - kStackArgumentsCount),
            arraysize(default_stub_registers));
-  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
+  data->InitializePlatformSpecific(kParameterCount - kStackArgumentsCount,
+                                   default_stub_registers);
 }
 
 void RecordWriteDescriptor::InitializePlatformSpecific(
@@ -73,16 +72,16 @@ void EphemeronKeyBarrierDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-const Register FastNewFunctionContextDescriptor::ScopeInfoRegister() {
-  return a1;
-}
-const Register FastNewFunctionContextDescriptor::SlotsRegister() { return a0; }
-
 const Register LoadDescriptor::ReceiverRegister() { return a1; }
 const Register LoadDescriptor::NameRegister() { return a2; }
 const Register LoadDescriptor::SlotRegister() { return a0; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return a3; }
+
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return t0;
+}
 
 const Register StoreDescriptor::ReceiverRegister() { return a1; }
 const Register StoreDescriptor::NameRegister() { return a2; }
@@ -216,12 +215,6 @@ void AbortDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a0};
   data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // register state
-  data->InitializePlatformSpecific(0, nullptr);
 }
 
 void CompareDescriptor::InitializePlatformSpecific(

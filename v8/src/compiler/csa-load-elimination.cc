@@ -67,7 +67,7 @@ namespace CsaLoadEliminationHelpers {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
-  return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
+  return IsAnyTagged(r1) && IsAnyTagged(r2);
 }
 
 bool ObjectMayAlias(Node* a, Node* b) {
@@ -94,13 +94,13 @@ bool OffsetMayAlias(Node* offset1, MachineRepresentation repr1, Node* offset2,
   IntPtrMatcher matcher1(offset1);
   IntPtrMatcher matcher2(offset2);
   // If either of the offsets is variable, accesses may alias
-  if (!matcher1.HasValue() || !matcher2.HasValue()) {
+  if (!matcher1.HasResolvedValue() || !matcher2.HasResolvedValue()) {
     return true;
   }
   // Otherwise, we return whether accesses overlap
-  intptr_t start1 = matcher1.Value();
+  intptr_t start1 = matcher1.ResolvedValue();
   intptr_t end1 = start1 + ElementSizeInBytes(repr1);
-  intptr_t start2 = matcher2.Value();
+  intptr_t start2 = matcher2.ResolvedValue();
   intptr_t end2 = start2 + ElementSizeInBytes(repr2);
   return !(end1 <= start2 || end2 <= start1);
 }
@@ -125,7 +125,7 @@ CsaLoadElimination::AbstractState::KillField(Node* kill_object,
                                              MachineRepresentation kill_repr,
                                              Zone* zone) const {
   FieldInfo empty_info;
-  AbstractState* that = new (zone) AbstractState(*this);
+  AbstractState* that = zone->New<AbstractState>(*this);
   for (std::pair<Field, FieldInfo> entry : that->field_infos_) {
     Field field = entry.first;
     MachineRepresentation field_repr = entry.second.representation;
@@ -142,7 +142,7 @@ CsaLoadElimination::AbstractState const*
 CsaLoadElimination::AbstractState::AddField(Node* object, Node* offset,
                                             CsaLoadElimination::FieldInfo info,
                                             Zone* zone) const {
-  AbstractState* that = new (zone) AbstractState(*this);
+  AbstractState* that = zone->New<AbstractState>(*this);
   that->field_infos_.Set({object, offset}, info);
   return that;
 }
@@ -233,7 +233,7 @@ Reduction CsaLoadElimination::ReduceEffectPhi(Node* node) {
 
   // Make a copy of the first input's state and merge with the state
   // from other inputs.
-  AbstractState* state = new (zone()) AbstractState(*state0);
+  AbstractState* state = zone()->New<AbstractState>(*state0);
   for (int i = 1; i < input_count; ++i) {
     Node* const input = NodeProperties::GetEffectInput(node, i);
     state->Merge(node_states_.Get(input), zone());

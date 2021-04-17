@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
@@ -187,7 +187,7 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 TEST(SmiCompare) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  auto buffer = AllocateAssemblerBuffer(2 * Assembler::kMinimalBufferSize);
+  auto buffer = AllocateAssemblerBuffer(2 * Assembler::kDefaultBufferSize);
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
                            buffer->CreateView());
 
@@ -242,37 +242,37 @@ TEST(SmiTag) {
 
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
-  __ SmiTag(rcx, rcx);
-  __ Set(rdx, Smi::kZero.ptr());
-  __ cmpq(rcx, rdx);
+  __ SmiTag(rcx);
+  __ Set(rdx, Smi::zero().ptr());
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(1024).ptr());
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(-1).ptr());
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   // Different target register.
@@ -281,35 +281,35 @@ TEST(SmiTag) {
   __ movq(rcx, Immediate(0));
   __ SmiTag(r8, rcx);
   __ Set(rdx, Smi::zero().ptr());
-  __ cmpq(r8, rdx);
+  __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(r8, rcx);
   __ Set(rdx, Smi::FromInt(1024).ptr());
-  __ cmpq(r8, rdx);
+  __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(r8, rcx);
   __ Set(rdx, Smi::FromInt(-1).ptr());
-  __ cmpq(r8, rdx);
+  __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(r8, rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
-  __ cmpq(r8, rdx);
+  __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(r8, rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
-  __ cmpq(r8, rdx);
+  __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
 
@@ -344,7 +344,7 @@ TEST(SmiCheck) {
   // CheckSmi
 
   __ movl(rcx, Immediate(0));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -355,7 +355,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(-1));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -366,7 +366,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -377,7 +377,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -449,7 +449,8 @@ TEST(EmbeddedObj) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
@@ -1030,6 +1031,29 @@ TEST(AreAliased) {
   // no_regs are allowed in
   DCHECK(!AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, no_reg));
   DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
+}
+
+TEST(DeoptExitSizeIsFixed) {
+  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      buffer->CreateView());
+
+  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(isolate, kind);
+    Label before_exit;
+    masm.bind(&before_exit);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, nullptr);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy
+                 ? Deoptimizer::kLazyDeoptExitSize
+                 : Deoptimizer::kNonLazyDeoptExitSize);
+  }
 }
 
 #undef __

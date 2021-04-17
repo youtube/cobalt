@@ -17,8 +17,8 @@ class TickCounter;
 
 namespace compiler {
 
-// Forward declarations.
 class Graph;
+class JSHeapBroker;
 class Node;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
@@ -35,6 +35,10 @@ class Reduction final {
 
   Node* replacement() const { return replacement_; }
   bool Changed() const { return replacement() != nullptr; }
+  Reduction FollowedBy(Reduction next) const {
+    if (next.Changed()) return next;
+    return *this;
+  }
 
  private:
   Node* replacement_;
@@ -132,8 +136,11 @@ class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
-               Node* dead = nullptr);
+               JSHeapBroker* broker, Node* dead = nullptr);
   ~GraphReducer() override;
+
+  GraphReducer(const GraphReducer&) = delete;
+  GraphReducer& operator=(const GraphReducer&) = delete;
 
   Graph* graph() const { return graph_; }
 
@@ -185,8 +192,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
   TickCounter* const tick_counter_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
+  JSHeapBroker* const broker_;
 };
 
 }  // namespace compiler

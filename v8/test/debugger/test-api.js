@@ -593,7 +593,7 @@ class DebugWrapper {
     const column = frame.location.columnNumber;
     const loc = %ScriptLocationFromLine2(scriptid, line, column, 0);
     const func = { name : () => frame.functionName };
-    const index = JSON.parse(frame.callFrameId).ordinal;
+    const index = +frame.callFrameId.split(".")[2];
 
     function allScopes() {
       const scopes = [];
@@ -632,6 +632,12 @@ class DebugWrapper {
 
     const result = reply.result.result;
     return this.reconstructRemoteObject(result);
+  }
+
+  evaluateGlobalREPL(expr) {
+    return %RuntimeEvaluateREPL(expr).then(value => {
+      return value[".repl_result"];
+    });
   }
 
   eventDataException(params) {

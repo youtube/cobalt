@@ -135,9 +135,6 @@ class WinTool(object):
   def ExecAsmWrapper(self, arch, *args):
     """Filter logo banner from invocations of asm.exe."""
     env = self._GetEnv(arch)
-    # MSVS doesn't assemble x64 asm files.
-    if arch == 'environment.x64':
-      return 0
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              universal_newlines=True)

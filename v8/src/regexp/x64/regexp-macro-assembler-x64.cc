@@ -48,6 +48,8 @@ namespace internal {
  *
  * The stack will have the following content, in some order, indexable from the
  * frame pointer (see, e.g., kStackHighEnd):
+ *    - Address regexp       (address of the JSRegExp object; unused in native
+ *                            code, passed to match signature of interpreter)
  *    - Isolate* isolate     (address of the current isolate)
  *    - direct_call          (if 1, direct call from JavaScript code, if 0 call
  *                            through the runtime system)
@@ -75,9 +77,8 @@ namespace internal {
  * "character -1" in the string (i.e., char_size() bytes before the first
  * character of the string).  The remaining registers starts out uninitialized.
  *
- * The first seven values must be provided by the calling code by
- * calling the code's entry address cast to a function pointer with the
- * following signature:
+ * The argument values must be provided by the calling code by calling the
+ * code's entry address cast to a function pointer with the following signature:
  * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
@@ -86,7 +87,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  */
 
 #define __ ACCESS_MASM((&masm_))
@@ -123,6 +125,7 @@ RegExpMacroAssemblerX64::~RegExpMacroAssemblerX64() {
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 
@@ -149,6 +152,22 @@ void RegExpMacroAssemblerX64::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerX64::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ incq(Operand(rbp, kBacktrackCount));
+    __ cmpq(Operand(rbp, kBacktrackCount), Immediate(backtrack_limit()));
+    __ j(not_equal, &next);
+
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ jmp(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(rbx);
   __ addq(rbx, code_object_pointer());
@@ -172,13 +191,11 @@ void RegExpMacroAssemblerX64::CheckCharacterGT(uc16 limit, Label* on_greater) {
   BranchOrBacktrack(greater, on_greater);
 }
 
-
-void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
-  __ leaq(rax, Operand(rdi, -char_size()));
+void RegExpMacroAssemblerX64::CheckAtStart(int cp_offset, Label* on_at_start) {
+  __ leaq(rax, Operand(rdi, -char_size() + cp_offset * char_size()));
   __ cmpq(rax, Operand(rbp, kStringStartMinusOne));
   BranchOrBacktrack(equal, on_at_start);
 }
-
 
 void RegExpMacroAssemblerX64::CheckNotAtStart(int cp_offset,
                                               Label* on_not_at_start) {
@@ -202,7 +219,6 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(no_condition, on_equal);
   __ bind(&fallthrough);
 }
-
 
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
@@ -310,7 +326,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
-//   Isolate* isolate or 0 if unicode flag.
+    //   Isolate* isolate.
 #ifdef V8_TARGET_OS_WIN
     DCHECK(rcx == arg_reg_1);
     DCHECK(rdx == arg_reg_2);
@@ -338,20 +354,16 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Set byte_length.
     __ movq(arg_reg_3, rbx);
     // Isolate.
-#ifdef V8_INTL_SUPPORT
-    if (unicode) {
-      __ movq(arg_reg_4, Immediate(0));
-    } else  // NOLINT
-#endif      // V8_INTL_SUPPORT
-    {
-      __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
-    }
+    __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
 
     { // NOLINT: Can't find a way to open this scope without confusing the
       // linter.
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
-          ExternalReference::re_case_insensitive_compare_uc16(isolate());
+          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
+                        isolate())
+                  : ExternalReference::re_case_insensitive_compare_non_unicode(
+                        isolate());
       __ CallCFunction(compare, num_arguments);
     }
 
@@ -376,7 +388,6 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   }
   __ bind(&fallthrough);
 }
-
 
 void RegExpMacroAssemblerX64::CheckNotBackReference(int start_reg,
                                                     bool read_backward,
@@ -713,15 +724,21 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ pushq(rbx);  // Callee-save
 #endif
 
+  STATIC_ASSERT(kSuccessfulCaptures ==
+                kLastCalleeSaveRegister - kSystemPointerSize);
   __ Push(Immediate(0));  // Number of successful matches in a global regexp.
+  STATIC_ASSERT(kStringStartMinusOne ==
+                kSuccessfulCaptures - kSystemPointerSize);
   __ Push(Immediate(0));  // Make room for "string start - 1" constant.
+  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  __ Push(Immediate(0));  // The backtrack counter.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ movq(rcx, rsp);
   __ Move(kScratchRegister, stack_limit);
   __ subq(rcx, Operand(kScratchRegister, 0));
@@ -989,15 +1006,22 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ jmp(&return_rax);
   }
 
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ Set(rax, FALLBACK_TO_EXPERIMENTAL);
+    __ jmp(&return_rax);
+  }
+
   FixupCodeRelativePositions();
 
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
                           .set_self_reference(masm_.CodeObject())
                           .Build();
-  PROFILE(isolate, RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
+  PROFILE(isolate,
+          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -1033,22 +1057,6 @@ void RegExpMacroAssemblerX64::IfRegisterEqPos(int reg,
 RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerX64::Implementation() {
   return kX64Implementation;
-}
-
-
-void RegExpMacroAssemblerX64::LoadCurrentCharacter(int cp_offset,
-                                                   Label* on_end_of_input,
-                                                   bool check_bounds,
-                                                   int characters) {
-  DCHECK(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  if (check_bounds) {
-    if (cp_offset >= 0) {
-      CheckPosition(cp_offset + characters - 1, on_end_of_input);
-    } else {
-      CheckPosition(cp_offset, on_end_of_input);
-    }
-  }
-  LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
 
@@ -1198,7 +1206,8 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
-      frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
+      static_cast<RegExp::CallOrigin>(frame_entry<int>(re_frame, kDirectCall)),
+      return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
@@ -1318,7 +1327,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
   // Check for preemption.
   Label no_preempt;
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ load_rax(stack_limit);
   __ cmpq(rsp, rax);
   __ j(above, &no_preempt);
@@ -1332,7 +1341,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
 void RegExpMacroAssemblerX64::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(isolate());
+      ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
   __ j(above, &no_stack_overflow);

@@ -11,27 +11,29 @@
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/heap/heap.h"
-#include "src/logging/counters.h"
-#include "src/numbers/hash-seed-inl.h"
-#include "src/objects/elements.h"
-#include "src/objects/ordered-hash-table.h"
-// For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/simulator-base.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/ordered-hash-table.h"
+#include "src/regexp/experimental/experimental.h"
+#include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
 
 #ifdef V8_INTL_SUPPORT
+#include "src/base/platform/wrappers.h"
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
@@ -119,6 +121,13 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
+
+#ifdef V8_HEAP_SANDBOX
+ExternalReference ExternalReference::external_pointer_table_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->external_pointer_table_address());
+}
+#endif
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -213,13 +222,11 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     return ExternalReference(Redirect(FUNCTION_ADDR(Target), Type));       \
   }
 
-FUNCTION_REFERENCE(incremental_marking_record_write_function,
-                   IncrementalMarking::RecordWriteFromCode)
+FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
+                   WriteBarrier::MarkingFromCode)
 
-ExternalReference ExternalReference::store_buffer_overflow_function() {
-  return ExternalReference(
-      Redirect(Heap::store_buffer_overflow_function_address()));
-}
+FUNCTION_REFERENCE(insert_remembered_set_function,
+                   Heap::InsertIntoRememberedSetFromCode)
 
 FUNCTION_REFERENCE(delete_handle_scope_extensions,
                    HandleScope::DeleteExtensions)
@@ -278,6 +285,14 @@ FUNCTION_REFERENCE(wasm_float32_to_int64, wasm::float32_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float32_to_uint64, wasm::float32_to_uint64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_int64, wasm::float64_to_int64_wrapper)
 FUNCTION_REFERENCE(wasm_float64_to_uint64, wasm::float64_to_uint64_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_int64_sat,
+                   wasm::float32_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float32_to_uint64_sat,
+                   wasm::float32_to_uint64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_int64_sat,
+                   wasm::float64_to_int64_sat_wrapper)
+FUNCTION_REFERENCE(wasm_float64_to_uint64_sat,
+                   wasm::float64_to_uint64_sat_wrapper)
 FUNCTION_REFERENCE(wasm_int64_div, wasm::int64_div_wrapper)
 FUNCTION_REFERENCE(wasm_int64_mod, wasm::int64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_uint64_div, wasm::uint64_div_wrapper)
@@ -288,6 +303,17 @@ FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
+FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
+FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_ceil, wasm::f64x2_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_floor, wasm::f64x2_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_trunc, wasm::f64x2_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f64x2_nearest_int, wasm::f64x2_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_ceil, wasm::f32x4_ceil_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_floor, wasm::f32x4_floor_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_trunc, wasm::f32x4_trunc_wrapper)
+FUNCTION_REFERENCE(wasm_f32x4_nearest_int, wasm::f32x4_nearest_int_wrapper)
+FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
 
@@ -327,17 +353,18 @@ ExternalReference ExternalReference::allocation_sites_list_address(
   return ExternalReference(isolate->heap()->allocation_sites_list_address());
 }
 
-ExternalReference ExternalReference::address_of_stack_limit(Isolate* isolate) {
-  return ExternalReference(isolate->stack_guard()->address_of_jslimit());
+ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
+  Address address = isolate->stack_guard()->address_of_jslimit();
+  // For efficient generated code, this should be root-register-addressable.
+  DCHECK(isolate->root_register_addressable_region().contains(address));
+  return ExternalReference(address);
 }
 
-ExternalReference ExternalReference::address_of_real_stack_limit(
-    Isolate* isolate) {
-  return ExternalReference(isolate->stack_guard()->address_of_real_jslimit());
-}
-
-ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->store_buffer_top_address());
+ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
+  Address address = isolate->stack_guard()->address_of_real_jslimit();
+  // For efficient generated code, this should be root-register-addressable.
+  DCHECK(isolate->root_register_addressable_region().contains(address));
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::heap_is_marking_flag_address(
@@ -405,6 +432,18 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_load_from_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::load_from_stack_count_address(function_name));
+}
+
+ExternalReference ExternalReference::address_of_store_to_stack_count(
+    const char* function_name) {
+  return ExternalReference(
+      Isolate::store_to_stack_count_address(function_name));
+}
+
 ExternalReference ExternalReference::address_of_one_half() {
   return ExternalReference(
       reinterpret_cast<Address>(&double_one_half_constant));
@@ -437,6 +476,11 @@ ExternalReference ExternalReference::address_of_double_neg_constant() {
   return ExternalReference(reinterpret_cast<Address>(&double_negate_constant));
 }
 
+ExternalReference
+ExternalReference::address_of_enable_experimental_regexp_engine() {
+  return ExternalReference(&FLAG_enable_experimental_regexp_engine);
+}
+
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
   return ExternalReference(isolate->is_profiling_address());
 }
@@ -463,7 +507,7 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
 #define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
@@ -481,9 +525,19 @@ FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
 FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
                                 NativeRegExpMacroAssembler::GrowStack)
 
+FUNCTION_REFERENCE(re_match_for_call_from_js,
+                   IrregexpInterpreter::MatchForCallFromJs)
+
+FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
+                   ExperimentalRegExp::MatchForCallFromJs)
+
 FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_uc16,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)
+    re_case_insensitive_compare_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+
+FUNCTION_REFERENCE_WITH_ISOLATE(
+    re_case_insensitive_compare_non_unicode,
+    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
 ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(
@@ -496,37 +550,33 @@ ExternalReference ExternalReference::address_of_static_offsets_vector(
       reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit(
+ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address());
+  return ExternalReference(isolate->regexp_stack()->limit_address_address());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
+ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->memory_address());
-}
-
-ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->memory_size_address());
+  return ExternalReference(
+      isolate->regexp_stack()->memory_top_address_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acosh_function, base::ieee754::acosh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_asin_function, base::ieee754::asin,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_asinh_function, base::ieee754::asinh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan_function, base::ieee754::atan,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atanh_function, base::ieee754::atanh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan2_function, base::ieee754::atan2,
                              BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cbrt_function, base::ieee754::cbrt,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
@@ -534,7 +584,7 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_exp_function, base::ieee754::exp,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_expm1_function, base::ieee754::expm1,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log_function, base::ieee754::log,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log1p_function, base::ieee754::log1p,
@@ -561,7 +611,7 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 FUNCTION_REFERENCE(libc_memchr_function, libc_memchr)
 
 void* libc_memcpy(void* dest, const void* src, size_t n) {
-  return memcpy(dest, src, n);
+  return base::Memcpy(dest, src, n);
 }
 
 FUNCTION_REFERENCE(libc_memcpy_function, libc_memcpy)
@@ -627,9 +677,9 @@ static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
 FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
                    JSReceiverCreateIdentityHash)
 
-static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
+static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowHeapAllocation no_gc;
-  return ComputeSeededHash(key, HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
@@ -638,8 +688,9 @@ FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
                    CopyTypedArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
-FUNCTION_REFERENCE(try_internalize_string_function,
-                   StringTable::LookupStringIfExists_NoAllocate)
+FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
+                   StringTable::TryStringToIndexOrLookupExisting)
+FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
                                            Address smi_y) {
@@ -899,6 +950,15 @@ static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
 
 FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper)
 
+FUNCTION_REFERENCE(
+    js_finalization_registry_remove_cell_from_unregister_token_map,
+    JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
+
+#ifdef V8_HEAP_SANDBOX
+FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
+                   ExternalPointerTable::GrowTable)
+#endif
+
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
 }
@@ -908,6 +968,11 @@ bool operator!=(ExternalReference lhs, ExternalReference rhs) {
 }
 
 size_t hash_value(ExternalReference reference) {
+  if (FLAG_predictable) {
+    // Avoid ASLR non-determinism in predictable mode. For this, just take the
+    // lowest 12 bit corresponding to a 4K page size.
+    return base::hash<Address>()(reference.address() & 0xfff);
+  }
   return base::hash<Address>()(reference.address());
 }
 

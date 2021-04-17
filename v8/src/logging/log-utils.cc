@@ -4,6 +4,10 @@
 
 #include "src/logging/log-utils.h"
 
+#include <atomic>
+#include <memory>
+
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
@@ -19,43 +23,43 @@
 namespace v8 {
 namespace internal {
 
-const char* const Log::kLogToTemporaryFile = "&";
+const char* const Log::kLogToTemporaryFile = "+";
 const char* const Log::kLogToConsole = "-";
 
 // static
-FILE* Log::CreateOutputHandle(const char* file_name) {
+FILE* Log::CreateOutputHandle(std::string file_name) {
   // If we're logging anything, we need to open the log file.
   if (!Log::InitLogAtStart()) {
     return nullptr;
-  } else if (strcmp(file_name, kLogToConsole) == 0) {
+  } else if (Log::IsLoggingToConsole(file_name)) {
     return stdout;
-  } else if (strcmp(file_name, kLogToTemporaryFile) == 0) {
+  } else if (Log::IsLoggingToTemporaryFile(file_name)) {
     return base::OS::OpenTemporaryFile();
   } else {
-    return base::OS::FOpen(file_name, base::OS::LogFileOpenMode);
+    return base::OS::FOpen(file_name.c_str(), base::OS::LogFileOpenMode);
   }
 }
 
-Log::Log(Logger* logger, const char* file_name)
-    : is_stopped_(false),
+// static
+bool Log::IsLoggingToConsole(std::string file_name) {
+  return file_name.compare(Log::kLogToConsole) == 0;
+}
+
+// static
+bool Log::IsLoggingToTemporaryFile(std::string file_name) {
+  return file_name.compare(Log::kLogToTemporaryFile) == 0;
+}
+
+Log::Log(Logger* logger, std::string file_name)
+    : logger_(logger),
+      file_name_(file_name),
       output_handle_(Log::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
-      format_buffer_(NewArray<char>(kMessageBufferSize)),
-      logger_(logger) {
-  // --log-all enables all the log flags.
-  if (FLAG_log_all) {
-    FLAG_log_api = true;
-    FLAG_log_code = true;
-    FLAG_log_suspect = true;
-    FLAG_log_handles = true;
-    FLAG_log_internal_timer_events = true;
-    FLAG_log_function_events = true;
-  }
+      format_buffer_(NewArray<char>(kMessageBufferSize)) {
+  if (output_handle_) WriteLogHeader();
+}
 
-  // --prof implies --log-code.
-  if (FLAG_prof) FLAG_log_code = true;
-
-  if (output_handle_ == nullptr) return;
+void Log::WriteLogHeader() {
   Log::MessageBuilder msg(this);
   LogSeparator kNext = LogSeparator::kSeparator;
   msg << "v8-version" << kNext << Version::GetMajor() << kNext
@@ -68,31 +72,41 @@ Log::Log(Logger* logger, const char* file_name)
   msg.WriteToLogFile();
 }
 
+std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
+  // Fast check of is_logging() without taking the lock. Bail out immediately if
+  // logging isn't enabled.
+  if (!logger_->is_logging()) return {};
+
+  std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
+
+  // The first invocation of is_logging() might still read an old value. It is
+  // fine if a background thread starts logging a bit later, but we want to
+  // avoid background threads continue logging after logging was already closed.
+  if (!logger_->is_logging()) return {};
+  DCHECK_NOT_NULL(format_buffer_.get());
+
+  return result;
+}
+
 FILE* Log::Close() {
   FILE* result = nullptr;
 #if V8_OS_STARBOARD
   SB_NOTIMPLEMENTED();
 #else
   if (output_handle_ != nullptr) {
-    if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
-      fclose(output_handle_);
-    } else {
-      result = output_handle_;
-    }
+    fflush(output_handle_);
+    result = output_handle_;
   }
 #endif
   output_handle_ = nullptr;
-
-  DeleteArray(format_buffer_);
-  format_buffer_ = nullptr;
-
-  is_stopped_ = false;
+  format_buffer_.reset();
   return result;
 }
 
+std::string Log::file_name() const { return file_name_; }
+
 Log::MessageBuilder::MessageBuilder(Log* log)
     : log_(log), lock_guard_(&log_->mutex_) {
-  DCHECK_NOT_NULL(log_->format_buffer_);
 }
 
 void Log::MessageBuilder::AppendString(String str,
@@ -122,12 +136,19 @@ void Log::MessageBuilder::AppendString(const char* str) {
   AppendString(str, strlen(str));
 }
 
-void Log::MessageBuilder::AppendString(const char* str, size_t length) {
+void Log::MessageBuilder::AppendString(const char* str, size_t length,
+                                       bool is_one_byte) {
   if (str == nullptr) return;
-
-  for (size_t i = 0; i < length; i++) {
-    DCHECK_NE(str[i], '\0');
-    AppendCharacter(str[i]);
+  if (is_one_byte) {
+    for (size_t i = 0; i < length; i++) {
+      DCHECK_IMPLIES(is_one_byte, str[i] != '\0');
+      AppendCharacter(str[i]);
+    }
+  } else {
+    DCHECK_EQ(length % 2, 0);
+    for (size_t i = 0; i + 1 < length; i += 2) {
+      AppendTwoByteCharacter(str[i], str[i + 1]);
+    }
   }
 }
 
@@ -142,6 +163,14 @@ void Log::MessageBuilder::AppendFormatString(const char* format, ...) {
   }
 }
 
+void Log::MessageBuilder::AppendTwoByteCharacter(char c1, char c2) {
+  if (c2 == 0) {
+    AppendCharacter(c1);
+  } else {
+    // Escape non-printable characters.
+    AppendRawFormatString("\\u%02x%02x", c1 & 0xFF, c2 & 0xFF);
+  }
+}
 void Log::MessageBuilder::AppendCharacter(char c) {
   if (c >= 32 && c <= 126) {
     if (c == ',') {
@@ -166,9 +195,9 @@ void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol.name().IsUndefined()) {
+  if (!symbol.description().IsUndefined()) {
     os << "\"";
-    AppendSymbolNameDetails(String::cast(symbol.name()), false);
+    AppendSymbolNameDetails(String::cast(symbol.description()), false);
     os << "\" ";
   }
   os << "hash " << std::hex << symbol.Hash() << std::dec << ")";
@@ -193,7 +222,7 @@ void Log::MessageBuilder::AppendSymbolNameDetails(String str,
 
 int Log::MessageBuilder::FormatStringIntoBuffer(const char* format,
                                                 va_list args) {
-  Vector<char> buf(log_->format_buffer_, Log::kMessageBufferSize);
+  Vector<char> buf(log_->format_buffer_.get(), Log::kMessageBufferSize);
   int length = v8::internal::VSNPrintF(buf, format, args);
   // |length| is -1 if output was truncated.
   if (length == -1) length = Log::kMessageBufferSize;
@@ -222,7 +251,9 @@ void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 #if defined(V8_OS_STARBOARD)
 void Log::MessageBuilder::WriteToLogFile() {}
 #else
-void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
+void Log::MessageBuilder::WriteToLogFile() {
+  log_->os_ << std::endl;
+}
 #endif
 
 template <>

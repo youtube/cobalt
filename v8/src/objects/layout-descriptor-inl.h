@@ -9,6 +9,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 
@@ -169,16 +170,17 @@ int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
   } else {
     layout_descriptor_length = 0;
 
-    for (int i = 0; i < num_descriptors; i++) {
+    for (InternalIndex i : InternalIndex::Range(num_descriptors)) {
       PropertyDetails details = descriptors.GetDetails(i);
       if (!InobjectUnboxedField(inobject_properties, details)) continue;
       int field_index = details.field_index();
       int field_width_in_words = details.field_width_in_words();
-      layout_descriptor_length =
-          Max(layout_descriptor_length, field_index + field_width_in_words);
+      layout_descriptor_length = std::max(layout_descriptor_length,
+                                          field_index + field_width_in_words);
     }
   }
-  layout_descriptor_length = Min(layout_descriptor_length, inobject_properties);
+  layout_descriptor_length =
+      std::min(layout_descriptor_length, inobject_properties);
   return layout_descriptor_length;
 }
 
@@ -188,7 +190,7 @@ LayoutDescriptor LayoutDescriptor::Initialize(
   DisallowHeapAllocation no_allocation;
   int inobject_properties = map.GetInObjectProperties();
 
-  for (int i = 0; i < num_descriptors; i++) {
+  for (InternalIndex i : InternalIndex::Range(num_descriptors)) {
     PropertyDetails details = descriptors.GetDetails(i);
     if (!InobjectUnboxedField(inobject_properties, details)) {
       DCHECK(details.location() != kField ||

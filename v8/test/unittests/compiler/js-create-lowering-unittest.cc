@@ -43,8 +43,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
-    // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph(), tick_counter());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, broker(),
                              zone());
     return reducer.Reduce(node);
@@ -144,9 +143,9 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
       javascript()->CreateArguments(CreateArgumentsType::kRestParameter),
       closure, context, frame_state_inner, effect));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsFinishRegion(IsAllocate(IsNumberConstant(JSArray::kSize), _, _), _));
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(
+                  IsAllocate(IsNumberConstant(JSArray::kHeaderSize), _, _), _));
 }
 
 // -----------------------------------------------------------------------------
@@ -172,7 +171,8 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 // JSCreateWithContext
 
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate()).empty_function_scope_info_handle();
   Node* const object = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -181,18 +181,20 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
       Reduce(graph()->NewNode(javascript()->CreateWithContext(scope_info),
                               object, context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                            Context::MIN_CONTEXT_SLOTS)),
-                                        IsBeginRegion(_), control),
-                             _));
+  EXPECT_THAT(
+      r.replacement(),
+      IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                    Context::MIN_CONTEXT_EXTENDED_SLOTS)),
+                                IsBeginRegion(_), control),
+                     _));
 }
 
 // -----------------------------------------------------------------------------
 // JSCreateCatchContext
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate()).empty_function_scope_info_handle();
   Node* const exception = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();

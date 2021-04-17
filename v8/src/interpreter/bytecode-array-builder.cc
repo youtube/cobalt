@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -12,7 +13,7 @@
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -23,7 +24,8 @@ class RegisterTransferWriter final
     : public NON_EXPORTED_BASE(BytecodeRegisterOptimizer::BytecodeWriter),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  RegisterTransferWriter(BytecodeArrayBuilder* builder) : builder_(builder) {}
+  explicit RegisterTransferWriter(BytecodeArrayBuilder* builder)
+      : builder_(builder) {}
   ~RegisterTransferWriter() override = default;
 
   void EmitLdar(Register input) override { builder_->OutputLdarRaw(input); }
@@ -57,9 +59,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
   DCHECK_GE(local_register_count_, 0);
 
   if (FLAG_ignition_reo) {
-    register_optimizer_ = new (zone) BytecodeRegisterOptimizer(
+    register_optimizer_ = zone->New<BytecodeRegisterOptimizer>(
         zone, &register_allocator_, fixed_register_count(), parameter_count,
-        new (zone) RegisterTransferWriter(this));
+        zone->New<RegisterTransferWriter>(this));
   }
 }
 
@@ -75,12 +77,13 @@ Register BytecodeArrayBuilder::Receiver() const {
 }
 
 Register BytecodeArrayBuilder::Local(int index) const {
-  // TODO(marja): Make a DCHECK once crbug.com/706234 is fixed.
-  CHECK_LT(index, locals_count());
+  DCHECK_LT(index, locals_count());
   return Register(index);
 }
 
-Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+    LocalIsolate* isolate) {
   DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
@@ -97,6 +100,35 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        LocalIsolate* isolate);
+
+#ifdef DEBUG
+int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
+  DisallowHeapAllocation no_gc;
+  return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
+}
+#endif
+
+template <typename LocalIsolate>
+Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    LocalIsolate* isolate) {
+  DCHECK(RemainderOfBlockIsDead());
+
+  return bytecode_array_writer_.ToSourcePositionTable(isolate);
+}
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        LocalIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     Bytecode bytecode) {
@@ -804,6 +836,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  OutputLdaNamedPropertyFromSuper(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyNoFeedback(
     Register object, const AstRawString* name) {
   size_t name_index = GetConstantPoolEntry(name);
@@ -821,6 +860,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = IteratorSymbolConstantPoolEntry();
   OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
+    Register object, int load_feedback_slot, int call_feedback_slot) {
+  OutputGetIterator(object, load_feedback_slot, call_feedback_slot);
   return *this;
 }
 
@@ -1166,6 +1211,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefinedOrNull(
+    BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
+  OutputJumpIfUndefinedOrNull(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotUndefined(
     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
@@ -1217,7 +1269,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(
-    BytecodeLoopHeader* loop_header, int loop_depth) {
+    BytecodeLoopHeader* loop_header, int loop_depth, int position) {
+  if (position != kNoSourcePosition) {
+    // We need to attach a non-breakable source position to JumpLoop for its
+    // implicit stack check, so we simply add it as expression position. There
+    // can be a prior statement position from constructs like:
+    //
+    //    do var x;  while (false);
+    //
+    // A Nop could be inserted for empty statements, but since no code
+    // is associated with these positions, instead we force the jump loop's
+    // expression position which eliminates the empty statement's position.
+    latest_source_info_.ForceExpressionPosition(position);
+  }
   OutputJumpLoop(loop_header, loop_depth);
   return *this;
 }
@@ -1225,24 +1289,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(
 BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnSmiNoFeedback(
     BytecodeJumpTable* jump_table) {
   OutputSwitchOnSmiNoFeedback(jump_table);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
-  if (position != kNoSourcePosition) {
-    // We need to attach a non-breakable source position to a stack
-    // check, so we simply add it as expression position. There can be
-    // a prior statement position from constructs like:
-    //
-    //    do var x;  while (false);
-    //
-    // A Nop could be inserted for empty statements, but since no code
-    // is associated with these positions, instead we force the stack
-    // check's expression position which eliminates the empty
-    // statement's position.
-    latest_source_info_.ForceExpressionPosition(position);
-  }
-  OutputStackCheck();
   return *this;
 }
 
@@ -1287,6 +1333,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperNotCalledIfHole() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowSuperAlreadyCalledIfNotHole() {
   OutputThrowSuperAlreadyCalledIfNotHole();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ThrowIfNotSuperConstructor(
+    Register constructor) {
+  OutputThrowIfNotSuperConstructor(constructor);
   return *this;
 }
 
@@ -1521,8 +1573,8 @@ BytecodeJumpTable* BytecodeArrayBuilder::AllocateJumpTable(
 
   size_t constant_pool_index = constant_array_builder()->InsertJumpTable(size);
 
-  return new (zone())
-      BytecodeJumpTable(constant_pool_index, size, case_value_base, zone());
+  return zone()->New<BytecodeJumpTable>(constant_pool_index, size,
+                                        case_value_base, zone());
 }
 
 size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
@@ -1597,6 +1649,14 @@ uint32_t BytecodeArrayBuilder::GetOutputRegisterListOperand(
   if (register_optimizer_)
     register_optimizer_->PrepareOutputRegisterList(reg_list);
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
+}
+
+void BytecodeArrayBuilder::EmitFunctionStartSourcePosition(int position) {
+  bytecode_array_writer_.SetFunctionEntrySourcePosition(position);
+  // Force an expression position to make sure we have one. If the next bytecode
+  // overwrites it, it’s fine since it would mean we have a source position
+  // anyway.
+  latest_source_info_.ForceExpressionPosition(position);
 }
 
 std::ostream& operator<<(std::ostream& os,

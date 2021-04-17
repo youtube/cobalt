@@ -36,7 +36,7 @@ void V8cHeapTracer::RegisterV8References(
   }
 }
 
-void V8cHeapTracer::TracePrologue() {
+void V8cHeapTracer::TracePrologue(TraceFlags flags) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TracePrologue");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -66,7 +66,7 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
     MaybeAddToFrontier(traceable);
   }
   for (v8::TracedGlobal<v8::Value>* traced_global : globals_) {
-    RegisterEmbedderReference(*traced_global);
+    RegisterEmbedderReference(traced_global->As<v8::Data>());
   }
 
   while (platform_->MonotonicallyIncreasingTime() - start_time <
@@ -84,7 +84,7 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
       auto pair_range = reference_map_.equal_range(wrappable);
       for (auto it = pair_range.first; it != pair_range.second; ++it) {
         // Tell v8 this object is referenced on Cobalt heap.
-        RegisterEmbedderReference(it->second->traced_global());
+        RegisterEmbedderReference(it->second->traced_global().As<v8::Data>());
       }
       WrapperFactory* wrapper_factory =
           V8cGlobalEnvironment::GetFromIsolate(isolate_)->wrapper_factory();
@@ -92,7 +92,7 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms) {
           wrapper_factory->MaybeGetWrapperPrivate(
               static_cast<Wrappable*>(traceable));
       if (maybe_wrapper_private) {
-        RegisterEmbedderReference(maybe_wrapper_private->traced_global());
+        RegisterEmbedderReference(maybe_wrapper_private->traced_global().As<v8::Data>());
       }
     }
 
@@ -110,7 +110,7 @@ bool V8cHeapTracer::IsTracingDone() {
   return frontier_.empty();
 }
 
-void V8cHeapTracer::TraceEpilogue() {
+void V8cHeapTracer::TraceEpilogue(TraceSummary* trace_summary) {
   TRACE_EVENT0("cobalt::script", "V8cHeapTracer::TraceEpilogue");
 
   if (disabled_) {

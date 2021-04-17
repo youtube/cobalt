@@ -6,6 +6,7 @@
 #define V8_LOGGING_COUNTERS_INL_H_
 
 #include "src/logging/counters.h"
+#include "src/logging/tracing-flags.h"
 
 namespace v8 {
 namespace internal {
@@ -56,11 +57,6 @@ void RuntimeCallTimer::CommitTimeToCounter() {
 }
 
 bool RuntimeCallTimer::IsStarted() { return start_ticks_ != base::TimeTicks(); }
-
-RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
-                                             HeapObject heap_object,
-                                             RuntimeCallCounterId counter_id)
-    : RuntimeCallTimerScope(isolate, counter_id) {}
 
 }  // namespace internal
 }  // namespace v8

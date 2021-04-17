@@ -16,6 +16,8 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
+#include "torque-generated/src/objects/allocation-site-tq.inc"
+
 class AllocationSite : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
@@ -66,14 +68,14 @@ class AllocationSite : public Struct {
   bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
-  class ElementsKindBits : public BitField<ElementsKind, 0, 5> {};
-  class DoNotInlineBit : public BitField<bool, 5, 1> {};
+  using ElementsKindBits = base::BitField<ElementsKind, 0, 5>;
+  using DoNotInlineBit = base::BitField<bool, 5, 1>;
   // Unused bits 6-30.
 
   // Bitfields for pretenure_data
-  class MementoFoundCountBits : public BitField<int, 0, 26> {};
-  class PretenureDecisionBits : public BitField<PretenureDecision, 26, 3> {};
-  class DeoptDependentCodeBit : public BitField<bool, 29, 1> {};
+  using MementoFoundCountBits = base::BitField<int, 0, 26>;
+  using PretenureDecisionBits = base::BitField<PretenureDecision, 26, 3>;
+  using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
   STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first
@@ -162,12 +164,9 @@ class AllocationSite : public Struct {
   OBJECT_CONSTRUCTORS(AllocationSite, Struct);
 };
 
-class AllocationMemento : public Struct {
+class AllocationMemento
+    : public TorqueGeneratedAllocationMemento<AllocationMemento, Struct> {
  public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ALLOCATION_MEMENTO_FIELDS)
-
   DECL_ACCESSORS(allocation_site, Object)
 
   inline bool IsValid() const;
@@ -175,11 +174,8 @@ class AllocationMemento : public Struct {
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
-  DECL_VERIFIER(AllocationMemento)
 
-  DECL_CAST(AllocationMemento)
-
-  OBJECT_CONSTRUCTORS(AllocationMemento, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AllocationMemento)
 };
 
 }  // namespace internal

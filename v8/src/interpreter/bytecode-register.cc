@@ -8,9 +8,9 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-static const int kLastParamRegisterIndex =
+static const int kFirstParamRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kLastParamFromFp) /
+     InterpreterFrameConstants::kFirstParamFromFp) /
     kSystemPointerSize;
 static const int kFunctionClosureRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
@@ -30,20 +30,20 @@ static const int kBytecodeOffsetRegisterIndex =
     kSystemPointerSize;
 static const int kCallerPCOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kCallerPCOffsetFromFp) /
+     InterpreterFrameConstants::kCallerPCOffset) /
     kSystemPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, parameter_count);
-  int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
+  int register_index = kFirstParamRegisterIndex - index;
   DCHECK_LT(register_index, 0);
   return Register(register_index);
 }
 
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
-  return index() - kLastParamRegisterIndex + parameter_count - 1;
+  return kFirstParamRegisterIndex - index();
 }
 
 Register Register::function_closure() {

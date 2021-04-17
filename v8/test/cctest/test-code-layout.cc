@@ -14,9 +14,9 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
 
-  // "Hello, World!" in ASCII.
-  byte buffer_array[13] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20,
-                           0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21};
+  // "Hello, World!" in ASCII, padded to kCodeAlignment.
+  byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
+                           0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
 
   byte* buffer = &buffer_array[0];
   int buffer_size = sizeof(buffer_array);
@@ -39,8 +39,9 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.unwinding_info_size = 0;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, Code::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                                           CodeKind::FOR_TESTING)
+                          .Build();
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);
@@ -54,9 +55,9 @@ TEST(CodeLayoutWithUnwindingInfo) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
 
-  // "Hello, World!" in ASCII.
-  byte buffer_array[13] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20,
-                           0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21};
+  // "Hello, World!" in ASCII, padded to kCodeAlignment.
+  byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
+                           0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
 
   // "JavaScript" in ASCII.
   byte unwinding_info_array[10] = {0x4A, 0x61, 0x76, 0x61, 0x53,
@@ -85,11 +86,12 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.unwinding_info_size = unwinding_info_size;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
-      Factory::CodeBuilder(CcTest::i_isolate(), code_desc, Code::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
+                                           CodeKind::FOR_TESTING)
+                          .Build();
 
   CHECK(code->has_unwinding_info());
-  CHECK_EQ(code->raw_instruction_size(), buffer_size + unwinding_info_size);
+  CHECK_EQ(code->raw_body_size(), buffer_size + unwinding_info_size);
   CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
                      buffer, buffer_size));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);

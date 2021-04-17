@@ -95,6 +95,8 @@ namespace compiler {
   V(PPC_Int32ToFloat32)              \
   V(PPC_Int32ToDouble)               \
   V(PPC_Uint32ToFloat32)             \
+  V(PPC_Float32ToInt32)              \
+  V(PPC_Float32ToUint32)             \
   V(PPC_Uint32ToDouble)              \
   V(PPC_Float32ToDouble)             \
   V(PPC_Float64SilenceNaN)           \
@@ -121,17 +123,16 @@ namespace compiler {
   V(PPC_LoadWord64)                  \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
+  V(PPC_LoadSimd128)                 \
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
   V(PPC_StoreWord64)                 \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
+  V(PPC_StoreSimd128)                \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
-  V(PPC_DecompressSigned)            \
-  V(PPC_DecompressPointer)           \
-  V(PPC_DecompressAny)               \
   V(PPC_CompressSigned)              \
   V(PPC_CompressPointer)             \
   V(PPC_CompressAny)                 \
@@ -190,7 +191,192 @@ namespace compiler {
   V(PPC_AtomicXorInt8)               \
   V(PPC_AtomicXorInt16)              \
   V(PPC_AtomicXorInt32)              \
-  V(PPC_AtomicXorInt64)
+  V(PPC_AtomicXorInt64)              \
+  V(PPC_F64x2Splat)                  \
+  V(PPC_F64x2ExtractLane)            \
+  V(PPC_F64x2ReplaceLane)            \
+  V(PPC_F64x2Add)                    \
+  V(PPC_F64x2Sub)                    \
+  V(PPC_F64x2Mul)                    \
+  V(PPC_F64x2Eq)                     \
+  V(PPC_F64x2Ne)                     \
+  V(PPC_F64x2Le)                     \
+  V(PPC_F64x2Lt)                     \
+  V(PPC_F64x2Abs)                    \
+  V(PPC_F64x2Neg)                    \
+  V(PPC_F64x2Sqrt)                   \
+  V(PPC_F64x2Qfma)                   \
+  V(PPC_F64x2Qfms)                   \
+  V(PPC_F64x2Div)                    \
+  V(PPC_F64x2Min)                    \
+  V(PPC_F64x2Max)                    \
+  V(PPC_F64x2Ceil)                   \
+  V(PPC_F64x2Floor)                  \
+  V(PPC_F64x2Trunc)                  \
+  V(PPC_F64x2NearestInt)             \
+  V(PPC_F32x4Splat)                  \
+  V(PPC_F32x4ExtractLane)            \
+  V(PPC_F32x4ReplaceLane)            \
+  V(PPC_F32x4Add)                    \
+  V(PPC_F32x4AddHoriz)               \
+  V(PPC_F32x4Sub)                    \
+  V(PPC_F32x4Mul)                    \
+  V(PPC_F32x4Eq)                     \
+  V(PPC_F32x4Ne)                     \
+  V(PPC_F32x4Lt)                     \
+  V(PPC_F32x4Le)                     \
+  V(PPC_F32x4Abs)                    \
+  V(PPC_F32x4Neg)                    \
+  V(PPC_F32x4RecipApprox)            \
+  V(PPC_F32x4RecipSqrtApprox)        \
+  V(PPC_F32x4Sqrt)                   \
+  V(PPC_F32x4SConvertI32x4)          \
+  V(PPC_F32x4UConvertI32x4)          \
+  V(PPC_F32x4Div)                    \
+  V(PPC_F32x4Min)                    \
+  V(PPC_F32x4Max)                    \
+  V(PPC_F32x4Ceil)                   \
+  V(PPC_F32x4Floor)                  \
+  V(PPC_F32x4Trunc)                  \
+  V(PPC_F32x4NearestInt)             \
+  V(PPC_I64x2Splat)                  \
+  V(PPC_I64x2ExtractLane)            \
+  V(PPC_I64x2ReplaceLane)            \
+  V(PPC_I64x2Add)                    \
+  V(PPC_I64x2Sub)                    \
+  V(PPC_I64x2Mul)                    \
+  V(PPC_I64x2MinS)                   \
+  V(PPC_I64x2MinU)                   \
+  V(PPC_I64x2MaxS)                   \
+  V(PPC_I64x2MaxU)                   \
+  V(PPC_I64x2Eq)                     \
+  V(PPC_I64x2Ne)                     \
+  V(PPC_I64x2GtS)                    \
+  V(PPC_I64x2GtU)                    \
+  V(PPC_I64x2GeU)                    \
+  V(PPC_I64x2GeS)                    \
+  V(PPC_I64x2Shl)                    \
+  V(PPC_I64x2ShrS)                   \
+  V(PPC_I64x2ShrU)                   \
+  V(PPC_I64x2Neg)                    \
+  V(PPC_I32x4Splat)                  \
+  V(PPC_I32x4ExtractLane)            \
+  V(PPC_I32x4ReplaceLane)            \
+  V(PPC_I32x4Add)                    \
+  V(PPC_I32x4AddHoriz)               \
+  V(PPC_I32x4Sub)                    \
+  V(PPC_I32x4Mul)                    \
+  V(PPC_I32x4MinS)                   \
+  V(PPC_I32x4MinU)                   \
+  V(PPC_I32x4MaxS)                   \
+  V(PPC_I32x4MaxU)                   \
+  V(PPC_I32x4Eq)                     \
+  V(PPC_I32x4Ne)                     \
+  V(PPC_I32x4GtS)                    \
+  V(PPC_I32x4GeS)                    \
+  V(PPC_I32x4GtU)                    \
+  V(PPC_I32x4GeU)                    \
+  V(PPC_I32x4Shl)                    \
+  V(PPC_I32x4ShrS)                   \
+  V(PPC_I32x4ShrU)                   \
+  V(PPC_I32x4Neg)                    \
+  V(PPC_I32x4Abs)                    \
+  V(PPC_I32x4SConvertF32x4)          \
+  V(PPC_I32x4UConvertF32x4)          \
+  V(PPC_I32x4SConvertI16x8Low)       \
+  V(PPC_I32x4SConvertI16x8High)      \
+  V(PPC_I32x4UConvertI16x8Low)       \
+  V(PPC_I32x4UConvertI16x8High)      \
+  V(PPC_I32x4BitMask)                \
+  V(PPC_I32x4DotI16x8S)              \
+  V(PPC_F32x4Qfma)                   \
+  V(PPC_F32x4Qfms)                   \
+  V(PPC_I16x8Splat)                  \
+  V(PPC_I16x8ExtractLaneU)           \
+  V(PPC_I16x8ExtractLaneS)           \
+  V(PPC_I16x8ReplaceLane)            \
+  V(PPC_I16x8Add)                    \
+  V(PPC_I16x8AddHoriz)               \
+  V(PPC_I16x8Sub)                    \
+  V(PPC_I16x8Mul)                    \
+  V(PPC_I16x8MinS)                   \
+  V(PPC_I16x8MinU)                   \
+  V(PPC_I16x8MaxS)                   \
+  V(PPC_I16x8MaxU)                   \
+  V(PPC_I16x8Eq)                     \
+  V(PPC_I16x8Ne)                     \
+  V(PPC_I16x8GtS)                    \
+  V(PPC_I16x8GeS)                    \
+  V(PPC_I16x8GtU)                    \
+  V(PPC_I16x8GeU)                    \
+  V(PPC_I16x8Shl)                    \
+  V(PPC_I16x8ShrS)                   \
+  V(PPC_I16x8ShrU)                   \
+  V(PPC_I16x8Neg)                    \
+  V(PPC_I16x8Abs)                    \
+  V(PPC_I16x8SConvertI32x4)          \
+  V(PPC_I16x8UConvertI32x4)          \
+  V(PPC_I16x8SConvertI8x16Low)       \
+  V(PPC_I16x8SConvertI8x16High)      \
+  V(PPC_I16x8UConvertI8x16Low)       \
+  V(PPC_I16x8UConvertI8x16High)      \
+  V(PPC_I16x8AddSatS)                \
+  V(PPC_I16x8SubSatS)                \
+  V(PPC_I16x8AddSatU)                \
+  V(PPC_I16x8SubSatU)                \
+  V(PPC_I16x8RoundingAverageU)       \
+  V(PPC_I16x8BitMask)                \
+  V(PPC_I8x16Splat)                  \
+  V(PPC_I8x16ExtractLaneU)           \
+  V(PPC_I8x16ExtractLaneS)           \
+  V(PPC_I8x16ReplaceLane)            \
+  V(PPC_I8x16Add)                    \
+  V(PPC_I8x16Sub)                    \
+  V(PPC_I8x16Mul)                    \
+  V(PPC_I8x16MinS)                   \
+  V(PPC_I8x16MinU)                   \
+  V(PPC_I8x16MaxS)                   \
+  V(PPC_I8x16MaxU)                   \
+  V(PPC_I8x16Eq)                     \
+  V(PPC_I8x16Ne)                     \
+  V(PPC_I8x16GtS)                    \
+  V(PPC_I8x16GeS)                    \
+  V(PPC_I8x16GtU)                    \
+  V(PPC_I8x16GeU)                    \
+  V(PPC_I8x16Shl)                    \
+  V(PPC_I8x16ShrS)                   \
+  V(PPC_I8x16ShrU)                   \
+  V(PPC_I8x16Neg)                    \
+  V(PPC_I8x16Abs)                    \
+  V(PPC_I8x16SConvertI16x8)          \
+  V(PPC_I8x16UConvertI16x8)          \
+  V(PPC_I8x16AddSatS)                \
+  V(PPC_I8x16SubSatS)                \
+  V(PPC_I8x16AddSatU)                \
+  V(PPC_I8x16SubSatU)                \
+  V(PPC_I8x16RoundingAverageU)       \
+  V(PPC_I8x16Shuffle)                \
+  V(PPC_I8x16Swizzle)                \
+  V(PPC_I8x16BitMask)                \
+  V(PPC_V64x2AnyTrue)                \
+  V(PPC_V32x4AnyTrue)                \
+  V(PPC_V16x8AnyTrue)                \
+  V(PPC_V8x16AnyTrue)                \
+  V(PPC_V64x2AllTrue)                \
+  V(PPC_V32x4AllTrue)                \
+  V(PPC_V16x8AllTrue)                \
+  V(PPC_V8x16AllTrue)                \
+  V(PPC_S128And)                     \
+  V(PPC_S128Or)                      \
+  V(PPC_S128Xor)                     \
+  V(PPC_S128Zero)                    \
+  V(PPC_S128Not)                     \
+  V(PPC_S128Select)                  \
+  V(PPC_S128AndNot)                  \
+  V(PPC_StoreCompressTagged)         \
+  V(PPC_LoadDecompressTaggedSigned)  \
+  V(PPC_LoadDecompressTaggedPointer) \
+  V(PPC_LoadDecompressAnyTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

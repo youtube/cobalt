@@ -36,6 +36,7 @@
 #define V8_CODEGEN_ASSEMBLER_H_
 
 #include <forward_list>
+#include <memory>
 #include <unordered_map>
 
 #include "src/base/memory.h"
@@ -77,10 +78,16 @@ class JumpOptimizationInfo {
  public:
   bool is_collecting() const { return stage_ == kCollection; }
   bool is_optimizing() const { return stage_ == kOptimization; }
-  void set_optimizing() { stage_ = kOptimization; }
+  void set_optimizing() {
+    DCHECK(is_optimizable());
+    stage_ = kOptimization;
+  }
 
   bool is_optimizable() const { return optimizable_; }
-  void set_optimizable() { optimizable_ = true; }
+  void set_optimizable() {
+    DCHECK(is_collecting());
+    optimizable_ = true;
+  }
 
   // Used to verify the instruction sequence is always the same in two stages.
   size_t hash_code() const { return hash_code_; }
@@ -142,7 +149,7 @@ enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Recording reloc info for external references and off-heap targets is
-  // needed whenever code is serialized, e.g. into the snapshot or as a WASM
+  // needed whenever code is serialized, e.g. into the snapshot or as a Wasm
   // module. This flag allows this reloc info to be disabled for code that
   // will not survive process destruction.
   bool record_reloc_info_for_serialization = true;
@@ -161,7 +168,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool isolate_independent_code = false;
   // Enables the use of isolate-independent builtins through an off-heap
   // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = FLAG_embedded_builtins;
+  bool inline_offheap_trampolines = true;
   // On some platforms, all code is within a given range in the process,
   // and the start of this range is configured here.
   Address code_range_start = 0;
@@ -173,9 +180,11 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // info. This is useful in some platform (Win64) where the unwind info depends
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
+  // Whether to emit code comments.
+  bool emit_code_comments = FLAG_code_comments;
 
-  static AssemblerOptions Default(
-      Isolate* isolate, bool explicitly_support_serialization = false);
+  static AssemblerOptions Default(Isolate* isolate);
+  static AssemblerOptions DefaultForOffHeapTrampoline(Isolate* isolate);
 };
 
 class AssemblerBuffer {
@@ -220,6 +229,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
   // Features are usually enabled by CpuFeatureScope, which also asserts that
   // the features are supported before they are enabled.
+  // IMPORTANT:  IsEnabled() should only be used by DCHECKs. For real feature
+  // detection, use IsSupported().
   bool IsEnabled(CpuFeature f) {
     return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
@@ -229,7 +240,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   bool is_constant_pool_available() const {
     if (FLAG_enable_embedded_constant_pool) {
-      return constant_pool_available_;
+      // We need to disable constant pool here for embeded builtins
+      // because the metadata section is not adjacent to instructions
+      return constant_pool_available_ && !options().isolate_independent_code;
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
@@ -251,6 +264,15 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
+  int pc_offset_for_safepoint() {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+    // Mips needs it's own implementation to avoid trampoline's influence.
+    UNREACHABLE();
+#else
+    return pc_offset();
+#endif
+  }
+
   byte* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }
@@ -265,12 +287,18 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg) {
-    if (FLAG_code_comments) {
+    if (options().emit_code_comments) {
       code_comments_writer_.Add(pc_offset(), std::string(msg));
     }
   }
 
-  static const int kMinimalBufferSize = 4 * KB;
+  // The minimum buffer size. Should be at least two times the platform-specific
+  // {Assembler::kGap}.
+  static constexpr int kMinimalBufferSize = 128;
+
+  // The default buffer size used if we do not know the final size of the
+  // generated code.
+  static constexpr int kDefaultBufferSize = 4 * KB;
 
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the

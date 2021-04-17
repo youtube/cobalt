@@ -11,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
@@ -20,9 +21,16 @@
 namespace i = v8::internal;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  i::FlagScope<uint32_t> max_mem_flag_scope(&i::FLAG_wasm_max_mem_pages, 32);
-  i::FlagScope<uint32_t> max_table_size_scope(&i::FLAG_wasm_max_table_size,
-                                              100);
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  i::wasm::fuzzer::OneTimeEnableStagedWasmFeatures();
+
+  // We reduce the maximum memory size and table size of WebAssembly instances
+  // to avoid OOMs in the fuzzer.
+  i::FLAG_wasm_max_mem_pages = 32;
+  i::FLAG_wasm_max_table_size = 100;
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -42,7 +50,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::HandleScope scope(i_isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "wasm fuzzer");
   i::Handle<i::WasmModuleObject> module_object;
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
   bool compiles =
       i_isolate->wasm_engine()
           ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
@@ -58,6 +66,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   // Pump the message loop and run micro tasks, e.g. GC finalization tasks.
   support->PumpMessageLoop(v8::platform::MessageLoopBehavior::kDoNotWait);
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
   return 0;
 }

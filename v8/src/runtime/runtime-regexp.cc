@@ -322,7 +322,7 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
 
     FixedArray capture_name_map;
     if (capture_count > 0) {
-      DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+      DCHECK(JSRegExp::TypeSupportsCaptures(regexp->TypeTag()));
       Object maybe_capture_name_map = regexp->CaptureNameMap();
       if (maybe_capture_name_map.IsFixedArray()) {
         capture_name_map = FixedArray::cast(maybe_capture_name_map);
@@ -611,13 +611,9 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
 
-  JSRegExp::Type typeTag = regexp->TypeTag();
-  if (typeTag == JSRegExp::IRREGEXP) {
-    // Ensure the RegExp is compiled so we can access the capture-name map.
-    if (RegExp::IrregexpPrepare(isolate, regexp, subject) == -1) {
-      DCHECK(isolate->has_pending_exception());
-      return ReadOnlyRoots(isolate).exception();
-    }
+  // Ensure the RegExp is compiled so we can access the capture-name map.
+  if (!RegExp::EnsureFullyCompiled(isolate, regexp, subject)) {
+    return ReadOnlyRoots(isolate).exception();
   }
 
   // CompiledReplacement uses zone allocation.
@@ -627,7 +623,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
       isolate, regexp, replacement, capture_count, subject_length);
 
   // Shortcut for simple non-regexp global replacements
-  if (typeTag == JSRegExp::ATOM && simple_replace) {
+  if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
     if (subject->IsOneByteRepresentation() &&
         replacement->IsOneByteRepresentation()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
@@ -803,7 +799,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
                                    &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
         isolate);
-    if (*cached_answer != Smi::kZero) {
+    if (*cached_answer != Smi::zero()) {
       // The cache FixedArray is a COW-array and can therefore be reused.
       Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(
           Handle<FixedArray>::cast(cached_answer));
@@ -881,6 +877,23 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
       isolate, RegExp::Exec(isolate, regexp, subject, index, last_match_info));
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
+                                               last_match_info));
+}
+
 namespace {
 
 class MatchInfoBackedMatch : public String::Match {
@@ -891,7 +904,7 @@ class MatchInfoBackedMatch : public String::Match {
       : isolate_(isolate), match_info_(match_info) {
     subject_ = String::Flatten(isolate, subject);
 
-    if (regexp->TypeTag() == JSRegExp::IRREGEXP) {
+    if (JSRegExp::TypeSupportsCaptures(regexp->TypeTag())) {
       Object o = regexp->CaptureNameMap();
       has_named_captures_ = o.IsFixedArray();
       if (has_named_captures_) {
@@ -938,8 +951,8 @@ class MatchInfoBackedMatch : public String::Match {
         *capture_name_map_);
 
     if (capture_index == -1) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
+      *state = UNMATCHED;
+      return isolate_->factory()->empty_string();
     }
 
     DCHECK(1 <= capture_index && capture_index <= CaptureCount());
@@ -1015,15 +1028,6 @@ class VectorBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
 
-    Maybe<bool> maybe_capture_exists =
-        JSReceiver::HasProperty(groups_obj_, name);
-    if (maybe_capture_exists.IsNothing()) return MaybeHandle<String>();
-
-    if (!maybe_capture_exists.FromJust()) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
-    }
-
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
                                Object::GetProperty(isolate_, groups_obj_, name),
@@ -1055,15 +1059,15 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const std::function<Object(int)>& f_get_capture) {
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
-  const int capture_count = capture_map->length() >> 1;
-  for (int i = 0; i < capture_count; i++) {
+  const int named_capture_count = capture_map->length() >> 1;
+  for (int i = 0; i < named_capture_count; i++) {
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
     Handle<String> capture_name(String::cast(capture_map->get(name_ix)),
                                 isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
-    DCHECK(1 <= capture_ix && capture_ix <= capture_count);
+    DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(capture_value->IsUndefined(isolate) || capture_value->IsString());
@@ -1085,6 +1089,19 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   DCHECK_NE(has_capture, regexp->CaptureCount() == 0);
   DCHECK(subject->IsFlat());
 
+  // Force tier up to native code for global replaces. The global replace is
+  // implemented differently for native code and bytecode execution, where the
+  // native code expects an array to store all the matches, and the bytecode
+  // matches one at a time, so it's easier to tier-up to native code from the
+  // start.
+  if (FLAG_regexp_tier_up && regexp->TypeTag() == JSRegExp::IRREGEXP) {
+    regexp->MarkTierUpForNextExec();
+    if (FLAG_trace_regexp_tier_up) {
+      PrintF("Forcing tier-up of JSRegExp object %p in SearchRegExpMultiple\n",
+             reinterpret_cast<void*>(regexp->ptr()));
+    }
+  }
+
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
 
@@ -1096,7 +1113,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
         isolate->heap(), *subject, regexp->data(), &last_match_cache,
         RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     if (cached_answer.IsFixedArray()) {
-      int capture_registers = (capture_count + 1) * 2;
+      int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
       int32_t* last_match = NewArray<int32_t>(capture_registers);
       for (int i = 0; i < capture_registers; i++) {
         last_match[i] = Smi::ToInt(last_match_cache.get(i));
@@ -1221,8 +1238,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
     if (subject_length > kMinLengthToCache) {
       // Store the last successful match into the array for caching.
-      // TODO(yangguo): do not expose last match to JS and simplify caching.
-      int capture_registers = (capture_count + 1) * 2;
+      int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
       Handle<FixedArray> last_match_cache =
           isolate->factory()->NewFixedArray(capture_registers);
       int32_t* last_match = global_cache.LastSuccessfulMatch();
@@ -1288,7 +1304,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     }
 
     if (match_indices_obj->IsNull(isolate)) {
-      if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+      if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
       return string;
     }
 
@@ -1321,6 +1337,19 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
     DCHECK(global);
     RETURN_ON_EXCEPTION(isolate, RegExpUtils::SetLastIndex(isolate, regexp, 0),
                         String);
+
+    // Force tier up to native code for global replaces. The global replace is
+    // implemented differently for native code and bytecode execution, where the
+    // native code expects an array to store all the matches, and the bytecode
+    // matches one at a time, so it's easier to tier-up to native code from the
+    // start.
+    if (FLAG_regexp_tier_up && regexp->TypeTag() == JSRegExp::IRREGEXP) {
+      regexp->MarkTierUpForNextExec();
+      if (FLAG_trace_regexp_tier_up) {
+        PrintF("Forcing tier-up of JSRegExp object %p in RegExpReplace\n",
+               reinterpret_cast<void*>(regexp->ptr()));
+      }
+    }
 
     if (replace->length() == 0) {
       if (string->IsOneByteRepresentation()) {
@@ -1417,7 +1446,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   }
 
   if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
+    if (sticky) regexp->set_last_index(Smi::zero(), SKIP_WRITE_BARRIER);
     return *subject;
   }
 
@@ -1444,8 +1473,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   bool has_named_captures = false;
   Handle<FixedArray> capture_map;
   if (m > 1) {
-    // The existence of capture groups implies IRREGEXP kind.
-    DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+    DCHECK(JSRegExp::TypeSupportsCaptures(regexp->TypeTag()));
 
     Object maybe_capture_map = regexp->CaptureNameMap();
     if (maybe_capture_map.IsFixedArray()) {

@@ -33,7 +33,6 @@
     # a top level scope.
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
-      'cobalt_v8_enable_embedded_builtins%': 1,
       'cobalt_webapi_extension_generated_header_idl_files%': [],
       # In cross-compiling for modules like V8, we need a gyp flag to tell
       # that Cobalt is being compiled by MSVC and certain MSVC options should

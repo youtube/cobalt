@@ -11,11 +11,41 @@
 #include "src/objects/code.h"
 #include "src/objects/objects.h"
 
+//
+// Frame inheritance hierarchy (please keep in sync with frame-constants.h):
+// - CommonFrame
+//   - CommonFrameWithJSLinkage
+//     - JavaScriptFrame (aka StandardFrame)
+//       - InterpretedFrame
+//       - OptimizedFrame
+//       - ArgumentsAdaptorFrame (technically a TypedFrame)
+//     - TypedFrameWithJSLinkage
+//       - BuiltinFrame
+//       - JavaScriptBuiltinContinuationFrame
+//         - JavaScriptBuiltinContinuationWithCatchFrame
+//   - TypedFrame
+//     - NativeFrame
+//     - EntryFrame
+//       - ConstructEntryFrame
+//     - ExitFrame
+//       - BuiltinExitFrame
+//     - StubFrame
+//       - JsToWasmFrame
+//       - CWasmEntryFrame
+//     - Internal
+//       - ConstructFrame
+//       - BuiltinContinuationFrame
+//     - WasmFrame
+//       - WasmExitFrame
+//     - WasmDebugBreakFrame
+//     - WasmCompileLazyFrame
+//
+
 namespace v8 {
 namespace internal {
 namespace wasm {
 class WasmCode;
-}
+}  // namespace wasm
 
 // Forward declarations.
 class AbstractCode;
@@ -29,7 +59,6 @@ class RootVisitor;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
-class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmModuleObject;
 
@@ -66,10 +95,10 @@ class StackHandler {
   V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
   V(OPTIMIZED, OptimizedFrame)                                            \
-  V(WASM_COMPILED, WasmCompiledFrame)                                     \
+  V(WASM, WasmFrame)                                                      \
   V(WASM_TO_JS, WasmToJsFrame)                                            \
   V(JS_TO_WASM, JsToWasmFrame)                                            \
-  V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
+  V(WASM_DEBUG_BREAK, WasmDebugBreakFrame)                                \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
   V(WASM_EXIT, WasmExitFrame)                                             \
   V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
@@ -117,6 +146,7 @@ class StackFrame {
     Address sp = kNullAddress;
     Address fp = kNullAddress;
     Address* pc_address = nullptr;
+    Address callee_fp = kNullAddress;
     Address* callee_pc_address = nullptr;
     Address* constant_pool_address = nullptr;
   };
@@ -145,7 +175,12 @@ class StackFrame {
     intptr_t type = marker >> kSmiTagSize;
     // TODO(petermarshall): There is a bug in the arm simulators that causes
     // invalid frame markers.
-#if !(defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM))
+#if defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)
+    if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
+      // Appease UBSan.
+      return Type::NUMBER_OF_TYPES;
+    }
+#else
     DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
 #endif
     return static_cast<Type>(type);
@@ -174,11 +209,9 @@ class StackFrame {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
-  bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
+  bool is_wasm() const { return this->type() == WASM; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
-  bool is_wasm_interpreter_entry() const {
-    return type() == WASM_INTERPRETER_ENTRY;
-  }
+  bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_builtin() const { return type() == BUILTIN; }
   bool is_internal() const { return type() == INTERNAL; }
@@ -193,34 +226,26 @@ class StackFrame {
   }
   bool is_construct() const { return type() == CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
-  virtual bool is_standard() const { return false; }
 
   bool is_java_script() const {
     Type type = this->type();
-    return (type == OPTIMIZED) || (type == INTERPRETED) || (type == BUILTIN) ||
-           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION) ||
-           (type == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH);
+    return (type == OPTIMIZED) || (type == INTERPRETED);
   }
-  bool is_wasm() const {
-    Type type = this->type();
-    return type == WASM_COMPILED || type == WASM_INTERPRETER_ENTRY;
-  }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
+  bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
 
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
-  Address callee_pc() const {
-    return state_.callee_pc_address ? *state_.callee_pc_address : kNullAddress;
-  }
+  Address callee_fp() const { return state_.callee_fp; }
+  inline Address callee_pc() const;
   Address caller_sp() const { return GetCallerStackPointer(); }
+  inline Address pc() const;
 
-  // If this frame is optimized and was dynamically aligned return its old
-  // unaligned frame pointer.  When the frame is deoptimized its FP will shift
-  // up one word and become unaligned.
-  Address UnpaddedFP() const;
-
-  Address pc() const { return *pc_address(); }
-  void set_pc(Address pc) { *pc_address() = pc; }
+  // Skip authentication of the PC, when using CFI. Used in the profiler, where
+  // in certain corner-cases we do not use an address on the stack, which would
+  // be signed, as the PC of the frame.
+  inline Address unauthenticated_pc() const;
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
@@ -258,6 +283,8 @@ class StackFrame {
   // profiler's stashed return address.
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
+
+  static inline Address ReadPC(Address* pc_address);
 
   // Resolves pc_address through the resolution address function if one is set.
   static inline Address* ResolveReturnAddressLocation(Address* pc_address);
@@ -306,155 +333,14 @@ class StackFrame {
   friend class SafeStackFrameIterator;
 };
 
-class NativeFrame : public StackFrame {
- public:
-  Type type() const override { return NATIVE; }
-
-  Code unchecked_code() const override;
-
-  // Garbage collection support.
-  void Iterate(RootVisitor* v) const override {}
-
- protected:
-  inline explicit NativeFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
-
- private:
-  void ComputeCallerState(State* state) const override;
-
-  friend class StackFrameIteratorBase;
-};
-
-// Entry frames are used to enter JavaScript execution from C.
-class EntryFrame : public StackFrame {
- public:
-  Type type() const override { return ENTRY; }
-
-  Code unchecked_code() const override;
-
-  // Garbage collection support.
-  void Iterate(RootVisitor* v) const override;
-
-  static EntryFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_entry());
-    return static_cast<EntryFrame*>(frame);
-  }
-
- protected:
-  inline explicit EntryFrame(StackFrameIteratorBase* iterator);
-
-  // The caller stack pointer for entry frames is always zero. The
-  // real information about the caller frame is available through the
-  // link to the top exit frame.
-  Address GetCallerStackPointer() const override { return 0; }
-
- private:
-  void ComputeCallerState(State* state) const override;
-  Type GetCallerState(State* state) const override;
-
-  friend class StackFrameIteratorBase;
-};
-
-class ConstructEntryFrame : public EntryFrame {
- public:
-  Type type() const override { return CONSTRUCT_ENTRY; }
-
-  Code unchecked_code() const override;
-
-  static ConstructEntryFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_construct_entry());
-    return static_cast<ConstructEntryFrame*>(frame);
-  }
-
- protected:
-  inline explicit ConstructEntryFrame(StackFrameIteratorBase* iterator);
-
- private:
-  friend class StackFrameIteratorBase;
-};
-
-// Exit frames are used to exit JavaScript execution and go to C.
-class ExitFrame : public StackFrame {
- public:
-  Type type() const override { return EXIT; }
-
-  Code unchecked_code() const override;
-
-  // Garbage collection support.
-  void Iterate(RootVisitor* v) const override;
-
-  static ExitFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_exit());
-    return static_cast<ExitFrame*>(frame);
-  }
-
-  // Compute the state and type of an exit frame given a frame
-  // pointer. Used when constructing the first stack frame seen by an
-  // iterator and the frames following entry frames.
-  static Type GetStateForFramePointer(Address fp, State* state);
-  static Address ComputeStackPointer(Address fp);
-  static StackFrame::Type ComputeFrameType(Address fp);
-  static void FillState(Address fp, Address sp, State* state);
-
- protected:
-  inline explicit ExitFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
-
- private:
-  void ComputeCallerState(State* state) const override;
-
-  friend class StackFrameIteratorBase;
-};
-
-// Builtin exit frames are a special case of exit frames, which are used
-// whenever C++ builtins (e.g., Math.acos) are called. Their main purpose is
-// to allow such builtins to appear in stack traces.
-class BuiltinExitFrame : public ExitFrame {
- public:
-  Type type() const override { return BUILTIN_EXIT; }
-
-  static BuiltinExitFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_builtin_exit());
-    return static_cast<BuiltinExitFrame*>(frame);
-  }
-
-  JSFunction function() const;
-  Object receiver() const;
-
-  bool IsConstructor() const;
-
-  void Print(StringStream* accumulator, PrintMode mode,
-             int index) const override;
-
- protected:
-  inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
-
- private:
-  Object GetParameter(int i) const;
-  int ComputeParametersCount() const;
-
-  inline Object receiver_slot_object() const;
-  inline Object argc_slot_object() const;
-  inline Object target_slot_object() const;
-  inline Object new_target_slot_object() const;
-
-  friend class StackFrameIteratorBase;
-  friend class FrameArrayBuilder;
-};
-
-class StandardFrame;
+class CommonFrame;
 
 class V8_EXPORT_PRIVATE FrameSummary {
  public:
 // Subclasses for the different summary kinds:
-#define FRAME_SUMMARY_VARIANTS(F)                                             \
-  F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript)    \
-  F(WASM_COMPILED, WasmCompiledFrameSummary, wasm_compiled_summary_,          \
-    WasmCompiled)                                                             \
-  F(WASM_INTERPRETED, WasmInterpretedFrameSummary, wasm_interpreted_summary_, \
-    WasmInterpreted)
+#define FRAME_SUMMARY_VARIANTS(F)                                          \
+  F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript) \
+  F(WASM, WasmFrameSummary, wasm_summary_, Wasm)
 
 #define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
   enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
@@ -505,14 +391,15 @@ class V8_EXPORT_PRIVATE FrameSummary {
   };
 
   class WasmFrameSummary : public FrameSummaryBase {
-   protected:
-    WasmFrameSummary(Isolate*, Kind, Handle<WasmInstanceObject>,
-                     bool at_to_number_conversion);
-
    public:
+    WasmFrameSummary(Isolate*, Handle<WasmInstanceObject>, wasm::WasmCode*,
+                     int code_offset, bool at_to_number_conversion);
+
     Handle<Object> receiver() const;
     uint32_t function_index() const;
-    int byte_offset() const;
+    wasm::WasmCode* code() const { return code_; }
+    int code_offset() const { return code_offset_; }
+    V8_EXPORT_PRIVATE int byte_offset() const;
     bool is_constructor() const { return false; }
     bool is_subject_to_debugging() const { return true; }
     int SourcePosition() const;
@@ -526,35 +413,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
    private:
     Handle<WasmInstanceObject> wasm_instance_;
     bool at_to_number_conversion_;
-  };
-
-  class WasmCompiledFrameSummary : public WasmFrameSummary {
-   public:
-    WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>,
-                             wasm::WasmCode*, int code_offset,
-                             bool at_to_number_conversion);
-    uint32_t function_index() const;
-    wasm::WasmCode* code() const { return code_; }
-    int code_offset() const { return code_offset_; }
-    int byte_offset() const;
-    static int GetWasmSourcePosition(const wasm::WasmCode* code, int offset);
-
-   private:
     wasm::WasmCode* const code_;
     int code_offset_;
-  };
-
-  class WasmInterpretedFrameSummary : public WasmFrameSummary {
-   public:
-    WasmInterpretedFrameSummary(Isolate*, Handle<WasmInstanceObject>,
-                                uint32_t function_index, int byte_offset);
-    uint32_t function_index() const { return function_index_; }
-    int code_offset() const { return byte_offset_; }
-    int byte_offset() const { return byte_offset_; }
-
-   private:
-    uint32_t function_index_;
-    int byte_offset_;
   };
 
 #define FRAME_SUMMARY_CONS(kind, type, field, desc) \
@@ -564,10 +424,10 @@ class V8_EXPORT_PRIVATE FrameSummary {
 
   ~FrameSummary();
 
-  static FrameSummary GetTop(const StandardFrame* frame);
-  static FrameSummary GetBottom(const StandardFrame* frame);
-  static FrameSummary GetSingle(const StandardFrame* frame);
-  static FrameSummary Get(const StandardFrame* frame, int index);
+  static FrameSummary GetTop(const CommonFrame* frame);
+  static FrameSummary GetBottom(const CommonFrame* frame);
+  static FrameSummary GetSingle(const CommonFrame* frame);
+  static FrameSummary Get(const CommonFrame* frame, int index);
 
   void EnsureSourcePositionsAvailable();
   bool AreSourcePositionsAvailable() const;
@@ -592,12 +452,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
   FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CAST)
 #undef FRAME_SUMMARY_CAST
 
-  bool IsWasm() const { return IsWasmCompiled() || IsWasmInterpreted(); }
-  const WasmFrameSummary& AsWasm() const {
-    if (IsWasmCompiled()) return AsWasmCompiled();
-    return AsWasmInterpreted();
-  }
-
  private:
 #define FRAME_SUMMARY_FIELD(kind, type, field, desc) type field;
   union {
@@ -607,15 +461,11 @@ class V8_EXPORT_PRIVATE FrameSummary {
 #undef FRAME_SUMMARY_FIELD
 };
 
-class StandardFrame : public StackFrame {
+class CommonFrame : public StackFrame {
  public:
-  // Testers.
-  bool is_standard() const override { return true; }
-
   // Accessors.
-  virtual Object receiver() const;
-  virtual Script script() const;
-  virtual Object context() const;
+  virtual Object context()
+      const;  // TODO(victorgomes): CommonFrames don't have context.
   virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
@@ -623,25 +473,20 @@ class StandardFrame : public StackFrame {
   inline void SetExpression(int index, Object value);
   int ComputeExpressionsCount() const;
 
-  // Access the parameters.
-  virtual Object GetParameter(int index) const;
-  virtual int ComputeParametersCount() const;
-
-  // Check if this frame is a constructor frame invoked through 'new'.
-  virtual bool IsConstructor() const;
+  Address GetCallerStackPointer() const override;
 
   // Build a list with summaries for this frame including all inlined frames.
   // The functions are ordered bottom-to-top (i.e. summaries.last() is the
   // top-most activation; caller comes before callee).
   virtual void Summarize(std::vector<FrameSummary>* frames) const;
 
-  static StandardFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_standard());
-    return static_cast<StandardFrame*>(frame);
+  static CommonFrame* cast(StackFrame* frame) {
+    // It is always safe to cast to common.
+    return static_cast<CommonFrame*>(frame);
   }
 
  protected:
-  inline explicit StandardFrame(StackFrameIteratorBase* iterator);
+  inline explicit CommonFrame(StackFrameIteratorBase* iterator);
 
   void ComputeCallerState(State* state) const override;
 
@@ -668,10 +513,6 @@ class StandardFrame : public StackFrame {
   // an arguments adaptor frame.
   static inline bool IsArgumentsAdaptorFrame(Address fp);
 
-  // Determines if the standard frame for the given frame pointer is a
-  // construct frame.
-  static inline bool IsConstructFrame(Address fp);
-
   // Used by OptimizedFrames and StubFrames.
   void IterateCompiledFrame(RootVisitor* v) const;
 
@@ -680,26 +521,77 @@ class StandardFrame : public StackFrame {
   friend class SafeStackFrameIterator;
 };
 
-class JavaScriptFrame : public StandardFrame {
+class TypedFrame : public CommonFrame {
+ public:
+  Code unchecked_code() const override { return Code(); }
+  void Iterate(RootVisitor* v) const override { IterateCompiledFrame(v); }
+
+ protected:
+  inline explicit TypedFrame(StackFrameIteratorBase* iterator);
+};
+
+class CommonFrameWithJSLinkage : public CommonFrame {
+ public:
+  // Accessors.
+  virtual JSFunction function() const = 0;
+
+  // Access the parameters.
+  virtual Object receiver() const;
+  virtual Object GetParameter(int index) const;
+  virtual int ComputeParametersCount() const;
+  Handle<FixedArray> GetParameters() const;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  virtual int GetActualArgumentCount() const;
+#endif
+
+  // Determine the code for the frame.
+  Code unchecked_code() const override;
+
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns data associated with the handler site specific to the frame type:
+  //  - OptimizedFrame  : Data is not used and will not return a value.
+  //  - InterpretedFrame: Data is the register index holding the context.
+  virtual int LookupExceptionHandlerInTable(
+      int* data, HandlerTable::CatchPrediction* prediction);
+
+  // Check if this frame is a constructor frame invoked through 'new'.
+  virtual bool IsConstructor() const;
+
+  // Summarize Frame
+  void Summarize(std::vector<FrameSummary>* frames) const override;
+
+ protected:
+  inline explicit CommonFrameWithJSLinkage(StackFrameIteratorBase* iterator);
+
+  // Determines if the standard frame for the given frame pointer is a
+  // construct frame.
+  static inline bool IsConstructFrame(Address fp);
+  inline Address GetParameterSlot(int index) const;
+};
+
+class TypedFrameWithJSLinkage : public CommonFrameWithJSLinkage {
+ public:
+  void Iterate(RootVisitor* v) const override;
+
+ protected:
+  inline explicit TypedFrameWithJSLinkage(StackFrameIteratorBase* iterator);
+};
+
+class JavaScriptFrame : public CommonFrameWithJSLinkage {
  public:
   Type type() const override = 0;
 
-  void Summarize(std::vector<FrameSummary>* frames) const override;
-
   // Accessors.
-  virtual JSFunction function() const;
+  JSFunction function() const override;
   Object unchecked_function() const;
-  Object receiver() const override;
+  Script script() const;
   Object context() const override;
-  Script script() const override;
+
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  int GetActualArgumentCount() const override;
+#endif
 
   inline void set_receiver(Object value);
-
-  // Access the parameters.
-  inline Address GetParameterSlot(int index) const;
-  Object GetParameter(int index) const override;
-  int ComputeParametersCount() const override;
-  Handle<FixedArray> GetParameters() const;
 
   // Debugger access.
   void SetParameterValue(int index, Object value) const;
@@ -723,20 +615,10 @@ class JavaScriptFrame : public StandardFrame {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
-  // Determine the code for the frame.
-  Code unchecked_code() const override;
-
   // Return a list with {SharedFunctionInfo} objects of this frame.
   virtual void GetFunctions(std::vector<SharedFunctionInfo>* functions) const;
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
-
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns data associated with the handler site specific to the frame type:
-  //  - OptimizedFrame  : Data is the stack slot count of the entire frame.
-  //  - InterpretedFrame: Data is the register index holding the context.
-  virtual int LookupExceptionHandlerInTable(
-      int* data, HandlerTable::CatchPrediction* prediction);
 
   // Architecture-specific register description.
   static Register fp_register();
@@ -772,27 +654,150 @@ class JavaScriptFrame : public StandardFrame {
   friend class StackFrameIteratorBase;
 };
 
-class StubFrame : public StandardFrame {
+class NativeFrame : public TypedFrame {
+ public:
+  Type type() const override { return NATIVE; }
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit NativeFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  void ComputeCallerState(State* state) const override;
+
+  friend class StackFrameIteratorBase;
+};
+
+// Entry frames are used to enter JavaScript execution from C.
+class EntryFrame : public TypedFrame {
+ public:
+  Type type() const override { return ENTRY; }
+
+  Code unchecked_code() const override;
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override;
+
+  static EntryFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_entry());
+    return static_cast<EntryFrame*>(frame);
+  }
+
+ protected:
+  inline explicit EntryFrame(StackFrameIteratorBase* iterator);
+
+  // The caller stack pointer for entry frames is always zero. The
+  // real information about the caller frame is available through the
+  // link to the top exit frame.
+  Address GetCallerStackPointer() const override { return 0; }
+
+ private:
+  void ComputeCallerState(State* state) const override;
+  Type GetCallerState(State* state) const override;
+
+  friend class StackFrameIteratorBase;
+};
+
+class ConstructEntryFrame : public EntryFrame {
+ public:
+  Type type() const override { return CONSTRUCT_ENTRY; }
+
+  Code unchecked_code() const override;
+
+  static ConstructEntryFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_construct_entry());
+    return static_cast<ConstructEntryFrame*>(frame);
+  }
+
+ protected:
+  inline explicit ConstructEntryFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+// Exit frames are used to exit JavaScript execution and go to C.
+class ExitFrame : public TypedFrame {
+ public:
+  Type type() const override { return EXIT; }
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override;
+
+  static ExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_exit());
+    return static_cast<ExitFrame*>(frame);
+  }
+
+  // Compute the state and type of an exit frame given a frame
+  // pointer. Used when constructing the first stack frame seen by an
+  // iterator and the frames following entry frames.
+  static Type GetStateForFramePointer(Address fp, State* state);
+  static Address ComputeStackPointer(Address fp);
+  static StackFrame::Type ComputeFrameType(Address fp);
+  static void FillState(Address fp, Address sp, State* state);
+
+ protected:
+  inline explicit ExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  void ComputeCallerState(State* state) const override;
+
+  friend class StackFrameIteratorBase;
+};
+
+// Builtin exit frames are a special case of exit frames, which are used
+// whenever C++ builtins (e.g., Math.acos) are called. Their main purpose is
+// to allow such builtins to appear in stack traces.
+class BuiltinExitFrame : public ExitFrame {
+ public:
+  Type type() const override { return BUILTIN_EXIT; }
+
+  static BuiltinExitFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_builtin_exit());
+    return static_cast<BuiltinExitFrame*>(frame);
+  }
+
+  JSFunction function() const;
+  Object receiver() const;
+  bool IsConstructor() const;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+ protected:
+  inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  Object GetParameter(int i) const;
+  int ComputeParametersCount() const;
+
+  inline Object receiver_slot_object() const;
+  inline Object argc_slot_object() const;
+  inline Object target_slot_object() const;
+  inline Object new_target_slot_object() const;
+
+  friend class StackFrameIteratorBase;
+  friend class FrameArrayBuilder;
+};
+
+class StubFrame : public TypedFrame {
  public:
   Type type() const override { return STUB; }
-
-  // GC support.
-  void Iterate(RootVisitor* v) const override;
 
   // Determine the code for the frame.
   Code unchecked_code() const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Only
-  // TurboFan stub frames are supported. Also returns data associated with the
-  // handler site:
-  //  - TurboFan stub: Data is the stack slot count of the entire frame.
-  int LookupExceptionHandlerInTable(int* data);
+  // TurboFan stub frames are supported.
+  int LookupExceptionHandlerInTable();
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
 
-  Address GetCallerStackPointer() const override;
-
+ private:
   friend class StackFrameIteratorBase;
 };
 
@@ -816,7 +821,6 @@ class OptimizedFrame : public JavaScriptFrame {
 
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
-  Object receiver() const override;
   int ComputeParametersCount() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
@@ -881,6 +885,10 @@ class InterpretedFrame : public JavaScriptFrame {
 // Arguments adaptor frames are automatically inserted below
 // JavaScript frames when the actual number of parameters does not
 // match the formal number of parameters.
+// NOTE: this inheritance is wrong, an ArgumentsAdaptorFrame should be
+// of type TypedFrame, but due to FrameInspector::javascript_frame(),
+// it needs to be seen as JavaScriptFrame.
+// This frame will however be deleted soon.
 class ArgumentsAdaptorFrame : public JavaScriptFrame {
  public:
   Type type() const override { return ARGUMENTS_ADAPTOR; }
@@ -908,7 +916,7 @@ class ArgumentsAdaptorFrame : public JavaScriptFrame {
 
 // Builtin frames are built for builtins with JavaScript linkage, such as
 // various standard library functions (i.e. Math.asin, Math.floor, etc.).
-class BuiltinFrame final : public JavaScriptFrame {
+class BuiltinFrame final : public TypedFrameWithJSLinkage {
  public:
   Type type() const final { return BUILTIN; }
 
@@ -916,61 +924,61 @@ class BuiltinFrame final : public JavaScriptFrame {
     DCHECK(frame->is_builtin());
     return static_cast<BuiltinFrame*>(frame);
   }
-  int ComputeParametersCount() const final;
+
+  JSFunction function() const override;
+  int ComputeParametersCount() const override;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
-
-  void PrintFrameKind(StringStream* accumulator) const override;
 
  private:
   friend class StackFrameIteratorBase;
 };
 
-class WasmCompiledFrame : public StandardFrame {
+class WasmFrame : public TypedFrame {
  public:
-  Type type() const override { return WASM_COMPILED; }
-
-  // GC support.
-  void Iterate(RootVisitor* v) const override;
+  Type type() const override { return WASM; }
 
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns the stack slot count of the entire frame.
-  int LookupExceptionHandlerInTable(int* data);
+  // Lookup exception handler for current {pc}, returns -1 if none found.
+  int LookupExceptionHandlerInTable();
 
   // Determine the code for the frame.
   Code unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject wasm_instance() const;
+  V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
+  V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
-  Script script() const override;
+  Script script() const;
+  // Byte position in the module, or asm.js source position.
   int position() const override;
+  Object context() const override;
   bool at_to_number_conversion() const;
+  // Byte offset in the function.
+  int byte_offset() const;
+  bool is_inspectable() const;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
-  static WasmCompiledFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm_compiled());
-    return static_cast<WasmCompiledFrame*>(frame);
+  static WasmFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm());
+    return static_cast<WasmFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmCompiledFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
+  inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;
   WasmModuleObject module_object() const;
 };
 
-class WasmExitFrame : public WasmCompiledFrame {
+class WasmExitFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_EXIT; }
   static Address ComputeStackPointer(Address fp);
@@ -982,43 +990,26 @@ class WasmExitFrame : public WasmCompiledFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmInterpreterEntryFrame final : public StandardFrame {
+class WasmDebugBreakFrame final : public TypedFrame {
  public:
-  Type type() const override { return WASM_INTERPRETER_ENTRY; }
+  Type type() const override { return WASM_DEBUG_BREAK; }
 
   // GC support.
   void Iterate(RootVisitor* v) const override;
 
-  // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
-  void Summarize(std::vector<FrameSummary>* frames) const override;
-
-  // Determine the code for the frame.
-  Code unchecked_code() const override;
-
-  // Accessors.
-  WasmDebugInfo debug_info() const;
-  WasmInstanceObject wasm_instance() const;
-
-  Script script() const override;
-  int position() const override;
-  Object context() const override;
-
-  static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm_interpreter_entry());
-    return static_cast<WasmInterpreterEntryFrame*>(frame);
+  static WasmDebugBreakFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_debug_break());
+    return static_cast<WasmDebugBreakFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmInterpreterEntryFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
+  inline explicit WasmDebugBreakFrame(StackFrameIteratorBase*);
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject module_object() const;
 };
 
 class WasmToJsFrame : public StubFrame {
@@ -1035,6 +1026,8 @@ class WasmToJsFrame : public StubFrame {
 class JsToWasmFrame : public StubFrame {
  public:
   Type type() const override { return JS_TO_WASM; }
+
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);
@@ -1055,11 +1048,10 @@ class CWasmEntryFrame : public StubFrame {
   Type GetCallerState(State* state) const override;
 };
 
-class WasmCompileLazyFrame : public StandardFrame {
+class WasmCompileLazyFrame : public TypedFrame {
  public:
   Type type() const override { return WASM_COMPILE_LAZY; }
 
-  Code unchecked_code() const override;
   WasmInstanceObject wasm_instance() const;
   FullObjectSlot wasm_instance_slot() const;
 
@@ -1074,13 +1066,11 @@ class WasmCompileLazyFrame : public StandardFrame {
  protected:
   inline explicit WasmCompileLazyFrame(StackFrameIteratorBase* iterator);
 
-  Address GetCallerStackPointer() const override;
-
  private:
   friend class StackFrameIteratorBase;
 };
 
-class InternalFrame : public StandardFrame {
+class InternalFrame : public TypedFrame {
  public:
   Type type() const override { return INTERNAL; }
 
@@ -1097,8 +1087,6 @@ class InternalFrame : public StandardFrame {
 
  protected:
   inline explicit InternalFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -1138,7 +1126,7 @@ class BuiltinContinuationFrame : public InternalFrame {
   friend class StackFrameIteratorBase;
 };
 
-class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
+class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
  public:
   Type type() const override { return JAVA_SCRIPT_BUILTIN_CONTINUATION; }
 
@@ -1147,6 +1135,7 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
     return static_cast<JavaScriptBuiltinContinuationFrame*>(frame);
   }
 
+  JSFunction function() const override;
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
@@ -1264,8 +1253,9 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
   bool done() const { return iterator_.done(); }
   void Advance();
   void AdvanceOneFrame() { iterator_.Advance(); }
+  int FrameFunctionCount() const;
 
-  inline StandardFrame* frame() const;
+  inline CommonFrame* frame() const;
 
   inline bool is_javascript() const;
   inline bool is_wasm() const;
@@ -1285,6 +1275,7 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   void Advance();
 
   StackFrame::Type top_frame_type() const { return top_frame_type_; }
+  Address top_context_address() const { return top_context_address_; }
 
  private:
   void AdvanceOneFrame();
@@ -1308,9 +1299,179 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
+  Address top_context_address_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 };
+
+// Frame layout helper classes. Used by the deoptimizer and instruction
+// selector.
+// -------------------------------------------------------------------------
+
+// How to calculate the frame layout information. Precise, when all information
+// is available during deoptimization. Conservative, when an overapproximation
+// is fine.
+// TODO(jgruber): Investigate whether the conservative kind can be removed. It
+// seems possible: 1. is_topmost should be known through the outer_state chain
+// of FrameStateDescriptor; 2. the deopt_kind may be a property of the bailout
+// id; 3. for continuation_mode, we only care whether it is a mode with catch,
+// and that is likewise known at compile-time.
+// There is nothing specific blocking this, the investigation just requires time
+// and it is not that important to get the exact frame height at compile-time.
+enum class FrameInfoKind {
+  kPrecise,
+  kConservative,
+};
+
+// Used by the deoptimizer. Corresponds to frame kinds:
+enum class BuiltinContinuationMode {
+  STUB,                        // BuiltinContinuationFrame
+  JAVASCRIPT,                  // JavaScriptBuiltinContinuationFrame
+  JAVASCRIPT_WITH_CATCH,       // JavaScriptBuiltinContinuationWithCatchFrame
+  JAVASCRIPT_HANDLE_EXCEPTION  // JavaScriptBuiltinContinuationWithCatchFrame
+};
+
+class InterpretedFrameInfo {
+ public:
+  static InterpretedFrameInfo Precise(int parameters_count_with_receiver,
+                                      int translation_height, bool is_topmost,
+                                      bool pad_arguments) {
+    return {parameters_count_with_receiver, translation_height, is_topmost,
+            pad_arguments, FrameInfoKind::kPrecise};
+  }
+
+  static InterpretedFrameInfo Conservative(int parameters_count_with_receiver,
+                                           int locals_count) {
+    return {parameters_count_with_receiver, locals_count, false, true,
+            FrameInfoKind::kConservative};
+  }
+
+  uint32_t register_stack_slot_count() const {
+    return register_stack_slot_count_;
+  }
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  InterpretedFrameInfo(int parameters_count_with_receiver,
+                       int translation_height, bool is_topmost,
+                       bool pad_arguments, FrameInfoKind frame_info_kind);
+
+  uint32_t register_stack_slot_count_;
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+class ArgumentsAdaptorFrameInfo {
+ public:
+  static ArgumentsAdaptorFrameInfo Precise(int translation_height) {
+    return ArgumentsAdaptorFrameInfo{translation_height};
+  }
+
+  static ArgumentsAdaptorFrameInfo Conservative(int parameters_count) {
+    return ArgumentsAdaptorFrameInfo{parameters_count};
+  }
+
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  explicit ArgumentsAdaptorFrameInfo(int translation_height);
+
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+class ConstructStubFrameInfo {
+ public:
+  static ConstructStubFrameInfo Precise(int translation_height,
+                                        bool is_topmost) {
+    return {translation_height, is_topmost, FrameInfoKind::kPrecise};
+  }
+
+  static ConstructStubFrameInfo Conservative(int parameters_count) {
+    return {parameters_count, false, FrameInfoKind::kConservative};
+  }
+
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  ConstructStubFrameInfo(int translation_height, bool is_topmost,
+                         FrameInfoKind frame_info_kind);
+
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+// Used by BuiltinContinuationFrameInfo.
+class CallInterfaceDescriptor;
+class RegisterConfiguration;
+
+class BuiltinContinuationFrameInfo {
+ public:
+  static BuiltinContinuationFrameInfo Precise(
+      int translation_height,
+      const CallInterfaceDescriptor& continuation_descriptor,
+      const RegisterConfiguration* register_config, bool is_topmost,
+      DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode) {
+    return {translation_height,
+            continuation_descriptor,
+            register_config,
+            is_topmost,
+            deopt_kind,
+            continuation_mode,
+            FrameInfoKind::kPrecise};
+  }
+
+  static BuiltinContinuationFrameInfo Conservative(
+      int parameters_count,
+      const CallInterfaceDescriptor& continuation_descriptor,
+      const RegisterConfiguration* register_config) {
+    // It doesn't matter what we pass as is_topmost, deopt_kind and
+    // continuation_mode; these values are ignored in conservative mode.
+    return {parameters_count,
+            continuation_descriptor,
+            register_config,
+            false,
+            DeoptimizeKind::kEager,
+            BuiltinContinuationMode::STUB,
+            FrameInfoKind::kConservative};
+  }
+
+  bool frame_has_result_stack_slot() const {
+    return frame_has_result_stack_slot_;
+  }
+  uint32_t translated_stack_parameter_count() const {
+    return translated_stack_parameter_count_;
+  }
+  uint32_t stack_parameter_count() const { return stack_parameter_count_; }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+  uint32_t frame_size_in_bytes_above_fp() const {
+    return frame_size_in_bytes_above_fp_;
+  }
+
+ private:
+  BuiltinContinuationFrameInfo(
+      int translation_height,
+      const CallInterfaceDescriptor& continuation_descriptor,
+      const RegisterConfiguration* register_config, bool is_topmost,
+      DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode,
+      FrameInfoKind frame_info_kind);
+
+  bool frame_has_result_stack_slot_;
+  uint32_t translated_stack_parameter_count_;
+  uint32_t stack_parameter_count_;
+  uint32_t frame_size_in_bytes_;
+  uint32_t frame_size_in_bytes_above_fp_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

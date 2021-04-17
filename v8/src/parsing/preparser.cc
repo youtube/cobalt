@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
@@ -60,7 +61,7 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
   return PreParserIdentifier::Default();
 }
 
-}  // unnamed namespace
+}  // namespace
 
 PreParserIdentifier PreParser::GetIdentifier() const {
   const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
@@ -73,19 +74,15 @@ PreParserIdentifier PreParser::GetIdentifier() const {
 
 PreParser::PreParseResult PreParser::PreParseProgram() {
   DCHECK_NULL(scope_);
-  DeclarationScope* scope = NewScriptScope();
+  DeclarationScope* scope = NewScriptScope(REPLMode::kNo);
 #ifdef DEBUG
   scope->set_is_being_lazily_parsed(true);
 #endif
 
-  // Note: We should only skip the hashbang in non-Eval scripts
-  // (currently, Eval is not handled by the PreParser).
-  scanner()->SkipHashBang();
-
   // ModuleDeclarationInstantiation for Source Text Module Records creates a
   // new Module Environment Record whose outer lexical environment record is
   // the global scope.
-  if (parsing_module_) scope = NewModuleScope(scope);
+  if (flags().is_module()) scope = NewModuleScope(scope);
 
   FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
@@ -111,12 +108,10 @@ void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
 
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, int* use_counts,
-    ProducedPreparseData** produced_preparse_data, int script_id) {
+    FunctionSyntaxKind function_syntax_kind, DeclarationScope* function_scope,
+    int* use_counts, ProducedPreparseData** produced_preparse_data) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
-  set_script_id(script_id);
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
@@ -233,7 +228,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       // arguments'.
       function_scope->DeclareArguments(ast_value_factory());
 
-      DeclareFunctionNameVar(function_name, function_type, function_scope);
+      DeclareFunctionNameVar(function_name, function_syntax_kind,
+                             function_scope);
 
       if (preparse_data_builder_->HasData()) {
         *produced_preparse_data =
@@ -271,19 +267,19 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
-    int function_token_pos, FunctionLiteral::FunctionType function_type,
+    int function_token_pos, FunctionSyntaxKind function_syntax_kind,
     LanguageMode language_mode,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
+  FunctionParsingScope function_parsing_scope(this);
   // Wrapped functions are not parsed in the preparser.
   DCHECK_NULL(arguments_for_wrapped_function);
-  DCHECK_NE(FunctionLiteral::kWrapped, function_type);
+  DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  const RuntimeCallCounterId counters[2] = {
-      RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-      RuntimeCallCounterId::kPreParseWithVariableResolution};
-  RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      counters[parsing_on_main_thread_]);
+  RuntimeCallTimerScope runtime_timer(
+      runtime_call_stats_,
+      RuntimeCallCounterId::kPreParseWithVariableResolution,
+      RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -327,15 +323,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     int pos = function_token_pos == kNoSourcePosition ? peek_position()
                                                       : function_token_pos;
     AcceptINScope scope(this, true);
-    ParseFunctionBody(&body, function_name, pos, formals, kind, function_type,
-                      FunctionBodyType::kBlock);
+    ParseFunctionBody(&body, function_name, pos, formals, kind,
+                      function_syntax_kind, FunctionBodyType::kBlock);
 
     // Parsing the body may change the language mode in our scope.
     language_mode = function_scope->language_mode();
-
-    if (is_sloppy(language_mode)) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
 
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
@@ -359,14 +351,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     // reconstructed from the script id and the byte range in the log processor.
     const char* name = "";
     size_t name_byte_length = 0;
+    bool is_one_byte = true;
     const AstRawString* string = function_name.string_;
     if (string != nullptr) {
       name = reinterpret_cast<const char*>(string->raw_data());
       name_byte_length = string->byte_length();
+      is_one_byte = string->is_one_byte();
     }
     logger_->FunctionEvent(
-        event_name, script_id(), ms, function_scope->start_position(),
-        function_scope->end_position(), name, name_byte_length);
+        event_name, flags().script_id(), ms, function_scope->start_position(),
+        function_scope->end_position(), name, name_byte_length, is_one_byte);
   }
 
   return Expression::Default();
@@ -389,7 +383,7 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+  if (scope()->AsDeclarationScope()->sloppy_eval_can_extend_vars() &&
       preparse_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was

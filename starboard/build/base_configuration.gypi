@@ -228,6 +228,9 @@
             'compiler_flags_host': [
               '-m32',
             ],
+            'compiler_flags_host': [
+              '-m32',
+            ],
             'linker_flags_host%': [
               '-target', 'i386-unknown-linux-gnu',
               '-pthread',

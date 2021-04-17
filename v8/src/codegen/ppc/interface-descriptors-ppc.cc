@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/codegen/interface-descriptors.h"
 
@@ -46,16 +46,16 @@ void EphemeronKeyBarrierDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-const Register FastNewFunctionContextDescriptor::ScopeInfoRegister() {
-  return r4;
-}
-const Register FastNewFunctionContextDescriptor::SlotsRegister() { return r3; }
-
 const Register LoadDescriptor::ReceiverRegister() { return r4; }
 const Register LoadDescriptor::NameRegister() { return r5; }
 const Register LoadDescriptor::SlotRegister() { return r3; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return r6; }
+
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return r7;
+}
 
 const Register StoreDescriptor::ReceiverRegister() { return r4; }
 const Register StoreDescriptor::NameRegister() { return r5; }
@@ -191,11 +191,6 @@ void AbortDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr);
-}
-
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r4, r3};
@@ -286,4 +281,4 @@ void RunMicrotasksEntryDescriptor::InitializePlatformSpecific(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

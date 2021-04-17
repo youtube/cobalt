@@ -16,11 +16,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Cell, HeapObject)
+#include "torque-generated/src/objects/cell-tq-inl.inc"
 
-CAST_ACCESSOR(Cell)
-
-ACCESSORS(Cell, value, Object, kValueOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
 
 Cell Cell::FromValueAddress(Address value) {
   return Cell::cast(HeapObject::FromAddress(value - kValueOffset));

@@ -330,9 +330,9 @@ class Simulator : public SimulatorBase {
   void HandleRList(Instruction* instr, bool load);
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
+  void DebugAtNextPC();
 
   // Stop helper functions.
-  inline bool isStopInstruction(Instruction* instr);
   inline bool isWatchedStop(uint32_t bkpt_code);
   inline bool isEnabledStop(uint32_t bkpt_code);
   inline void EnableStop(uint32_t bkpt_code);
@@ -385,6 +385,13 @@ class Simulator : public SimulatorBase {
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
   void DecodeSpecialCondition(Instruction* instr);
+
+  void DecodeFloatingPointDataProcessing(Instruction* instr);
+  void DecodeUnconditional(Instruction* instr);
+  void DecodeAdvancedSIMDDataProcessing(Instruction* instr);
+  void DecodeMemoryHintsAndBarriers(Instruction* instr);
+  void DecodeAdvancedSIMDElementOrStructureLoadStore(Instruction* instr);
+  void DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr);
 
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);

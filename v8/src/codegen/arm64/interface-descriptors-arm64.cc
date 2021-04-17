@@ -46,16 +46,16 @@ void EphemeronKeyBarrierDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-const Register FastNewFunctionContextDescriptor::ScopeInfoRegister() {
-  return x1;
-}
-const Register FastNewFunctionContextDescriptor::SlotsRegister() { return x0; }
-
 const Register LoadDescriptor::ReceiverRegister() { return x1; }
 const Register LoadDescriptor::NameRegister() { return x2; }
 const Register LoadDescriptor::SlotRegister() { return x0; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return x3; }
+
+const Register
+LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
+  return x4;
+}
 
 const Register StoreDescriptor::ReceiverRegister() { return x1; }
 const Register StoreDescriptor::NameRegister() { return x2; }
@@ -189,11 +189,6 @@ void AbortDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {x1};
   data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  data->InitializePlatformSpecific(0, nullptr);
 }
 
 void CompareDescriptor::InitializePlatformSpecific(

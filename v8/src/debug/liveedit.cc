@@ -747,21 +747,23 @@ class CollectFunctionLiterals final
   std::vector<FunctionLiteral*>* literals_;
 };
 
-bool ParseScript(Isolate* isolate, ParseInfo* parse_info, bool compile_as_well,
-                 std::vector<FunctionLiteral*>* literals,
+bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
+                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
-  parse_info->set_eager();
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
-    success =
-        Compiler::CompileForLiveEdit(parse_info, isolate).ToHandle(&shared);
+    success = Compiler::CompileForLiveEdit(parse_info, script, isolate)
+                  .ToHandle(&shared);
   } else {
-    success = parsing::ParseProgram(parse_info, isolate);
-    if (success) {
-      success = Compiler::Analyze(parse_info);
-      parse_info->ast_value_factory()->Internalize(isolate);
+    success = parsing::ParseProgram(parse_info, script, isolate,
+                                    parsing::ReportStatisticsMode::kYes);
+    if (!success) {
+      // Throw the parser error.
+      parse_info->pending_error_handler()->PrepareErrors(
+          isolate, parse_info->ast_value_factory());
+      parse_info->pending_error_handler()->ReportErrors(isolate, script);
     }
   }
   if (!success) {
@@ -1008,7 +1010,8 @@ bool CanRestartFrame(
 
 void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
                                   const std::vector<SourceChangeRange>& diffs) {
-  SourcePositionTableBuilder builder;
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  SourcePositionTableBuilder builder(&zone);
 
   Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
   for (SourcePositionTableIterator iterator(*source_position_table);
@@ -1022,7 +1025,7 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
 
   Handle<ByteArray> new_source_position_table(
       builder.ToSourcePositionTable(isolate));
-  code->set_source_position_table(*new_source_position_table);
+  code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
                  CodeLinePosInfoRecordEvent(code->GetFirstBytecodeAddress(),
                                             *new_source_position_table));
@@ -1058,15 +1061,25 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     return;
   }
 
-  ParseInfo parse_info(isolate, script);
+  UnoptimizedCompileState compile_state(isolate);
+  UnoptimizedCompileFlags flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_eager(true);
+  ParseInfo parse_info(isolate, flags, &compile_state);
   std::vector<FunctionLiteral*> literals;
-  if (!ParseScript(isolate, &parse_info, false, &literals, result)) return;
+  if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
+    return;
 
   Handle<Script> new_script = isolate->factory()->CloneScript(script);
   new_script->set_source(*new_source);
+  UnoptimizedCompileState new_compile_state(isolate);
+  UnoptimizedCompileFlags new_flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);
+  new_flags.set_is_eager(true);
+  ParseInfo new_parse_info(isolate, new_flags, &new_compile_state);
   std::vector<FunctionLiteral*> new_literals;
-  ParseInfo new_parse_info(isolate, new_script);
-  if (!ParseScript(isolate, &new_parse_info, true, &new_literals, result)) {
+  if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
+                   result)) {
     return;
   }
 
@@ -1140,7 +1153,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
-      JSFunction::EnsureFeedbackVector(js_function);
+      IsCompiledScope is_compiled_scope(
+          js_function->shared().is_compiled_scope(isolate));
+      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
     }
 
     if (!sfi->HasBytecodeArray()) continue;
@@ -1181,7 +1196,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
       if (!js_function->is_compiled()) continue;
-      JSFunction::EnsureFeedbackVector(js_function);
+      IsCompiledScope is_compiled_scope(
+          js_function->shared().is_compiled_scope(isolate));
+      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
     }
   }
   SharedFunctionInfo::ScriptIterator it(isolate, *new_script);

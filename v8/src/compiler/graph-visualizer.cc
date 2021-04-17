@@ -11,9 +11,11 @@
 // Currently disabled due to no-usage and API leaks.
 #if !defined(DISABLE_GRAPHS_STARBOARD)
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/backend/register-allocation.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
@@ -166,7 +168,6 @@ void JsonPrintInlinedFunctionInfo(
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate) {
-  AllowDeferredHandleDereference allow_deference_for_print_code;
   os << "\"sources\" : {";
   Handle<Script> script =
       (info->shared_info().is_null() ||
@@ -258,7 +259,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  memcpy(buffer, full_filename.begin(), full_filename.length());
+  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }
@@ -280,6 +281,8 @@ class JSONGraphNodeWriter {
         positions_(positions),
         origins_(origins),
         first_node_(true) {}
+  JSONGraphNodeWriter(const JSONGraphNodeWriter&) = delete;
+  JSONGraphNodeWriter& operator=(const JSONGraphNodeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintNode(node);
@@ -352,8 +355,6 @@ class JSONGraphNodeWriter {
   const SourcePositionTable* positions_;
   const NodeOriginTable* origins_;
   bool first_node_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
 };
 
 
@@ -361,6 +362,8 @@ class JSONGraphEdgeWriter {
  public:
   JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
       : os_(os), all_(zone, graph, false), first_edge_(true) {}
+  JSONGraphEdgeWriter(const JSONGraphEdgeWriter&) = delete;
+  JSONGraphEdgeWriter& operator=(const JSONGraphEdgeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintEdges(node);
@@ -403,8 +406,6 @@ class JSONGraphEdgeWriter {
   std::ostream& os_;
   AllNodes all_;
   bool first_edge_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
 
 std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
@@ -423,12 +424,15 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
 class GraphC1Visualizer {
  public:
   GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(const GraphC1Visualizer&) = delete;
+  GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
   void PrintCompilation(const OptimizedCompilationInfo* info);
   void PrintSchedule(const char* phase, const Schedule* schedule,
                      const SourcePositionTable* positions,
                      const InstructionSequence* instructions);
-  void PrintLiveRanges(const char* phase, const RegisterAllocationData* data);
+  void PrintLiveRanges(const char* phase,
+                       const TopTierRegisterAllocationData* data);
   Zone* zone() const { return zone_; }
 
  private:
@@ -472,8 +476,6 @@ class GraphC1Visualizer {
   std::ostream& os_;
   int indent_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphC1Visualizer);
 };
 
 
@@ -712,9 +714,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRanges(const char* phase,
-                                        const RegisterAllocationData* data) {
+void GraphC1Visualizer::PrintLiveRanges(
+    const char* phase, const TopTierRegisterAllocationData* data) {
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
@@ -752,9 +753,11 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
         os_ << " \"" << Register::from_code(op.register_code()) << "\"";
       } else if (op.IsDoubleRegister()) {
         os_ << " \"" << DoubleRegister::from_code(op.register_code()) << "\"";
-      } else {
-        DCHECK(op.IsFloatRegister());
+      } else if (op.IsFloatRegister()) {
         os_ << " \"" << FloatRegister::from_code(op.register_code()) << "\"";
+      } else {
+        DCHECK(op.IsSimd128Register());
+        os_ << " \"" << Simd128Register::from_code(op.register_code()) << "\"";
       }
     } else if (range->spilled()) {
       const TopLevelLiveRange* top = range->TopLevel();
@@ -775,10 +778,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    // The toplevel range might be a splinter. Pre-resolve those here so that
-    // they have a proper parent.
     const TopLevelLiveRange* parent = range->TopLevel();
-    if (parent->IsSplinter()) parent = parent->splintered_from();
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
@@ -826,9 +826,14 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  AccountingAllocator allocator;
-  Zone tmp_zone(&allocator, ZONE_NAME);
-  GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
+  // TODO(rmcilroy): Add support for fast register allocator.
+  if (ac.data_->type() == RegisterAllocationData::kTopTier) {
+    AccountingAllocator allocator;
+    Zone tmp_zone(&allocator, ZONE_NAME);
+    GraphC1Visualizer(os, &tmp_zone)
+        .PrintLiveRanges(ac.phase_,
+                         TopTierRegisterAllocationData::cast(ac.data_));
+  }
   return os;
 }
 
@@ -966,6 +971,128 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
 
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const LiveRangeAsJSON& live_range_json) {
+  const LiveRange& range = live_range_json.range_;
+  os << "{\"id\":" << range.relative_id() << ",\"type\":";
+  if (range.HasRegisterAssigned()) {
+    const InstructionOperand op = range.GetAssignedOperand();
+    os << "\"assigned\",\"op\":"
+       << InstructionOperandAsJSON{&op, &(live_range_json.code_)};
+  } else if (range.spilled() && !range.TopLevel()->HasNoSpillType()) {
+    const TopLevelLiveRange* top = range.TopLevel();
+    if (top->HasSpillOperand()) {
+      os << "\"assigned\",\"op\":"
+         << InstructionOperandAsJSON{top->GetSpillOperand(),
+                                     &(live_range_json.code_)};
+    } else {
+      int index = top->GetSpillRange()->assigned_slot();
+      os << "\"spilled\",\"op\":";
+      if (IsFloatingPoint(top->representation())) {
+        os << "\"fp_stack:" << index << "\"";
+      } else {
+        os << "\"stack:" << index << "\"";
+      }
+    }
+  } else {
+    os << "\"none\"";
+  }
+
+  os << ",\"intervals\":[";
+  bool first = true;
+  for (const UseInterval* interval = range.first_interval();
+       interval != nullptr; interval = interval->next()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ",";
+    }
+    os << "[" << interval->start().value() << "," << interval->end().value()
+       << "]";
+  }
+
+  os << "],\"uses\":[";
+  first = true;
+  for (UsePosition* current_pos = range.first_pos(); current_pos != nullptr;
+       current_pos = current_pos->next()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ",";
+    }
+    os << current_pos->pos().value();
+  }
+
+  os << "]}";
+  return os;
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const TopLevelLiveRangeAsJSON& top_level_live_range_json) {
+  int vreg = top_level_live_range_json.range_.vreg();
+  bool first = true;
+  os << "\"" << (vreg > 0 ? vreg : -vreg) << "\":{ \"child_ranges\":[";
+  for (const LiveRange* child = &(top_level_live_range_json.range_);
+       child != nullptr; child = child->next()) {
+    if (!top_level_live_range_json.range_.IsEmpty()) {
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
+      os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
+    }
+  }
+  os << "]";
+  if (top_level_live_range_json.range_.IsFixed()) {
+    os << ", \"is_deferred\": "
+       << (top_level_live_range_json.range_.IsDeferredFixed() ? "true"
+                                                              : "false");
+  }
+  os << "}";
+  return os;
+}
+
+void PrintTopLevelLiveRanges(std::ostream& os,
+                             const ZoneVector<TopLevelLiveRange*> ranges,
+                             const InstructionSequence& code) {
+  bool first = true;
+  os << "{";
+  for (const TopLevelLiveRange* range : ranges) {
+    if (range != nullptr && !range->IsEmpty()) {
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
+      os << TopLevelLiveRangeAsJSON{*range, code};
+    }
+  }
+  os << "}";
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const RegisterAllocationDataAsJSON& ac) {
+  if (ac.data_.type() == RegisterAllocationData::kTopTier) {
+    const TopTierRegisterAllocationData& ac_data =
+        TopTierRegisterAllocationData::cast(ac.data_);
+    os << "\"fixed_double_live_ranges\": ";
+    PrintTopLevelLiveRanges(os, ac_data.fixed_double_live_ranges(), ac.code_);
+    os << ",\"fixed_live_ranges\": ";
+    PrintTopLevelLiveRanges(os, ac_data.fixed_live_ranges(), ac.code_);
+    os << ",\"live_ranges\": ";
+    PrintTopLevelLiveRanges(os, ac_data.live_ranges(), ac.code_);
+  } else {
+    // TODO(rmcilroy): Add support for fast register allocation data. For now
+    // output the expected fields to keep Turbolizer happy.
+    os << "\"fixed_double_live_ranges\": {}";
+    os << ",\"fixed_live_ranges\": {}";
+    os << ",\"live_ranges\": {}";
+  }
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const AsScheduledGraph& scheduled) {
   PrintScheduledGraph(os, scheduled.schedule);
   return os;
@@ -1058,15 +1185,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       }
       break;
     }
-    case InstructionOperand::EXPLICIT:
     case InstructionOperand::ALLOCATED: {
       const LocationOperand* allocated = LocationOperand::cast(op);
-      os << "\"type\": ";
-      if (allocated->IsExplicit()) {
-        os << "\"explicit\", ";
-      } else {
-        os << "\"allocated\", ";
-      }
+      os << "\"type\": \"allocated\", ";
       os << "\"text\": \"";
       if (op->IsStackSlot()) {
         os << "stack:" << allocated->index();
@@ -1091,6 +1212,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
          << MachineReprToString(allocated->representation()) << "\"";
       break;
     }
+    case InstructionOperand::PENDING:
     case InstructionOperand::INVALID:
       UNREACHABLE();
   }
@@ -1129,8 +1251,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionAsJSON& i_json) {
     bool first = true;
     for (MoveOperands* move : *pm) {
       if (move->IsEliminated()) continue;
-      if (!first) os << ",";
-      first = false;
+      if (first) {
+        first = false;
+      } else {
+        os << ",";
+      }
       os << "[" << InstructionOperandAsJSON{&move->destination(), i_json.code_}
          << "," << InstructionOperandAsJSON{&move->source(), i_json.code_}
          << "]";
@@ -1236,7 +1361,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
 std::ostream& operator<<(std::ostream& os, const InstructionSequenceAsJSON& s) {
   const InstructionSequence* code = s.sequence_;
 
-  os << "\"blocks\": [";
+  os << "[";
 
   bool need_comma = false;
   for (int i = 0; i < code->InstructionBlockCount(); i++) {

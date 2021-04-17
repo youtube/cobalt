@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+﻿// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
 #include "src/utils/memcopy.h"
@@ -17,6 +18,8 @@
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
+
+#include "src/base/platform/wrappers.h"
 #endif
 
 #if defined(V8_OS_STARBOARD)
@@ -98,7 +101,7 @@ void* Malloced::operator new(size_t size) {
   return result;
 }
 
-void Malloced::operator delete(void* p) { free(p); }
+void Malloced::operator delete(void* p) { base::Free(p); }
 
 char* StrDup(const char* str) {
   size_t length = strlen(str);
@@ -120,7 +123,7 @@ char* StrNDup(const char* str, size_t n) {
 void* AllocWithRetry(size_t size) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = malloc(size);
+    result = base::Malloc(size);
     if (result != nullptr) break;
     if (!OnCriticalMemoryPressure(size)) break;
   }
@@ -147,11 +150,11 @@ void AlignedFree(void* ptr) {
   _aligned_free(ptr);
 #elif V8_LIBC_BIONIC
   // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
-  free(ptr);
+  base::Free(ptr);
 #elif V8_OS_STARBOARD
-  SbMemoryDeallocateAligned(ptr);
+  SbMemoryFreeAligned(ptr);
 #else
-  free(ptr);
+  base::Free(ptr);
 #endif
 }
 
@@ -169,15 +172,17 @@ void* GetRandomMmapAddr() {
   return GetPlatformPageAllocator()->GetRandomMmapAddr();
 }
 
-void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
-                    size_t size, size_t alignment,
-                    PageAllocator::Permission access) {
+void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
+                    size_t alignment, PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK_EQ(address, AlignedAddress(address, alignment));
+  DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
+  if (FLAG_randomize_all_allocations) {
+    hint = page_allocator->GetRandomMmapAddr();
+  }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = page_allocator->AllocatePages(address, size, alignment, access);
+    result = page_allocator->AllocatePages(hint, size, alignment, access);
     if (result != nullptr) break;
     size_t request_size = size + alignment - page_allocator->AllocatePageSize();
     if (!OnCriticalMemoryPressure(request_size)) break;
@@ -206,16 +211,6 @@ bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
   return page_allocator->SetPermissions(address, size, access);
 }
 
-byte* AllocatePage(v8::PageAllocator* page_allocator, void* address,
-                   size_t* allocated) {
-  DCHECK_NOT_NULL(page_allocator);
-  size_t page_size = page_allocator->AllocatePageSize();
-  void* result = AllocatePages(page_allocator, address, page_size, page_size,
-                               PageAllocator::kReadWrite);
-  if (result != nullptr) *allocated = page_size;
-  return static_cast<byte*>(result);
-}
-
 bool OnCriticalMemoryPressure(size_t length) {
   // TODO(bbudge) Rework retry logic once embedders implement the more
   // informative overload.
@@ -225,16 +220,20 @@ bool OnCriticalMemoryPressure(size_t length) {
   return true;
 }
 
+VirtualMemory::VirtualMemory() = default;
+
 VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                             void* hint, size_t alignment)
+                             void* hint, size_t alignment, JitPermission jit)
     : page_allocator_(page_allocator) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(size, page_allocator_->CommitPageSize()));
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
-  Address address = reinterpret_cast<Address>(
-      AllocatePages(page_allocator_, hint, RoundUp(size, page_size), alignment,
-                    PageAllocator::kNoAccess));
+  PageAllocator::Permission permissions =
+      jit == kMapAsJittable ? PageAllocator::kNoAccessWillJitLater
+                            : PageAllocator::kNoAccess;
+  Address address = reinterpret_cast<Address>(AllocatePages(
+      page_allocator_, hint, RoundUp(size, page_size), alignment, permissions));
   if (address != kNullAddress) {
     DCHECK(IsAligned(address, alignment));
     region_ = base::AddressRegion(address, size);
@@ -283,6 +282,19 @@ void VirtualMemory::Free() {
   v8::PageAllocator* page_allocator = page_allocator_;
   base::AddressRegion region = region_;
   Reset();
+  // FreePages expects size to be aligned to allocation granularity however
+  // ReleasePages may leave size at only commit granularity. Align it here.
+  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+}
+
+void VirtualMemory::FreeReadOnly() {
+  DCHECK(IsReserved());
+  // The only difference to Free is that it doesn't call Reset which would write
+  // to the VirtualMemory object.
+  v8::PageAllocator* page_allocator = page_allocator_;
+  base::AddressRegion region = region_;
+
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
   CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),

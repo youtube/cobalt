@@ -7,8 +7,11 @@
 
 #include <utility>
 
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/base/platform/wrappers.h"
+#include "src/common/globals.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -31,6 +34,8 @@ class SnapshotByteSource final {
       : data_(payload.begin()), length_(payload.length()), position_(0) {}
 
   ~SnapshotByteSource() = default;
+  SnapshotByteSource(const SnapshotByteSource&) = delete;
+  SnapshotByteSource& operator=(const SnapshotByteSource&) = delete;
 
   bool HasMore() { return position_ < length_; }
 
@@ -39,12 +44,41 @@ class SnapshotByteSource final {
     return data_[position_++];
   }
 
+  byte Peek() const {
+    DCHECK(position_ < length_);
+    return data_[position_];
+  }
+
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(void* to, int number_of_bytes) {
-    memcpy(to, data_ + position_, number_of_bytes);
+    base::Memcpy(to, data_ + position_, number_of_bytes);
     position_ += number_of_bytes;
   }
+
+  void CopySlots(Address* dest, int number_of_slots) {
+    base::AtomicWord* start = reinterpret_cast<base::AtomicWord*>(dest);
+    base::AtomicWord* end = start + number_of_slots;
+    for (base::AtomicWord* p = start; p < end;
+         ++p, position_ += sizeof(base::AtomicWord)) {
+      base::AtomicWord val;
+      base::Memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
+      base::Relaxed_Store(p, val);
+    }
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+  void CopySlots(Tagged_t* dest, int number_of_slots) {
+    AtomicTagged_t* start = reinterpret_cast<AtomicTagged_t*>(dest);
+    AtomicTagged_t* end = start + number_of_slots;
+    for (AtomicTagged_t* p = start; p < end;
+         ++p, position_ += sizeof(AtomicTagged_t)) {
+      AtomicTagged_t val;
+      base::Memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
+      base::Relaxed_Store(p, val);
+    }
+  }
+#endif
 
   inline int GetInt() {
     // This way of decoding variable-length encoded integers does not
@@ -63,50 +97,26 @@ class SnapshotByteSource final {
     return answer;
   }
 
-  // Cobalt's manual cherry-pick of Chromium V8 change 1809374.
-  int GetIntSlow() {
-    // Unlike GetInt, this reads only up to the end of the blob, even if less
-    // than 4 bytes are remaining.
-    // TODO(jgruber): Remove once the use in MakeFromScriptsSource is gone.
-    DCHECK(position_ < length_);
-    uint32_t answer = data_[position_];
-    if (position_ + 1 < length_) answer |= data_[position_ + 1] << 8;
-    if (position_ + 2 < length_) answer |= data_[position_ + 2] << 16;
-    if (position_ + 3 < length_) answer |= data_[position_ + 3] << 24;
-    int bytes = (answer & 3) + 1;
-    Advance(bytes);
-    uint32_t mask = 0xffffffffu;
-    mask >>= 32 - (bytes << 3);
-    answer &= mask;
-    answer >>= 2;
-    return answer;
-  }
-
-
   // Returns length.
   int GetBlob(const byte** data);
 
   int position() { return position_; }
   void set_position(int position) { position_ = position; }
 
-  std::pair<uint32_t, uint32_t> GetChecksum() const {
-    Checksum checksum(Vector<const byte>(data_, length_));
-    return {checksum.a(), checksum.b()};
+  uint32_t GetChecksum() const {
+    return Checksum(Vector<const byte>(data_, length_));
   }
 
  private:
   const byte* data_;
   int length_;
   int position_;
-
-  DISALLOW_COPY_AND_ASSIGN(SnapshotByteSource);
 };
-
 
 /**
  * Sink to write snapshot files to.
  *
- * Subclasses must implement actual storage or i/o.
+ * Users must implement actual storage or i/o.
  */
 class SnapshotByteSink {
  public:
@@ -116,11 +126,6 @@ class SnapshotByteSink {
   ~SnapshotByteSink() = default;
 
   void Put(byte b, const char* description) { data_.push_back(b); }
-
-  void PutSection(int b, const char* description) {
-    DCHECK_LE(b, kMaxUInt8);
-    Put(static_cast<byte>(b), description);
-  }
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);

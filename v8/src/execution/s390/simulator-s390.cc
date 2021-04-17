@@ -9,16 +9,20 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/once.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/s390/constants-s390.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
@@ -39,8 +43,6 @@ const Simulator::fpr_t Simulator::fp_zero;
 class S390Debugger {
  public:
   explicit S390Debugger(Simulator* sim) : sim_(sim) {}
-
-  void Stop(Instruction* instr);
   void Debug();
 
  private:
@@ -61,34 +63,20 @@ class S390Debugger {
   bool GetValue(const char* desc, intptr_t* value);
   bool GetFPDoubleValue(const char* desc, double* value);
 
-  // Set or delete a breakpoint. Returns true if successful.
-  bool SetBreakpoint(Instruction* break_pc);
-  bool DeleteBreakpoint(Instruction* break_pc);
+  // Set or delete breakpoint (there can be only one).
+  bool SetBreakpoint(Instruction* breakpc);
+  void DeleteBreakpoint();
 
-  // Undo and redo all breakpoints. This is needed to bracket disassembly and
-  // execution to skip past breakpoints when run from the debugger.
-  void UndoBreakpoints();
-  void RedoBreakpoints();
+  // Undo and redo the breakpoint. This is needed to bracket disassembly and
+  // execution to skip past the breakpoint when run from the debugger.
+  void UndoBreakpoint();
+  void RedoBreakpoint();
 };
 
-void S390Debugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  // use of kStopCodeMask not right on PowerPC
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char* msg = *reinterpret_cast<char**>(sim_->get_pc() + sizeof(FourByteInstr));
-  // Update this stop description.
-  if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
-    sim_->watched_stops_[code].desc = msg;
-  }
-  // Print the stop message and code if it is not the default code.
-  if (code != kMaxStopCode) {
-    PrintF("Simulator hit stop %u: %s\n", code, msg);
-  } else {
-    PrintF("Simulator hit %s\n", msg);
-  }
-  sim_->set_pc(sim_->get_pc() + sizeof(FourByteInstr) + kPointerSize);
-  Debug();
+void Simulator::DebugAtNextPC() {
+  PrintF("Starting debugger on the next instruction:\n");
+  set_pc(get_pc() + sizeof(FourByteInstr));
+  S390Debugger(this).Debug();
 }
 
 intptr_t S390Debugger::GetRegisterValue(int regnum) {
@@ -147,25 +135,33 @@ bool S390Debugger::SetBreakpoint(Instruction* break_pc) {
   return true;
 }
 
-bool S390Debugger::DeleteBreakpoint(Instruction* break_pc) {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
-  }
+namespace {
+// This function is dangerous, but it's only available in non-production
+// (simulator) builds.
+void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
+                                   Heap* heap) {
+  CodeSpaceMemoryModificationScope scope(heap);
+  instr->SetInstructionBits(value);
+}
+}  // namespace
 
+void S390Debugger::DeleteBreakpoint() {
+  UndoBreakpoint();
   sim_->break_pc_ = nullptr;
   sim_->break_instr_ = 0;
-  return true;
 }
 
-void S390Debugger::UndoBreakpoints() {
+void S390Debugger::UndoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, sim_->break_instr_,
+                                  sim_->isolate_->heap());
   }
 }
 
-void S390Debugger::RedoBreakpoints() {
+void S390Debugger::RedoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, kBreakpointInstr,
+                                  sim_->isolate_->heap());
   }
 }
 
@@ -189,9 +185,9 @@ void S390Debugger::Debug() {
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
 
-  // Undo all set breakpoints while running in the debugger shell. This will
-  // make them invisible to all commands.
-  UndoBreakpoints();
+  // Unset breakpoint while running in the debugger shell, making it invisible
+  // to all commands.
+  UndoBreakpoint();
   // Disable tracing while simulating
   bool trace = ::v8::internal::FLAG_trace_sim;
   ::v8::internal::FLAG_trace_sim = false;
@@ -391,7 +387,8 @@ void S390Debugger::Debug() {
           continue;
         }
         sim_->set_pc(value);
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+                 strcmp(cmd, "dump") == 0) {
         intptr_t* cur = nullptr;
         intptr_t* end = nullptr;
         int next_arg = 1;
@@ -418,19 +415,22 @@ void S390Debugger::Debug() {
         }
         end = cur + words;
 
+        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08" V8PRIxPTR " %10" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (obj.IsSmi()) {
-            PrintF(" (smi %d)", Smi::ToInt(obj));
-          } else if (IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-            PrintF(" (");
-            obj.ShortPrint();
-            PrintF(")");
+          if (!skip_obj_print) {
+            if (obj.IsSmi()) {
+              PrintF(" (smi %d)", Smi::ToInt(obj));
+            } else if (IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+              PrintF(" (");
+              obj.ShortPrint();
+              PrintF(")");
+            }
+            PrintF("\n");
           }
-          PrintF("\n");
           cur++;
         }
       } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
@@ -498,22 +498,21 @@ void S390Debugger::Debug() {
           PrintF("break <address>\n");
         }
       } else if (strcmp(cmd, "del") == 0) {
-        if (!DeleteBreakpoint(nullptr)) {
-          PrintF("deleting breakpoint failed\n");
-        }
+        DeleteBreakpoint();
       } else if (strcmp(cmd, "cr") == 0) {
         PrintF("Condition reg: %08x\n", sim_->condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
         intptr_t stop_pc =
-            sim_->get_pc() - (sizeof(FourByteInstr) + kPointerSize);
+            sim_->get_pc() - (sizeof(FourByteInstr) + kSystemPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
             reinterpret_cast<Instruction*>(stop_pc + sizeof(FourByteInstr));
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
-            stop_instr->SetInstructionBits(kNopInstr);
+            SetInstructionBitsInCodeSpace(stop_instr, kNopInstr,
+                                          sim_->isolate_->heap());
             msg_address->SetInstructionBits(kNopInstr);
           } else {
             PrintF("Not at debugger stop.\n");
@@ -587,6 +586,10 @@ void S390Debugger::Debug() {
         PrintF("  dump stack content, default dump 10 words)\n");
         PrintF("mem <address> [<num words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
+        PrintF("dump [<words>]\n");
+        PrintF(
+            "  dump memory content without pretty printing JS objects, default "
+            "dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
         PrintF("disasm [<address/register>]\n");
         PrintF("disasm [[<address/register>] <instructions>]\n");
@@ -627,9 +630,9 @@ void S390Debugger::Debug() {
     }
   }
 
-  // Add all the breakpoints back to stop execution and enter the debugger
-  // shell when hit.
-  RedoBreakpoints();
+  // Reinstall breakpoint to stop execution and enter the debugger shell when
+  // hit.
+  RedoBreakpoint();
   // Restore tracing
   ::v8::internal::FLAG_trace_sim = trace;
 
@@ -732,7 +735,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
              0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    base::Memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -747,17 +750,23 @@ void Simulator::EvalTableInit() {
 #define S390_SUPPORTED_VECTOR_OPCODE_LIST(V)                                   \
   V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */                     \
   V(vl, VL, 0xE706)       /* type = VRX   VECTOR LOAD  */                      \
+  V(vlp, VLP, 0xE7DF)     /* type = VRR_A VECTOR LOAD POSITIVE */              \
   V(vlgv, VLGV, 0xE721)   /* type = VRS_C VECTOR LOAD GR FROM VR ELEMENT  */   \
   V(vlvg, VLVG, 0xE722)   /* type = VRS_B VECTOR LOAD VR ELEMENT FROM GR  */   \
+  V(vlvgp, VLVGP, 0xE762) /* type = VRR_F VECTOR LOAD VR FROM GRS DISJOINT */  \
   V(vrep, VREP, 0xE74D)   /* type = VRI_C VECTOR REPLICATE  */                 \
   V(vlrep, VLREP, 0xE705) /* type = VRX   VECTOR LOAD AND REPLICATE  */        \
   V(vrepi, VREPI, 0xE745) /* type = VRI_A VECTOR REPLICATE IMMEDIATE  */       \
   V(vlr, VLR, 0xE756)     /* type = VRR_A VECTOR LOAD  */                      \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */        \
   V(vlef, VLEF, 0xE703)   /* type = VRX   VECTOR LOAD ELEMENT (32)  */         \
+  V(vavgl, VAVGL, 0xE7F0) /* type = VRR_C VECTOR AVERAGE LOGICAL  */           \
   V(va, VA, 0xE7F3)       /* type = VRR_C VECTOR ADD  */                       \
   V(vs, VS, 0xE7F7)       /* type = VRR_C VECTOR SUBTRACT  */                  \
   V(vml, VML, 0xE7A2)     /* type = VRR_C VECTOR MULTIPLY LOW  */              \
+  V(vme, VME, 0xE7A6)     /* type = VRR_C VECTOR MULTIPLY EVEN  */             \
+  V(vmo, VMO, 0xE7A7)     /* type = VRR_C VECTOR MULTIPLY ODD  */              \
+  V(vnc, VNC, 0xE769)     /* type = VRR_C VECTOR AND WITH COMPLEMENT */        \
   V(vsum, VSUM, 0xE764)   /* type = VRR_C VECTOR SUM ACROSS WORD  */           \
   V(vsumg, VSUMG, 0xE765) /* type = VRR_C VECTOR SUM ACROSS DOUBLEWORD  */     \
   V(vpk, VPK, 0xE794)     /* type = VRR_C VECTOR PACK  */                      \
@@ -777,14 +786,22 @@ void Simulator::EvalTableInit() {
   V(vch, VCH, 0xE7FB)     /* type = VRR_B VECTOR COMPARE HIGH  */              \
   V(vo, VO, 0xE76A)       /* type = VRR_C VECTOR OR  */                        \
   V(vn, VN, 0xE768)       /* type = VRR_C VECTOR AND  */                       \
+  V(vno, VNO, 0xE768B)    /* type = VRR_C VECTOR NOR  */                       \
   V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
   V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
-  V(vtm, VTM, 0xE7D8)     /* type = VRR_A VECTOR TEST UNDER MASK  */           \
-  V(vesl, VESL, 0xE730)   /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */        \
+  V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
+  V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
+  V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
+  V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
+  V(veslv, VESLV, 0xE770)   /* type = VRR_C VECTOR ELEMENT SHIFT LEFT  */      \
   V(vesrl, VESRL,                                                              \
     0xE738) /* type = VRS_A VECTOR ELEMENT SHIFT RIGHT LOGICAL  */             \
+  V(vesrlv, VESRLV,                                                            \
+    0xE778) /* type = VRR_C VECTOR ELEMENT SHIFT RIGHT LOGICAL  */             \
   V(vesra, VESRA,                                                              \
     0xE73A) /* type = VRS_A VECTOR ELEMENT SHIFT RIGHT ARITHMETIC  */          \
+  V(vesrav, VESRAV,                                                            \
+    0xE77A) /* type = VRR_C VECTOR ELEMENT SHIFT RIGHT ARITHMETIC  */          \
   V(vfsq, VFSQ, 0xE7CE)   /* type = VRR_A VECTOR FP SQUARE ROOT  */            \
   V(vfmax, VFMAX, 0xE7EF) /* type = VRR_C VECTOR FP MAXIMUM */                 \
   V(vfmin, VFMIN, 0xE7EE) /* type = VRR_C VECTOR FP MINIMUM */                 \
@@ -796,7 +813,10 @@ void Simulator::EvalTableInit() {
   V(vfs, VFS, 0xE7E2)     /* type = VRR_C VECTOR FP SUBTRACT  */               \
   V(vfa, VFA, 0xE7E3)     /* type = VRR_C VECTOR FP ADD  */                    \
   V(vfd, VFD, 0xE7E5)     /* type = VRR_C VECTOR FP DIVIDE  */                 \
-  V(vfm, VFM, 0xE7E7)     /* type = VRR_C VECTOR FP MULTIPLY  */
+  V(vfm, VFM, 0xE7E7)     /* type = VRR_C VECTOR FP MULTIPLY  */               \
+  V(vfma, VFMA, 0xE78F)   /* type = VRR_E VECTOR FP MULTIPLY AND ADD  */       \
+  V(vfnms, VFNMS,                                                              \
+    0xE79E) /* type = VRR_E VECTOR FP NEGATIVE MULTIPLY AND SUBTRACT   */
 
 #define CREATE_EVALUATE_TABLE(name, op_name, op_value) \
   EvalTable[op_name] = &Simulator::Evaluate_##op_name;
@@ -1544,7 +1564,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   size_t stack_size = MB;  // allocate 1MB for stack
 #endif
   stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -1579,7 +1599,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-Simulator::~Simulator() { free(stack_); }
+Simulator::~Simulator() { base::Free(stack_); }
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -1655,8 +1675,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[sizeof(fp_registers_[0])];
-  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  base::Memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  base::Memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
 #endif
   return (dm_val);
 }
@@ -1795,7 +1815,7 @@ float Simulator::ReadFloat(intptr_t addr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -1858,10 +1878,12 @@ using SimulatorRuntimeCall = intptr_t (*)(intptr_t arg0, intptr_t arg1,
                                           intptr_t arg2, intptr_t arg3,
                                           intptr_t arg4, intptr_t arg5,
                                           intptr_t arg6, intptr_t arg7,
-                                          intptr_t arg8);
+                                          intptr_t arg8, intptr_t arg9);
 using SimulatorRuntimePairCall = ObjectPair (*)(intptr_t arg0, intptr_t arg1,
                                                 intptr_t arg2, intptr_t arg3,
-                                                intptr_t arg4, intptr_t arg5);
+                                                intptr_t arg4, intptr_t arg5,
+                                                intptr_t arg6, intptr_t arg7,
+                                                intptr_t arg8, intptr_t arg9);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int (*)(double darg0, double darg1);
@@ -1891,7 +1913,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
           0;
       Redirection* redirection = Redirection::FromInstruction(instr);
-      const int kArgCount = 9;
+      const int kArgCount = 10;
       const int kRegisterArgCount = 5;
       int arg0_regnum = 2;
       intptr_t result_buffer = 0;
@@ -1910,11 +1932,12 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       // Remaining arguments on stack
       intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
       for (int i = kRegisterArgCount; i < kArgCount; i++) {
-        arg[i] = stack_pointer[(kCalleeRegisterSaveAreaSize / kPointerSize) +
-                               (i - kRegisterArgCount)];
+        arg[i] =
+            stack_pointer[(kCalleeRegisterSaveAreaSize / kSystemPointerSize) +
+                          (i - kRegisterArgCount)];
       }
-      STATIC_ASSERT(kArgCount == kRegisterArgCount + 4);
-      STATIC_ASSERT(kMaxCParameters == 9);
+      STATIC_ASSERT(kArgCount == kRegisterArgCount + 5);
+      STATIC_ASSERT(kMaxCParameters == kArgCount);
       bool fp_call =
           (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
           (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -1923,7 +1946,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 
       // Place the return address on the stack, making the call GC safe.
       *reinterpret_cast<intptr_t*>(get_register(sp) +
-                                   kStackFrameRASlot * kPointerSize) =
+                                   kStackFrameRASlot * kSystemPointerSize) =
           get_register(r14);
 
       intptr_t external =
@@ -2094,9 +2117,10 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "Call to host function at %p,\n"
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
-              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
+              ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+              ", %08" V8PRIxPTR,
               reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
-              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8]);
+              arg[2], arg[3], arg[4], arg[5], arg[6], arg[7], arg[8], arg[9]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    static_cast<intptr_t>(get_register(sp)));
@@ -2107,8 +2131,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
           SimulatorRuntimePairCall target =
               reinterpret_cast<SimulatorRuntimePairCall>(external);
-          ObjectPair result =
-              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+          ObjectPair result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
+                                     arg[5], arg[6], arg[7], arg[8], arg[9]);
           intptr_t x;
           intptr_t y;
           decodeObjectPair(&result, &x, &y);
@@ -2119,8 +2143,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             set_register(r2, x);
             set_register(r3, y);
           } else {
-            memcpy(reinterpret_cast<void*>(result_buffer), &result,
-                   sizeof(ObjectPair));
+            base::Memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                         sizeof(ObjectPair));
             set_register(r2, result_buffer);
           }
         } else {
@@ -2128,7 +2152,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           SimulatorRuntimeCall target =
               reinterpret_cast<SimulatorRuntimeCall>(external);
           intptr_t result = target(arg[0], arg[1], arg[2], arg[3], arg[4],
-                                   arg[5], arg[6], arg[7], arg[8]);
+                                   arg[5], arg[6], arg[7], arg[8], arg[9]);
           if (::v8::internal::FLAG_trace_sim) {
             PrintF("Returned %08" V8PRIxPTR "\n", result);
           }
@@ -2190,7 +2214,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // #endif
       }
       int64_t saved_lr = *reinterpret_cast<intptr_t*>(
-          get_register(sp) + kStackFrameRASlot * kPointerSize);
+          get_register(sp) + kStackFrameRASlot * kSystemPointerSize);
 #if (!V8_TARGET_ARCH_S390X && V8_HOST_ARCH_S390)
       // On zLinux-31, the saved_lr might be tagged with a high bit of 1.
       // Cleanse it before proceeding with simulation.
@@ -2199,13 +2223,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       set_pc(saved_lr);
       break;
     }
-    case kBreakpoint: {
-      S390Debugger dbg(this);
-      dbg.Debug();
+    case kBreakpoint:
+      S390Debugger(this).Debug();
       break;
-    }
     // stop uses all codes greater than 1 << 23.
-    default: {
+    default:
       if (svc >= (1 << 23)) {
         uint32_t code = svc & kStopCodeMask;
         if (isWatchedStop(code)) {
@@ -2214,17 +2236,19 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // Stop if it is enabled, otherwise go on jumping over the stop
         // and the message address.
         if (isEnabledStop(code)) {
-          S390Debugger dbg(this);
-          dbg.Stop(instr);
+          if (code != kMaxStopCode) {
+            PrintF("Simulator hit stop %u. ", code);
+          } else {
+            PrintF("Simulator hit stop. ");
+          }
+          DebugAtNextPC();
         } else {
-          set_pc(get_pc() + sizeof(FourByteInstr) + kPointerSize);
+          set_pc(get_pc() + sizeof(FourByteInstr) + kSystemPointerSize);
         }
       } else {
         // This is not a valid svc code.
         UNREACHABLE();
-        break;
       }
-    }
   }
 }
 
@@ -2549,8 +2573,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack + kCalleeRegisterSaveAreaSize);
-  memcpy(stack_argument, arguments + reg_arg_count,
-         stack_arg_count * sizeof(*arguments));
+  base::Memcpy(stack_argument, arguments + reg_arg_count,
+               stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
 // Prepare to execute the code at entry
@@ -2867,6 +2891,12 @@ uintptr_t Simulator::PopAddress() {
   int m5 = AS(VRR_E_Instruction)->M5Value();             \
   int length = 6;
 
+#define DECODE_VRR_F_INSTRUCTION(r1, r2, r3) \
+  int r1 = AS(VRR_F_Instruction)->R1Value(); \
+  int r2 = AS(VRR_F_Instruction)->R2Value(); \
+  int r3 = AS(VRR_F_Instruction)->R3Value(); \
+  int length = 6;
+
 #define DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3) \
   int r1 = AS(VRX_Instruction)->R1Value();         \
   int x2 = AS(VRX_Instruction)->X2Value();         \
@@ -2924,6 +2954,78 @@ EVALUATE(VL) {
   return length;
 }
 
+#define VECTOR_LOAD_POSITIVE(r1, r2, type)                              \
+  for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) { \
+    set_simd_register_by_lane<type>(                                    \
+        r1, i, abs(get_simd_register_by_lane<type>(r2, i)));            \
+  }
+EVALUATE(VLP) {
+  DCHECK(VL);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m5);
+  USE(m4);
+  switch (m3) {
+    case 0: {
+      VECTOR_LOAD_POSITIVE(r1, r2, int8_t)
+      break;
+    }
+    case 1: {
+      VECTOR_LOAD_POSITIVE(r1, r2, int16_t)
+      break;
+    }
+    case 2: {
+      VECTOR_LOAD_POSITIVE(r1, r2, int32_t)
+      break;
+    }
+    case 3: {
+      VECTOR_LOAD_POSITIVE(r1, r2, int64_t)
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return length;
+}
+#undef VECTOR_LOAD_POSITIVE
+
+#define VECTOR_AVERAGE_U(r1, r2, r3, type)                                    \
+  for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) {       \
+    type src0 = get_simd_register_by_lane<type>(r2, i);                       \
+    type src1 = get_simd_register_by_lane<type>(r3, i);                       \
+    set_simd_register_by_lane<type>(                                          \
+        r1, i, (static_cast<type>(src0) + static_cast<type>(src1) + 1) >> 1); \
+  }
+EVALUATE(VAVGL) {
+  DCHECK(VL);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    case 0: {
+      VECTOR_AVERAGE_U(r1, r2, r3, uint8_t)
+      break;
+    }
+    case 1: {
+      VECTOR_AVERAGE_U(r1, r2, r3, uint16_t)
+      break;
+    }
+    case 2: {
+      VECTOR_AVERAGE_U(r1, r2, r3, uint32_t)
+      break;
+    }
+    case 3: {
+      VECTOR_AVERAGE_U(r1, r2, r3, uint64_t)
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return length;
+}
+#undef VECTOR_AVERAGE_U
+
 EVALUATE(VLGV) {
   DCHECK_OPCODE(VLGV);
   DECODE_VRS_INSTRUCTION(r1, r3, b2, d2, m4);
@@ -2932,7 +3034,7 @@ EVALUATE(VLGV) {
   const int size_by_byte = 1 << m4;
   int8_t* src = get_simd_register(r3).int8 + index * size_by_byte;
   set_register(r1, 0);
-  memcpy(&get_register(r1), src, size_by_byte);
+  base::Memcpy(&get_register(r1), src, size_by_byte);
   return length;
 }
 
@@ -2943,7 +3045,15 @@ EVALUATE(VLVG) {
   int64_t index = b2_val + d2;
   const int size_by_byte = 1 << m4;
   int8_t* dst = get_simd_register(r1).int8 + index * size_by_byte;
-  memcpy(dst, &get_register(r3), size_by_byte);
+  base::Memcpy(dst, &get_register(r3), size_by_byte);
+  return length;
+}
+
+EVALUATE(VLVGP) {
+  DCHECK_OPCODE(VLVGP);
+  DECODE_VRR_F_INSTRUCTION(r1, r2, r3);
+  set_simd_register_by_lane<int64_t>(r1, 0, get_register(r2));
+  set_simd_register_by_lane<int64_t>(r1, 1, get_register(r3));
   return length;
 }
 
@@ -2955,7 +3065,7 @@ EVALUATE(VREP) {
   int8_t* src = get_simd_register(r3).int8;
   int8_t* dst = get_simd_register(r1).int8;
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
+    base::Memcpy(dst + i, src + i2 * size_by_byte, size_by_byte);
   }
   return length;
 }
@@ -2969,7 +3079,7 @@ EVALUATE(VLREP) {
   int8_t* src = reinterpret_cast<int8_t*>(addr);
   set_simd_register(r1, fp_zero);
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, src, size_by_byte);
+    base::Memcpy(dst + i, src, size_by_byte);
   }
   return length;
 }
@@ -2982,7 +3092,7 @@ EVALUATE(VREPI) {
   uint64_t immediate = static_cast<uint64_t>(i2);
   set_simd_register(r1, fp_zero);
   for (int i = 0; i < kSimd128Size; i += size_by_byte) {
-    memcpy(dst + i, &immediate, size_by_byte);
+    base::Memcpy(dst + i, &immediate, size_by_byte);
   }
   return length;
 }
@@ -3026,7 +3136,7 @@ inline static void VectorBinaryOp(void* dst, void* src1, void* src2,
     T& src1_val = *reinterpret_cast<T*>(src1_ptr + i);
     T& src2_val = *reinterpret_cast<T*>(src2_ptr + i);
     dst_val = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -3081,6 +3191,70 @@ EVALUATE(VML) {
   return length;
 }
 
+#define VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, input_type, result_type, \
+                                      is_odd)                              \
+  size_t i = 0, j = 0, k = 0;                                              \
+  size_t lane_size = sizeof(input_type);                                   \
+  if (is_odd) {                                                            \
+    i = 1;                                                                 \
+    j = lane_size;                                                         \
+  }                                                                        \
+  for (; j < kSimd128Size; i += 2, j += lane_size * 2, k++) {              \
+    input_type src0 = get_simd_register_by_lane<input_type>(r2, i);        \
+    input_type src1 = get_simd_register_by_lane<input_type>(r3, i);        \
+    set_simd_register_by_lane<result_type>(r1, k, src0 * src1);            \
+  }
+#define VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, is_odd)                      \
+  switch (m4) {                                                           \
+    case 0: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int8_t, int16_t, is_odd)  \
+      break;                                                              \
+    }                                                                     \
+    case 1: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int16_t, int32_t, is_odd) \
+      break;                                                              \
+    }                                                                     \
+    case 2: {                                                             \
+      VECTOR_MULTIPLY_EVEN_ODD_TYPE(r1, r2, r3, int32_t, int64_t, is_odd) \
+      break;                                                              \
+    }                                                                     \
+    default:                                                              \
+      UNREACHABLE();                                                      \
+  }
+EVALUATE(VME) {
+  DCHECK_OPCODE(VME);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, false)
+  return length;
+}
+
+EVALUATE(VMO) {
+  DCHECK_OPCODE(VMO);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m5);
+  USE(m6);
+  VECTOR_MULTIPLY_EVEN_ODD(r1, r2, r3, true)
+  return length;
+}
+#undef VECTOR_MULTIPLY_EVEN_ODD
+#undef VECTOR_MULTIPLY_EVEN_ODD_TYPE
+
+EVALUATE(VNC) {
+  DCHECK(VNC);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  USE(m4);
+  for (int i = 0; i < 2; i++) {
+    int64_t lane_1 = get_simd_register_by_lane<uint64_t>(r2, i);
+    int64_t lane_2 = get_simd_register_by_lane<uint64_t>(r3, i);
+    set_simd_register_by_lane<uint64_t>(r1, i, lane_1 & ~lane_2);
+  }
+  return length;
+}
+
 template <class S, class D>
 void VectorSum(void* dst, void* src1, void* src2) {
   D value = 0;
@@ -3088,8 +3262,8 @@ void VectorSum(void* dst, void* src1, void* src2) {
     value += *(reinterpret_cast<S*>(src1) + i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
       value += *(reinterpret_cast<S*>(src2) + i);
-      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)), &value,
-             sizeof(D));
+      base::Memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)),
+                   &value, sizeof(D));
       value = 0;
     }
   }
@@ -3146,14 +3320,14 @@ void VectorPack(void* dst, void* src1, void* src2, bool saturate,
       src = reinterpret_cast<S*>(src2);
       count = 0;
     }
-    memcpy(&value, src + count, sizeof(S));
+    base::Memcpy(&value, src + count, sizeof(S));
     if (saturate) {
       if (value > max)
         value = max;
       else if (value < min)
         value = min;
     }
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
   }
 }
 
@@ -3234,10 +3408,11 @@ EVALUATE(VPKLS) {
 
 template <class S, class D>
 void VectorUnpackHigh(void* dst, void* src) {
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D value = 0;
-  for (size_t i = 0; i < kSimd128Size / sizeof(D); i++) {
-    value = *(reinterpret_cast<S*>(src) + i + (sizeof(S) / 2));
-    memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
+  for (size_t i = 0; i < kItemCount; i++) {
+    value = *(reinterpret_cast<S*>(src) + i + kItemCount);
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &value, sizeof(D));
   }
 }
 
@@ -3291,10 +3466,14 @@ EVALUATE(VUPLH) {
 
 template <class S, class D>
 void VectorUnpackLow(void* dst, void* src) {
-  D value = 0;
-  for (size_t i = kSimd128Size / sizeof(D); i > 0; i--) {
-    value = *(reinterpret_cast<S*>(src) + i - 1);
-    memcpy(reinterpret_cast<D*>(dst) + i - 1, &value, sizeof(D));
+  constexpr size_t kItemCount = kSimd128Size / sizeof(D);
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  for (size_t i = 0; i < kItemCount; i++) {
+    temps[i] = static_cast<D>(*(reinterpret_cast<S*>(src) + i));
+  }
+  for (size_t i = 0; i < kItemCount; i++) {
+    base::Memcpy(reinterpret_cast<D*>(dst) + i, &temps[i], sizeof(D));
   }
 }
 
@@ -3487,6 +3666,42 @@ EVALUATE(VX) {
   return length;
 }
 
+#define VECTOR_NOR(r1, r2, r3, type)                                    \
+  for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) { \
+    type src0 = get_simd_register_by_lane<type>(r2, i);                 \
+    type src1 = get_simd_register_by_lane<type>(r3, i);                 \
+    set_simd_register_by_lane<type>(r1, i, ~(src0 | src1));             \
+  }
+EVALUATE(VNO) {
+  DCHECK(VL);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  switch (m4) {
+    case 0: {
+      VECTOR_NOR(r1, r2, r3, int8_t)
+      break;
+    }
+    case 1: {
+      VECTOR_NOR(r1, r2, r3, int16_t)
+      break;
+    }
+    case 2: {
+      VECTOR_NOR(r1, r2, r3, int32_t)
+      break;
+    }
+    case 3: {
+      VECTOR_NOR(r1, r2, r3, int64_t)
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  return length;
+}
+#undef VECTOR_NOR
+
 template <class T>
 void VectorLoadComplement(void* dst, void* src) {
   int8_t* src_ptr = reinterpret_cast<int8_t*>(src);
@@ -3495,7 +3710,7 @@ void VectorLoadComplement(void* dst, void* src) {
     T& src_val = *reinterpret_cast<T*>(src_ptr + i);
     T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
     dst_val = -(uint64_t)src_val;
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -3527,6 +3742,54 @@ EVALUATE(VLC) {
   return length;
 }
 
+EVALUATE(VPERM) {
+  DCHECK_OPCODE(VPERM);
+  DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
+  USE(m5);
+  USE(m6);
+  for (int i = 0; i < kSimd128Size; i++) {
+    int8_t lane_num = get_simd_register_by_lane<int8_t>(r4, i);
+    // Get the five least significant bits.
+    lane_num = (lane_num << 3) >> 3;
+    int reg = r2;
+    if (lane_num >= kSimd128Size) {
+      lane_num = lane_num - kSimd128Size;
+      reg = r3;
+    }
+    int8_t result = get_simd_register_by_lane<int8_t>(reg, lane_num);
+    set_simd_register_by_lane<int8_t>(r1, i, result);
+  }
+  return length;
+}
+
+EVALUATE(VBPERM) {
+  DCHECK_OPCODE(VBPERM);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m4);
+  USE(m5);
+  USE(m6);
+  uint16_t result_bits = 0;
+  for (int i = 0; i < kSimd128Size; i++) {
+    result_bits <<= 1;
+    uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(r3, i);
+    unsigned __int128 src_bits =
+        *(reinterpret_cast<__int128*>(get_simd_register(r2).int8));
+    if (selected_bit_index < (kSimd128Size * kBitsPerByte)) {
+      unsigned __int128 bit_value =
+          (src_bits << selected_bit_index) >> (kSimd128Size * kBitsPerByte - 1);
+      result_bits |= bit_value;
+    }
+  }
+  set_simd_register_by_lane<uint64_t>(r1, 0, 0);
+  set_simd_register_by_lane<uint64_t>(r1, 1, 0);
+  // Write back in bytes to avoid endianness problems.
+  set_simd_register_by_lane<uint8_t>(r1, 6,
+                                     static_cast<uint8_t>(result_bits >> 8));
+  set_simd_register_by_lane<uint8_t>(
+      r1, 7, static_cast<uint8_t>((result_bits << 8) >> 8));
+  return length;
+}
+
 EVALUATE(VSEL) {
   DCHECK_OPCODE(VSEL);
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
@@ -3552,7 +3815,7 @@ void VectorShift(void* dst, void* src, unsigned int shift, Operation op) {
     T& dst_val = *reinterpret_cast<T*>(dst_ptr + i);
     T& src_val = *reinterpret_cast<T*>(src_ptr + i);
     dst_val = op(src_val, shift);
-    memcpy(dst_ptr + i, &dst_val, sizeof(T));
+    base::Memcpy(dst_ptr + i, &dst_val, sizeof(T));
   }
 }
 
@@ -3602,6 +3865,65 @@ EVALUATE(VESRL) {
   VECTOR_SHIFT(>>, u)
   return length;
 }
+
+#define VECTOR_SHIFT_WITH_OPERAND_TYPE(r1, r2, r3, type, op)             \
+  for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) {  \
+    type src0 = get_simd_register_by_lane<type>(r2, i);                  \
+    type src1 = get_simd_register_by_lane<type>(r3, i);                  \
+    set_simd_register_by_lane<type>(r1, i,                               \
+                                    src0 op(src1 % (sizeof(type) * 8))); \
+  }
+
+#define VECTOR_SHIFT_WITH_OPERAND(r1, r2, r3, op, sign)             \
+  switch (m4) {                                                     \
+    case 0: {                                                       \
+      VECTOR_SHIFT_WITH_OPERAND_TYPE(r1, r2, r3, sign##int8_t, op)  \
+      break;                                                        \
+    }                                                               \
+    case 1: {                                                       \
+      VECTOR_SHIFT_WITH_OPERAND_TYPE(r1, r2, r3, sign##int16_t, op) \
+      break;                                                        \
+    }                                                               \
+    case 2: {                                                       \
+      VECTOR_SHIFT_WITH_OPERAND_TYPE(r1, r2, r3, sign##int32_t, op) \
+      break;                                                        \
+    }                                                               \
+    case 3: {                                                       \
+      VECTOR_SHIFT_WITH_OPERAND_TYPE(r1, r2, r3, sign##int64_t, op) \
+      break;                                                        \
+    }                                                               \
+    default:                                                        \
+      UNREACHABLE();                                                \
+  }
+
+EVALUATE(VESLV) {
+  DCHECK_OPCODE(VESLV);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  VECTOR_SHIFT_WITH_OPERAND(r1, r2, r3, <<, )
+  return length;
+}
+
+EVALUATE(VESRAV) {
+  DCHECK_OPCODE(VESRAV);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  VECTOR_SHIFT_WITH_OPERAND(r1, r2, r3, >>, )
+  return length;
+}
+
+EVALUATE(VESRLV) {
+  DCHECK_OPCODE(VESRLV);
+  DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
+  USE(m6);
+  USE(m5);
+  VECTOR_SHIFT_WITH_OPERAND(r1, r2, r3, >>, u)
+  return length;
+}
+#undef VECTOR_SHIFT_WITH_OPERAND
+#undef VECTOR_SHIFT_WITH_OPERAND_TYPE
 
 EVALUATE(VTM) {
   DCHECK_OPCODE(VTM);
@@ -3685,29 +4007,93 @@ EVALUATE(VFD) {
   return length;
 }
 
+#define VECTOR_FP_MULTIPLY_QFMS_OPERATION(type, op, sign, first_lane_only) \
+  for (size_t i = 0, j = 0; j < kSimd128Size; i++, j += sizeof(type)) {    \
+    type src0 = get_simd_register_by_lane<type>(r2, i);                    \
+    type src1 = get_simd_register_by_lane<type>(r3, i);                    \
+    type src2 = get_simd_register_by_lane<type>(r4, i);                    \
+    type result = sign * (src0 * src1 op src2);                            \
+    if (isinf(src0)) result = src0;                                        \
+    if (isinf(src1)) result = src1;                                        \
+    if (isinf(src2)) result = src2;                                        \
+    set_simd_register_by_lane<type>(r1, i, result);                        \
+    if (first_lane_only) break;                                            \
+  }
+
+#define VECTOR_FP_MULTIPLY_QFMS(op, sign)                          \
+  switch (m6) {                                                    \
+    case 2:                                                        \
+      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)); \
+      if (m5 == 8) {                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true)   \
+      } else {                                                     \
+        DCHECK_EQ(m5, 0);                                          \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, false)  \
+      }                                                            \
+      break;                                                       \
+    case 3:                                                        \
+      if (m5 == 8) {                                               \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, true)  \
+      } else {                                                     \
+        DCHECK_EQ(m5, 0);                                          \
+        VECTOR_FP_MULTIPLY_QFMS_OPERATION(double, op, sign, false) \
+      }                                                            \
+      break;                                                       \
+    default:                                                       \
+      UNREACHABLE();                                               \
+      break;                                                       \
+  }
+
+EVALUATE(VFMA) {
+  DCHECK_OPCODE(VFMA);
+  DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
+  USE(m5);
+  USE(m6);
+  VECTOR_FP_MULTIPLY_QFMS(+, 1)
+  return length;
+}
+
+EVALUATE(VFNMS) {
+  DCHECK_OPCODE(VFNMS);
+  DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
+  USE(m5);
+  USE(m6);
+  VECTOR_FP_MULTIPLY_QFMS(-, -1)
+  return length;
+}
+#undef VECTOR_FP_MULTIPLY_QFMS
+#undef VECTOR_FP_MULTIPLY_QFMS_OPERATION
+
 template <class T, class Operation>
-void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
+void VectorFPMaxMin(void* dst, void* src1, void* src2, int mode, Operation op) {
   T* dst_ptr = reinterpret_cast<T*>(dst);
   T* src1_ptr = reinterpret_cast<T*>(src1);
   T* src2_ptr = reinterpret_cast<T*>(src2);
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
     T src1_val = *(src1_ptr + i);
     T src2_val = *(src2_ptr + i);
-    T value = op(src1_val, src2_val);
-    // using Java's Max Min functions
-    if (isnan(src1_val) || isnan(src2_val)) {
-      value = NAN;
-    }
-    memcpy(dst_ptr + i, &value, sizeof(T));
+    T value = op(src1_val, src2_val, mode);
+    base::Memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 
-#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op)                           \
+#define VECTOR_FP_MAX_MIN_FOR_TYPE(type, op, std_op)                   \
   VectorFPMaxMin<type>(&get_simd_register(r1), &get_simd_register(r2), \
-                       &get_simd_register(r3),                         \
-                       [](type a, type b) { return (a op b) ? a : b; });
+                       &get_simd_register(r3), m6,                     \
+                       [](type a, type b, int mode) {                  \
+                         if (mode == 3) {                              \
+                           return std::std_op(a, b);                   \
+                         }                                             \
+                         if (isnan(a) || isnan(b))                     \
+                           return static_cast<type>(NAN);              \
+                         else if (signbit(b) op signbit(a))            \
+                           return a;                                   \
+                         else if (signbit(b) != signbit(a))            \
+                           return b;                                   \
+                         return (a op b) ? a : b;                      \
+                       });
 
-#define VECTOR_FP_MAX_MIN(op)                                                  \
+#define VECTOR_FP_MAX_MIN(op, std_op)                                          \
   switch (m4) {                                                                \
     case 2:                                                                    \
       if (m5 == 8) {                                                           \
@@ -3716,8 +4102,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
         set_simd_register_by_lane<float>(r1, 0, (src1 op src2) ? src1 : src2); \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op)                                  \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(float, op, std_op)                          \
       }                                                                        \
       break;                                                                   \
     case 3:                                                                    \
@@ -3728,8 +4113,7 @@ void VectorFPMaxMin(void* dst, void* src1, void* src2, Operation op) {
                                           (src1 op src2) ? src1 : src2);       \
       } else {                                                                 \
         DCHECK_EQ(m5, 0);                                                      \
-        DCHECK_EQ(m6, 1);                                                      \
-        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op)                                 \
+        VECTOR_FP_MAX_MIN_FOR_TYPE(double, op, std_op)                         \
       }                                                                        \
       break;                                                                   \
     default:                                                                   \
@@ -3741,8 +4125,7 @@ EVALUATE(VFMIN) {
   DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
-  VECTOR_FP_MAX_MIN(<)  // NOLINT
+  VECTOR_FP_MAX_MIN(<, min)  // NOLINT
   return length;
 }
 
@@ -3751,7 +4134,7 @@ EVALUATE(VFMAX) {
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   USE(m6);
-  VECTOR_FP_MAX_MIN(>)  // NOLINT
+  VECTOR_FP_MAX_MIN(>, max)  // NOLINT
   return length;
 }
 
@@ -3764,7 +4147,7 @@ void VectorFPCompare(void* dst, void* src1, void* src2, Operation op) {
     S src1_val = *(src1_ptr + i);
     S src2_val = *(src2_ptr + i);
     D value = op(src1_val, src2_val);
-    memcpy(dst_ptr + i, &value, sizeof(D));
+    base::Memcpy(dst_ptr + i, &value, sizeof(D));
   }
 }
 
@@ -3833,33 +4216,33 @@ void VectorSignOp(void* dst, void* src, int m4, int m5) {
     case 0:
       if (m4 == 8) {
         T value = -(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = -(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
     case 1:
       if (m4 == 8) {
         T value = -abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = -abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
     case 2:
       if (m4 == 8) {
         T value = abs(*src_ptr);
-        memcpy(dst_ptr, &value, sizeof(T));
+        base::Memcpy(dst_ptr, &value, sizeof(T));
       } else {
         for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
           T value = abs(*(src_ptr + i));
-          memcpy(dst_ptr + i, &value, sizeof(T));
+          base::Memcpy(dst_ptr + i, &value, sizeof(T));
         }
       }
       break;
@@ -3896,7 +4279,7 @@ void VectorFPSqrt(void* dst, void* src) {
   T* src_ptr = reinterpret_cast<T*>(src);
   for (size_t i = 0; i < kSimd128Size / sizeof(T); i++) {
     T value = sqrt(*(src_ptr + i));
-    memcpy(dst_ptr + i, &value, sizeof(T));
+    base::Memcpy(dst_ptr + i, &value, sizeof(T));
   }
 }
 
@@ -3928,24 +4311,39 @@ EVALUATE(VFSQ) {
   return length;
 }
 
+#define ROUNDING_SWITCH(type)                                   \
+  switch (m5) {                                                 \
+    case 4:                                                     \
+      set_simd_register_by_lane<type>(r1, i, nearbyint(value)); \
+      break;                                                    \
+    case 5:                                                     \
+      set_simd_register_by_lane<type>(r1, i, trunc(value));     \
+      break;                                                    \
+    case 6:                                                     \
+      set_simd_register_by_lane<type>(r1, i, ceil(value));      \
+      break;                                                    \
+    case 7:                                                     \
+      set_simd_register_by_lane<type>(r1, i, floor(value));     \
+      break;                                                    \
+    default:                                                    \
+      UNREACHABLE();                                            \
+  }
 EVALUATE(VFI) {
   DCHECK_OPCODE(VFI);
   DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
   USE(m4);
-  USE(m5);
-  DCHECK_EQ(m5, 5);
   switch (m3) {
     case 2:
       DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
-        set_simd_register_by_lane<float>(r1, i, trunc(value));
+        ROUNDING_SWITCH(float)
       }
       break;
     case 3:
       for (int i = 0; i < 2; i++) {
         double value = get_simd_register_by_lane<double>(r2, i);
-        set_simd_register_by_lane<double>(r1, i, trunc(value));
+        ROUNDING_SWITCH(double)
       }
       break;
     default:
@@ -3953,6 +4351,7 @@ EVALUATE(VFI) {
   }
   return length;
 }
+#undef ROUNDING_SWITCH
 
 EVALUATE(DUMY) {
   DCHECK_OPCODE(DUMY);
@@ -4385,13 +4784,14 @@ EVALUATE(LPR) {
   // Load Positive (32)
   DECODE_RR_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  // If negative, then negate it.
-  r2_val = (r2_val < 0) ? -r2_val : r2_val;
-  set_low_register(r1, r2_val);
   SetS390ConditionCode<int32_t>(r2_val, 0);
   if (r2_val == (static_cast<int32_t>(1) << 31)) {
     SetS390OverflowCode(true);
+  } else {
+    // If negative and not overflowing, then negate it.
+    r2_val = (r2_val < 0) ? -r2_val : r2_val;
   }
+  set_low_register(r1, r2_val);
   return length;
 }
 
@@ -5563,9 +5963,11 @@ EVALUATE(LLIHL) {
 }
 
 EVALUATE(LLILH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLILH);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  uint64_t imm = static_cast<uint64_t>(i2);
+  set_register(r1, (imm << 48) >> 32);
+  return length;
 }
 
 EVALUATE(LLILL) {
@@ -6427,7 +6829,7 @@ EVALUATE(TRAP4) {
   int length = 4;
   // whack the space of the caller allocated stack
   int64_t sp_addr = get_register(sp);
-  for (int i = 0; i < kCalleeRegisterSaveAreaSize / kPointerSize; ++i) {
+  for (int i = 0; i < kCalleeRegisterSaveAreaSize / kSystemPointerSize; ++i) {
     // we dont want to whack the RA (r14)
     if (i != 14) (reinterpret_cast<intptr_t*>(sp_addr))[i] = 0xDEADBABE;
   }
@@ -7086,14 +7488,19 @@ EVALUATE(CFEBRA) {
       break;
     }
     case ROUND_TOWARD_0: {
-      // check for overflow, cast r2_fval to 64bit integer
+      // check for overflow, cast r2_fval to double
       // then check value within the range of INT_MIN and INT_MAX
       // and set condition code accordingly
-      int64_t temp = static_cast<int64_t>(r2_fval);
-      if (temp < INT_MIN || temp > INT_MAX) {
+      double temp = static_cast<double>(r2_fval);
+      if (temp < INT_MIN) {
+        r1_val = kMinInt;
         condition_reg_ = CC_OF;
+      } else if (temp > INT_MAX) {
+        r1_val = kMaxInt;
+        condition_reg_ = CC_OF;
+      } else {
+        r1_val = static_cast<int32_t>(r2_fval);
       }
-      r1_val = static_cast<int32_t>(r2_fval);
       break;
     }
     case ROUND_TOWARD_PLUS_INFINITE: {
@@ -7213,8 +7620,11 @@ EVALUATE(CLFEBR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   float r2_val = get_float32_from_d_register(r2);
   uint32_t r1_val = static_cast<uint32_t>(r2_val);
-  set_low_register(r1, r1_val);
   SetS390ConvertConditionCode<double>(r2_val, r1_val, UINT32_MAX);
+  double temp = static_cast<double>(r2_val);
+  if (temp < 0) r1_val = 0;
+  if (temp > kMaxUInt32) r1_val = kMaxUInt32;
+  set_low_register(r1, r1_val);
   return length;
 }
 
@@ -7740,12 +8150,14 @@ EVALUATE(LPGR) {
   // Load Positive (32)
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
-  r2_val = (r2_val < 0) ? -r2_val : r2_val;  // If negative, then negate it.
-  set_register(r1, r2_val);
   SetS390ConditionCode<int64_t>(r2_val, 0);
   if (r2_val == (static_cast<int64_t>(1) << 63)) {
     SetS390OverflowCode(true);
+  } else {
+    // If negative and not overflowing, then negate it.
+    r2_val = (r2_val < 0) ? -r2_val : r2_val;
   }
+  set_register(r1, r2_val);
   return length;
 }
 
@@ -10894,6 +11306,7 @@ EVALUATE(CXZT) {
 #undef DECODE_VRR_B_INSTRUCTION
 #undef DECODE_VRR_C_INSTRUCTION
 #undef DECODE_VRR_E_INSTRUCTION
+#undef DECODE_VRR_F_INSTRUCTION
 #undef DECODE_VRX_INSTRUCTION
 #undef DECODE_VRS_INSTRUCTION
 #undef DECODE_VRI_A_INSTRUCTION

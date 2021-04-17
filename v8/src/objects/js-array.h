@@ -8,7 +8,7 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,6 +30,7 @@ class JSArray : public JSObject {
   // is set to a smi. This matches the set function on FixedArray.
   inline void set_length(Smi length);
 
+  static bool MayHaveReadOnlyLength(Map js_array_map);
   static bool HasReadOnlyLength(Handle<JSArray> array);
   static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
 
@@ -108,7 +109,7 @@ class JSArray : public JSObject {
   static const int kPreallocatedArrayElements = 4;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSARRAY_FIELDS)
+                                TORQUE_GENERATED_JS_ARRAY_FIELDS)
 
   static const int kLengthDescriptorIndex = 0;
 
@@ -122,7 +123,7 @@ class JSArray : public JSObject {
   static const uint32_t kMinJoinStackSize = 2;
 
   static const int kInitialMaxFastElementArray =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -
+      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kHeaderSize -
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
 
@@ -178,7 +179,7 @@ class JSArrayIterator : public JSObject {
   inline void set_kind(IterationKind kind);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
+                                TORQUE_GENERATED_JS_ARRAY_ITERATOR_FIELDS)
 
  private:
   DECL_INT_ACCESSORS(raw_kind)

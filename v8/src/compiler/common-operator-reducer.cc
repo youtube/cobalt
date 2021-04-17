@@ -20,15 +20,15 @@ namespace compiler {
 namespace {
 
 Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
-  switch (cond->opcode()) {
+  Node* unwrapped = SkipValueIdentities(cond);
+  switch (unwrapped->opcode()) {
     case IrOpcode::kInt32Constant: {
-      Int32Matcher mcond(cond);
-      return mcond.Value() ? Decision::kTrue : Decision::kFalse;
+      Int32Matcher m(unwrapped);
+      return m.ResolvedValue() ? Decision::kTrue : Decision::kFalse;
     }
     case IrOpcode::kHeapConstant: {
-      HeapObjectMatcher mcond(cond);
-      return mcond.Ref(broker).BooleanValue() ? Decision::kTrue
-                                              : Decision::kFalse;
+      HeapObjectMatcher m(unwrapped);
+      return m.Ref(broker).BooleanValue() ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
@@ -304,8 +304,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     // hence checkpoints can be cut out of the effect chain flowing into it.
     effect = NodeProperties::GetEffectInput(effect);
     NodeProperties::ReplaceEffectInput(node, effect);
-    Reduction const reduction = ReduceReturn(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceReturn(node));
   }
   // TODO(ahaas): Extend the reduction below to multiple return values.
   if (ValueInputCountOfReturn(node->op()) != 1) {
@@ -434,7 +433,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
   // non-matching cases as dead code (same for an unused IfDefault), because the
   // Switch itself will be marked as dead code.
   Int32Matcher mswitched(switched_value);
-  if (mswitched.HasValue()) {
+  if (mswitched.HasResolvedValue()) {
     bool matched = false;
 
     size_t const projection_count = node->op()->ControlOutputCount();
@@ -445,7 +444,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
       Node* if_value = projections[i];
       DCHECK_EQ(IrOpcode::kIfValue, if_value->opcode());
       const IfValueParameters& p = IfValueParametersOf(if_value->op());
-      if (p.value() == mswitched.Value()) {
+      if (p.value() == mswitched.ResolvedValue()) {
         matched = true;
         Replace(if_value, control);
         break;

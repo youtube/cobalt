@@ -12,7 +12,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -30,10 +29,15 @@ namespace internal {
 
 class CompilerDispatcherTestFlags {
  public:
+  CompilerDispatcherTestFlags(const CompilerDispatcherTestFlags&) = delete;
+  CompilerDispatcherTestFlags& operator=(const CompilerDispatcherTestFlags&) =
+      delete;
   static void SetFlagsForTest() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_single_threaded = true;
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    FLAG_finalize_streaming_on_background = false;
     FlagList::EnforceFlagImplications();
     FLAG_compiler_dispatcher = true;
   }
@@ -46,8 +50,6 @@ class CompilerDispatcherTestFlags {
 
  private:
   static SaveFlags* save_flags_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilerDispatcherTestFlags);
 };
 
 SaveFlags* CompilerDispatcherTestFlags::save_flags_ = nullptr;
@@ -56,6 +58,8 @@ class CompilerDispatcherTest : public TestWithNativeContext {
  public:
   CompilerDispatcherTest() = default;
   ~CompilerDispatcherTest() override = default;
+  CompilerDispatcherTest(const CompilerDispatcherTest&) = delete;
+  CompilerDispatcherTest& operator=(const CompilerDispatcherTest&) = delete;
 
   static void SetUpTestCase() {
     CompilerDispatcherTestFlags::SetFlagsForTest();
@@ -70,8 +74,9 @@ class CompilerDispatcherTest : public TestWithNativeContext {
   static base::Optional<CompilerDispatcher::JobId> EnqueueUnoptimizedCompileJob(
       CompilerDispatcher* dispatcher, Isolate* isolate,
       Handle<SharedFunctionInfo> shared) {
+    UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared);
+        test::OuterParseInfoForShared(isolate, shared, &state);
     AstValueFactory* ast_value_factory =
         outer_parse_info->GetOrCreateAstValueFactory();
     AstNodeFactory ast_node_factory(ast_value_factory,
@@ -79,10 +84,11 @@ class CompilerDispatcherTest : public TestWithNativeContext {
 
     const AstRawString* function_name =
         ast_value_factory->GetOneByteString("f");
-    DeclarationScope* script_scope = new (outer_parse_info->zone())
-        DeclarationScope(outer_parse_info->zone(), ast_value_factory);
+    DeclarationScope* script_scope =
+        outer_parse_info->zone()->New<DeclarationScope>(
+            outer_parse_info->zone(), ast_value_factory);
     DeclarationScope* function_scope =
-        new (outer_parse_info->zone()) DeclarationScope(
+        outer_parse_info->zone()->New<DeclarationScope>(
             outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
     function_scope->set_start_position(shared->StartPosition());
     function_scope->set_end_position(shared->EndPosition());
@@ -92,16 +98,13 @@ class CompilerDispatcherTest : public TestWithNativeContext {
         ast_node_factory.NewFunctionLiteral(
             function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
-            FunctionLiteral::kAnonymousExpression,
+            FunctionSyntaxKind::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 
     return dispatcher->Enqueue(outer_parse_info.get(), function_name,
                                function_literal);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
 };
 
 namespace {
@@ -120,6 +123,8 @@ class MockPlatform : public v8::Platform {
     EXPECT_TRUE(worker_tasks_.empty());
     EXPECT_TRUE(idle_task_ == nullptr);
   }
+  MockPlatform(const MockPlatform&) = delete;
+  MockPlatform& operator=(const MockPlatform&) = delete;
 
   int NumberOfWorkerThreads() override { return 1; }
 
@@ -138,24 +143,12 @@ class MockPlatform : public v8::Platform {
     UNREACHABLE();
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    base::MutexGuard lock(&mutex_);
-    foreground_tasks_.push_back(std::unique_ptr<Task>(task));
-  }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
+  std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_state) override {
     UNREACHABLE();
   }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
-    base::MutexGuard lock(&mutex_);
-    ASSERT_TRUE(idle_task_ == nullptr);
-    idle_task_ = task;
-  }
-
-  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
   double MonotonicallyIncreasingTime() override {
     time_ += time_step_;
@@ -205,7 +198,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), true));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), true));
     sem_.Wait();
   }
 
@@ -216,7 +209,7 @@ class MockPlatform : public v8::Platform {
       tasks.swap(worker_tasks_);
     }
     platform->CallOnWorkerThread(
-        base::make_unique<TaskWrapper>(this, std::move(tasks), false));
+        std::make_unique<TaskWrapper>(this, std::move(tasks), false));
   }
 
   void RunForegroundTasks() {
@@ -262,6 +255,8 @@ class MockPlatform : public v8::Platform {
                 std::vector<std::unique_ptr<Task>> tasks, bool signal)
         : platform_(platform), tasks_(std::move(tasks)), signal_(signal) {}
     ~TaskWrapper() override = default;
+    TaskWrapper(const TaskWrapper&) = delete;
+    TaskWrapper& operator=(const TaskWrapper&) = delete;
 
     void Run() override {
       for (auto& task : tasks_) {
@@ -276,8 +271,6 @@ class MockPlatform : public v8::Platform {
     MockPlatform* platform_;
     std::vector<std::unique_ptr<Task>> tasks_;
     bool signal_;
-
-    DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
   };
 
   class MockForegroundTaskRunner final : public TaskRunner {
@@ -288,6 +281,11 @@ class MockPlatform : public v8::Platform {
     void PostTask(std::unique_ptr<v8::Task> task) override {
       base::MutexGuard lock(&platform_->mutex_);
       platform_->foreground_tasks_.push_back(std::move(task));
+    }
+
+    void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+      // The mock platform does not nest tasks.
+      PostTask(std::move(task));
     }
 
     void PostDelayedTask(std::unique_ptr<Task> task,
@@ -303,6 +301,8 @@ class MockPlatform : public v8::Platform {
     }
 
     bool IdleTasksEnabled() override { return true; }
+
+    bool NonNestableTasksEnabled() const override { return false; }
 
    private:
     MockPlatform* platform_;
@@ -321,8 +321,6 @@ class MockPlatform : public v8::Platform {
   base::Semaphore sem_;
 
   v8::TracingController* tracing_controller_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockPlatform);
 };
 
 }  // namespace

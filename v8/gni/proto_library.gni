@@ -11,8 +11,6 @@ template("proto_library") {
   assert(defined(invoker.sources))
   proto_sources = invoker.sources
 
-  set_sources_assignment_filter([])
-
   if (host_os == "win") {
     host_executable_suffix = ".exe"
   } else {
@@ -124,9 +122,13 @@ template("proto_library") {
       rebase_path(proto_in_dir, root_build_dir),
     ]
     if (generate_cc) {
+      cc_generator_options_ = ""
+      if (defined(invoker.cc_generator_options)) {
+        cc_generator_options_ = invoker.cc_generator_options
+      }
       args += [
         "--cpp_out",
-        rel_cc_out_dir,
+        cc_generator_options_ + rel_cc_out_dir,
       ]
     }
     if (generate_descriptor != "") {
@@ -135,6 +137,12 @@ template("proto_library") {
         "--descriptor_set_out",
         rebase_path("$root_gen_dir/" + generate_descriptor, root_build_dir),
       ]
+    }
+
+    if (defined(invoker.import_dirs)) {
+      foreach(path, invoker.import_dirs) {
+        args += [ "--import-dir=" + rebase_path(path, root_build_dir) ]
+      }
     }
 
     if (generate_with_plugin) {
@@ -153,13 +161,9 @@ template("proto_library") {
 
     args += rebase_path(proto_sources, root_build_dir)
 
-    inputs = [
-      protoc_path,
-    ]
+    inputs = [ protoc_path ]
 
-    deps = [
-      protoc_label,
-    ]
+    deps = [ protoc_label ]
     if (generate_with_plugin) {
       inputs += [ plugin_path ]
       if (defined(plugin_host_label)) {
@@ -187,10 +191,7 @@ template("proto_library") {
                              "visibility",
                            ])
 
-    # Exclude the config.descriptor file which is an output for some reason.
-    set_sources_assignment_filter([ "*.descriptor" ])
     sources = get_target_outputs(":$action_name")
-    set_sources_assignment_filter(sources_assignment_filter)
 
     # configs -= [ "//gn/standalone:extra_warnings" ]
     if (defined(invoker.extra_configs)) {
@@ -201,21 +202,23 @@ template("proto_library") {
       public_configs = []
     }
 
-    public_configs += [
-      "//:protobuf_gen_config",
-      ":$config_name",
-    ]
+    public_configs += [ "//:protobuf_gen_config" ]
+
+    propagate_imports_configs = !defined(invoker.propagate_imports_configs) ||
+                                invoker.propagate_imports_configs
+    if (propagate_imports_configs) {
+      public_configs += [ ":$config_name" ]
+    } else {
+      # Embedder handles include directory propagation to dependents.
+      configs += [ ":$config_name" ]
+    }
 
     # Use protobuf_full only for tests.
     if (defined(invoker.use_protobuf_full) &&
         invoker.use_protobuf_full == true) {
-      deps = [
-        "//:protobuf_full",
-      ]
+      deps = [ "//:protobuf_full" ]
     } else {
-      deps = [
-        "//:protobuf_lite",
-      ]
+      deps = [ "//:protobuf_lite" ]
     }
 
     deps += [ ":$action_name" ]

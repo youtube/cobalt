@@ -5,11 +5,10 @@
 #ifndef V8_OBJECTS_FREE_SPACE_INL_H_
 #define V8_OBJECTS_FREE_SPACE_INL_H_
 
-#include "src/objects/free-space.h"
-
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects/free-space.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,9 +17,10 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FreeSpace, HeapObject)
+#include "torque-generated/src/objects/free-space-tq-inl.inc"
 
-SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(FreeSpace)
+
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 int FreeSpace::Size() { return size(); }
@@ -37,7 +37,7 @@ void FreeSpace::set_next(FreeSpace next) {
 }
 
 FreeSpace FreeSpace::cast(HeapObject o) {
-  SLOW_DCHECK(!GetHeapFromWritableObject(o)->deserialization_complete() ||
+  SLOW_DCHECK((!GetHeapFromWritableObject(o)->deserialization_complete()) ||
               o.IsFreeSpace());
   return bit_cast<FreeSpace>(o);
 }

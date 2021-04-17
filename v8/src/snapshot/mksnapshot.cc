@@ -5,17 +5,18 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+
 #include <iomanip>
 
 #include "include/libplatform/libplatform.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"
 #include "src/sanitizer/msan.h"
+#include "src/snapshot/context-serializer.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
-#include "src/snapshot/natives.h"
-#include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
 
@@ -48,7 +49,7 @@ class SnapshotFileWriter {
 
     FILE* fp = GetFileDescriptorOrDie(snapshot_blob_path_);
     size_t written = fwrite(blob.begin(), 1, blob.length(), fp);
-    fclose(fp);
+    v8::base::Fclose(fp);
     if (written != static_cast<size_t>(blob.length())) {
       i::PrintF("Writing snapshot file failed.. Aborting.\n");
       remove(snapshot_blob_path_);
@@ -65,7 +66,7 @@ class SnapshotFileWriter {
     WriteSnapshotFileData(fp, blob);
     WriteSnapshotFileSuffix(fp);
 
-    fclose(fp);
+    v8::base::Fclose(fp);
   }
 
   static void WriteSnapshotFilePrefix(FILE* fp) {
@@ -140,7 +141,7 @@ char* GetExtraCode(char* filename, const char* description) {
     }
     i += read;
   }
-  fclose(file);
+  v8::base::Fclose(file);
   return chars;
 }
 
@@ -218,12 +219,17 @@ int main(int argc, char** argv) {
 
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
-  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || (argc > 3) || i::FLAG_help) {
-    ::printf("Usage: %s --startup_src=... --startup_blob=... [extras]\n",
-             argv[0]);
-    i::FlagList::PrintHelp();
-    return !i::FLAG_help;
+  using HelpOptions = i::FlagList::HelpOptions;
+  std::string usage = "Usage: " + std::string(argv[0]) +
+                      " [--startup-src=file]" + " [--startup-blob=file]" +
+                      " [--embedded-src=file]" + " [--embedded-variant=label]" +
+                      " [--target-arch=arch]" +
+                      " [--target-os=os] [extras]\n\n";
+  int result = i::FlagList::SetFlagsFromCommandLine(
+      &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));
+  if (result > 0 || (argc > 3)) {
+    i::PrintF(stdout, "%s", usage.c_str());
+    return result;
   }
 
   i::CpuFeatures::Probe(true);
@@ -255,29 +261,27 @@ int main(int argc, char** argv) {
 
       MaybeSetCounterFunction(isolate);
 
-      if (i::FLAG_embedded_builtins) {
-        // Set code range such that relative jumps for builtins to
-        // builtin calls in the snapshot are possible.
-        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        size_t code_range_size_mb =
-            i::kMaximalCodeRangeSize == 0
-                ? i::kMaxPCRelativeCodeRangeInMB
-                : std::min(i::kMaximalCodeRangeSize / i::MB,
-                           i::kMaxPCRelativeCodeRangeInMB);
-        v8::ResourceConstraints constraints;
-        constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
-        i_isolate->heap()->ConfigureHeap(constraints);
-        // The isolate contains data from builtin compilation that needs
-        // to be written out if builtins are embedded.
-        i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
-      }
+      // Set code range such that relative jumps for builtins to
+      // builtin calls in the snapshot are possible.
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      size_t code_range_size_mb =
+          i::kMaximalCodeRangeSize == 0
+              ? i::kMaxPCRelativeCodeRangeInMB
+              : std::min(i::kMaximalCodeRangeSize / i::MB,
+                         i::kMaxPCRelativeCodeRangeInMB);
+      v8::ResourceConstraints constraints;
+      constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
+      i_isolate->heap()->ConfigureHeap(constraints);
+      // The isolate contains data from builtin compilation that needs
+      // to be written out if builtins are embedded.
+      i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
+
       blob = CreateSnapshotDataBlob(isolate, embed_script.get());
-      if (i::FLAG_embedded_builtins) {
-        // At this point, the Isolate has been torn down but the embedded blob
-        // is still alive (we called DisableEmbeddedBlobRefcounting above).
-        // That's fine as far as the embedded file writer is concerned.
-        WriteEmbeddedFile(&embedded_writer);
-      }
+
+      // At this point, the Isolate has been torn down but the embedded blob
+      // is still alive (we called DisableEmbeddedBlobRefcounting above).
+      // That's fine as far as the embedded file writer is concerned.
+      WriteEmbeddedFile(&embedded_writer);
     }
 
     if (warmup_script) {

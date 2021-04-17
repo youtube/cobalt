@@ -57,15 +57,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
-
-inline MemOperand ContextMemOperand(Register context, int index) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
-
 // Generate a MemOperand for loading a field from an object.
 inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
@@ -110,6 +101,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // -------------------------------------------------------------------------
   // Debugging.
+
+  void Trap() override;
+  void DebugBreak() override;
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
@@ -205,7 +199,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Jump(Register target, const Operand& offset, COND_ARGS);
   void Jump(intptr_t target, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(Address target, RelocInfo::Mode rmode, COND_ARGS);
+  // Deffer from li, this method save target to the memory, and then load
+  // it to register use lw, it can be used in wasm jump table for concurrent
+  // patching.
+  void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
+  void Jump(const ExternalReference& reference) override;
   void Call(Register target, int16_t offset = 0, COND_ARGS);
   void Call(Register target, Register base, int16_t offset = 0, COND_ARGS);
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
@@ -238,7 +237,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind,
+                             Label* jump_deoptimization_entry_label);
 
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,
@@ -252,11 +253,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Drop(int count, Condition cond = cc_always, Register reg = no_reg,
             const Operand& op = Operand(no_reg));
 
-  // Trivial case of DropAndRet that utilizes the delay slot and only emits
-  // 2 instructions.
+  // Trivial case of DropAndRet that utilizes the delay slot.
   void DropAndRet(int drop);
 
   void DropAndRet(int drop, Condition cond, Register reg, const Operand& op);
+
+  void Lw(Register rd, const MemOperand& rs);
+  void Sw(Register rd, const MemOperand& rs);
 
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
@@ -308,6 +311,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Subu(sp, sp, Operand(kPointerSize));
     sw(src, MemOperand(sp, 0));
   }
+
+  enum PushArrayOrder { kNormal, kReverse };
+  void PushArray(Register array, Register size, Register scratch,
+                 Register scratch2, PushArrayOrder order = kNormal);
 
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
@@ -448,11 +455,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // Both |callee_args_count| and |caller_args_count| do not include
+  // receiver. |callee_args_count| is not modified. |caller_args_count|
   // is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1);
 
   int CalculateStackPassedWords(int num_reg_arguments,
@@ -506,10 +513,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 #undef COND_ARGS
-
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
@@ -816,6 +819,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
 
+  // Control-flow integrity:
+
+  // Define a function entrypoint. This doesn't emit any code for this
+  // architecture, as control-flow integrity is not supported for it.
+  void CodeEntry() {}
+  // Define an exception handler.
+  void ExceptionHandler() {}
+  // Define an exception handler and bind a label.
+  void BindExceptionHandler(Label* label) { bind(label); }
+
  protected:
   void BranchLong(Label* L, BranchDelaySlot bdslot);
 
@@ -845,12 +858,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
-  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
-                       OffsetSize bits);
-  bool CalculateOffset(Label* L, int32_t& offset,  // NOLINT(runtime/references)
-                       OffsetSize bits,
-                       Register& scratch,  // NOLINT(runtime/references)
-                       const Operand& rt);
+  // TODO(mips) Reorder parameters so out parameters come last.
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits);
+  bool CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
+                       Register* scratch, const Operand& rt);
 
   void BranchShortHelperR6(int32_t offset, Label* L);
   void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
@@ -897,6 +908,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
+
+  // It assumes that the arguments are located below the stack pointer.
+  // argc is the number of arguments not including the receiver.
+  // TODO(victorgomes): Remove this function once we stick with the reversed
+  // arguments order.
+  void LoadReceiver(Register dest, Register argc) {
+    Lw(dest, MemOperand(sp, 0));
+  }
+
+  void StoreReceiver(Register rec, Register argc, Register scratch) {
+    Sw(rec, MemOperand(sp, 0));
+  }
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
@@ -978,6 +1001,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
 
+  void LoadMap(Register destination, Register object);
+
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();
 
@@ -993,21 +1018,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger if necessary.
   void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+                      Register expected_parameter_count,
+                      Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeFlag flag);
 
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // Frame restart support.
   void MaybeDropFrames();
@@ -1070,6 +1096,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         Register scratch2);
 
   // -------------------------------------------------------------------------
+  // Stack limit utilities
+
+  enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
+  void LoadStackLimit(Register destination, StackLimitKind kind);
+  void StackOverflowCheck(Register num_args, Register scratch1,
+                          Register scratch2, Label* stack_overflow);
+
+  // ---------------------------------------------------------------------------
   // Smi utilities.
 
   void SmiTag(Register reg) { Addu(reg, reg, reg); }
@@ -1119,16 +1153,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
-  friend class StandardFrame;
+  friend class CommonFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

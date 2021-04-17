@@ -18,20 +18,34 @@ namespace wasm {
 constexpr uint32_t kWasmMagic = 0x6d736100;
 constexpr uint32_t kWasmVersion = 0x01;
 
-// Binary encoding of local types.
+// Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
-  kLocalVoid = 0x40,
-  kLocalI32 = 0x7f,
-  kLocalI64 = 0x7e,
-  kLocalF32 = 0x7d,
-  kLocalF64 = 0x7c,
-  kLocalS128 = 0x7b,
-  kLocalFuncRef = 0x70,
-  kLocalAnyRef = 0x6f,
-  kLocalExnRef = 0x68,
+  // Current wasm types
+  kVoidCode = 0x40,
+  kI32Code = 0x7f,
+  kI64Code = 0x7e,
+  kF32Code = 0x7d,
+  kF64Code = 0x7c,
+  // Simd proposal
+  kS128Code = 0x7b,
+  // reftypes, typed-funcref, and GC proposals
+  kI8Code = 0x7a,
+  kI16Code = 0x79,
+  kFuncRefCode = 0x70,
+  kExternRefCode = 0x6f,
+  // kAnyCode = 0x6e, // TODO(7748): Implement
+  kEqRefCode = 0x6d,
+  kOptRefCode = 0x6c,
+  kRefCode = 0x6b,
+  kI31RefCode = 0x6a,
+  kRttCode = 0x69,
+  // Exception handling proposal
+  kExnRefCode = 0x68,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
+constexpr uint8_t kWasmStructTypeCode = 0x5f;
+constexpr uint8_t kWasmArrayTypeCode = 0x5e;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -42,14 +56,13 @@ enum ImportExportKindCode : uint8_t {
   kExternalException = 4
 };
 
-// Binary encoding of maximum and shared flags for memories.
-enum MaximumFlag : uint8_t { kNoMaximumFlag = 0, kHasMaximumFlag = 1 };
-
-enum MemoryFlags : uint8_t {
-  kNoMaximum = 0,
-  kMaximum = 1,
-  kSharedNoMaximum = 2,
-  kSharedAndMaximum = 3
+enum LimitsFlags : uint8_t {
+  kNoMaximum = 0x00,           // Also valid for table limits.
+  kWithMaximum = 0x01,         // Also valid for table limits.
+  kSharedNoMaximum = 0x02,     // Only valid for memory limits.
+  kSharedWithMaximum = 0x03,   // Only valid for memory limits.
+  kMemory64NoMaximum = 0x04,   // Only valid for memory limits.
+  kMemory64WithMaximum = 0x05  // Only valid for memory limits.
 };
 
 // Flags for data and element segments.
@@ -79,9 +92,11 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,              // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,  // Source Map URL section
-  kCompilationHintsSectionCode,  // Compilation hints section
+  kNameSectionCode,               // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,   // Source Map URL section
+  kDebugInfoSectionCode,          // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kCompilationHintsSectionCode,   // Compilation hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
@@ -106,7 +121,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 constexpr uint32_t kExceptionAttribute = 0;
 
-constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
+constexpr int kAnonymousFuncIndex = -1;
+
+// The number of calls to an exported wasm function that will be handled
+// by the generic wrapper. Once this threshold is reached, a specific wrapper
+// is to be compiled for the function's signature.
+constexpr uint32_t kGenericWrapperThreshold = 6;
 
 }  // namespace wasm
 }  // namespace internal

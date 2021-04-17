@@ -5,7 +5,9 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/base/bit-field.h"
 #include "src/codegen/handler-table.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
@@ -25,7 +27,48 @@ class CodeDesc;
 
 namespace interpreter {
 class Register;
-}
+}  // namespace interpreter
+
+// CodeDataContainer is a container for all mutable fields associated with its
+// referencing {Code} object. Since {Code} objects reside on write-protected
+// pages within the heap, its header fields need to be immutable. There always
+// is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
+// field {Code::code_data_container} itself is immutable.
+class CodeDataContainer : public HeapObject {
+ public:
+  NEVER_READ_ONLY_SPACE
+  DECL_ACCESSORS(next_code_link, Object)
+  DECL_INT_ACCESSORS(kind_specific_flags)
+
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  inline void clear_padding();
+
+  DECL_CAST(CodeDataContainer)
+
+  // Dispatched behavior.
+  DECL_PRINTER(CodeDataContainer)
+  DECL_VERIFIER(CodeDataContainer)
+
+// Layout description.
+#define CODE_DATA_FIELDS(V)                                 \
+  /* Weak pointer fields. */                                \
+  V(kPointerFieldsStrongEndOffset, 0)                       \
+  V(kNextCodeLinkOffset, kTaggedSize)                       \
+  V(kPointerFieldsWeakEndOffset, 0)                         \
+  /* Raw data fields. */                                    \
+  V(kKindSpecificFlagsOffset, kInt32Size)                   \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
+  /* Total size. */                                         \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+#undef CODE_DATA_FIELDS
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
+};
 
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject {
@@ -35,137 +78,103 @@ class Code : public HeapObject {
   // cache state, and arguments count.
   using Flags = uint32_t;
 
-#define CODE_KIND_LIST(V)   \
-  V(OPTIMIZED_FUNCTION)     \
-  V(BYTECODE_HANDLER)       \
-  V(STUB)                   \
-  V(BUILTIN)                \
-  V(REGEXP)                 \
-  V(WASM_FUNCTION)          \
-  V(WASM_TO_CAPI_FUNCTION)  \
-  V(WASM_TO_JS_FUNCTION)    \
-  V(JS_TO_WASM_FUNCTION)    \
-  V(WASM_INTERPRETER_ENTRY) \
-  V(C_WASM_ENTRY)
+  // All Code objects have the following layout:
+  //
+  //  +--------------------------+
+  //  |          header          |
+  //  | padded to code alignment |
+  //  +--------------------------+  <-- raw_body_start()
+  //  |       instructions       |   == raw_instruction_start()
+  //  |           ...            |
+  //  | padded to meta alignment |      see kMetadataAlignment
+  //  +--------------------------+  <-- raw_instruction_end()
+  //  |         metadata         |   == raw_metadata_start() (MS)
+  //  |           ...            |
+  //  |                          |  <-- MS + handler_table_offset()
+  //  |                          |  <-- MS + constant_pool_offset()
+  //  |                          |  <-- MS + code_comments_offset()
+  //  |                          |  <-- MS + unwinding_info_offset()
+  //  | padded to obj alignment  |
+  //  +--------------------------+  <-- raw_metadata_end() == raw_body_end()
+  //  | padded to code alignment |
+  //  +--------------------------+
+  //
+  // In other words, the variable-size 'body' consists of 'instructions' and
+  // 'metadata'.
+  //
+  // Note the accessor functions below may be prefixed with 'raw'. In this case,
+  // raw accessors (e.g. raw_instruction_start) always refer to the on-heap
+  // Code object, while camel-case accessors (e.g. InstructionStart) may refer
+  // to an off-heap area in the case of embedded builtins.
+  //
+  // Embedded builtins are on-heap Code objects, with an out-of-line body
+  // section. The on-heap Code object contains an essentially empty body
+  // section, while accessors, as mentioned above, redirect to the off-heap
+  // area. Metadata table offsets remain relative to MetadataStart(), i.e. they
+  // point into the off-heap metadata section. The off-heap layout is described
+  // in detail in the EmbeddedData class, but at a high level one can assume a
+  // dedicated, out-of-line, instruction and metadata section for each embedded
+  // builtin *in addition* to the on-heap Code object:
+  //
+  //  +--------------------------+  <-- InstructionStart()
+  //  |   off-heap instructions  |
+  //  |           ...            |
+  //  +--------------------------+  <-- InstructionEnd()
+  //
+  //  +--------------------------+  <-- MetadataStart() (MS)
+  //  |    off-heap metadata     |
+  //  |           ...            |  <-- MS + handler_table_offset()
+  //  |                          |  <-- MS + constant_pool_offset()
+  //  |                          |  <-- MS + code_comments_offset()
+  //  |                          |  <-- MS + unwinding_info_offset()
+  //  +--------------------------+  <-- MetadataEnd()
 
-  enum Kind {
-#define DEFINE_CODE_KIND_ENUM(name) name,
-    CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
-#undef DEFINE_CODE_KIND_ENUM
-        NUMBER_OF_KINDS
-  };
+  // Constants for use in static asserts, stating whether the body is adjacent,
+  // i.e. instructions and metadata areas are adjacent.
+  static constexpr bool kOnHeapBodyIsContiguous = true;
+  static constexpr bool kOffHeapBodyIsContiguous = false;
+  static constexpr bool kBodyIsContiguous =
+      kOnHeapBodyIsContiguous && kOffHeapBodyIsContiguous;
 
-  static const char* Kind2String(Kind kind);
+  inline Address raw_body_start() const;
+  inline Address raw_body_end() const;
+  inline int raw_body_size() const;
 
-#ifdef ENABLE_DISASSEMBLER
-  const char* GetName(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
-                                     Address current_pc = kNullAddress);
-#endif
+  inline Address raw_instruction_start() const;
+  inline Address InstructionStart() const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
 
-  // [instruction_size]: Size of the native instructions, including embedded
-  // data such as the safepoints table.
+  inline Address raw_instruction_end() const;
+  inline Address InstructionEnd() const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
+
   inline int raw_instruction_size() const;
   inline void set_raw_instruction_size(int value);
-
-  // Returns the size of the native instructions, including embedded
-  // data such as the safepoints table. For off-heap code objects
-  // this may differ from instruction_size in that this will return the size of
-  // the off-heap instruction stream rather than the on-heap trampoline located
-  // at instruction_start.
   inline int InstructionSize() const;
   V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
 
-  // [relocation_info]: Code relocation information
-  DECL_ACCESSORS(relocation_info, ByteArray)
+  inline Address raw_metadata_start() const;
+  inline Address MetadataStart() const;
+  V8_EXPORT_PRIVATE Address OffHeapMetadataStart() const;
+  inline Address raw_metadata_end() const;
+  inline Address MetadataEnd() const;
+  V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
+  inline int raw_metadata_size() const;
+  inline void set_raw_metadata_size(int value);
+  inline int MetadataSize() const;
+  int OffHeapMetadataSize() const;
 
-  // This function should be called only from GC.
-  void ClearEmbeddedObjects(Heap* heap);
+  // The metadata section is aligned to this value.
+  static constexpr int kMetadataAlignment = kIntSize;
 
-  // [deoptimization_data]: Array containing data for deopt.
-  DECL_ACCESSORS(deoptimization_data, FixedArray)
-
-  // [source_position_table]: ByteArray for the source positions table or
-  // SourcePositionTableWithFrameCache.
-  DECL_ACCESSORS(source_position_table, Object)
-  inline ByteArray SourcePositionTable() const;
-  inline ByteArray SourcePositionTableIfCollected() const;
-
-  // [code_data_container]: A container indirection for all mutable fields.
-  DECL_ACCESSORS(code_data_container, CodeDataContainer)
-
-  // [next_code_link]: Link for lists of optimized or deoptimized code.
-  // Note that this field is stored in the {CodeDataContainer} to be mutable.
-  inline Object next_code_link() const;
-  inline void set_next_code_link(Object value);
-
-  // Unchecked accessors to be used during GC.
-  inline ByteArray unchecked_relocation_info() const;
-
-  inline int relocation_size() const;
-
-  // [kind]: Access to specific code kind.
-  inline Kind kind() const;
-
-  inline bool is_optimized_code() const;
-  inline bool is_wasm_code() const;
-
-  // Testers for interpreter builtins.
-  inline bool is_interpreter_trampoline_builtin() const;
-
-  // Tells whether the code checks the optimization marker in the function's
-  // feedback vector.
-  inline bool checks_optimization_marker() const;
-
-  // Tells whether the outgoing parameters of this code are tagged pointers.
-  inline bool has_tagged_params() const;
-
-  // [is_turbofanned]: For kind STUB or OPTIMIZED_FUNCTION, tells whether the
-  // code object was generated by the TurboFan optimizing compiler.
-  inline bool is_turbofanned() const;
-
-  // [can_have_weak_objects]: For kind OPTIMIZED_FUNCTION, tells whether the
-  // embedded objects in code should be treated weakly.
-  inline bool can_have_weak_objects() const;
-  inline void set_can_have_weak_objects(bool value);
-
-  // [builtin_index]: For builtins, tells which builtin index the code object
-  // has. The builtin index is a non-negative integer for builtins, and -1
-  // otherwise.
-  inline int builtin_index() const;
-  inline void set_builtin_index(int id);
-  inline bool is_builtin() const;
-
-  inline bool has_safepoint_info() const;
-
-  // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
-  // reserved in the code prologue.
-  inline int stack_slots() const;
-
-  // The body of all Code objects has the following layout.
-  //
-  //  +--------------------------+  <-- raw_instruction_start()
-  //  |       instructions       |
-  //  |           ...            |
-  //  +--------------------------+
-  //  |     embedded metadata    |  <-- safepoint_table_offset()
-  //  |           ...            |  <-- handler_table_offset()
-  //  |                          |  <-- constant_pool_offset()
-  //  |                          |  <-- code_comments_offset()
-  //  |                          |  <-- unwinding_info_offset()
-  //  |                          |
-  //  +--------------------------+  <-- raw_instruction_end()
-
-  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
-  // instruction stream where the safepoint table starts.
-  inline int safepoint_table_offset() const;
-  inline void set_safepoint_table_offset(int offset);
+  // [safepoint_table_offset]: The offset where the safepoint table starts.
+  inline int safepoint_table_offset() const { return 0; }
   Address SafepointTableAddress() const;
   int safepoint_table_size() const;
   bool has_safepoint_table() const;
 
-  // [handler_table_offset]: The offset in the instruction stream where the
-  // exception handler table starts.
+  // [handler_table_offset]: The offset where the exception handler table
+  // starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
   Address HandlerTableAddress() const;
@@ -173,9 +182,9 @@ class Code : public HeapObject {
   bool has_handler_table() const;
 
   // [constant_pool offset]: Offset of the constant pool.
-  // Valid for FLAG_enable_embedded_constant_pool only
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
+  inline Address constant_pool() const;
   int constant_pool_size() const;
   bool has_constant_pool() const;
 
@@ -194,21 +203,103 @@ class Code : public HeapObject {
   inline int unwinding_info_size() const;
   inline bool has_unwinding_info() const;
 
-  // The size of the executable instruction area, without embedded metadata.
-  int ExecutableInstructionSize() const;
+#ifdef ENABLE_DISASSEMBLER
+  const char* GetName(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
+                                     Isolate* isolate,
+                                     Address current_pc = kNullAddress);
+#endif
 
-  // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
+  // [relocation_info]: Code relocation information
+  DECL_ACCESSORS(relocation_info, ByteArray)
+
+  // This function should be called only from GC.
+  void ClearEmbeddedObjects(Heap* heap);
+
+  // [deoptimization_data]: Array containing data for deopt.
+  DECL_ACCESSORS(deoptimization_data, FixedArray)
+
+  // [source_position_table]: ByteArray for the source positions table.
+  DECL_ACCESSORS(source_position_table, Object)
+
+  // If source positions have not been collected or an exception has been thrown
+  // this will return empty_byte_array.
+  inline ByteArray SourcePositionTable() const;
+
+  // [code_data_container]: A container indirection for all mutable fields.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
+
+  // [next_code_link]: Link for lists of optimized or deoptimized code.
+  // Note that this field is stored in the {CodeDataContainer} to be mutable.
+  inline Object next_code_link() const;
+  inline void set_next_code_link(Object value);
+
+  // Unchecked accessors to be used during GC.
+  inline ByteArray unchecked_relocation_info() const;
+
+  inline int relocation_size() const;
+
+  // [kind]: Access to specific code kind.
+  inline CodeKind kind() const;
+
+  inline bool is_optimized_code() const;
+  inline bool is_wasm_code() const;
+
+  // Testers for interpreter builtins.
+  inline bool is_interpreter_trampoline_builtin() const;
+
+  // Tells whether the code checks the optimization marker in the function's
+  // feedback vector.
+  inline bool checks_optimization_marker() const;
+
+  // Tells whether the outgoing parameters of this code are tagged pointers.
+  inline bool has_tagged_params() const;
+
+  // [is_turbofanned]: Tells whether the code object was generated by the
+  // TurboFan optimizing compiler.
+  inline bool is_turbofanned() const;
+
+  // [can_have_weak_objects]: If CodeKindIsOptimizedJSFunction(kind), tells
+  // whether the embedded objects in code should be treated weakly.
+  inline bool can_have_weak_objects() const;
+  inline void set_can_have_weak_objects(bool value);
+
+  // [builtin_index]: For builtins, tells which builtin index the code object
+  // has. The builtin index is a non-negative integer for builtins, and
+  // Builtins::kNoBuiltinId (-1) otherwise.
+  inline int builtin_index() const;
+  inline void set_builtin_index(int id);
+  inline bool is_builtin() const;
+
+  inline unsigned inlined_bytecode_size() const;
+  inline void set_inlined_bytecode_size(unsigned size);
+
+  inline bool has_safepoint_info() const;
+
+  // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
+  // reserved in the code prologue.
+  inline int stack_slots() const;
+
+  // [marked_for_deoptimization]: If CodeKindCanDeoptimize(kind), tells whether
   // the code is going to be deoptimized.
   inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
 
-  // [embedded_objects_cleared]: For kind OPTIMIZED_FUNCTION tells whether
-  // the embedded objects in the code marked for deoptimization were cleared.
-  // Note that embedded_objects_cleared() implies marked_for_deoptimization().
+  // [deoptimization_count]: If CodeKindCanDeoptimize(kind). In turboprop we
+  // retain the deoptimized code on soft deopts for a certain number of soft
+  // deopts. This field keeps track of the number of deoptimizations we have
+  // seen so far.
+  inline int deoptimization_count() const;
+  inline void increment_deoptimization_count();
+
+  // [embedded_objects_cleared]: If CodeKindIsOptimizedJSFunction(kind), tells
+  // whether the embedded objects in the code marked for deoptimization were
+  // cleared. Note that embedded_objects_cleared() implies
+  // marked_for_deoptimization().
   inline bool embedded_objects_cleared() const;
   inline void set_embedded_objects_cleared(bool flag);
 
-  // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
+  // [deopt_already_counted]: If CodeKindCanDeoptimize(kind), tells whether
   // the code was already deoptimized.
   inline bool deopt_already_counted() const;
   inline void set_deopt_already_counted(bool flag);
@@ -229,9 +320,6 @@ class Code : public HeapObject {
   // this is a trampoline to an off-heap builtin.
   inline bool is_off_heap_trampoline() const;
 
-  // [constant_pool]: The constant pool for this function.
-  inline Address constant_pool() const;
-
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
@@ -249,7 +337,7 @@ class Code : public HeapObject {
   inline void clear_padding();
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
-  inline void initialize_flags(Kind kind, bool is_turbofanned,
+  inline void initialize_flags(CodeKind kind, bool is_turbofanned,
                                int stack_slots, bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
@@ -257,30 +345,6 @@ class Code : public HeapObject {
 
   // Convert an entry address into an object.
   static inline Code GetObjectFromEntryAddress(Address location_of_address);
-
-  // Returns the address of the first instruction.
-  inline Address raw_instruction_start() const;
-
-  // Returns the address of the first instruction. For off-heap code objects
-  // this differs from instruction_start (which would point to the off-heap
-  // trampoline instead).
-  inline Address InstructionStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
-
-  // Returns the address right after the last instruction.
-  inline Address raw_instruction_end() const;
-
-  // Returns the address right after the last instruction. For off-heap code
-  // objects this differs from instruction_end (which would point to the
-  // off-heap trampoline instead).
-  inline Address InstructionEnd() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
-
-  // Returns the (padded) body size, including instructions and metadata.
-  inline int body_size() const;
-  static int AlignedBodySizeFor(int unaligned_body_size) {
-    return RoundUp(unaligned_body_size, kObjectAlignment);
-  }
 
   // Returns the size of code and its metadata. This includes the size of code
   // relocation information, deoptimization data.
@@ -316,13 +380,8 @@ class Code : public HeapObject {
 
   // Returns the object size for a given body (used for allocation).
   static int SizeFor(int body_size) {
-    DCHECK_SIZE_TAG_ALIGNED(body_size);
     return RoundUp(kHeaderSize + body_size, kCodeAlignment);
   }
-
-  // Calculate the size of the code object to report for log events. This takes
-  // the layout of the code object into account.
-  inline int ExecutableSize() const;
 
   DECL_CAST(Code)
 
@@ -332,7 +391,6 @@ class Code : public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-  void PrintDeoptLocation(FILE* out, const char* str, Address pc);
   bool CanDeoptAt(Address pc);
 
   void SetMarkedForDeoptimization(const char* reason);
@@ -340,6 +398,7 @@ class Code : public HeapObject {
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
 
   bool IsIsolateIndependent(Isolate* isolate);
+  bool IsNativeContextIndependent(Isolate* isolate);
 
   inline bool CanContainWeakObjects();
 
@@ -347,36 +406,40 @@ class Code : public HeapObject {
 
   static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
 
-  // Return true if the function is inlined in the code.
+  // Returns false if this is an embedded builtin Code object that's in
+  // read_only_space and hence doesn't have execute permissions.
+  inline bool IsExecutable();
+
+  // Returns true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo sfi);
 
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                    \
-  V(kRelocationInfoOffset, kTaggedSize)                                   \
-  V(kDeoptimizationDataOffset, kTaggedSize)                               \
-  V(kSourcePositionTableOffset, kTaggedSize)                              \
-  V(kCodeDataContainerOffset, kTaggedSize)                                \
-  /* Data or code not directly visited by GC directly starts here. */     \
-  /* The serializer needs to copy bytes starting from here verbatim. */   \
-  /* Objects embedded into code is visited via reloc info. */             \
-  V(kDataStart, 0)                                                        \
-  V(kInstructionSizeOffset, kIntSize)                                     \
-  V(kFlagsOffset, kInt32Size)                                             \
-  V(kBuiltinIndexOffset, kIntSize)                                        \
-  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
-  /* Offsets describing inline metadata tables. */                        \
-  V(kSafepointTableOffsetOffset, kIntSize)                                \
-  V(kHandlerTableOffsetOffset, kIntSize)                                  \
-  V(kConstantPoolOffsetOffset,                                            \
-    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
-  V(kCodeCommentsOffsetOffset, kIntSize)                                  \
-  V(kUnwindingInfoOffsetOffset, kInt32Size)                               \
-  V(kUnalignedHeaderSize, 0)                                              \
-  /* Add padding to align the instruction start following right after */  \
-  /* the Code object header. */                                           \
-  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset)) \
+#define CODE_FIELDS(V)                                                        \
+  V(kRelocationInfoOffset, kTaggedSize)                                       \
+  V(kDeoptimizationDataOffset, kTaggedSize)                                   \
+  V(kSourcePositionTableOffset, kTaggedSize)                                  \
+  V(kCodeDataContainerOffset, kTaggedSize)                                    \
+  /* Data or code not directly visited by GC directly starts here. */         \
+  /* The serializer needs to copy bytes starting from here verbatim. */       \
+  /* Objects embedded into code is visited via reloc info. */                 \
+  V(kDataStart, 0)                                                            \
+  V(kInstructionSizeOffset, kIntSize)                                         \
+  V(kMetadataSizeOffset, kIntSize)                                            \
+  V(kFlagsOffset, kInt32Size)                                                 \
+  V(kBuiltinIndexOffset, kIntSize)                                            \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                     \
+  /* Offsets describing inline metadata tables, relative to MetadataStart. */ \
+  V(kHandlerTableOffsetOffset, kIntSize)                                      \
+  V(kConstantPoolOffsetOffset,                                                \
+    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                        \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                      \
+  V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
+  V(kUnalignedHeaderSize, 0)                                                  \
+  /* Add padding to align the instruction start following right after */      \
+  /* the Code object header. */                                               \
+  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset))     \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
@@ -409,29 +472,34 @@ class Code : public HeapObject {
 
   class BodyDescriptor;
 
-  // Flags layout.  BitField<type, shift, size>.
+  // Flags layout.  base::BitField<type, shift, size>.
 #define CODE_FLAGS_BIT_FIELDS(V, _)    \
-  V(KindField, Kind, 4, _)         \
+  V(KindField, CodeKind, 4, _)         \
   V(IsTurbofannedField, bool, 1, _)    \
   V(StackSlotsField, int, 24, _)       \
   V(IsOffHeapTrampoline, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
+  STATIC_ASSERT(kCodeKindCount <= KindField::kNumValues);
   STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 30);
   STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 
-  // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
+  // KindSpecificFlags layout.
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
   V(MarkedForDeoptimizationField, bool, 1, _)     \
   V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
   V(IsPromiseRejectionField, bool, 1, _)          \
-  V(IsExceptionCaughtField, bool, 1, _)
+  V(IsExceptionCaughtField, bool, 1, _)           \
+  V(DeoptCountField, int, 4, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  static_assert(IsExceptionCaughtField::kNext <= 32, "KindSpecificFlags full");
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 10);
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+                FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
+                    kBitsPerByte);
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
@@ -453,6 +521,8 @@ class Code : public HeapObject {
 class Code::OptimizedCodeIterator {
  public:
   explicit OptimizedCodeIterator(Isolate* isolate);
+  OptimizedCodeIterator(const OptimizedCodeIterator&) = delete;
+  OptimizedCodeIterator& operator=(const OptimizedCodeIterator&) = delete;
   Code Next();
 
  private:
@@ -461,63 +531,11 @@ class Code::OptimizedCodeIterator {
   Isolate* isolate_;
 
   DISALLOW_HEAP_ALLOCATION(no_gc)
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
-};
-
-// CodeDataContainer is a container for all mutable fields associated with its
-// referencing {Code} object. Since {Code} objects reside on write-protected
-// pages within the heap, its header fields need to be immutable. There always
-// is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
-// field {Code::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObject {
- public:
-  NEVER_READ_ONLY_SPACE
-  DECL_ACCESSORS(next_code_link, Object)
-  DECL_INT_ACCESSORS(kind_specific_flags)
-
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  inline void clear_padding();
-
-  DECL_CAST(CodeDataContainer)
-
-  // Dispatched behavior.
-  DECL_PRINTER(CodeDataContainer)
-  DECL_VERIFIER(CodeDataContainer)
-
-// Layout description.
-#define CODE_DATA_FIELDS(V)                                 \
-  /* Weak pointer fields. */                                \
-  V(kPointerFieldsStrongEndOffset, 0)                       \
-  V(kNextCodeLinkOffset, kTaggedSize)                       \
-  V(kPointerFieldsWeakEndOffset, 0)                         \
-  /* Raw data fields. */                                    \
-  V(kKindSpecificFlagsOffset, kIntSize)                     \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize)) \
-  /* Total size. */                                         \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
-#undef CODE_DATA_FIELDS
-
-  class BodyDescriptor;
-
-  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };
 
 class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  // All code kinds and INTERPRETED_FUNCTION.
-  enum Kind {
-#define DEFINE_CODE_KIND_ENUM(name) name,
-    CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
-#undef DEFINE_CODE_KIND_ENUM
-        INTERPRETED_FUNCTION,
-    NUMBER_OF_KINDS
-  };
-
-  static const char* Kind2String(Kind kind);
 
   int SourcePosition(int offset);
   int SourceStatementPosition(int offset);
@@ -551,9 +569,6 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray source_position_table();
 
-  inline Object stack_frame_cache();
-  static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                 Handle<SimpleNumberDictionary> cache);
   void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.
@@ -562,12 +577,8 @@ class AbstractCode : public HeapObject {
   // Returns true if pc is inside this object's instructions.
   inline bool contains(Address pc);
 
-  // Returns the AbstractCode::Kind of the code.
-  inline Kind kind();
-
-  // Calculate the size of the code object to report for log events. This takes
-  // the layout of the code object into account.
-  inline int ExecutableSize();
+  // Returns the kind of the code.
+  inline CodeKind kind();
 
   DECL_CAST(AbstractCode)
   inline Code GetCode();
@@ -617,7 +628,9 @@ class DependentCode : public WeakFixedArray {
     kPropertyCellChangedGroup,
     // Group of code that omit run-time checks for field(s) introduced by
     // this map, i.e. for the field type.
-    kFieldOwnerGroup,
+    kFieldTypeGroup,
+    kFieldConstGroup,
+    kFieldRepresentationGroup,
     // Group of code that omit run-time type checks for initial maps of
     // constructors.
     kInitialMapChangedGroup,
@@ -629,15 +642,15 @@ class DependentCode : public WeakFixedArray {
     kAllocationSiteTransitionChangedGroup
   };
 
-  // Register a code dependency of {cell} on {object}.
+  // Register a dependency of {code} on {object}, of the kind given by {group}.
   V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
                                                   const MaybeObjectHandle& code,
                                                   Handle<HeapObject> object,
                                                   DependencyGroup group);
 
-  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
+  void DeoptimizeDependentCodeGroup(DependencyGroup group);
 
-  bool MarkCodeForDeoptimization(Isolate* isolate, DependencyGroup group);
+  bool MarkCodeForDeoptimization(DependencyGroup group);
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
@@ -685,8 +698,8 @@ class DependentCode : public WeakFixedArray {
 
   inline int flags();
   inline void set_flags(int flags);
-  class GroupField : public BitField<int, 0, 3> {};
-  class CountField : public BitField<int, 3, 27> {};
+  using GroupField = base::BitField<int, 0, 5>;
+  using CountField = base::BitField<int, 5, 27>;
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
   OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
@@ -757,21 +770,16 @@ class BytecodeArray : public FixedArrayBase {
   // * empty_byte_array (for bytecode generated for functions that will never
   // have source positions, e.g. native functions).
   // * ByteArray (when source positions have been collected for the bytecode)
-  // * SourcePositionTableWithFrameCache (as above but with a frame cache)
   // * exception (when an error occurred while explicitly collecting source
   // positions for pre-existing bytecode).
-  DECL_ACCESSORS(source_position_table, Object)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(source_position_table, Object)
 
-  // This must only be called if source position collection has already been
-  // attempted. (If it failed because of an exception then it will return
-  // empty_byte_array).
-  inline ByteArray SourcePositionTable() const;
-  // If source positions have not been collected or an exception has been thrown
-  // this will return empty_byte_array.
-  inline ByteArray SourcePositionTableIfCollected() const;
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;
-  inline void ClearFrameCacheFromSourcePositionTable();
+
+  // If source positions have not been collected or an exception has been thrown
+  // this will return empty_byte_array.
+  inline ByteArray SourcePositionTable() const;
 
   // Indicates that an attempt was made to collect source positions, but that it
   // failed most likely due to stack exhaustion. When in this state
@@ -805,13 +813,9 @@ class BytecodeArray : public FixedArrayBase {
   // is deterministic.
   inline void clear_padding();
 
-  // Compares only the bytecode array but not any of the header fields.
-  bool IsBytecodeEqual(const BytecodeArray other) const;
-
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
 
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
@@ -845,7 +849,9 @@ class DeoptimizationData : public FixedArray {
   static const int kOptimizationIdIndex = 5;
   static const int kSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
-  static const int kFirstDeoptEntryIndex = 8;
+  static const int kDeoptExitStartIndex = 8;
+  static const int kNonLazyDeoptCountIndex = 9;
+  static const int kFirstDeoptEntryIndex = 10;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -866,6 +872,8 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+  DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
+  DECL_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
 
 #undef DECL_ELEMENT_ACCESSORS
 
@@ -913,13 +921,6 @@ class DeoptimizationData : public FixedArray {
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
   OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
-};
-
-class SourcePositionTableWithFrameCache
-    : public TorqueGeneratedSourcePositionTableWithFrameCache<
-          SourcePositionTableWithFrameCache, Struct> {
- public:
-  TQ_OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache)
 };
 
 }  // namespace internal

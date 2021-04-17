@@ -6,12 +6,15 @@
 #define V8_OBJECTS_DATA_HANDLER_H_
 
 #include "src/objects/struct.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/data-handler-tq.inc"
 
 // DataHandler is a base class for load and store handlers that can't be
 // encoded in one Smi. Kind of a handler can be deduced from instance type.
@@ -41,7 +44,7 @@ class DataHandler : public Struct {
   static const int kSizeWithData0 = kData1Offset;
   static const int kSizeWithData1 = kData2Offset;
   static const int kSizeWithData2 = kData3Offset;
-  static const int kSizeWithData3 = kSize;
+  static const int kSizeWithData3 = kHeaderSize;
 
   DECL_CAST(DataHandler)
 

@@ -99,15 +99,15 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  Object raw_call_data = fun_data->call_code();
+  Object raw_call_data = fun_data->call_code(kAcquireLoad);
   if (!raw_call_data.IsUndefined(isolate)) {
     DCHECK(raw_call_data.IsCallHandlerInfo());
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
     Object data_obj = call_data.data();
 
-    FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
-                                     *new_target, args.address_of_arg_at(1),
-                                     args.length() - 1);
+    FunctionCallbackArguments custom(
+        isolate, data_obj, *function, raw_holder, *new_target,
+        args.address_of_first_argument(), args.length() - 1);
     Handle<Object> result = custom.Call(call_data);
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -206,17 +206,16 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   } else {
     argv = new Address[frame_argc];
   }
-  int cursor = frame_argc - 1;
-  argv[cursor--] = receiver->ptr();
-  for (int i = 0; i < argc; ++i) {
-    argv[cursor--] = args[i]->ptr();
-  }
-  DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
+  argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
+  argv[BuiltinArguments::kTargetOffset] = function->ptr();
+  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
   argv[BuiltinArguments::kPaddingOffset] =
       ReadOnlyRoots(isolate).the_hole_value().ptr();
-  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
-  argv[BuiltinArguments::kTargetOffset] = function->ptr();
-  argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
+  int cursor = BuiltinArguments::kNumExtraArgs;
+  argv[cursor++] = receiver->ptr();
+  for (int i = 0; i < argc; ++i) {
+    argv[cursor++] = args[i]->ptr();
+  }
   MaybeHandle<Object> result;
   {
     RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);
@@ -269,9 +268,9 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
   {
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
-    FunctionCallbackArguments custom(isolate, call_data.data(), constructor,
-                                     obj, new_target, args.address_of_arg_at(1),
-                                     args.length() - 1);
+    FunctionCallbackArguments custom(
+        isolate, call_data.data(), constructor, obj, new_target,
+        args.address_of_first_argument(), args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();

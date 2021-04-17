@@ -6,7 +6,7 @@
 #define V8_OBJECTS_PROPERTY_CELL_H_
 
 #include "src/objects/heap-object.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,21 +31,28 @@ class PropertyCell : public HeapObject {
 
   PropertyCellConstantType GetConstantType();
 
+  // Computes the new type of a previously uninitialized cell for the given
+  // value.
+  static PropertyCellType TypeForUninitializedCell(Isolate* isolate,
+                                                   Handle<Object> value);
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the details.
   static PropertyCellType UpdatedType(Isolate* isolate,
                                       Handle<PropertyCell> cell,
                                       Handle<Object> value,
                                       PropertyDetails details);
+
   // Prepares property cell at given entry for receiving given value.
   // As a result the old cell could be invalidated and/or dependent code could
   // be deoptimized. Returns the prepared property cell.
   static Handle<PropertyCell> PrepareForValue(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
-      Handle<Object> value, PropertyDetails details);
+      Isolate* isolate, Handle<GlobalDictionary> dictionary,
+      InternalIndex entry, Handle<Object> value, PropertyDetails details);
 
-  static Handle<PropertyCell> InvalidateEntry(
-      Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry);
+  void ClearAndInvalidate(ReadOnlyRoots roots);
+  static Handle<PropertyCell> InvalidateAndReplaceEntry(
+      Isolate* isolate, Handle<GlobalDictionary> dictionary,
+      InternalIndex entry);
 
   static void SetValueWithInvalidation(Isolate* isolate, const char* cell_name,
                                        Handle<PropertyCell> cell,

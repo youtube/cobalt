@@ -36,6 +36,7 @@
 #define V8_CODEGEN_MIPS_ASSEMBLER_MIPS_H_
 
 #include <stdio.h>
+#include <memory>
 
 #include <set>
 
@@ -122,7 +123,7 @@ class Operand {
 
 // On MIPS we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
-class MemOperand : public Operand {
+class V8_EXPORT_PRIVATE MemOperand : public Operand {
  public:
   // Immediate value attached to offset.
   enum OffsetAddend { offset_minus_one = -1, offset_zero = 0 };
@@ -168,6 +169,35 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+
+  // Mips uses BlockTrampolinePool to prevent generating trampoline inside a
+  // continuous instruction block. For Call instrution, it prevents generating
+  // trampoline between jalr and delay slot instruction. In the destructor of
+  // BlockTrampolinePool, it must check if it needs to generate trampoline
+  // immediately, if it does not do this, the branch range will go beyond the
+  // max branch offset, that means the pc_offset after call CheckTrampolinePool
+  // may be not the Call instruction's location. So we use last_call_pc here for
+  // safepoint record.
+  int pc_offset_for_safepoint() {
+#ifdef DEBUG
+    Instr instr1 =
+        instr_at(static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize));
+    Instr instr2 = instr_at(
+        static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize * 2));
+    if (GetOpcodeField(instr1) != SPECIAL) {  // instr1 == jialc.
+      DCHECK(IsMipsArchVariant(kMips32r6) && GetOpcodeField(instr1) == POP76 &&
+             GetRs(instr1) == 0);
+    } else {
+      if (GetFunctionField(instr1) == SLL) {  // instr1 == nop, instr2 == jalr.
+        DCHECK(GetOpcodeField(instr2) == SPECIAL &&
+               GetFunctionField(instr2) == JALR);
+      } else {  // instr1 == jalr.
+        DCHECK(GetFunctionField(instr1) == JALR);
+      }
+    }
+#endif
+    return static_cast<int>(last_call_pc_ - buffer_start_);
+  }
 
   // Label operations & relative jumps (PPUM Appendix D).
   //
@@ -1478,13 +1508,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
   static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
-  static void UnpackTargetAddress(
-      uint32_t address, int16_t& lui_offset,  // NOLINT(runtime/references)
-      int16_t& jic_offset);                   // NOLINT(runtime/references)
-  static void UnpackTargetAddressUnsigned(
-      uint32_t address,
-      uint32_t& lui_offset,   // NOLINT(runtime/references)
-      uint32_t& jic_offset);  // NOLINT(runtime/references)
+  static void UnpackTargetAddress(uint32_t address, int16_t* lui_offset,
+                                  int16_t* jic_offset);
+  static void UnpackTargetAddressUnsigned(uint32_t address,
+                                          uint32_t* lui_offset,
+                                          uint32_t* jic_offset);
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1515,7 +1543,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Helper function for memory load/store using base register and offset.
   void AdjustBaseAndOffset(
-      MemOperand& src,  // NOLINT(runtime/references)
+      MemOperand* src,
       OffsetAccessType access_type = OffsetAccessType::SINGLE_ACCESS,
       int second_access_add_to_offset = 4);
 
@@ -1594,6 +1622,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                 RelocInfo::Mode rmode, BranchDelaySlot bdslot);
 
+  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -1611,6 +1641,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
+  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Repeated checking whether the trampoline pool should be emitted is rather
   // expensive. By default we only check again once a number of instructions
@@ -1856,6 +1887,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
+  // Keep track of the last Call's position to ensure that safepoint can get the
+  // correct information even if there is a trampoline immediately after the
+  // Call.
+  byte* last_call_pc_;
+
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
@@ -1872,7 +1908,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

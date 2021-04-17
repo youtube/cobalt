@@ -266,8 +266,10 @@
 }
 
 {
-  // TODO(v8:9177): test extending a class expression that does not have
-  // a private method.
+  class A extends class { } {
+    #a() {}
+  }
+
   class D extends class {
     #c() {}
   } {
@@ -278,6 +280,30 @@
     #e() {}
   }
 
+  new A;
   new D;
   new E;
+}
+
+// Super access within private methods.
+{
+  class A {
+    foo() { return 1; }
+  }
+
+  class C extends A {
+    #m() { return super.foo; }
+    fn() { return this.#m()(); }
+  }
+
+  assertEquals(1, new C().fn());
+}
+
+{
+  assertThrows(() => {
+    class A {
+      [this.#a] = 1;
+      #a() { }
+    }
+  }, TypeError);
 }
