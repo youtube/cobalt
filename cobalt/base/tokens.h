@@ -103,6 +103,7 @@ namespace base {
     MacroOpWithNameOnly(removesourcebuffer)                          \
     MacroOpWithNameOnly(removetrack)                                 \
     MacroOpWithNameOnly(resize)                                      \
+    MacroOpWithNameOnly(resourcetimingbufferfull)                    \
     MacroOpWithNameOnly(result)                                      \
     MacroOpWithNameOnly(resume)                                      \
     MacroOpWithNameOnly(scroll)                                      \

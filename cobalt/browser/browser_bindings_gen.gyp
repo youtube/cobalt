@@ -276,6 +276,7 @@
         '../dom/media_source_ready_state.idl',
         '../dom/mouse_event_init.idl',
         '../dom/mutation_observer_init.idl',
+        '../dom/performance_observer_callback_options.idl',
         '../dom/performance_observer_init.idl',
         '../dom/pointer_event_init.idl',
         '../dom/source_buffer_append_mode.idl',

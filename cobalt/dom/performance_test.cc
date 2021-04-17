@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -23,7 +24,8 @@ TEST(PerformanceTest, Now) {
   scoped_refptr<base::SystemMonotonicClock> clock(
       new base::SystemMonotonicClock());
 
-  scoped_refptr<Performance> performance(new Performance(clock));
+  testing::StubEnvironmentSettings environment_settings;
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
 
   // Test that now returns a result that is within a correct range for the
   // current time.
@@ -48,7 +50,8 @@ TEST(PerformanceTest, TimeOrigin) {
   // the current time.
   base::Time lower_limit = base::Time::Now();
 
-  scoped_refptr<Performance> performance(new Performance(clock));
+  testing::StubEnvironmentSettings environment_settings;
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
 
   base::Time upper_limit = base::Time::Now();
 
