@@ -1196,6 +1196,18 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   web_module_->InjectWheelEvent(type, event);
 }
 
+void BrowserModule::OnWindowOnOnlineEvent(const base::Event* event) {
+  if (web_module_) {
+    web_module_->InjectWindowOnOnlineEvent(event);
+  }
+}
+
+void BrowserModule::OnWindowOnOfflineEvent(const base::Event* event) {
+  if (web_module_) {
+    web_module_->InjectWindowOnOfflineEvent(event);
+  }
+}
+
 void BrowserModule::InjectKeyEventToMainWebModule(
     base::Token type, const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
