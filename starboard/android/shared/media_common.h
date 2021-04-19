@@ -21,6 +21,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
@@ -40,17 +41,30 @@ inline bool IsWidevineL3(const char* key_system) {
 }
 
 // Map a supported |SbMediaAudioCodec| into its corresponding mime type
-// string.  Returns |NULL| if |audio_codec| is not supported.
+// string.  Returns |nullptr| if |audio_codec| is not supported.
+// On return, |is_passthrough| will be set to true if the codec should be played
+// in passthrough mode, i.e. the AudioDecoder shouldn't decode the input to pcm,
+// and should rely on the audio output device to decode and play the input.
 inline const char* SupportedAudioCodecToMimeType(
-    const SbMediaAudioCodec audio_codec) {
+    const SbMediaAudioCodec audio_codec,
+    bool* is_passthrough) {
+  SB_DCHECK(is_passthrough);
+
+  *is_passthrough = false;
+
+  if (audio_codec == kSbMediaAudioCodecAc3 ||
+      audio_codec == kSbMediaAudioCodecEac3) {
+    *is_passthrough = true;
+    return "audio/raw";
+  }
   if (audio_codec == kSbMediaAudioCodecAac) {
     return "audio/mp4a-latm";
   }
-  return NULL;
+  return nullptr;
 }
 
 // Map a supported |SbMediaVideoCodec| into its corresponding mime type
-// string.  Returns |NULL| if |video_codec| is not supported.
+// string.  Returns |nullptr| if |video_codec| is not supported.
 inline const char* SupportedVideoCodecToMimeType(
     const SbMediaVideoCodec video_codec) {
   if (video_codec == kSbMediaVideoCodecVp9) {
@@ -62,7 +76,34 @@ inline const char* SupportedVideoCodecToMimeType(
   } else if (video_codec == kSbMediaVideoCodecAv1) {
     return "video/av01";
   }
-  return NULL;
+  return nullptr;
+}
+
+inline int GetAudioFormatSampleType(
+    SbMediaAudioCodingType coding_type,
+    const optional<SbMediaAudioSampleType>& sample_type =
+        optional<SbMediaAudioSampleType>()) {
+  if (coding_type == kSbMediaAudioCodingTypeAc3) {
+    SB_DCHECK(!sample_type);
+    return 5;  // Android AudioFormat.ENCODING_AC3.
+  }
+  if (coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus) {
+    SB_DCHECK(!sample_type);
+    return 6;  // Android AudioFormat.ENCODING_E_AC3.
+    // TODO: Consider using 18 (AudioFormat.ENCODING_E_AC3_JOC) when supported.
+  }
+
+  SB_DCHECK(coding_type == kSbMediaAudioCodingTypePcm);
+  SB_DCHECK(sample_type);
+
+  switch (sample_type.value()) {
+    case kSbMediaAudioSampleTypeFloat32:
+      return 4;  // Android AudioFormat.ENCODING_PCM_FLOAT.
+    case kSbMediaAudioSampleTypeInt16Deprecated:
+      return 2;  // Android AudioFormat.ENCODING_PCM_16BIT.
+  }
+  SB_NOTREACHED();
+  return 0u;
 }
 
 }  // namespace shared

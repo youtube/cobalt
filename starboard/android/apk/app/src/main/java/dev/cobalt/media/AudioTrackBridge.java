@@ -63,10 +63,11 @@ public class AudioTrackBridge {
         return 4;
       case AudioFormat.ENCODING_INVALID:
       default:
-        throw new RuntimeException("Unsupport audio format " + audioFormat);
+        throw new RuntimeException("Unsupported audio format " + audioFormat);
     }
   }
 
+  // TODO: Pass error details to caller.
   public AudioTrackBridge(
       int sampleType,
       int sampleRate,
@@ -119,11 +120,18 @@ public class AudioTrackBridge {
               .setUsage(AudioAttributes.USAGE_MEDIA)
               .build();
     } else {
-      // TODO: Investigate if we can use |CONTENT_TYPE_MOVIE| for AudioTrack
-      //       used by video playback.
+      // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
+      final boolean is_surrounding =
+          sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
+      // TODO: We start to enforce |CONTENT_TYPE_MOVIE| for surrounding playback, investigate if we
+      //       can use |CONTENT_TYPE_MOVIE| for all non-surrounding AudioTrack used by video
+      //       playback.
       attributes =
           new AudioAttributes.Builder()
-              .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+              .setContentType(
+                  is_surrounding
+                      ? AudioAttributes.CONTENT_TYPE_MOVIE
+                      : AudioAttributes.CONTENT_TYPE_MUSIC)
               .setUsage(AudioAttributes.USAGE_MEDIA)
               .build();
     }
@@ -243,14 +251,29 @@ public class AudioTrackBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  private void stop() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to stop with NULL audio track.");
+      return;
+    }
+    audioTrack.stop();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   private void flush() {
     if (audioTrack == null) {
       Log.e(TAG, "Unable to flush with NULL audio track.");
       return;
     }
     audioTrack.flush();
+    // Reset the states to allow reuse of |audioTrack| after flush() is called.  This can reduce
+    // switch latency for passthrough playbacks.
     avSyncHeader = null;
     avSyncPacketBytesRemaining = 0;
+    synchronized (this) {
+      maxFramePositionSoFar = 0;
+    }
   }
 
   @SuppressWarnings("unused")
@@ -355,25 +378,30 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
       return audioTimestamp;
     }
-    if (audioTrack.getTimestamp(audioTimestamp)) {
-      // This conversion is safe, as only the lower bits will be set, since we
-      // called |getTimestamp| without a timebase.
-      // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-      audioTimestamp.framePosition &= 0x7FFFFFFF;
-    } else {
-      // Time stamps haven't been updated yet, assume playback hasn't started.
-      audioTimestamp.framePosition = 0;
-      audioTimestamp.nanoTime = System.nanoTime();
-    }
+    // The `synchronized` is required as `maxFramePositionSoFar` can also be modified in flush().
+    // TODO: Consider refactor the code to remove the dependency on `synchronized`.
+    synchronized (this) {
+      if (audioTrack.getTimestamp(audioTimestamp)) {
+        // This conversion is safe, as only the lower bits will be set, since we
+        // called |getTimestamp| without a timebase.
+        // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
+        audioTimestamp.framePosition &= 0x7FFFFFFF;
+      } else {
+        // Time stamps haven't been updated yet, assume playback hasn't started.
+        audioTimestamp.framePosition = 0;
+        audioTimestamp.nanoTime = System.nanoTime();
+      }
 
-    // TODO: This is required for correctness of the audio sink, because
-    // otherwise we would be going back in time. Investigate the impact it has
-    // on playback.  All empirical measurements so far suggest that it should
-    // be negligible.
-    if (audioTimestamp.framePosition < maxFramePositionSoFar) {
-      audioTimestamp.framePosition = maxFramePositionSoFar;
+      if (audioTimestamp.framePosition > maxFramePositionSoFar) {
+        maxFramePositionSoFar = audioTimestamp.framePosition;
+      } else {
+        // The returned |audioTimestamp.framePosition| is not monotonically
+        // increasing, and a monotonically increastion frame position is
+        // required to calculate the playback time correctly, because otherwise
+        // we would be going back in time.
+        audioTimestamp.framePosition = maxFramePositionSoFar;
+      }
     }
-    maxFramePositionSoFar = audioTimestamp.framePosition;
 
     return audioTimestamp;
   }

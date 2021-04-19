@@ -159,7 +159,9 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const SbMediaAudioSampleInfo& audio_sample_info,
     Handler* handler,
     jobject j_media_crypto) {
-  const char* mime = SupportedAudioCodecToMimeType(audio_codec);
+  bool is_passthrough = false;
+  const char* mime =
+      SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
   if (!mime) {
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
