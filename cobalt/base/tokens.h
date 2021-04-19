@@ -83,6 +83,8 @@ namespace base {
     MacroOpWithNameOnly(mouseup)                                     \
     MacroOpWithNameOnly(nomatch)                                     \
     MacroOpWithNameOnly(off)                                         \
+    MacroOpWithNameOnly(offline)                                     \
+    MacroOpWithNameOnly(online)                                      \
     MacroOpWithNameOnly(open)                                        \
     MacroOpWithNameOnly(pointerdown)                                 \
     MacroOpWithNameOnly(pointerenter)                                \

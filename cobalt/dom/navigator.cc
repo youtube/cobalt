@@ -210,6 +210,14 @@ bool Navigator::java_enabled() const { return false; }
 
 bool Navigator::cookie_enabled() const { return false; }
 
+bool Navigator::on_line() const {
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+  return !SbSystemNetworkIsDisconnected();
+#else
+  return true;
+#endif
+}
+
 scoped_refptr<media_capture::MediaDevices> Navigator::media_devices() {
   return media_devices_;
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2021 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html50/webappapis.html#the-navigator-object
+#ifndef COBALT_BASE_WINDOW_ON_ONLINE_EVENT_H_
+#define COBALT_BASE_WINDOW_ON_ONLINE_EVENT_H_
 
-interface Navigator {};
+#include "cobalt/base/event.h"
 
-Navigator implements NavigatorID;
-Navigator implements NavigatorLanguage;
-Navigator implements NavigatorPlugins;
-Navigator implements NavigatorStorageUtils;
-Navigator implements NavigatorMediaSession;
-Navigator implements NavigatorSystemCaptionSettings;
-Navigator implements NavigatorLicenses;
-Navigator implements NavigatorOnline;
+namespace base {
+
+class WindowOnOnlineEvent : public Event {
+ public:
+  WindowOnOnlineEvent() {}
+
+  BASE_EVENT_SUBCLASS(WindowOnOnlineEvent);
+};
+
+}  // namespace base
+
+#endif  // COBALT_BASE_WINDOW_ON_ONLINE_EVENT_H_
