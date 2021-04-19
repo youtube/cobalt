@@ -1,2 +1,0 @@
-<?php
-const LATEST_FIREFOX_DEVEL_VERSION = '33.0b8';
