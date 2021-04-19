@@ -99,10 +99,11 @@ services:
       context: ./docker/linux
       dockerfile: stub/gn/Dockerfile
     image: cobalt-build-linux-stub-gn
+    depends_on: [ build-base ]
     environment:
       <<: *shared-build-env
-      - PLATFORM=stub
-      - CONFIG=${CONFIG:-debug}
+      PLATFORM: stub
+      CONFIG: ${CONFIG:-debug}
 
   linux-x64x11:
     <<: *build-common-definitions
