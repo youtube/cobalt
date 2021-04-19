@@ -88,7 +88,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
       &creation_param->audio_sample_info;
   const auto output_mode = creation_param->output_mode;
 
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
@@ -169,8 +169,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (audio_sample_info &&
       audio_sample_info->number_of_channels > SbAudioSinkGetMaxChannels()) {
-    SB_LOG(ERROR) << "audio_sample_info->number_of_channels exceeds the maximum"
-                  << " number of audio channels supported by this platform.";
+    SB_LOG(ERROR) << "audio_sample_info->number_of_channels ("
+                  << audio_sample_info->number_of_channels
+                  << ") exceeds the maximum"
+                  << " number of audio channels supported by this platform ("
+                  << SbAudioSinkGetMaxChannels() << ").";
     return kSbPlayerInvalid;
   }
 
