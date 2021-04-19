@@ -20,27 +20,15 @@
 
   'variables': {
     'variables': {
-      'variables': {
-        'variables': {
-          # Target machine uses little endian convention
-          'little_endian%': 1,
-
-          # A directory with loose data files.should be used instead of a
-          # single .dat file
-          'use_icu_dat_file%': 0,
-        },
-
-        'little_endian%': '<(little_endian)',
-        'use_icu_dat_file%': '<(use_icu_dat_file)',
-      },
-      'little_endian%': '<(little_endian)',
+      # Target machine uses little endian convention
+      'little_endian%': 1,
     },
 
     'conditions': [
       ['little_endian==1', {
-        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68l' ],
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68l.dat' ],
       }, {
-        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68b' ],
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt68b.dat' ],
       }],
     ],
   },
