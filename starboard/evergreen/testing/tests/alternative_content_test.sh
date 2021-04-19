@@ -32,7 +32,7 @@ function run_test() {
     return 1
   fi
 
-  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date" "--content=${CONTENT}"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.1.log" "App is up to date" "--content=${STORAGE_DIR}/installation_1/content"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to find 'App is up to date' indicating failure"
