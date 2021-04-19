@@ -49,6 +49,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
   // decoder thread.
+  // TODO: Replace this with std::function<> based callbacks.
   class Host {
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,

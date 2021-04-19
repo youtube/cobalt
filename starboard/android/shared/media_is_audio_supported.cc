@@ -30,12 +30,18 @@ using starboard::shared::starboard::media::MimeType;
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
                              int64_t bitrate) {
+  if (bitrate >= kSbMediaMaxAudioBitrateInBitsPerSecond) {
+    return false;
+  }
+
   // Android now uses libopus based opus decoder.
-  if (audio_codec == kSbMediaAudioCodecOpus &&
-      bitrate < kSbMediaMaxAudioBitrateInBitsPerSecond) {
+  if (audio_codec == kSbMediaAudioCodecOpus) {
     return true;
   }
-  const char* mime = SupportedAudioCodecToMimeType(audio_codec);
+
+  bool is_passthrough = false;
+  const char* mime =
+      SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
   if (!mime) {
     return false;
   }
@@ -76,8 +82,34 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   const bool must_support_tunnel_mode =
       enable_tunnel_mode_parameter_value == "true";
-  return env->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
-             "(Ljava/lang/String;IZ)Z", j_mime.Get(),
-             static_cast<jint>(bitrate), must_support_tunnel_mode) == JNI_TRUE;
+  auto media_codec_supported =
+      env->CallStaticBooleanMethodOrAbort(
+          "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
+          "(Ljava/lang/String;IZ)Z", j_mime.Get(), static_cast<jint>(bitrate),
+          must_support_tunnel_mode) == JNI_TRUE;
+  if (!media_codec_supported) {
+    return false;
+  }
+  if (!is_passthrough) {
+    return true;
+  }
+  SbMediaAudioCodingType coding_type;
+  switch (audio_codec) {
+    case kSbMediaAudioCodecAc3:
+      coding_type = kSbMediaAudioCodingTypeAc3;
+      break;
+    case kSbMediaAudioCodecEac3:
+      coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
+      break;
+    default:
+      return false;
+  }
+  int encoding =
+      ::starboard::android::shared::GetAudioFormatSampleType(coding_type);
+  ScopedLocalJavaRef<jobject> j_audio_output_manager(
+      env->CallStarboardObjectMethodOrAbort(
+          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
+  return env->CallBooleanMethodOrAbort(j_audio_output_manager.Get(),
+                                       "hasPassthroughSupportFor", "(I)Z",
+                                       encoding) == JNI_TRUE;
 }
