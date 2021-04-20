@@ -71,7 +71,7 @@ class ApplicationAndroid
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);
   void SendTTSChangedEvent() {
-    Inject(new Event(kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
+    Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                      nullptr, nullptr));
   }
 

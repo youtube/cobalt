@@ -263,7 +263,7 @@ typedef enum SbEventType {
   // SbEventStartData is passed as the data argument.
   //
   // The system may send |kSbEventTypeSuspend| in |PRELOADING| if it wants to
-  // push the app into a lower resource consumption state. Applications can alo
+  // push the app into a lower resource consumption state. Applications can also
   // call SbSystemRequestSuspend() when they are done preloading to request
   // this.
   kSbEventTypePreload,
@@ -345,12 +345,17 @@ typedef enum SbEventType {
   // query the accessibility settings using the appropriate APIs to get the
   // new settings. Note this excludes captions settings changes, which
   // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the
-  // starboard version has kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
-  // then that event should be used to signal text-to-speech settings changes
-  // instead; platforms using older starboard versions should use
-  // kSbEventTypeAccessiblitySettingsChanged for text-to-speech settings
+  // starboard version has
+  // kSbEventTypeAccessib(i)lityTextToSpeechSettingsChanged, then that event
+  // should be used to signal text-to-speech settings changes instead; platforms
+  // using older starboard versions should use
+  // kSbEventTypeAccessib(i)litySettingsChanged for text-to-speech settings
   // changes.
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+  kSbEventTypeAccessibilitySettingsChanged,
+#else
   kSbEventTypeAccessiblitySettingsChanged,
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
 
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
@@ -420,7 +425,11 @@ typedef enum SbEventType {
 
 #if SB_API_VERSION >= 12
   // The platform's text-to-speech settings have changed.
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+  kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+#else
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
 #endif  // SB_API_VERSION >= 12
 
 #if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION

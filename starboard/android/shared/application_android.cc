@@ -310,7 +310,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
       if (enabled != last_is_accessibility_high_contrast_text_enabled_) {
         DispatchAndDelete(
-            new Event(kSbEventTypeAccessiblitySettingsChanged, NULL, NULL));
+            new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
       }
       last_is_accessibility_high_contrast_text_enabled_ = enabled;
       break;

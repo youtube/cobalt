@@ -117,7 +117,11 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilitySettingsChanged:
+#else
     case kSbEventTypeAccessiblitySettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
@@ -132,7 +136,11 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
+#else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
 #endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
     case kSbEventTypeOsNetworkDisconnected:
