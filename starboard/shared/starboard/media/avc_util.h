@@ -45,6 +45,7 @@ class AvcParameterSets {
   };
 
   static const size_t kAnnexBHeaderSizeInBytes = 4;
+  static const uint8_t kIdrStartCode = 0x65;
   static const uint8_t kSpsStartCode = 0x67;
   static const uint8_t kPpsStartCode = 0x68;
 
