@@ -1073,11 +1073,15 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data));
       break;
     }
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilitySettingsChanged:
+#else
     case kSbEventTypeAccessiblitySettingsChanged:
+#endif  // B_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
 #if SB_API_VERSION < 12
       // Also dispatch the newer text-to-speech settings changed event since
-      // the specific kSbEventTypeAccessiblityTextToSpeechSettingsChanged
+      // the specific kSbEventTypeAccessib(i)lityTextToSpeechSettingsChanged
       // event is not available in this starboard version.
       DispatchEventInternal(
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
@@ -1090,7 +1094,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
+#else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
       DispatchEventInternal(
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
       break;
@@ -1225,7 +1233,11 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
+#else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
 #endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
@@ -1235,7 +1247,11 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilitySettingsChanged:
+#else
     case kSbEventTypeAccessiblitySettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
     case kSbEventTypeInput:
     case kSbEventTypeLink:
     case kSbEventTypeScheduled:
