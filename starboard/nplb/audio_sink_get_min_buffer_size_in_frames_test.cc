@@ -18,8 +18,6 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= 11
-
 const int kMaxAllowedMinRequiredFrames = 16 * 1024;
 
 TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
@@ -53,7 +51,6 @@ TEST(SbAudioSinkGetMinBufferSizeInFramesTest, SunnyDay) {
     EXPECT_LE(min_required_frames, kMaxAllowedMinRequiredFrames);
   }
 }
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace nplb
 }  // namespace starboard

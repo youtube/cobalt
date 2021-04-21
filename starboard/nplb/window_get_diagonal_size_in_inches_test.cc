@@ -19,11 +19,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 11
 TEST(SbWindowGetDiagonalSizeInInches, RainyDay) {
   ASSERT_EQ(0.f, SbWindowGetDiagonalSizeInInches(kSbWindowInvalid));
 }
-#endif
 
 }  // namespace
 }  // namespace nplb

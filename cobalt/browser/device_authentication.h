@@ -23,8 +23,6 @@
 namespace cobalt {
 namespace browser {
 
-#if SB_API_VERSION >= 11
-
 // Returns a base64 encoded SHA256 hash representing the device authentication
 // signature based on the device certification scope and the current time.
 std::string GetDeviceAuthenticationSignedURLQueryString();
@@ -51,8 +49,6 @@ std::string ComputeMessage(const std::string& cert_scope,
 void ComputeHMACSHA256SignatureWithProvidedKey(
     const std::string& message, const std::string& base64_key,
     uint8_t* signature_hash, size_t signature_hash_size_in_bytes);
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace browser
 }  // namespace cobalt

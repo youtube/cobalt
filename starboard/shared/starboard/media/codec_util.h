@@ -39,11 +39,9 @@ class VideoConfig {
               const uint8_t* data,
               size_t size);
 
-#if SB_API_VERSION >= 11
   VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
               const uint8_t* data,
               size_t size);
-#endif  // SB_API_VERSION >= 11
 
   bool is_valid() const { return video_codec_ != kSbMediaVideoCodecNone; }
 

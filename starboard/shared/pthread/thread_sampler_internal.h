@@ -17,7 +17,6 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 class SbThreadSamplerPrivate {
  public:
   explicit SbThreadSamplerPrivate(SbThread thread);
@@ -31,6 +30,5 @@ class SbThreadSamplerPrivate {
  private:
   SbThread thread_;
 };
-#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_SAMPLER_INTERNAL_H_

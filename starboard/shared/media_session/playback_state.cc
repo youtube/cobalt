@@ -48,12 +48,10 @@ const CobaltExtensionMediaSessionApi* g_extension;
 }  // namespace
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
-#if SB_API_VERSION >= 11
   if (g_extension == NULL) {
     g_extension = static_cast<const CobaltExtensionMediaSessionApi*>(
         SbSystemGetExtension(kCobaltExtensionMediaSessionName));
   }
-#endif
   if (g_extension &&
       SbStringCompareAll(g_extension->name, kCobaltExtensionMediaSessionName) ==
           0 &&

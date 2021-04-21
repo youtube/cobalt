@@ -15,13 +15,6 @@
 #ifndef COBALT_RENDERER_GLES_EXT_H_
 #define COBALT_RENDERER_GLES_EXT_H_
 
-#include "starboard/configuration.h"
-
-#if SB_API_VERSION < 11
-#error \
-    "Only include this file when SB_API_VERSION >= 11."
-#endif  // SB_API_VERSION < 11
-
 // The following #defines were pulled directly from
 // https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h.
 #ifndef GL_KHR_blend_equation_advanced

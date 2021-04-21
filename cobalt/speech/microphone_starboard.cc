@@ -26,7 +26,6 @@ namespace {
 // one microphone.
 const int kNumberOfMicrophones = 1;
 
-#if SB_API_VERSION >= 9
 template <std::size_t N>
 bool IsNullTerminated(const char (&str)[N]) {
   for (size_t i = 0; i < N; ++i) {
@@ -36,7 +35,6 @@ bool IsNullTerminated(const char (&str)[N]) {
   }
   return false;
 }
-#endif
 
 }  // namespace
 
@@ -62,11 +60,9 @@ MicrophoneStarboard::MicrophoneStarboard(int sample_rate, int buffer_size_bytes)
     // Created a microphone successfully.
     min_microphone_read_in_bytes_ = info[index].min_read_size;
 
-#if SB_API_VERSION >= 9
     if (IsNullTerminated(info[index].label)) {
       label_ = info[index].label;
     }
-#endif
 
     return;
   }

@@ -274,7 +274,6 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
   SB_DCHECK(audio_decoder);
   SB_DCHECK(audio_renderer_sink);
 
-#if SB_API_VERSION >= 11
   auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                             SbDrmSystem drm_system) {
     return scoped_ptr<AudioDecoder>(
@@ -283,11 +282,6 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
   audio_decoder->reset(new AdaptiveAudioDecoder(
       creation_parameters.audio_sample_info(), creation_parameters.drm_system(),
       decoder_creator));
-#else   // SB_API_VERSION >= 11
-  audio_decoder->reset(
-      new StubAudioDecoder(creation_parameters.audio_codec(),
-                           creation_parameters.audio_sample_info()));
-#endif  // SB_API_VERISON >= 11
   audio_renderer_sink->reset(new AudioRendererSinkImpl);
 }
 
@@ -317,7 +311,6 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   SB_DCHECK(kDefaultAudioSinkMinFramesPerAppend % kAudioSinkFramesAlignment ==
             0);
   *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
-#if SB_API_VERSION >= 11
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
@@ -333,9 +326,6 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
                        kDefaultAudioSinkMinFramesPerAppend;
   *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
-#else   // SB_API_VERSION >= 11
-  *max_cached_frames = kDefaultAudioSinkMaxCachedFrames;
-#endif  // SB_API_VERSION >= 11
 }
 
 }  // namespace filter

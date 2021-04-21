@@ -18,7 +18,7 @@
 #include <starboard/cpu_features.h>
 #include <starboard/string.h>
 
-#if defined(STARBOARD) && (SB_API_VERSION >= 11)
+#if defined(STARBOARD)
 
 #if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
 

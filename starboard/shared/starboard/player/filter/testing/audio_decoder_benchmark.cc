@@ -70,15 +70,8 @@ class AudioDecoderHelper {
   scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
     auto player_sample_info =
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= 11
     return new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
                            player_sample_info);
-#else   // SB_API_VERSION >= 11
-    SbMediaAudioSampleInfo audio_sample_info =
-        dmp_reader_.GetAudioSampleInfo(index);
-    return new InputBuffer(kSbMediaTypeAudio, StubDeallocateSampleFunc, NULL,
-                           NULL, player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= 11
   }
 
   void OnOutput() {

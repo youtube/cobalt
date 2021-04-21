@@ -76,14 +76,9 @@ TEST(SbSocketSendToTest, RainyDayUnconnectedSocket) {
   int result = SbSocketSendTo(socket, buf, sizeof(buf), NULL);
   EXPECT_EQ(-1, result);
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
-#else
-  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(socket));
-#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= 9
 
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
@@ -112,14 +107,9 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   void* thread_result;
   EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(trio.server_socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
-#else
-  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(trio.server_socket));
-#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= 9
 
   // Clean up the server socket.
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
@@ -185,12 +175,8 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
     if (result < 0) {
       SbSocketError err = SbSocketGetLastError(trio->client_socket->socket());
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
       EXPECT_EQ(kSbSocketErrorConnectionReset, err)
           << "Expected connection drop.";
-#else
-      EXPECT_EQ(kSbSocketErrorFailed, err);
-#endif
       return;
     }
 

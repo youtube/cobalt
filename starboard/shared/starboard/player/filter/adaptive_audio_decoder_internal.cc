@@ -28,7 +28,6 @@ namespace filter {
 
 using common::ResetAndReturn;
 
-#if SB_API_VERSION >= 11
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const SbMediaAudioSampleInfo& audio_sample_info,
     SbDrmSystem drm_system,
@@ -257,7 +256,6 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     Schedule(output_cb_);
   }
 }
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace filter
 }  // namespace player

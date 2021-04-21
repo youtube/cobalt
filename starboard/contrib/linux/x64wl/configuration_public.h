@@ -90,10 +90,7 @@
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
 
-#if SB_API_VERSION >= 8
 // Whether the current platform implements the on screen keyboard interface.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-#endif  // SB_API_VERSION >= 8
 
 #endif  // STARBOARD_CONTRIB_LINUX_X64WL_CONFIGURATION_PUBLIC_H_

@@ -216,11 +216,8 @@ TEST(VideoCapabilitiesTest, MultiCodecsAndDynamicRanges) {
       kSbMediaVideoCodecVp9, kSbMediaTransferIdAribStdB67, 1920, 1080, 60));
   EXPECT_FALSE(video_capabilities.IsSupported(
       kSbMediaVideoCodecVp9, kSbMediaTransferId10BitBt2020, 2560, 1440, 60));
-
-#if SB_API_VERSION >= 11
   EXPECT_FALSE(video_capabilities.IsSupported(
       kSbMediaVideoCodecAv1, kSbMediaTransferId10BitBt2020, 2560, 1440, 30));
-#endif  // SB_API_VERSION >= 11
 }
 
 }  // namespace

@@ -14,11 +14,9 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
-#if SB_API_VERSION >= 11
 SbThreadSampler SbThreadSamplerCreate(SbThread thread) {
   if (!SbThreadIsValid(thread)) {
     return kSbThreadSamplerInvalid;
   }
   return new SbThreadSamplerPrivate(thread);
 }
-#endif  // SB_API_VERSION >= 11

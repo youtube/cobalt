@@ -80,7 +80,6 @@ void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
 }
 
 bool ShouldClearFrameOnShutdown(render_tree::ColorRGBA* out_clear_color) {
-#if SB_API_VERSION >= 11
   const CobaltExtensionGraphicsApi* graphics_extension =
       static_cast<const CobaltExtensionGraphicsApi*>(
           SbSystemGetExtension(kCobaltExtensionGraphicsName));
@@ -97,7 +96,6 @@ bool ShouldClearFrameOnShutdown(render_tree::ColorRGBA* out_clear_color) {
     }
     return false;
   }
-#endif
 
   // Default is to clear to opaque black.
   out_clear_color->set_r(0.0f);

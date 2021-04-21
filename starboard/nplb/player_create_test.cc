@@ -245,11 +245,7 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < 11
-    kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9,
   };
@@ -279,9 +275,7 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     for (int j = 0; j < SB_ARRAY_SIZE_INT(kOutputModes); ++j) {
       for (int k = 0; k < SB_ARRAY_SIZE_INT(kAudioCodecs); ++k) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
-#if SB_API_VERSION >= 11
           audio_sample_info.codec = kAudioCodecs[k];
-#endif  // SB_API_VERSION >= 11
           created_players.push_back(CallSbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_sample_info,

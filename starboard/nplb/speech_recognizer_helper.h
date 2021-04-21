@@ -25,7 +25,7 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 class SpeechRecognizerTest : public ::testing::Test {
  public:
@@ -82,8 +82,7 @@ class SpeechRecognizerTest : public ::testing::Test {
   SbSpeechRecognizerHandler handler_;
 };
 
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 }  // namespace nplb
 }  // namespace starboard

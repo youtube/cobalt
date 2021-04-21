@@ -14,8 +14,6 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
-
 #include <ucontext.h>
 
 #include "starboard/common/log.h"
@@ -53,5 +51,3 @@ bool SbThreadContextGetPointer(SbThreadContext context,
       return false;
   }
 }
-
-#endif  // SB_API_VERSION >= 11

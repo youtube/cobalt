@@ -19,8 +19,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 11
-
 // Verifies that we are able to query for the Starboard EGL interface, and that
 // the interface is correctly populated with function pointers that cover the
 // EGL 1.4 interface.
@@ -67,8 +65,6 @@ TEST(SbEglInterfaceTest, HasValidEglInterface) {
   EXPECT_NE(nullptr, egl_interface->eglWaitClient);
   EXPECT_NE(nullptr, egl_interface->eglGetCurrentContext);
 }
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace
 }  // namespace nplb

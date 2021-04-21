@@ -127,8 +127,4 @@ SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 }  // extern "C"
 #endif
 
-#if defined(__cplusplus) && SB_API_VERSION < 11
-#include "starboard/common/condition_variable.h"
-#endif  // defined(__cplusplus) && SB_API_VERSION < 11
-
 #endif  // STARBOARD_CONDITION_VARIABLE_H_

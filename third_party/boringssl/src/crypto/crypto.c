@@ -148,7 +148,7 @@ static void OPENSSL_CDECL do_library_init(void) {
  // WARNING: this function may only configure the capability variables. See the
  // note above about the linker bug.
 #if defined(NEED_CPUID)
-#if defined(STARBOARD) && (SB_API_VERSION >= 11)
+#if defined(STARBOARD)
   OPENSSL_cpuid_setup_starboard();
 #else
   OPENSSL_cpuid_setup();

@@ -45,8 +45,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/cpu_features.h"
 
-#if SB_API_VERSION >= 11
-
 namespace {
 
 #if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
@@ -747,5 +745,3 @@ bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   return false;
 #endif
 }
-
-#endif  // SB_API_VERSION >= 11

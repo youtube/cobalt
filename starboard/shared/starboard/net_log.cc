@@ -93,12 +93,9 @@ std::string ToString(SbSocketError error) {
       return "kSbSocketErrorFailed";
     }
 
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
     case kSbSocketErrorConnectionReset: {
       return "kSbSocketErrorConnectionReset";
     }
-#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= 9
   }
   SB_NOTREACHED() << "Unexpected case " << error;
   std::stringstream ss;
@@ -178,12 +175,7 @@ class BufferedSocketWriter {
   }
 
   bool IsConnectionReset(SbSocketError err) {
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || SB_API_VERSION >= 9
     return err == kSbSocketErrorConnectionReset;
-#else
-    return false;
-#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= 9
   }
 
   // Will flush data through to the dest_socket. Returns |true| if

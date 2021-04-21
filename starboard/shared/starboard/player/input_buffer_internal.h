@@ -33,19 +33,10 @@ namespace player {
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
  public:
-#if SB_API_VERSION >= 11
   InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
               const SbPlayerSampleInfo& sample_info);
-#else   // SB_API_VERSION >= 11
-  InputBuffer(SbMediaType sample_type,
-              SbPlayerDeallocateSampleFunc deallocate_sample_func,
-              SbPlayer player,
-              void* context,
-              const SbPlayerSampleInfo& sample_info,
-              const SbMediaAudioSampleInfo* audio_sample_info);
-#endif  // SB_API_VERSION >= 11
 
   ~InputBuffer();
 

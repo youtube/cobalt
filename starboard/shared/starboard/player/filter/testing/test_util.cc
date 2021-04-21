@@ -164,11 +164,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
 #endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#if SB_API_VERSION >= 11
               video_sample_info.frame_width, video_sample_info.frame_height,
-#else   // SB_API_VERSION >= 11
-              video_sample_info->frame_width, video_sample_info->frame_height,
-#endif  // SB_API_VERSION >= 11
               dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
         test_params.push_back(std::make_tuple(filename, output_mode));
       }

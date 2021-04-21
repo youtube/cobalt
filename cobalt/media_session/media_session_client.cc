@@ -68,9 +68,6 @@ void GuessMediaPositionState(MediaSessionState* session_state,
 MediaSessionClient::MediaSessionClient(MediaSession* media_session)
     : media_session_(media_session),
       platform_playback_state_(kMediaSessionPlaybackStateNone) {
-#if SB_API_VERSION < 11
-  extension_ = nullptr;
-#else
   extension_ = static_cast<const CobaltExtensionMediaSessionApi*>(
       SbSystemGetExtension(kCobaltExtensionMediaSessionName));
   if (extension_) {
@@ -84,7 +81,6 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
           this, &InvokeActionCallback, &UpdatePlatformPlaybackStateCallback);
     }
   }
-#endif
 }
 
 MediaSessionClient::~MediaSessionClient() {

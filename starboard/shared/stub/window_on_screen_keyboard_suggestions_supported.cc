@@ -15,10 +15,8 @@
 #include "starboard/window.h"
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= 11
 bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window) {
   return false;
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)

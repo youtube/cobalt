@@ -91,15 +91,11 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
     : number_of_channels_(number_of_channels),
       output_sample_type_(GetPreferredOutputStarboardSampleType()),
       render_callback_(callback),
-#if SB_API_VERSION >= 11
       frames_per_channel_(std::max(SbAudioSinkGetMinBufferSizeInFrames(
                                        number_of_channels, output_sample_type_,
                                        kStandardOutputSampleRate) +
                                        kRenderBufferSizeFrames * 2,
                                    kDefaultFramesPerChannel)),
-#else  // SB_API_VERSION >= 11
-      frames_per_channel_(kDefaultFramesPerChannel),
-#endif  // SB_API_VERSION >= 11
       input_audio_bus_(static_cast<size_t>(number_of_channels),
                        static_cast<size_t>(kRenderBufferSizeFrames),
                        GetPreferredOutputSampleType(), AudioBus::kPlanar),

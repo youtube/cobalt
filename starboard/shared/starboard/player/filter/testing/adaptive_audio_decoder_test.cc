@@ -32,8 +32,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Implement AudioDecoderMock and refactor the test accordingly.
-#if SB_API_VERSION >= 11
-
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -57,15 +55,8 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
 
   auto player_sample_info =
       dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= 11
   return new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
                          player_sample_info);
-#else   // SB_API_VERSION >= 11
-  SbMediaAudioSampleInfo audio_sample_info =
-      dmp_reader.GetAudioSampleInfo(index);
-  return new InputBuffer(kSbMediaTypeAudio, StubDeallocateSampleFunc, NULL,
-                         NULL, player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= 11
 }
 
 string GetTestInputDirectory() {
@@ -408,5 +399,3 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 11

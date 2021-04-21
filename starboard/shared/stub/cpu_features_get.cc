@@ -17,8 +17,6 @@
 
 #include <string.h>
 
-#if SB_API_VERSION >= 11
-
 using starboard::shared::SetArmFeaturesInvalid;
 using starboard::shared::SetGeneralFeaturesInvalid;
 using starboard::shared::SetX86FeaturesInvalid;
@@ -33,4 +31,3 @@ bool SbCPUFeaturesGet(SbCPUFeatures* features) {
 
   return false;
 }
-#endif  // SB_API_VERSION >= 11

@@ -335,21 +335,6 @@ typedef enum SbEventType {
   // No data argument.
   kSbEventTypeVerticalSync,
 
-#if SB_API_VERSION < 11
-  // The platform has detected a network disconnection. The platform should make
-  // a best effort to send an event of this type when the network disconnects,
-  // but there are likely to be cases where the platform cannot detect the
-  // disconnection (e.g. if the connection is via a powered hub which becomes
-  // disconnected), so the current network state cannot always be inferred from
-  // the sequence of Connect/Disconnect events.
-  kSbEventTypeNetworkDisconnect,
-
-  // The platform has detected a network connection. This event may be sent at
-  // application start-up, and should always be sent if the network reconnects
-  // since a disconnection event was sent.
-  kSbEventTypeNetworkConnect,
-#endif  // SB_API_VERSION < 11
-
   // An event type reserved for scheduled callbacks. It will only be sent in
   // response to an application call to SbEventSchedule(), and it will call the
   // callback directly, so SbEventHandle should never receive this event
@@ -374,11 +359,10 @@ typedef enum SbEventType {
   // to respond to or handle this event, it is only advisory.
   kSbEventTypeLowMemory,
 
-#if SB_API_VERSION >= 8
   // The size or position of a SbWindow has changed. The data is
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
-#endif  // SB_API_VERSION >= 8
+
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // The platform has shown the on screen keyboard. This event is triggered by
   // the system or by the application's OnScreenKeyboard show method. The event
@@ -416,7 +400,6 @@ typedef enum SbEventType {
   // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardBlurred,
 
-#if SB_API_VERSION >= 11
   // The platform has updated the on screen keyboard suggestions. This event is
   // triggered by the system or by the application's OnScreenKeyboard update
   // suggestions method. The event has int data representing a ticket. The
@@ -426,7 +409,6 @@ typedef enum SbEventType {
   // SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
   // ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
-#endif  // SB_API_VERSION >= 11
 
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
@@ -486,13 +468,11 @@ typedef struct SbEventStartData {
   const char* link;
 } SbEventStartData;
 
-#if SB_API_VERSION >= 8
 // Event data for kSbEventTypeWindowSizeChanged events.
 typedef struct SbEventWindowSizeChangedData {
   SbWindow window;
   SbWindowSize size;
 } SbEventWindowSizeChangedData;
-#endif  // SB_API_VERSION >= 8
 
 #define kSbEventIdInvalid (SbEventId)0
 

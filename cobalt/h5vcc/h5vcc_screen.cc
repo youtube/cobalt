@@ -23,15 +23,11 @@ namespace h5vcc {
 
 // static
 float H5vccScreen::GetDiagonal(script::EnvironmentSettings* settings) {
-#if SB_API_VERSION >= 11
   DCHECK(settings);
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
   DCHECK(dom_settings->window());
   return dom_settings->window()->viewport_diagonal_inches();
-#else   // SB_API_VERSION < 11
-  return 0;
-#endif  // SB_API_VERSION < 11
 }
 
 }  // namespace h5vcc
