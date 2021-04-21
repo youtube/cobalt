@@ -19,13 +19,13 @@ import imp
 import importlib
 import logging
 import os
-import subprocess
 import sys
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import config
 from starboard.tools import paths
 from starboard.tools import platform
+from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
@@ -165,22 +165,14 @@ def _GetClangBinPath(clang_spec):
 
 
 def EnsureClangAvailable(clang_spec):
-  """Ensure the expected version of clang is available."""
+  """Ensure the expected version of Clang is available."""
 
-  # Run the clang update script to get the correct version of clang.
-  # Then check that clang is in the path.
-  update_script = os.path.join(paths.REPOSITORY_ROOT, 'tools', 'clang',
-                               'scripts', 'update.py')
+  # Run the Clang update tool to ensure correct version of Clang,
+  # then check that Clang is in the path.
   base_dir = _GetClangBasePath(clang_spec)
-  update_proc = subprocess.Popen([
-      update_script, '--force-clang-revision', clang_spec.revision,
-      '--verify-version', clang_spec.version, '--clang-dir', base_dir
-  ])
-  rc = update_proc.wait()
-  if rc != 0:
-    raise RuntimeError('%s failed.' % update_script)
+  download_clang.UpdateClang(target_dir=base_dir, revision=clang_spec.revision)
 
-  # update.sh downloads clang to this path.
+  # update.sh downloads Clang to this path.
   clang_bin = os.path.join(_GetClangBinPath(clang_spec), 'clang')
 
   if not os.path.exists(clang_bin):
