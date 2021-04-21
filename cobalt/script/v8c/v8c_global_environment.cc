@@ -229,7 +229,11 @@ void V8cGlobalEnvironment::AddRoot(Traceable* traceable) {
 }
 
 void V8cGlobalEnvironment::RemoveRoot(Traceable* traceable) {
-  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->RemoveRoot(traceable);
+  CHECK(isolate_);
+  V8cEngine* v8c_engine = V8cEngine::GetFromIsolate(isolate_);
+  CHECK(v8c_engine);
+  CHECK(v8c_engine->heap_tracer());
+  v8c_engine->heap_tracer()->RemoveRoot(traceable);
 }
 
 void V8cGlobalEnvironment::PreventGarbageCollection(
