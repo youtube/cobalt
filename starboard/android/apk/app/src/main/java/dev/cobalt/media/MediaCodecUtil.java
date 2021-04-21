@@ -120,6 +120,7 @@ public class MediaCodecUtil {
     // On the emulator it fails with the log: "storeMetaDataInBuffers failed w/ err -1010"
     codecBlackList.add("OMX.google.vp9.decoder");
 
+    vp9WhiteList.put("Amazon", new HashSet<String>());
     vp9WhiteList.put("Amlogic", new HashSet<String>());
     vp9WhiteList.put("Arcadyan", new HashSet<String>());
     vp9WhiteList.put("arcelik", new HashSet<String>());
@@ -159,6 +160,7 @@ public class MediaCodecUtil {
     vp9WhiteList.put("Xiaomi", new HashSet<String>());
     vp9WhiteList.put("ZTE TV", new HashSet<String>());
 
+    vp9WhiteList.get("Amazon").add("AFTS");
     vp9WhiteList.get("Amlogic").add("p212");
     vp9WhiteList.get("Arcadyan").add("Bouygtel4K");
     vp9WhiteList.get("Arcadyan").add("HMB2213PW22TS");
