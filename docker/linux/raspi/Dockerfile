@@ -23,8 +23,6 @@ ENV RASPI_HOME=${raspi_home}
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         g++-multilib \
-        python-requests \
-        wget \
         xz-utils \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
@@ -36,7 +34,7 @@ RUN mkdir -p ${raspi_home}/tools \
     && git clone https://github.com/raspberrypi/tools.git ${raspi_home}/tools
 
 RUN cd ${raspi_home} \
-    && wget -q \
+    && curl --silent -O -J \
     "https://storage.googleapis.com/cobalt-static-storage/${raspi_sysroot}"
 
 RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot}
