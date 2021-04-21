@@ -17,8 +17,6 @@
 
 #include "starboard/egl.h"
 
-#if SB_API_VERSION >= 11
-
 #if !defined(EGL_VERSION_1_0) || !defined(EGL_VERSION_1_1) || \
     !defined(EGL_VERSION_1_2) || !defined(EGL_VERSION_1_3) || \
     !defined(EGL_VERSION_1_4)
@@ -112,5 +110,3 @@ const SbEglInterface g_sb_egl_interface = {
 const SbEglInterface* SbGetEglInterface() {
   return &g_sb_egl_interface;
 }
-
-#endif  // SB_API_VERSION >= 11

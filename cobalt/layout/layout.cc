@@ -199,7 +199,6 @@ scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
   render_tree::Node* static_root_node =
       new render_tree::CompositionNode(std::move(render_tree_root_builder));
 
-#if SB_API_VERSION >= 11
   // Support insertion of a custom transform at the render tree root.
   static const CobaltExtensionGraphicsApi* s_graphics_extension =
       static_cast<const CobaltExtensionGraphicsApi*>(
@@ -214,7 +213,6 @@ scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
         static_root_node, math::Matrix3F::FromValues(m00, m01, m02, m10, m11,
                                                      m12, m20, m21, m22));
   }
-#endif  // SB_API_VERSION >= 11
 
   // Make it easy to animate the entire tree by placing an AnimateNode at the
   // root to merge any sub-AnimateNodes.

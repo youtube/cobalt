@@ -180,7 +180,6 @@ uint32_t DecodeTargetFormatToGLFormat(
     } break;
     case kSbDecodeTargetFormat2PlaneYUVNV12: {
       DCHECK_LT(plane, 2);
-#if SB_API_VERSION >= 7
       // If this DCHECK fires, please set gl_texture_format, introduced
       // in Starboard 7.
       //
@@ -204,26 +203,15 @@ uint32_t DecodeTargetFormatToGLFormat(
           CHECK(false);
           return 0;
       }
-#else   // SB_API_VERSION >= 7
-      switch (plane) {
-        case 0:
-          return GL_ALPHA;
-        case 1:
-          return GL_LUMINANCE_ALPHA;
-        default:
-          NOTREACHED();
-          return GL_RGBA;
-      }
-#endif  // SB_API_VERSION >= 7
     } break;
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
-#if SB_API_VERSION >= 7 && defined(GL_RED_EXT)
+#if defined(GL_RED_EXT)
       if (plane_info->gl_texture_format == GL_RED_EXT) {
         return GL_RED_EXT;
       }
-#endif  // SB_API_VERSION >= 7 && defined(GL_RED_EXT)
+#endif  // defined(GL_RED_EXT)
       return GL_ALPHA;
     } break;
     default: {

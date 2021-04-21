@@ -69,19 +69,15 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(SbEventType event_type);
 
-#if SB_API_VERSION >= 8
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 8
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
   void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
-#if SB_API_VERSION >= 11
   void OnOnScreenKeyboardSuggestionsUpdatedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -113,17 +109,13 @@ class Application {
   std::unique_ptr<BrowserModule> browser_module_;
 
 // Event callbacks.
-#if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
-#if SB_API_VERSION >= 11
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)

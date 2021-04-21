@@ -27,7 +27,6 @@ namespace shared {
 namespace starboard {
 namespace player {
 
-#if SB_API_VERSION >= 11
 InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
                          SbPlayer player,
                          void* context,
@@ -60,32 +59,6 @@ InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
         sample_info.side_data->data + sample_info.side_data->size);
   }
 }
-#else   // SB_API_VERSION >= 11
-InputBuffer::InputBuffer(SbMediaType sample_type,
-                         SbPlayerDeallocateSampleFunc dealloate_sample_func,
-                         SbPlayer player,
-                         void* context,
-                         const SbPlayerSampleInfo& sample_info,
-                         const SbMediaAudioSampleInfo* audio_sample_info)
-    : deallocate_sample_func_(dealloate_sample_func),
-      player_(player),
-      context_(context),
-      sample_type_(sample_type),
-      data_(static_cast<const uint8_t*>(sample_info.buffer)),
-      size_(sample_info.buffer_size),
-      timestamp_(sample_info.timestamp) {
-  SB_DCHECK(deallocate_sample_func_);
-
-  if (sample_type_ == kSbMediaTypeVideo) {
-    SB_DCHECK(sample_info.video_sample_info);
-    video_sample_info_ = *sample_info.video_sample_info;
-  } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeAudio && audio_sample_info);
-    audio_sample_info_ = *audio_sample_info;
-  }
-  TryToAssignDrmSampleInfo(sample_info.drm_info);
-}
-#endif  // SB_API_VERSION >= 11
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);

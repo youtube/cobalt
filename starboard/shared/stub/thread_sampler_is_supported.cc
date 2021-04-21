@@ -14,6 +14,4 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 bool SbThreadSamplerIsSupported() { return false; }
-#endif  // SB_API_VERSION >= 11

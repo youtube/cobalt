@@ -68,13 +68,8 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
       return "theora";
     case kSbMediaVideoCodecVc1:
       return "vc1";
-#if SB_API_VERSION < 11
-    case kSbMediaVideoCodecVp10:
-      return "vp10";
-#else  // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
       return "av1";
-#endif  // SB_API_VERSION < 11
     case kSbMediaVideoCodecVp8:
       return "vp8";
     case kSbMediaVideoCodecVp9:
@@ -269,12 +264,10 @@ std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoSampleInfo& sample_info) {
   using starboard::GetMediaVideoCodecName;
 
-#if SB_API_VERSION >= 11
   if (sample_info.codec == kSbMediaVideoCodecNone) {
     return os;
   }
   os << "codec: " << GetMediaVideoCodecName(sample_info.codec) << ", ";
-#endif  // SB_API_VERSION >= 11
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>")
      << ", max video capabilities: "
@@ -286,11 +279,7 @@ std::ostream& operator<<(std::ostream& os,
     os << "key frame, ";
   }
   os << sample_info.frame_width << 'x' << sample_info.frame_height << ' ';
-#if SB_API_VERSION >= 11
   os << '(' << sample_info.color_metadata << ')';
-#else  // SB_API_VERSION >= 11
-  os << '(' << *sample_info.color_metadata << ')';
-#endif  // SB_API_VERSION >= 11
   return os;
 }
 
@@ -299,12 +288,10 @@ std::ostream& operator<<(std::ostream& os,
   using starboard::GetMediaAudioCodecName;
   using starboard::HexEncode;
 
-#if SB_API_VERSION >= 11
   if (sample_info.codec == kSbMediaAudioCodecNone) {
     return os;
   }
   os << "codec: " << GetMediaAudioCodecName(sample_info.codec) << ", ";
-#endif  // SB_API_VERSION >= 11
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>");
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

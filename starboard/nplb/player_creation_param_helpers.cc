@@ -22,9 +22,7 @@ namespace nplb {
 SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
   SbMediaAudioSampleInfo audio_sample_info = {};
 
-#if SB_API_VERSION >= 11
   audio_sample_info.codec = codec;
-#endif  // SB_API_VERSION >= 11
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   audio_sample_info.mime = "";
@@ -106,28 +104,17 @@ SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
 SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
   SbMediaVideoSampleInfo video_sample_info = {};
 
-#if SB_API_VERSION >= 11
   video_sample_info.codec = codec;
-#endif  // SB_API_VERSION >= 11
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   video_sample_info.mime = "";
   video_sample_info.max_video_capabilities = "";
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-#if SB_API_VERSION >= 11
   video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
   video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_sample_info.color_metadata.range = kSbMediaRangeIdLimited;
-#else   // SB_API_VERSION >= 11
-  static SbMediaColorMetadata color_metadata;
-  color_metadata.primaries = kSbMediaPrimaryIdBt709;
-  color_metadata.transfer = kSbMediaTransferIdBt709;
-  color_metadata.matrix = kSbMediaMatrixIdBt709;
-  color_metadata.range = kSbMediaRangeIdLimited;
-  video_sample_info.color_metadata = &color_metadata;
-#endif  // SB_API_VERSION >= 11
 
   video_sample_info.frame_width = 1920;
   video_sample_info.frame_height = 1080;

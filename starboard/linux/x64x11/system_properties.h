@@ -17,9 +17,7 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 11
 extern const char kCertificationScope[];
 extern const char kBase64EncodedCertificationSecret[];
-#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_

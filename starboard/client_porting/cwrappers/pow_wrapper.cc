@@ -23,7 +23,6 @@ static double (*g_pow_wrapper)(double, double) = &pow;
 static SbOnceControl g_pow_wrapper_once = SB_ONCE_INITIALIZER;
 
 static void InitPowWrapper(void) {
-#if SB_API_VERSION >= 11
   const CobaltExtensionCWrappersApi* cwrappers =
       (const CobaltExtensionCWrappersApi*)SbSystemGetExtension(
           kCobaltExtensionCWrappersName);
@@ -31,7 +30,6 @@ static void InitPowWrapper(void) {
       cwrappers->PowWrapper != NULL) {
     g_pow_wrapper = cwrappers->PowWrapper;
   }
-#endif
 }
 
 extern "C" {

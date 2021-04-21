@@ -25,7 +25,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 11
 namespace cobalt {
 namespace extension {
 
@@ -262,4 +261,3 @@ TEST(ExtensionTest, Font) {
 }
 }  // namespace extension
 }  // namespace cobalt
-#endif  // SB_API_VERSION >= 11

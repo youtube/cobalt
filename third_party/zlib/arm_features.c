@@ -25,9 +25,7 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 #include "starboard/log.h"
 #include "starboard/once.h"
 #include "starboard/string.h"
-#if SB_API_VERSION >= 11
 #include "starboard/cpu_features.h"
-#endif
 #elif defined(ARMV8_OS_ANDROID)
 #include <cpu-features.h>
 #elif defined(ARMV8_OS_LINUX)
@@ -78,7 +76,6 @@ void ZLIB_INTERNAL arm_check_features(void)
 static void _arm_check_features(void)
 {
 #if defined(STARBOARD)
-#if SB_API_VERSION >= 11
     SbCPUFeatures features;
 
     if (SbCPUFeaturesGet(&features)) {
@@ -86,7 +83,6 @@ static void _arm_check_features(void)
       arm_cpu_enable_neon = features.arm.has_neon;
       arm_cpu_enable_pmull = features.arm.has_pmull;
     }
-#endif
 
     if (!arm_cpu_enable_crc32 ||
         !arm_cpu_enable_neon ||

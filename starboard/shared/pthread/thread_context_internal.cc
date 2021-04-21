@@ -14,8 +14,6 @@
 
 #include "starboard/shared/pthread/thread_context_internal.h"
 
-#if SB_API_VERSION >= 11
-
 #if !defined(__linux__)
 #error "SbThreadContext is only implemented for Linux"
 #endif
@@ -68,5 +66,3 @@ SbThreadContextPrivate::SbThreadContextPrivate(ucontext_t* ucontext) {
 #error "SbThreadContext isn't implemented for this CPU architecture"
 #endif  // SB_IS_ARCH_XXX
 }
-
-#endif  // SB_API_VERSION >= 11

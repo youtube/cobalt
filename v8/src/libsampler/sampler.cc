@@ -172,7 +172,6 @@ namespace v8 {
 namespace sampler {
 
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 11
 
 class Sampler::PlatformData {
  public:
@@ -200,14 +199,6 @@ class Sampler::PlatformData {
   SbThreadSampler thread_sampler_;
 };
 
-#else  // SB_API_VERSION >= 11
-
-class Sampler::PlatformData {
- public:
-  PlatformData() = default;
-};
-
-#endif  // SB_API_VERSION >= 11
 #endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
@@ -587,9 +578,9 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
-#if V8_OS_STARBOARD && SB_API_VERSION >= 11
+#if V8_OS_STARBOARD
   platform_data()->EnsureThreadSampler();
-#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
+#endif  // V8_OS_STARBOARD
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
   SamplerManager::instance()->AddSampler(this);
@@ -597,9 +588,9 @@ void Sampler::Start() {
 }
 
 void Sampler::Stop() {
-#if V8_OS_STARBOARD && SB_API_VERSION >= 11
+#if V8_OS_STARBOARD
   platform_data()->ReleaseThreadSampler();
-#endif  // V8_OS_STARBOARD && SB_API_VERSION >= 11
+#endif  // V8_OS_STARBOARD
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
   SignalHandler::DecreaseSamplerCount();
@@ -609,7 +600,6 @@ void Sampler::Stop() {
 }
 
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 11
 
 void Sampler::DoSample() {
   SbThreadSampler thread_sampler = platform_data()->EnsureThreadSampler();
@@ -634,14 +624,6 @@ void Sampler::DoSample() {
   SbThreadSamplerThaw(thread_sampler);
 }
 
-#else   // SB_API_VERSION >= 11
-
-void Sampler::DoSample() {
-  // TODO: emit this message to the JS console instead.
-  base::OS::PrintError("Profiling is not supported on this platform.\n");
-}
-
-#endif  // SB_API_VERSION >= 11
 #endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)

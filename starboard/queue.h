@@ -15,16 +15,6 @@
 #ifndef STARBOARD_QUEUE_H_
 #define STARBOARD_QUEUE_H_
 
-#include "starboard/configuration.h"
-
-#if SB_API_VERSION < 11
-#if defined(__cplusplus)
-extern "C++" {
-#include "starboard/common/queue.h"
-}  // extern "C++"
-#endif  // defined(__cplusplus)
-#else   // SB_API_VERSION > 11
 #error "File moved to //starboard/common/queue.h."
-#endif  // SB_API_VERSION < 11
 
 #endif  // STARBOARD_QUEUE_H_

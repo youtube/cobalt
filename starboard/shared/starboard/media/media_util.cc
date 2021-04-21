@@ -192,11 +192,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     case kSbMediaVideoCodecTheora:
       return false;  // No associated container in YT.
     case kSbMediaVideoCodecVc1:
-#if SB_API_VERSION < 11
-    case kSbMediaVideoCodecVp10:
-#else   // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
-#endif  // SB_API_VERSION < 11
       return mime_type.subtype() == "mp4";
     case kSbMediaVideoCodecVp8:
       return mime_type.subtype() == "webm";
@@ -212,9 +208,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 
 AudioSampleInfo::AudioSampleInfo() {
   SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
-#if SB_API_VERSION >= 11
   codec = kSbMediaAudioCodecNone;
-#endif  // SB_API_VERSION >= 11
 }
 
 AudioSampleInfo::AudioSampleInfo(const SbMediaAudioSampleInfo& that) {
@@ -244,9 +238,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 
 VideoSampleInfo::VideoSampleInfo() {
   SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
-#if SB_API_VERSION >= 11
   codec = kSbMediaVideoCodecNone;
-#endif  // SB_API_VERSION >= 11
 }
 
 VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
@@ -268,12 +260,6 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   mime = mime_storage.c_str();
   max_video_capabilities = max_video_capabilities_storage.c_str();
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#if SB_API_VERSION < 11
-  if (color_metadata) {
-    color_metadata_storage = *color_metadata;
-    color_metadata = &color_metadata_storage;
-  }
-#endif  // SB_API_VERSION < 11
   return *this;
 }
 
@@ -466,7 +452,6 @@ std::string GetMixedRepresentation(const uint8_t* data,
   return result;
 }
 
-#if SB_API_VERSION >= 11
 bool IsAudioSampleInfoSubstantiallyDifferent(
     const SbMediaAudioSampleInfo& left,
     const SbMediaAudioSampleInfo& right) {
@@ -478,7 +463,6 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
                          right.audio_specific_config,
                          left.audio_specific_config_size) != 0;
 }
-#endif  // SB_API_VERSION < 11
 
 }  // namespace media
 }  // namespace starboard
@@ -493,14 +477,12 @@ bool operator==(const SbMediaColorMetadata& metadata_1,
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
-#if SB_API_VERSION >= 11
   if (sample_info_1.codec != sample_info_2.codec) {
     return false;
   }
   if (sample_info_1.codec == kSbMediaVideoCodecNone) {
     return true;
   }
-#endif  // SB_API_VERSION >= 11
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (SbStringCompareAll(sample_info_1.mime, sample_info_2.mime) != 0) {
@@ -521,11 +503,7 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   if (sample_info_1.frame_height != sample_info_2.frame_height) {
     return false;
   }
-#if SB_API_VERSION >= 11
   return sample_info_1.color_metadata == sample_info_2.color_metadata;
-#else   // SB_API_VERSION >= 11
-  return *sample_info_1.color_metadata == *sample_info_2.color_metadata;
-#endif  // SB_API_VERSION >= 11
 }
 
 bool operator!=(const SbMediaColorMetadata& metadata_1,

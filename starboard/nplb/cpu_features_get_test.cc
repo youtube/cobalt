@@ -22,8 +22,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 11
-
 constexpr int kFeatureValueInvalid = -1;
 
 void ExpectArmInvalid(const SbCPUFeatures& features) {
@@ -134,8 +132,6 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
     ExpectMipsInvalid(features);
   }
 }
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace
 }  // namespace nplb

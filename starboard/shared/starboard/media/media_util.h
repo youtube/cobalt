@@ -50,9 +50,6 @@ struct VideoSampleInfo : SbMediaVideoSampleInfo {
   std::string mime_storage;
   std::string max_video_capabilities_storage;
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#if SB_API_VERSION < 11
-  SbMediaColorMetadata color_metadata_storage;
-#endif  // SB_API_VERSION < 11
 };
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);
@@ -102,13 +99,11 @@ std::string GetMixedRepresentation(const uint8_t* data,
                                    int size,
                                    int bytes_per_line);
 
-#if SB_API_VERSION >= 11
 //  When this function returns true, usually indicates that the two sample info
 //  cannot be processed by the same audio decoder.
 bool IsAudioSampleInfoSubstantiallyDifferent(
     const SbMediaAudioSampleInfo& left,
     const SbMediaAudioSampleInfo& right);
-#endif  // SB_API_VERSION < 11
 
 }  // namespace media
 }  // namespace starboard

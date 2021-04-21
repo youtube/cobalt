@@ -33,7 +33,6 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
-#if SB_API_VERSION >= 11
 #define EGL_CALL_PREFIX SbGetEglInterface()->
 
 #define EGLConfig SbEglConfig
@@ -56,9 +55,6 @@
 #define EGL_SUCCESS SB_EGL_SUCCESS
 #define EGL_SURFACE_TYPE SB_EGL_SURFACE_TYPE
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
-#else  // SB_API_VERSION < 11
-#define EGL_CALL_PREFIX
-#endif  // SB_API_VERSION >= 11
 
 #define EGL_CALL(x)                                          \
   do {                                                       \

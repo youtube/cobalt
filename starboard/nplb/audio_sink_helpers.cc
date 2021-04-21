@@ -78,12 +78,8 @@ AudioSinkTestFrameBuffers::AudioSinkTestFrameBuffers(
 }
 
 void AudioSinkTestFrameBuffers::Init() {
-#if SB_API_VERSION >= 11
   frames_per_channel_ = SbAudioSinkGetMinBufferSizeInFrames(
       channels_, sample_type_, AudioSinkTestEnvironment::sample_rate());
-#else   // SB_API_VERSION >= 11
-  frames_per_channel_ = 4096;
-#endif  // SB_API_VERSION >= 11
 
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     frame_buffer_.resize(bytes_per_frame() * channels_ * frames_per_channel());

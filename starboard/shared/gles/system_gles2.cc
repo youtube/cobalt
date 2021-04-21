@@ -17,8 +17,6 @@
 
 #include "starboard/gles.h"
 
-#if SB_API_VERSION >= 11
-
 namespace {
 
 const SbGlesInterface g_sb_gles_interface = {
@@ -275,5 +273,3 @@ const SbGlesInterface g_sb_gles_interface = {
 const SbGlesInterface* SbGetGlesInterface() {
   return &g_sb_gles_interface;
 }
-
-#endif  // SB_API_VERSION >= 11

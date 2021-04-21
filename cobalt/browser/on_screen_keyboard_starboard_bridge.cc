@@ -53,7 +53,6 @@ void OnScreenKeyboardStarboardBridge::Blur(int ticket) {
 
 void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
     const script::Sequence<std::string>& suggestions, int ticket) {
-#if SB_API_VERSION >= 11
   std::unique_ptr<const char* []> suggestions_data(
       new const char*[suggestions.size()]);
   for (script::Sequence<std::string>::size_type i = 0; i < suggestions.size();
@@ -64,11 +63,6 @@ void OnScreenKeyboardStarboardBridge::UpdateSuggestions(
   SbWindowUpdateOnScreenKeyboardSuggestions(
       sb_window_provider_.Run(), suggestions_data.get(),
       static_cast<int>(suggestions.size()), ticket);
-#else
-  LOG(WARNING)
-      << "Starboard version " << SB_API_VERSION
-      << " does not support on-screen keyboard suggestions on this platform.";
-#endif  // SB_API_VERSION >= 11
 }
 
 bool OnScreenKeyboardStarboardBridge::IsShown() const {
@@ -78,15 +72,8 @@ bool OnScreenKeyboardStarboardBridge::IsShown() const {
 
 bool OnScreenKeyboardStarboardBridge::SuggestionsSupported() const {
 // Delay providing the SbWindow until as late as possible.
-#if SB_API_VERSION >= 11
   return SbWindowOnScreenKeyboardSuggestionsSupported(
       sb_window_provider_.Run());
-#else
-  LOG(WARNING)
-      << "Starboard version " << SB_API_VERSION
-      << " does not support on-screen keyboard suggestions on this platform.";
-  return false;
-#endif  // SB_API_VERSION >= 11
 }
 
 scoped_refptr<dom::DOMRect>

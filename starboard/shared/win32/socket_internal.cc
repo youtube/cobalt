@@ -40,8 +40,6 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     case WSAEINPROGRESS:
     case WSAEWOULDBLOCK:
       return kSbSocketPending;
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= 9
     case WSAECONNRESET:
     case WSAENETRESET:
     case WSAECONNABORTED:
@@ -51,8 +49,6 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     //   https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382(v=vs.85).aspx
     case ERROR_BROKEN_PIPE:
       return kSbSocketErrorConnectionReset;
-#endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        //     SB_API_VERSION >= 9
   }
 
   // Here's where we would be more nuanced if we need to be.

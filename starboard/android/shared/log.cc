@@ -54,13 +54,9 @@ void SbLog(SbLogPriority priority, const char* message) {
       break;
   }
 
-#if SB_API_VERSION < 11
-  __android_log_write(android_priority, "starboard", message);
-#else   // SB_API_VERSION >= 11
   starboard::shared::starboard::GetLoggingMutex()->Acquire();
   __android_log_write(android_priority, "starboard", message);
   starboard::shared::starboard::GetLoggingMutex()->Release();
-#endif  // SB_API_VERSION < 11
 
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.

@@ -21,8 +21,6 @@
 namespace cobalt {
 namespace browser {
 
-#if SB_API_VERSION >= 11
-
 constexpr size_t kSHA256DigestSize = 32;
 
 namespace {
@@ -144,8 +142,6 @@ TEST(DeviceAuthenticationTest, NoCertSignatureImpliesNoQueryParameters) {
   EXPECT_EQ("", GetDeviceAuthenticationSignedURLQueryStringFromComponents(
                     "my_cert_scope", "1234", ""));
 }
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace browser
 }  // namespace cobalt

@@ -49,11 +49,7 @@ typedef enum SbMediaVideoCodec {
   kSbMediaVideoCodecMpeg2,
   kSbMediaVideoCodecTheora,
   kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < 11
-  kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < 11
   kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < 11
   kSbMediaVideoCodecVp8,
   kSbMediaVideoCodecVp9,
 } SbMediaVideoCodec;
@@ -377,10 +373,8 @@ typedef struct SbMediaColorMetadata {
 // The set of information required by the decoder or player for each video
 // sample.
 typedef struct SbMediaVideoSampleInfo {
-#if SB_API_VERSION >= 11
   // The video codec of this sample.
   SbMediaVideoCodec codec;
-#endif  // SB_API_VERSION >= 11
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
@@ -423,11 +417,7 @@ typedef struct SbMediaVideoSampleInfo {
 // described here: https://matroska.org/technical/specs/index.html .
 // This will only be specified on frames where the HDR metadata and
 // color / color space might have changed (e.g. keyframes).
-#if SB_API_VERSION >= 11
   SbMediaColorMetadata color_metadata;
-#else   // SB_API_VERSION >= 11
-  SbMediaColorMetadata* color_metadata;
-#endif  // SB_API_VERSION >= 11
 } SbMediaVideoSampleInfo;
 
 // A structure describing the audio configuration parameters of a single audio
@@ -461,10 +451,8 @@ typedef struct SbMediaAudioConfiguration {
 // Audio-specific configuration field.  The |WAVEFORMATEX| structure is
 // specified at http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx.
 typedef struct SbMediaAudioSampleInfo {
-#if SB_API_VERSION >= 11
   // The audio codec of this sample.
   SbMediaAudioCodec codec;
-#endif  // SB_API_VERSION >= 11
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
@@ -498,12 +486,6 @@ typedef struct SbMediaAudioSampleInfo {
   // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
   const void* audio_specific_config;
 } SbMediaAudioSampleInfo;
-
-#if SB_API_VERSION < 11
-// SbMediaAudioHeader is same as SbMediaAudioSampleInfo in old starboard
-// version.
-typedef SbMediaAudioSampleInfo SbMediaAudioHeader;
-#endif  // SB_API_VERSION < 11
 
 // --- Functions -------------------------------------------------------------
 
@@ -736,7 +718,6 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_height,
                                           int bits_per_pixel);
 
-#if SB_API_VERSION >= 11
 // Communicate to the platform how far past |current_playback_position| the app
 // will write audio samples. The app will write all samples between
 // |current_playback_position| and |current_playback_position| + |duration|, as
@@ -747,7 +728,6 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
 SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
-#endif  // SB_API_VERSION >= 11
 
 #ifdef __cplusplus
 }  // extern "C"

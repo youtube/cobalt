@@ -144,11 +144,9 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-#if SB_API_VERSION >= 11
   // Injects an on screen keyboard suggestions updated event into the web
   // module. Event is directed at the on screen keyboard element.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -873,7 +871,6 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
 }
 
-#if SB_API_VERSION >= 11
 void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
     int ticket) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -883,7 +880,6 @@ void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
 
   window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -1439,7 +1435,6 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
                  base::Unretained(impl_.get()), ticket));
 }
 
-#if SB_API_VERSION >= 11
 void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent()",
@@ -1452,7 +1447,6 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
           &WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent,
           base::Unretained(impl_.get()), ticket));
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 

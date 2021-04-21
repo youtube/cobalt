@@ -122,12 +122,9 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   // System Integrator
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName, value,
                                kSystemPropertyMaxLength);
-#elif SB_API_VERSION == 11
+#else
   // Original Design Manufacturer (ODM)
   result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
-                               value, kSystemPropertyMaxLength);
-#else
-  result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName,
                                value, kSystemPropertyMaxLength);
 #endif
   if (result) {
@@ -155,13 +152,11 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
 #error Unknown build configuration.
 #endif
 
-#if SB_API_VERSION >= 5
   result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value,
                                kSystemPropertyMaxLength);
   if (result) {
     platform_info.aux_field = value;
   }
-#endif  // SB_API_VERSION >= 5
 
   // Device Type
   platform_info.device_type = device_type;

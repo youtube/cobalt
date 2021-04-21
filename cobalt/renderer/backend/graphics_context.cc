@@ -24,9 +24,6 @@ namespace backend {
 
 GraphicsContext::GraphicsContext(GraphicsSystem* system)
     : system_(system) {
-#if SB_API_VERSION < 11
-  graphics_extension_ = nullptr;
-#else
   graphics_extension_ = static_cast<const CobaltExtensionGraphicsApi*>(
       SbSystemGetExtension(kCobaltExtensionGraphicsName));
   if (graphics_extension_) {
@@ -40,7 +37,6 @@ GraphicsContext::GraphicsContext(GraphicsSystem* system)
       graphics_extension_ = nullptr;
     }
   }
-#endif
 }
 
 float GraphicsContext::GetMaximumFrameIntervalInMilliseconds() {

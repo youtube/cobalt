@@ -28,9 +28,5 @@ void SbPlayerWriteSample2(SbPlayer player,
     return;
   }
 
-#if SB_API_VERSION >= 11
   player->WriteSample(*sample_infos);
-#else   // SB_API_VERSION >= 11
-  player->WriteSample(sample_type, *sample_infos);
-#endif  // SB_API_VERSION >= 11
 }

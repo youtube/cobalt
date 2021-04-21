@@ -14,13 +14,9 @@
 
 #include "starboard/system.h"
 
-#if SB_API_VERSION >= 11
-
 bool SbSystemSignWithCertificationSecretKey(const uint8_t* message,
                                             size_t message_size_in_bytes,
                                             uint8_t* digest,
                                             size_t digest_size_in_bytes) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 11

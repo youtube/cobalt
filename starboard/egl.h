@@ -36,8 +36,6 @@
 #include "starboard/log.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 11
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -367,7 +365,5 @@ SB_EXPORT const SbEglInterface* SbGetEglInterface();
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_EGL_H_

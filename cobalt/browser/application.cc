@@ -238,7 +238,6 @@ GURL GetInitialURL(bool should_preload) {
     initial_url = initial_url.ReplaceComponents(replacements);
   }
 
-#if SB_API_VERSION >= 11
   if (!command_line->HasSwitch(
           switches::kOmitDeviceAuthenticationQueryParameters)) {
     // Append the device authentication query parameters based on the platform's
@@ -257,7 +256,6 @@ GURL GetInitialURL(bool should_preload) {
       initial_url = initial_url.ReplaceComponents(replacements);
     }
   }
-#endif  // SB_API_VERSION >= 11
 
   return initial_url;
 }
@@ -526,7 +524,6 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-#if SB_API_VERSION >= 11
 bool AddCrashHandlerAnnotations() {
   auto crash_handler_extension =
       SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
@@ -574,7 +571,6 @@ bool AddCrashHandlerAnnotations() {
   }
   return result;
 }
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace
 
@@ -832,9 +828,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
-#if SB_API_VERSION >= 11
   AddCrashHandlerAnnotations();
-#endif
 
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
@@ -856,12 +850,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
 
 // Register event callbacks.
-#if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   on_screen_keyboard_shown_event_callback_ = base::Bind(
       &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
@@ -882,14 +874,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-#if SB_API_VERSION >= 11
   on_screen_keyboard_suggestions_updated_event_callback_ =
       base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
                  base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -959,10 +949,8 @@ Application::~Application() {
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
 // Unregister event callbacks.
-#if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardShownEvent::TypeId(),
@@ -976,11 +964,9 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
-#if SB_API_VERSION >= 11
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
       on_screen_keyboard_suggestions_updated_event_callback_);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
@@ -1051,7 +1037,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
         // SB_HAS(CONCEALED_STATE)
-#if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -1059,7 +1044,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
               ->size));
       break;
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
       DCHECK(starboard_event->data);
@@ -1079,12 +1063,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
       DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
@@ -1117,10 +1099,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
     case kSbEventTypePreload:
-#if SB_API_VERSION < 11
-    case kSbEventTypeNetworkConnect:
-    case kSbEventTypeNetworkDisconnect:
-#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
     case kSbEventTypeStart:
     case kSbEventTypeStop:
@@ -1242,9 +1220,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     // All of the remaining event types are unexpected:
     case kSbEventTypePreload:
-#if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
-#endif
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
@@ -1256,18 +1232,12 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
-#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
     case kSbEventTypeLink:
-#if SB_API_VERSION < 11
-    case kSbEventTypeNetworkConnect:
-    case kSbEventTypeNetworkDisconnect:
-#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
@@ -1280,18 +1250,13 @@ void Application::OnApplicationEvent(SbEventType event_type) {
   }
 }
 
-#if SB_API_VERSION >= 8
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   const auto& size = window_size_change_event->size();
-#if SB_API_VERSION >= 11
   float diagonal =
       SbWindowGetDiagonalSizeInInches(window_size_change_event->window());
-#else
-  float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
-#endif
 
   // A value of 0.0 for the video pixel ratio means that the ratio could not be
   // determined. In that case it should be assumed to be the same as the
@@ -1302,7 +1267,6 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
                                     device_pixel_ratio);
   browser_module_->OnWindowSizeChanged(viewport_size);
 }
-#endif  // SB_API_VERSION >= 8
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
@@ -1337,7 +1301,6 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
           event));
 }
 
-#if SB_API_VERSION >= 11
 void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
     const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1346,7 +1309,6 @@ void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
       base::polymorphic_downcast<
           const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 

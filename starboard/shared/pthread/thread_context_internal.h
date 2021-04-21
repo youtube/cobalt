@@ -19,7 +19,6 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 struct SbThreadContextPrivate {
   explicit SbThreadContextPrivate(ucontext_t* ucontext);
 
@@ -34,6 +33,5 @@ struct SbThreadContextPrivate {
   void* fp_ = nullptr;
   void* lr_ = nullptr;
 };
-#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_CONTEXT_INTERNAL_H_

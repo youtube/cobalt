@@ -22,8 +22,6 @@
 
 #include "starboard/cpu_features.h"
 
-#if SB_API_VERSION >= 11
-
 namespace starboard {
 namespace shared {
 
@@ -59,7 +57,5 @@ inline void SetArmFeaturesInvalid(SbCPUFeatures* features) {
 
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 11
 
 #endif  // STARBOARD_SHARED_STARBOARD_CPU_FEATURES_H_

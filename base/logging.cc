@@ -549,13 +549,6 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 
 void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
-
-#if defined(STARBOARD)
-#if SB_API_VERSION < 11
-  starboard::logging::SetMinLogLevel(
-      LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
-#endif
-#endif
 }
 
 #if defined(OFFICIAL_BUILD)

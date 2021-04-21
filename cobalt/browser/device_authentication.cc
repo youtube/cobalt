@@ -28,8 +28,6 @@
 namespace cobalt {
 namespace browser {
 
-#if SB_API_VERSION >= 11
-
 namespace {
 
 constexpr size_t kSHA256DigestSize = 32;
@@ -197,8 +195,6 @@ void ComputeHMACSHA256SignatureWithProvidedKey(const std::string& message,
     DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
   }
 }
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace browser
 }  // namespace cobalt

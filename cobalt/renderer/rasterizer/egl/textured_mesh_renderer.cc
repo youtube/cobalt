@@ -353,7 +353,7 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
         ");"
         "  vec4 color = untransformed_color;";
   }
-#if SB_API_VERSION >= 11
+
   const CobaltExtensionGraphicsApi* graphics_extension =
       static_cast<const CobaltExtensionGraphicsApi*>(
           SbSystemGetExtension(kCobaltExtensionGraphicsName));
@@ -389,9 +389,7 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
         "  color = scale0 + scale1*color + scale2*color2 + scale3*color3;"
         "  gl_FragColor = clamp(color, vec4(0.0), vec4(1.0));"
         "}";
-  } else
-#endif  // SB_API_VERSION >= 11
-  {
+  } else {
     blit_fragment_shader_source +=
         "  gl_FragColor = color;"
         "}";
@@ -567,7 +565,6 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       } break;
       case Image::YUV_2PLANE_BT709: {
         std::vector<TextureInfo> texture_infos;
-#if SB_API_VERSION >= 7
         switch (image.textures[0].texture->GetFormat()) {
           case GL_ALPHA:
             texture_infos.push_back(TextureInfo("y", "a"));
@@ -592,10 +589,6 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
           default:
             NOTREACHED();
         }
-#else   // SB_API_VERSION >= 7
-        texture_infos.push_back(TextureInfo("y", "a"));
-        texture_infos.push_back(TextureInfo("uv", "ba"));
-#endif  // SB_API_VERSION >= 7
         result = MakeBlitProgram(
             color_matrix, texture_infos,
             CreateFragmentShader(texture_target, texture_infos, color_matrix));
@@ -604,7 +597,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       case Image::YUV_3PLANE_BT709:
       case Image::YUV_3PLANE_10BIT_BT2020: {
         std::vector<TextureInfo> texture_infos;
-#if SB_API_VERSION >= 7 && defined(GL_RED_EXT)
+#if defined(GL_RED_EXT)
         if (image.textures[0].texture->GetFormat() == GL_RED_EXT) {
           texture_infos.push_back(TextureInfo("y", "r"));
         } else {
@@ -620,11 +613,11 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
         } else {
           texture_infos.push_back(TextureInfo("v", "a"));
         }
-#else   // SB_API_VERSION >= 7 && defined(GL_RED_EXT)
+#else   // defined(GL_RED_EXT)
         texture_infos.push_back(TextureInfo("y", "a"));
         texture_infos.push_back(TextureInfo("u", "a"));
         texture_infos.push_back(TextureInfo("v", "a"));
-#endif  // SB_API_VERSION >= 7 && defined(GL_RED_EXT)
+#endif  // defined(GL_RED_EXT)
         result = MakeBlitProgram(
             color_matrix, texture_infos,
             CreateFragmentShader(texture_target, texture_infos, color_matrix));

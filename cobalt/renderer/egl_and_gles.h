@@ -25,22 +25,10 @@
 // code will be outputted.
 #undef COBALT_EGL_AND_GLES_LOGGING
 
-#if SB_API_VERSION >= 11
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 #define EGL_CALL_PREFIX ::cobalt::renderer::CobaltGetEglInterface().
 #define GL_CALL_PREFIX ::cobalt::renderer::CobaltGetGlesInterface().
-#else  // SB_API_VERSION < 11
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#if defined(GLES3_SUPPORTED)
-#include <GLES3/gl3.h>
-#endif  // defined(GLES3_SUPPORTED)
-#define EGL_CALL_PREFIX
-#define GL_CALL_PREFIX
-#endif  // SB_API_VERSION >= 11
 
 #if defined(COBALT_EGL_AND_GLES_LOGGING)
 #define EGL_DCHECK_MAYBE_LOG(x) SB_LOG(INFO) << #x;
@@ -65,7 +53,6 @@
         << #x << " exited with code: " << COBALT_GL_ERRNO;         \
   } while (false)
 
-#if SB_API_VERSION >= 11
 namespace cobalt {
 namespace renderer {
 
@@ -83,7 +70,6 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 
 }  // namespace renderer
 }  // namespace cobalt
-#endif  // SB_API_VERSION >= 11
 
 // The following *_CALL, *_CALL_SIMPLE macros provide a mechanism to
 // transparently use the Starboard OpenGL ES and EGL interfaces if available,
@@ -121,8 +107,6 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 #define GL_CALL_SIMPLE(x) (GL_CALL_PREFIX x)
 #endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
-
-#if SB_API_VERSION >= 11
 
 // EGL TYPES
 #define EGLint SbEglInt32
@@ -1011,7 +995,5 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
 #define GL_MAX_ELEMENT_INDEX SB_GL_MAX_ELEMENT_INDEX
 #define GL_NUM_SAMPLE_COUNTS SB_GL_NUM_SAMPLE_COUNTS
 #define GL_TEXTURE_IMMUTABLE_LEVELS SB_GL_TEXTURE_IMMUTABLE_LEVELS
-
-#endif  // SB_API_VERSION >= EGL_AND_GL_INTERFACE_VERSION
 
 #endif  // COBALT_RENDERER_EGL_AND_GLES_H_

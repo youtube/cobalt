@@ -14,11 +14,9 @@
 
 #include "starboard/shared/pthread/thread_sampler_internal.h"
 
-#if SB_API_VERSION >= 11
 void SbThreadSamplerDestroy(SbThreadSampler sampler) {
   if (!SbThreadSamplerIsValid(sampler)) {
     return;
   }
   delete sampler;
 }
-#endif  // SB_API_VERSION >= 11

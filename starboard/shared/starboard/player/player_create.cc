@@ -95,9 +95,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaAudioCodec audio_codec,
                         SbDrmSystem drm_system,
                         const SbMediaAudioSampleInfo* audio_sample_info,
-#if SB_API_VERSION >= 11
                         const char* max_video_capabilities,
-#endif  // SB_API_VERSION >= 11
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
@@ -107,11 +105,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbDecodeTargetGraphicsContextProvider* provider) {
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-#if SB_API_VERSION >= 11
   if (audio_sample_info) {
     SB_DCHECK(audio_sample_info->codec == audio_codec);
   }
-#endif  // SB_API_VERSION >= 11
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func ||
       !player_error_func) {

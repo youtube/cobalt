@@ -109,14 +109,13 @@ int Application::Run(CommandLine command_line) {
       SetStartLink(value.c_str());
     }
   }
-#if SB_API_VERSION >= 11
+
   if (command_line_->HasSwitch(kMinLogLevel)) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
   } else {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
   }
-#endif  // SB_API_VERSION >= 11
 
   return RunLoop();
 }
@@ -186,12 +185,10 @@ void Application::InjectLowMemoryEvent() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
 }
 
-#if SB_API_VERSION >= 8
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
 }
-#endif  // SB_API_VERSION >= 8
 
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,

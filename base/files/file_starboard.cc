@@ -270,9 +270,7 @@ File::Error File::OSErrorToFileError(SbSystemError sb_error) {
     case kSbFileErrorNotAFile:
     case kSbFileErrorNotEmpty:
     case kSbFileErrorInvalidUrl:
-#if SB_API_VERSION >= 11
     case kSbFileErrorIO:
-#endif
       // Starboard error codes are designed to match Chromium's exactly.
       return static_cast<File::Error>(sb_error);
       break;

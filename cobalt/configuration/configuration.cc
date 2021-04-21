@@ -30,9 +30,6 @@ Configuration* Configuration::GetInstance() {
 }
 
 Configuration::Configuration() {
-#if SB_API_VERSION < 11
-  configuration_api_ = nullptr;
-#else
   configuration_api_ = static_cast<const CobaltExtensionConfigurationApi*>(
       SbSystemGetExtension(kCobaltExtensionConfigurationName));
   if (configuration_api_) {
@@ -46,7 +43,6 @@ Configuration::Configuration() {
       configuration_api_ = nullptr;
     }
   }
-#endif
 }
 
 const char* Configuration::CobaltUserOnExitStrategy() {

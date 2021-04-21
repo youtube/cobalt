@@ -110,10 +110,6 @@ void VideoDmpWriter::OnPlayerCreate(
   }
   map->Register(player);
   VideoDmpWriter* dmp_writer = map->Get(player);
-#if SB_API_VERSION < 11
-  dmp_writer->audio_codec_ = audio_codec;
-  dmp_writer->video_codec_ = video_codec;
-#endif  // SB_API_VERSION < 11
   dmp_writer->DumpConfigs(video_codec, audio_codec, audio_sample_info);
 }
 
@@ -183,20 +179,12 @@ void VideoDmpWriter::DumpAccessUnit(
   if (sample_type == kSbMediaTypeAudio) {
     const SbMediaAudioSampleInfo& audio_sample_info =
         input_buffer->audio_sample_info();
-#if SB_API_VERSION >= 11
     Write(write_cb_, audio_sample_info.codec, audio_sample_info);
-#else   // SB_API_VERSION >= 11
-    Write(write_cb_, audio_codec_, audio_sample_info);
-#endif  // SB_API_VERSION >= 11
   } else {
     SB_DCHECK(sample_type == kSbMediaTypeVideo);
     const SbMediaVideoSampleInfo& video_sample_info =
         input_buffer->video_sample_info();
-#if SB_API_VERSION >= 11
     Write(write_cb_, video_sample_info.codec, video_sample_info);
-#else   // SB_API_VERSION >= 11
-    Write(write_cb_, video_codec_, video_sample_info);
-#endif  // SB_API_VERSION >= 11
   }
 }
 
