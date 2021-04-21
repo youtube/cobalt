@@ -299,9 +299,10 @@ class AndroidConfiguration(PlatformConfiguration):
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
 
-          # This test is taking ~1.3ms per call on android. Work is underway to
-          # investigate whether this is acceptable.
+          # These tests are taking longer due to interop on android. Work is
+          # underway to investigate whether this is acceptable.
           'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
+          'SbMediaConfigurationTest.ValidatePerformance'
 
           # SbDirectory has problems with empty Asset dirs.
           'SbDirectoryCanOpenTest.SunnyDayStaticContent',
