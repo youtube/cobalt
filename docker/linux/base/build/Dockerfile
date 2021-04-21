@@ -46,13 +46,11 @@ RUN . $NVM_DIR/nvm.sh \
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
-
 # === Get GN via CIPD
-RUN curl --silent --output /tmp/gn.zip \
-    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${gn_hash}"
-RUN unzip gn.zip -e /usr/local/bin
-RUN gn.zip
-
+RUN curl --location --silent --output /tmp/gn.zip \
+    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${gn_hash}" \
+    && unzip /tmp/gn.zip -d /usr/local/bin \
+    && rm /tmp/gn.zip
 
 # === Configure common env vars
 ENV OUTDIR=out \
