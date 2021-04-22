@@ -58,14 +58,6 @@ class MessageQueue {
     }
   }
 
-  // Clear all the messages in the queue.
-  void ClearAll() {
-    TRACE_EVENT0("cobalt::base", "MessageQueue::ClearAll()");
-    base::AutoLock lock(mutex_);
-    std::queue<base::Closure> empty_queue;
-    empty_queue.swap(queue_);
-  }
-
  private:
   base::Lock mutex_;
   std::queue<base::Closure> queue_;
