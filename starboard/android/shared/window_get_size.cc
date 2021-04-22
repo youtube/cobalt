@@ -34,8 +34,8 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> display_size(
-      env->CallStarboardObjectMethodOrAbort("getDisplaySize",
-                                           "()Landroid/util/Size;"));
+      env->CallStarboardObjectMethodOrAbort("getDeviceResolution",
+                                            "()Landroid/util/Size;"));
   int display_width =
       env->CallIntMethodOrAbort(display_size.Get(), "getWidth", "()I");
   int display_height =
@@ -43,9 +43,9 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   // In the off chance we have non-square pixels, use the max ratio so the
   // highest quality video suitable to the device gets selected.
-  size->video_pixel_ratio = std::max(
-      static_cast<float>(display_width) / size->width,
-      static_cast<float>(display_height) / size->height);
+  size->video_pixel_ratio =
+      std::max(static_cast<float>(display_width) / size->width,
+               static_cast<float>(display_height) / size->height);
 
   return true;
 }
