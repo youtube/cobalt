@@ -147,7 +147,7 @@ services:
   linux-x64x11-clang-3-6-prebuilt:
     <<: *common-definitions
     <<: *build-volumes
-    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-6:1.2
+    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-6:1.3
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-clang-3-6
