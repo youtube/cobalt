@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/platforms.gni")
+
 declare_args() {
   is_clang = true
 
   build_type = "devel"
+
+  target_platform = "stub"
 }
 
 assert(build_type == "debug" || build_type == "devel" || build_type == "qa" ||
@@ -30,9 +34,7 @@ if (build_type == "debug") {
   is_gold = true
 }
 
-assert(target_os != "")
-
-starboard_path = "//starboard/$target_os/$target_cpu"
+starboard_path = platforms["$target_platform"]
 
 host_toolchain = "$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
