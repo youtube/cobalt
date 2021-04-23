@@ -138,6 +138,7 @@
         'media_get_max_buffer_capacity.cc',
         'media_is_audio_supported.cc',
         'media_is_video_supported.cc',
+        'network_status_impl.cc',
         'microphone_impl.cc',
         'player_components_factory.h',
         'player_create.cc',

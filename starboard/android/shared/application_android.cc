@@ -607,6 +607,18 @@ Java_dev_cobalt_coat_CobaltActivity_nativeLowMemoryEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendLowMemoryEvent();
 }
 
+void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
+  if (state() == kStateUnstarted) {
+    // Injecting events before application starts is error-prone.
+    return;
+  }
+  if (became_online) {
+    Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
+  } else {
+    Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
+  }
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
