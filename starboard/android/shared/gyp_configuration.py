@@ -302,7 +302,7 @@ class AndroidConfiguration(PlatformConfiguration):
           # These tests are taking longer due to interop on android. Work is
           # underway to investigate whether this is acceptable.
           'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
-          'SbMediaConfigurationTest.ValidatePerformance'
+          'SbMediaConfigurationTest.ValidatePerformance',
 
           # SbDirectory has problems with empty Asset dirs.
           'SbDirectoryCanOpenTest.SunnyDayStaticContent',
