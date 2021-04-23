@@ -69,6 +69,7 @@ public class StarboardBridge {
   private VoiceRecognizer voiceRecognizer;
   private AudioPermissionRequester audioPermissionRequester;
   private KeyboardEditor keyboardEditor;
+  private NetworkStatus networkStatus;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -120,6 +121,7 @@ public class StarboardBridge {
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.voiceRecognizer =
         new VoiceRecognizer(appContext, activityHolder, audioPermissionRequester);
+    this.networkStatus = new NetworkStatus(appContext);
   }
 
   private native boolean nativeInitialize();
@@ -194,6 +196,7 @@ public class StarboardBridge {
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
     cobaltMediaSession.resume();
+    networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
@@ -208,6 +211,7 @@ public class StarboardBridge {
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
       cobaltMediaSession.suspend();
+      networkStatus.beforeSuspend();
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
@@ -395,6 +399,12 @@ public class StarboardBridge {
     } catch (NumberFormatException e) {
       return getDisplaySize();
     }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean isNetworkConnected() {
+    return networkStatus.isConnected();
   }
 
   /**
