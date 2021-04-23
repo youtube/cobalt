@@ -115,6 +115,11 @@ std::string EncodeAppKey(const std::string& app_key) {
 
   output.resize(output_size);
 
+  // Replace the '+' and '/' characters with '-' and '_' so that they are safe
+  // to use in a URL and with the filesystem.
+  std::replace(output.begin(), output.end(), '+', '-');
+  std::replace(output.begin(), output.end(), '/', '_');
+
   return output;
 }
 
