@@ -134,18 +134,18 @@ void Performance::TraceMembers(script::Tracer* tracer) {
 }
 
 PerformanceEntryList Performance::GetEntries() {
-  return PerformanceEntryBufferImpl::GetEntries(performance_entry_buffer_);
+  return PerformanceEntryListImpl::GetEntries(performance_entry_buffer_);
 }
 
 PerformanceEntryList Performance::GetEntriesByType(
     const std::string& entry_type) {
-  return PerformanceEntryBufferImpl::GetEntriesByType(performance_entry_buffer_,
+  return PerformanceEntryListImpl::GetEntriesByType(performance_entry_buffer_,
                                                       entry_type);
 }
 
 PerformanceEntryList Performance::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
-  return PerformanceEntryBufferImpl::GetEntriesByName(performance_entry_buffer_,
+  return PerformanceEntryListImpl::GetEntriesByName(performance_entry_buffer_,
                                                       name, type);
 }
 
