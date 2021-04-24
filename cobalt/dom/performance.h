@@ -24,7 +24,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/event_target.h"
-#include "cobalt/dom/performance_entry_buffer_impl.h"
+#include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/performance_observer.h"
 #include "cobalt/dom/performance_observer_callback_options.h"
