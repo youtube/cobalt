@@ -441,15 +441,6 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
 
 int Configuration::CobaltJsGarbageCollectionThresholdInBytes() {
   if (configuration_api_) {
-#if defined(COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES)
-    LOG(ERROR) << "COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES and "
-                  "CobaltExtensionConfigurationApi::"
-                  "CobaltJsGarbageCollectionThresholdInBytes() "
-                  "are both defined. Remove "
-                  "'mozjs_garbage_collection_threshold_in_bytes' "
-                  "from your \"gyp_configuration.gypi\" file in favor of "
-                  "using CobaltJsGarbageCollectionThresholdInBytes().";
-#endif
     return configuration_api_->CobaltJsGarbageCollectionThresholdInBytes();
   }
 #if SB_API_VERSION >= 12
@@ -461,8 +452,6 @@ int Configuration::CobaltJsGarbageCollectionThresholdInBytes() {
 #error "instead."
 #endif
   return 8 * 1024 * 1024;
-#elif defined(COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES)
-  return COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES;
 #else
   return 8 * 1024 * 1024;
 #endif

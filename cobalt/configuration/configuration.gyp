@@ -100,11 +100,6 @@
             'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)'
           ],
         }],
-        ['mozjs_garbage_collection_threshold_in_bytes != -1', {
-          'defines': [
-            'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
-          ],
-        }],
         ['skia_glyph_atlas_width != -1', {
           'defines': [
             'COBALT_SKIA_GLYPH_ATLAS_WIDTH=<(skia_glyph_atlas_width)',

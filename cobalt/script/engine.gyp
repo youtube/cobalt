@@ -23,7 +23,6 @@
         'javascript_engine.h',
       ],
       'conditions': [
-        [ 'javascript_engine == "mozjs-45"', { 'dependencies': ['mozjs-45/mozjs-45.gyp:engine', ], }, ],
         [ 'javascript_engine == "v8"', { 'dependencies': ['v8c/v8c.gyp:engine', ], }, ],
       ],
     },
@@ -31,7 +30,6 @@
       'target_name': 'engine_shell',
       'type': 'none',
       'conditions': [
-        [ 'javascript_engine == "mozjs-45"', { 'dependencies': ['mozjs-45/mozjs-45.gyp:mozjs-45', ], }, ],
         [ 'javascript_engine == "v8"', { 'dependencies': ['v8c/v8c.gyp:v8c', ], }, ],
       ],
     },
