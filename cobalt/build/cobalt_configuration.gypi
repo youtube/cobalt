@@ -378,16 +378,6 @@
     'skia_glyph_atlas_width%': '-1',
     'skia_glyph_atlas_height%': '-1',
 
-    # Deprecated. Implement the CobaltExtensionConfigurationApi function
-    # CobaltJsGarbageCollectionThresholdInBytes instead.
-    # Determines the size of garbage collection threshold. After this many
-    # bytes have been allocated, the SpiderMonkey garbage collector will run.
-    # Lowering this has been found to reduce performance and decrease
-    # JavaScript memory usage. For example, we have measured on at least one
-    # platform that performance becomes 7% worse on average in certain cases
-    # when adjusting this number from 8MB to 1MB.
-    'mozjs_garbage_collection_threshold_in_bytes%': -1,
-
     # Max Cobalt CPU usage specifies that the cobalt program should
     # keep it's size below the specified size.
     # This setting is deprecated. Implement starboard API function
