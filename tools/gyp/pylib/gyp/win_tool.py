@@ -69,6 +69,14 @@ class WinTool(object):
       shutil.copytree(source, dest, ignore=shutil.ignore_patterns(r'.git'))
     else:
       shutil.copy2(source, dest)
+      # Hack to make target look 2 seconds newer, to prevent ninja erroneously re-trigger
+      # copy rules on nanosecond differences. Risk of getting stale content files due to this
+      # is almost non-existent
+      OFFSET_SECONDS = 2
+      stat = os.stat(source)
+      mtime = stat.st_mtime + OFFSET_SECONDS
+      atime = stat.st_atime + OFFSET_SECONDS
+      os.utime(dest, (atime, mtime))
 
   if platform.system() == 'Windows':
     def ExecLinkWrapper(self, arch, *args):
