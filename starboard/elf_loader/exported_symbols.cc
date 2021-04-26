@@ -459,6 +459,10 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION >= 12
+
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+  REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
+#endif  // SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
