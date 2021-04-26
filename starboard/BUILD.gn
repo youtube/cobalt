@@ -19,6 +19,7 @@ group("gn_all") {
 }
 
 source_set("starboard_headers_only") {
+  print(random_variable)
   sources = [
     "atomic.h",
     "audio_sink.h",

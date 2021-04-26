@@ -44,6 +44,8 @@ default_compiler_configs = [
   "//starboard/build/config:base_configuration",
   "$starboard_path/platform_configuration",
 ]
+import("$starboard_path/platform_configuration/configuration.gni")
+
 set_defaults("static_library") {
   configs = default_compiler_configs
 }
