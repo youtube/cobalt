@@ -765,7 +765,13 @@ void BrowserModule::ProcessRenderTreeSubmissionQueue() {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::ProcessRenderTreeSubmissionQueue()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  render_tree_submission_queue_.ProcessAll();
+  // If the app is preloaded, clear the render tree queue to avoid unnecessary
+  // rendering overhead.
+  if (application_state_ == base::kApplicationStatePreloading) {
+    render_tree_submission_queue_.ClearAll();
+  } else {
+    render_tree_submission_queue_.ProcessAll();
+  }
 }
 
 void BrowserModule::QueueOnRenderTreeProduced(
