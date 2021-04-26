@@ -22,17 +22,13 @@ declare_args() {
   target_platform = "stub"
 }
 
-assert(build_type == "debug" || build_type == "devel" || build_type == "qa" ||
-       build_type == "gold")
-if (build_type == "debug") {
-  is_debug = true
-} else if (build_type == "devel") {
-  is_devel = true
-} else if (build_type == "qa") {
-  is_qa = true
-} else {
-  is_gold = true
-}
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
+
+sb_allows_memory_tracking = !is_gold
 
 starboard_path = platforms["$target_platform"]
 
@@ -41,7 +37,7 @@ shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
 
 default_compiler_configs = [
-  "//starboard/build/config:base_configuration",
+  "//starboard/build/config:base",
   "$starboard_path/platform_configuration",
 ]
 import("$starboard_path/platform_configuration/configuration.gni")

@@ -14,4 +14,8 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-random_variable = "xyz"
+# Stub does not use a filter-based player.
+sb_filter_based_player = false
+
+# No GL drivers available.
+gl_type = "none"
