@@ -21,7 +21,7 @@ declare_args() {
 
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.
-  sb_api_version = 0
+  sb_api_version = 13
 
   # Enabling this variable enables pedantic levels of warnings for the current
   # toolchain.
@@ -86,4 +86,7 @@ declare_args() {
   # This variable dictates whether a given target should be compiled with
   # optimization flags for size vs. speed.
   optimize_target_for_speed = false
+
+  # Where the Starboard ABI file for this platform can be found.
+  sabi_path = ""
 }

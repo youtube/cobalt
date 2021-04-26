@@ -17,5 +17,5 @@
 # style to this list.
 
 platforms = {
-  stub = "//starboard/stub"
+  stub = "starboard/stub"
 }

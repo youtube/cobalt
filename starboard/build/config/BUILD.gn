@@ -110,8 +110,8 @@ config("starboard") {
   }
 
   defines += [
-    "STARBOARD_ATOMIC_INCLUDE='$starboard_path/atomic_public.h'",
-    "STARBOARD_CONFIGURATION_INCLUDE='$starboard_path/configuration_public.h'",
-    "STARBOARD_THREAD_TYPES_INCLUDE='$starboard_path/thread_types_public.h'",
+    "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
+    "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+    "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
   ]
 }

@@ -20,6 +20,8 @@ declare_args() {
   build_type = "devel"
 
   target_platform = "stub"
+
+  is_starboard = true
 }
 
 is_debug = build_type == "debug"
@@ -32,15 +34,20 @@ sb_allows_memory_tracking = !is_gold
 
 starboard_path = platforms["$target_platform"]
 
-host_toolchain = "$starboard_path/toolchain:host"  # TODO(andrewsavage)
+host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
 
 default_compiler_configs = [
   "//starboard/build/config:base",
-  "$starboard_path/platform_configuration",
+  "//$starboard_path/platform_configuration",
 ]
-import("$starboard_path/platform_configuration/configuration.gni")
+
+if (is_starboard) {
+  default_compiler_configs += [ "//starboard/build/config:starboard" ]
+}
+
+import("//$starboard_path/platform_configuration/configuration.gni")
 
 set_defaults("static_library") {
   configs = default_compiler_configs
