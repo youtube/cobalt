@@ -18,6 +18,16 @@ group("gn_all") {
   deps = [ ":starboard_headers_only" ]
 }
 
+group("starboard") {
+  deps = [ ":starboard_headers_only" ]
+
+  if (sb_evergreen) {
+    deps += []
+  } else {
+    deps += [ "//$starboard_path:starboard_platform" ]
+  }
+}
+
 source_set("starboard_headers_only") {
   sources = [
     "atomic.h",
