@@ -179,9 +179,6 @@ class WebModule::Impl {
 
   void InjectCaptionSettingsChangedEvent();
 
-  void InjectWindowOnOnlineEvent();
-  void InjectWindowOnOfflineEvent();
-
   // Executes JavaScript in this WebModule. Sets the |result| output parameter
   // and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
@@ -1260,16 +1257,6 @@ void WebModule::Impl::InjectCaptionSettingsChangedEvent() {
   system_caption_settings_->OnCaptionSettingsChanged();
 }
 
-void WebModule::Impl::InjectWindowOnOnlineEvent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  window_->OnWindowOnOnlineEvent();
-}
-
-void WebModule::Impl::InjectWindowOnOfflineEvent() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  window_->OnWindowOnOfflineEvent();
-}
-
 void WebModule::Impl::PurgeResourceCaches(
     bool should_retain_remote_typeface_cache) {
   image_cache_->Purge();
@@ -1515,20 +1502,6 @@ void WebModule::InjectCaptionSettingsChangedEvent() {
   DCHECK(impl_);
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
-                            base::Unretained(impl_.get())));
-}
-
-void WebModule::InjectWindowOnOnlineEvent(const base::Event* event) {
-  DCHECK(impl_);
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::InjectWindowOnOnlineEvent,
-                            base::Unretained(impl_.get())));
-}
-
-void WebModule::InjectWindowOnOfflineEvent(const base::Event* event) {
-  DCHECK(impl_);
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::InjectWindowOnOfflineEvent,
                             base::Unretained(impl_.get())));
 }
 

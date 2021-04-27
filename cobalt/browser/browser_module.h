@@ -212,9 +212,6 @@ class BrowserModule {
       const base::AccessibilityCaptionSettingsChangedEvent* event);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
-  void OnWindowOnOnlineEvent(const base::Event* event);
-  void OnWindowOnOfflineEvent(const base::Event* event);
-
   bool IsWebModuleLoaded() { return web_module_loaded_.IsSignaled(); }
 
   // Parses url and defines a mapping of parameter values of the form

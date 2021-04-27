@@ -339,7 +339,6 @@
         '../dom/navigator_id.idl',
         '../dom/navigator_language.idl',
         '../dom/navigator_licenses.idl',
-        '../dom/navigator_online.idl',
         '../dom/navigator_plugins.idl',
         '../dom/navigator_storage_utils.idl',
         '../dom/non_document_type_child_node.idl',

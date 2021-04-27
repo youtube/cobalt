@@ -660,14 +660,6 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   }
 }
 
-void Window::OnWindowOnOnlineEvent() {
-  DispatchEvent(new Event(base::Tokens::online()));
-}
-
-void Window::OnWindowOnOfflineEvent() {
-  DispatchEvent(new Event(base::Tokens::offline()));
-}
-
 void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
   if (!on_start_dispatch_event_callback_.is_null()) {
     on_start_dispatch_event_callback_.Run(event);
