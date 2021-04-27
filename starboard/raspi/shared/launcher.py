@@ -41,6 +41,19 @@ def _SigIntOrSigTermHandler(signum, frame):
   sys.exit(signum)
 
 
+def GlobalVars():
+  return GlobalVars.__dict__
+
+
+# First call returns True, otherwise return false.
+def FirstRun():
+  v = GlobalVars()
+  if not v.has_key('first_run'):
+    v['first_run'] = False
+    return True
+  return False
+
+
 class Launcher(abstract_launcher.AbstractLauncher):
   """Class for launching Cobalt/tools on Raspi."""
 
@@ -76,6 +89,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
             'environment variable.')
 
     self.startup_timeout_seconds = Launcher._STARTUP_TIMEOUT_SECONDS
+
+    self.first_run = FirstRun()
 
     self.pexpect_process = None
     self._InitPexpectCommands()
@@ -258,6 +273,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # ssh into the raspi and run the test
       if not self.shutdown_initiated.is_set():
         self._PexpectSpawnAndConnect(self.ssh_command)
+      # Execute debugging commands on the first run
+      if self.first_run:
+        for cmd in ['free -mh', 'ps -aux', 'df -h']:
+          if not self.shutdown_initiated.is_set():
+            self.pexpect_process.sendline(cmd)
       if not self.shutdown_initiated.is_set():
         self._KillExistingCobaltProcesses()
         self.pexpect_process.sendline(self.test_command)
