@@ -80,9 +80,9 @@
       'dependencies': [
         '<(DEPTH)/cobalt/configuration/configuration.gyp:configuration',
         '<(DEPTH)/cobalt/script/script.gyp:script',
-        '<(DEPTH)/v8/v8.gyp:v8',
-        '<(DEPTH)/v8/v8.gyp:v8_libplatform',
-        '<(DEPTH)/v8/v8.gyp:v8_base_without_compiler',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
         'embed_v8c_resources_as_header_files',
       ],
       'defines': [
@@ -116,9 +116,9 @@
         ':engine',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/script/script.gyp:standalone_javascript_runner',
-        '<(DEPTH)/v8/v8.gyp:v8',
-        '<(DEPTH)/v8/v8.gyp:v8_base_without_compiler',
-        '<(DEPTH)/v8/v8.gyp:v8_libplatform',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
+        '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
       ],
     },
 

@@ -4,7 +4,7 @@
 
 {
   'variables': {
-    'V8_ROOT': '<(DEPTH)/v8',
+    'V8_ROOT': '<(DEPTH)/third_party/v8',
     'inspector_protocol_path': '<(V8_ROOT)/third_party/inspector_protocol',
     'inspector_protocol_files': [
       '<(inspector_protocol_path)/lib/base_string_adapter_cc.template',

@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 {
   'variables': {
-    'V8_ROOT': '<(DEPTH)/v8',
+    'V8_ROOT': '<(DEPTH)/third_party/v8',
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
@@ -240,12 +240,12 @@
       "test/torque/test-torque.tq",
       "third_party/v8/builtins/array-sort.tq",
     ],
-    'torque_files': ['<!@pymod_do_main(v8.gypfiles.ForEachFormat "<(V8_ROOT)/%s" <@(torque_files_v8_root_relative))'],
+    'torque_files': ['<!@pymod_do_main(third_party.v8.gypfiles.ForEachFormat "<(V8_ROOT)/%s" <@(torque_files_v8_root_relative))'],
     'torque_output_root': '<(SHARED_INTERMEDIATE_DIR)/torque-output-root',
-    'torque_files_replaced': ['<!@pymod_do_main(v8.gypfiles.ForEachReplace ".tq" "-tq-csa" <@(torque_files_v8_root_relative))'],
-    'torque_outputs': ['<!@pymod_do_main(v8.gypfiles.ForEachFormat "<(torque_output_root)/torque-generated/%s.cc" <@(torque_files_replaced))'],
-    'torque_outputs+': ['<!@pymod_do_main(v8.gypfiles.ForEachFormat "<(torque_output_root)/torque-generated/%s.h" <@(torque_files_replaced))'],
-    'v8_compiler_sources': ['<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
+    'torque_files_replaced': ['<!@pymod_do_main(third_party.v8.gypfiles.ForEachReplace ".tq" "-tq-csa" <@(torque_files_v8_root_relative))'],
+    'torque_outputs': ['<!@pymod_do_main(third_party.v8.gypfiles.ForEachFormat "<(torque_output_root)/torque-generated/%s.cc" <@(torque_files_replaced))'],
+    'torque_outputs+': ['<!@pymod_do_main(third_party.v8.gypfiles.ForEachFormat "<(torque_output_root)/torque-generated/%s.h" <@(torque_files_replaced))'],
+    'v8_compiler_sources': ['<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
 
     'conditions': [
       ['v8_enable_i18n_support', {
@@ -465,7 +465,7 @@
         '<(generate_bytecode_output_root)',
       ],
       'sources': [
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
 
         '<@(torque_outputs)',
       ],
@@ -824,7 +824,7 @@
       'target_name': 'v8_base_without_compiler',
       'type': 'static_library',
       'dependencies': [
-        '<(DEPTH)/v8/src/inspector/inspector.gyp:protocol_generated_sources#target',
+        '<(V8_ROOT)/src/inspector/inspector.gyp:protocol_generated_sources#target',
         # Code generators that only need to be build for the host.
         'cppgc_base',
         'torque_generated_definitions',
@@ -856,7 +856,7 @@
         ### gcmole(all) ###
         '<(generate_bytecode_builtins_list_output)',
 
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?sources = ")',
         'src/wasm/baseline/liftoff-compiler-starboard.cc',
 
         '<@(inspector_all_sources)',
@@ -883,36 +883,36 @@
         }],
         ['v8_target_arch=="x86"', {
           'sources': [  ### gcmole(arch:ia32) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64.*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64.*?sources \+= ")',
           ],
           'conditions': [
             # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
             # based on Darwin and thus POSIX-compliant to a similar degree.
             ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
               'sources': [
-                '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \+= ")',
+                '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \+= ")',
               ],
             }],
             ['OS=="win"', {
               'sources': [
-                '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?sources \+= ")',
+                '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?sources \+= ")',
               ],
             }],
           ],
         }],
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="arm64"', {
           'sources': [  ### gcmole(arch:arm64) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \+= ")',
           ],
           'conditions': [
             ['OS=="win"', {
@@ -925,27 +925,27 @@
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [  ### gcmole(arch:mips64el) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="ppc"', {
           'sources': [  ### gcmole(arch:ppc) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="ppc64"', {
           'sources': [  ### gcmole(arch:ppc64) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc64\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc64\\".*?sources \+= ")',
           ],
         }],
         ['v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
-            '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \+= ")',
+            '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \+= ")',
           ],
         }],
         ['OS=="win"', {
@@ -1041,7 +1041,7 @@
           ],
         }, {  # v8_enable_i18n_support==0
            'sources!': [
-             '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_i18n_support.*?sources -= ")',
+             '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_i18n_support.*?sources -= ")',
            ],
          }],
         ['v8_postmortem_support', {
@@ -1081,7 +1081,7 @@
         }],
       ],
       'sources': [
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_base.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_base.*?sources = ")',
       ],
       'dependencies': [
         'v8_shared_internal_headers',
@@ -1112,7 +1112,7 @@
         }],
       ],
       'sources': [
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_ls_base.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"torque_ls_base.*?sources = ")',
       ],
       'dependencies': [
         'torque_base',
@@ -1137,7 +1137,7 @@
       'target_name': 'v8_libbase',
       'type': 'static_library',
       'sources': [
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libbase.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libbase.*?sources = ")',
       ],
 
       'dependencies': [
@@ -1553,7 +1553,7 @@
       ],
 
       'sources': [
-        '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"mksnapshot.*?sources = ")',
+        '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"mksnapshot.*?sources = ")',
       ],
       'conditions': [
         ['want_separate_host_toolset', {
@@ -1687,7 +1687,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
+          '<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
         ],
       },
     },  # cppgc_base
