@@ -130,9 +130,17 @@
   ],
   'target_defaults': {
     'include_dirs': [
+      '..',
       '<(V8_ROOT)',
       '<(V8_ROOT)/include',
     ],
+    'all_dependent_settings': {
+        'include_dirs': [
+          '..',
+          '<(V8_ROOT)',
+          '<(V8_ROOT)/include',
+        ],
+    },
     'conditions': [
       ['cobalt_config == "debug"', {
         'defines': [
