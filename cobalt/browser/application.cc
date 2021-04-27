@@ -55,6 +55,8 @@
 #if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/version_compatibility.h"
 #endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+#include "cobalt/base/window_on_offline_event.h"
+#include "cobalt/base/window_on_online_event.h"
 #include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
@@ -890,6 +892,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+  on_window_on_online_event_callback_ =
+      base::Bind(&Application::OnWindowOnOnlineEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::WindowOnOnlineEvent::TypeId(),
+                                     on_window_on_online_event_callback_);
+  on_window_on_offline_event_callback_ =
+      base::Bind(&Application::OnWindowOnOfflineEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::WindowOnOfflineEvent::TypeId(),
+                                     on_window_on_offline_event_callback_);
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -1103,6 +1113,14 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
       break;
 #endif
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+    case kSbEventTypeOsNetworkDisconnected:
+      DispatchEventInternal(new base::WindowOnOfflineEvent());
+      break;
+    case kSbEventTypeOsNetworkConnected:
+      DispatchEventInternal(new base::WindowOnOnlineEvent());
+      break;
+#endif
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
@@ -1112,10 +1130,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
-    case kSbEventTypeOsNetworkDisconnected:
-    case kSbEventTypeOsNetworkConnected:
-#endif
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1337,6 +1351,15 @@ void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
           const base::AccessibilityCaptionSettingsChangedEvent*>(event));
 }
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+
+void Application::OnWindowOnOnlineEvent(const base::Event* event) {
+  browser_module_->OnWindowOnOnlineEvent(
+      base::polymorphic_downcast<const base::WindowOnOnlineEvent*>(event));
+}
+void Application::OnWindowOnOfflineEvent(const base::Event* event) {
+  browser_module_->OnWindowOnOfflineEvent(
+      base::polymorphic_downcast<const base::WindowOnOfflineEvent*>(event));
+}
 
 void Application::WebModuleCreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");

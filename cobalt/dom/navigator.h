@@ -61,6 +61,8 @@ class Navigator : public script::Wrappable {
   // Web API: NavigatorPlugins
   bool cookie_enabled() const;
 
+  bool on_line() const;
+
   // Web API: MediaDevices
   scoped_refptr<media_capture::MediaDevices> media_devices();
 
