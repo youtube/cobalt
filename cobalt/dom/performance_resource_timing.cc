@@ -18,6 +18,10 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+  const std::string kPerformanceResourceTimingCacheMode = "local";
+}
+
 PerformanceResourceTiming::PerformanceResourceTiming(
     const std::string& name, DOMHighResTimeStamp start_time,
     DOMHighResTimeStamp end_time)
@@ -25,15 +29,14 @@ PerformanceResourceTiming::PerformanceResourceTiming(
 
 PerformanceResourceTiming::PerformanceResourceTiming(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
-    const std::string& requested_url, const std::string& cache_mode,
-    Performance* performance)
+    const std::string& requested_url, Performance* performance)
     : PerformanceEntry(
           requested_url, performance->Now(),
           ConvertTimeDeltaToDOMHighResTimeStamp(
               timing_info.receive_headers_end.since_origin(),
               Performance::kPerformanceTimerMinResolutionInMicroseconds)),
       initiator_type_(initiator_type),
-      cache_mode_(cache_mode),
+      cache_mode_(kPerformanceResourceTimingCacheMode),
       transfer_size_(0),
       timing_info_(timing_info) {}
 

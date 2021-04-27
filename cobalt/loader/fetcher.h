@@ -22,6 +22,7 @@
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
 #include "net/http/http_response_headers.h"
+#include "net/base/load_timing_info.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -63,9 +64,23 @@ class Fetcher {
       OnReceived(fetcher, data->data(), data->length());
     }
 
+    virtual void SetLoadTimingInfo(
+        const net::LoadTimingInfo& timing_info) {
+      if (!load_timing_info_callback_.is_null()) {
+        load_timing_info_callback_.Run(timing_info);
+      }
+    }
+
+    virtual void SetLoadTimingInfoCallback(
+        const base::Callback<void(const net::LoadTimingInfo&)>& callback) {
+      load_timing_info_callback_ = callback;
+    }
+
    protected:
     Handler() {}
     virtual ~Handler() {}
+    base::Callback<void(const net::LoadTimingInfo&)>
+        load_timing_info_callback_;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(Handler);
@@ -83,6 +98,11 @@ class Fetcher {
   // Whether or not the fetcher failed from an error that is considered
   // transient, indicating that the same fetch may later succeed.
   virtual bool did_fail_from_transient_error() const { return false; }
+
+  virtual void SetLoadTimingInfoCallback(
+      const base::Callback<void(const net::LoadTimingInfo&)>& callback) {
+    handler_->SetLoadTimingInfoCallback(callback);
+  }
 
  protected:
   Handler* handler() const { return handler_; }

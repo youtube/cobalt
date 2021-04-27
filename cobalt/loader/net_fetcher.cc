@@ -224,6 +224,11 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
   }
 }
 
+void NetFetcher::ReportLoadTimingInfo(
+    const net::LoadTimingInfo& timing_info) {
+  handler()->SetLoadTimingInfo(timing_info);
+}
+
 NetFetcher::~NetFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();

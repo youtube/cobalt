@@ -87,7 +87,7 @@ class HTMLElementTest : public ::testing::Test {
         html_element_context_(&environment_settings_, NULL, NULL, &css_parser_,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, dom_stat_tracker_.get(),
-                              "", base::kApplicationStateStarted, NULL),
+                              "", base::kApplicationStateStarted, NULL, NULL),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementTest() override {}
 

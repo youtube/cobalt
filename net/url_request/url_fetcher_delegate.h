@@ -9,6 +9,7 @@
 #include <string>
 
 #include "net/base/net_export.h"
+#include "net/base/load_timing_info.h"
 #include "starboard/types.h"
 
 namespace net {
@@ -43,6 +44,10 @@ class NET_EXPORT URLFetcherDelegate {
   virtual void OnURLFetchUploadProgress(const URLFetcher* source,
                                         int64_t current,
                                         int64_t total);
+#if defined(STARBOARD)
+  virtual void ReportLoadTimingInfo(
+      const net::LoadTimingInfo& timing_info) {}
+#endif  // defined(STARBOARD)
 
  protected:
   virtual ~URLFetcherDelegate();

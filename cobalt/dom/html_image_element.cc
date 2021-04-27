@@ -187,6 +187,7 @@ void HTMLImageElement::OnLoadingSuccess() {
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
+  GetLoadTimingInfoAndCreateResourceTiming();
   cached_image_loaded_callback_handler_.reset();
 }
 
@@ -197,6 +198,7 @@ void HTMLImageElement::OnLoadingError() {
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
+  GetLoadTimingInfoAndCreateResourceTiming();
   cached_image_loaded_callback_handler_.reset();
 }
 
@@ -226,6 +228,19 @@ void HTMLImageElement::DestroyScopedPreventGC(
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   scoped_prevent_gc.reset();
+}
+
+void HTMLImageElement::GetLoadTimingInfoAndCreateResourceTiming() {
+  if (html_element_context()->performance() == nullptr) return;
+  // Resolve selected source, relative to the element.
+  const auto src_attr = GetAttribute("src");
+  const std::string src = src_attr.value_or("");
+  const GURL& base_url = node_document()->url_as_gurl();
+  const GURL selected_source = base_url.Resolve(src);
+
+  html_element_context()->performance()->CreatePerformanceResourceTiming(
+      cached_image_loaded_callback_handler_->GetLoadTimingInfo(),
+      kTagName, selected_source.spec());
 }
 
 }  // namespace dom

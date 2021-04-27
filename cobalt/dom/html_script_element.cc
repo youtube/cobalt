@@ -710,7 +710,15 @@ void HTMLScriptElement::AllowGCAfterLoadComplete() {
 void HTMLScriptElement::ReleaseLoader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
+  // GetLoadTimingInfo from loader before reset.
+  GetLoadTimingInfoAndCreateResourceTiming();
   loader_.reset();
+}
+
+void HTMLScriptElement::GetLoadTimingInfoAndCreateResourceTiming() {
+  if (html_element_context()->performance() == nullptr) return;
+  html_element_context()->performance()->CreatePerformanceResourceTiming(
+      loader_->get_load_timing_info(), kTagName, url_.spec());
 }
 
 }  // namespace dom
