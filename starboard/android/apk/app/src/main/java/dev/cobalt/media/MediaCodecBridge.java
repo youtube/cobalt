@@ -33,6 +33,7 @@ import android.view.Surface;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /** A wrapper of the MediaCodec class. */
 @SuppressWarnings("unused")
@@ -364,9 +365,7 @@ class MediaCodecBridge {
 
       // This logic is inspired by
       // https://github.com/google/ExoPlayer/blob/deb9b301b2c7ef66fdd7d8a3e58298a79ba9c619/library/core/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java#L1803.
-      byte[] hdrStaticInfoData = new byte[25];
-      ByteBuffer hdrStaticInfo = ByteBuffer.wrap(hdrStaticInfoData);
-
+      ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25).order(ByteOrder.LITTLE_ENDIAN);
       hdrStaticInfo.put((byte) 0);
       hdrStaticInfo.putShort((short) ((primaryRChromaticityX * MAX_CHROMATICITY) + 0.5f));
       hdrStaticInfo.putShort((short) ((primaryRChromaticityY * MAX_CHROMATICITY) + 0.5f));
