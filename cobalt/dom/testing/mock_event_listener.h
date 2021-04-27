@@ -91,27 +91,6 @@ class MockEventListener : public EventListener {
         .RetiresOnSaturation();
   }
 
-  void ExpectHandleEventCall(const std::string type,
-                             const scoped_refptr<EventTarget>& target) {
-    using ::testing::_;
-    using ::testing::AllOf;
-    using ::testing::Eq;
-    using ::testing::Invoke;
-    using ::testing::Pointee;
-    using ::testing::Property;
-
-    EXPECT_CALL(
-        *this,
-        HandleEvent(
-            Eq(target.get()),
-            AllOf(Pointee(Property(&Event::type, Eq(type))),
-                  Pointee(Property(&Event::target, Eq(target.get()))),
-                  Pointee(Property(&Event::IsBeingDispatched, Eq(true)))),
-            _))
-        .WillOnce(Invoke(&DoNothing))
-        .RetiresOnSaturation();
-  }
-
   void ExpectNoHandleEventCall() {
     using ::testing::_;
     EXPECT_CALL(*this, HandleEvent(_, _, _)).Times(0);

@@ -26,14 +26,12 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/screen.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/testing/fake_script_value.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -43,10 +41,6 @@ using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
-
-using ::cobalt::script::testing::FakeScriptValue;
-using testing::MockEventListener;
-
 class MockErrorCallback
     : public base::Callback<void(const base::Optional<std::string> &)> {
  public:
@@ -83,7 +77,6 @@ class WindowTest : public ::testing::Test {
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
-    fake_event_listener_ = MockEventListener::Create();
   }
 
   ~WindowTest() override {}
@@ -99,7 +92,6 @@ class WindowTest : public ::testing::Test {
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
   scoped_refptr<Window> window_;
-  std::unique_ptr<MockEventListener> fake_event_listener_;
 };
 
 TEST_F(WindowTest, WindowShouldNotHaveChildren) {
@@ -125,24 +117,6 @@ TEST_F(WindowTest, ViewportSize) {
   EXPECT_FLOAT_EQ(window_->screen()->height(), 1080.0f);
   EXPECT_FLOAT_EQ(window_->screen()->avail_width(), 1920.0f);
   EXPECT_FLOAT_EQ(window_->screen()->avail_height(), 1080.0f);
-}
-
-// Test that when Window's network status change callbacks are triggered,
-// corresponding online and offline events are fired to listeners.
-TEST_F(WindowTest, OnlineEvent) {
-  window_->AddEventListener(
-      "online", FakeScriptValue<EventListener>(fake_event_listener_.get()),
-      true);
-  fake_event_listener_->ExpectHandleEventCall("online", window_);
-  window_->OnWindowOnOnlineEvent();
-}
-
-TEST_F(WindowTest, OfflineEvent) {
-  window_->AddEventListener(
-      "offline", FakeScriptValue<EventListener>(fake_event_listener_.get()),
-      true);
-  fake_event_listener_->ExpectHandleEventCall("offline", window_);
-  window_->OnWindowOnOfflineEvent();
 }
 
 }  // namespace dom

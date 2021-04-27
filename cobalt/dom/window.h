@@ -378,9 +378,6 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   // and is unable to provide them.
   void OnDocumentRootElementUnableToProvideOffsetDimensions();
 
-  void OnWindowOnOnlineEvent();
-  void OnWindowOnOfflineEvent();
-
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content,
                          const base::Optional<std::string>& topic);
