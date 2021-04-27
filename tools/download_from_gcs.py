@@ -58,9 +58,9 @@ def _DownloadFromGcsAndCheckSha1(bucket, sha1):
 
   try:
     res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
-  except urllib2.URLError:
+  except urllib.URLError:
     from ssl import _create_unverified_context
-    context = ssl._create_unverified_context()
+    context = _create_unverified_context()
     res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
 
   if not res:
