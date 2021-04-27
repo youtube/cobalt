@@ -85,6 +85,9 @@ class Application {
   void OnCaptionSettingsChangedEvent(const base::Event* event);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
+  void OnWindowOnOnlineEvent(const base::Event* event);
+  void OnWindowOnOfflineEvent(const base::Event* event);
+
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleCreated();
 
@@ -121,6 +124,10 @@ class Application {
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   base::EventCallback on_caption_settings_changed_event_callback_;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
+  base::EventCallback on_window_on_online_event_callback_;
+  base::EventCallback on_window_on_offline_event_callback_;
+#endif
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.

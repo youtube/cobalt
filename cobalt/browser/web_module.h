@@ -318,6 +318,9 @@ class WebModule : public LifecycleObserver {
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
+  void InjectWindowOnOnlineEvent(const base::Event* event);
+  void InjectWindowOnOfflineEvent(const base::Event* event);
+
   // Injects a keyboard event into the web module. The value for type
   // represents the event name, for example 'keydown' or 'keyup'.
   void InjectKeyboardEvent(base::Token type,
