@@ -136,6 +136,7 @@ Window::Window(
 #if defined(ENABLE_TEST_RUNNER)
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
+      performance_(new Performance(settings, MakePerformanceClock(clock_type))),
       html_element_context_(new HTMLElementContext(
           settings, fetcher_factory, loader_factory, css_parser, dom_parser,
           can_play_type_handler, web_media_player_factory, script_runner,
@@ -144,8 +145,8 @@ Window::Window(
           reduced_image_cache_capacity_manager, remote_typeface_cache,
           mesh_cache, dom_stat_tracker, font_language_script,
           initial_application_state, synchronous_loader_interrupt,
-          enable_inline_script_warnings, video_playback_rate_multiplier)),
-      performance_(new Performance(settings, MakePerformanceClock(clock_type))),
+          performance_.get(), enable_inline_script_warnings,
+          video_playback_rate_multiplier)),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(

@@ -274,7 +274,7 @@ void Performance::AddPerformanceResourceTimingEntry(
   }
 
   // 3. If resource timing buffer full event pending flag is false, run the
-  //  following substeps:
+  // following substeps:
   if (!resource_timing_buffer_full_event_pending_flag_) {
     // 3.1 Set resource timing buffer full event pending flag to true.
     resource_timing_buffer_full_event_pending_flag_ = true;
@@ -283,7 +283,7 @@ void Performance::AddPerformanceResourceTimingEntry(
     DCHECK(message_loop());
     message_loop()->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Performance::FireResourceTimingBufferFullEvent,
-        this));
+        base::Unretained(this)));
   }
   // 4. Add new entry to the resource timing secondary buffer.
   resource_timing_secondary_buffer_.push_back(resource_timing_entry);
@@ -342,7 +342,7 @@ void Performance::QueuePerformanceEntry(
   DCHECK(message_loop());
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&Performance::QueuePerformanceTimelineTask,
-      this));
+      base::Unretained(this)));
 }
 
 void Performance::QueuePerformanceTimelineTask() {
@@ -374,7 +374,7 @@ void Performance::QueuePerformanceTimelineTask() {
 
 void Performance::CreatePerformanceResourceTiming(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
-    const std::string& requested_url, const std::string& cache_mode) {
+    const std::string& requested_url) {
   // To mark resource timing given a fetch timing info timingInfo, a DOMString
   // requestedURL, a DOMString initiatorType a global object global, and a
   // string cacheMode, perform the following steps:
@@ -383,8 +383,8 @@ void Performance::CreatePerformanceResourceTiming(
   // 2.Setup the resource timing entry for entry, given initiatorType,
   // requestedURL, timingInfo, and cacheMode.
   scoped_refptr<PerformanceResourceTiming> resource_timing(
-      new PerformanceResourceTiming(timing_info, initiator_type, requested_url,
-                                    cache_mode, this));
+      new PerformanceResourceTiming(timing_info, initiator_type,
+                                    requested_url, this));
   // 2. Queue entry.
   QueuePerformanceEntry(resource_timing);
   // 3. Add entry to global's performance entry buffer.

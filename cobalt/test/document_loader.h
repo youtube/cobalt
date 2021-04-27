@@ -72,7 +72,8 @@ class DocumentLoader : public dom::DocumentObserver {
             NULL /* remote_font_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */,
             base::kApplicationStateStarted,
-            NULL /* synchronous_loader_interrupt */) {}
+            NULL /* synchronous_loader_interrupt */,
+            NULL /* performance */) {}
   void Load(const GURL& url) {
     // Load the document in a nested message loop.
     dom::Document::Options options(url);

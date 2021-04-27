@@ -88,8 +88,7 @@ class Performance : public EventTarget {
   void QueuePerformanceTimelineTask();
   void CreatePerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
                                        const std::string& initiator_type,
-                                       const std::string& requested_url,
-                                       const std::string& cache_mode);
+                                       const std::string& requested_url);
   // Custom, not in any spec.
   base::TimeDelta get_time_origin() const { return time_origin_; }
 

@@ -54,6 +54,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   void OnURLFetchDownloadProgress(const net::URLFetcher* source,
                                   int64_t current, int64_t total,
                                   int64_t current_network_bytes) override;
+  void ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) override;
 
   net::URLFetcher* url_fetcher() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

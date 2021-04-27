@@ -766,6 +766,8 @@ void URLFetcherCore::StartURLRequest() {
   if (!extra_request_headers_.IsEmpty())
     request_->SetExtraRequestHeaders(extra_request_headers_);
 
+  request_->SetLoadTimingInfoCallback(base::Bind(&URLFetcherCore::GetLoadTimingInfo,
+      base::Unretained(this)));
   request_->Start();
 }
 
@@ -844,7 +846,6 @@ void URLFetcherCore::CancelURLRequest(int error) {
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
-
   // Save the status and backoff_delay so that delegates can read it.
   if (delegate_) {
     backoff_delay_ = backoff_delay;
@@ -854,8 +855,9 @@ void URLFetcherCore::OnCompletedURLRequest(
 
 void URLFetcherCore::InformDelegateFetchIsComplete() {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
-  if (delegate_)
+  if (delegate_) {
     delegate_->OnURLFetchComplete(fetcher_);
+  }
 }
 
 void URLFetcherCore::NotifyMalformedContent() {
@@ -1110,5 +1112,13 @@ void URLFetcherCore::AssertHasNoUploadData() const {
   DCHECK(upload_file_path_.empty());
   DCHECK(upload_stream_factory_.is_null());
 }
+
+#if defined(STARBOARD)
+void URLFetcherCore::GetLoadTimingInfo(
+    const net::LoadTimingInfo& timing_info) {
+  DCHECK(delegate_);
+  delegate_->ReportLoadTimingInfo(timing_info);
+}
+#endif  // defined(STARBOARD)
 
 }  // namespace net

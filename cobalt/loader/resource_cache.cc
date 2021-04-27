@@ -25,7 +25,8 @@ namespace loader {
 
 CachedResourceBase::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResourceBase>& cached_resource,
-    const base::Closure& success_callback, const base::Closure& error_callback)
+    const base::Closure& success_callback,
+    const base::Closure& error_callback)
     : cached_resource_(cached_resource),
       success_callback_(success_callback),
       error_callback_(error_callback) {
@@ -43,6 +44,11 @@ CachedResourceBase::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     error_callback_list_iterator_ = cached_resource_->AddCallback(
         kOnLoadingErrorCallbackType, error_callback_);
   }
+}
+
+net::LoadTimingInfo
+    CachedResourceBase::OnLoadedCallbackHandler::GetLoadTimingInfo() {
+  return cached_resource_->GetLoadTimingInfo();
 }
 
 CachedResourceBase::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
@@ -133,6 +139,8 @@ void CachedResourceBase::ScheduleLoadingRetry() {
 void CachedResourceBase::OnLoadingComplete(
     const base::Optional<std::string>& error) {
   DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
+
+  load_timing_info_ = loader_->get_load_timing_info();
 
   // Success
   if (!error) {

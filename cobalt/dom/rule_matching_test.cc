@@ -57,7 +57,7 @@ class RuleMatchingTest : public ::testing::Test {
                               css_parser_.get(), dom_parser_.get(), NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted, NULL),
+                              base::kApplicationStateStarted, NULL, NULL),
         document_(new Document(&html_element_context_)),
         root_(document_->CreateElement("html")->AsHTMLElement()),
         head_(document_->CreateElement("head")->AsHTMLElement()),

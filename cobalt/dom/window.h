@@ -443,8 +443,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   scoped_refptr<TestRunner> test_runner_;
 #endif  // ENABLE_TEST_RUNNER
 
-  const std::unique_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
+  const std::unique_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Document> document_;
   std::unique_ptr<loader::Loader> document_loader_;
   scoped_refptr<History> history_;
