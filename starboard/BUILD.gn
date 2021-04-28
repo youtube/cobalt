@@ -27,6 +27,7 @@ group("starboard") {
     public_deps = [ "//$starboard_path:starboard_platform" ]
     deps += [
       "//starboard/client_porting/cwrappers",
+      "//starboard/client_porting/eztime",
       "//starboard/common",
     ]
 
