@@ -60,7 +60,6 @@
         '../dom/cdata_section.idl',
         '../dom/character_data.idl',
         '../dom/comment.idl',
-        '../dom/console.idl',
         '../dom/crypto.idl',
         '../dom/custom_event.idl',
         '../dom/device_orientation_event.idl',

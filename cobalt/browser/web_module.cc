@@ -751,7 +751,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new debug::backend::RenderOverlay(render_tree_produced_callback_));
 
   debug_module_.reset(new debug::backend::DebugModule(
-      &debugger_hooks_, window_->console(), global_environment_.get(),
+      &debugger_hooks_, global_environment_.get(),
       debug_overlay_.get(), resource_provider_, window_,
       data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER

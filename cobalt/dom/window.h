@@ -87,7 +87,6 @@ namespace cobalt {
 namespace dom {
 
 class Camera3D;
-class Console;
 class Document;
 class Element;
 class Event;
@@ -314,10 +313,6 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
   scoped_refptr<speech::SpeechSynthesis> speech_synthesis() const;
 
-  // Custom, not in any spec.
-  //
-  const scoped_refptr<Console>& console() const;
-
   const scoped_refptr<Camera3D>& camera_3d() const;
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -455,7 +450,6 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   scoped_refptr<History> history_;
   scoped_refptr<Navigator> navigator_;
   std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
-  scoped_refptr<Console> console_;
   scoped_refptr<Camera3D> camera_3d_;
   std::unique_ptr<WindowTimers> window_timers_;
   std::unique_ptr<AnimationFrameRequestCallbackList>
