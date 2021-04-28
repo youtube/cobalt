@@ -74,7 +74,6 @@
         '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
         '<(DEPTH)/starboard/shared/stub/drm_get_metrics.cc',
         '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
         '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/file_atomic_replace.cc',
