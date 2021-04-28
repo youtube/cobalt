@@ -25,7 +25,10 @@ group("starboard") {
     deps += []
   } else {
     public_deps = [ "//$starboard_path:starboard_platform" ]
-    deps += [ "//starboard/common" ]
+    deps += [
+      "//starboard/client_porting/cwrappers",
+      "//starboard/common",
+    ]
 
     if (final_executable_type == "shared_library" &&
         current_toolchain != default_toolchain) {
