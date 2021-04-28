@@ -24,7 +24,7 @@ group("starboard") {
   if (sb_evergreen) {
     deps += []
   } else {
-    deps += [ "//$starboard_path:starboard_platform" ]
+    public_deps = [ "//$starboard_path:starboard_platform" ]
   }
 }
 
