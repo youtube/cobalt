@@ -1587,41 +1587,46 @@ config("default_warnings") {
         # Flags NaCl (Clang 3.7) and Xcode 9.2 (Clang clang-900.0.39.2) do not
         # recognize.
         cflags += [
-          # An ABI compat warning we don't care about, https://crbug.com/1102157
-          # TODO(thakis): Push this to the (few) targets that need it,
-          # instead of having a global flag.
-          "-Wno-psabi",
-
           # Ignore warnings about MSVC optimization pragmas.
           # TODO(thakis): Only for no_chromium_code? http://crbug.com/912662
           "-Wno-ignored-pragma-optimize",
-
-          # TODO(https://crbug.com/989932): Evaluate and possibly enable.
-          "-Wno-implicit-int-float-conversion",
-
-          # TODO(https://crbug.com/999886): Clean up, enable.
-          "-Wno-final-dtor-non-final-class",
-
-          # TODO(https://crbug.com/1016945) Clean up, enable.
-          "-Wno-builtin-assume-aligned-alignment",
-
-          # TODO(https://crbug.com/1028110): Evaluate and possible enable.
-          "-Wno-deprecated-copy",
-
-          # TODO(https://crbug.com/1050281): Clean up, enable.
-          "-Wno-non-c-typedef-for-linkage",
         ]
+        if (!is_starboard) {
+          cflags += [
+            # An ABI compat warning we don't care about, https://crbug.com/1102157
+            # TODO(thakis): Push this to the (few) targets that need it,
+            # instead of having a global flag.
+            "-Wno-psabi",
+
+            # TODO(https://crbug.com/989932): Evaluate and possibly enable.
+            "-Wno-implicit-int-float-conversion",
+
+            # TODO(https://crbug.com/999886): Clean up, enable.
+            "-Wno-final-dtor-non-final-class",
+
+            # TODO(https://crbug.com/1016945) Clean up, enable.
+            "-Wno-builtin-assume-aligned-alignment",
+
+            # TODO(https://crbug.com/1028110): Evaluate and possible enable.
+            "-Wno-deprecated-copy",
+
+            # TODO(https://crbug.com/1050281): Clean up, enable.
+            "-Wno-non-c-typedef-for-linkage",
+          ]
+        }
 
         cflags_c += [
           # TODO(https://crbug.com/995993): Clean up and enable.
           "-Wno-implicit-fallthrough",
         ]
 
-        if (enable_wmax_tokens) {
-          cflags += [ "-Wmax-tokens" ]
-        } else {
-          # TODO(https://crbug.com/1049569): Remove after Clang 87b235db.
-          cflags += [ "-Wno-max-tokens" ]
+        if (!is_starboard) {
+          if (enable_wmax_tokens) {
+            cflags += [ "-Wmax-tokens" ]
+          } else {
+            # TODO(https://crbug.com/1049569): Remove after Clang 87b235db.
+            cflags += [ "-Wno-max-tokens" ]
+          }
         }
       }
     }
@@ -1693,7 +1698,7 @@ config("chromium_code") {
 
     # TODO(thakis): Enable this more often, https://crbug.com/346399
     # use_libfuzzer: https://crbug.com/1063180
-    if (!is_nacl && !use_libfuzzer) {
+    if (!is_starboard && !is_nacl && !use_libfuzzer) {
       cflags += [ "-Wunreachable-code" ]
     }
 
@@ -1758,7 +1763,8 @@ config("no_chromium_code") {
       # suppressing them individually, we just blanket suppress them here.
       "-Wno-unused-variable",
     ]
-    if (!is_nacl && (current_toolchain == host_toolchain || !use_xcode_clang)) {
+    if (!is_starboard && !is_nacl &&
+        (current_toolchain == host_toolchain || !use_xcode_clang)) {
       cflags += [
         # TODO(https://crbug.com/1202159): Clean up and enable.
         "-Wno-misleading-indentation",
