@@ -17,6 +17,7 @@
 
 source_set("common") {
   public_deps = [ "//starboard:starboard_headers_only" ]
+  check_includes = false
 
   sources = [
     "//starboard/shared/media_session/playback_state.cc",
