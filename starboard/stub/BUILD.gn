@@ -22,7 +22,10 @@ config("starboard_implementation") {
 
 source_set("stub_sources") {
   public_configs = [ ":starboard_implementation" ]
-  public_deps = [ "//starboard:starboard_headers_only" ]
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
 
   sources = [
     "//starboard/shared/starboard/application.cc",
