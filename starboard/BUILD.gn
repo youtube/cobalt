@@ -25,6 +25,13 @@ group("starboard") {
     deps += []
   } else {
     public_deps = [ "//$starboard_path:starboard_platform" ]
+
+    if (final_executable_type == "shared_library" &&
+        current_toolchain != default_toolchain) {
+      set_defaults("executable") {
+        sources = [ "//starboard/shared/starboard/shared_main_adapter.cc" ]
+      }
+    }
   }
 }
 
