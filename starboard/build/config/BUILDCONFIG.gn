@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/platforms.gni")
 
 declare_args() {
@@ -30,13 +31,33 @@ is_qa = build_type == "qa"
 is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
+# Set some variables we never want to change
 sb_allows_memory_tracking = !is_gold
+host_byteorder = "little"
 
 starboard_path = platforms["$target_platform"]
+import("//$starboard_path/platform_configuration/configuration.gni")
 
 host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
+
+# =============================================================================
+# TARGET DEFAULTS
+# =============================================================================
+#
+# Set up the default configuration for every build target of the given type.
+# The values configured here will be automatically set on the scope of the
+# corresponding target. Target definitions can add or remove to the settings
+# here as needed.
+#
+# WHAT GOES HERE?
+#
+# Other than the main compiler and linker configs, the only reason for a config
+# to be in this list is if some targets need to explicitly override that config
+# by removing it. This is how targets opt-out of flags. If you don't have that
+# requirement and just need to add a config everywhere, reference it as a
+# sub-config of an existing one, most commonly the main "compiler" one.
 
 default_compiler_configs = [
   "//starboard/build/config:base",
@@ -46,8 +67,6 @@ default_compiler_configs = [
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
-
-import("//$starboard_path/platform_configuration/configuration.gni")
 
 set_defaults("static_library") {
   configs = default_compiler_configs
@@ -64,3 +83,6 @@ set_defaults("shared_library") {
 set_defaults("loadable_module") {
   configs = default_compiler_configs
 }
+
+# Import this down here as it relies on variables set during configuration.
+import("//starboard/build/config/components.gni")
