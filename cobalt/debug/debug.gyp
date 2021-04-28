@@ -24,8 +24,6 @@
         'backend/agent_base.cc',
         'backend/agent_base.h',
         'backend/command_map.h',
-        'backend/console_agent.cc',
-        'backend/console_agent.h',
         'backend/css_agent.cc',
         'backend/css_agent.h',
         'backend/debug_backend.cc',

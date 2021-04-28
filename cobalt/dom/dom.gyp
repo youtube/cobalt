@@ -55,8 +55,6 @@
         'character_data.h',
         'comment.cc',
         'comment.h',
-        'console.cc',
-        'console.h',
         'crypto.cc',
         'crypto.h',
         'csp_delegate.cc',

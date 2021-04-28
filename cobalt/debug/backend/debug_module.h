@@ -20,7 +20,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/debugger_hooks.h"
-#include "cobalt/debug/backend/console_agent.h"
 #include "cobalt/debug/backend/css_agent.h"
 #include "cobalt/debug/backend/debug_backend.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
@@ -36,7 +35,6 @@
 #include "cobalt/debug/backend/script_debugger_agent.h"
 #include "cobalt/debug/backend/tracing_agent.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/dom/console.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/script/global_environment.h"
@@ -54,14 +52,14 @@ namespace backend {
 class DebugModule : public script::ScriptDebugger::Delegate {
  public:
   // Construct the debug dispatcher on the current message loop.
-  DebugModule(DebuggerHooksImpl* debugger_hooks, dom::Console* console,
+  DebugModule(DebuggerHooksImpl* debugger_hooks,
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
               dom::Window* window, DebuggerState* debugger_state);
 
   // Construct the debug dispatcher on the specified message loop.
-  DebugModule(DebuggerHooksImpl* debugger_hooks, dom::Console* console,
+  DebugModule(DebuggerHooksImpl* debugger_hooks,
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
@@ -83,14 +81,13 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   // Data used to construct an instance of this class that does not need to be
   // persisted.
   struct ConstructionData {
-    ConstructionData(DebuggerHooksImpl* debugger_hooks, dom::Console* console,
+    ConstructionData(DebuggerHooksImpl* debugger_hooks,
                      script::GlobalEnvironment* global_environment,
                      base::MessageLoop* message_loop,
                      RenderOverlay* render_overlay,
                      render_tree::ResourceProvider* resource_provider,
                      dom::Window* window, DebuggerState* debugger_state)
         : debugger_hooks(debugger_hooks),
-          console(console),
           global_environment(global_environment),
           message_loop(message_loop),
           render_overlay(render_overlay),
@@ -99,7 +96,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
           debugger_state(debugger_state) {}
 
     DebuggerHooksImpl* debugger_hooks;
-    dom::Console* console;
     script::GlobalEnvironment* global_environment;
     base::MessageLoop* message_loop;
     RenderOverlay* render_overlay;
@@ -140,9 +136,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
 
   // Wrappable object providing native helpers for backend JavaScript.
   scoped_refptr<DebugBackend> debug_backend_;
-
-  // Debug agents implement the debugging protocol.
-  std::unique_ptr<ConsoleAgent> console_agent_;
   std::unique_ptr<LogAgent> log_agent_;
   std::unique_ptr<DOMAgent> dom_agent_;
   scoped_refptr<CSSAgent> css_agent_;
