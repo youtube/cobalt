@@ -25,6 +25,7 @@ group("starboard") {
     deps += []
   } else {
     public_deps = [ "//$starboard_path:starboard_platform" ]
+    deps += [ "//starboard/common" ]
 
     if (final_executable_type == "shared_library" &&
         current_toolchain != default_toolchain) {
@@ -36,6 +37,10 @@ group("starboard") {
 }
 
 source_set("starboard_headers_only") {
+  # We include starboard/common/log.h in starboard_headers, but some common
+  # files include starboard headers.
+  check_includes = false
+
   sources = [
     "atomic.h",
     "audio_sink.h",
