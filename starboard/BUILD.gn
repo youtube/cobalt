@@ -19,17 +19,24 @@ group("gn_all") {
 }
 
 group("starboard") {
-  deps = [ ":starboard_headers_only" ]
+  public_deps = [ ":starboard_headers_only" ]
 
   if (sb_evergreen) {
-    deps += []
+    public_deps += []
   } else {
-    public_deps = [ "//$starboard_path:starboard_platform" ]
-    deps += [
+    public_deps += [
+      "//$starboard_path:starboard_platform",
       "//starboard/client_porting/cwrappers",
       "//starboard/client_porting/eztime",
       "//starboard/common",
     ]
+
+    if (sb_evergreen_compatible) {
+      # TODO(andrewsavage): This should not be stubbed out
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
 
     if (final_executable_type == "shared_library" &&
         current_toolchain != default_toolchain) {
