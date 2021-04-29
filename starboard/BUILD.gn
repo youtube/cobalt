@@ -24,6 +24,10 @@ group("gn_all") {
     "//starboard/examples/window:starboard_window_example",
     "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
+
+  if (gl_type != "none") {
+    deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
+  }
 }
 
 group("starboard") {
