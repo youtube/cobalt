@@ -57,6 +57,7 @@
 #include "starboard/configuration.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include "base/memory/ptr_util.h"
@@ -1026,6 +1027,16 @@ void BrowserModule::OnCaptionSettingsChanged(
   }
 }
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+void BrowserModule::OnDateTimeConfigurationChanged(
+    const base::DateTimeConfigurationChangedEvent* event) {
+  icu::TimeZone::adoptDefault(icu::TimeZone::detectHostTimeZone());
+  if (web_module_) {
+    web_module_->UpdateDateTimeConfiguration();
+  }
+}
+#endif
 
 #if defined(ENABLE_DEBUGGER)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {

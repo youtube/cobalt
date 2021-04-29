@@ -28,6 +28,7 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
+#include "cobalt/base/date_time_configuration_changed_event.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/base/on_screen_keyboard_blurred_event.h"
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
@@ -214,6 +215,11 @@ class BrowserModule {
 
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
+
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  void OnDateTimeConfigurationChanged(
+      const base::DateTimeConfigurationChangedEvent* event);
+#endif
 
   bool IsWebModuleLoaded() { return web_module_loaded_.IsSignaled(); }
 

@@ -41,6 +41,7 @@
 #include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/accessibility_text_to_speech_settings_changed_event.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/date_time_configuration_changed_event.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/get_application_key.h"
 #include "cobalt/base/init_cobalt.h"
@@ -851,7 +852,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
 
-// Register event callbacks.
+  // Register event callbacks.
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
@@ -900,6 +901,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnWindowOnOfflineEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowOnOfflineEvent::TypeId(),
                                      on_window_on_offline_event_callback_);
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  on_date_time_configuration_changed_event_callback_ =
+      base::Bind(&Application::OnDateTimeConfigurationChangedEvent,
+                 base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::DateTimeConfigurationChangedEvent::TypeId(),
+      on_date_time_configuration_changed_event_callback_);
+#endif
+
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -958,7 +968,7 @@ Application::~Application() {
   memory_tracker_tool_.reset(NULL);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-// Unregister event callbacks.
+  // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
@@ -984,6 +994,11 @@ Application::~Application() {
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  event_dispatcher_.RemoveEventCallback(
+      base::DateTimeConfigurationChangedEvent::TypeId(),
+      on_date_time_configuration_changed_event_callback_);
+#endif
 
   app_status_ = kShutDownAppStatus;
 }
@@ -1119,6 +1134,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
     case kSbEventTypeOsNetworkConnected:
       DispatchEventInternal(new base::WindowOnOnlineEvent());
+      break;
+#endif
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+    case kSbEventDateTimeConfigurationChanged:
+      DispatchEventInternal(new base::DateTimeConfigurationChangedEvent());
       break;
 #endif
     // Explicitly list unhandled cases here so that the compiler can give a
@@ -1275,6 +1295,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #endif
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+    case kSbEventDateTimeConfigurationChanged:
+#endif
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1360,6 +1383,17 @@ void Application::OnWindowOnOfflineEvent(const base::Event* event) {
   browser_module_->OnWindowOnOfflineEvent(
       base::polymorphic_downcast<const base::WindowOnOfflineEvent*>(event));
 }
+
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+void Application::OnDateTimeConfigurationChangedEvent(
+    const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnDateTimeConfigurationChangedEvent()");
+  browser_module_->OnDateTimeConfigurationChanged(
+      base::polymorphic_downcast<
+          const base::DateTimeConfigurationChangedEvent*>(event));
+}
+#endif
 
 void Application::WebModuleCreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");

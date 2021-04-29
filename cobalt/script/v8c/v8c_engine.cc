@@ -215,6 +215,11 @@ HeapStatistics V8cEngine::GetHeapStatistics() {
           v8_heap_statistics.used_heap_size()};
 }
 
+void V8cEngine::UpdateDateTimeConfiguration() {
+  isolate_->DateTimeConfigurationChangeNotification(
+      v8::Isolate::TimeZoneDetection::kRedetect);
+}
+
 }  // namespace v8c
 
 // static

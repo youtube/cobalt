@@ -182,6 +182,8 @@ class WebModule::Impl {
   void InjectWindowOnOnlineEvent();
   void InjectWindowOnOfflineEvent();
 
+  void UpdateDateTimeConfiguration();
+
   // Executes JavaScript in this WebModule. Sets the |result| output parameter
   // and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
@@ -910,6 +912,12 @@ void WebModule::Impl::InjectWheelEvent(scoped_refptr<dom::Element> element,
   InjectInputEvent(element, wheel_event);
 }
 
+void WebModule::Impl::UpdateDateTimeConfiguration() {
+  if (javascript_engine_) {
+    javascript_engine_->UpdateDateTimeConfiguration();
+  }
+}
+
 void WebModule::Impl::ExecuteJavascript(
     const std::string& script_utf8, const base::SourceLocation& script_location,
     base::WaitableEvent* got_result, std::string* result, bool* out_succeeded) {
@@ -1529,6 +1537,13 @@ void WebModule::InjectWindowOnOfflineEvent(const base::Event* event) {
   DCHECK(impl_);
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectWindowOnOfflineEvent,
+                            base::Unretained(impl_.get())));
+}
+
+void WebModule::UpdateDateTimeConfiguration() {
+  DCHECK(impl_);
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::UpdateDateTimeConfiguration,
                             base::Unretained(impl_.get())));
 }
 

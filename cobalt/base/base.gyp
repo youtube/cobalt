@@ -42,6 +42,7 @@
         'c_val_collection_timer_stats.h',
         'c_val_time_interval_entry_stats.h',
         'c_val_time_interval_timer_stats.h',
+        'date_time_configuration_changed_event.h',
         'deep_link_event.h',
         'do_main.h',
         'do_main_starboard.h',
