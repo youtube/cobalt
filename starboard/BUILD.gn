@@ -20,6 +20,7 @@ group("gn_all") {
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
+    "//starboard/client_porting/poem:poem_unittests",
   ]
 }
 
