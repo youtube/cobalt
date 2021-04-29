@@ -138,6 +138,7 @@
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/nb/nb.gyp:nb',
+        '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/url/url.gyp:url',
         'browser_bindings.gyp:bindings',
         '<(cobalt_webapi_extension_gyp_target)',
