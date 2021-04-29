@@ -20,8 +20,8 @@
 namespace cobalt {
 namespace cssom {
 
-// ViewportSize represents a screen. It differs from from a math::Size
-// structure in order to hold the a diagonal_inches_ value which is
+// ViewportSize represents a screen. It differs from a math::Size
+// structure in order to hold a diagonal_inches_ value which is
 // necessary to calculate the DPI.
 class ViewportSize {
  public:
