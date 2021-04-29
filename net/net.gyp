@@ -846,7 +846,7 @@
         'proxy_resolution/proxy_resolver_factory.cc',
         'proxy_resolution/proxy_resolver_factory.h',
 
-        # We still need to support mozjs-45
+        # We do not need this flavor of resolver yet
         # 'proxy_resolution/proxy_resolver_v8_tracing.cc',
         # 'proxy_resolution/proxy_resolver_v8_tracing.h',
         # 'proxy_resolution/proxy_resolver_v8_tracing_wrapper.cc',
