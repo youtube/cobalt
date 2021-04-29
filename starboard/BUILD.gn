@@ -28,6 +28,12 @@ group("gn_all") {
   if (gl_type != "none") {
     deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
   }
+
+  if (has_platform_tests) {
+    deps += [ "//$starboard_path/starboard_platform_tests" ]
+  } else {
+    deps += [ ":starboard_platform_tests" ]
+  }
 }
 
 group("starboard") {
@@ -110,4 +116,19 @@ source_set("starboard_headers_only") {
     # Include private headers, if present.
     # "<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)",
   ]
+}
+
+if (!has_platform_tests) {
+  # If 'starboard_platform_tests' is not defined by the platform, then an
+  # empty 'starboard_platform_tests' target is defined.
+  target(gtest_target_type, "starboard_platform_tests") {
+    testonly = true
+
+    sources = [ "//starboard/common/test_main.cc" ]
+
+    public_deps = [
+      ":starboard",
+      "//testing/gmock",
+    ]
+  }
 }
