@@ -23,3 +23,20 @@ source_set("eztime") {
     "//starboard/client_porting/icu_init",
   ]
 }
+
+target(gtest_target_type, "eztime_test") {
+  testonly = true
+
+  sources = [
+    "//starboard/common/test_main.cc",
+    "eztime_test.cc",
+    "test_constants.h",
+  ]
+
+  deps = [
+    ":eztime",
+    "//starboard",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

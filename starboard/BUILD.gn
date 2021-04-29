@@ -15,7 +15,10 @@
 group("gn_all") {
   testonly = true
 
-  deps = [ ":starboard_headers_only" ]
+  deps = [
+    ":starboard_headers_only",
+    "//starboard/client_porting/eztime:eztime_test",
+  ]
 }
 
 group("starboard") {
