@@ -31,6 +31,9 @@ config("gtest_direct_config") {
 static_library("gtest") {
   testonly = true
   sources = [
+    "../multiprocess_func_list.cc",
+    "../multiprocess_func_list.h",
+    "../platform_test.h",
     "include/gtest/gtest-death-test.h",
     "include/gtest/gtest-message.h",
     "include/gtest/gtest-param-test.h",
@@ -58,9 +61,6 @@ static_library("gtest") {
     "src/gtest-test-part.cc",
     "src/gtest-typed-test.cc",
     "src/gtest.cc",
-    "../multiprocess_func_list.cc",
-    "../multiprocess_func_list.h",
-    "../platform_test.h",
   ]
 
   include_dirs = [ "." ]
@@ -74,5 +74,7 @@ static_library("gtest") {
   # It happens to be that all_dependent_configs get processed after default
   # configs, so the -frtti flag comes after the -fno-rtti flag on the command
   # line, so it happens to work in this case.
-  all_dependent_configs = [ "//starboard/build/config:rtti" ]
+  all_dependent_configs = [ "//build/config/compiler:rtti" ]
+
+  public_deps = [ "//starboard" ]
 }
