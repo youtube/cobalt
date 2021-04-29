@@ -89,4 +89,7 @@ declare_args() {
 
   # Where the Starboard ABI file for this platform can be found.
   sabi_path = ""
+
+  # Whether the platform implements platforms tests
+  has_platform_tests = false
 }
