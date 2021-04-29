@@ -138,9 +138,9 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   v8::MaybeLocal<v8::Boolean> maybe_boolean = value->ToBoolean(isolate);
   v8::Local<v8::Boolean> boolean;
   if (!maybe_boolean.ToLocal(&boolean)) {
-    // TODO: Handle this failure case.  It apparently can't happen in
-    // SpiderMonkey.
-    NOTIMPLEMENTED();
+    // When these situations happen, there must be an error in the idl
+    // declaration.
+    DCHECK(false);
     return;
   }
   *out_boolean = boolean->Value();
@@ -308,8 +308,11 @@ inline void FromJSValue(
   // cases, such as application JavaScript setting up infinite recursion that
   // gets triggered by the conversion.
   if (!success) {
-    // TODO: Still need to handle infinite recursion edge case here, see
-    // mozjs-45 version of this function.
+    // TODO: Still need to handle infinite recursion edge case here.
+    // Avoiding infinite exception loops were implemented on old mozjs engine.
+    // V8 does not provide APIs to determine if it is throwing exception and
+    // neither does v8 provide API to alert that we might enter infinite
+    // exception handling.
     exception_state->SetSimpleException(
         std::numeric_limits<T>::is_signed ? kNotInt64Type : kNotUint64Type);
     return;
