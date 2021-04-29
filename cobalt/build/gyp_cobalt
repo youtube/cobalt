@@ -103,8 +103,10 @@ def main(argv):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR
 
-  if os.environ.get('BUILD_IN_DOCKER'):
-    options.build_number= 0
+  build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
+  if build_id_server_url:
+    options.build_number = gyp_utils.GetBuildNumber(
+      version_server=build_id_server_url)
   else:
     options.build_number = gyp_utils.GetBuildNumber()
 
