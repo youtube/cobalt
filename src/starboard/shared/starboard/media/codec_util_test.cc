@@ -42,7 +42,6 @@ std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
   return result;
 }
 
-#if SB_API_VERSION >= 11
 TEST(VideoConfigTest, CtorWithSbMediaVideoSampleInfo) {
   SbMediaVideoSampleInfo video_sample_info = {kSbMediaVideoCodecH264};
   video_sample_info.is_key_frame = true;
@@ -59,7 +58,6 @@ TEST(VideoConfigTest, CtorWithSbMediaVideoSampleInfo) {
                        nalus_in_annex_b.size());
   ASSERT_TRUE(config_1 == config_2);
 }
-#endif  // SB_API_VERSION >= 11
 
 TEST(VideoConfigTest, IsValid) {
   std::vector<uint8_t> nalus_in_annex_b =
@@ -251,11 +249,7 @@ TEST_F(ParseVideoCodecTest, SimpleCodecs) {
 
 TEST_F(ParseVideoCodecTest, ShortFormAv1) {
   ASSERT_TRUE(Parse("av01.0.01M.08"));
-#if SB_API_VERSION < 11
-  EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < 11  ASSERT_EQ(profile_, 64);
   EXPECT_EQ(profile_, 0);
   EXPECT_EQ(level_, 21);
   EXPECT_EQ(bit_depth_, 8);
@@ -266,11 +260,7 @@ TEST_F(ParseVideoCodecTest, ShortFormAv1) {
 
 TEST_F(ParseVideoCodecTest, LongFormAv1) {
   ASSERT_TRUE(Parse("av01.0.04M.10.0.110.09.16.09.0"));
-#if SB_API_VERSION < 11
-  EXPECT_EQ(codec_, kSbMediaVideoCodecVp10);
-#else   // SB_API_VERSION < 11
   EXPECT_EQ(codec_, kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < 11  ASSERT_EQ(profile_, 64);
   EXPECT_EQ(profile_, 0);
   EXPECT_EQ(level_, 30);
   EXPECT_EQ(bit_depth_, 10);

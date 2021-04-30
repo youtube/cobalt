@@ -582,13 +582,9 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
     : width_(width), height_(height) {
   if (video_codec == kSbMediaVideoCodecVp9) {
     video_codec_ = video_codec;
-  }
-#if SB_API_VERSION >= 11
-  else if (video_codec == kSbMediaVideoCodecAv1) {
+  } else if (video_codec == kSbMediaVideoCodecAv1) {
     video_codec_ = video_codec;
-  }
-#endif  // SB_API_VERSION >= 11
-  else if (video_codec == kSbMediaVideoCodecH264) {
+  } else if (video_codec == kSbMediaVideoCodecH264) {
     avc_parameter_sets_ =
         AvcParameterSets(AvcParameterSets::kAnnexB, data, size);
     if (avc_parameter_sets_->is_valid()) {
@@ -599,7 +595,6 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
   }
 }
 
-#if SB_API_VERSION >= 11
 VideoConfig::VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
                          const uint8_t* data,
                          size_t size)
@@ -610,7 +605,6 @@ VideoConfig::VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
                   size) {
   SB_DCHECK(video_sample_info.is_key_frame);
 }
-#endif  // SB_API_VERSION >= 11
 
 bool VideoConfig::operator==(const VideoConfig& that) const {
   if (video_codec_ == kSbMediaVideoCodecNone &&
@@ -676,11 +670,7 @@ bool ParseVideoCodec(const char* codec_string,
   *matrix_id = kSbMediaMatrixIdUnspecified;
 
   if (SbStringCompare(codec_string, "av01.", 5) == 0) {
-#if SB_API_VERSION < 11
-    *codec = kSbMediaVideoCodecVp10;
-#else   // SB_API_VERSION < 11
     *codec = kSbMediaVideoCodecAv1;
-#endif  // SB_API_VERSION < 11
     return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,
                         transfer_id, matrix_id);
   }

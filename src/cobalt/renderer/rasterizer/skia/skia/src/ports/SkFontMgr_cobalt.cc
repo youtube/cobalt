@@ -72,7 +72,6 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
 // Load local fallback fonts if available.
 // The fonts are added in addition to the Cobalt and System fonts.
-#if SB_API_VERSION >= 11
   const CobaltExtensionFontApi* font_extension =
       static_cast<const CobaltExtensionFontApi*>(
           SbSystemGetExtension(kCobaltExtensionFontName));
@@ -90,8 +89,6 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
                                   &priority_fallback_families);
     }
   }
-#endif
-
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);

@@ -149,10 +149,8 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
 
-#if SB_API_VERSION >= 11
   audio_sample_info_.codec = kSbMediaAudioCodecNone;
   video_sample_info_.codec = kSbMediaVideoCodecNone;
-#endif  // SB_API_VERSION >= 11
 
   if (audio_config.IsValidConfig()) {
     UpdateAudioConfig(audio_config);
@@ -211,16 +209,10 @@ void StarboardPlayer::UpdateVideoConfig(
       static_cast<int>(video_config_.natural_size().width());
   video_sample_info_.frame_height =
       static_cast<int>(video_config_.natural_size().height());
-#if SB_API_VERSION >= 11
   video_sample_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   video_sample_info_.color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-#else   // SB_API_VERSION >= 11
-  media_color_metadata_ =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_sample_info_.color_metadata = &media_color_metadata_;
-#endif  // SB_API_VERSION >= 11
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   video_sample_info_.mime = video_config_.mime().c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
@@ -548,7 +540,6 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   bool is_visible = SbWindowIsValid(window_);
-#if SB_API_VERSION >= 11
   SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
   // TODO: This is temporary for supporting background media playback.
@@ -556,16 +547,6 @@ void StarboardPlayer::CreatePlayer() {
   if (is_visible) {
     video_codec = video_sample_info_.codec;
   }
-#else   // SB_API_VERSION >= 11
-  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-  if (audio_config_.IsValidConfig()) {
-    audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
-  }
-  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-  if (video_config_.IsValidConfig() && is_visible) {
-    video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  }
-#endif  // SB_API_VERSION >= 11
 
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
 
@@ -599,10 +580,8 @@ void StarboardPlayer::CreatePlayer() {
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, drm_system_,
       has_audio ? &audio_sample_info_ : NULL,
-#if SB_API_VERSION >= 11
       max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
                                            : NULL,
-#endif  // SB_API_VERSION >= 11
       &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
       &StarboardPlayer::PlayerStatusCB, &StarboardPlayer::PlayerErrorCB, this,
       output_mode_, get_decode_target_graphics_context_provider_func_.Run());
@@ -671,7 +650,6 @@ void StarboardPlayer::WriteBufferInternal(
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-#if SB_API_VERSION >= 11
   DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
 
   SbPlayerSampleSideData side_data = {};
@@ -702,16 +680,6 @@ void StarboardPlayer::WriteBufferInternal(
     sample_info.drm_info = NULL;
   }
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
-#else   // SB_API_VERSION >= 11
-  video_sample_info_.is_key_frame = buffer->is_key_frame();
-  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
-  SbPlayerSampleInfo sample_info = {
-      allocations.buffers()[0], allocations.buffer_sizes()[0],
-      buffer->timestamp().InMicroseconds(),
-      type == DemuxerStream::VIDEO ? &video_sample_info_ : NULL,
-      drm_info.subsample_count > 0 ? &drm_info : NULL};
-  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
-#endif  // SB_API_VERSION >= 11
 }
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
@@ -965,11 +933,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 #else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
 
-#if SB_API_VERSION >= 11
   video_codec = video_sample_info_.codec;
-#else   // SB_API_VERSION >= 11
-  video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-#endif  // SB_API_VERSION >= 11
 
   // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
   // |prefer_decode_to_texture| is true.

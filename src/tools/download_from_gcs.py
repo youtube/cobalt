@@ -56,7 +56,13 @@ def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = '{}/{}/{}'.format(_BASE_GCS_URL, bucket, sha1)
   context = create_default_context()
 
-  res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
+  try:
+    res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
+  except urllib.URLError:
+    from ssl import _create_unverified_context
+    context = _create_unverified_context()
+    res = urllib.urlopen(url, context=context) if context else urllib.urlopen(url)
+
   if not res:
     logging.error('Could not reach %s', url)
     return None

@@ -14,7 +14,5 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 void SbThreadSamplerDestroy(SbThreadSampler sampler) {
 }
-#endif  // SB_API_VERSION >= 11

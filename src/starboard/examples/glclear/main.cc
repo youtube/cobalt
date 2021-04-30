@@ -23,23 +23,6 @@
 #include "starboard/system.h"
 #include "starboard/window.h"
 
-#if SB_API_VERSION < 11
-
-// This example uses the updated EGL and GLES Starboard interfaces implemented
-// in Starboard API version 11. These interfaces substantially changed how EGL
-// and GLES are used, and are not compatible with previous methodologies. For
-// additional information, please refer to the following files:
-//
-//   //starboard/egl.h
-//   //starboard/gles.h
-//
-//   //cobalt/renderer/egl_and_gles.h
-
-void SbEventHandle(const SbEvent* event) {
-  SB_NOTREACHED() << "SB_API_VERSION must be >= 11.";
-}
-#else  // SB_API_VERSION >= 11
-
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 
@@ -266,4 +249,3 @@ void SbEventHandle(const SbEvent* event) {
     default: {}
   }
 }
-#endif  // SB_API_VERSION < 11

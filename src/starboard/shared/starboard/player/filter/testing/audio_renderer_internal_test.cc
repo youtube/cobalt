@@ -200,15 +200,9 @@ class AudioRendererTest : public ::testing::Test {
     sample_info.buffer_size = kInputBufferSize;
     sample_info.timestamp = timestamp;
     sample_info.drm_info = NULL;
-#if SB_API_VERSION >= 11
     sample_info.type = kSbMediaTypeAudio;
     sample_info.audio_sample_info = GetDefaultAudioSampleInfo();
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
-#else   // SB_API_VERSION >= 11
-    sample_info.video_sample_info = NULL;
-    return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
-                           sample_info, &GetDefaultAudioSampleInfo());
-#endif  // SB_API_VERSION >= 11
   }
 
   scoped_refptr<DecodedAudio> CreateDecodedAudio(SbTime timestamp, int frames) {
@@ -252,12 +246,10 @@ class AudioRendererTest : public ::testing::Test {
   static const SbMediaAudioSampleInfo& GetDefaultAudioSampleInfo() {
     static starboard::media::AudioSampleInfo audio_sample_info = {};
 
-#if SB_API_VERSION >= 11
     audio_sample_info.codec = kSbMediaAudioCodecAac;
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     audio_sample_info.mime = "";
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#endif  // SB_API_VERSION >= 11
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
     audio_sample_info.bits_per_sample = 32;

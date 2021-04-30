@@ -180,22 +180,6 @@ it by implementing the CobaltExtensionConfigurationApi method
            cpu memory.*
 
 
-### Garbage collection trigger threshold
-
-The SpiderMonkey JavaScript engine provides a parameter that describes how
-aggressive it will be at performing garbage collections to reduce memory
-usage.  By lowering this value, garbage collection will occur more often,
-thus reducing performance, but memory usage will be lowered.  We have found
-that performance reductions are modest, so it is not unreasonable to set this
-value to something low like 1MB if your platform is low on memory.  This
-setting can be adjusted by setting the value of
-`mozjs_garbage_collection_threshold_in_bytes` in your `gyp_configuration.gypi`
-file.
-
-**Tags:** *gyp_configuration.gypi, startup, browse-to-watch, input latency,
-           cpu memory.*
-
-
 ### Ensure that you are not requesting Cobalt to render unchanging frames
 
 Some platforms require that the display buffer is swapped frequently, and

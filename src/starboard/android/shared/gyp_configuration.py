@@ -245,7 +245,7 @@ class AndroidConfiguration(PlatformConfiguration):
       if not hasattr(self, 'host_compiler_environment'):
         self.host_compiler_environment = build.GetHostCompilerEnvironment(
             clang_build.GetClangSpecification(), self.build_accelerator)
-      cc_path = self.host_compiler_environment['CC_host'],
+      cc_path = self.host_compiler_environment['CC_host']
       cxx_path = self.host_compiler_environment['CXX_host']
       self._host_toolchain = [
           clang.CCompiler(path=cc_path),
@@ -299,9 +299,10 @@ class AndroidConfiguration(PlatformConfiguration):
           # /etc/hosts.
           'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
 
-          # This test is taking ~1.3ms per call on android. Work is underway to
-          # investigate whether this is acceptable.
+          # These tests are taking longer due to interop on android. Work is
+          # underway to investigate whether this is acceptable.
           'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
+          'SbMediaConfigurationTest.ValidatePerformance',
 
           # SbDirectory has problems with empty Asset dirs.
           'SbDirectoryCanOpenTest.SunnyDayStaticContent',

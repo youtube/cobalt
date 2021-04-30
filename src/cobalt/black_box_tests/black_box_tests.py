@@ -61,7 +61,7 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'disable_eval_with_csp',
     'persistent_cookie',
-    'web_debugger',
+    # 'web_debugger',
     'web_platform_tests',
 ]
 # These tests can only be run on platforms whose app launcher can send deep

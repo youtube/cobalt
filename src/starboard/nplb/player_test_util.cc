@@ -175,9 +175,7 @@ SbPlayer CallSbPlayerCreate(
 
   return SbPlayerCreate(
       window, video_codec, audio_codec, kSbDrmSystemInvalid, audio_sample_info,
-#if SB_API_VERSION >= 11
       max_video_capabilities,
-#endif  // SB_API_VERSION >= 11
       sample_deallocate_func, decoder_status_func, player_status_func,
       player_error_func, context, output_mode, context_provider);
 

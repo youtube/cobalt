@@ -54,8 +54,6 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   }
 }
 
-#if SB_API_VERSION >= 9
-
 template<std::size_t N>
 bool IsNullTerminated(const char(&str)[N]) {
   for (size_t i = 0; i < N; ++i) {
@@ -86,8 +84,6 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
     EXPECT_NE(0, SbStringCompare(info.label, kPoisonLabel, count));
   }
 }
-
-#endif  //  SB_API_VERSION >= 9
 
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(MICROPHONE)

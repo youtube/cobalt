@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -187,13 +189,16 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
 }
 
 // static
-void AudioRendererSinkImpl::ErrorFunc(bool capability_changed, void* context) {
+void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
+                                      const std::string& error_message,
+                                      void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
-  audio_renderer_sink->render_callback_->OnError(capability_changed);
+  audio_renderer_sink->render_callback_->OnError(capability_changed,
+                                                 error_message);
 }
 
 }  // namespace filter

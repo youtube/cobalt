@@ -82,7 +82,6 @@
     'ots_include_dirs': [
       'include',
       '../woff2/include',
-      '../mozjs-45/mfbt',
     ],
   },
 }

@@ -117,10 +117,12 @@ AvcParameterSets::AvcParameterSets(Format format,
       }
       parameter_sets_.push_back(nalu);
       combined_size_in_bytes_ += nalu.size();
-    } else {
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
       break;
     }
   }
+  SB_LOG_IF(ERROR, first_sps_index_ == -1 || first_pps_index_ == -1)
+      << "AVC parameter set NALUs not found.";
 }
 
 AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {

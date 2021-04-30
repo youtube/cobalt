@@ -19,8 +19,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 11
-
 // Verifies that we are able to query for the Starboard OpenGL ES interface, and
 // that the interface is correctly populated with function pointers that cover
 // the OpenGL ES 2.0 interface.
@@ -175,8 +173,6 @@ TEST(SbGlesInterfaceTest, HasValidGlesInterface) {
   EXPECT_NE(nullptr, gles_interface->glVertexAttribPointer);
   EXPECT_NE(nullptr, gles_interface->glViewport);
 }
-
-#endif  // SB_API_VERSION >= 11
 
 }  // namespace
 }  // namespace nplb

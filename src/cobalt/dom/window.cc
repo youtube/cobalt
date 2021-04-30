@@ -26,7 +26,6 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/base64.h"
 #include "cobalt/dom/camera_3d.h"
-#include "cobalt/dom/console.h"
 #include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
@@ -146,7 +145,7 @@ Window::Window(
           mesh_cache, dom_stat_tracker, font_language_script,
           initial_application_state, synchronous_loader_interrupt,
           enable_inline_script_warnings, video_playback_rate_multiplier)),
-      performance_(new Performance(MakePerformanceClock(clock_type))),
+      performance_(new Performance(settings, MakePerformanceClock(clock_type))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -163,7 +162,6 @@ Window::Window(
                                captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
-      console_(new Console(execution_state)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           window_timers_(new WindowTimers(this, debugger_hooks()))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
@@ -455,8 +453,6 @@ scoped_refptr<speech::SpeechSynthesis> Window::speech_synthesis() const {
   return speech_synthesis_;
 }
 
-const scoped_refptr<Console>& Window::console() const { return console_; }
-
 const scoped_refptr<Camera3D>& Window::camera_3d() const { return camera_3d_; }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -660,6 +656,14 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   }
 }
 
+void Window::OnWindowOnOnlineEvent() {
+  DispatchEvent(new Event(base::Tokens::online()));
+}
+
+void Window::OnWindowOnOfflineEvent() {
+  DispatchEvent(new Event(base::Tokens::offline()));
+}
+
 void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
   if (!on_start_dispatch_event_callback_.is_null()) {
     on_start_dispatch_event_callback_.Run(event);
@@ -686,7 +690,6 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(document_);
   tracer->Trace(history_);
   tracer->Trace(navigator_);
-  tracer->Trace(console_);
   tracer->Trace(camera_3d_);
   tracer->Trace(crypto_);
   tracer->Trace(speech_synthesis_);

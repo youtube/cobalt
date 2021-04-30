@@ -26,18 +26,18 @@ PerformanceObserverEntryList::PerformanceObserverEntryList(
     : observer_buffer_(entry_list) {}
 
 PerformanceEntryList PerformanceObserverEntryList::GetEntries() {
-  return PerformanceEntryBufferImpl::GetEntries(observer_buffer_);
+  return PerformanceEntryListImpl::GetEntries(observer_buffer_);
 }
 
 PerformanceEntryList PerformanceObserverEntryList::GetEntriesByType(
     const std::string& entry_type) {
-  return PerformanceEntryBufferImpl::GetEntriesByType(
+  return PerformanceEntryListImpl::GetEntriesByType(
       observer_buffer_, entry_type);
 }
 
 PerformanceEntryList PerformanceObserverEntryList::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
-  return PerformanceEntryBufferImpl::GetEntriesByName(
+  return PerformanceEntryListImpl::GetEntriesByName(
       observer_buffer_, name, type);
 }
 

@@ -12,36 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/platforms.gni")
+
 declare_args() {
   is_clang = true
 
   build_type = "devel"
+
+  target_platform = "stub"
+
+  is_starboard = true
 }
 
-assert(build_type == "debug" || build_type == "devel" || build_type == "qa" ||
-       build_type == "gold")
-if (build_type == "debug") {
-  is_debug = true
-} else if (build_type == "devel") {
-  is_devel = true
-} else if (build_type == "qa") {
-  is_qa = true
-} else {
-  is_gold = true
-}
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
 
-assert(target_os != "")
+sb_allows_memory_tracking = !is_gold
 
-starboard_path = "//starboard/$target_os/$target_cpu"
+starboard_path = platforms["$target_platform"]
 
-host_toolchain = "$starboard_path/toolchain:host"  # TODO(andrewsavage)
+host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
 
 default_compiler_configs = [
-  "//starboard/build/config:base_configuration",
-  "$starboard_path/platform_configuration",
+  "//starboard/build/config:base",
+  "//$starboard_path/platform_configuration",
 ]
+
+if (is_starboard) {
+  default_compiler_configs += [ "//starboard/build/config:starboard" ]
+}
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+
 set_defaults("static_library") {
   configs = default_compiler_configs
 }

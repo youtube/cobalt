@@ -33,19 +33,21 @@ IMG_FILE=${STAGING_DIR}/${BASENAME}.img
 SHRUNK_IMG_FILE=${STAGING_DIR}/${BASENAME}_shrunk_$(date +"%Y%m%d").img
 BOOT_MOUNT=${STAGING_DIR}/boot
 ROOT_MOUNT=${STAGING_DIR}/rootfs
+SSH_KEY_FILE=${STAGING_DIR}/pi_key
+QEMU_ADDRESS=127.0.0.1
 
 # Reuse some command args
-RUN_ON_PI="ssh -o StrictHostKeyChecking=no -p 8022 pi@localhost sudo"
+RUN_ON_PI="ssh -i ${SSH_KEY_FILE} -o StrictHostKeyChecking=no -p 8022 pi@${QEMU_ADDRESS} sudo"
 WGET="wget --show-progress -nc"
 
 # Check expected tools are available
 function tools_check() {
  if ! command -v qemu-system-arm --version  &> /dev/null ; then
-  echo Couldnt find QEMU, see README for instructions
+  echo Could not find QEMU, see README for instructions
   return
  fi
  if ! command -v dcfldd --version  &> /dev/null ; then
-   echo Couldnt find dcfldd, see README for instructions
+   echo Could not find dcfldd, see README for instructions
  fi
 }
 
@@ -144,15 +146,26 @@ function kill_qemu() {
  pkill -9 qemu-system-arm
 }
 
+function make_ssh_key() {
+  if [[ ! -f ${SSH_KEY_FILE} ]]; then
+    ssh-keygen -q -N ""  -b 1024 -f ${SSH_KEY_FILE} \
+      -C "cobalt-dev@googlegroups.com"
+  fi
+}
+
 function deploy_key() {
  echo Copying SSH key to target, please use password \'raspberry\' at \
     the login prompt.
- ssh-copy-id -p 8022 -o StrictHostKeyChecking=no pi@localhost
+ # Remove previous host key
+ ssh-keygen -R ${QEMU_ADDRESS}
+ # Accept a new one
+ ssh-keyscan -p 8022 ${QEMU_ADDRESS} >> ~/.ssh/known_hosts
+ ssh-copy-id -i ${SSH_KEY_FILE} -p 8022 -o StrictHostKeyChecking=no pi@${QEMU_ADDRESS}
  ${RUN_ON_PI} echo ssh connection works
 }
 
 function wait_for_qemu() {
- # Loop until SSH connection attmpt responds with permission denied
+ # Loop until SSH connection attempt responds with permission denied
  while :; do
   echo "waiting for SSH to be up"
   cmd=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 -o BatchMode=yes \
@@ -226,6 +239,7 @@ function shrink_image() {
 function customize_on_qemu() {
  run_qemu_backgrounded
  wait_for_qemu
+ make_ssh_key
  deploy_key
  first_run_expand
  run_qemu_backgrounded

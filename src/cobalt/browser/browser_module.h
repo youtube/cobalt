@@ -192,10 +192,8 @@ class BrowserModule {
   // |javascript_reserved_memory_|.
   void UpdateJavaScriptHeapStatistics();
 
-#if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
   void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size);
-#endif  // SB_API_VERSION >= 8
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
@@ -204,10 +202,8 @@ class BrowserModule {
       const base::OnScreenKeyboardFocusedEvent* event);
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
-#if SB_API_VERSION >= 11
   void OnOnScreenKeyboardSuggestionsUpdated(
       const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -215,6 +211,9 @@ class BrowserModule {
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+
+  void OnWindowOnOnlineEvent(const base::Event* event);
+  void OnWindowOnOfflineEvent(const base::Event* event);
 
   bool IsWebModuleLoaded() { return web_module_loaded_.IsSignaled(); }
 

@@ -69,6 +69,14 @@ class WinTool(object):
       shutil.copytree(source, dest, ignore=shutil.ignore_patterns(r'.git'))
     else:
       shutil.copy2(source, dest)
+      # Hack to make target look 2 seconds newer, to prevent ninja erroneously re-trigger
+      # copy rules on nanosecond differences. Risk of getting stale content files due to this
+      # is almost non-existent
+      OFFSET_SECONDS = 2
+      stat = os.stat(source)
+      mtime = stat.st_mtime + OFFSET_SECONDS
+      atime = stat.st_atime + OFFSET_SECONDS
+      os.utime(dest, (atime, mtime))
 
   if platform.system() == 'Windows':
     def ExecLinkWrapper(self, arch, *args):
@@ -135,9 +143,6 @@ class WinTool(object):
   def ExecAsmWrapper(self, arch, *args):
     """Filter logo banner from invocations of asm.exe."""
     env = self._GetEnv(arch)
-    # MSVS doesn't assemble x64 asm files.
-    if arch == 'environment.x64':
-      return 0
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              universal_newlines=True)

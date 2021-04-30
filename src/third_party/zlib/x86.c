@@ -15,12 +15,9 @@ int ZLIB_INTERNAL x86_cpu_enable_ssse3 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_simd = 0;
 
 #ifdef STARBOARD
+#include "starboard/cpu_features.h"
 #include "starboard/log.h"
 #include "starboard/once.h"
-
-#if SB_API_VERSION >= 11
-#include "starboard/cpu_features.h"
-#endif
 
 SbOnceControl cpu_check_inited_once = SB_ONCE_INITIALIZER;
 static void _x86_check_features(void);
@@ -32,7 +29,6 @@ void x86_check_features(void)
 
 static void _x86_check_features(void)
 {
-#if SB_API_VERSION >= 11
   SbCPUFeatures features;
 
   if (SbCPUFeaturesGet(&features)) {
@@ -45,7 +41,6 @@ static void _x86_check_features(void)
                           false;
 #endif
   }
-#endif
 
   if (!x86_cpu_enable_ssse3 || !x86_cpu_enable_simd) {
     SbLogFormatF("Not all Zlib optimizations enabled: ssse3 is %i, simd is %i."

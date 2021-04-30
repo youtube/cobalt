@@ -90,12 +90,10 @@
         uint32_t features = 0;
 #if defined(STARBOARD)
         uint32_t hwcaps = 0;
-#if (SB_API_VERSION >= 11)
         SbCPUFeatures cpu_features;
         if (SbCPUFeaturesGet(&cpu_features)) {
             hwcaps = cpu_features.hwcap;
         }
-#endif  // SB_API_VERSION >= 11
 #else
         uint32_t hwcaps = getauxval(AT_HWCAP);
 #endif  // defined(STARBOARD)
@@ -145,12 +143,10 @@
         uint32_t features = 0;
 #if defined(STARBOARD)
         uint32_t hwcaps = 0;
-#if (SB_API_VERSION >= 11)
         SbCPUFeatures cpu_features;
         if (SbCPUFeaturesGet(&cpu_features)) {
             hwcaps = cpu_features.hwcap;
         }
-#endif  // SB_API_VERSION >= 11
 #else
         uint32_t hwcaps = getauxval(AT_HWCAP);
 #endif  // defined(STARBOARD)

@@ -14,8 +14,6 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
   return kSbThreadContextInvalid;
 }
-#endif  // SB_API_VERSION >= 11

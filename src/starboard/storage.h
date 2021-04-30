@@ -132,8 +132,4 @@ SB_EXPORT bool SbStorageDeleteRecord(SbUser user, const char* name);
 }  // extern "C"
 #endif
 
-#if defined(__cplusplus) && SB_API_VERSION < 11
-#include "starboard/common/storage.h"
-#endif  // defined(__cplusplus) && SB_API_VERSION < 11
-
 #endif  // STARBOARD_STORAGE_H_

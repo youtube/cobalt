@@ -25,7 +25,6 @@ namespace backend {
 namespace {
 constexpr char kScriptDebuggerAgent[] = "ScriptDebuggerAgent";
 constexpr char kRuntimeAgent[] = "RuntimeAgent";
-constexpr char kConsoleAgent[] = "ConsoleAgent";
 constexpr char kLogAgent[] = "LogAgent";
 constexpr char kDomAgent[] = "DomAgent";
 constexpr char kCssAgent[] = "CssAgent";
@@ -68,25 +67,23 @@ void StoreAgentState(base::DictionaryValue* state_dict,
 }  // namespace
 
 DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
-                         dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state) {
-  ConstructionData data(debugger_hooks, console, global_environment,
+  ConstructionData data(debugger_hooks, global_environment,
                         base::MessageLoop::current(), render_overlay,
                         resource_provider, window, debugger_state);
   Build(data);
 }
 
 DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
-                         dom::Console* console,
                          script::GlobalEnvironment* global_environment,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
                          base::MessageLoop* message_loop) {
-  ConstructionData data(debugger_hooks, console, global_environment,
+  ConstructionData data(debugger_hooks, global_environment,
                         message_loop, render_overlay, resource_provider, window,
                         debugger_state);
   Build(data);
@@ -126,7 +123,6 @@ void DebugModule::Build(const ConstructionData& data) {
 void DebugModule::BuildInternal(const ConstructionData& data,
                                 base::WaitableEvent* created) {
   DCHECK(base::MessageLoop::current() == data.message_loop);
-  DCHECK(data.console);
   DCHECK(data.global_environment);
   DCHECK(data.render_overlay);
   DCHECK(data.resource_provider);
@@ -166,7 +162,6 @@ void DebugModule::BuildInternal(const ConstructionData& data,
     runtime_agent_.reset(
         new RuntimeAgent(debug_dispatcher_.get(), data.window));
   }
-  console_agent_.reset(new ConsoleAgent(debug_dispatcher_.get(), data.console));
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
   dom_agent_.reset(new DOMAgent(debug_dispatcher_.get()));
   css_agent_ = WrapRefCounted(new CSSAgent(debug_dispatcher_.get()));
@@ -199,7 +194,6 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   if (runtime_agent_) {
     runtime_agent_->Thaw(RemoveAgentState(kRuntimeAgent, agents_state));
   }
-  console_agent_->Thaw(RemoveAgentState(kConsoleAgent, agents_state));
   log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
   dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
   css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
@@ -227,7 +221,6 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   if (runtime_agent_) {
     StoreAgentState(agents_state, kRuntimeAgent, runtime_agent_->Freeze());
   }
-  StoreAgentState(agents_state, kConsoleAgent, console_agent_->Freeze());
   StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
   StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
   StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());

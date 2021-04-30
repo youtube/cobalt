@@ -26,14 +26,6 @@
 namespace cobalt {
 namespace dom {
 
-// Abstract base class for a PerformancObserverCallback.
-class PerformanceObserver::CallbackInternal {
- public:
-  virtual bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
-                           const scoped_refptr<PerformanceObserver>& observer) = 0;
-  virtual ~CallbackInternal() {}
-};
-
 namespace {
 // Implement the CallbackInternal interface for a JavaScript callback.
 class ScriptCallback : public PerformanceObserver::CallbackInternal {

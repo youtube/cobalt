@@ -18,5 +18,4 @@
 # Ensure we are in the bindings directory.
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-./run_cobalt_bindings_tests.py mozjs45 "$@"
 ./run_cobalt_bindings_tests.py v8c "$@"

@@ -312,13 +312,14 @@ class WebModule : public LifecycleObserver {
   void InjectOnScreenKeyboardFocusedEvent(int ticket);
   // Injects an on screen keyboard blurred event into the web module.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-#if SB_API_VERSION >= 11
   // Injects an on screen keyboard suggestions updated event into the web
   // module.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
+
+  void InjectWindowOnOnlineEvent(const base::Event* event);
+  void InjectWindowOnOfflineEvent(const base::Event* event);
 
   // Injects a keyboard event into the web module. The value for type
   // represents the event name, for example 'keydown' or 'keyup'.

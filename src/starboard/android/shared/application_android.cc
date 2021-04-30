@@ -310,7 +310,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
       if (enabled != last_is_accessibility_high_contrast_text_enabled_) {
         DispatchAndDelete(
-            new Event(kSbEventTypeAccessiblitySettingsChanged, NULL, NULL));
+            new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
       }
       last_is_accessibility_high_contrast_text_enabled_ = enabled;
       break;
@@ -605,6 +605,18 @@ extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltActivity_nativeLowMemoryEvent(JNIEnv* env,
                                                          jobject unused_clazz) {
   ApplicationAndroid::Get()->SendLowMemoryEvent();
+}
+
+void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
+  if (state() == kStateUnstarted) {
+    // Injecting events before application starts is error-prone.
+    return;
+  }
+  if (became_online) {
+    Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
+  } else {
+    Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
+  }
 }
 
 }  // namespace shared

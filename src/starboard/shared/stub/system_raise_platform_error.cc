@@ -16,24 +16,6 @@
 
 #include "starboard/common/log.h"
 
-#if SB_API_VERSION < 11
-SbSystemPlatformError SbSystemRaisePlatformError(
-    SbSystemPlatformErrorType type,
-    SbSystemPlatformErrorCallback callback,
-    void* user_data) {
-  std::string message;
-  switch (type) {
-    case kSbSystemPlatformErrorTypeConnectionError:
-      message = "Connection error.";
-      break;
-    default:
-      message = "<unknown>";
-      break;
-  }
-  SB_DLOG(INFO) << "SbSystemRaisePlatformError: " << message;
-  return kSbSystemPlatformErrorInvalid;
-}
-#else   // SB_API_VERSION < 11
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                                 SbSystemPlatformErrorCallback callback,
                                 void* user_data) {
@@ -49,4 +31,3 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
   SB_DLOG(INFO) << "SbSystemRaisePlatformError: " << message;
   return false;
 }
-#endif  // SB_API_VERSION < 11

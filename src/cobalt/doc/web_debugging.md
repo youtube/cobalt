@@ -19,11 +19,6 @@ The following panels are supported:
 *   **Sources** - interactive JavaScript debugging
 *   **Performance** - profile JavaScript execution
 
-> Cobalt DevTools relies heavily on V8 for its backend implementation. When
-> Cobalt is built with MozJs only basic Elements and Console functionality is
-> supported, but the UI remains the same as when building with V8 and some
-> things don't work.
-
 ## Using DevTools
 
 The DevTools frontend is loaded in Chrome from a small HTTP server built into

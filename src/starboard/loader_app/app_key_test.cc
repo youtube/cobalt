@@ -673,5 +673,18 @@ TEST(AppKeyTest, SunnyDayExtractAppKey) {
   }
 }
 
+TEST(AppKeyTest, SunnyDayExtractAppKeySanitizesResult) {
+  // This magic is 11111011 11110000 in binary and thus begins with '+' and '/'
+  // when base64 encoded.
+  uint8_t magic[3] = {0xFB, 0xF0, 0x00};
+
+  const std::string actual =
+      ExtractAppKey(reinterpret_cast<const char*>(magic));
+
+  // Check that the '+' and '/' characters were replaced with '-' and '_'.
+  EXPECT_EQ("\xFB\xF0", actual);
+  EXPECT_EQ("-_A=", EncodeAppKey(actual));
+}
+
 }  // namespace loader_app
 }  // namespace starboard

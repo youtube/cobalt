@@ -37,11 +37,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
-#if SB_API_VERSION < 11
-  SB_DCHECK(video_codec == kSbMediaVideoCodecVp10);
-#else  // SB_API_VERSION < 11
   SB_DCHECK(video_codec == kSbMediaVideoCodecAv1);
-#endif  // SB_API_VERSION < 11
   SB_DCHECK(is_aom_supported());
 }
 

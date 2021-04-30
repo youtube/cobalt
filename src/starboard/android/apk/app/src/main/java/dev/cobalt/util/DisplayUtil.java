@@ -15,7 +15,6 @@
 package dev.cobalt.util;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.util.SizeF;
@@ -134,7 +133,6 @@ public class DisplayUtil {
   private static DisplayMetrics cachedDisplayMetrics = null;
 
   private static DisplayMetrics getDisplayMetrics() {
-    Resources.getSystem().getDisplayMetrics();
     if (cachedDisplayMetrics == null) {
       cachedDisplayMetrics = new DisplayMetrics();
       Display display = getDefaultDisplay();

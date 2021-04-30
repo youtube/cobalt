@@ -21,6 +21,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/optional.h"
@@ -434,6 +435,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         OffscreenRasterize(data.source, limit_to_screen_size, &texture,
                            &texcoord_transform, &mapped_content_rect);
         if (mapped_content_rect.IsEmpty()) {
+          draw_state_ = old_draw_state;
           return;
         }
 
@@ -518,6 +520,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       OffscreenRasterize(data.source, limit_to_screen_size, &texture,
                          &texcoord_transform, &content_rect);
       if (content_rect.IsEmpty()) {
+        draw_state_.opacity = old_opacity;
         return;
       }
 

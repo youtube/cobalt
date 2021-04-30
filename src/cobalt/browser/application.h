@@ -69,25 +69,24 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(SbEventType event_type);
 
-#if SB_API_VERSION >= 8
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 8
 
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
   void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
-#if SB_API_VERSION >= 11
   void OnOnScreenKeyboardSuggestionsUpdatedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChangedEvent(const base::Event* event);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+
+  void OnWindowOnOnlineEvent(const base::Event* event);
+  void OnWindowOnOfflineEvent(const base::Event* event);
 
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleCreated();
@@ -113,22 +112,22 @@ class Application {
   std::unique_ptr<BrowserModule> browser_module_;
 
 // Event callbacks.
-#if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
-#if SB_API_VERSION >= 11
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   base::EventCallback on_caption_settings_changed_event_callback_;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
+#if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
+  base::EventCallback on_window_on_online_event_callback_;
+  base::EventCallback on_window_on_offline_event_callback_;
+#endif
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.

@@ -21,16 +21,26 @@
 #include "cobalt/dom/performance_high_resolution_time.h"
 
 #include "cobalt/script/wrappable.h"
+#include "net/base/load_timing_info.h"
 
 namespace cobalt {
 namespace dom {
+
+class Performance;
 
 // Implements the Performance Resource Timing IDL interface, as described here:
 //   https://www.w3.org/TR/resource-timing-2/#sec-resource-timing
 class PerformanceResourceTiming : public PerformanceEntry {
  public:
-  explicit PerformanceResourceTiming(const std::string& name,
-      DOMHighResTimeStamp start_time, DOMHighResTimeStamp end_time);
+  PerformanceResourceTiming(const std::string& name,
+                            DOMHighResTimeStamp start_time,
+                            DOMHighResTimeStamp end_time);
+
+  PerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
+                            const std::string& initiator_type,
+                            const std::string& requested_url,
+                            const std::string& cache_mode,
+                            Performance* performance);
 
   // Web API.
   std::string initiator_type() const;
@@ -40,23 +50,33 @@ class PerformanceResourceTiming : public PerformanceEntry {
   DOMHighResTimeStamp secure_connection_start() const;
   DOMHighResTimeStamp request_start() const;
   DOMHighResTimeStamp response_start() const;
+  // As we don't have response start in LoadTimingInfo, we use
+  // response start instead.
+  // TODO: Add response_end into LoadTimingInfo.
   DOMHighResTimeStamp response_end() const;
   unsigned long long transfer_size() const;
 
-  std::string entry_type() const  override { return "resource"; }
+  std::string entry_type() const override { return "resource"; }
   PerformanceEntryType EntryTypeEnum() const override {
     return PerformanceEntry::kResource;
   }
+
+  void SetResourceTimingEntry(const net::LoadTimingInfo& timing_info,
+                              const std::string& initiator_type,
+                              const std::string& requested_url,
+                              const std::string& cache_mode);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceResourceTiming);
 
  private:
   std::string initiator_type_;
-  uint64_t transfer_size_ = 0;
+  std::string cache_mode_;
+  uint64_t transfer_size_;
+  std::string requested_url_;
+  net::LoadTimingInfo timing_info_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };
-
 }  // namespace dom
 }  // namespace cobalt
 

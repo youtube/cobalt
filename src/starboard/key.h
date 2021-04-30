@@ -228,10 +228,8 @@ typedef enum SbKey {
   kSbKeyLast = 0x25f,
   kSbKeyPreviousChannel = kSbKeyLast,
 
-#if SB_API_VERSION >= 9
   // Also from OCAP
   kSbKeyInstantReplay = 0x273,
-#endif  // SB_API_VERSION >= 9
 
   // Custom Starboard-defined keycodes.
 

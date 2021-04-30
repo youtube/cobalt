@@ -35,7 +35,7 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 10
+#define SB_MINIMUM_API_VERSION 11
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
@@ -95,6 +95,12 @@
 
 // Deprecated Starboard stdlib equivalent APIs
 #define SB_STDLIB_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce Network connectivity APIs
+#define SB_NETWORK_EVENTS_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Rename misspelled accessibility event types
+#define SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -481,7 +487,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
 
-#if SB_API_VERSION >= 11
 #if !SB_HAS(STD_UNORDERED_HASH)
 
 #if !defined(SB_HASH_MAP_INCLUDE)
@@ -503,21 +508,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 
 #endif  // !SB_HAS(STD_UNORDERED_HASH)
-#else   // SB_API_VERSION >= 11
-
-#if !defined(SB_HASH_MAP_INCLUDE)
-#error "Your platform must define SB_HASH_MAP_INCLUDE."
-#endif
-
-#if !defined(SB_HASH_NAMESPACE)
-#error "Your platform must define SB_HASH_NAMESPACE."
-#endif
-
-#if !defined(SB_HASH_SET_INCLUDE)
-#error "Your platform must define SB_HASH_SET_INCLUDE."
-#endif
-
-#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 12
 
@@ -720,13 +710,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
-#if SB_API_VERSION >= 11
 #if !defined(SB_HAS_AC3_AUDIO)
 #define SB_HAS_AC3_AUDIO 1
 #elif !SB_HAS(AC3_AUDIO)
 #error "SB_HAS_AC3_AUDIO is required in this API version."
 #endif
-#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 12
 #if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
@@ -931,7 +919,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
 #endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
-#if SB_API_VERSION >= 11
 #if !defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
 #elif !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
@@ -939,28 +926,22 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
     "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API " \
         "version."
 #endif
-#endif  // SB_API_VERSION >= 11
 
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
 
-#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION >= 5
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED && SB_API_VERSION
-// >= 5
+#endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED
 
-#if SB_API_VERSION < 12 && SB_API_VERSION >= 8
+#if SB_API_VERSION < 12
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
 #error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
 #endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION < 12 && SB_API_VERSION >= 8
-
-#if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
-#error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
-#endif
+#endif  // SB_API_VERSION < 12
 
 #if defined(SB_HAS_PLAYER_FILTER_TESTS)
 #error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
@@ -981,14 +962,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
     " this API version."
 #endif
 #endif  // SB_API_VERSION >= 12
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#if SB_API_VERSION < 11
-#error \
-    "SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT) requires " \
-    "SB_API_VERSION 11 or later."
-#endif  // SB_API_VERSION < 11
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 #if SB_API_VERSION >= 12 && SB_HAS(BLITTER)
 #error \

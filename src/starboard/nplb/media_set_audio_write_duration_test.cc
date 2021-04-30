@@ -26,7 +26,6 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 11
 namespace starboard {
 namespace nplb {
 namespace {
@@ -297,4 +296,3 @@ INSTANTIATE_TEST_CASE_P(SbMediaSetAudioWriteDurationTests,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 11

@@ -60,12 +60,8 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.buffer_size = static_cast<int>(audio_unit.data().size());
   sample_info.timestamp = audio_unit.timestamp();
   sample_info.drm_info = audio_unit.drm_sample_info();
-#if SB_API_VERSION >= 11
   sample_info.type = kSbMediaTypeAudio;
   sample_info.audio_sample_info = audio_unit.audio_sample_info();
-#else   // SB_API_VERSION >= 11
-  sample_info.video_sample_info = NULL;
-#endif  // SB_API_VERSION >= 11
   return sample_info;
 }
 
@@ -76,12 +72,8 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.buffer_size = static_cast<int>(video_unit.data().size());
   sample_info.timestamp = video_unit.timestamp();
   sample_info.drm_info = video_unit.drm_sample_info();
-#if SB_API_VERSION >= 11
   sample_info.type = kSbMediaTypeVideo;
   sample_info.video_sample_info = video_unit.video_sample_info();
-#else   // SB_API_VERSION >= 11
-  sample_info.video_sample_info = &video_unit.video_sample_info();
-#endif  // SB_API_VERSION >= 11
   return sample_info;
 }
 
@@ -177,11 +169,7 @@ std::string VideoDmpReader::video_mime_type() {
     case kSbMediaVideoCodecVp9:
       ss << "video/webm; codecs=\"vp9\";";
       break;
-#if SB_API_VERSION < 11
-    case kSbMediaVideoCodecVp10:
-#else   // SB_API_VERSION < 11
     case kSbMediaVideoCodecAv1:
-#endif  // SB_API_VERSION < 11
       ss << "video/mp4; codecs=\"av01.0.08M.08\";";
       break;
     default:
@@ -190,13 +178,8 @@ std::string VideoDmpReader::video_mime_type() {
   if (number_of_video_buffers() > 0) {
     const auto& video_sample_info =
         GetPlayerSampleInfo(kSbMediaTypeVideo, 0).video_sample_info;
-#if SB_API_VERSION >= 11
     ss << "width=" << video_sample_info.frame_width
        << "; height=" << video_sample_info.frame_height << ";";
-#else   // SB_API_VERSION >= 11
-    ss << "width=" << video_sample_info->frame_width
-       << "; height=" << video_sample_info->frame_height << ";";
-#endif  // SB_API_VERSION >= 11
   }
   ss << " framerate=" << dmp_info_.video_fps;
   return ss.str();

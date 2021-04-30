@@ -137,6 +137,11 @@ This document records all notable changes made to Cobalt since the last release.
    rendering; the web app does not know about the custom transform so may not
    layout elements appropriately.
 
+ - **Added support for javascript code caching.**
+
+   Platforms can provide javascript code caching by implementing
+   CobaltExtensionJavaScriptCacheApi.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**

@@ -110,12 +110,8 @@ std::map<std::string, std::string> GetPlatformInfo() {
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName,
                                value.data(),
                                kSystemPropertyMaxLength);
-#elif SB_API_VERSION == 11
-  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
-                               value.data(),
-                               kSystemPropertyMaxLength);
 #else
-  result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName,
+  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
                                value.data(),
                                kSystemPropertyMaxLength);
 #endif

@@ -18,6 +18,7 @@ import static android.content.Context.AUDIO_SERVICE;
 import static android.media.AudioManager.GET_DEVICES_INPUTS;
 import static dev.cobalt.util.Log.TAG;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
@@ -34,6 +35,7 @@ import android.util.SizeF;
 import android.view.Display;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfo;
@@ -67,6 +69,7 @@ public class StarboardBridge {
   private VoiceRecognizer voiceRecognizer;
   private AudioPermissionRequester audioPermissionRequester;
   private KeyboardEditor keyboardEditor;
+  private NetworkStatus networkStatus;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -118,6 +121,7 @@ public class StarboardBridge {
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.voiceRecognizer =
         new VoiceRecognizer(appContext, activityHolder, audioPermissionRequester);
+    this.networkStatus = new NetworkStatus(appContext);
   }
 
   private native boolean nativeInitialize();
@@ -192,6 +196,7 @@ public class StarboardBridge {
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
     cobaltMediaSession.resume();
+    networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
@@ -206,6 +211,7 @@ public class StarboardBridge {
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
       cobaltMediaSession.suspend();
+      networkStatus.beforeSuspend();
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
@@ -356,6 +362,49 @@ public class StarboardBridge {
   @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize();
+  }
+
+  @Nullable
+  private static String getSystemProperty(String name) {
+    try {
+      @SuppressLint("PrivateApi")
+      Class<?> systemProperties = Class.forName("android.os.SystemProperties");
+      Method getMethod = systemProperties.getMethod("get", String.class);
+      return (String) getMethod.invoke(systemProperties, name);
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to read system property " + name, e);
+      return null;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  Size getDeviceResolution() {
+    String displaySize =
+        android.os.Build.VERSION.SDK_INT < 28
+            ? getSystemProperty("sys.display-size")
+            : getSystemProperty("vendor.display-size");
+
+    if (displaySize == null) {
+      return getDisplaySize();
+    }
+
+    String[] sizes = displaySize.split("x");
+    if (sizes.length != 2) {
+      return getDisplaySize();
+    }
+
+    try {
+      return new Size(Integer.parseInt(sizes[0]), Integer.parseInt(sizes[1]));
+    } catch (NumberFormatException e) {
+      return getDisplaySize();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean isNetworkConnected() {
+    return networkStatus.isConnected();
   }
 
   /**

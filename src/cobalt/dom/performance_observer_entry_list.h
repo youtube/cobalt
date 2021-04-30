@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/strings/string_piece.h"
-#include "cobalt/dom/performance_entry_buffer_impl.h"
+#include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 

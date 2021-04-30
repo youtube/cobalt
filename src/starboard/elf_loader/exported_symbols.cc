@@ -305,11 +305,8 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
   REGISTER_SYMBOL(SbSystemGetPath);
-
-#if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
-#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbFileAtomicReplace);
@@ -343,10 +340,8 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
-#if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -385,7 +380,6 @@ ExportedSymbols::ExportedSymbols(
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= 5
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
 #endif
@@ -397,7 +391,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSpeechRecognizerCancel);
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= 5
 
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
@@ -426,8 +419,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbPlayerSeek2);
   REGISTER_SYMBOL(SbPlayerWriteSample2);
   REGISTER_SYMBOL(SbSystemSupportsResume);
-
-#if SB_API_VERSION >= 11
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
@@ -440,7 +431,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-#endif  // SB_API_VERSION >= 11
 
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(kSbDefaultMmapThreshold);
@@ -469,6 +459,10 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION >= 12
+
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+  REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
+#endif  // SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {

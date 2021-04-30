@@ -74,6 +74,9 @@ public class AudioTrackBridge {
       int preferredBufferSizeInBytes,
       boolean enableAudioRouting,
       int tunnelModeAudioSessionId) {
+    // TODO: Re-enable audio routing when all related bugs are fixed.
+    enableAudioRouting = false;
+
     tunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
     switch (channelCount) {
@@ -166,6 +169,7 @@ public class AudioTrackBridge {
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
     if (audioTrack != null && enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
+      Log.i(TAG, "Audio routing enabled.");
       currentRoutedDevice = audioTrack.getRoutedDevice();
       onRoutingChangedListener =
           new AudioRouting.OnRoutingChangedListener() {
@@ -186,6 +190,8 @@ public class AudioTrackBridge {
             }
           };
       audioTrack.addOnRoutingChangedListener(onRoutingChangedListener, null);
+    } else {
+      Log.i(TAG, "Audio routing disabled.");
     }
   }
 
@@ -195,7 +201,7 @@ public class AudioTrackBridge {
 
   public void release() {
     if (audioTrack != null) {
-      if (Build.VERSION.SDK_INT >= 24) {
+      if (Build.VERSION.SDK_INT >= 24 && onRoutingChangedListener != null) {
         audioTrack.removeOnRoutingChangedListener(onRoutingChangedListener);
       }
       audioTrack.release();

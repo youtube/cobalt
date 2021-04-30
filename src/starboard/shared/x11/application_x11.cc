@@ -1341,7 +1341,6 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
 #endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
         // SB_HAS(CONCEALED_STATE)
     case ConfigureNotify: {
-#if SB_API_VERSION >= 8
       XConfigureEvent* x_configure_event =
           reinterpret_cast<XConfigureEvent*>(x_event);
       scoped_ptr<SbEventWindowSizeChangedData> data(
@@ -1361,9 +1360,6 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->window->unhandled_resize = false;
       return new Event(kSbEventTypeWindowSizeChanged, data.release(),
                        &DeleteDestructor<SbInputData>);
-#else   // SB_API_VERSION >= 8
-      return NULL;
-#endif  // SB_API_VERSION >= 8
     }
     case SelectionNotify: {
       XSelectionEvent* x_selection_event =

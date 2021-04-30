@@ -366,14 +366,8 @@ scoped_refptr<InputBuffer> VideoDecoderTestFixture::GetVideoInputBuffer(
     size_t index) {
   auto video_sample_info =
       dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeVideo, index);
-#if SB_API_VERSION >= 11
   auto input_buffer =
       new InputBuffer(StubDeallocateSampleFunc, NULL, NULL, video_sample_info);
-#else   // SB_API_VERSION >= 11
-  auto input_buffer =
-      new InputBuffer(kSbMediaTypeVideo, StubDeallocateSampleFunc, NULL, NULL,
-                      video_sample_info, NULL);
-#endif  // SB_API_VERSION >= 11
   auto iter = invalid_inputs_.find(index);
   if (iter != invalid_inputs_.end()) {
     std::vector<uint8_t> content(input_buffer->size(), iter->second);

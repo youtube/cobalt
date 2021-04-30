@@ -21,7 +21,12 @@ ENV PYTHONUNBUFFERED 1
 # === Install common dependencies
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        python-pip python-setuptools python-wheel \
+        python-pip \
+        python-requests \
+        python-setuptools \
+        python-wheel \
+        python3-pip \
+        python3-requests \
         git ccache \
         curl \
     && apt-get clean autoclean \

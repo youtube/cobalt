@@ -14,10 +14,8 @@
 
 #include "starboard/thread.h"
 
-#if SB_API_VERSION >= 11
 bool SbThreadContextGetPointer(SbThreadContext context,
                                SbThreadContextProperty property,
                                void** out_value) {
   return false;
 }
-#endif  // SB_API_VERSION >= 11

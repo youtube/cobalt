@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_
 
 #include <functional>
+#include <string>
 
 #include "starboard/audio_sink.h"
 #include "starboard/shared/internal_only.h"
@@ -57,8 +58,8 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       SbMediaAudioSampleType audio_sample_type) const override;
   bool IsAudioFrameStorageTypeSupported(
       SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
-  int GetNearestSupportedSampleFrequency(int sampling_frequency_hz) const
-      override;
+  int GetNearestSupportedSampleFrequency(
+      int sampling_frequency_hz) const override;
 
   bool HasStarted() const override;
   void Start(SbTime media_start_time,
@@ -83,7 +84,9 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   static void ConsumeFramesFunc(int frames_consumed,
                                 SbTime frames_consumed_at,
                                 void* context);
-  static void ErrorFunc(bool capability_changed, void* context);
+  static void ErrorFunc(bool capability_changed,
+                        const std::string& error_message,
+                        void* context);
 
   ThreadChecker thread_checker_;
   const CreateAudioSinkFunc create_audio_sink_func_;

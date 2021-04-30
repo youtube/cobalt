@@ -30,6 +30,5 @@ void main() {
   }
 
   vec4 untransformed_color = vec4(y_value, uv_value.r, uv_value.g, 1.0);
-  vec4 color = untransformed_color * to_rgb_color_matrix;
-  gl_FragColor = color;
+  gl_FragColor = untransformed_color * to_rgb_color_matrix;
 }

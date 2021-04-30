@@ -37,7 +37,6 @@ function start_cobalt() {
 
   log "info" " Starting Cobalt with:"
   log "info" "  --url=${URL}"
-  log "info" "  --content=${CONTENT}"
 
   for arg in $ARGS; do
     log "info" "  ${arg}"
@@ -45,7 +44,7 @@ function start_cobalt() {
 
   log "info" " Logs will be output to '${LOG_PATH}/${LOG}'"
 
-  eval "${SSH}\"/home/pi/coeg/loader_app --url=\"\"${URL}\"\" --content=${CONTENT} ${ARGS} \" 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
+  eval "${SSH}\"/home/pi/coeg/loader_app --url=\"\"${URL}\"\" ${ARGS} \" 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
 
   eval $__LOADER=$!
 

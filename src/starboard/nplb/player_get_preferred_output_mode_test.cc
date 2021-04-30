@@ -57,11 +57,7 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
     kSbMediaVideoCodecMpeg2,
     kSbMediaVideoCodecTheora,
     kSbMediaVideoCodecVc1,
-#if SB_API_VERSION < 11
-    kSbMediaVideoCodecVp10,
-#else   // SB_API_VERSION < 11
     kSbMediaVideoCodecAv1,
-#endif  // SB_API_VERSION < 11
     kSbMediaVideoCodecVp8,
     kSbMediaVideoCodecVp9,
   };

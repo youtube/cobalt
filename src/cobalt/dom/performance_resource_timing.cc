@@ -13,48 +13,113 @@
 // limitations under the License.
 
 #include "cobalt/dom/performance_resource_timing.h"
+#include "cobalt/dom/performance.h"
 
 namespace cobalt {
 namespace dom {
 
-PerformanceResourceTiming::PerformanceResourceTiming(const std::string& name,
-      DOMHighResTimeStamp start_time, DOMHighResTimeStamp end_time)
-      : PerformanceEntry(name, start_time, end_time) {}
+PerformanceResourceTiming::PerformanceResourceTiming(
+    const std::string& name, DOMHighResTimeStamp start_time,
+    DOMHighResTimeStamp end_time)
+    : PerformanceEntry(name, start_time, end_time), transfer_size_(0) {}
+
+PerformanceResourceTiming::PerformanceResourceTiming(
+    const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
+    const std::string& requested_url, const std::string& cache_mode,
+    Performance* performance)
+    : PerformanceEntry(
+          requested_url, performance->Now(),
+          ConvertTimeDeltaToDOMHighResTimeStamp(
+              timing_info.receive_headers_end.since_origin(),
+              Performance::kPerformanceTimerMinResolutionInMicroseconds)),
+      initiator_type_(initiator_type),
+      cache_mode_(cache_mode),
+      transfer_size_(0),
+      timing_info_(timing_info) {}
 
 std::string PerformanceResourceTiming::initiator_type() const {
   return initiator_type_;
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
-  return 0;
+  if (timing_info_.request_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.request_start.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
-  return 0;
+  if (timing_info_.connect_timing.connect_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.connect_timing.connect_start.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_end() const {
-  return 0;
+  if (timing_info_.connect_timing.connect_end.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.connect_timing.connect_end.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::secure_connection_start() const {
-  return 0;
+  if (timing_info_.connect_timing.ssl_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.connect_timing.ssl_start.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::request_start() const {
-  return 0;
+  if (timing_info_.send_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.send_start.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
-  return 0;
+  if (timing_info_.receive_headers_end.is_null()) {
+    PerformanceEntry::start_time();
+  }
+  return ConvertTimeDeltaToDOMHighResTimeStamp(
+      timing_info_.receive_headers_end.since_origin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
-  return 0;
+  return response_start();
 }
 
 unsigned long long PerformanceResourceTiming::transfer_size() const {
   return transfer_size_;
+}
+
+void PerformanceResourceTiming::SetResourceTimingEntry(
+    const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
+    const std::string& requested_url, const std::string& cache_mode) {
+  // To setup the resource timing entry for PerformanceResourceTiming entry
+  // given DOMString initiatorType, DOMString requestedURL, fetch timing info
+  // timingInfo, and a DOMString cacheMode, perform the following steps:
+  //   https://www.w3.org/TR/2021/WD-resource-timing-2-20210414/#dfn-setup-the-resource-timing-entry
+  // 1. Assert that cacheMode is the empty string or "local".
+  DCHECK(cache_mode.empty() || cache_mode == "local");
+  // 2. Set entry's initiator type to initiatorType.
+  initiator_type_ = initiator_type;
+  // 3. Set entry's requested URL to requestedURL.
+  requested_url_ = requested_url;
+  // 4. Set entry's timing info to timingInfo.
+  timing_info_ = timing_info;
+  // 5. Set entry's cache mode to cacheMode.
+  cache_mode_ = cache_mode;
 }
 
 }  // namespace dom

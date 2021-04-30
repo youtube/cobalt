@@ -144,11 +144,9 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-#if SB_API_VERSION >= 11
   // Injects an on screen keyboard suggestions updated event into the web
   // module. Event is directed at the on screen keyboard element.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -180,6 +178,9 @@ class WebModule::Impl {
   void InjectBeforeUnloadEvent();
 
   void InjectCaptionSettingsChangedEvent();
+
+  void InjectWindowOnOnlineEvent();
+  void InjectWindowOnOfflineEvent();
 
   // Executes JavaScript in this WebModule. Sets the |result| output parameter
   // and signals |got_result|.
@@ -750,7 +751,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new debug::backend::RenderOverlay(render_tree_produced_callback_));
 
   debug_module_.reset(new debug::backend::DebugModule(
-      &debugger_hooks_, window_->console(), global_environment_.get(),
+      &debugger_hooks_, global_environment_.get(),
       debug_overlay_.get(), resource_provider_, window_,
       data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER
@@ -873,7 +874,6 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
 }
 
-#if SB_API_VERSION >= 11
 void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
     int ticket) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -883,7 +883,6 @@ void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
 
   window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -1261,6 +1260,16 @@ void WebModule::Impl::InjectCaptionSettingsChangedEvent() {
   system_caption_settings_->OnCaptionSettingsChanged();
 }
 
+void WebModule::Impl::InjectWindowOnOnlineEvent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  window_->OnWindowOnOnlineEvent();
+}
+
+void WebModule::Impl::InjectWindowOnOfflineEvent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  window_->OnWindowOnOfflineEvent();
+}
+
 void WebModule::Impl::PurgeResourceCaches(
     bool should_retain_remote_typeface_cache) {
   image_cache_->Purge();
@@ -1439,7 +1448,6 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
                  base::Unretained(impl_.get()), ticket));
 }
 
-#if SB_API_VERSION >= 11
 void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent()",
@@ -1452,7 +1460,6 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
           &WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent,
           base::Unretained(impl_.get()), ticket));
 }
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -1508,6 +1515,20 @@ void WebModule::InjectCaptionSettingsChangedEvent() {
   DCHECK(impl_);
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
+                            base::Unretained(impl_.get())));
+}
+
+void WebModule::InjectWindowOnOnlineEvent(const base::Event* event) {
+  DCHECK(impl_);
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectWindowOnOnlineEvent,
+                            base::Unretained(impl_.get())));
+}
+
+void WebModule::InjectWindowOnOfflineEvent(const base::Event* event) {
+  DCHECK(impl_);
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectWindowOnOfflineEvent,
                             base::Unretained(impl_.get())));
 }
 

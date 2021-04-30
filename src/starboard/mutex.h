@@ -128,8 +128,4 @@ SB_EXPORT bool SbMutexRelease(SbMutex* mutex);
 }  // extern "C"
 #endif
 
-#if defined(__cplusplus) && SB_API_VERSION < 11
-#include "starboard/common/mutex.h"
-#endif  // defined(__cplusplus) && SB_API_VERSION < 11
-
 #endif  // STARBOARD_MUTEX_H_

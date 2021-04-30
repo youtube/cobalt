@@ -127,11 +127,9 @@ SbFile FileOpen(const char* path,
         case ENOTDIR:
           *out_error = kSbFileErrorNotADirectory;
           break;
-#if SB_API_VERSION >= 11
         case EIO:
           *out_error = kSbFileErrorIO;
           break;
-#endif
         default:
           *out_error = kSbFileErrorFailed;
       }

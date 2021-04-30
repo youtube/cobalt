@@ -83,6 +83,8 @@ namespace base {
     MacroOpWithNameOnly(mouseup)                                     \
     MacroOpWithNameOnly(nomatch)                                     \
     MacroOpWithNameOnly(off)                                         \
+    MacroOpWithNameOnly(offline)                                     \
+    MacroOpWithNameOnly(online)                                      \
     MacroOpWithNameOnly(open)                                        \
     MacroOpWithNameOnly(pointerdown)                                 \
     MacroOpWithNameOnly(pointerenter)                                \
@@ -103,6 +105,7 @@ namespace base {
     MacroOpWithNameOnly(removesourcebuffer)                          \
     MacroOpWithNameOnly(removetrack)                                 \
     MacroOpWithNameOnly(resize)                                      \
+    MacroOpWithNameOnly(resourcetimingbufferfull)                    \
     MacroOpWithNameOnly(result)                                      \
     MacroOpWithNameOnly(resume)                                      \
     MacroOpWithNameOnly(scroll)                                      \

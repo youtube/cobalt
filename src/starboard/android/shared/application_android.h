@@ -71,7 +71,7 @@ class ApplicationAndroid
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);
   void SendTTSChangedEvent() {
-    Inject(new Event(kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
+    Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                      nullptr, nullptr));
   }
 
@@ -91,6 +91,7 @@ class ApplicationAndroid
       int ticket);
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
   void SendLowMemoryEvent();
+  void OsNetworkStatusChange(bool became_online);
 
  protected:
   // --- Application overrides ---

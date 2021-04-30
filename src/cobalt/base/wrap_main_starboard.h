@@ -116,32 +116,36 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeUser:
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION < 11
-    case kSbEventTypeNetworkDisconnect:
-    case kSbEventTypeNetworkConnect:
-#endif  // SB_API_VERSION < 11
     case kSbEventTypeScheduled:
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilitySettingsChanged:
+#else
     case kSbEventTypeAccessiblitySettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
     case kSbEventTypeLowMemory:
-#if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
-#endif  // SB_API_VERSION >= 8
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardBlurred:
-#if SB_API_VERSION >= 11
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 11
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
+#else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
+#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
 #endif  // SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+    case kSbEventTypeOsNetworkDisconnected:
+    case kSbEventTypeOsNetworkConnected:
+#endif
       event_function(event);
       break;
   }

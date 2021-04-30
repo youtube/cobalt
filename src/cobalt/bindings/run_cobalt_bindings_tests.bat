@@ -14,4 +14,4 @@
 @rem limitations under the License.
 @rem
 
-@run_cobalt_bindings_tests.py mozjs-45 %*
+@run_cobalt_bindings_tests.py v8c %*

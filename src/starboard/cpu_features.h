@@ -29,8 +29,6 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 11
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -329,5 +327,4 @@ SB_EXPORT bool SbCPUFeaturesGet(SbCPUFeatures* features);
 }  // extern "C"
 #endif
 
-#endif  // SB_API_VERSION >= 11
 #endif  // STARBOARD_CPU_FEATURES_H_
