@@ -17,7 +17,7 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
     sudo apt-get install python python-pip
     ```
 
-    If `python-pip` is not available via your package mangaer, you can install `pip` following [recommended instructions](https://pip.pypa.io/en/stable/installing/) from the official Python guide.
+    If `python-pip` is not available via your package manager, you can install `pip` following [recommended instructions](https://pip.pypa.io/en/stable/installing/) from the official Python guide.
 
     There are also some Python module requirements:
 
@@ -80,9 +80,6 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
          directory will already exist since you've already run gyp_cobalt for an
          android target, so you'll see a warning in the setup wizard that an SDK
          was detected, which is okay.
-          * The path may also be `$HOME/cobalt-toolchains/AndroidSdk` if you
-            previously had an older environment configured on your machine -
-            this is okay.
         *  Select both `Android SDK` and `Android SDK Platform` (whatever
            current version is presented should be fine)
     *   On the `SDK Platforms` tab select:
