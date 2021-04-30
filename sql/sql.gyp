@@ -82,7 +82,7 @@
             'test_suite_name': 'sql_unittests',
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)sql_unittests<(SHARED_LIB_SUFFIX)',
           },
-          'includes': [ '../build/apk_test.gypi' ],
+          'includes': [ '../build_gyp/apk_test.gypi' ],
         },
       ],
     }],

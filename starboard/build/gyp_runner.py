@@ -227,7 +227,7 @@ class GypRunner(object):
 
         # TODO: Remove dependency on common.gypi by moving the required bits
         # into base_configuration.gypi.
-        os.path.join(paths.REPOSITORY_ROOT, 'build', 'common.gypi'),
+        os.path.join(paths.REPOSITORY_ROOT, 'build_gyp', 'common.gypi'),
     ]
     gyp_includes.extend(self.platform_configuration.GetIncludes())
     if self.app_configuration:
