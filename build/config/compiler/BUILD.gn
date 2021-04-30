@@ -1228,7 +1228,7 @@ config("compiler_deterministic") {
 }
 
 config("clang_revision") {
-  if (is_clang && clang_base_path == default_clang_base_path) {
+  if (!is_starboard && is_clang && clang_base_path == default_clang_base_path) {
     update_args = [
       "--print-revision",
       "--verify-version=$clang_version",
