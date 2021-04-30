@@ -53,7 +53,7 @@ class ViewportSize {
 
   // Ratio of CSS pixels per device pixel, matching the devicePixelRatio
   // attribute.
-  //   https://www.w3.org/TR/cssom-view-1/#dom-window-devicepixelratio
+  //   https://www.w3.org/TR/2016/WD-cssom-view-1-20160317/#dom-window-devicepixelratio
   float device_pixel_ratio_ = 1.0f;
 };
 
