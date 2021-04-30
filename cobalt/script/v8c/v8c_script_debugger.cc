@@ -242,11 +242,14 @@ std::string V8cScriptDebugger::CreateRemoteObject(
   std::unique_ptr<v8_inspector::protocol::Runtime::API::RemoteObject>
       remote_object = inspector_session_->wrapObject(
           context, v8_value, ToStringView(group), false /*generatePreview*/);
-  v8_crdtp::ObjectSerializer serializer;
-  serializer.AddField(v8_crdtp::MakeSpan("remoteObject"), remote_object);
-  std::unique_ptr<v8_crdtp::Serializable> result = serializer.Finish();
-  std::vector<uint8> serialized = result->Serialize();
-  return std::string(serialized.begin(), serialized.end());
+  std::vector<uint8_t> out;
+  remote_object->AppendSerialized(&out);
+  std::string remote_object_str;
+  v8_crdtp::Status status = v8_crdtp::json::ConvertCBORToJSON(
+      v8_crdtp::span<uint8_t>(out.data(), out.size()),
+      &remote_object_str);
+  CHECK(status.ok()) << status.Message();
+  return remote_object_str;
 }
 
 const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(
