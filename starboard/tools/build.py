@@ -29,9 +29,6 @@ from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
-# TODO: Remove COBALT versions, eventually.
-_COBALT_TOOLCHAINS_DIR_KEY = 'COBALT_TOOLCHAINS_DIR'
-_COBALT_TOOLCHAINS_DIR_NAME = 'cobalt-toolchains'
 
 # TODO: Rectify consistency of "Build Type" / "Build Config" naming.
 _BUILD_CONFIG_KEY = 'BUILD_TYPE'
@@ -142,13 +139,6 @@ def GetToolchainsDir():
                 os.path.join(home_dir, _STARBOARD_TOOLCHAINS_DIR_NAME)))
 
   if not os.path.isdir(toolchains_dir):
-    # TODO: Remove backup, eventually.
-    backup_toolchains_dir = os.path.realpath(
-        os.getenv(_COBALT_TOOLCHAINS_DIR_KEY,
-                  os.path.join(home_dir, _COBALT_TOOLCHAINS_DIR_NAME)))
-    if os.path.isdir(backup_toolchains_dir):
-      return backup_toolchains_dir
-
     # Ensure the toolchains directory exists.
     os.mkdir(toolchains_dir)
 
