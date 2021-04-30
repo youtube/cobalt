@@ -199,9 +199,12 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
 #if SB_IS(LITTLE_ENDIAN)
   if ((!is_src_sample_in_float && sample_type_ == kSampleTypeInt16) ||
       (is_src_sample_in_float && sample_type_ == kSampleTypeFloat32)) {
+    SB_LOG(INFO) << "Copying " << size << " bytes of wav data.";
     SbMemoryCopy(audio_bus_->interleaved_data(), data + offset, size);
   } else if (!is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
     // Convert from int16 to float32
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " samples from int16 to float32.";
     const int16* src_samples = reinterpret_cast<const int16*>(data + offset);
     float* dest_samples =
         reinterpret_cast<float*>(audio_bus_->interleaved_data());
@@ -213,6 +216,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
     }
   } else {
     // Convert from float32 to int16
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " samples from float32 to int16.";
     const float* src_samples = reinterpret_cast<const float*>(data + offset);
     int16* dest_samples =
         reinterpret_cast<int16*>(audio_bus_->interleaved_data());
@@ -225,6 +230,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
   }
 #else   // SB_IS(LITTLE_ENDIAN)
   if (!is_src_sample_in_float && sample_type_ == kSampleTypeInt16) {
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " int16 samples from little endian to big endian.";
     const uint8_t* src_samples = data + offset;
     int16* dest_samples =
         reinterpret_cast<int16*>(audio_bus_->interleaved_data());
@@ -234,6 +241,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
       ++dest_samples;
     }
   } else if (is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " float32 samples from little endian to big endian.";
     const uint8_t* src_samples = data + offset;
     float* dest_samples =
         reinterpret_cast<float*>(audio_bus_->interleaved_data());
@@ -245,6 +254,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
     }
   } else if (!is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
     // Convert from int16 to float32
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " int16 samples in little endian to float32 in big endian.";
     const uint8_t* src_samples = data + offset;
     float* dest_samples =
         reinterpret_cast<float*>(audio_bus_->interleaved_data());
@@ -256,6 +267,8 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
     }
   } else {
     // Convert from float32 to int16
+    SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_
+                 << " float32 samples in little endian to int16 in big endian.";
     const uint8_t* src_samples = data + offset;
     int16* dest_samples =
         reinterpret_cast<int16*>(audio_bus_->interleaved_data());
