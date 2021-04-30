@@ -15,6 +15,7 @@
 #include "cobalt/audio/audio_context.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/callback.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -109,25 +110,23 @@ void AudioContext::TraceMembers(script::Tracer* tracer) {
 }
 
 void AudioContext::DecodeAudioData(
-    script::EnvironmentSettings* settings,
     const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   std::unique_ptr<DecodeCallbackInfo> info(
-      new DecodeCallbackInfo(settings, audio_data, this, success_handler));
+      new DecodeCallbackInfo(audio_data, this, success_handler));
   DecodeAudioDataInternal(std::move(info));
 }
 
 void AudioContext::DecodeAudioData(
-    script::EnvironmentSettings* settings,
     const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler,
     const DecodeErrorCallbackArg& error_handler) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
-  std::unique_ptr<DecodeCallbackInfo> info(new DecodeCallbackInfo(
-      settings, audio_data, this, success_handler, error_handler));
+  std::unique_ptr<DecodeCallbackInfo> info(
+      new DecodeCallbackInfo(audio_data, this, success_handler, error_handler));
   DecodeAudioDataInternal(std::move(info));
 }
 
@@ -138,14 +137,13 @@ void AudioContext::DecodeAudioDataInternal(
   const int callback_id = next_callback_id_++;
   CHECK(pending_decode_callbacks_.find(callback_id) ==
         pending_decode_callbacks_.end());
-  script::Handle<script::ArrayBuffer> audio_data =
-      script::Handle<script::ArrayBuffer>(info->audio_data_reference);
+  const std::string& audio_data = info->audio_data;
   pending_decode_callbacks_[callback_id] = info.release();
 
   AsyncAudioDecoder::DecodeFinishCallback decode_callback = base::Bind(
       &AudioContext::DecodeFinish, base::Unretained(this), callback_id);
-  audio_decoder_.AsyncDecode(static_cast<const uint8*>(audio_data->Data()),
-                             audio_data->ByteLength(), decode_callback);
+  audio_decoder_.AsyncDecode(reinterpret_cast<const uint8*>(audio_data.data()),
+                             audio_data.size(), decode_callback);
 }
 
 // Success callback and error callback should be scheduled to run on the main
