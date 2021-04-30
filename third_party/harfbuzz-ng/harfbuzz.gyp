@@ -7,7 +7,7 @@
     'use_system_harfbuzz%': 0,
   },
   'includes': [
-    '../../build/win_precompile.gypi',
+    '../../build_gyp/win_precompile.gypi',
   ],
   'conditions': [
     ['use_system_harfbuzz==0', {
