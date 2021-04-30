@@ -90,7 +90,7 @@ def normalize_all_paths(json_content: List[object]) -> List[object]:
     directory = entry['directory']
     command = normalize_command(entry['command'], directory)
     file_entry = relativize_path(entry['file'], directory)
-    output_entry = relativize_path(entry['output'], directory)
+    output_entry = entry['output']
     yield {'command': command, 'file': file_entry, 'output': output_entry}
 
 
