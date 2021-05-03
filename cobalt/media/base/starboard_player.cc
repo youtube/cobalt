@@ -165,10 +165,12 @@ StarboardPlayer::StarboardPlayer(
 
   CreatePlayer();
 
-  task_runner->PostTask(
-      FROM_HERE,
-      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
-                 callback_helper_));
+  if (SbPlayerIsValid(player_)) {
+    task_runner->PostTask(
+        FROM_HERE,
+        base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+                   callback_helper_));
+  }
 }
 
 StarboardPlayer::~StarboardPlayer() {
@@ -479,9 +481,11 @@ void StarboardPlayer::Resume() {
   CreatePlayer();
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  base::AutoLock auto_lock(lock_);
-  state_ = kResuming;
-  UpdateBounds_Locked();
+  if (SbPlayerIsValid(player_)) {
+    base::AutoLock auto_lock(lock_);
+    state_ = kResuming;
+    UpdateBounds_Locked();
+  }
 }
 
 namespace {
@@ -591,7 +595,9 @@ void StarboardPlayer::CreatePlayer() {
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-  DCHECK(SbPlayerIsValid(player_));
+  if (!SbPlayerIsValid(player_)) {
+    return;
+  }
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
@@ -944,7 +950,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
 
 #if SB_API_VERSION >= 11
