@@ -6,9 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/common/string.h"
-#include "starboard/types.h"
-
 // Simple testing command, used to exercise child process launcher calls.
 //
 // Usage:
@@ -33,7 +30,7 @@ int main(int argc, char** argv) {
     int start_idx = 1;
 
     if (strcmp(argv[1], "-x") == 0) {
-      return_code = SbStringAToI(argv[2]);
+      return_code = atoi(argv[2]);
       start_idx = 3;
     }
 
