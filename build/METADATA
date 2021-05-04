@@ -1,0 +1,20 @@
+name: "build"
+description:
+  "Subtree at build."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/build_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src/build"
+  }
+  version: "4cb2bd7db6575df5a62f65ea60fb7ca2f2ff9f05"
+  last_upgrade_date {
+    year: 2021
+    month: 5
+    day: 4
+  }
+}
