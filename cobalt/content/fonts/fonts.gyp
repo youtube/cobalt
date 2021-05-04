@@ -85,6 +85,22 @@
             'package_fallback_symbols': 0,
           }],
 
+          [ 'cobalt_font_package == "empty"', {
+            'source_font_config_dir': 'config/empty',
+
+            'package_named_sans_serif': 0,
+            'package_named_serif': 0,
+            'package_named_fcc_fonts': 0,
+            'package_fallback_lang_non_cjk': 0,
+            'package_fallback_lang_cjk': 0,
+            'package_fallback_lang_cjk_low_quality': 0,
+            'package_fallback_historic': 0,
+            'package_fallback_color_emoji': 0,
+            'package_fallback_emoji': 0,
+            'package_fallback_symbols': 0,
+          }],
+
+
           [ 'cobalt_font_package == "android_system"', {
             # fonts.xml contains a superset of what we expect to find on Android
             # devices. The Android SbFile implementation falls back to system font
@@ -140,37 +156,47 @@
         ],
       },
 
-      'actions': [
-        {
-          'action_name': 'fonts_xml',
-          'inputs': [
-              'scripts/filter_fonts.py',
-              '<(source_font_config_dir)/fonts.xml',
-          ],
-          'outputs': [
-            '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
-          ],
-          'action': [
-            'python2', 'scripts/filter_fonts.py',
-            '-i', '<(source_font_config_dir)/fonts.xml',
-            '-o', '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
-            '<@(package_categories)',
-          ],
-        },
-      ],
       'conditions': [
-        [ 'copy_font_files == 0', {
+        [ 'cobalt_font_package == "empty"', {
           'copies': [{
-            # Copy at least the fallback Roboto Subsetted font.
-            'files': [ '<(source_font_files_dir)/Roboto-Regular-Subsetted.woff2' ],
+            'files': [ 'config/empty/fonts.xml' ],
             'destination': '<(sb_static_contents_output_data_dir)/fonts/',
           }],
         }, {
-          'copies': [{
-            # Late expansion so <@(package_categories) is resolved.
-            'files': [ '>!@pymod_do_main(cobalt.content.fonts.scripts.filter_fonts -i <(source_font_config_dir)/fonts.xml -f <(source_font_files_dir) <@(package_categories))' ],
-            'destination': '<(sb_static_contents_output_data_dir)/fonts/',
-          }],
+          'actions': [
+            {
+              'action_name': 'fonts_xml',
+              'inputs': [
+                  'scripts/filter_fonts.py',
+                  '<(source_font_config_dir)/fonts.xml',
+              ],
+              'outputs': [
+                '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
+              ],
+              'action': [
+                'python2', 'scripts/filter_fonts.py',
+                '-i', '<(source_font_config_dir)/fonts.xml',
+                '-o', '<(sb_static_contents_output_data_dir)/fonts/fonts.xml',
+                '<@(package_categories)',
+              ],
+            },
+          ],
+
+          'conditions': [
+            [ 'copy_font_files == 0', {
+              'copies': [{
+                # Copy at least the fallback Roboto Subsetted font.
+                'files': [ '<(source_font_files_dir)/Roboto-Regular-Subsetted.woff2' ],
+                'destination': '<(sb_static_contents_output_data_dir)/fonts/',
+              }],
+            }, {
+              'copies': [{
+                # Late expansion so <@(package_categories) is resolved.
+                'files': [ '>!@pymod_do_main(cobalt.content.fonts.scripts.filter_fonts -i <(source_font_config_dir)/fonts.xml -f <(source_font_files_dir) <@(package_categories))' ],
+                'destination': '<(sb_static_contents_output_data_dir)/fonts/',
+              }],
+            }],
+          ],
         }],
       ],
 

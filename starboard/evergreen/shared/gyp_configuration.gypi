@@ -25,7 +25,7 @@
     'javascript_engine': 'v8',
     'cobalt_v8_enable_embedded_builtins': 1,
 
-    'cobalt_font_package': 'minimal',
+    'cobalt_font_package': 'empty',
 
     # Override that omits the "data" subdirectory.
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.
