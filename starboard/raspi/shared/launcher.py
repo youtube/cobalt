@@ -41,13 +41,9 @@ def _SigIntOrSigTermHandler(signum, frame):
   sys.exit(signum)
 
 
-def GlobalVars():
-  return GlobalVars.__dict__
-
-
 # First call returns True, otherwise return false.
 def FirstRun():
-  v = GlobalVars()
+  v = globals()
   if not v.has_key('first_run'):
     v['first_run'] = False
     return True
@@ -62,6 +58,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _RASPI_USERNAME = 'pi'
   _RASPI_PASSWORD = 'raspberry'
   _SSH_LOGIN_SIGNAL = 'cobalt-launcher-login-success'
+  _SSH_SLEEP_SIGNAL = 'cobalt-launcher-done-sleeping'
+  _RASPI_PROMPT = 'pi@raspberrypi:'
 
   # pexpect times out each second to allow Kill to quickly stop a test run
   _PEXPECT_TIMEOUT = 1
@@ -70,11 +68,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 30
   # Wait up to 900 seconds for new output from the raspi
   _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
+  # Delay between subsequent SSH commands
+  _INTER_COMMAND_DELAY_SECONDS = 0.5
 
   # This is used to strip ansi color codes from pexpect output.
   _PEXPECT_SANITIZE_LINE_RE = re.compile(r'\x1b[^m]*m')
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
+    # pylint: disable=super-with-arguments
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
     env = os.environ.copy()
@@ -89,8 +90,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
             'environment variable.')
 
     self.startup_timeout_seconds = Launcher._STARTUP_TIMEOUT_SECONDS
-
-    self.first_run = FirstRun()
 
     self.pexpect_process = None
     self._InitPexpectCommands()
@@ -127,7 +126,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
     # ssh command setup
-    self.ssh_command = 'ssh ' + raspi_user_hostname
+    self.ssh_command = 'ssh -t ' + raspi_user_hostname + ' TERM=dumb bash -l'
 
     # escape command line metacharacters in the flags
     flags = ' '.join(self.target_command_line_params)
@@ -161,6 +160,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     logging.info('executing: %s', command)
     self.pexpect_process = pexpect.spawn(
         command, timeout=Launcher._PEXPECT_TIMEOUT)
+    # Let pexpect output directly to our output stream
+    self.pexpect_process.logfile_read = self.output_file
     retry_count = 0
     expected_prompts = [
         r'.*Are\syou\ssure.*',  # Fingerprint verification
@@ -189,8 +190,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # Check if the max retry count has been exceeded. If it has, then
         # re-raise the timeout exception.
         if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
-          exc_info = sys.exc_info()
-          raise exc_info[0], exc_info[1], exc_info[2]
+          raise
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
@@ -201,10 +201,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # Sanitize the line to remove ansi color codes.
         line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
             '', self.pexpect_process.readline())
+        self.output_file.flush()
         if not line:
           break
-        self.output_file.write(line)
-        self.output_file.flush()
         # Check for the test complete tag. It will be followed by either a
         # success or failure tag.
         if line.startswith(self.test_complete_tag):
@@ -221,17 +220,48 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # Check if the max retry count has been exceeded. If it has, then
         # re-raise the timeout exception.
         if retry_count > Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES:
-          exc_info = sys.exc_info()
-          raise exc_info[0], exc_info[1], exc_info[2]
+          raise
+
+  def _Sleep(self, val):
+    self.pexpect_process.sendline('sleep {};echo {}'.format(
+        val, Launcher._SSH_SLEEP_SIGNAL))
+    self.pexpect_process.expect([Launcher._SSH_SLEEP_SIGNAL])
 
   def _CleanupPexpectProcess(self):
     """Closes current pexpect process."""
 
     if self.pexpect_process is not None and self.pexpect_process.isalive():
+      # Check if kernel logged OOM kill or any other system failure message
+      if self.return_value:
+        logging.info("Sending dmesg")
+        self.pexpect_process.sendline('dmesg -P --color=never | tail -n 50')
+        time.sleep(3)
+        try:
+          self.pexpect_process.readlines()
+        except pexpect.TIMEOUT:
+          pass
+        logging.info("Done sending dmesg")
+
       # Send ctrl-c to the raspi and close the process.
       self.pexpect_process.sendline(chr(3))
-      self._KillExistingCobaltProcesses()
+      time.sleep(1)  # Allow a second for normal shutdown
       self.pexpect_process.close()
+
+  def _WaitForPrompt(self):
+    """Sends empty commands, until a bash prompt is returned"""
+    retry_count = 5
+    while True:
+      try:
+        self.pexpect_process.expect(self._RASPI_PROMPT)
+        break
+      except pexpect.TIMEOUT:
+        if self.shutdown_initiated.is_set():
+          return
+        retry_count -= 1
+        if not retry_count:
+          raise
+        self.pexpect_process.sendline('echo ' + Launcher._SSH_SLEEP_SIGNAL)
+        time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
   def _KillExistingCobaltProcesses(self):
     """If there are leftover Cobalt processes, kill them.
@@ -240,16 +270,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Zombie Cobalt instances can block the WebDriver port or
     cause other problems.
     """
-    self.pexpect_process.sendline('pkill -9 -f "(cobalt)|(crashpad_handler)"')
+    logging.info("Killing existing processes")
+    self.pexpect_process.sendline(
+        'pkill -9 -ef "(cobalt)|(crashpad_handler)|(elf_loader)"')
+    self._WaitForPrompt()
     # Print the return code of pkill. 0 if a process was halted
-    self.pexpect_process.sendline('echo $?')
-    i = self.pexpect_process.expect([r'0', r'.*'])
-    if i == '0':
-      logging.warning(
-          'Forced to pkill existing instance(s) of cobalt. '
-          'Pausing to ensure no further operations are run '
-          'before processes shut down.')
+    self.pexpect_process.sendline('echo PROCKILL:${?}')
+    i = self.pexpect_process.expect([r'PROCKILL:0', r'PROCKILL:(\d+)'])
+    if i == 0:
+      logging.warning('Forced to pkill existing instance(s) of cobalt. '
+                      'Pausing to ensure no further operations are run '
+                      'before processes shut down.')
       time.sleep(10)
+    logging.info("Done killing existing processes")
 
   def Run(self):
     """Runs launcher's executable on the target raspi.
@@ -257,6 +290,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Returns:
        Whether or not the run finished successfully.
     """
+
+    logging.info('-' * 32)
+    logging.info('Starting to run target: {}'.format(self.target_name))
+    logging.info('=' * 32)
 
     self.return_value = 1
 
@@ -273,13 +310,21 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # ssh into the raspi and run the test
       if not self.shutdown_initiated.is_set():
         self._PexpectSpawnAndConnect(self.ssh_command)
+        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
       # Execute debugging commands on the first run
-      if self.first_run:
-        for cmd in ['free -mh', 'ps -aux', 'df -h']:
+      if FirstRun():
+        for cmd in ['free -mh', 'ps -ux', 'df -h']:
           if not self.shutdown_initiated.is_set():
             self.pexpect_process.sendline(cmd)
+            line = self.pexpect_process.readline()
+            self.output_file.write(line)
+        self._WaitForPrompt()
+        self.output_file.flush()
+        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
+
       if not self.shutdown_initiated.is_set():
         self._KillExistingCobaltProcesses()
+        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
         self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
 
@@ -294,6 +339,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # Notify other threads that the run is no longer active
       self.run_inactive.set()
+
+    logging.info('-' * 32)
+    logging.info('Finished running target: {}'.format(self.target_name))
+    logging.info('=' * 32)
 
     return self.return_value
 
