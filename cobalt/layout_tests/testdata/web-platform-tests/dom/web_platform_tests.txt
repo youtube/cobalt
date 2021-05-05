@@ -47,3 +47,8 @@ nodes/MutationObserver-document.html,FAIL,removal of parent during parsing
 nodes/MutationObserver-inner-outer.html,FAIL
 
 nodes/MutationObserver-takeRecords.html,PASS
+
+
+# Events tests
+events/EventTarget-constructible.any.html,FAIL
+events/EventTarget-constructible.any.html,PASS,A constructed EventTarget can be used as expected
