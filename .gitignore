@@ -34,7 +34,7 @@
 .project
 .pydevproject
 # Settings directory for eclipse
-/.settings
+.settings/
 tags
 Thumbs.db
 v8.log
