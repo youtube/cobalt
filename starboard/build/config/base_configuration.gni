@@ -92,4 +92,8 @@ declare_args() {
 
   # Whether the platform implements platforms tests
   has_platform_tests = false
+
+  # The path to the gni file containing the install_target template which
+  # defines how the build should produce the install/ directory.
+  install_target_path = "//starboard/build/install/mock_install.gni"
 }
