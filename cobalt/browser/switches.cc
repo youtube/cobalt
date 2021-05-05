@@ -418,7 +418,7 @@ const char kVideoPlaybackRateMultiplierHelp[] =
 
 std::string HelpMessage() {
   std::string help_message;
-  std::map<const char*, const char*> help_map {
+  std::map<std::string, const char*> help_map {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
     {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDevServersListenIp, kDevServersListenIpHelp},
