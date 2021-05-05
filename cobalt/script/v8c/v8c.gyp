@@ -85,22 +85,31 @@
         '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
         'embed_v8c_resources_as_header_files',
       ],
+      'conditions': [
+        ['target_arch=="arm64" or target_arch=="x64"', {
+          'defines': [
+            # enables pointer compression on 64 bit platforms for Cobalt.
+            'V8_COMPRESS_POINTERS',
+            'V8_31BIT_SMIS_ON_64BIT_ARCH',
+          ],
+        }],
+      ],
       'defines': [
         'ENGINE_SUPPORTS_INT64',
-        # The file name to store our V8 startup snapshot file at.  This is a
-        # serialized representation of a |v8::Isolate| after completing all
-        # tasks prior to creation of the global object (e.g., executing self
-        # hosted JavaScript to implement ECMAScript level features).  This
-        # state is architecture dependent, and in fact, dependent on anything
-        # that could affect JavaScript execution (such as #defines), and thus
-        # must be unique with respect to binary, which is why we build it out
-        # of platform name and configuration.
-        'V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME="<(starboard_platform_name)_<(cobalt_config)_v8_startup_snapshot.bin"',
       ],
       'all_dependent_settings': {
         'defines': [
           'ENGINE_SUPPORTS_INDEXED_DELETERS',
           'ENGINE_SUPPORTS_INT64',
+        ],
+        'conditions': [
+          ['target_arch=="arm64" or target_arch=="x64"', {
+            'defines': [
+              # enables pointer compression on 64 bit platforms for Cobalt.
+              'V8_COMPRESS_POINTERS',
+              'V8_31BIT_SMIS_ON_64BIT_ARCH',
+            ],
+          }],
         ],
       },
     },
@@ -119,6 +128,15 @@
         '<(DEPTH)/third_party/v8/v8.gyp:v8',
         '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
         '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
+      ],
+      'conditions': [
+        ['target_arch=="arm64" or target_arch=="x64"', {
+          'defines': [
+            # enables pointer compression on 64 bit platforms for Cobalt.
+            'V8_COMPRESS_POINTERS',
+            'V8_31BIT_SMIS_ON_64BIT_ARCH',
+          ],
+        }],
       ],
     },
 

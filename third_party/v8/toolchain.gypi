@@ -182,6 +182,13 @@
         'cflags!': [ '-Wall', '-Wextra' ],
         'cflags': [ '-Wno-return-type', '-Wno-int-in-bool-context' ],
       }],
+      ['v8_target_arch=="arm64" or v8_target_arch=="x64"', {
+        'defines': [
+          # enables pointer compression on 64 bit platforms for Cobalt.
+          'V8_COMPRESS_POINTERS',
+          'V8_31BIT_SMIS_ON_64BIT_ARCH',
+        ],
+      }],
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',

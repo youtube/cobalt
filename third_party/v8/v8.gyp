@@ -24,8 +24,6 @@
     'v8_enable_snapshot_native_code_counters%': 0,
     # Enable code-generation-time checking of types in the CodeStubAssembler.
     'v8_enable_verify_csa%': 0,
-    # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
-    'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
@@ -248,6 +246,12 @@
     'v8_compiler_sources': ['<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
 
     'conditions': [
+      ['v8_target_arch=="arm64" or v8_target_arch=="x64"', {
+        # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
+        'v8_enable_pointer_compression%': 1,
+      }, {
+        'v8_enable_pointer_compression%': 0,
+      }],
       ['v8_enable_i18n_support', {
         'torque_files_v8_root_relative': [
           "src/objects/intl-objects.tq",
