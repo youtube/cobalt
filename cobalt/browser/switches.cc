@@ -110,7 +110,8 @@ const char kInputFuzzerHelp[] =
 
 const char kMemoryTracker[] = "memory_tracker";
 const char kMemoryTrackerHelp[] =
-    "Enables memory tracking by installing the memory tracker on startup.";
+    "Enables memory tracking by installing the memory tracker on startup. Run "
+    "--memory_tracker=help for more info.";
 
 const char kMinCompatibilityVersion[] = "min_compatibility_version";
 const char kMinCompatibilityVersionHelp[] =
