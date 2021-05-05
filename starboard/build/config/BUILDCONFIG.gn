@@ -75,14 +75,49 @@ set_defaults("static_library") {
 set_defaults("source_set") {
   configs = default_compiler_configs
 }
+set_defaults("loadable_module") {
+  configs = default_compiler_configs
+}
 set_defaults("executable") {
   configs = default_compiler_configs
 }
 set_defaults("shared_library") {
   configs = default_compiler_configs
 }
-set_defaults("loadable_module") {
-  configs = default_compiler_configs
+
+import("$install_target_path")
+template("executable") {
+  executable(target_name) {
+    forward_variables_from(invoker, "*")
+  }
+
+  executable_target_name = target_name
+  install_target(target_name + "_install") {
+    forward_variables_from(invoker,
+                           [
+                             "content",
+                             "testonly",
+                           ])
+    installable_target_name = executable_target_name
+    type = "executable"
+  }
+}
+
+template("shared_library") {
+  shared_library(target_name) {
+    forward_variables_from(invoker, "*")
+  }
+
+  shared_library_target_name = target_name
+  install_target(target_name + "_install") {
+    forward_variables_from(invoker,
+                           [
+                             "content",
+                             "testonly",
+                           ])
+    installable_target_name = shared_library_target_name
+    type = "shared_library"
+  }
 }
 
 # Import this down here as it relies on variables set during configuration.
