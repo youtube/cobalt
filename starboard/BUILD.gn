@@ -42,6 +42,13 @@ group("gn_all") {
     deps += [ ":starboard_platform_tests" ]
   }
 
+  if (sb_filter_based_player) {
+    deps += [
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
+      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player",
+    ]
+  }
+
   if (sb_enable_benchmark) {
     deps += [ "//starboard/benchmark" ]
   }
