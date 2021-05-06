@@ -156,11 +156,14 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
 
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': [
+          'SbAudioSinkTest.*',
           'SbDrmTest.AnySupportedKeySystems',
           'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
           'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
           'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
-          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay'
+          'SbMediaSetAudioWriteDurationTests/*',
+          'SbPlayerWriteSampleTests*',
+          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete
