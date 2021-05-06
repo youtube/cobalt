@@ -41,6 +41,10 @@ group("gn_all") {
   } else {
     deps += [ ":starboard_platform_tests" ]
   }
+
+  if (sb_enable_benchmark) {
+    deps += [ "//starboard/benchmark" ]
+  }
 }
 
 group("starboard") {
