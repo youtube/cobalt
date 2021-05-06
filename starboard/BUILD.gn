@@ -24,6 +24,8 @@ group("gn_all") {
     "//starboard/examples/window:starboard_window_example",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
+
+    # "//starboard/tools",  TODO(andrewsavage)
   ]
 
   if (gl_type != "none") {
