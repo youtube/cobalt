@@ -25,7 +25,7 @@ source_set("tool_support") {
   deps = [ "../third_party/mini_chromium:base" ]
 }
 
-if (!crashpad_is_ios) {
+if (!crashpad_is_ios && !crashpad_is_in_starboard) {
   crashpad_executable("crashpad_database_util") {
     sources = [ "crashpad_database_util.cc" ]
 
@@ -52,17 +52,19 @@ if (!crashpad_is_ios) {
   }
 }
 
-crashpad_executable("base94_encoder") {
-  sources = [ "base94_encoder.cc" ]
-  deps = [
-    ":tool_support",
-    "../build:default_exe_manifest_win",
-    "../third_party/mini_chromium:base",
-    "../util",
-  ]
+if (!crashpad_is_in_starboard) {
+  crashpad_executable("base94_encoder") {
+    sources = [ "base94_encoder.cc" ]
+    deps = [
+      ":tool_support",
+      "../build:default_exe_manifest_win",
+      "../third_party/mini_chromium:base",
+      "../util",
+    ]
+  }
 }
 
-if (!crashpad_is_fuchsia && !crashpad_is_ios) {
+if (!crashpad_is_fuchsia && !crashpad_is_ios && !crashpad_is_in_starboard) {
   crashpad_executable("generate_dump") {
     sources = [ "generate_dump.cc" ]
 

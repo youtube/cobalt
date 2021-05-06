@@ -51,7 +51,7 @@ static_library("handler") {
     ]
   }
 
-  if (crashpad_is_linux) {
+  if (crashpad_is_linux && !crashpad_is_in_starboard) {
     sources += [
       "linux/cros_crash_report_exception_handler.cc",
       "linux/cros_crash_report_exception_handler.h",
@@ -107,41 +107,47 @@ if (crashpad_is_android) {
   }
 }
 
-source_set("handler_test") {
-  testonly = true
+if (!crashpad_is_in_starboard) {
+  source_set("handler_test") {
+    testonly = true
 
-  sources = [ "minidump_to_upload_parameters_test.cc" ]
+    sources = [ "minidump_to_upload_parameters_test.cc" ]
 
-  if (crashpad_is_linux || crashpad_is_android) {
-    sources += [ "linux/exception_handler_server_test.cc" ]
-  }
+    if (crashpad_is_linux || crashpad_is_android) {
+      sources += [ "linux/exception_handler_server_test.cc" ]
+    }
 
-  if (crashpad_is_win) {
-    sources += [ "crashpad_handler_test.cc" ]
-  }
+    if (crashpad_is_win) {
+      sources += [ "crashpad_handler_test.cc" ]
+    }
 
-  deps = [
-    ":handler",
-    "../client",
-    "../compat",
-    "../snapshot",
-    "../snapshot:test_support",
-    "../test",
-    "../third_party/gtest:gtest",
-    "../third_party/mini_chromium:base",
-    "../util",
-  ]
-
-  if (crashpad_is_win) {
-    data_deps = [
-      ":crashpad_handler_test_extended_handler",
-      ":fake_handler_that_crashes_at_startup",
+    deps = [
+      ":handler",
+      "../client",
+      "../compat",
+      "../snapshot",
+      "../snapshot:test_support",
+      "../test",
+      "../third_party/gtest:gtest",
+      "../third_party/mini_chromium:base",
+      "../util",
     ]
+
+    if (crashpad_is_win) {
+      data_deps = [
+        ":crashpad_handler_test_extended_handler",
+        ":fake_handler_that_crashes_at_startup",
+      ]
+    }
   }
 }
 
 if (!crashpad_is_ios) {
   crashpad_executable("crashpad_handler") {
+    if (crashpad_is_in_starboard) {
+      check_includes = false
+    }
+
     sources = [ "main.cc" ]
 
     deps = [
@@ -192,7 +198,7 @@ if (crashpad_is_android) {
   }
 }
 
-if (!crashpad_is_ios) {
+if (!crashpad_is_ios && !crashpad_is_in_starboard) {
   crashpad_executable("crashpad_handler_test_extended_handler") {
     testonly = true
 

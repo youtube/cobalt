@@ -57,6 +57,10 @@ template("compat_target") {
 }
 
 compat_target("compat") {
+  if (crashpad_is_in_starboard) {
+    check_includes = false
+  }
+
   sources = []
 
   if (crashpad_is_mac) {
