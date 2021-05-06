@@ -4,7 +4,7 @@ abort/event.any.html,PASS
 # MutationObserver tests
 
 # Disabled, until test driver executes fully without Javascript errors
-nodes/MutationObserver-attributes.html,DISABLE
+nodes/MutationObserver-attributes.html,FAIL
 # These fail because Cobalt doesn't support setAttributeNS.
 # nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: creation mutation
 # nodes/MutationObserver-attributes.html,FAIL,attributes Element.setAttributeNS: prefixed attribute creation mutation
@@ -13,13 +13,13 @@ nodes/MutationObserver-attributes.html,DISABLE
 # nodes/MutationObserver-attributes.html,FAIL,attributes Element.attributes.value: update mutation
 # Input element is not supported in Cobalt
 # nodes/MutationObserver-attributes.html,FAIL,attributes HTMLInputElement.type: type update mutation
-# Cobalt doesn't implement DomTokenList.toggle
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token removal mutation
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: token addition mutation
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token removal mutation
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced missing token removal no mutation
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced existing token addition no mutation
-# nodes/MutationObserver-attributes.html,FAIL,attributes Element.classList.toggle: forced token addition mutation
+
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: token removal mutation
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: token addition mutation
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: forced token removal mutation
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: forced missing token removal no mutation
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: forced existing token addition no mutation
+nodes/MutationObserver-attributes.html,PASS,attributes Element.classList.toggle: forced token addition mutation
 
 # Most of these tests use operations such as insertData, replaceData, etc.,
 # which Cobalt doesn't support.
