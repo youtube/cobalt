@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/platforms.gni")
 
 declare_args() {
@@ -37,6 +36,7 @@ if (current_os == "") {
 if (current_cpu == "") {
   current_cpu = target_cpu
 }
+import("//starboard/build/config/os_definitions.gni")
 
 is_debug = build_type == "debug"
 is_devel = build_type == "devel"
