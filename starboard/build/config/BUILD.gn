@@ -136,3 +136,8 @@ config("starboard") {
     "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
   ]
 }
+
+config("starboard_implementation") {
+  # This allows the benchmarks to include internal only header files.
+  defines = [ "STARBOARD_IMPLEMENTATION" ]
+}
