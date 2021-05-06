@@ -76,6 +76,7 @@ set_default_toolchain(host_toolchain)
 default_compiler_configs = [
   "//starboard/build/config:base",
   "//starboard/build/config:host",
+  "//starboard/build/config:include_root",
   "//starboard/build/config:target",
   "//$starboard_path/platform_configuration",
 ]

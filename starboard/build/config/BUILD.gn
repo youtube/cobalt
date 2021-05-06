@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("base") {
+config("include_root") {
   include_dirs = [ "//" ]
+}
+
+config("base") {
   defines = []
 
   if (final_executable_type == "shared_library") {
