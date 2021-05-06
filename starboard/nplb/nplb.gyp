@@ -122,6 +122,7 @@
         'drm_helpers.cc',
         'drm_helpers.h',
         'drm_is_server_certificate_updatable_test.cc',
+        'drm_session_test.cc',
         'drm_update_server_certificate_test.cc',
         'egl_test.cc',
         'extern_c_test.cc',

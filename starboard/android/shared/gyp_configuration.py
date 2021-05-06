@@ -316,6 +316,17 @@ class AndroidConfiguration(PlatformConfiguration):
           # These tests are disabled due to not receiving the kEndOfStream
           # player state update within the specified timeout.
           'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
+
+          # Android does not use SbDrmSessionClosedFunc, which these tests
+          # depend on.
+          'SbDrmSessionTest.SunnyDay',
+          'SbDrmSessionTest.CloseDrmSessionBeforeUpdateSession',
+
+          # This test is failing because Android calls the
+          # SbDrmSessionUpdateRequestFunc with SbDrmStatus::kSbDrmStatusSuccess
+          # when invalid initialization data is passed to
+          # SbDrmGenerateSessionUpdateRequest().
+          'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
       ],
   }
 
