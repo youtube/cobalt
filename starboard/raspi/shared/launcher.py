@@ -321,10 +321,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._WaitForPrompt()
         self.output_file.flush()
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
-
-      if not self.shutdown_initiated.is_set():
         self._KillExistingCobaltProcesses()
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
+
+      if not self.shutdown_initiated.is_set():
         self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
 
