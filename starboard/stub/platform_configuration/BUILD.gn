@@ -38,7 +38,7 @@ config("platform_configuration") {
     cflags += [
       "-fno-rtti",
       "-O2",
-      "gline-tables-only",
+      "-gline-tables-only",
     ]
   }
 
