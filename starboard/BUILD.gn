@@ -29,7 +29,7 @@ group("gn_all") {
   ]
 
   if (gl_type != "none") {
-    deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
+    deps += [ "//starboard/examples/glclear:starboard_glclear_example" ]
   }
 
   if (has_platform_targets) {
