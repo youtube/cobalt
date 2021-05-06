@@ -16,6 +16,13 @@
 # implementation. To add another platform, simply add another entry in the same
 # style to this list.
 
-platforms = {
-  stub = "starboard/stub"
-}
+platforms = [
+  {
+    name = "stub"
+    path = "starboard/stub"
+  },
+  {
+    name = "linux-x64x11-egl"
+    path = "starboard/linux/x64x11/egl"
+  },
+]
