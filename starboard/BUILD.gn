@@ -32,6 +32,10 @@ group("gn_all") {
     deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
   }
 
+  if (has_platform_targets) {
+    deps += [ "//$starboard_path/platform_targets" ]
+  }
+
   if (has_platform_tests) {
     deps += [ "//$starboard_path/starboard_platform_tests" ]
   } else {
