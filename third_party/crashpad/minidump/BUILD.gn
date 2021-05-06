@@ -90,6 +90,10 @@ static_library("minidump") {
 static_library("test_support") {
   testonly = true
 
+  if (crashpad_is_in_starboard) {
+    check_includes = false
+  }
+
   sources = [
     "test/minidump_byte_array_writer_test_util.cc",
     "test/minidump_byte_array_writer_test_util.h",

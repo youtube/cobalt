@@ -45,6 +45,13 @@ group("gn_all") {
   if (sb_enable_benchmark) {
     deps += [ "//starboard/benchmark" ]
   }
+
+  if (!sb_evergreen) {
+    deps += [
+      "//third_party/crashpad/client",
+      "//third_party/crashpad/handler",
+    ]
+  }
 }
 
 group("starboard") {
