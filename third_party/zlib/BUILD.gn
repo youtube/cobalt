@@ -158,6 +158,8 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inflate.c",
     ]
 
+    cflags_c = [ "-Wno-unused-function" ]
+
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
@@ -166,7 +168,9 @@ source_set("zlib_inflate_chunk_simd") {
     }
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (!is_starboard) {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     ":zlib_internal_config",
     "//build/config/compiler:no_chromium_code",
@@ -224,7 +228,9 @@ source_set("zlib_x86_simd") {
     ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (!is_starboard) {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     ":zlib_internal_config",
     "//build/config/compiler:no_chromium_code",
@@ -275,6 +281,7 @@ component("zlib") {
 
   defines = []
   deps = []
+  cflags_c = []
 
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
@@ -283,17 +290,36 @@ component("zlib") {
     ]
 
     if (use_x86_x64_optimizations) {
-      sources += [ "x86.c" ]
+      sources += [
+        "arm_stub.c",
+        "x86.c",
+      ]
+      cflags_c += [ "-Wno-missing-braces" ]
       deps += [ ":zlib_crc32_simd" ]
     } else if (use_arm_neon_optimizations) {
       sources += [ "contrib/optimizations/slide_hash_neon.h" ]
       deps += [ ":zlib_arm_crc32" ]
     }
   } else {
-    sources += [ "inflate.c" ]
+    sources += [
+      "arm_stub.c",
+      "inflate.c",
+    ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    sources += [ "inflate.c" ]
+    sources -= [
+      "gzclose.c",
+      "gzguts.h",
+      "gzlib.c",
+      "gzread.c",
+      "gzwrite.c",
+    ]
+    deps += [ "//starboard/common" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     ":zlib_internal_config",
     "//build/config/compiler:no_chromium_code",
@@ -346,7 +372,9 @@ static_library("minizip") {
     ":zlib",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (!is_starboard) {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -357,22 +385,26 @@ static_library("minizip") {
   public_configs = [ ":zlib_config" ]
 }
 
-executable("zlib_bench") {
-  include_dirs = [ "." ]
+if (!is_starboard) {
+  executable("zlib_bench") {
+    include_dirs = [ "." ]
 
-  sources = [
-    "contrib/bench/zlib_bench.cc",
-  ]
+    sources = [
+      "contrib/bench/zlib_bench.cc",
+    ]
 
-  if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_speed" ]
+    if (!is_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_speed" ]
+    }
+
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+    }
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+
+    deps = [
+      ":zlib",
+    ]
   }
-
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-
-  deps = [
-    ":zlib",
-  ]
 }
