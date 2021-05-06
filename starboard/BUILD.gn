@@ -69,8 +69,7 @@ group("starboard") {
     ]
 
     if (sb_evergreen_compatible) {
-      # TODO(andrewsavage): This should not be stubbed out
-      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+      public_deps += [ "//third_party/crashpad/wrapper" ]
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }

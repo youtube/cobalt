@@ -16,6 +16,17 @@
 # depend on this common target, and not any of the specific "starboard_platform"
 # targets.
 
+static_library("wrapper") {
+  sources = [
+    "wrapper.cc",
+    "wrapper.h",
+  ]
+
+  public_deps = [
+    "//third_party/crashpad/client",
+  ]
+}
+
 static_library("wrapper_stub") {
   sources = [
     "wrapper_stub.cc",
