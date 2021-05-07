@@ -30,6 +30,11 @@ static_library("starboard_platform") {
     "//starboard/stub/system_get_extensions.cc",
     "//starboard/stub/thread_types_public.h",
   ]
+
+  public_deps = [
+    "//starboard/linux/x64x11/shared:starboard_platform",
+    "//starboard/shared/starboard/player:video_dmp",
+  ]
 }
 
 config("starboard_implementation") {
