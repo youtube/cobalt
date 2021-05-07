@@ -25,3 +25,7 @@
 group("egl_and_gles") {
   public_deps = [ ":egl_and_gles_$gl_type" ]
 }
+
+group("egl_and_gles_system_gles2") {
+  # Use the system-provided implementation of GLES2.
+}

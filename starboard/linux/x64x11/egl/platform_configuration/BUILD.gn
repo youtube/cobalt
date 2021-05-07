@@ -16,6 +16,10 @@ config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
   ldflags = [ "-static-libstdc++" ]
+  libs = [
+    "EGL",
+    "GLESv2",
+  ]
 
   if (current_toolchain == default_toolchain) {
     cflags += [
