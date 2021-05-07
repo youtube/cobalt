@@ -55,6 +55,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env_variables['ASAN_OPTIONS'] = ':'.join(asan_options)
     kwargs['env_variables'] = env_variables
 
+    # pylint: disable=super-with-arguments
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
 
@@ -110,17 +111,27 @@ class Launcher(abstract_launcher.AbstractLauncher):
         output_file=self.output_file,
         out_directory=self.staging_directory,
         coverage_directory=self.coverage_directory,
-        env_variables=self.env_variables)
+        env_variables=self.env_variables,
+        log_targets=False)
 
   def Run(self):
     """Redirects to the ELF Loader platform's abstract loader implementation."""
 
     return_code = 1
 
+    logging.info('-' * 32)
+    logging.info('Starting to run target: %s', self.target_name)
+    logging.info('=' * 32)
+
     try:
+
       return_code = self.launcher.Run()
     except Exception:  # pylint: disable=broad-except
       logging.exception('Error occurred while running test.')
+
+    logging.info('-' * 32)
+    logging.info('Finished running target: %s', self.target_name)
+    logging.info('=' * 32)
 
     return return_code
 
