@@ -99,6 +99,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.shutdown_initiated = threading.Event()
 
+    self.log_targets = kwargs.get('log_targets', True)
+
     signal.signal(signal.SIGINT, functools.partial(_SigIntOrSigTermHandler))
     signal.signal(signal.SIGTERM, functools.partial(_SigIntOrSigTermHandler))
 
@@ -123,7 +125,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     options = '-avzLh'
     source = test_dir + '/'
     destination = '{}:~/{}/'.format(raspi_user_hostname, raspi_test_dir)
-    self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
+    self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + \
+        destination + ';sync'
 
     # ssh command setup
     self.ssh_command = 'ssh -t ' + raspi_user_hostname + ' TERM=dumb bash -l'
@@ -233,14 +236,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if self.pexpect_process is not None and self.pexpect_process.isalive():
       # Check if kernel logged OOM kill or any other system failure message
       if self.return_value:
-        logging.info("Sending dmesg")
-        self.pexpect_process.sendline('dmesg -P --color=never | tail -n 50')
+        logging.info('Sending dmesg')
+        self.pexpect_process.sendline('dmesg -P --color=never | tail -n 100')
         time.sleep(3)
         try:
           self.pexpect_process.readlines()
         except pexpect.TIMEOUT:
           pass
-        logging.info("Done sending dmesg")
+        logging.info('Done sending dmesg')
 
       # Send ctrl-c to the raspi and close the process.
       self.pexpect_process.sendline(chr(3))
@@ -270,7 +273,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Zombie Cobalt instances can block the WebDriver port or
     cause other problems.
     """
-    logging.info("Killing existing processes")
+    logging.info('Killing existing processes')
     self.pexpect_process.sendline(
         'pkill -9 -ef "(cobalt)|(crashpad_handler)|(elf_loader)"')
     self._WaitForPrompt()
@@ -282,7 +285,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
                       'Pausing to ensure no further operations are run '
                       'before processes shut down.')
       time.sleep(10)
-    logging.info("Done killing existing processes")
+    logging.info('Done killing existing processes')
 
   def Run(self):
     """Runs launcher's executable on the target raspi.
@@ -291,9 +294,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
        Whether or not the run finished successfully.
     """
 
-    logging.info('-' * 32)
-    logging.info('Starting to run target: {}'.format(self.target_name))
-    logging.info('=' * 32)
+    if self.log_targets:
+      logging.info('-' * 32)
+      logging.info('Starting to run target: %s', self.target_name)
+      logging.info('=' * 32)
 
     self.return_value = 1
 
@@ -340,9 +344,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Notify other threads that the run is no longer active
       self.run_inactive.set()
 
-    logging.info('-' * 32)
-    logging.info('Finished running target: {}'.format(self.target_name))
-    logging.info('=' * 32)
+    if self.log_targets:
+      logging.info('-' * 32)
+      logging.info('Finished running target: %s', self.target_name)
+      logging.info('=' * 32)
 
     return self.return_value
 
