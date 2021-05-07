@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 FROM build-base-windows
 
-# This is necessary in order to ensure that gyp configures the build without PDB
-# generation.
-# PDB files cannot be created inside of volumes due to limitations with windows
-# docker engine and our current in-source build.
-RUN setx is_docker 1
+ADD ./build.cmd /build.cmd
 
-ADD scripts/build.cmd /build.cmd
-ADD scripts/fast-win-rmdir.cmd /fast-win-rmdir.cmd
+WORKDIR "C:\code"
 
 CMD [ "/build.cmd", "${PLATFORM}", "${CONFIG}", "${TARGET}", "${NINJA_FLAGS}" ]
