@@ -15,17 +15,28 @@
 config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
-  ldflags = [ "-static-libstdc++" ]
+  ldflags = [
+    "-static-libstdc++",
+    "-Wl,--wrap=eglSwapBuffers",
+  ]
   libs = [
     "EGL",
     "GLESv2",
+    "X11",
+    "Xcomposite",
+    "Xrender",
+    "asound",
+    "dl",
+    "pthread",
+    "rt",
   ]
 
-  if (current_toolchain == default_toolchain) {
-    cflags += [
-      "-O2",
-      "-Wno-unused-parameter",
-    ]
+  if (!sb_evergreen) {
+    ldflags += [ "-static-libstdc++" ]
+  }
+
+  if (current_toolchain == host_toolchain) {
+    cflags += [ "-O2" ]
   }
 
   if (is_debug) {
@@ -41,8 +52,16 @@ config("platform_configuration") {
   } else {
     cflags += [
       "-fno-rtti",
-      "-O2",
       "-gline-tables-only",
+    ]
+  }
+
+  # TODO(andrewsavage): look at size vs speed flags
+  if (is_qa || is_gold) {
+    cflags += [
+      "-O2",
+      "-ffunction-sections",
+      "-fdata-sections",
     ]
   }
 
@@ -51,6 +70,7 @@ config("platform_configuration") {
   # }
 
   if (is_clang) {
+    ldflags += [ "-fuse-ld=lld" ]
     cflags += [
       "-Werror",
       "-fcolor-diagnostics",
@@ -60,6 +80,10 @@ config("platform_configuration") {
 
       # Warn for implicit type conversions that may change a value.
       "-Wconversion",
+      "-Wno-c++14-compat",
+
+      # This complains about 'override', which we use heavily.
+      "-Wno-c++14-extensions",
 
       # Warns on switches on enums that cover all enum values but
       # also contain a default: branch. Chrome is full of that.
@@ -88,12 +112,28 @@ config("platform_configuration") {
       # instantiated.
       "-Wno-undefined-var-template",
 
+      # Do not warn about an implicit exception spec mismatch.
+      "-Wno-implicit-exception-spec-mismatch",
+
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
     ]
   }
 
-  defines = [ "__STDC_FORMAT_MACROS" ]  # so that we get PRI*
+  defines = [
+    # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
+    # nasty macros (|Status|, for example) that conflict with Chromium base.
+    "MESA_EGL_NO_X11_HEADERS",
+    "__STDC_FORMAT_MACROS",  # so that we get PRI*
+  ]
+
+  # TODO(andrewsavage): Enable. Currently fails with "use of undeclared identifier 'SSIZE_MAX'"
+  # cflags_c = [ "-std=c99" ]
+  cflags_cc = [ "-std=gnu++14" ]
+  ldflags += [
+    "-Wl,-rpath=\$ORIGIN/lib",
+    "-Wl,-gc-sections",
+  ]
 
   if (sb_pedantic_warnings) {
     cflags += [
@@ -118,6 +158,7 @@ config("platform_configuration") {
 
       # Width of bit-field exceeds width of its type- value will be truncated
       "-Wno-bitfield-width",
+      "-Wno-undefined-var-template",
     ]
   }
 }
