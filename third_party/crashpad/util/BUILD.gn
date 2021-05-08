@@ -537,7 +537,7 @@ static_library("util") {
   }
 
   if (crashpad_is_in_starboard) {
-    public_deps += [ "//starboard" ]
+    public_deps += [ "//starboard:starboard_headers_only" ]
     configs += [ ":crashpad_starboard_config" ]
     configs -= [ "//starboard/build/config:include_root" ]
   }
