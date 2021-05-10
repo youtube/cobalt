@@ -25,6 +25,7 @@
 #include "SkTypeface.h"
 #include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontUtil_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
@@ -64,6 +65,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   // NOTE: This returns NULL if a match is not found.
   SkTypeface* MatchFaceName(const char face_name[]);
+
+  // Loads the font that matches the suggested script for the device's locale.
+  void LoadLocaleDefault();
 
  protected:
   // From SkFontMgr
@@ -125,6 +129,8 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   void GeneratePriorityOrderedFallbackFamilies(
       const PriorityStyleSetArrayMap& priority_fallback_families);
   void FindDefaultFamily(const SkTArray<SkString, true>& default_families);
+  bool CheckIfFamilyMatchesLocaleScript(sk_sp<SkFontStyleSet_Cobalt> new_family,
+                                        const char* script);
 
   // Returns the first encountered fallback family that matches the language tag
   // and supports the specified character.
@@ -157,9 +163,12 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   std::vector<std::unique_ptr<StyleSetArray>> language_fallback_families_array_;
   NameToStyleSetArrayMap language_fallback_families_map_;
 
-  // The default family that is used when no specific match is found during a
-  // request.
-  SkFontStyleSet_Cobalt* default_family_;
+  // List of default families that are used when no specific match is found
+  // during a request.
+  std::vector<SkFontStyleSet_Cobalt*> default_families_;
+
+  // Used to delay font loading until default fonts are fully loaded.
+  base::WaitableEvent default_fonts_loaded_event_;
 
   // Mutex shared by all families for accessing their modifiable data.
   mutable SkMutex family_mutex_;

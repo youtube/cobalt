@@ -603,6 +603,9 @@ void Pipeline::InitializeRasterizerThread(
   rasterizer_ = create_rasterizer_function.Run();
   rasterizer_created_event_.Signal();
 
+  // Async load additional fonts after rasterizer thread is fully initialized.
+  GetResourceProvider()->LoadAdditionalFonts();
+
   // Note that this is setup as high priority, but lower than the rasterizer
   // thread's priority (ThreadPriority::HIGHEST).  This is to ensure that
   // we never interrupt the rasterizer in order to dispose render trees, but

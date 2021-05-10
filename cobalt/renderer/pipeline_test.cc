@@ -18,6 +18,7 @@
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
@@ -36,6 +37,14 @@ namespace {
 const base::TimeDelta kRasterizeDelay =
     base::TimeDelta::FromSecondsD(1.0 / 60.0);
 
+class MockResourceProvider : public cobalt::render_tree::ResourceProviderStub {
+ public:
+  MockResourceProvider() : fonts_loaded_(false){};
+  ~MockResourceProvider() override {}
+  void LoadAdditionalFonts() override { fonts_loaded_ = true; }
+  bool fonts_loaded_;
+};
+
 // Unfortunately, we can't make use of gmock to test the number of submission
 // calls that were made.  This is because we need to test our expectations
 // AFTER all Submit() calls have been made, whereas gmock requires us to
@@ -46,7 +55,9 @@ const base::TimeDelta kRasterizeDelay =
 class MockRasterizer : public Rasterizer {
  public:
   explicit MockRasterizer(int* submission_count)
-      : submission_count_(submission_count) {}
+      : submission_count_(submission_count),
+        provider_(new MockResourceProvider()) {}
+  ~MockRasterizer() { delete provider_; }
 
   void Submit(const scoped_refptr<cobalt::render_tree::Node>&,
               const scoped_refptr<cobalt::renderer::backend::RenderTarget>&,
@@ -67,7 +78,7 @@ class MockRasterizer : public Rasterizer {
   }
 
   cobalt::render_tree::ResourceProvider* GetResourceProvider() override {
-    return NULL;
+    return provider_;
   }
 
   void MakeCurrent() override {}
@@ -76,6 +87,7 @@ class MockRasterizer : public Rasterizer {
  private:
   int* submission_count_;
   base::Optional<base::TimeTicks> last_submission_time;
+  MockResourceProvider* provider_;
 };
 
 std::unique_ptr<Rasterizer> CreateMockRasterizer(int* submission_count) {
@@ -216,4 +228,17 @@ TEST_F(
       GetExpectedNumberOfSubmissions(kDelay, time_elapsed);
   EXPECT_LE(expected_submissions.lower_bound, submission_count_);
   EXPECT_GE(expected_submissions.upper_bound, submission_count_);
+}
+
+TEST_F(RendererPipelineTest, LoadDefaultFontsAfterRasterizerCreated) {
+  MockResourceProvider* provider =
+      base::polymorphic_downcast<MockResourceProvider*>(
+          pipeline_->GetResourceProvider());
+
+  // Wait a little bit to give the pipeline some time to initialize rasterizer
+  // thread.
+  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(400);
+  base::PlatformThread::Sleep(kDelay);
+
+  EXPECT_EQ(true, provider->fonts_loaded_);
 }

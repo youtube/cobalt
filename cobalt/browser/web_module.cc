@@ -660,10 +660,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
-      data.options.font_language_script_override.empty()
-          ? base::GetSystemLanguageScript()
-          : data.options.font_language_script_override,
-      data.options.navigation_callback,
+      base::GetSystemLanguageScript(), data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.require_csp, data.options.csp_enforcement_mode,
