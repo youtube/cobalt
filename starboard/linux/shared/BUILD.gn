@@ -30,6 +30,10 @@ group("starboard_platform") {
     }
   }
 
+  if (sb_evergreen_compatible_libunwind) {
+    public_deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
   public_configs = [
     "//third_party/de265_includes",
     "//third_party/pulseaudio_includes",
