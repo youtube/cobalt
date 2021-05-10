@@ -412,12 +412,12 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // LOG_IS_ON(DFATAL) always holds in debug mode. In particular, CHECK()s will
 // always fire if they fail.
 
-#if defined(OFFICIAL_BUILD)
+#if defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 #define LOG_IS_ON(severity) false
-#else  // defined(OFFICIAL_BUILD)
+#else  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 #define LOG_IS_ON(severity) \
   (::logging::ShouldCreateLogMessage(::logging::LOG_##severity))
-#endif  // defined(OFFICIAL_BUILD)
+#endif  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 
 // We can't do any caching tricks with VLOG_IS_ON() like the
 // google-glog version since it requires GCC extensions.  This means
@@ -445,9 +445,9 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define LOG_IF(severity, condition) \
   LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity) && (condition))
 
-#if defined(OFFICIAL_BUILD)
+#if defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 #define LOG_ONCE(severity) EAT_STREAM_PARAMETERS
-#else  // defined(OFFICIAL_BUILD)
+#else  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 #define LOG_ONCE_MSG "[once] "
 
 constexpr uint32_t kFnvOffsetBasis32 = 0x811c9dc5U;
@@ -481,7 +481,7 @@ bool LogOnceHelper<FILE_HASH, LINE>::logged_ = false;
           ((::logging::LogOnceHelper<::logging::hash_32_fnv1a_const(__FILE__), \
                                     __LINE__>::logged_ = true) == true)))      \
       << LOG_ONCE_MSG
-#endif  // defined(OFFICIAL_BUILD)
+#endif  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 
 // The VLOG macros log with negative verbosities.
 #define VLOG_STREAM(verbose_level) \

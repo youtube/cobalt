@@ -123,7 +123,8 @@ class LogMessageVoidify {
 #define SB_LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::starboard::logging::LogMessageVoidify() & (stream)
 
-#if SB_LOGGING_IS_OFFICIAL_BUILD
+#if SB_LOGGING_IS_OFFICIAL_BUILD && !SB_IS(EVERGREEN) && \
+    !SB_IS(EVERGREEN_COMPATIBLE)
 #define SB_LOG_IS_ON(severity)                         \
   ((::starboard::logging::SB_LOG_##severity >=         \
     ::starboard::logging::SB_LOG_FATAL)                \

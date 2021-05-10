@@ -445,13 +445,15 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
 }
 
 std::string GetMinLogLevelString() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kMinLogLevel)) {
     return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
   }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+#if defined(OFFICIAL_BUILD)
+  return "fatal";
+#else
   return "info";
+#endif
 }
 
 int StringToLogLevel(const std::string& log_level) {
@@ -465,7 +467,11 @@ int StringToLogLevel(const std::string& log_level) {
     return logging::LOG_FATAL;
   } else {
     NOTREACHED() << "Unrecognized logging level: " << log_level;
+#if defined(OFFICIAL_BUILD)
+    return logging::LOG_FATAL;
+#else
     return logging::LOG_INFO;
+#endif
   }
 }
 
