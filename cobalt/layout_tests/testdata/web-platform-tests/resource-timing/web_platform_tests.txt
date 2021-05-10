@@ -1,0 +1,2 @@
+# Performance Resource Timing tests
+test_resource_timing.html,PASS
