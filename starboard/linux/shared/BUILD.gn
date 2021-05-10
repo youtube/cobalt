@@ -56,6 +56,7 @@ static_library("starboard_base_symbolize") {
 }
 
 source_set("starboard_platform_sources") {
+  check_includes = false
   sources = []
   if (has_cdm) {
     # TODO(andrewsavage)
@@ -73,6 +74,9 @@ source_set("starboard_platform_sources") {
     ]
   }
 
-  public_deps = [ "//starboard:starboard_headers_only" ]
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+  ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
