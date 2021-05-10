@@ -92,6 +92,8 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       int32 character, render_tree::FontStyle font_style,
       const std::string& language) override;
 
+  void LoadAdditionalFonts() override;
+
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,
   // OpenType, and WOFF data formats.

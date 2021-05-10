@@ -100,6 +100,8 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
   const SkString& get_family_name() const { return family_name_; }
 
+  const SkLanguage& get_language() const { return language_; }
+
  private:
   // NOTE: It is the responsibility of the caller to lock the mutex before
   // calling any of the non-const private functions.

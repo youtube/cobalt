@@ -26,11 +26,15 @@
 #include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/language.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/font.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "third_party/icu/source/common/unicode/locid.h"
+
+const char* ROBOTO_SCRIPT = "latn";
 
 SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* cobalt_font_config_directory,
@@ -42,7 +46,8 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
           "Font.LocalTypefaceCache",
           cobalt::configuration::Configuration::GetInstance()
               ->CobaltLocalTypefaceCacheSizeInBytes()),
-      default_family_(NULL) {
+      default_fonts_loaded_event_(base::WaitableEvent::ResetPolicy::MANUAL,
+                                  base::WaitableEvent::InitialState::SIGNALED) {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::SkFontMgr_Cobalt()");
 
   PriorityStyleSetArrayMap priority_fallback_families;
@@ -196,7 +201,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyle(
   }
 
   if (typeface == NULL) {
-    typeface = default_family_->matchStyle(style);
+    typeface = default_families_[0]->matchStyle(style);
   }
 
   return typeface;
@@ -250,9 +255,10 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
       font_manager->FindFamilyStyleCharacter(style, SkString(), character);
 
   // If no family was found that supports the character, then just fall back
-  // to the default family.
-  return matching_typeface ? matching_typeface
-                           : default_family_->MatchStyleWithoutLocking(style);
+  // to the first default family.
+  return matching_typeface
+             ? matching_typeface
+             : default_families_[0]->MatchStyleWithoutLocking(style);
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
@@ -284,6 +290,25 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromFile(const char path[],
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onLegacyMakeTypeface(
     const char family_name[], SkFontStyle style) const {
   return sk_sp<SkTypeface>(matchFamilyStyle(family_name, style));
+}
+
+void SkFontMgr_Cobalt::LoadLocaleDefault() {
+  std::string script =
+      icu::Locale::createCanonical(base::GetSystemLanguageScript().c_str())
+          .getScript();
+  if (SbStringCompareNoCase(script.c_str(), ROBOTO_SCRIPT) == 0) {
+    return;
+  }
+
+  default_fonts_loaded_event_.Reset();
+  for (int i = 0; i < families_.count(); i++) {
+    if (CheckIfFamilyMatchesLocaleScript(families_[i], script.c_str())) {
+      default_fonts_loaded_event_.Signal();
+      return;
+    }
+  }
+
+  default_fonts_loaded_event_.Signal();
 }
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
@@ -455,20 +480,42 @@ void SkFontMgr_Cobalt::FindDefaultFamily(
     sk_sp<SkTypeface> check_typeface(
         check_family->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
-      default_family_ = check_family.get();
+      default_families_.push_back(check_family.get());
       break;
     }
   }
 
-  if (default_family_ == NULL) {
+  if (default_families_.empty()) {
     sk_sp<SkTypeface> check_typeface(
         families_[0]->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
-      default_family_ = families_[0].get();
+      default_families_.push_back(families_[0].get());
     }
   }
 
-  CHECK(default_family_);
+  CHECK(!default_families_.empty());
+}
+
+bool SkFontMgr_Cobalt::CheckIfFamilyMatchesLocaleScript(
+    sk_sp<SkFontStyleSet_Cobalt> new_family, const char* script) {
+  SkString family_tag = new_family->get_language().GetTag();
+  if (family_tag.isEmpty()) {
+    return false;
+  }
+  std::string family_script =
+      icu::Locale::createCanonical(family_tag.c_str()).getScript();
+  if (SbStringCompareNoCase(script, family_script.c_str()) != 0) {
+    return false;
+  }
+
+  sk_sp<SkTypeface> check_typeface(
+      new_family->MatchStyleWithoutLocking(SkFontStyle()));
+  if (check_typeface.get() == NULL) {
+    return false;
+  }
+
+  default_families_.push_back(new_family.get());
+  return true;
 }
 
 SkTypeface* SkFontMgr_Cobalt::FindFamilyStyleCharacter(
@@ -476,6 +523,20 @@ SkTypeface* SkFontMgr_Cobalt::FindFamilyStyleCharacter(
     SkUnichar character) {
   if (!font_character_map::IsCharacterValid(character)) {
     return NULL;
+  }
+
+  // First attempt any extra default fonts set by locale.
+  default_fonts_loaded_event_.Wait();
+  if (default_families_.size() > 1) {
+    for (int i = 1; i < default_families_.size(); ++i) {
+      SkFontStyleSet_Cobalt* family = default_families_[i];
+      if (family->ContainsCharacter(style, character)) {
+        SkTypeface* matching_typeface = family->MatchStyleWithoutLocking(style);
+        if (matching_typeface) {
+          return matching_typeface;
+        }
+      }
+    }
   }
 
   StyleSetArray* fallback_families = GetMatchingFallbackFamilies(language_tag);
