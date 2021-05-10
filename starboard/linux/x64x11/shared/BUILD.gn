@@ -14,8 +14,24 @@
 
 group("starboard_platform") {
   public_deps = [
+    ":starboard_platform_sources",
     "//starboard/egl_and_gles",
     "//starboard/linux/shared:starboard_platform",
     "//third_party/libjpeg",
   ]
+}
+
+source_set("starboard_platform_sources") {
+  check_includes = false
+  sources = [
+    "//starboard/shared/x11/application_x11.cc",
+    "//starboard/shared/x11/egl_swap_buffers.cc",
+    "//starboard/shared/x11/window_create.cc",
+    "//starboard/shared/x11/window_destroy.cc",
+    "//starboard/shared/x11/window_get_platform_handle.cc",
+    "//starboard/shared/x11/window_get_size.cc",
+    "//starboard/shared/x11/window_internal.cc",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
