@@ -13,9 +13,11 @@
 # limitations under the License.
 
 static_library("starboard_platform") {
+  check_includes = false
   deps = [ ":stub_sources" ]
 
   sources = [
+    "//starboard/linux/x64x11/main.cc",
     "//starboard/stub/application_stub.cc",
     "//starboard/stub/application_stub.h",
     "//starboard/stub/configuration.cc",
@@ -25,7 +27,6 @@ static_library("starboard_platform") {
     "//starboard/stub/font.h",
     "//starboard/stub/javascript_cache.cc",
     "//starboard/stub/javascript_cache.h",
-    "//starboard/stub/main.cc",
     "//starboard/stub/system_get_extensions.cc",
     "//starboard/stub/thread_types_public.h",
   ]
@@ -55,11 +56,9 @@ source_set("stub_sources") {
     "//starboard/shared/stub/player_get_maximum_number_of_samples_per_write.cc",
     "//starboard/shared/stub/player_get_preferred_output_mode.cc",
     "//starboard/shared/stub/player_seek2.cc",
-    "//starboard/shared/stub/player_set_bounds.cc",
     "//starboard/shared/stub/player_set_playback_rate.cc",
     "//starboard/shared/stub/player_set_volume.cc",
     "//starboard/shared/stub/player_write_end_of_stream.cc",
     "//starboard/shared/stub/player_write_sample2.cc",
-    "//starboard/shared/stub/system_get_property.cc",
   ]
 }

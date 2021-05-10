@@ -346,8 +346,6 @@ source_set("starboard_platform_sources") {
     "//starboard/shared/stub/cryptography_set_authenticated_data.cc",
     "//starboard/shared/stub/cryptography_set_initialization_vector.cc",
     "//starboard/shared/stub/cryptography_transform.cc",
-    "//starboard/shared/stub/image_decode.cc",
-    "//starboard/shared/stub/image_is_decode_supported.cc",
     "//starboard/shared/stub/media_is_output_protected.cc",
     "//starboard/shared/stub/media_set_audio_write_duration.cc",
     "//starboard/shared/stub/media_set_output_protection.cc",

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+declare_args() {
+  has_private_system_properties = false
+}
+
 group("starboard_platform") {
   public_deps = [
     ":starboard_platform_sources",
@@ -24,14 +28,29 @@ group("starboard_platform") {
 source_set("starboard_platform_sources") {
   check_includes = false
   sources = [
+    "//starboard/linux/x64x11/sanitizer_options.cc",
+    "//starboard/linux/x64x11/system_get_property.cc",
+    "//starboard/linux/x64x11/system_get_property_impl.cc",
+    "//starboard/shared/libjpeg/image_decode.cc",
+    "//starboard/shared/libjpeg/image_is_decode_supported.cc",
+    "//starboard/shared/libjpeg/jpeg_image_decoder.cc",
+    "//starboard/shared/libjpeg/jpeg_image_decoder.h",
+    "//starboard/shared/starboard/link_receiver.cc",
     "//starboard/shared/x11/application_x11.cc",
     "//starboard/shared/x11/egl_swap_buffers.cc",
+    "//starboard/shared/x11/player_set_bounds.cc",
     "//starboard/shared/x11/window_create.cc",
     "//starboard/shared/x11/window_destroy.cc",
     "//starboard/shared/x11/window_get_platform_handle.cc",
     "//starboard/shared/x11/window_get_size.cc",
     "//starboard/shared/x11/window_internal.cc",
   ]
+
+  if (has_private_system_properties) {
+    sources += [ "//starboard/keyboxes/linux/system_properties.cc" ]
+  } else {
+    sources += [ "//starboard/linux/x64x11/public_system_properties.cc" ]
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
