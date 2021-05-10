@@ -114,7 +114,11 @@ int Application::Run(CommandLine command_line) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
   } else {
+#if SB_LOGGING_IS_OFFICIAL_BUILD
+    ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);
+#else
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
+#endif
   }
 #endif  // SB_API_VERSION >= 11
 

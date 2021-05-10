@@ -35,7 +35,11 @@
 namespace starboard {
 namespace logging {
 namespace {
+#if SB_LOGGING_IS_OFFICIAL_BUILD
+SbLogPriority g_min_log_level = kSbLogPriorityFatal;
+#else
 SbLogPriority g_min_log_level = kSbLogPriorityUnknown;
+#endif
 
 #if SB_API_VERSION < 11
 SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
@@ -61,11 +65,7 @@ void SetMinLogLevel(SbLogPriority priority) {
 }
 
 SbLogPriority GetMinLogLevel() {
-#if SB_LOGGING_IS_OFFICIAL_BUILD
-  return SB_LOG_FATAL;
-#else
   return g_min_log_level;
-#endif
 }
 
 SbLogPriority StringToLogLevel(const std::string& log_level) {
