@@ -12,16 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("starboard_platform") {
-  public_deps = [
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//third_party/libevent",
-    "//third_party/opus",
-  ]
-
-  public_configs = [
-    "//third_party/de265_includes",
-    "//third_party/pulseaudio_includes",
-  ]
+config("pulseaudio_includes") {
+  include_dirs = [ "pulseaudio.12.2" ]
 }
