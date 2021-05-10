@@ -150,6 +150,10 @@ scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(
       utf32_character, font_style, language);
 }
 
+void ResourceProvider::LoadAdditionalFonts() {
+  return skia_resource_provider_->LoadAdditionalFonts();
+}
+
 scoped_refptr<Typeface> ResourceProvider::CreateTypefaceFromRawData(
     std::unique_ptr<RawTypefaceDataVector> raw_data,
     std::string* error_string) {

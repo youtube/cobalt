@@ -179,6 +179,13 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
+void SoftwareResourceProvider::LoadAdditionalFonts() {
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+  cobalt_font_manager->LoadLocaleDefault();
+}
+
 scoped_refptr<render_tree::Typeface>
 SoftwareResourceProvider::CreateTypefaceFromRawData(
     std::unique_ptr<render_tree::ResourceProvider::RawTypefaceDataVector>

@@ -210,11 +210,6 @@ class WebModule : public LifecycleObserver {
     // the frozen state.
     bool should_retain_remote_typeface_cache_on_freeze = false;
 
-    // The language and script to use with fonts. If left empty, then the
-    // language-script combination provided by base::GetSystemLanguageScript()
-    // is used.
-    std::string font_language_script_override;
-
     // The splash screen cache object, owned by the BrowserModule.
     SplashScreenCache* splash_screen_cache;
 
