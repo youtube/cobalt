@@ -37,6 +37,7 @@
 #include "cobalt/xhr/url_fetcher_buffer_writer.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "cobalt/xhr/xml_http_request_upload.h"
+#include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_fetcher.h"
@@ -186,6 +187,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // Called from bindings layer to tie objects' lifetimes to this XHR instance.
   XMLHttpRequestUpload* upload_or_null() { return upload_.get(); }
 
+  void ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) override;
+  // Create Performance Resource Timing entry for XMLHttpRequest.
+  void GetLoadTimingInfoAndCreateResourceTiming();
+
   friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
   void TraceMembers(script::Tracer* tracer) override;
@@ -319,6 +324,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   int redirect_times_;
   bool is_data_url_;
   int url_fetcher_generation_ = -1;
+
+  net::LoadTimingInfo load_timing_info_;
 
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };

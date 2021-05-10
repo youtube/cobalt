@@ -30,6 +30,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/performance.h"
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom/xml_document.h"
@@ -65,6 +66,9 @@ const char* kResponseTypes[] = {
 const char* kForbiddenMethods[] = {
     "connect", "trace", "track",
 };
+
+// https://www.w3.org/TR/resource-timing-1/#dom-performanceresourcetiming-initiatortype
+const char* kPerformanceResourceTimingInitiatorType = "xmlhttprequest";
 
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
@@ -752,6 +756,8 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
       OnRedirect(*source->GetResponseHeaders());
       return;
     }
+    // Create Performance Resource Timing entry after fetch complete.
+    GetLoadTimingInfoAndCreateResourceTiming();
   }
 
   const net::URLRequestStatus& status = source->GetStatus();
@@ -1191,6 +1197,18 @@ void XMLHttpRequest::CORSPreflightSuccessCallback() {
   DCHECK(settings_->network_module());
   StartURLFetcher(settings_->network_module()->max_network_delay(),
                   url_fetcher_generation_);
+}
+
+void XMLHttpRequest::ReportLoadTimingInfo(
+    const net::LoadTimingInfo& timing_info) {
+  load_timing_info_ = timing_info;
+}
+
+void XMLHttpRequest::GetLoadTimingInfoAndCreateResourceTiming() {
+  if (settings_->window()->performance() == nullptr) return;
+  settings_->window()->performance()->CreatePerformanceResourceTiming(
+      load_timing_info_, kPerformanceResourceTimingInitiatorType,
+      request_url_.spec());
 }
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
