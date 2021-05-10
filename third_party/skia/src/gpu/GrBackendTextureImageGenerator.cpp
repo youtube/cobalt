@@ -159,13 +159,9 @@ sk_sp<GrTextureProxy> GrBackendTextureImageGenerator::onGenerateTexture(
 
     // Must make copies of member variables to capture in the lambda since this image generator may
     // be deleted before we actually execute the lambda.
-    // Since initialized lambda captures are a C++14 extension, we need to
-    // initialize |refHelper|, |semaphore|, and |backendTexture| first.
-    RefHelper* refHelper = fRefHelper;
-    sk_sp<GrSemaphore> semaphore = fSemaphore;
-    GrBackendTexture backendTexture = fBackendTexture;
     sk_sp<GrTextureProxy> proxy = proxyProvider->createLazyProxy(
-            [refHelper, releaseProcHelper, semaphore, backendTexture, grColorType](
+            [refHelper = fRefHelper, releaseProcHelper, semaphore = fSemaphore,
+             backendTexture = fBackendTexture, grColorType](
                     GrResourceProvider* resourceProvider) -> GrSurfaceProxy::LazyCallbackResult {
                 if (semaphore) {
                     resourceProvider->priv().gpu()->waitSemaphore(semaphore);

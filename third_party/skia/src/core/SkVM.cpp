@@ -744,7 +744,9 @@ namespace skvm {
     void Assembler::vcvtdq2ps (Ymm dst, Ymm x) { this->op(0,   0x0f,0x5b, dst,x); }
     void Assembler::vcvttps2dq(Ymm dst, Ymm x) { this->op(0xf3,0x0f,0x5b, dst,x); }
 
-    Assembler::Label Assembler::here() { return {{}, (int)this->size(), Label::None}; }
+    Assembler::Label Assembler::here() {
+        return { (int)this->size(), Label::None, {} };
+    }
 
     int Assembler::disp19(Label* l) {
         SkASSERT(l->kind == Label::None ||

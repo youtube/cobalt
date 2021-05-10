@@ -14,7 +14,6 @@
 #include <type_traits>
 
 #include "include/core/SkTypes.h"
-#include "include/private/SkMacros.h"
 #include "include/private/SkTemplates.h"
 #include "include/private/SkTo.h"
 #include "src/core/SkSpan.h"
@@ -34,18 +33,11 @@ class SkZip {
         using iterator_category = std::input_iterator_tag;
         constexpr Iterator(const SkZip* zip, size_t index) : fZip{zip}, fIndex{index} { }
         constexpr Iterator(const Iterator& that) : Iterator{ that.fZip, that.fIndex } { }
-        CONSTEXPR Iterator& operator++() {
-            ++fIndex;
-            return *this;
-        }
-        CONSTEXPR Iterator operator++(int) {
-            Iterator tmp(*this);
-            operator++();
-            return tmp;
-        }
+        constexpr Iterator& operator++() { ++fIndex; return *this; }
+        constexpr Iterator operator++(int) { Iterator tmp(*this); operator++(); return tmp; }
         constexpr bool operator==(const Iterator& rhs) const { return fIndex == rhs.fIndex; }
         constexpr bool operator!=(const Iterator& rhs) const { return fIndex != rhs.fIndex; }
-        CONSTEXPR reference operator*() { return (*fZip)[fIndex]; }
+        constexpr reference operator*() { return (*fZip)[fIndex]; }
         friend constexpr difference_type operator-(Iterator lhs, Iterator rhs) {
             return lhs.fIndex - rhs.fIndex;
         }
@@ -85,12 +77,11 @@ public:
     constexpr ReturnTuple back() const { return this->index(this->size() - 1); }
     constexpr Iterator begin() const { return Iterator{this, 0}; }
     constexpr Iterator end() const { return Iterator{this, this->size()}; }
-    template <size_t I>
-    constexpr SkSpan<typename std::tuple_element<I, std::tuple<Ts...>>::type> get() const {
+    template<size_t I> constexpr auto get() const {
         return SkMakeSpan(std::get<I>(fPointers), fSize);
     }
     constexpr std::tuple<Ts*...> data() const { return fPointers; }
-    CONSTEXPR SkZip first(size_t n) const {
+    constexpr SkZip first(size_t n) const {
         SkASSERT(n <= this->size());
         return SkZip{n, fPointers};
     }
@@ -100,7 +91,7 @@ private:
         : fPointers{pointers}
         , fSize{n} {}
 
-    CONSTEXPR ReturnTuple index(size_t i) const {
+    constexpr ReturnTuple index(size_t i) const {
         SkASSERT(this->size() > 0);
         SkASSERT(i < this->size());
         return indexDetail(i, skstd::make_index_sequence<sizeof...(Ts)>{});
@@ -166,7 +157,9 @@ class SkMakeZipDetail {
     };
 
 public:
-    template <typename... Ts> static CONSTEXPR SkZip<ValueType<Ts>...> MakeZip(Ts&&... ts) {
+    template<typename... Ts>
+    static constexpr auto MakeZip(Ts&& ... ts) {
+
         // Pick the first collection that has a size, and use that for the size.
         size_t size = PickOneSize<DecayPointerT<Ts>...>::Size(std::forward<Ts>(ts)...);
 
@@ -187,9 +180,8 @@ public:
     }
 };
 
-template <typename... Ts>
-inline constexpr auto SkMakeZip(Ts&&... ts)
-        -> decltype(SkMakeZipDetail::MakeZip(std::forward<Ts>(ts)...)) {
+template<typename... Ts>
+inline constexpr auto SkMakeZip(Ts&& ... ts) {
     return SkMakeZipDetail::MakeZip(std::forward<Ts>(ts)...);
 }
 #endif //SkZip_DEFINED
