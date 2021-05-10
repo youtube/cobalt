@@ -142,6 +142,12 @@ This document records all notable changes made to Cobalt since the last release.
    Platforms can provide javascript code caching by implementing
    CobaltExtensionJavaScriptCacheApi.
 
+
+ - **Added support for UrlFetcher observer.**
+
+   Platforms can implement UrlFetcher observer for performance tracing by
+   implementing CobaltExtensionUrlFetcherObserverApi.
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**

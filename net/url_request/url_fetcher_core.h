@@ -15,6 +15,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/timer/timer.h"
+#include "cobalt/extension/url_fetcher_observer.h"
 #include "net/base/chunked_upload_data_stream.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/proxy_server.h"
@@ -369,6 +370,8 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   const net::NetworkTrafficAnnotationTag traffic_annotation_;
 
   static base::LazyInstance<Registry>::DestructorAtExit g_registry;
+
+  const CobaltExtensionUrlFetcherObserverApi* observer_extension_;
 
   DISALLOW_COPY_AND_ASSIGN(URLFetcherCore);
 };
