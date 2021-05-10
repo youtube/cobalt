@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+declare_args() {
+  has_cdm = false
+}
+
 group("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
+    ":starboard_platform_sources",
     "//starboard/common",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
@@ -48,4 +53,26 @@ static_library("starboard_base_symbolize") {
     "//base/third_party/symbolize/symbolize.cc",
   ]
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+}
+
+source_set("starboard_platform_sources") {
+  sources = []
+  if (has_cdm) {
+    # TODO(andrewsavage)
+  } else {
+    sources += [
+      "//starboard/shared/stub/drm_close_session.cc",
+      "//starboard/shared/stub/drm_create_system.cc",
+      "//starboard/shared/stub/drm_destroy_system.cc",
+      "//starboard/shared/stub/drm_generate_session_update_request.cc",
+      "//starboard/shared/stub/drm_get_metrics.cc",
+      "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/stub/drm_update_server_certificate.cc",
+      "//starboard/shared/stub/drm_update_session.cc",
+      "//starboard/shared/stub/media_is_supported.cc",
+    ]
+  }
+
+  public_deps = [ "//starboard:starboard_headers_only" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
