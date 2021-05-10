@@ -20,3 +20,12 @@ source_set("evergreen_info") {
 
   public_deps = [ "//starboard/common" ]
 }
+
+source_set("evergreen_config") {
+  sources = [
+    "evergreen_config.cc",
+    "evergreen_config.h",
+  ]
+
+  public_deps = [ "//starboard/common" ]
+}

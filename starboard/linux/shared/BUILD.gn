@@ -22,6 +22,10 @@ group("starboard_platform") {
     "//third_party/opus",
   ]
 
+  if (sb_evergreen_compatible) {
+    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+  }
+
   public_configs = [
     "//third_party/de265_includes",
     "//third_party/pulseaudio_includes",
