@@ -543,9 +543,7 @@ private:
         GrGLVertexArray*     fCoreProfileVertexArray;
     }                                       fHWVertexArrayState;
 
-    // Struct needs to be named so that we can specify a return type below in
-    // hwBufferState(), as C++11 does not support auto return types.
-    struct BufferState {
+    struct {
         GrGLenum                fGLTarget;
         GrGpuResource::UniqueID fBoundBufferUniqueID;
         bool                    fBufferZeroKnownBound;
@@ -556,7 +554,7 @@ private:
         }
     }                                       fHWBufferState[kGrGpuBufferTypeCount];
 
-    BufferState* hwBufferState(GrGpuBufferType type) {
+    auto* hwBufferState(GrGpuBufferType type) {
         unsigned typeAsUInt = static_cast<unsigned>(type);
         SkASSERT(typeAsUInt < SK_ARRAY_COUNT(fHWBufferState));
         return &fHWBufferState[typeAsUInt];

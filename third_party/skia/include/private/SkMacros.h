@@ -7,8 +7,6 @@
 #ifndef SkMacros_DEFINED
 #define SkMacros_DEFINED
 
-#include "nb/cpp14oncpp11.h"
-
 /*
  *  Usage:  SK_MACRO_CONCAT(a, b)   to construct the symbol ab
  *

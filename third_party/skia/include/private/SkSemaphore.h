@@ -9,13 +9,12 @@
 #define SkSemaphore_DEFINED
 
 #include "include/core/SkTypes.h"
-#include "include/private/SkMacros.h"
 #include "include/private/SkOnce.h"
 #include <atomic>
 
 class SkSemaphore {
 public:
-    CONSTEXPR SkSemaphore(int count = 0) : fCount(count), fOSSemaphore(nullptr) {}
+    constexpr SkSemaphore(int count = 0) : fCount(count), fOSSemaphore(nullptr) {}
 
     // Cleanup the underlying OS semaphore.
     ~SkSemaphore();
