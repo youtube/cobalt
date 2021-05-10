@@ -17,5 +17,6 @@ group("starboard_platform") {
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//third_party/libevent",
+    "//third_party/opus",
   ]
 }
