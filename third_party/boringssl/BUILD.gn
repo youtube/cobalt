@@ -1,0 +1,122 @@
+import("//third_party/boringssl/buildfiles.gni")
+
+declare_args() {
+  asm_target_arch = target_cpu
+}
+
+if (is_starboard) {
+  declare_args() {
+    openssl_config_path = "$boringssl_root/config/starboard"
+  }
+}
+
+config("external_config") {
+  include_dirs = [ "$boringssl_root/include" ]
+  if (is_starboard) {
+    include_dirs += [ openssl_config_path ]
+  }
+}
+
+config("internal_config") {
+  configs = [ ":external_config" ]
+  defines = [
+    "PURIFY",
+    "TERMIO",
+    "_REENTRANT",
+  ]
+  cflags = [
+    "-fPIC",
+    "-fvisibility=hidden",
+  ]
+  cflags_c = [
+    "-std=gnu99",
+    "-Wno-bad-function-cast",
+  ]
+  ldflags = [ "-fPIC" ]
+  include_dirs = [ "." ]
+
+  if (is_starboard) {
+    defines += [
+      "NO_SYS_PARAM_H",
+      "NO_SYS_UN_H",
+      "NO_SYSLOG",
+      "OPENSSL_NO_CAMELLIA",
+      "OPENSSL_NO_CAPIENG",
+      "OPENSSL_NO_CAST",
+      "OPENSSL_NO_CMS",
+      "OPENSSL_NO_DYNAMIC_ENGINE",
+      "OPENSSL_NO_EC_NISTP_64_GCC_128",
+      "OPENSSL_NO_GMP",
+      "OPENSSL_NO_IDEA",
+      "OPENSSL_NO_JPAKE",
+      "OPENSSL_NO_KRB5",
+      "OPENSSL_NO_MDC2",
+      "OPENSSL_NO_OCSP",
+      "OPENSSL_NO_RC5",
+      "OPENSSL_NO_RFC3779",
+      "OPENSSL_NO_SCTP",
+      "OPENSSL_NO_SEED",
+      "OPENSSL_NO_STORE",
+      "OPENSSL_NO_SOCK",  # Added by Cobalt to remove unused socket code.
+      "OPENSSL_NO_WHIRLPOOL",
+      "OPENSSL_NO_POSIX_IO",
+    ]
+  }
+}
+
+partial_crypto_excludes = [
+  "$boringssl_root/crypto/bio/connect.c",
+  "$boringssl_root/crypto/bio/fd.c",
+  "$boringssl_root/crypto/bio/socket.c",
+  "$boringssl_root/crypto/bio/socket_helper.c",
+]
+
+source_set("crypto") {
+  sources = boringssl_crypto_files + boringssl_ssl_files
+  sources -= partial_crypto_excludes
+
+  configs += [ ":internal_config" ]
+  all_dependent_configs = [ ":external_config" ]
+
+  if (is_starboard) {
+    sources -= [
+      "$boringssl_root/crypto/rand_extra/deterministic.c",
+      "$boringssl_root/crypto/rand_extra/fuchsia.c",
+      "$boringssl_root/crypto/rand_extra/windows.c",
+    ]
+    sources += [
+      "$boringssl_root/crypto/cpu-starboard.c",
+      "$boringssl_root/crypto/rand_extra/starboard.c",
+    ]
+    public_deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/client_porting/eztime",
+    ]
+
+    if (sb_evergreen) {
+      # TODO(andrewsavage): this requires the calling_convention variable from sabi
+    } else {
+      if ((!is_linux && !is_android && !is_apple) ||
+          (asm_target_arch != "x86" && asm_target_arch != "x64" &&
+           asm_target_arch != "arm" && asm_target_arch != "arm64")) {
+        defines = [ "OPENSSL_NO_ASM" ]
+      } else if (is_linux || is_android) {
+        if (asm_target_arch == "x86") {
+          sources += boringssl_linux_x86_files
+        } else if (asm_target_arch == "x64") {
+          sources += boringssl_linux_x86_64_files
+        } else if (asm_target_arch == "arm") {
+          sources += boringssl_linux_arm_files
+        } else if (asm_target_arch == "arm64") {
+          sources += boringssl_linux_aarch64_files
+        }
+      }
+    }
+  }
+}
+
+static_library("crypto_full") {
+  sources = partial_crypto_excludes
+  public_deps = [ ":crypto" ]
+  configs += [ ":internal_config" ]
+}

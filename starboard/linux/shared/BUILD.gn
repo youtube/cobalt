@@ -19,6 +19,7 @@ group("starboard_platform") {
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player",
+    "//third_party/boringssl:crypto",
     "//third_party/libevent",
     "//third_party/opus",
   ]
