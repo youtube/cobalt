@@ -14,8 +14,8 @@
 
 group("starboard_platform") {
   public_deps = [
-    "//starboard/egl_and_gles",
-    "//starboard/linux/shared:starboard_platform",
-    "//third_party/libjpeg",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//third_party/libevent",
   ]
 }
