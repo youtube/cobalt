@@ -89,6 +89,10 @@ static_library("client") {
     "../util",
   ]
 
+  if (crashpad_is_in_starboard) {
+    public_deps += [ "//starboard/elf_loader:evergreen_info" ]
+  }
+
   deps = []
 
   if (crashpad_is_win) {
