@@ -14,6 +14,7 @@
 
 group("starboard_platform") {
   public_deps = [
+    ":starboard_base_symbolize",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//third_party/libevent",
@@ -24,4 +25,12 @@ group("starboard_platform") {
     "//third_party/de265_includes",
     "//third_party/pulseaudio_includes",
   ]
+}
+
+static_library("starboard_base_symbolize") {
+  sources = [
+    "//base/third_party/symbolize/demangle.cc",
+    "//base/third_party/symbolize/symbolize.cc",
+  ]
+  public_deps = [ "//starboard/elf_loader:evergreen_info" ]
 }
