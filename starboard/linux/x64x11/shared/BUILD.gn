@@ -13,5 +13,8 @@
 # limitations under the License.
 
 group("starboard_platform") {
-  public_deps = [ "//starboard/egl_and_gles" ]
+  public_deps = [
+    "//starboard/egl_and_gles",
+    "//third_party/libjpeg",
+  ]
 }
