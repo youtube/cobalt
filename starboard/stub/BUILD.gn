@@ -32,12 +32,7 @@ static_library("starboard_platform") {
   ]
 }
 
-config("starboard_implementation") {
-  defines = [ "STARBOARD_IMPLEMENTATION" ]
-}
-
 source_set("stub_sources") {
-  public_configs = [ ":starboard_implementation" ]
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
@@ -347,4 +342,6 @@ source_set("stub_sources") {
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
   ]
+
+  public_configs = [ "//starboard/build/config:starboard_implementation" ]
 }

@@ -27,10 +27,6 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/vp9_util.h",
   ]
 
-  defines = [
-    # This allows the tests to include internal only header files.
-    "STARBOARD_IMPLEMENTATION",
-  ]
-
   public_deps = [ "//starboard/common" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }

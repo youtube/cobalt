@@ -59,7 +59,10 @@ config("dependents_config") {
 }
 
 config("internal_config") {
-  configs = [ ":dependents_config" ]
+  configs = [
+    ":dependents_config",
+    "//starboard/build/config:starboard_implementation",
+  ]
 
   cflags = [ "-Wno-unused-command-line-argument" ]
   cflags_cc = [
@@ -76,7 +79,6 @@ config("internal_config") {
     "-Wno-unused-parameter",
   ]
   defines = [
-    "STARBOARD_IMPLEMENTATION",
     # Build libunwind with concurrency built upon Starboard mutexes and
     # condition variables.
     "_LIBUNWIND_HAS_STARBOARD_THREADS",
