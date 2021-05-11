@@ -14,51 +14,20 @@
 
 static_library("starboard_platform") {
   check_includes = false
-  deps = [ ":stub_sources" ]
 
   sources = [
     "//starboard/linux/x64x11/main.cc",
-    "//starboard/stub/application_stub.cc",
-    "//starboard/stub/application_stub.h",
-    "//starboard/stub/configuration.cc",
-    "//starboard/stub/configuration.h",
-    "//starboard/stub/configuration_constants.cc",
-    "//starboard/stub/font.cc",
-    "//starboard/stub/font.h",
-    "//starboard/stub/javascript_cache.cc",
-    "//starboard/stub/javascript_cache.h",
-    "//starboard/stub/system_get_extensions.cc",
-    "//starboard/stub/thread_types_public.h",
+    "//starboard/shared/starboard/player/video_dmp_common.cc",
+    "//starboard/shared/starboard/player/video_dmp_common.h",
+    "//starboard/shared/starboard/player/video_dmp_writer.cc",
+    "//starboard/shared/starboard/player/video_dmp_writer.h",
   ]
 
   public_deps = [
     "//starboard/linux/x64x11/shared:starboard_platform",
     "//starboard/shared/starboard/player:video_dmp",
   ]
-}
 
-config("starboard_implementation") {
-  defines = [ "STARBOARD_IMPLEMENTATION" ]
-}
-
-source_set("stub_sources") {
-  public_configs = [ ":starboard_implementation" ]
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-  ]
-
-  sources = [
-    "//starboard/shared/stub/player_create.cc",
-    "//starboard/shared/stub/player_destroy.cc",
-    "//starboard/shared/stub/player_get_current_frame.cc",
-    "//starboard/shared/stub/player_get_info2.cc",
-    "//starboard/shared/stub/player_get_maximum_number_of_samples_per_write.cc",
-    "//starboard/shared/stub/player_get_preferred_output_mode.cc",
-    "//starboard/shared/stub/player_seek2.cc",
-    "//starboard/shared/stub/player_set_playback_rate.cc",
-    "//starboard/shared/stub/player_set_volume.cc",
-    "//starboard/shared/stub/player_write_end_of_stream.cc",
-    "//starboard/shared/stub/player_write_sample2.cc",
-  ]
+  defines = [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
