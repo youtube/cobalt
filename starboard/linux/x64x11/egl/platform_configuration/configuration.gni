@@ -14,9 +14,6 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-# TODO(andrewsavage): this should be removed
-sb_filter_based_player = false
-
 gl_type = "system_gles2"
 
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
@@ -27,3 +24,5 @@ sb_evergreen_compatible = true
 sb_evergreen_compatible_libunwind = true
 
 sb_enable_opus_sse = false
+
+sb_static_contents_output_data_dir = "$root_out_dir/content"
