@@ -393,6 +393,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
                       const std::string& value) override;
   void OnRemoveAttribute(const std::string& name) override;
 
+    // Create Performance Resource Timing entry for background image.
+  void GetLoadTimingInfoAndCreateResourceTiming();
+
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
   // make stat updates even after its weak pointer to its document has been
   // deleted. This is protected because some derived classes need access to it.
