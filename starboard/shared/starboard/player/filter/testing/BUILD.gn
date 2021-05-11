@@ -45,10 +45,12 @@ target(final_executable_type, "player_filter_benchmarks") {
   sources = [
     "//starboard/common/benchmark_main.cc",
     "audio_decoder_benchmark.cc",
-    "test_util.cc",
   ]
 
-  public_deps = [ ":test_util" ]
+  public_deps = [
+    ":test_util",
+    "//third_party/google_benchmark",
+  ]
 }
 
 source_set("test_util") {
