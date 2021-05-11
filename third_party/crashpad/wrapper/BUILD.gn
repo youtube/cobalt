@@ -22,7 +22,7 @@ static_library("wrapper") {
     "wrapper.h",
   ]
 
-  public_deps = [
+  deps = [
     "//starboard/elf_loader:evergreen_info",
     "//third_party/crashpad/client",
   ]
@@ -33,5 +33,5 @@ static_library("wrapper_stub") {
     "wrapper_stub.cc",
     "wrapper.h",
   ]
-  public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+  deps = [ "//starboard/elf_loader:evergreen_info" ]
 }
