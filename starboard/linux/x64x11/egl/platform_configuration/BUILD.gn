@@ -29,6 +29,8 @@ config("platform_configuration") {
     "dl",
     "pthread",
     "rt",
+    "//third_party/libdav1d/platforms/linux-x64/libdav1d.a",
+    "//third_party/libvpx/platforms/linux-x64/libvpx.a",
   ]
 
   if (!sb_evergreen) {
