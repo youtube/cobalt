@@ -27,7 +27,9 @@ namespace speech {
 
 // static
 bool StarboardSpeechRecognizer::IsSupported() {
-#if SB_API_VERSION >= 12
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
+  return false;
+#elif SB_API_VERSION >= 12
   return SbSpeechRecognizerIsSupported();
 #else
   return true;
@@ -79,6 +81,7 @@ StarboardSpeechRecognizer::StarboardSpeechRecognizer(
     : SpeechRecognizer(event_callback),
       message_loop_(base::MessageLoop::current()),
       weak_factory_(this) {
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   SbSpeechRecognizerHandler handler = {&OnSpeechDetected, &OnError, &OnResults,
                                        this};
   speech_recognizer_ = SbSpeechRecognizerCreate(&handler);
@@ -88,15 +91,19 @@ StarboardSpeechRecognizer::StarboardSpeechRecognizer(
         kSpeechRecognitionErrorCodeServiceNotAllowed, ""));
     RunEventCallback(error_event);
   }
+#endif
 }
 
 StarboardSpeechRecognizer::~StarboardSpeechRecognizer() {
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   if (SbSpeechRecognizerIsValid(speech_recognizer_)) {
     SbSpeechRecognizerDestroy(speech_recognizer_);
   }
+#endif
 }
 
 void StarboardSpeechRecognizer::Start(const SpeechRecognitionConfig& config) {
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   SB_DCHECK(config.max_alternatives < INT_MAX);
   SbSpeechConfiguration configuration = {
       config.continuous, config.interim_results,
@@ -104,14 +111,17 @@ void StarboardSpeechRecognizer::Start(const SpeechRecognitionConfig& config) {
   if (SbSpeechRecognizerIsValid(speech_recognizer_)) {
     SbSpeechRecognizerStart(speech_recognizer_, &configuration);
   }
+#endif
 }
 
 void StarboardSpeechRecognizer::Stop() {
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   if (SbSpeechRecognizerIsValid(speech_recognizer_)) {
     SbSpeechRecognizerStop(speech_recognizer_);
   }
   // Clear the final results.
   final_results_.clear();
+#endif
 }
 
 void StarboardSpeechRecognizer::OnRecognizerSpeechDetected(bool detected) {

@@ -66,7 +66,6 @@ public class StarboardBridge {
   private UserAuthorizer userAuthorizer;
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
-  private VoiceRecognizer voiceRecognizer;
   private AudioPermissionRequester audioPermissionRequester;
   private KeyboardEditor keyboardEditor;
   private NetworkStatus networkStatus;
@@ -119,8 +118,6 @@ public class StarboardBridge {
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
-    this.voiceRecognizer =
-        new VoiceRecognizer(appContext, activityHolder, audioPermissionRequester);
     this.networkStatus = new NetworkStatus(appContext);
   }
 
@@ -563,13 +560,6 @@ public class StarboardBridge {
   @UsedByNative
   KeyboardEditor getKeyboardEditor() {
     return keyboardEditor;
-  }
-
-  /** Returns Java layer implementation for AndroidVoiceRecognizer */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  VoiceRecognizer getVoiceRecognizer() {
-    return voiceRecognizer;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */

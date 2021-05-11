@@ -124,9 +124,6 @@
 // Whether the current platform implements the on screen keyboard interface.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
 
-// Whether the current platform has speech recognizer.
-#define SB_HAS_SPEECH_RECOGNIZER 0
-
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
 
