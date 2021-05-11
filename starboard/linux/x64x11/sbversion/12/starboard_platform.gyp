@@ -21,4 +21,14 @@
     # is that we just want this file to *be* the parent gyp file.
     '<(DEPTH)/starboard/linux/x64x11/starboard_platform.gyp',
   ],
+  'variables': {
+      'starboard_platform_sources': [
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_cancel.cc',
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_create.cc',
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_destroy.cc',
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_is_supported.cc',
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_start.cc',
+        '<(DEPTH)/starboard/shared/stub/speech_recognizer_stop.cc',
+      ],
+  },
 }

@@ -40,7 +40,9 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
 #include "starboard/speech_recognizer.h"
+#endif
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"
@@ -378,17 +380,17 @@ ExportedSymbols::ExportedSymbols(
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= 12
+#if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
 #endif
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
+#if SB_API_VERSION == 12 || (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
   REGISTER_SYMBOL(SbSpeechRecognizerCancel);
 #endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(SPEECH_RECOGNIZER)
+        // (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
 
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);

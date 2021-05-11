@@ -35,6 +35,10 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
+#if SB_API_VERSION >= 13
+#error Speech Recognizer is deprecated, switch to microphone implementation.
+#endif
+
 #if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 #ifdef __cplusplus

@@ -21,9 +21,10 @@
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_result_list.h"
 #include "cobalt/speech/speech_recognizer.h"
-#include "starboard/speech_recognizer.h"
 
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
+
+#include "starboard/speech_recognizer.h"
 
 namespace cobalt {
 namespace speech {
@@ -53,7 +54,9 @@ class StarboardSpeechRecognizer : public SpeechRecognizer {
   void OnRecognizerResults(
       std::vector<SpeechRecognitionAlternative::Data>&& results, bool is_final);
 
+#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   SbSpeechRecognizer speech_recognizer_;
+#endif
   // Used for accumulating final results.
   SpeechRecognitionResults final_results_;
 

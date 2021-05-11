@@ -112,6 +112,9 @@
 
 // Added vfp4 to the cpu features for arm.
 #define SB_VFP4_FLAG_ADDED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Deprecated Starbaord Speech Recognizer APIs
+#define SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -941,12 +944,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-
-#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED
-#if !defined(SB_HAS_SPEECH_RECOGNIZER)
-#error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
-#endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION < SB_SPEECH_RECOGNIZER_IS_REQUIRED
 
 #if SB_API_VERSION < 12
 #if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
