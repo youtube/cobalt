@@ -22,6 +22,7 @@
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #include "cobalt/dom/mime_type_array.h"
+#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/plugin_array.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_capture/media_devices.h"
@@ -48,6 +49,9 @@ class Navigator : public script::Wrappable {
 
   // Web API: NavigatorID
   const std::string& user_agent() const;
+
+  // Web API: NavigatorUA
+  const scoped_refptr<NavigatorUAData>& user_agent_data() const;
 
   // Web API: NavigatorLanguage
   const std::string& language() const;
@@ -76,8 +80,7 @@ class Navigator : public script::Wrappable {
     maybe_freeze_callback_ = maybe_freeze_callback;
   }
 
-  void set_media_player_factory(
-      const media::WebMediaPlayerFactory* factory) {
+  void set_media_player_factory(const media::WebMediaPlayerFactory* factory) {
     media_player_factory_ = factory;
   }
 
@@ -125,6 +128,7 @@ class Navigator : public script::Wrappable {
       const std::string& encryption_scheme);
 
   std::string user_agent_;
+  scoped_refptr<NavigatorUAData> user_agent_data_;
   std::string language_;
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
