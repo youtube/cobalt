@@ -56,11 +56,7 @@ static_library("video_dmp") {
   ]
 
   public_deps = [ "//starboard/common" ]
-
-  defines = [
-    # This allows the tests to include internal only header files.
-    "STARBOARD_IMPLEMENTATION",
-  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
 action("player_download_test_data") {
