@@ -1,3 +1,4 @@
 # HTML
 
 webappapis/atob/base64.html,PASS
+webappapis/system-state-and-capabilities/the-navigator-object/navigatorlanguage.html,PASS
