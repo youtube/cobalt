@@ -236,6 +236,7 @@
         'named_node_map.h',
         'navigator.cc',
         'navigator.h',
+        'navigator_ua_data.h',
         'node.cc',
         'node.h',
         'node_children_iterator.h',

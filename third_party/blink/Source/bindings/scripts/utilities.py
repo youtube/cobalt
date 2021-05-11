@@ -34,7 +34,8 @@ KNOWN_COMPONENTS = frozenset(
 # List of regular expressions finding tokens that would appear in a name that
 # was converted from snake_case to TitleCase, but by convention should be in
 # ALL CAPS i.e. html_html_element -> HtmlHtmlElement -> HTMLHtmlElement
-special_token_list = ['3d', 'Br', 'Cdata', 'Css', 'Dom', '^Html', 'Idl?', 'Ui(?!nt)', 'Url', 'Xml']
+special_token_list = ['3d', 'Br(?=E)', 'Cdata', 'Css', 'Dom', '^Html', 'Json',
+                      'Idl?', 'Ua', 'Ui(?!nt)', 'Url', 'Xml']
 
 
 # Regular expression to capture all of the special tokens.
