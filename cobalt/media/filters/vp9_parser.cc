@@ -11,6 +11,8 @@
 
 #include "cobalt/media/filters/vp9_parser.h"
 
+#include <string.h>
+
 #include <algorithm>
 
 #include "base/basictypes.h"
@@ -42,9 +44,9 @@ bool Vp9FrameContext::IsValid() const {
   // probs should be in [1, 255] range.
   static_assert(sizeof(Vp9Prob) == 1,
                 "following checks assuming Vp9Prob is single byte");
-  if (SbMemoryFindByte(tx_probs_8x8, 0, sizeof(tx_probs_8x8))) return false;
-  if (SbMemoryFindByte(tx_probs_16x16, 0, sizeof(tx_probs_16x16))) return false;
-  if (SbMemoryFindByte(tx_probs_32x32, 0, sizeof(tx_probs_32x32))) return false;
+  if (memchr(tx_probs_8x8, 0, sizeof(tx_probs_8x8))) return false;
+  if (memchr(tx_probs_16x16, 0, sizeof(tx_probs_16x16))) return false;
+  if (memchr(tx_probs_32x32, 0, sizeof(tx_probs_32x32))) return false;
 
   for (auto& a : coef_probs) {
     for (auto& ai : a) {
@@ -60,32 +62,25 @@ bool Vp9FrameContext::IsValid() const {
       }
     }
   }
-  if (SbMemoryFindByte(skip_prob, 0, sizeof(skip_prob))) return false;
-  if (SbMemoryFindByte(inter_mode_probs, 0, sizeof(inter_mode_probs)))
-    return false;
-  if (SbMemoryFindByte(interp_filter_probs, 0, sizeof(interp_filter_probs)))
-    return false;
-  if (SbMemoryFindByte(is_inter_prob, 0, sizeof(is_inter_prob))) return false;
-  if (SbMemoryFindByte(comp_mode_prob, 0, sizeof(comp_mode_prob))) return false;
-  if (SbMemoryFindByte(single_ref_prob, 0, sizeof(single_ref_prob)))
-    return false;
-  if (SbMemoryFindByte(comp_ref_prob, 0, sizeof(comp_ref_prob))) return false;
-  if (SbMemoryFindByte(y_mode_probs, 0, sizeof(y_mode_probs))) return false;
-  if (SbMemoryFindByte(uv_mode_probs, 0, sizeof(uv_mode_probs))) return false;
-  if (SbMemoryFindByte(partition_probs, 0, sizeof(partition_probs)))
-    return false;
-  if (SbMemoryFindByte(mv_joint_probs, 0, sizeof(mv_joint_probs))) return false;
-  if (SbMemoryFindByte(mv_sign_prob, 0, sizeof(mv_sign_prob))) return false;
-  if (SbMemoryFindByte(mv_class_probs, 0, sizeof(mv_class_probs))) return false;
-  if (SbMemoryFindByte(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob)))
-    return false;
-  if (SbMemoryFindByte(mv_bits_prob, 0, sizeof(mv_bits_prob))) return false;
-  if (SbMemoryFindByte(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs)))
-    return false;
-  if (SbMemoryFindByte(mv_fr_probs, 0, sizeof(mv_fr_probs))) return false;
-  if (SbMemoryFindByte(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob)))
-    return false;
-  if (SbMemoryFindByte(mv_hp_prob, 0, sizeof(mv_hp_prob))) return false;
+  if (memchr(skip_prob, 0, sizeof(skip_prob))) return false;
+  if (memchr(inter_mode_probs, 0, sizeof(inter_mode_probs))) return false;
+  if (memchr(interp_filter_probs, 0, sizeof(interp_filter_probs))) return false;
+  if (memchr(is_inter_prob, 0, sizeof(is_inter_prob))) return false;
+  if (memchr(comp_mode_prob, 0, sizeof(comp_mode_prob))) return false;
+  if (memchr(single_ref_prob, 0, sizeof(single_ref_prob))) return false;
+  if (memchr(comp_ref_prob, 0, sizeof(comp_ref_prob))) return false;
+  if (memchr(y_mode_probs, 0, sizeof(y_mode_probs))) return false;
+  if (memchr(uv_mode_probs, 0, sizeof(uv_mode_probs))) return false;
+  if (memchr(partition_probs, 0, sizeof(partition_probs))) return false;
+  if (memchr(mv_joint_probs, 0, sizeof(mv_joint_probs))) return false;
+  if (memchr(mv_sign_prob, 0, sizeof(mv_sign_prob))) return false;
+  if (memchr(mv_class_probs, 0, sizeof(mv_class_probs))) return false;
+  if (memchr(mv_class0_bit_prob, 0, sizeof(mv_class0_bit_prob))) return false;
+  if (memchr(mv_bits_prob, 0, sizeof(mv_bits_prob))) return false;
+  if (memchr(mv_class0_fr_probs, 0, sizeof(mv_class0_fr_probs))) return false;
+  if (memchr(mv_fr_probs, 0, sizeof(mv_fr_probs))) return false;
+  if (memchr(mv_class0_hp_prob, 0, sizeof(mv_class0_hp_prob))) return false;
+  if (memchr(mv_hp_prob, 0, sizeof(mv_hp_prob))) return false;
 
   return true;
 }

@@ -4,6 +4,8 @@
 
 #include "cobalt/media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
+#include <string.h>
+
 #include <algorithm>
 #include <memory>
 
@@ -334,7 +336,7 @@ int MPEGAudioStreamParserBase::FindNextValidStartCode(const uint8_t* data,
   while (start < end) {
     int bytes_left = end - start;
     const uint8_t* candidate_start_code =
-        static_cast<const uint8_t*>(SbMemoryFindByte(start, 0xff, bytes_left));
+        static_cast<const uint8_t*>(memchr(start, 0xff, bytes_left));
 
     if (!candidate_start_code) return 0;
 

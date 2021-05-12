@@ -238,7 +238,6 @@
 #define OPENSSL_port_gettimeofday EzTimeValueGetNow
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
 #define OPENSSL_port_malloc SbMemoryAllocate
-#define OPENSSL_port_memchr (unsigned char *)SbMemoryFindByte
 #define OPENSSL_port_memcmp SbMemoryCompare
 #define OPENSSL_port_memcpy SbMemoryCopy
 #define OPENSSL_port_memmove SbMemoryMove

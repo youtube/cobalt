@@ -74,10 +74,12 @@
    *
    */
 #include <string.h>
+
+#define ft_memchr memchr
+
 #if defined(STARBOARD)
 #include "starboard/string.h"
 #include "starboard/memory.h"
-#define ft_memchr   SbMemoryFindByte
 #define ft_memcmp   SbMemoryCompare
 #define ft_memcpy   SbMemoryCopy
 #define ft_memmove  SbMemoryMove
@@ -90,7 +92,6 @@
 #define ft_strncpy  SbStringCopy
 #define ft_strrchr  SbStringFindLastCharacter
 #else
-#define ft_memchr   memchr
 #define ft_memcmp   memcmp
 #define ft_memcpy   memcpy
 #define ft_memmove  memmove
