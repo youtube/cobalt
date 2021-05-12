@@ -30,16 +30,15 @@ namespace encoding {
 class TextDecoder : public script::Wrappable {
  public:
   explicit TextDecoder(script::ExceptionState*);
-  explicit TextDecoder(const std::string& label, script::ExceptionState*);
-  explicit TextDecoder(const TextDecoderOptions& options,
-                       script::ExceptionState*);
-  TextDecoder(const std::string& label, const TextDecoderOptions& options,
+  explicit TextDecoder(const std::string&, script::ExceptionState*);
+  explicit TextDecoder(const TextDecoderOptions&, script::ExceptionState*);
+  TextDecoder(const std::string&, const TextDecoderOptions&,
               script::ExceptionState*);
 
   ~TextDecoder() override;
 
   std::string encoding() const { return encoding_; }
-  bool fatal() const { return fatal_; }
+  bool fatal() const { return error_mode_ == "fatal"; }
   bool ignore_bom() const { return ignore_bom_; }
 
   std::string Decode(script::ExceptionState*);
@@ -51,19 +50,33 @@ class TextDecoder : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(TextDecoder);
 
  private:
+  typedef int32_t UChar32;
   // Web API standard.
   std::string encoding_;
-  bool fatal_;
+  std::string error_mode_;
+  bool bom_seen_;
+  bool do_not_flush_;
   bool ignore_bom_;
 
   UConverter* converter_;
 
+  static const std::size_t kConversionBufferSize;
+  static const TextDecoderOptions kDefaultDecoderOptions;
   static const char kDefaultEncoding[];
+  static const UChar32 kReplacementCharacter;
   static const char kReplacementEncoding[];
 
-  // Common code for constructors.
-  void Setup(std::string, script::ExceptionState*);
+
+  // Common code.
   void Cleanup();
+  void Setup(std::string, script::ExceptionState*, const TextDecoderOptions&);
+
+  // Function helpers.
+  bool RemoveBOM(const char*&, int&, script::ExceptionState*);
+  void Decode(const char*, int32_t, const TextDecodeOptions&,
+              script::ExceptionState*, std::string*);
+  void DecodeImpl(const char* bytes, int length, bool flush, bool stop_on_error,
+                  bool& saw_error, std::string*);
 
   DISALLOW_COPY_AND_ASSIGN(TextDecoder);
 };
