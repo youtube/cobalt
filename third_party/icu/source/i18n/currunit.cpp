@@ -10,6 +10,8 @@
 * Since: ICU 3.0
 **********************************************************************
 */
+#include <string.h>
+
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_FORMATTING
