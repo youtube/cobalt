@@ -434,10 +434,6 @@ class BrowserModule {
   // Get the SbWindow via |system_window_| or potentially NULL.
   SbWindow GetSbWindow();
 
-  // This returns the render tree of the most recent submission, with animations
-  // applied according to the current time.
-  scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
-
   // Sets the fallback splash screen url to a topic-specific URL, if applicable.
   // Returns the topic used, or an empty Optional if a topic isn't found.
   base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
