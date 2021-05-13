@@ -13,12 +13,10 @@
 # limitations under the License.
 
 config("platform_configuration") {
+  defines = []
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
-  ldflags = [
-    "-static-libstdc++",
-    "-Wl,--wrap=eglSwapBuffers",
-  ]
+  ldflags = [ "-Wl,--wrap=eglSwapBuffers" ]
   libs = [
     "EGL",
     "GLESv2",
@@ -37,19 +35,23 @@ config("platform_configuration") {
     ldflags += [ "-static-libstdc++" ]
   }
 
-  if (current_toolchain == host_toolchain) {
-    cflags += [ "-O2" ]
-  }
-
   if (is_debug) {
     cflags += [
       "-frtti",
       "-O0",
     ]
+    defines += [
+      "_GLIBCXX_DEBUG",
+      "_LIBCPP_DEBUG=1",
+    ]
   } else if (is_devel) {
     cflags += [
       "-frtti",
       "-O2",
+    ]
+    defines += [
+      "_GLIBCXX_DEBUG",
+      "_LIBCPP_DEBUG=0",
     ]
   } else {
     cflags += [
@@ -67,9 +69,9 @@ config("platform_configuration") {
     ]
   }
 
-  # if (!cobalt_fastbuild && (is_debug || is_devel)) {
-  #   cflags += ["-g"]
-  # }
+  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+    cflags += [ "-g" ]
+  }
 
   if (is_clang) {
     ldflags += [ "-fuse-ld=lld" ]
@@ -122,15 +124,18 @@ config("platform_configuration") {
     ]
   }
 
-  defines = [
+  defines += [
     # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
     # nasty macros (|Status|, for example) that conflict with Chromium base.
     "MESA_EGL_NO_X11_HEADERS",
     "__STDC_FORMAT_MACROS",  # so that we get PRI*
+    "COBALT_LINUX",
+
+    # Enable GNU extensions to get prototypes like ffsl.
+    "_GNU_SOURCE=1",
   ]
 
-  # TODO(andrewsavage): Enable. Currently fails with "use of undeclared identifier 'SSIZE_MAX'"
-  # cflags_c = [ "-std=c99" ]
+  cflags_c = [ "-std=c99" ]
   cflags_cc = [ "-std=gnu++14" ]
   ldflags += [
     "-Wl,-rpath=\$ORIGIN/lib",
