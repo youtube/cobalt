@@ -16,10 +16,8 @@
 
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 void SbSystemRequestReveal() {
   starboard::shared::starboard::Application::Get()->Reveal(NULL, NULL);
 }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION

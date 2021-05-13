@@ -31,15 +31,13 @@ const base::TimeDelta kInterval = base::TimeDelta::FromSeconds(10);
 
 }  // namespace
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-  SuspendFuzzer::SuspendFuzzer()
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+SuspendFuzzer::SuspendFuzzer()
     : thread_("suspend_fuzzer"), step_type_(kShouldRequestFreeze) {
 #else
-  SuspendFuzzer::SuspendFuzzer()
+SuspendFuzzer::SuspendFuzzer()
     : thread_("suspend_fuzzer"), step_type_(kShouldRequestSuspend) {
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   thread_.Start();
   thread_.message_loop()->task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
@@ -50,9 +48,8 @@ SuspendFuzzer::~SuspendFuzzer() { thread_.Stop(); }
 
 void SuspendFuzzer::DoStep() {
   DCHECK(base::MessageLoop::current() == thread_.message_loop());
-  #if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
-    if (step_type_ == kShouldRequestFreeze) {
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+  if (step_type_ == kShouldRequestFreeze) {
     SB_DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
     SbSystemRequestFreeze();
     step_type_ = kShouldRequestFocus;
@@ -64,7 +61,7 @@ void SuspendFuzzer::DoStep() {
     NOTREACHED();
   }
 #else
-    if (step_type_ == kShouldRequestSuspend) {
+  if (step_type_ == kShouldRequestSuspend) {
     SB_DLOG(INFO) << "suspend_fuzzer: Requesting suspend.";
     SbSystemRequestSuspend();
     step_type_ = kShouldRequestSuspend;
@@ -75,8 +72,7 @@ void SuspendFuzzer::DoStep() {
   } else {
     NOTREACHED();
   }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 
   base::MessageLoop::current()->task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),

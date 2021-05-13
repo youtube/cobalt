@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// For platforms that define SB_HAS_CONCEALED_STATE
+// For SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 //
 // Module Overview: Starboard Event module
 //
@@ -89,7 +89,7 @@
 // Note that the application is always expected to transition through |BLURRED|,
 // |CONCEALED| to |FROZEN| before receiving |Stop| or being killed.
 //
-// For platforms that do not define SB_HAS_CONCEALED_STATE
+// For SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 //
 // Module Overview: Starboard Event module
 //
@@ -176,8 +176,7 @@ extern "C" {
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
 typedef enum SbEventType {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   // Applications should perform initialization and prepare to react to
   // subsequent events, but must not initialize any graphics resources (through
   // GL or SbBlitter). The intent of this event is to allow the application to
@@ -311,8 +310,7 @@ typedef enum SbEventType {
   // event is handled. Can only be received after a Suspend event, in the
   // SUSPENDED state. No data argument.
   kSbEventTypeStop,
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 
   // A user input event, including keyboard, mouse, gesture, or something else.
   // SbInputData (from input.h) is passed as the data argument.

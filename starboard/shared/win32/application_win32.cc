@@ -14,7 +14,7 @@
 
 #include "starboard/shared/win32/application_win32.h"
 
-#include <windows.h>  // NOLINT(build/include_order)
+#include <windows.h>   // NOLINT(build/include_order)
 #include <windowsx.h>  // NOLINT(build/include_order)
 
 #include <cstdio>
@@ -239,10 +239,9 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
       break;
     case WM_DESTROY:
       if (window_.get()) {
-        // Pause and suspend the application first so we can do some cleanup
-        // before the window is destroyed (e.g. stopping rasterization).
-        DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
-        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        // Freeze the application first so we can do some cleanup before the
+        // window is destroyed (e.g. stopping rasterization).
+        DispatchAndDelete(new Event(kSbEventTypeFreeze, NULL, NULL));
         PostQuitMessage(0);
       }
       break;
