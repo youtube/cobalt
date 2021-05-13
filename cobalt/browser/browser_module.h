@@ -137,11 +137,13 @@ class BrowserModule {
   void RequestScreenshotToFile(
       const FilePath& path,
       loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::optional<math::Rect>& clip_rect,
       const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
-  void RequestScreenshotToBuffer(
+  void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)
@@ -391,10 +393,6 @@ class BrowserModule {
 
   // Get the SbWindow via |system_window_| or potentially NULL.
   SbWindow GetSbWindow();
-
-  // This returns the render tree of the most recent submission, with animations
-  // applied according to the current time.
-  scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to

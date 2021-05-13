@@ -49,7 +49,8 @@ void ScreenshotManager::Screenshot(
   DCHECK(was_emplaced);
   ++next_ticket_id_;
 
-  screenshot_function_callback_.Run(render_tree_root, fill_screenshot);
+  screenshot_function_callback_.Run(
+      render_tree_root, /*clip_rect=*/base::nullopt, fill_screenshot);
 }
 
 void ScreenshotManager::SetEnvironmentSettings(

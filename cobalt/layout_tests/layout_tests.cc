@@ -56,13 +56,15 @@ void ScreenshotFunction(
     scoped_refptr<base::MessageLoopProxy> expected_message_loop,
     renderer::RenderTreePixelTester* pixel_tester,
     const scoped_refptr<render_tree::Node>& node,
+    const base::optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
   if (base::MessageLoopProxy::current() != expected_message_loop) {
     expected_message_loop->PostTask(
         FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
-                              pixel_tester, node, callback));
+                              pixel_tester, node, clip_rect, callback));
     return;
   }
+  // The tests only take full-screen screenshots, so |clip_rect| is ignored.
   scoped_array<uint8_t> image_data = pixel_tester->RasterizeRenderTree(node);
   const math::Size& image_dimensions = pixel_tester->GetTargetSize();
   callback.Run(image_data.Pass(), image_dimensions);
