@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://wicg.github.io/ua-client-hints/#navigatoruadata
+// Custom, not in spec. Holds UA information specific to Cobalt.
 
-[Exposed=Window]
-interface NavigatorUAData {
-  // TODO make this be FrozenArray<NavigatorUABrandVersion> when available
-  readonly attribute sequence<NavigatorUABrandVersion> brands;
-  readonly attribute boolean mobile;
-  readonly attribute DOMString platform;
-  Promise<CobaltUADataValues> getHighEntropyValues(sequence<DOMString> hints);
-  UALowEntropyJSON toJSON();
+dictionary CobaltUADataValues : UADataValues {
+  DOMString cobaltBuildNumber;
+  DOMString cobaltBuildConfiguration;
+  DOMString jsEngineVersion;
+  DOMString rasterizer;
+  DOMString evergreenVersion;
+  DOMString starboardVersion;
+  DOMString chipset;
+  DOMString modelYear;
+  DOMString deviceBrand;
+  DOMString connectionType;
+  DOMString aux;
 };
