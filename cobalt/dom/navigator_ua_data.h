@@ -17,8 +17,8 @@
 
 #include <string>
 
+#include "cobalt/dom/cobalt_ua_data_values.h"
 #include "cobalt/dom/navigator_ua_brand_version.h"
-#include "cobalt/dom/ua_data_values.h"
 #include "cobalt/dom/ua_low_entropy_json.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/sequence.h"
@@ -39,7 +39,7 @@ class NavigatorUAData : public script::Wrappable {
 
   std::string platform() const { return platform_; }
 
-  script::Handle<script::Promise<UADataValues>> GetHighEntropyValues(
+  script::Handle<script::Promise<CobaltUADataValues>> GetHighEntropyValues(
       script::Sequence<std::string> hints) {
     return high_entropy_values_;
   }
@@ -54,7 +54,7 @@ class NavigatorUAData : public script::Wrappable {
   script::Sequence<NavigatorUABrandVersion> brands_;
   bool mobile_;
   std::string platform_;
-  script::Handle<script::Promise<UADataValues>> high_entropy_values_;
+  script::Handle<script::Promise<CobaltUADataValues>> high_entropy_values_;
   UALowEntropyJSON low_entropy_json_;
 
   DISALLOW_COPY_AND_ASSIGN(NavigatorUAData);

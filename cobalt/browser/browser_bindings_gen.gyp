@@ -254,6 +254,7 @@
         '../dom/captions/caption_font_size_percentage.idl',
         '../dom/captions/caption_opacity_percentage.idl',
         '../dom/captions/caption_state.idl',
+        '../dom/cobalt_ua_data_values.idl',
         '../dom/custom_event_init.idl',
         '../dom/device_orientation_event_init.idl',
         '../dom/document_ready_state.idl',
