@@ -104,8 +104,24 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyChipsetModelNumber:
       return GetAndroidSystemProperty("ro.board.platform", out_value,
                                       value_length, kUnknownValue);
-    case kSbSystemPropertyModelYear:
-       return false;
+    case kSbSystemPropertyModelYear: {
+      char key1[PROP_VALUE_MAX] = "";
+      SB_DCHECK(GetAndroidSystemProperty("ro.oem.key1", key1, PROP_VALUE_MAX,
+                                         kUnknownValue));
+      if (SbStringCompareAll(key1, kUnknownValue) == 0 ||
+          SbStringGetLength(key1) < 10) {
+        return CopyStringAndTestIfSuccess(out_value, value_length,
+                                          kUnknownValue);
+      }
+      // See
+      // https://support.google.com/androidpartners_androidtv/answer/9351639?hl=en
+      // for the format of key1.
+      std::string year = "20";
+      year += key1[9];
+      year += key1[10];
+      return CopyStringAndTestIfSuccess(out_value, value_length, year.c_str());
+    }
+
 #if SB_API_VERSION >= 12
     case kSbSystemPropertySystemIntegratorName:
 #else
@@ -125,8 +141,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyUserAgentAuxField: {
       JniEnvExt* env = JniEnvExt::Get();
       ScopedLocalJavaRef<jstring> aux_string(
-          env->CallStarboardObjectMethodOrAbort(
-              "getUserAgentAuxField", "()Ljava/lang/String;"));
+          env->CallStarboardObjectMethodOrAbort("getUserAgentAuxField",
+                                                "()Ljava/lang/String;"));
 
       std::string utf_str = env->GetStringStandardUTFOrAbort(aux_string.Get());
       bool success =
