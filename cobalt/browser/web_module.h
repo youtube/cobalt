@@ -389,6 +389,8 @@ class WebModule : public LifecycleObserver {
   void RequestJavaScriptHeapStatistics(
       const JavaScriptHeapStatisticsCallback& callback);
 
+  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.
