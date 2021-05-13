@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <iosfwd>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -272,7 +273,7 @@ class SB_EXPORT optional {
   void SetValue(T&& value) {  // NOLINT(build/c++11)
     new (void_value()) T(std::move(value));
     engaged_ = true;
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
     value_ptr_ = static_cast<const T*>(void_value());
 #endif
   }
@@ -282,7 +283,7 @@ class SB_EXPORT optional {
   void SetValue(const U& value) {
     new (void_value()) T(value);
     engaged_ = true;
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
     value_ptr_ = static_cast<const T*>(void_value());
 #endif
   }
@@ -293,7 +294,7 @@ class SB_EXPORT optional {
     if (engaged_) {
       static_cast<T*>(void_value())->~T();
       engaged_ = false;
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
       value_ptr_ = NULL;
 #endif
     }
@@ -303,7 +304,7 @@ class SB_EXPORT optional {
   // state.
   void InitializeAsDisengaged() {
     engaged_ = false;
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
     value_ptr_ = NULL;
 #endif
   }
@@ -317,7 +318,7 @@ class SB_EXPORT optional {
   SB_ALIGNAS(SB_ALIGNOF(T)) uint8_t value_memory_[sizeof(T)];
   // This boolean tracks whether or not the object is constructed yet or not.
   bool engaged_;
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   // In debug builds, this member makes it easy to inspect the value contained
   // in the optional via a debugger.
   const T* value_ptr_;
@@ -409,7 +410,7 @@ optional<T> make_optional(const T& value) {
 
 namespace std {
 template <typename T>
-struct hash<::starboard::optional<T> > {
+struct hash<::starboard::optional<T>> {
  public:
   size_t operator()(const ::starboard::optional<T>& value) const {
     return (value ? value_hash_(value.value()) : 0);
