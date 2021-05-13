@@ -17,3 +17,7 @@
 
 assert(!(sb_is_evergreen && sb_is_evergreen_compatible),
        "Cannot be both evergreen and evergreen compatible.")
+
+assert(
+    !sb_evergreen_compatible_use_libunwind || sb_is_evergreen_compatible,
+    "Can only specify sb_evergreen_compatible_use_libunwind on an evergreen-compatible platform.")

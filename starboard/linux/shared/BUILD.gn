@@ -40,7 +40,7 @@ group("starboard_platform") {
     }
   }
 
-  if (sb_evergreen_compatible_libunwind) {
+  if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }

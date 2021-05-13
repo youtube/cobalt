@@ -47,7 +47,7 @@ declare_args() {
   sb_is_evergreen_compatible = false
 
   # Whether to use the libunwind library on Evergreen compatible platform.
-  sb_evergreen_compatible_libunwind = false
+  sb_evergreen_compatible_use_libunwind = false
 
   # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
   sb_evergreen_compatible_lite = false
