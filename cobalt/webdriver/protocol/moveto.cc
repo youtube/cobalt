@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/webdriver/protocol/moveto.h"
+
 #include <memory>
 #include <string>
-
-#include "cobalt/webdriver/protocol/moveto.h"
+#include <utility>
 
 namespace cobalt {
 namespace webdriver {
@@ -43,7 +44,7 @@ std::unique_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
 }
 
 base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
+  const base::DictionaryValue* dictionary_value = nullptr;
   if (!value->GetAsDictionary(&dictionary_value)) {
     return base::nullopt;
   }
@@ -53,6 +54,12 @@ base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
   if (dictionary_value->GetString(kElementKey, &element_id) &&
       !element_id.empty()) {
     element = ElementId(element_id);
+  } else {
+    const base::Value* element_value =
+        value->FindKeyOfType(kElementKey, base::Value::Type::DICTIONARY);
+    if (element_value) {
+      element = ElementId::FromValue(element_value);
+    }
   }
 
   int xoffset_value = 0;
