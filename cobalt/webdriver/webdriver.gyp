@@ -63,6 +63,8 @@
             'protocol/size.h',
             'protocol/window_id.cc',
             'protocol/window_id.h',
+            'screenshot.cc',
+            'screenshot.h',
             'script_executor.cc',
             'script_executor.h',
             'script_executor_params.cc',

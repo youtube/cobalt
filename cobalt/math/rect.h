@@ -55,6 +55,10 @@ class Rect : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
   }
 
   std::string ToString() const;
+
+  // This function rounds top, left, right, bottom attributes, and clamps
+  // them, so that the width and height are representable in an integer.
+  static Rect RoundFromRectF(RectF rect);
 };
 
 inline bool operator==(const Rect& lhs, const Rect& rhs) {

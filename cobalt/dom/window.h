@@ -301,8 +301,13 @@ class Window : public EventTarget,
   scoped_refptr<Window> opener() const { return NULL; }
 
   // Sets the function to call to trigger a synchronous layout.
+  typedef base::Callback<scoped_refptr<render_tree::Node>()>
+      SynchronousLayoutAndProduceRenderTreeCallback;
   void SetSynchronousLayoutCallback(
       const base::Closure& synchronous_layout_callback);
+  void SetSynchronousLayoutAndProduceRenderTreeCallback(
+      const SynchronousLayoutAndProduceRenderTreeCallback&
+          synchronous_layout_callback);
 
   void SetSize(int width, int height, float device_pixel_ratio);
 
