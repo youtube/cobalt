@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("platform_configuration") {
+  # TODO(andrewsavage): Include //third_party/khronos only where necessary.
   defines = []
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
