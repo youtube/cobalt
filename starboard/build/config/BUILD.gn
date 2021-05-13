@@ -118,7 +118,7 @@ config("starboard") {
     defines += [ "SB_IS_EVERGREEN=1" ]
   }
 
-  if (sb_evergreen_compatible) {
+  if (sb_is_evergreen_compatible) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
   }
 

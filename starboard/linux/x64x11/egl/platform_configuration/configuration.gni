@@ -20,7 +20,7 @@ sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 install_target_path = "//starboard/build/install/install_target.gni"
 
-sb_evergreen_compatible = true
+sb_is_evergreen_compatible = true
 sb_evergreen_compatible_libunwind = true
 
 sb_enable_opus_sse = false
