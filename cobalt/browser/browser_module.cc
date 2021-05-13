@@ -925,13 +925,11 @@ void BrowserModule::OnWindowMinimize() {
     return;
   }
 #endif
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   SbSystemRequestConceal();
 #else
   SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 }
 
 void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size) {
@@ -1344,14 +1342,12 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
   } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
     if (type == base::Tokens::keydown()) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
       SbSystemRequestConceal();
 #else
       // Ctrl+S suspends Cobalt.
       SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
     }
     return false;
   }
@@ -1629,14 +1625,12 @@ void BrowserModule::InitializeComponents() {
   InstantiateRendererModule();
 
   if (media_module_) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
     media_module_->UpdateSystemWindowAndResourceProvider(system_window_.get(),
                                                          GetResourceProvider());
 #else
     media_module_->Resume(GetResourceProvider());
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   } else {
     options_.media_module_options.allow_resume_after_suspend =
         SbSystemSupportsResume();
@@ -1784,14 +1778,12 @@ void BrowserModule::ConcealInternal() {
   if (media_module_) {
     DCHECK(system_window_);
     window_size_ = system_window_->GetWindowSize();
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
     input_device_manager_.reset();
     system_window_.reset();
     media_module_->UpdateSystemWindowAndResourceProvider(NULL,
                                                          GetResourceProvider());
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   }
 }
 
@@ -1831,11 +1823,9 @@ void BrowserModule::UnfreezeInternal() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
 // Set the Stub resource provider to media module and to web module
 // at Concealed state.
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   media_module_->Resume(GetResourceProvider());
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Unfreeze(GetResourceProvider()));
@@ -1863,11 +1853,9 @@ void BrowserModule::OnMaybeFreeze() {
 #endif  // defined(ENABLE_DEBUGGER)
       web_module_ready_to_freeze &&
       application_state_ == base::kApplicationStateConcealed) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
     SbSystemRequestFreeze();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   }
 }
 

@@ -86,8 +86,7 @@ void StartApplication(int argc, char** argv, const char* link,
     return;
   }
   LOG(INFO) << "Starting application.";
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
   DCHECK(!g_application);
   g_application =
       new cobalt::browser::Application(quit_closure, false /*not_preload*/);
@@ -100,8 +99,7 @@ void StartApplication(int argc, char** argv, const char* link,
   } else {
     g_application->Start();
   }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
 }
 
 void StopApplication() {
