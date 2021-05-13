@@ -1020,7 +1020,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 // the gyp variable `gl_type` which indicates what kind of GL implementation
 // is available.
 #if !defined(SB_HAS_GLES2)
+#if defined(SB_GN_GL_TYPE_IS_NONE)
+#define SB_HAS_GLES2 !SB_GN_GL_TYPE_IS_NONE
+#else
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
+#endif
 #endif
 
 // --- Deprecated Feature Macros -----------------------------------------------
