@@ -18,9 +18,11 @@ source_set("eztime") {
     "eztime.h",
   ]
 
-  public_deps = [
+  deps = [
     "//starboard:starboard_headers_only",
     "//starboard/client_porting/icu_init",
+    "//starboard/common",
+    "//third_party/icu",
   ]
 }
 
