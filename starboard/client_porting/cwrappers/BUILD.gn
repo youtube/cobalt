@@ -17,3 +17,17 @@ source_set("cwrappers") {
 
   public_deps = [ "//starboard/common" ]
 }
+
+target(gtest_target_type, "cwrappers_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "pow_wrapper_test.cc",
+  ]
+  public_deps = [
+    ":cwrappers",
+    "//starboard",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
