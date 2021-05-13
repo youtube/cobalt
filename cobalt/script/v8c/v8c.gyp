@@ -13,6 +13,23 @@
 # limitations under the License.
 
 {
+  'target_defaults': {
+    'conditions': [
+        ['(target_arch=="arm64" or target_arch=="x64") and disable_v8_pointer_compression==0', {
+          'defines': [
+            # enables pointer compression on 64 bit platforms for Cobalt.
+            'V8_COMPRESS_POINTERS',
+            'V8_31BIT_SMIS_ON_64BIT_ARCH',
+          ],
+          'all_dependent_settings': {
+            'defines': [
+                'V8_COMPRESS_POINTERS',
+                'V8_31BIT_SMIS_ON_64BIT_ARCH',
+            ],
+          },
+        }],
+    ],
+  },
   'targets': [
     {
       'target_name': 'engine',
@@ -85,15 +102,6 @@
         '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
         'embed_v8c_resources_as_header_files',
       ],
-      'conditions': [
-        ['target_arch=="arm64" or target_arch=="x64"', {
-          'defines': [
-            # enables pointer compression on 64 bit platforms for Cobalt.
-            'V8_COMPRESS_POINTERS',
-            'V8_31BIT_SMIS_ON_64BIT_ARCH',
-          ],
-        }],
-      ],
       'defines': [
         'ENGINE_SUPPORTS_INT64',
       ],
@@ -101,15 +109,6 @@
         'defines': [
           'ENGINE_SUPPORTS_INDEXED_DELETERS',
           'ENGINE_SUPPORTS_INT64',
-        ],
-        'conditions': [
-          ['target_arch=="arm64" or target_arch=="x64"', {
-            'defines': [
-              # enables pointer compression on 64 bit platforms for Cobalt.
-              'V8_COMPRESS_POINTERS',
-              'V8_31BIT_SMIS_ON_64BIT_ARCH',
-            ],
-          }],
         ],
       },
     },
@@ -128,15 +127,6 @@
         '<(DEPTH)/third_party/v8/v8.gyp:v8',
         '<(DEPTH)/third_party/v8/v8.gyp:v8_base_without_compiler',
         '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
-      ],
-      'conditions': [
-        ['target_arch=="arm64" or target_arch=="x64"', {
-          'defines': [
-            # enables pointer compression on 64 bit platforms for Cobalt.
-            'V8_COMPRESS_POINTERS',
-            'V8_31BIT_SMIS_ON_64BIT_ARCH',
-          ],
-        }],
       ],
     },
 
