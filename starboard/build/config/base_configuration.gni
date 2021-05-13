@@ -40,7 +40,7 @@ declare_args() {
   sb_install_output_dir = "$root_out_dir/install"
 
   # Whether this is an Evergreen build.
-  sb_evergreen = false
+  sb_is_evergreen = false
 
   # Whether this is an Evergreen compatible platform. A compatible platform
   # can run the elf_loader and launch the Evergreen build.

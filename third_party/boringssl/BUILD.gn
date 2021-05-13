@@ -93,7 +93,7 @@ source_set("crypto") {
       "//starboard/client_porting/eztime",
     ]
 
-    if (sb_evergreen) {
+    if (sb_is_evergreen) {
       # TODO(andrewsavage): this requires the calling_convention variable from sabi
     } else {
       if ((!is_linux && !is_android && !is_apple) ||

@@ -14,7 +14,7 @@
 
 target(final_executable_type, "starboard_glclear_example") {
   deps = [ "//starboard" ]
-  if (!sb_evergreen) {
+  if (!sb_is_evergreen) {
     deps += [ "//starboard/egl_and_gles" ]
   }
 

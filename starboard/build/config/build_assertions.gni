@@ -15,5 +15,5 @@
 # Use this file to ensure no conflicting GN build arguments are set for the
 # platform being built.
 
-assert(!(sb_evergreen && sb_evergreen_compatible),
+assert(!(sb_is_evergreen && sb_evergreen_compatible),
        "Cannot be both evergreen and evergreen compatible.")
