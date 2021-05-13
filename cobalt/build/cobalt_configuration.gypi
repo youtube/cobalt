@@ -40,8 +40,10 @@
       # is not used by platforms that only uses MSVC for host build.
       'cobalt_compiled_by_msvc%': 0,
       'host_executable_suffix%': '<(EXECUTABLE_SUFFIX)',
+      'disable_v8_pointer_compression%': 0,
     },
     'host_executable_suffix%': '<(EXECUTABLE_SUFFIX)',
+    'disable_v8_pointer_compression%': 0,
 
     # Whether Cobalt is being built.
     'cobalt': 1,
