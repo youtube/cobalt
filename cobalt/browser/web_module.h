@@ -408,6 +408,8 @@ class WebModule : public LifecycleObserver {
   // Indicate the web module is ready to freeze.
   bool IsReadyToFreeze();
 
+  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

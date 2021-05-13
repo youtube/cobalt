@@ -254,6 +254,9 @@ class WebModule::Impl {
         !window_->media_session()->media_session_client()->is_active();
   }
 
+  void DoSynchronousLayoutAndGetRenderTree(
+      scoped_refptr<render_tree::Node>* render_tree);
+
  private:
   class DocumentLoadedObserver;
 
@@ -753,9 +756,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new debug::backend::RenderOverlay(render_tree_produced_callback_));
 
   debug_module_.reset(new debug::backend::DebugModule(
-      &debugger_hooks_, global_environment_.get(),
-      debug_overlay_.get(), resource_provider_, window_,
-      data.options.debugger_state));
+      &debugger_hooks_, global_environment_.get(), debug_overlay_.get(),
+      resource_provider_, window_, data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER
 
   is_running_ = true;
@@ -1001,6 +1003,16 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
 
 void WebModule::Impl::CancelSynchronousLoads() {
   synchronous_loader_interrupt_.Signal();
+}
+
+void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
+    scoped_refptr<render_tree::Node>* render_tree) {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::Impl::DoSynchronousLayoutAndGetRenderTree()");
+  DCHECK(render_tree);
+  scoped_refptr<render_tree::Node> tree =
+      window_->document()->DoSynchronousLayoutAndGetRenderTree();
+  *render_tree = tree;
 }
 
 void WebModule::Impl::OnCspPolicyChanged() {
@@ -1755,6 +1767,24 @@ bool WebModule::IsReadyToFreeze() {
       base::Bind(&WebModule::Impl::IsReadyToFreeze,
                  base::Unretained(impl_.get()), &is_ready_to_freeze));
   return is_ready_to_freeze;
+}
+
+scoped_refptr<render_tree::Node>
+WebModule::DoSynchronousLayoutAndGetRenderTree() {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::DoSynchronousLayoutAndGetRenderTree()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  scoped_refptr<render_tree::Node> render_tree;
+  if (base::MessageLoop::current() != message_loop()) {
+    message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(&WebModule::Impl::DoSynchronousLayoutAndGetRenderTree,
+                   base::Unretained(impl_.get()), &render_tree));
+  } else {
+    impl_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
+  }
+  return render_tree;
 }
 
 }  // namespace browser
