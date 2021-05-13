@@ -63,6 +63,7 @@ foreach(platform, platforms) {
 assert(defined(starboard_path),
        "Please port your platform to starboard/build/platforms.gni")
 import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
 
 host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
