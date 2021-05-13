@@ -23,7 +23,7 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
     "sabi_test.cc",
   ]
 
-  if (!sb_evergreen_compatible_lite) {
+  if (!sb_evergreen_compatible_enable_lite) {
     sources += [
       "icu_test.cc",
       "max_file_name_test.cc",

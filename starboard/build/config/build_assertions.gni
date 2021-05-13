@@ -21,3 +21,6 @@ assert(!(sb_is_evergreen && sb_is_evergreen_compatible),
 assert(
     !sb_evergreen_compatible_use_libunwind || sb_is_evergreen_compatible,
     "Can only specify sb_evergreen_compatible_use_libunwind on an evergreen-compatible platform.")
+
+assert(!sb_evergreen_compatible_enable_lite || sb_is_evergreen_compatible,
+       "Can only enable evergreen lite on an evergreen-comptaible platform.")
