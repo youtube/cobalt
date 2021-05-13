@@ -26,3 +26,5 @@ sb_evergreen_compatible_libunwind = true
 sb_enable_opus_sse = false
 
 sb_static_contents_output_data_dir = "$root_out_dir/content"
+
+sb_enable_benchmark = true
