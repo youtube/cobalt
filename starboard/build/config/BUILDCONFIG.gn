@@ -22,6 +22,8 @@ declare_args() {
   target_platform = "stub"
 
   is_starboard = true
+
+  cobalt_fastbuild = getenv("IS_CI") == 1
 }
 
 if (target_os == "") {
