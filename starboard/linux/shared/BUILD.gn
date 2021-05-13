@@ -24,6 +24,9 @@ group("starboard_platform") {
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player",
+  ]
+
+  deps = [
     "//third_party/boringssl:crypto",
     "//third_party/libevent",
     "//third_party/opus",
@@ -38,7 +41,7 @@ group("starboard_platform") {
   }
 
   if (sb_evergreen_compatible_libunwind) {
-    public_deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }
 
@@ -319,7 +322,6 @@ source_set("starboard_platform_sources") {
     "//starboard/shared/starboard/media/mime_type.cc",
     "//starboard/shared/starboard/media/mime_type.h",
     "//starboard/shared/starboard/memory.cc",
-    "//starboard/shared/starboard/new.cc",
     "//starboard/shared/starboard/player/player_output_mode_supported.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/string_concat.cc",
@@ -405,9 +407,8 @@ source_set("starboard_platform_sources") {
     "//starboard:starboard_headers_only",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  public_configs = [
+  configs += [
+    "//starboard/build/config:starboard_implementation",
     "//third_party/de265_includes",
     "//third_party/pulseaudio_includes",
   ]

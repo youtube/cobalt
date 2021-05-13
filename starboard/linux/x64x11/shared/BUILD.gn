@@ -21,8 +21,9 @@ group("starboard_platform") {
     ":starboard_platform_sources",
     "//starboard/egl_and_gles",
     "//starboard/linux/shared:starboard_platform",
-    "//third_party/libjpeg",
   ]
+
+  deps = [ "//third_party/libjpeg" ]
 }
 
 source_set("starboard_platform_sources") {

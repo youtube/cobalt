@@ -18,7 +18,7 @@ source_set("icu_init") {
     "icu_init.h",
   ]
 
-  public_deps = [
+  deps = [
     "//starboard/common",
     "//third_party/icu",
   ]
