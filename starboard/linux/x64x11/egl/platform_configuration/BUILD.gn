@@ -32,7 +32,7 @@ config("platform_configuration") {
     "//third_party/libvpx/platforms/linux-x64/libvpx.a",
   ]
 
-  if (!sb_evergreen) {
+  if (!sb_is_evergreen) {
     ldflags += [ "-static-libstdc++" ]
   }
 
