@@ -122,7 +122,7 @@ config("starboard") {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
   }
 
-  if (sb_evergreen_compatible_libunwind) {
+  if (sb_evergreen_compatible_use_libunwind) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
   }
 
