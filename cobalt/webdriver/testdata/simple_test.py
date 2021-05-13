@@ -29,6 +29,37 @@ GET = 'GET'
 POST = 'POST'
 DELETE = 'DELETE'
 
+# WebDriver Response Status Codes:
+# https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Response-Status-Codes
+
+RESPONSE_STATUS_CODES = {
+    0: 'Success',
+    6: 'No Such Driver',
+    7: 'No Such Element',
+    8: 'No Such Frame',
+    9: 'Unknown Command',
+    10: 'Stale Element Reference',
+    11: 'Element Not Visible',
+    12: 'Invalid Element State',
+    13: 'Unknown Error',
+    15: 'Element Is Not Selectable',
+    17: 'JavaScript Error',
+    19: 'XPath Lookup Error',
+    21: 'Timeout',
+    23: 'No Such Window',
+    24: 'Invalid Cookie Domain',
+    25: 'Unable To Set Cookie',
+    26: 'Unexpected Alert Open',
+    27: 'No Alert Open Error',
+    28: 'Script Timeout',
+    29: 'Invalid Element Coordinates',
+    30: 'IME Not Available',
+    31: 'IME Engine Activation Failed',
+    32: 'Invalid Selector',
+    33: 'Session Not Created Exception',
+    34: 'Move Target Out Of Bounds'
+}
+
 
 def Request(request_type, path='', parameters=None):
   """Perform a WebDriver JSON Wire Protocol Request.
@@ -54,8 +85,11 @@ def Request(request_type, path='', parameters=None):
   if request.status_code == 200:
     return result
   else:
-    print '*** Error %d: %s' % (request.status_code, result['value']['message']
-                                if isinstance(result, dict) else result)
+    print('*** Error %d %s: \"%s\"' %
+          (request.status_code, RESPONSE_STATUS_CODES[result['status']]
+           if isinstance(result, dict) else 'unknown',
+           result['value']['message'] if isinstance(result, dict) else result))
+    print('*** Error %d: %s' % (request.status_code, result))
   return None
 
 
@@ -82,8 +116,9 @@ def ElementRequest(session_id,
                    request_type,
                    path=None,
                    parameters=None):
-  return SessionRequest(session_id, request_type, 'element/%s/%s' %
-                        (element_id[u'ELEMENT'], path), parameters)
+  return SessionRequest(session_id, request_type,
+                        'element/%s/%s' % (element_id[u'ELEMENT'], path),
+                        parameters)
 
 
 def GetSessionID():
@@ -123,6 +158,20 @@ def GetScreenShot(session_id, filename):
     filename: The filename to write the PNG screenshot to
   """
   request = SessionRequest(session_id, GET, 'screenshot')
+  if request:
+    with open(filename, 'w') as f:
+      f.write(binascii.a2b_base64(request['value']))
+      f.close()
+
+
+def GetElementScreenShot(session_id, element_id, filename):
+  """Retrieve a Screenshot.
+
+  Args:
+    session_id: Value for ':sessionId' for the request
+    filename: The filename to write the PNG screenshot to
+  """
+  request = ElementRequest(session_id, element_id, GET, 'screenshot')
   if request:
     with open(filename, 'w') as f:
       f.write(binascii.a2b_base64(request['value']))
@@ -171,32 +220,65 @@ def ElementKeys(session_id, element_id, keys):
 
 
 def ElementFind(session_id, using, value):
-  return SessionRequest(session_id, POST, 'element',
-                        {u'using': using,
-                         u'value': value})['value']
+  result = SessionRequest(session_id, POST, 'element', {
+      u'using': using,
+      u'value': value
+  })
+  return None if result is None else result['value']
 
 
 def MouseTest():
   # Do a simple test that hovers the mouse to the right from the active
   # element, then clicks on the element of class 'trending'.
   session_id = GetSessionID()
-  active_element = GetActiveElement(session_id)
-  print 'active_element : %s' % active_element
+  try:
+    active_element = GetActiveElement(session_id)
+    print('active_element : %s' % active_element)
 
-  for xoffset in range(0, 1900, 20):
-    print 'Moveto: %s' % Moveto(session_id, active_element, xoffset, 200)
-    time.sleep(0.05)
+    for xoffset in range(0, 1900, 20):
+      print('Moveto: %s' % Moveto(session_id, active_element, xoffset, 200))
+      time.sleep(0.05)
 
-  trending_element = ElementFind(session_id, 'class name', 'trending')
-  print 'trending_element : %s' % trending_element
+    selected_element = ElementFind(session_id, 'class name',
+                                   'ytlr-tile-renderer--focused')
+    print('selected_element : %s' % selected_element)
 
-  print 'ElementClick: %s' % ElementClick(session_id, trending_element, 0)
+    print('ElementClick: %s' % ElementClick(session_id, selected_element, 0))
+
+  except KeyboardInterrupt:
+    print('Bye')
+
+  DeleteSession(session_id)
+
+
+def ElementScreenShotTest():
+  # Do a simple test that hovers the mouse to the right from the active
+  # element, then clicks on the element of class 'trending'.
+  session_id = GetSessionID()
+  try:
+    selected_element = ElementFind(session_id, 'class name',
+                                   'ytlr-tile-renderer--focused')
+    print('Selected List element : %s' % selected_element)
+
+    # Write screenshots for the selected element, until interrupted.
+    while True:
+      selected_element = ElementFind(session_id, 'class name',
+                                     'ytlr-tile-renderer--focused')
+      print('Selected List element : %s' % selected_element)
+      if selected_element is not None:
+        print('GetElementScreenShot: %s' % GetElementScreenShot(
+            session_id, selected_element,
+            'element-' + selected_element['ELEMENT'] + '.png'))
+
+  except KeyboardInterrupt:
+    print('Bye')
 
   DeleteSession(session_id)
 
 
 def main():
   MouseTest()
+  ElementScreenShotTest()
 
 
 if __name__ == '__main__':
