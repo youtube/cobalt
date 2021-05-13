@@ -50,7 +50,7 @@ declare_args() {
   sb_evergreen_compatible_use_libunwind = false
 
   # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
-  sb_evergreen_compatible_lite = false
+  sb_evergreen_compatible_enable_lite = false
 
   # The variables allow changing the target type on platforms where the
   # native code may require an additional packaging step (ex. Android).

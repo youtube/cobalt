@@ -126,7 +126,7 @@ config("starboard") {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
   }
 
-  if (sb_evergreen_compatible_lite) {
+  if (sb_evergreen_compatible_enable_lite) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
   }
 
