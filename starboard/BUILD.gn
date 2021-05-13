@@ -76,7 +76,7 @@ group("starboard") {
       "//starboard/common",
     ]
 
-    if (sb_evergreen_compatible) {
+    if (sb_is_evergreen_compatible) {
       public_deps += [ "//third_party/crashpad/wrapper" ]
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
