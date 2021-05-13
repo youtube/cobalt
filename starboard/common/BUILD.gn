@@ -15,7 +15,10 @@
 # The "common" target contains facilities provided by Starboard that are common
 # to all platforms.
 
-source_set("common") {
+# This must be a static_library, not a source_set. When using a source_set, we
+# see duplicate definition errors when compiling new.cc because of our
+# overloaded operators.
+static_library("common") {
   public_deps = [ "//starboard:starboard_headers_only" ]
   check_includes = false
 

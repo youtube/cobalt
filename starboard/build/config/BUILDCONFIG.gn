@@ -46,6 +46,10 @@ is_qa = build_type == "qa"
 is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
+declare_args() {
+  use_asan = is_debug || is_devel
+}
+
 # Set some variables we never want to change
 sb_allows_memory_tracking = !is_gold
 host_byteorder = "little"
