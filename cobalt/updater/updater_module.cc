@@ -51,6 +51,31 @@ constexpr uint8_t kCobaltPublicKeyHash[] = {
 
 void QuitLoop(base::OnceClosure quit_closure) { std::move(quit_closure).Run(); }
 
+CobaltExtensionUpdaterNotificationState
+ComponentStateToCobaltExtensionUpdaterNotificationState(
+    ComponentState component_state) {
+  switch (component_state) {
+    case ComponentState::kChecking:
+      return kCobaltExtensionUpdaterNotificationStateChecking;
+    case ComponentState::kCanUpdate:
+      return kCobaltExtensionUpdaterNotificationStateUpdateAvailable;
+    case ComponentState::kDownloading:
+      return kCobaltExtensionUpdaterNotificationStateDownloading;
+    case ComponentState::kDownloaded:
+      return kCobaltExtensionUpdaterNotificationStateDownloaded;
+    case ComponentState::kUpdating:
+      return kCobaltExtensionUpdaterNotificationStateInstalling;
+    case ComponentState::kUpdated:
+      return kCobaltExtensionUpdaterNotificationStatekUpdated;
+    case ComponentState::kUpToDate:
+      return kCobaltExtensionUpdaterNotificationStatekUpdated;
+    case ComponentState::kUpdateError:
+      return kCobaltExtensionUpdaterNotificationStatekUpdateFailed;
+    default:
+      return kCobaltExtensionUpdaterNotificationStateNone;
+  }
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -76,6 +101,11 @@ void Observer::OnEvent(Events event, const std::string& id) {
     if (crx_update_item_.state == ComponentState::kUpdateError) {
       status +=
           ", error code is " + std::to_string(crx_update_item_.error_code);
+    }
+    if (updater_notification_ext_ != nullptr) {
+      updater_notification_ext_->UpdaterState(
+          ComponentStateToCobaltExtensionUpdaterNotificationState(
+              crx_update_item_.state));
     }
   } else {
     status = "No status available";
