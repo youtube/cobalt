@@ -47,10 +47,13 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  // TODO: Handle UTF8 failure here somehow too.
-  v8::String::Utf8Value utf8_value(isolate, string);
-  DCHECK(0 <= utf8_value.length());
-  out_string->assign(*utf8_value, utf8_value.length());
+  // Resize the output string to the UTF-8 estimated size.
+  int length = string->Utf8Length(isolate);
+  out_string->resize(length);
+  DCHECK(out_string->size() == length);
+  // Encoding to a UTF-8  valid string (orphan surrogate code units replaced).
+  string->WriteUtf8(isolate, const_cast<char*>(out_string->data()), -1, nullptr,
+                    v8::String::REPLACE_INVALID_UTF8);
 }
 
 // ValueHandle -> JSValue
