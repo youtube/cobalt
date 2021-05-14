@@ -277,6 +277,7 @@
         'system_has_capability_test.cc',
         'system_hide_splash_screen_test.cc',
         'system_is_debugger_attached_test.cc',
+        'system_network_status_test.cc',
         'system_sort_test.cc',
         'system_sign_with_certification_secret_key_test.cc',
         'system_symbolize_test.cc',
