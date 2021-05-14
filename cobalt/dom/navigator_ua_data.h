@@ -17,10 +17,13 @@
 
 #include <string>
 
-#include "cobalt/dom/cobalt_ua_data_values.h"
+#include "cobalt/dom/cobalt_ua_data_values_interface.h"
 #include "cobalt/dom/navigator_ua_brand_version.h"
 #include "cobalt/dom/ua_low_entropy_json.h"
+#include "cobalt/dom/user_agent_platform_info.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_value.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
@@ -31,7 +34,11 @@ namespace dom {
 // https://wicg.github.io/ua-client-hints/#navigatoruadata
 class NavigatorUAData : public script::Wrappable {
  public:
-  NavigatorUAData() {}
+  using CobaltUADataValuesInterfacePromise =
+      script::Promise<script::ScriptValueFactory::WrappablePromise>;
+
+  NavigatorUAData(UserAgentPlatformInfo* platform_info,
+                  script::ScriptValueFactory* script_value_factory);
 
   script::Sequence<NavigatorUABrandVersion> brands() const { return brands_; }
 
@@ -39,10 +46,8 @@ class NavigatorUAData : public script::Wrappable {
 
   std::string platform() const { return platform_; }
 
-  script::Handle<script::Promise<CobaltUADataValues>> GetHighEntropyValues(
-      script::Sequence<std::string> hints) {
-    return high_entropy_values_;
-  }
+  script::Handle<CobaltUADataValuesInterfacePromise> GetHighEntropyValues(
+      script::Sequence<std::string> hints);
 
   UALowEntropyJSON ToJSON() { return low_entropy_json_; }
 
@@ -54,8 +59,9 @@ class NavigatorUAData : public script::Wrappable {
   script::Sequence<NavigatorUABrandVersion> brands_;
   bool mobile_;
   std::string platform_;
-  script::Handle<script::Promise<CobaltUADataValues>> high_entropy_values_;
+  CobaltUADataValues all_high_entropy_values_;
   UALowEntropyJSON low_entropy_json_;
+  script::ScriptValueFactory* script_value_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(NavigatorUAData);
 };

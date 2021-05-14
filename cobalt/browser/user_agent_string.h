@@ -18,31 +18,10 @@
 #include <string>
 
 #include "base/optional.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace browser {
-
-struct UserAgentPlatformInfo {
-  UserAgentPlatformInfo() : device_type(kSbSystemDeviceTypeUnknown) {}
-
-  std::string starboard_version;
-  std::string os_name_and_version;
-  base::Optional<std::string> original_design_manufacturer;
-  SbSystemDeviceType device_type;
-  base::Optional<std::string> chipset_model_number;
-  base::Optional<std::string> model_year;
-  base::Optional<std::string> firmware_version;
-  base::Optional<std::string> brand;
-  base::Optional<std::string> model;
-  std::string aux_field;
-  base::Optional<SbSystemConnectionType> connection_type;
-  std::string javascript_engine_version;
-  std::string rasterizer_type;
-
-  std::string cobalt_version;
-  std::string cobalt_build_version_number;
-  std::string build_configuration;
-};
 
 // Function that will query Starboard and populate a UserAgentPlatformInfo
 // structure based on those results.  This is de-coupled from

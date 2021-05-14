@@ -48,6 +48,7 @@
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
 #include "cobalt/dom/url_registry.h"
+#include "cobalt/dom/user_agent_platform_info.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/cors_preflight_cache.h"
@@ -152,8 +153,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
       script::ScriptValueFactory* script_value_factory,
       MediaSourceRegistry* media_source_registry,
       DomStatTracker* dom_stat_tracker, const GURL& url,
-      const std::string& user_agent, const std::string& language,
-      const std::string& font_language_script,
+      const std::string& user_agent, UserAgentPlatformInfo* platform_info,
+      const std::string& language, const std::string& font_language_script,
       const base::Callback<void(const GURL&)> navigation_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback,
       network_bridge::CookieJar* cookie_jar,
@@ -349,9 +350,9 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
   void set_web_media_player_factory(
-    media::WebMediaPlayerFactory* web_media_player_factory) {
-  html_element_context_->set_web_media_player_factory(
-      web_media_player_factory);
+      media::WebMediaPlayerFactory* web_media_player_factory) {
+    html_element_context_->set_web_media_player_factory(
+        web_media_player_factory);
   }
 
   // Sets the current application state, forwarding on to the
@@ -405,8 +406,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   bool enable_map_to_mesh() { return enable_map_to_mesh_; }
 
-  const scoped_refptr<media_session::MediaSession>
-      media_session() const;
+  const scoped_refptr<media_session::MediaSession> media_session() const;
 
   DEFINE_WRAPPABLE_TYPE(Window);
 

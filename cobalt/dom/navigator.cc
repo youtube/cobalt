@@ -145,10 +145,12 @@ bool CanPlay(const media::CanPlayTypeHandler& can_play_type_handler,
 
 Navigator::Navigator(
     script::EnvironmentSettings* settings, const std::string& user_agent,
-    const std::string& language,
+    UserAgentPlatformInfo* platform_info, const std::string& language,
     scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
     script::ScriptValueFactory* script_value_factory)
     : user_agent_(user_agent),
+      user_agent_data_(
+          new NavigatorUAData(platform_info, script_value_factory)),
       language_(language),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),

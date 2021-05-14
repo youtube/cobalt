@@ -379,6 +379,8 @@ class WebModule::Impl {
   // tracker are contained within it.
   std::unique_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
+  std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
+
   // Post and run tasks to notify MutationObservers.
   dom::MutationObserverTaskManager mutation_observer_task_manager_;
 
@@ -577,6 +579,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
+  platform_info_.reset(new browser::UserAgentPlatformInfo());
+  DCHECK(platform_info_);
+
   javascript_engine_ = script::JavaScriptEngine::CreateEngine(
       data.options.javascript_engine_options);
   DCHECK(javascript_engine_);
@@ -649,6 +654,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
 #endif
 
+  std::unique_ptr<UserAgentPlatformInfo> platform_info(
+      new UserAgentPlatformInfo());
   window_ = new dom::Window(
       environment_settings_.get(), data.window_dimensions,
       data.initial_application_state, css_parser_.get(), dom_parser_.get(),
@@ -660,7 +667,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       script_runner_.get(), global_environment_->script_value_factory(),
       media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
-      data.network_module->GetUserAgent(),
+      data.network_module->GetUserAgent(), platform_info_.get(),
       data.network_module->preferred_language(),
       base::GetSystemLanguageScript(), data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
@@ -795,6 +802,7 @@ WebModule::Impl::~Impl() {
   global_environment_ = NULL;
   javascript_engine_.reset();
   web_module_stat_tracker_.reset();
+  platform_info_.reset();
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();

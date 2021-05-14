@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/callback.h"
@@ -72,7 +73,7 @@ class StubWindow {
         fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
         NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
         global_environment_->script_value_factory(), NULL,
-        dom_stat_tracker_.get(), url_, "", "en-US", "en",
+        dom_stat_tracker_.get(), url_, "", NULL, "en-US", "en",
         base::Callback<void(const GURL&)>(),
         base::Bind(&StubLoadCompleteCallback), NULL,
         network_bridge::PostSender(), csp::kCSPRequired,
