@@ -14,6 +14,7 @@
 
 #include "cobalt/layout_tests/layout_snapshot.h"
 
+#include <memory>
 #include <string>
 
 #include "base/path_service.h"

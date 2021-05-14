@@ -20,6 +20,8 @@ interface NavigatorUAData {
   readonly attribute sequence<NavigatorUABrandVersion> brands;
   readonly attribute boolean mobile;
   readonly attribute DOMString platform;
-  Promise<CobaltUADataValues> getHighEntropyValues(sequence<DOMString> hints);
+  // TODO make this a Promise<CobaltUADataValues> when support for dictionary
+  // Promises becomes available in Cobalt
+  Promise<CobaltUADataValuesInterface> getHighEntropyValues(sequence<DOMString> hints);
   UALowEntropyJSON toJSON();
 };

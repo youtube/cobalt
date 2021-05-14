@@ -43,7 +43,7 @@ class Navigator : public script::Wrappable {
  public:
   Navigator(
       script::EnvironmentSettings* settings, const std::string& user_agent,
-      const std::string& language,
+      UserAgentPlatformInfo* platform_info, const std::string& language,
       scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
       script::ScriptValueFactory* script_value_factory);
 

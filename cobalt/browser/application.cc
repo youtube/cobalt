@@ -64,6 +64,7 @@
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/crash_handler.h"
@@ -553,9 +554,9 @@ bool AddCrashHandlerAnnotations() {
 #endif
   if (version.empty()) {
     base::StringAppendF(&version, "%s.%s-%s",
-                        platform_info.cobalt_version.c_str(),
-                        platform_info.cobalt_build_version_number.c_str(),
-                        platform_info.build_configuration.c_str());
+                        platform_info.cobalt_version().c_str(),
+                        platform_info.cobalt_build_version_number().c_str(),
+                        platform_info.build_configuration().c_str());
   }
 
   user_agent.push_back('\0');
@@ -834,7 +835,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       storage_manager_options));
 
   network_module_.reset(new network::NetworkModule(
-      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+      CreateUserAgentString(browser::GetUserAgentPlatformInfoFromSystem()),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
   AddCrashHandlerAnnotations();

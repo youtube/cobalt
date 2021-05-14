@@ -38,7 +38,6 @@
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"

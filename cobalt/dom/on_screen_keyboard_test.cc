@@ -212,7 +212,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
             NULL, NULL, NULL,
             global_environment_
                 ->script_value_factory() /* script_value_factory */,
-            NULL, NULL, url_, "", "en-US", "en",
+            NULL, NULL, url_, "", NULL, "en-US", "en",
             base::Callback<void(const GURL&)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),

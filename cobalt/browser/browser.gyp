@@ -99,6 +99,8 @@
         'system_platform_error_handler.h',
         'url_handler.cc',
         'url_handler.h',
+        'user_agent_platform_info.cc',
+        'user_agent_platform_info.h',
         'user_agent_string.cc',
         'user_agent_string.h',
         'web_module.cc',
