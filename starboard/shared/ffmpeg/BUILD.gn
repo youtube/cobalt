@@ -74,7 +74,7 @@ versioned_ffmpeg_library("ffmpeg.57.107.100") {
 versioned_ffmpeg_library("ffmpeg.58.35.100") {
 }
 
-source_set("ffmpeg_dispatch_sources") {
+static_library("ffmpeg_dispatch_sources") {
   check_includes = false
   sources = [
     "ffmpeg_audio_decoder.h",

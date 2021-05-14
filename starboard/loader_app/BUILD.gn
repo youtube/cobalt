@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("pending_restart") {
+static_library("pending_restart") {
   sources = [
     "pending_restart.cc",
     "pending_restart.h",

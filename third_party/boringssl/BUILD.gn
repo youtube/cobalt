@@ -71,7 +71,7 @@ partial_crypto_excludes = [
   "$boringssl_root/crypto/bio/socket_helper.c",
 ]
 
-source_set("crypto") {
+static_library("crypto") {
   sources = boringssl_crypto_files + boringssl_ssl_files
   sources -= partial_crypto_excludes
 
