@@ -21,3 +21,5 @@ sb_filter_based_player = false
 gl_type = "none"
 
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+
+install_target_path = "//starboard/build/install/install_target.gni"

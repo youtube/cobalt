@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/platforms.gni")
 
 declare_args() {
@@ -24,22 +25,59 @@ declare_args() {
   is_starboard = true
 }
 
+if (target_os == "") {
+  target_os = host_os
+}
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_os == "") {
+  current_os = target_os
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+
 is_debug = build_type == "debug"
 is_devel = build_type == "devel"
 is_qa = build_type == "qa"
 is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
+# Set some variables we never want to change
 sb_allows_memory_tracking = !is_gold
+host_byteorder = "little"
+is_official_build = false  # Chromium's build files expect this to be set.
 
 starboard_path = platforms["$target_platform"]
+import("//$starboard_path/platform_configuration/configuration.gni")
 
 host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
 shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
 
+# =============================================================================
+# TARGET DEFAULTS
+# =============================================================================
+#
+# Set up the default configuration for every build target of the given type.
+# The values configured here will be automatically set on the scope of the
+# corresponding target. Target definitions can add or remove to the settings
+# here as needed.
+#
+# WHAT GOES HERE?
+#
+# Other than the main compiler and linker configs, the only reason for a config
+# to be in this list is if some targets need to explicitly override that config
+# by removing it. This is how targets opt-out of flags. If you don't have that
+# requirement and just need to add a config everywhere, reference it as a
+# sub-config of an existing one, most commonly the main "compiler" one.
+
 default_compiler_configs = [
   "//starboard/build/config:base",
+  "//starboard/build/config:host",
+  "//starboard/build/config:include_root",
+  "//starboard/build/config:target",
   "//$starboard_path/platform_configuration",
 ]
 
@@ -47,12 +85,13 @@ if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
 
-import("//$starboard_path/platform_configuration/configuration.gni")
-
 set_defaults("static_library") {
   configs = default_compiler_configs
 }
 set_defaults("source_set") {
+  configs = default_compiler_configs
+}
+set_defaults("loadable_module") {
   configs = default_compiler_configs
 }
 set_defaults("executable") {
@@ -61,6 +100,41 @@ set_defaults("executable") {
 set_defaults("shared_library") {
   configs = default_compiler_configs
 }
-set_defaults("loadable_module") {
-  configs = default_compiler_configs
+
+import("$install_target_path")
+template("executable") {
+  executable(target_name) {
+    forward_variables_from(invoker, "*")
+  }
+
+  executable_target_name = target_name
+  install_target(target_name + "_install") {
+    forward_variables_from(invoker,
+                           [
+                             "content",
+                             "testonly",
+                           ])
+    installable_target_name = executable_target_name
+    type = "executable"
+  }
 }
+
+template("shared_library") {
+  shared_library(target_name) {
+    forward_variables_from(invoker, "*")
+  }
+
+  shared_library_target_name = target_name
+  install_target(target_name + "_install") {
+    forward_variables_from(invoker,
+                           [
+                             "content",
+                             "testonly",
+                           ])
+    installable_target_name = shared_library_target_name
+    type = "shared_library"
+  }
+}
+
+# Import this down here as it relies on variables set during configuration.
+import("//starboard/build/config/components.gni")

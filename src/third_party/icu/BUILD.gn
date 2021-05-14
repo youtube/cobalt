@@ -240,6 +240,10 @@ template("generate_icui18n") {
 
     defines = [ "U_I18N_IMPLEMENTATION" ]
     deps = icuuc_deps
+
+    if (is_starboard) {
+      check_includes = false
+    }
   }
 }
 
@@ -285,6 +289,14 @@ template("generate_icuuc") {
     }
 
     defines += [ "U_ICUDATAENTRY_IN_COMMON" ]
+
+    if (is_starboard) {
+      public_deps = [ "//starboard:starboard_headers_only" ]
+      defines += [
+        "U_HAVE_NL_LANGINFO_CODESET=0",
+        "U_HAVE_NL_LANGINFO=0"
+      ]
+    }
   }
 }
 

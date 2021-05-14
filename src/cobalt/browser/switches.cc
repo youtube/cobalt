@@ -110,7 +110,8 @@ const char kInputFuzzerHelp[] =
 
 const char kMemoryTracker[] = "memory_tracker";
 const char kMemoryTrackerHelp[] =
-    "Enables memory tracking by installing the memory tracker on startup.";
+    "Enables memory tracking by installing the memory tracker on startup. Run "
+    "--memory_tracker=help for more info.";
 
 const char kMinCompatibilityVersion[] = "min_compatibility_version";
 const char kMinCompatibilityVersionHelp[] =
@@ -417,7 +418,7 @@ const char kVideoPlaybackRateMultiplierHelp[] =
 
 std::string HelpMessage() {
   std::string help_message;
-  std::map<const char*, const char*> help_map {
+  std::map<std::string, const char*> help_map {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
     {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDevServersListenIp, kDevServersListenIpHelp},

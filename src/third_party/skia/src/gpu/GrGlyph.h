@@ -47,13 +47,6 @@ struct GrGlyph {
            : GrGlyph::MaskStyle::kCoverage_MaskStyle;
 	}
 
-    static inline bool Fits(const SkIRect& bounds) {
-        return SkTFitsIn<int16_t>(bounds.fLeft) &&
-               SkTFitsIn<int16_t>(bounds.fTop) &&
-               SkTFitsIn<int16_t>(bounds.fRight) &&
-               SkTFitsIn<int16_t>(bounds.fBottom);
-    }
-
     GrGlyph(const SkGlyph& skGlyph)
         : fPackedID{skGlyph.getPackedID()}
         , fMaskFormat{FormatFromSkGlyph(skGlyph.maskFormat())}

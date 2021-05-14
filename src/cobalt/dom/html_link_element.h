@@ -65,6 +65,9 @@ class HTMLLinkElement : public HTMLElement {
   void OnInsertedIntoDocument() override;
   void OnRemovedFromDocument() override;
 
+  // Create Performance Resource Timing entry for link element.
+  void GetLoadTimingInfoAndCreateResourceTiming();
+
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 
  protected:

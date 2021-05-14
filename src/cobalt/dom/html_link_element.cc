@@ -313,6 +313,8 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
 void HTMLLinkElement::ReleaseLoader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
+  // GetLoadTimingInfo from loader before reset.
+  GetLoadTimingInfoAndCreateResourceTiming();
   loader_.reset();
 }
 
@@ -321,6 +323,12 @@ void HTMLLinkElement::CollectStyleSheet(
   if (style_sheet_) {
     style_sheets->push_back(style_sheet_);
   }
+}
+
+void HTMLLinkElement::GetLoadTimingInfoAndCreateResourceTiming() {
+  if (html_element_context()->performance() == nullptr) return;
+  html_element_context()->performance()->CreatePerformanceResourceTiming(
+      loader_->get_load_timing_info(), kTagName, absolute_url_.spec());
 }
 
 }  // namespace dom

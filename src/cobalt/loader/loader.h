@@ -66,6 +66,9 @@ class Loader {
 
   void LoadComplete(const base::Optional<std::string>& status);
 
+  net::LoadTimingInfo get_load_timing_info();
+  void set_load_timing_info(const net::LoadTimingInfo& timing_info);
+
  private:
   class FetcherHandlerToDecoderAdapter;
 
@@ -88,6 +91,8 @@ class Loader {
 
   bool is_suspended_;
   bool is_load_complete_ = false;
+
+  net::LoadTimingInfo load_timing_info_;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

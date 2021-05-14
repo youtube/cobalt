@@ -146,6 +146,9 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #endif
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+    case kSbEventDateTimeConfigurationChanged:
+#endif
       event_function(event);
       break;
   }

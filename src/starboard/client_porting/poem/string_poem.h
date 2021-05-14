@@ -203,8 +203,6 @@ static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
 #undef strcspn
 #define strcspn(s1, s2) PoemGetSpanUntilCharacter(s1, s2)
 
-#undef memchr
-#define memchr(s, c, n) SbMemoryFindByte(s, c, n)
 #undef memset
 #define memset(s, c, n) SbMemorySet(s, c, n)
 #undef memcpy

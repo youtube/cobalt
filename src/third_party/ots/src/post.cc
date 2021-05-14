@@ -4,15 +4,9 @@
 
 #include "post.h"
 
-#include "maxp.h"
+#include <string.h>
 
-#if !defined(STARBOARD)
-#include <cstring>
-#define MEMCHR_POST std::memchr
-#else
-#include "starboard/memory.h"
-#define MEMCHR_POST SbMemoryFindByte
-#endif
+#include "maxp.h"
 
 // post - PostScript
 // http://www.microsoft.com/typography/otspec/post.htm
@@ -102,7 +96,7 @@ bool OpenTypePOST::Parse(const uint8_t *data, size_t length) {
     if (strings + 1 + string_length > strings_end) {
       return Error("Bad string length %d", string_length);
     }
-    if (MEMCHR_POST(strings + 1, '\0', string_length)) {
+    if (memchr(strings + 1, '\0', string_length)) {
       return Error("Bad string of length %d", string_length);
     }
     this->names.push_back(
@@ -182,5 +176,3 @@ bool OpenTypePOST::Serialize(OTSStream *out) {
 }
 
 }  // namespace ots
-
-#undef MEMCHR_POST

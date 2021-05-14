@@ -88,6 +88,10 @@ class Application {
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  void OnDateTimeConfigurationChangedEvent(const base::Event* event);
+#endif
+
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleCreated();
 
@@ -111,7 +115,7 @@ class Application {
   // Main components of the Cobalt browser application.
   std::unique_ptr<BrowserModule> browser_module_;
 
-// Event callbacks.
+  // Event callbacks.
   base::EventCallback window_size_change_event_callback_;
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
@@ -127,6 +131,9 @@ class Application {
 #if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
+#endif
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  base::EventCallback on_date_time_configuration_changed_event_callback_;
 #endif
 
   // Thread checkers to ensure that callbacks for network and application events

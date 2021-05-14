@@ -23,9 +23,9 @@ interface AudioContext : EventTarget {
   readonly attribute float sampleRate;
   readonly attribute double currentTime;
 
-  [CallWith=EnvironmentSettings] void decodeAudioData(
-      ArrayBuffer audioData, DecodeSuccessCallback successCallback,
-      optional DecodeErrorCallback errorCallback);
+  void decodeAudioData(ArrayBuffer audioData,
+                       DecodeSuccessCallback successCallback,
+                       optional DecodeErrorCallback errorCallback);
 
   // AudioNode creation
   [CallWith=EnvironmentSettings] AudioBufferSourceNode createBufferSource();

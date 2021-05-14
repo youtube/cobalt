@@ -233,13 +233,11 @@
 // Definitions for system calls that may need to be overridden.
 #define OPENSSL_port_abort SbSystemBreakIntoDebugger
 #define OPENSSL_port_assert(x) SB_DCHECK(x)
-#define OPENSSL_port_atoi SbStringAToI
 #define OPENSSL_port_free SbMemoryDeallocate
 #define OPENSSL_port_getenv(x) NULL
 #define OPENSSL_port_gettimeofday EzTimeValueGetNow
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
 #define OPENSSL_port_malloc SbMemoryAllocate
-#define OPENSSL_port_memchr (unsigned char *)SbMemoryFindByte
 #define OPENSSL_port_memcmp SbMemoryCompare
 #define OPENSSL_port_memcpy SbMemoryCopy
 #define OPENSSL_port_memmove SbMemoryMove

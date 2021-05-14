@@ -206,6 +206,10 @@ const std::string Navigator::licenses() const {
 
 const std::string& Navigator::user_agent() const { return user_agent_; }
 
+const scoped_refptr<NavigatorUAData>& Navigator::user_agent_data() const {
+  return user_agent_data_;
+}
+
 bool Navigator::java_enabled() const { return false; }
 
 bool Navigator::cookie_enabled() const { return false; }
@@ -238,10 +242,10 @@ const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
     if (media_player_factory_ != nullptr) {
       media_session_->EnsureMediaSessionClient();
       DCHECK(media_session_->media_session_client());
-      media_session_->media_session_client()
-          ->SetMaybeFreezeCallback(maybe_freeze_callback_);
-      media_session_->media_session_client()
-          ->SetMediaPlayerFactory(media_player_factory_);
+      media_session_->media_session_client()->SetMaybeFreezeCallback(
+          maybe_freeze_callback_);
+      media_session_->media_session_client()->SetMediaPlayerFactory(
+          media_player_factory_);
     }
   }
   return media_session_;

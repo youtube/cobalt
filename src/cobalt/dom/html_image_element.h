@@ -75,6 +75,8 @@ class HTMLImageElement : public HTMLElement {
   void DestroyScopedPreventGC(
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
+  // Create Performance Resource Timing entry for image element.
+  void GetLoadTimingInfoAndCreateResourceTiming();
 
   std::unique_ptr<loader::image::WeakCachedImage> weak_cached_image_;
   std::unique_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>

@@ -1,0 +1,33 @@
+# Copyright (c) 2013 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# =============================================================================
+# OS DEFINITIONS
+# =============================================================================
+#
+# We set these various is_FOO booleans for convenience in writing OS-based
+# conditions.
+#
+# - is_android, is_chromeos, is_ios, and is_win should be obvious.
+# - is_mac is set only for desktop Mac. It is not set on iOS.
+# - is_posix is true for mac and any Unix-like system (basically everything
+#   except Fuchsia and Windows).
+# - is_linux is true for desktop Linux, but not for ChromeOS nor Android (which
+#   is generally too different despite being based on the Linux kernel).
+#
+# Do not add more is_* variants here for random lesser-used Unix systems like
+# aix or one of the BSDs. If you need to check these, just check the
+# current_os value directly.
+
+is_android = current_os == "android"
+is_chromeos = current_os == "chromeos"
+is_fuchsia = current_os == "fuchsia"
+is_ios = current_os == "ios"
+is_linux = current_os == "linux"
+is_mac = current_os == "mac"
+is_nacl = current_os == "nacl"
+is_win = current_os == "win" || current_os == "winuwp"
+
+is_apple = is_ios || is_mac
+is_posix = !is_win && !is_fuchsia

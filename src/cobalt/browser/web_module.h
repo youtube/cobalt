@@ -186,7 +186,7 @@ class WebModule : public LifecycleObserver {
     base::ThreadPriority loader_thread_priority =
         base::ThreadPriority::BACKGROUND;
 
-    // Specifies the priority tha the web module's animated image decoding
+    // Specifies the priority that the web module's animated image decoding
     // thread will be assigned. This thread is responsible for decoding,
     // blending and constructing individual frames from animated images. The
     // default value is base::ThreadPriority::BACKGROUND.
@@ -340,6 +340,9 @@ class WebModule : public LifecycleObserver {
   void InjectBeforeUnloadEvent();
 
   void InjectCaptionSettingsChangedEvent();
+
+  // Update the date/time configuration of relevant web modules.
+  void UpdateDateTimeConfiguration();
 
   // Executes Javascript code in this web module.  The calling thread will
   // block until the JavaScript has executed and the output results are

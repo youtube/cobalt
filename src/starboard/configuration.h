@@ -101,6 +101,11 @@
 
 // Rename misspelled accessibility event types
 #define SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce event for date / time configuration changes
+#define SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

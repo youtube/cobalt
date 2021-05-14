@@ -24,7 +24,7 @@
     'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
     'javascript_engine': 'v8',
 
-    'cobalt_font_package': 'minimal',
+    'cobalt_font_package': 'empty',
 
     # Override that omits the "data" subdirectory.
     # TODO: Remove when omitted for all platforms in base_configuration.gypi.

@@ -1757,7 +1757,7 @@
         'proto_in_dir': 'nqe/proto',
         'proto_out_dir': 'net/nqe/proto',
       },
-      'includes': ['<(DEPTH)/build/protoc.gypi'],
+      'includes': ['<(DEPTH)/build_gyp/protoc.gypi'],
     },
     {
       'target_name': 'net_quic_proto',
@@ -1779,7 +1779,7 @@
         'proto_in_dir': 'third_party/quic/core/proto/',
         'proto_out_dir': 'net/third_party/quic/core/proto/',
       },
-      'includes': ['<(DEPTH)/build/protoc.gypi'],
+      'includes': ['<(DEPTH)/build_gyp/protoc.gypi'],
 
       'all_dependent_settings': {
         'include_dirs': [

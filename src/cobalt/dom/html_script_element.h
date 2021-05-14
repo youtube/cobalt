@@ -84,6 +84,9 @@ class HTMLScriptElement : public HTMLElement {
   // From HTMLElement.
   scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() override;
 
+  // Create Performance Resource Timing entry for script element.
+  void GetLoadTimingInfoAndCreateResourceTiming();
+
   DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
 
  protected:

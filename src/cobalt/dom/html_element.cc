@@ -62,6 +62,7 @@
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+#include "cobalt/loader/resource_cache.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
@@ -83,6 +84,9 @@ const int32 kUiNavFocusTabIndexThreshold = -2;
 // This custom data attribute can be used to force UI navigation to remain
 // focused on the element for a specified duration.
 const char kUiNavFocusDurationAttribute[] = "data-cobalt-ui-nav-focus-duration";
+
+// https://www.w3.org/TR/resource-timing-1/#dom-performanceresourcetiming-initiatortype
+const char* kPerformanceResourceTimingInitiatorType = "img";
 
 void UiNavCallbackHelper(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
@@ -2292,9 +2296,27 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   }
 }
 
+void HTMLElement::GetLoadTimingInfoAndCreateResourceTiming() {
+  if (html_element_context()->performance() == nullptr) return;
+  for (auto& cached_background_image : cached_background_images_) {
+    scoped_refptr<loader::CachedResourceBase> cached_image =
+        cached_background_image->GetCachedResource();
+    if (cached_image == nullptr) continue;
+
+    if (!cached_image->get_resource_timing_created_flag()) {
+      html_element_context()->performance()->CreatePerformanceResourceTiming(
+          cached_image->GetLoadTimingInfo(),
+          kPerformanceResourceTimingInitiatorType, cached_image->url().spec());
+      cached_image->set_resource_timing_created_flag(true);
+    }
+  }
+}
+
 void HTMLElement::OnBackgroundImageLoaded() {
   node_document()->RecordMutation();
   InvalidateLayoutBoxRenderTreeNodes();
+  // GetLoadTimingInfo from cached resource and create resource timing.
+  GetLoadTimingInfoAndCreateResourceTiming();
 }
 
 }  // namespace dom

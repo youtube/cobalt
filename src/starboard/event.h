@@ -447,6 +447,13 @@ typedef enum SbEventType {
   // to implement window.ononline DOM event.
   kSbEventTypeOsNetworkConnected,
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+
+#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+  // The platform has detected a date and/or time configuration change (such
+  // as a change in the timezone setting). This should trigger the application
+  // to re-query the relevant APIs to update the date and time.
+  kSbEventDateTimeConfigurationChanged,
+#endif  // SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
 } SbEventType;
 
 // Structure representing a Starboard event and its data.

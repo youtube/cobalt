@@ -417,6 +417,9 @@ class TestRunner(object):
                    xml_output_path)
       test_params.append("--gtest_output=xml:%s" % (xml_output_path))
 
+    # Turn off color codes from output to make it easy to parse
+    test_params.append("--gtest_color=no")
+
     test_params.extend(self.target_params)
     if self.dry_run:
       test_params.extend(["--gtest_list_tests"])

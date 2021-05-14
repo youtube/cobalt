@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("base") {
+config("include_root") {
   include_dirs = [ "//" ]
+}
+
+config("base") {
   defines = []
 
   if (final_executable_type == "shared_library") {
@@ -53,23 +56,41 @@ config("base") {
 }
 
 config("host") {
-  if (host_os == "linux") {
-    ldflags = [ "-pthread" ]
-    cflags_cc = [ "--std=gnu++14" ]
+  if (current_toolchain == host_toolchain) {
+    if (host_os == "linux") {
+      ldflags = [ "-pthread" ]
+      cflags_cc = [ "--std=gnu++14" ]
 
-    if (target_cpu == "arm" || target_cpu == "x86") {
-      cflags = [ "-m32" ]
-      ldflags += [
-        "-target",
-        "i386-unknown-linux-gnu",
-        "-latomic",
-      ]
+      if (target_cpu == "arm" || target_cpu == "x86") {
+        cflags = [ "-m32" ]
+        ldflags += [
+          "-target",
+          "i386-unknown-linux-gnu",
+          "-latomic",
+        ]
+      }
     }
   }
 }
 
 config("target") {
-  cflags = []
+  if (current_toolchain != host_toolchain) {
+    if (final_executable_type == "shared_library") {
+      # Rewrite main() functions into StarboardMain. TODO: This is a
+      # hack, it would be better to be more surgical, here.
+      defines = [ "main=StarboardMain" ]
+    } else {
+      # To link into a shared library on Linux and similar platforms,
+      # the compiler must be told to generate Position Independent Code.
+      # This appears to cause errors when linking the code statically,
+      # however.
+      cflags = [ "-fPIC" ]
+    }
+
+    if (is_starboard) {
+      configs = [ ":starboard" ]
+    }
+  }
 }
 
 config("starboard") {

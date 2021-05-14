@@ -1156,6 +1156,11 @@ void URLRequest::OnHeadersComplete() {
     raw_header_size_ = GetTotalReceivedBytes();
 
     ConvertRealLoadTimesToBlockingTimes(&load_timing_info_);
+#if defined (STARBOARD)
+    if (!load_timing_info_callback_.is_null()) {
+      load_timing_info_callback_.Run(load_timing_info_);
+    }
+#endif  // defined(STARBOARD)
   }
 }
 

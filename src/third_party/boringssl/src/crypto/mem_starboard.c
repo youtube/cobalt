@@ -11,6 +11,8 @@
 
 #include <openssl/mem.h>
 
+#include <string.h>
+
 #if defined(OPENSSL_WINDOWS)
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
@@ -101,7 +103,7 @@ const void *OPENSSL_memchr(const void *s, int c, size_t n) {
     return NULL;
   }
 
-  return SbMemoryFindByte(s, c, n);
+  return memchr(s, c, n);
 }
 
 int OPENSSL_memcmp(const void *s1, const void *s2, size_t n) {

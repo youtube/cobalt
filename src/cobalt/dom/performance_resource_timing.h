@@ -39,7 +39,6 @@ class PerformanceResourceTiming : public PerformanceEntry {
   PerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
                             const std::string& initiator_type,
                             const std::string& requested_url,
-                            const std::string& cache_mode,
                             Performance* performance);
 
   // Web API.

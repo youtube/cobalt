@@ -137,6 +137,19 @@ URLFetcherCore::URLFetcherCore(
       total_response_bytes_(-1),
       traffic_annotation_(traffic_annotation) {
   CHECK(original_url_.is_valid());
+
+  const CobaltExtensionUrlFetcherObserverApi* observer_extension =
+      static_cast<const CobaltExtensionUrlFetcherObserverApi*>(
+          SbSystemGetExtension(kCobaltExtensionUrlFetcherObserverName));
+  if (observer_extension &&
+      SbStringCompareAll(observer_extension->name,
+                         kCobaltExtensionUrlFetcherObserverName) == 0 &&
+      observer_extension->version >= 1) {
+    observer_extension_ = observer_extension;
+    observer_extension_->FetcherCreated(original_url_.spec().c_str());
+  } else {
+    observer_extension_ = nullptr;
+  }
 }
 
 void URLFetcherCore::Start() {
@@ -598,6 +611,9 @@ void URLFetcherCore::SetIgnoreCertificateRequests(bool ignored) {
 }
 
 URLFetcherCore::~URLFetcherCore() {
+  if (observer_extension_ != nullptr) {
+    observer_extension_->FetcherDestroyed(original_url_.spec().c_str());
+  }
   // |request_| should be NULL. If not, it's unsafe to delete it here since we
   // may not be on the IO thread.
   DCHECK(!request_.get());
@@ -626,6 +642,9 @@ void URLFetcherCore::StartOnIOThread() {
 void URLFetcherCore::StartURLRequest() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
+  if (observer_extension_ != nullptr) {
+    observer_extension_->StartURLRequest(original_url_.spec().c_str());
+  }
   if (was_cancelled_) {
     // Since StartURLRequest() is posted as a *delayed* task, it may
     // run after the URLFetcher was already stopped.
@@ -747,6 +766,8 @@ void URLFetcherCore::StartURLRequest() {
   if (!extra_request_headers_.IsEmpty())
     request_->SetExtraRequestHeaders(extra_request_headers_);
 
+  request_->SetLoadTimingInfoCallback(base::Bind(&URLFetcherCore::GetLoadTimingInfo,
+      base::Unretained(this)));
   request_->Start();
 }
 
@@ -825,7 +846,6 @@ void URLFetcherCore::CancelURLRequest(int error) {
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
-
   // Save the status and backoff_delay so that delegates can read it.
   if (delegate_) {
     backoff_delay_ = backoff_delay;
@@ -835,8 +855,9 @@ void URLFetcherCore::OnCompletedURLRequest(
 
 void URLFetcherCore::InformDelegateFetchIsComplete() {
   DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
-  if (delegate_)
+  if (delegate_) {
     delegate_->OnURLFetchComplete(fetcher_);
+  }
 }
 
 void URLFetcherCore::NotifyMalformedContent() {
@@ -1091,5 +1112,13 @@ void URLFetcherCore::AssertHasNoUploadData() const {
   DCHECK(upload_file_path_.empty());
   DCHECK(upload_stream_factory_.is_null());
 }
+
+#if defined(STARBOARD)
+void URLFetcherCore::GetLoadTimingInfo(
+    const net::LoadTimingInfo& timing_info) {
+  DCHECK(delegate_);
+  delegate_->ReportLoadTimingInfo(timing_info);
+}
+#endif  // defined(STARBOARD)
 
 }  // namespace net

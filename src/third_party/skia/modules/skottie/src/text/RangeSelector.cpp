@@ -47,11 +47,11 @@ struct UnitTraits;
 
 template <>
 struct UnitTraits<RangeSelector::Units::kPercentage> {
-    static CONSTEXPR std::tuple<float, float, float> Defaults() {
+    static constexpr auto Defaults() {
         return std::make_tuple<float, float, float>(0, 100, 0);
     }
 
-    static std::tuple<float, float> Resolve(float s, float e, float o, size_t domain_size) {
+    static auto Resolve(float s, float e, float o, size_t domain_size) {
         return std::make_tuple(domain_size * (s + o) / 100,
                                domain_size * (e + o) / 100);
     }
@@ -59,12 +59,12 @@ struct UnitTraits<RangeSelector::Units::kPercentage> {
 
 template <>
 struct UnitTraits<RangeSelector::Units::kIndex> {
-    static CONSTEXPR std::tuple<float, float, float> Defaults() {
+    static constexpr auto Defaults() {
         // It's OK to default fEnd to FLOAT_MAX, as it gets clamped when resolved.
         return std::make_tuple<float, float, float>(0, std::numeric_limits<float>::max(), 0);
     }
 
-    static std::tuple<float, float> Resolve(float s, float e, float o, size_t domain_size) {
+    static auto Resolve(float s, float e, float o, size_t domain_size) {
         return std::make_tuple(s + o, e + o);
     }
 };

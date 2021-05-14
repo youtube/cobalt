@@ -2,6 +2,33 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 22
+ - **C++14 is required to compile Cobalt 22.**
+   Cobalt code now requires C++14-compatible toolchains to compile. This
+   requirement helps us stay updated with C++ standards and integrate
+   third-party libraries much easier.
+
+ - **SpiderMonkey(mozjs-45) JavaScript Engine library is removed.**
+   As stated last year, V8 should be the choice of JavaScript engine on
+   every platform. SpiderMonkey is now completely removed.
+
+ - **V8 JavaScript Engine is rebased to version v8.8**
+   We rebased V8 from v7.7 in Cobalt 21 to v8.8 in Cobalt 22. V8 8.8 provides a
+   new feature, pointer compression, that reduces JavaScript heap memory usage by
+   60% on 64-bit platforms(arm64 and x64), saving about 5MB on startup and more
+   than 8MB in active sessions. This feature is turned on automatically when a
+   platform uses 64-bit CPU architecture.
+
+ - **window.navigator.onLine property and its change events are added.**
+   To improve user experience during network connect/disconnect situations
+   and enable auto-reconnect, Cobalt added web APIs including Navigator.onLine
+   property and its change events. To enable using the property and events
+   on a platform, the platform's Starboard must implement these new Starboard
+   APIs:
+   SbSystemNetworkIsDisconnected(),
+   kSbEventTypeOsNetworkDisconnected Starboard event,
+   kSbEventTypeOsNetworkConnected Starboard event.
+
 ## Version 21
 
  - **SpiderMonkey(mozjs-45) JavaScript Engine is no longer supported.**
@@ -141,6 +168,12 @@ This document records all notable changes made to Cobalt since the last release.
 
    Platforms can provide javascript code caching by implementing
    CobaltExtensionJavaScriptCacheApi.
+
+
+ - **Added support for UrlFetcher observer.**
+
+   Platforms can implement UrlFetcher observer for performance tracing by
+   implementing CobaltExtensionUrlFetcherObserverApi.
 
 ## Version 20
 

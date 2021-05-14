@@ -15,8 +15,12 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/timer/timer.h"
+#include "cobalt/extension/url_fetcher_observer.h"
 #include "net/base/chunked_upload_data_stream.h"
 #include "net/base/host_port_pair.h"
+#if defined(STARBOARD)
+#include "net/base/load_timing_info.h"
+#endif  // defined(STARBOARD)
 #include "net/base/proxy_server.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -158,7 +162,9 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   static int GetNumFetcherCores();
   static void SetEnableInterceptionForTests(bool enabled);
   static void SetIgnoreCertificateRequests(bool ignored);
-
+#if defined (STARBOARD)
+  void GetLoadTimingInfo(const net::LoadTimingInfo& timing_info);
+#endif  // defined(STARBOARD)
  private:
   friend class base::RefCountedThreadSafe<URLFetcherCore>;
 
@@ -369,6 +375,8 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   const net::NetworkTrafficAnnotationTag traffic_annotation_;
 
   static base::LazyInstance<Registry>::DestructorAtExit g_registry;
+
+  const CobaltExtensionUrlFetcherObserverApi* observer_extension_;
 
   DISALLOW_COPY_AND_ASSIGN(URLFetcherCore);
 };

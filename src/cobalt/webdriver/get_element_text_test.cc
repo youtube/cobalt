@@ -50,7 +50,8 @@ class GetElementTextTest : public ::testing::Test {
         html_element_context_(
             &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL) {
+            dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL,
+            NULL) {
   }
 
   void SetUp() override {

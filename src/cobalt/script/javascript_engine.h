@@ -81,6 +81,9 @@ class JavaScriptEngine {
   // be unable to provide perfectly accurate values.
   virtual HeapStatistics GetHeapStatistics() = 0;
 
+  // Update the date/time configuration in response to a change in the setting.
+  virtual void UpdateDateTimeConfiguration() = 0;
+
  protected:
   virtual ~JavaScriptEngine() {}
   friend std::unique_ptr<JavaScriptEngine>::deleter_type;

@@ -68,6 +68,11 @@ class CachedResourceBase
         const scoped_refptr<CachedResourceBase>& cached_resource,
         const base::Closure& success_callback,
         const base::Closure& error_callback);
+
+    net::LoadTimingInfo GetLoadTimingInfo();
+    scoped_refptr<CachedResourceBase>& GetCachedResource() {
+      return cached_resource_;
+    }
     ~OnLoadedCallbackHandler();
 
    private:
@@ -88,6 +93,18 @@ class CachedResourceBase
 
   // Whether not the resource located at |url_| is finished loading.
   bool IsLoadingComplete();
+
+  net::LoadTimingInfo GetLoadTimingInfo() {
+    return load_timing_info_;
+  }
+
+  bool get_resource_timing_created_flag() {
+    return is_resource_timing_created_flag_;
+  }
+
+  void set_resource_timing_created_flag(bool is_created) {
+    is_resource_timing_created_flag_ = is_created;
+  }
 
  protected:
   friend class ResourceCacheBase;
@@ -113,7 +130,8 @@ class CachedResourceBase
         has_resource_func_(has_resource_func),
         reset_resource_func_(reset_resource_func),
         are_loading_retries_enabled_func_(are_loading_retries_enabled_func),
-        on_resource_loaded_(on_resource_loaded) {
+        on_resource_loaded_(on_resource_loaded),
+        is_resource_timing_created_flag_(false) {
     DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   }
 
@@ -133,7 +151,8 @@ class CachedResourceBase
         has_resource_func_(has_resource_func),
         reset_resource_func_(reset_resource_func),
         are_loading_retries_enabled_func_(are_loading_retries_enabled_func),
-        on_resource_loaded_(on_resource_loaded) {
+        on_resource_loaded_(on_resource_loaded),
+        is_resource_timing_created_flag_(false) {
     DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
   }
 
@@ -189,6 +208,9 @@ class CachedResourceBase
   // error causes a resource to fail to load, a retry is scheduled.
   int retry_count_ = 0;
   std::unique_ptr<base::RetainingOneShotTimer> retry_timer_;
+
+  net::LoadTimingInfo load_timing_info_;
+  bool is_resource_timing_created_flag_;
 };
 
 // CachedResource requests fetching and decoding a single resource and the
@@ -367,6 +389,9 @@ class CachedResourceReferenceWithCallbacks {
       : cached_resource_loaded_callback_handler_(cached_resource,
                                                  content_produced_callback,
                                                  load_complete_callback) {}
+  scoped_refptr<CachedResourceBase>& GetCachedResource() {
+    return cached_resource_loaded_callback_handler_.GetCachedResource();
+  }
 
  private:
   // This handles adding and removing the resource loaded callbacks.
@@ -598,6 +623,8 @@ class ResourceCache : public ResourceCacheBase {
   // and the last usage, in reality all ref counts are 1 and we only need to put
   // new items at the end of the map.
   ResourceMap weak_referenced_cached_resource_map_;
+
+  base::Callback<void(const net::LoadTimingInfo&)> load_timing_info_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };

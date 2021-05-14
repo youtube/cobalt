@@ -15,16 +15,57 @@
 group("gn_all") {
   testonly = true
 
-  deps = [ ":starboard_headers_only" ]
+  deps = [
+    ":starboard",
+    "//starboard/client_porting/eztime",
+    "//starboard/client_porting/eztime:eztime_test",
+    "//starboard/client_porting/icu_init",
+    "//starboard/client_porting/poem:poem_unittests",
+    "//starboard/examples/window:starboard_window_example",
+    "//starboard/nplb",
+    "//starboard/nplb/nplb_evergreen_compat_tests",
+
+    # "//starboard/tools",  TODO(andrewsavage)
+  ]
+
+  if (gl_type != "none") {
+    deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
+  }
+
+  if (has_platform_targets) {
+    deps += [ "//$starboard_path/platform_targets" ]
+  }
+
+  if (has_platform_tests) {
+    deps += [ "//$starboard_path/starboard_platform_tests" ]
+  } else {
+    deps += [ ":starboard_platform_tests" ]
+  }
+
+  if (sb_enable_benchmark) {
+    deps += [ "//starboard/benchmark" ]
+  }
 }
 
 group("starboard") {
-  deps = [ ":starboard_headers_only" ]
+  public_deps = [ ":starboard_headers_only" ]
 
   if (sb_evergreen) {
-    deps += []
+    public_deps += []
   } else {
-    public_deps = [ "//$starboard_path:starboard_platform" ]
+    public_deps += [
+      "//$starboard_path:starboard_platform",
+      "//starboard/client_porting/cwrappers",
+      "//starboard/client_porting/eztime",
+      "//starboard/common",
+    ]
+
+    if (sb_evergreen_compatible) {
+      # TODO(andrewsavage): This should not be stubbed out
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    } else {
+      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
 
     if (final_executable_type == "shared_library" &&
         current_toolchain != default_toolchain) {
@@ -36,6 +77,10 @@ group("starboard") {
 }
 
 source_set("starboard_headers_only") {
+  # We include starboard/common/log.h in starboard_headers, but some common
+  # files include starboard headers.
+  check_includes = false
+
   sources = [
     "atomic.h",
     "audio_sink.h",
@@ -82,4 +127,19 @@ source_set("starboard_headers_only") {
     # Include private headers, if present.
     # "<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)",
   ]
+}
+
+if (!has_platform_tests) {
+  # If 'starboard_platform_tests' is not defined by the platform, then an
+  # empty 'starboard_platform_tests' target is defined.
+  target(gtest_target_type, "starboard_platform_tests") {
+    testonly = true
+
+    sources = [ "//starboard/common/test_main.cc" ]
+
+    public_deps = [
+      ":starboard",
+      "//testing/gmock",
+    ]
+  }
 }

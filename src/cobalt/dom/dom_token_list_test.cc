@@ -103,6 +103,30 @@ TEST_F(DOMTokenListTest, DOMTokenListRemove) {
   EXPECT_EQ("a b", element->GetAttribute("class").value());
 }
 
+TEST_F(DOMTokenListTest, DOMTokenListToggle) {
+  scoped_refptr<Element> element =
+      new Element(document_, base::Token("element"));
+  scoped_refptr<DOMTokenList> dom_token_list =
+      new DOMTokenList(element, "class");
+  element->SetAttribute("class", "a b c");
+
+  EXPECT_FALSE(dom_token_list->Toggle("a"));
+  EXPECT_TRUE(dom_token_list->Toggle("b", true));
+  EXPECT_FALSE(dom_token_list->Toggle("c", false));
+  EXPECT_TRUE(dom_token_list->Toggle("d"));
+  EXPECT_TRUE(dom_token_list->Toggle("e", true));
+  EXPECT_FALSE(dom_token_list->Toggle("f", false));
+
+  EXPECT_FALSE(dom_token_list->Contains("a"));
+  EXPECT_TRUE(dom_token_list->Contains("b"));
+  EXPECT_FALSE(dom_token_list->Contains("c"));
+  EXPECT_TRUE(dom_token_list->Contains("d"));
+  EXPECT_TRUE(dom_token_list->Contains("e"));
+  EXPECT_FALSE(dom_token_list->Contains("f"));
+
+  EXPECT_EQ("b d e", element->GetAttribute("class").value());
+}
+
 TEST_F(DOMTokenListTest, DOMTokenListAnonymousStringifier) {
   scoped_refptr<Element> element =
       new Element(document_, base::Token("element"));
