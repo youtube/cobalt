@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/linux/x64x11/platform_configuration/configuration.gni")
+import("//starboard/build/config/base_configuration.gni")
 
-gl_type = "system_gles2"
+yasm_exists = true
+
+sb_static_contents_output_data_dir = "$root_out_dir/content"
+
+sb_enable_benchmark = true
+
+install_target_path = "//starboard/build/install/install_target.gni"
+
+sb_enable_opus_sse = false

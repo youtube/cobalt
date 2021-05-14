@@ -88,7 +88,7 @@ declare_args() {
   optimize_target_for_speed = false
 
   # Where the Starboard ABI file for this platform can be found.
-  sabi_path = ""
+  sabi_path = "starboard/sabi/default/sabi.json"
 
   # Whether the platform implements platforms tests.
   has_platform_tests = false

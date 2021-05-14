@@ -12,6 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/linux/x64x11/platform_configuration/configuration.gni")
-
-gl_type = "system_gles2"
+import("//starboard/linux/shared/platform_configuration/configuration.gni")
