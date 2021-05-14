@@ -13,13 +13,5 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  # TODO(andrewsavage): Include //third_party/khronos only where necessary.
-  configs = [
-    "//starboard/build/config/sabi",
-    "//starboard/linux/x64x11/platform_configuration",
-  ]
-  libs = [
-    "EGL",
-    "GLESv2",
-  ]
+  configs = [ "//starboard/linux/x64x11/shared/platform_configuration" ]
 }
