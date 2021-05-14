@@ -32,7 +32,7 @@ static_library("starboard_platform") {
   ]
 }
 
-source_set("stub_sources") {
+static_library("stub_sources") {
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("evergreen_info") {
+static_library("evergreen_info") {
   sources = [
     "evergreen_info.cc",
     "evergreen_info.h",
@@ -21,7 +21,7 @@ source_set("evergreen_info") {
   public_deps = [ "//starboard/common" ]
 }
 
-source_set("evergreen_config") {
+static_library("evergreen_config") {
   sources = [
     "evergreen_config.cc",
     "evergreen_config.h",

@@ -53,7 +53,7 @@ static_library("starboard_base_symbolize") {
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]
 }
 
-source_set("starboard_platform_sources") {
+static_library("starboard_platform_sources") {
   check_includes = false
   sources = [
     "//starboard/linux/shared/atomic_public.h",

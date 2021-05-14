@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("cwrappers") {
+static_library("cwrappers") {
   sources = [ "pow_wrapper.cc" ]
 
   public_deps = [ "//starboard/common" ]
