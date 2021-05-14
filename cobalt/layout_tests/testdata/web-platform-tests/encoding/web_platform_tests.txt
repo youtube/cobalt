@@ -3,7 +3,7 @@
 api-basics.html,FAIL
 api-invalid-label.html,FAIL
 api-replacement-encodings.html,FAIL
-api-surrogates-utf8.html,FAIL
+api-surrogates-utf8.html,PASS
 big5-encoder.html,FAIL
 gb18030-encoder.html,FAIL
 gbk-encoder.html,FAIL
@@ -19,4 +19,4 @@ textdecoder-labels.html,FAIL
 textdecoder-streaming.html,FAIL
 textdecoder-utf16-surrogates.html,FAIL
 textencoder-constructor-non-utf.html,FAIL
-textencoder-utf16-surrogates.html,FAIL
+textencoder-utf16-surrogates.html,PASS
