@@ -148,6 +148,12 @@ This document records all notable changes made to Cobalt since the last release.
    Platforms can implement UrlFetcher observer for performance tracing by
    implementing CobaltExtensionUrlFetcherObserverApi.
 
+ - **Added support for Cobalt Updater Notification.**
+
+   Platforms can implement CobaltExtensionUpdaterNotificationApi to
+   receive notifications from the Cobalt Evergreen Updater.
+
+
 ## Version 20
 
  - **Support for QUIC and SPDY is now enabled.**

@@ -21,6 +21,7 @@
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/extension/javascript_cache.h"
 #include "cobalt/extension/platform_service.h"
+#include "cobalt/extension/updater_notification.h"
 #include "cobalt/extension/url_fetcher_observer.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -259,6 +260,26 @@ TEST(ExtensionTest, UrlFetcherObserver) {
   EXPECT_NE(extension_api->FetcherCreated, nullptr);
   EXPECT_NE(extension_api->FetcherDestroyed, nullptr);
   EXPECT_NE(extension_api->StartURLRequest, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, UpdaterNotification) {
+  typedef CobaltExtensionUpdaterNotificationApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionUpdaterNotificationName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->UpdaterState, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
