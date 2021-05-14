@@ -54,7 +54,7 @@ echo "ANDROID_HOME=${ANDROID_HOME}"
 # Allow parallel gradle builds, as defined by a COBALT_GRADLE_BUILD_COUNT envvar
 # or default to 1 if that's not set (so buildbot only runs 1 gradle at a time).
 BUCKETS=${COBALT_GRADLE_BUILD_COUNT:-1}
-if [ "$BUCKETS"==1 ]; then
+if [ "$BUCKETS" -eq 1 ]; then
   echo "Gradle daemon and parallel gradle disabled for Cobalt build"
   GRADLE_ARGS+=(
     "-Dorg.gradle.parallel=false"
