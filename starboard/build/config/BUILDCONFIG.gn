@@ -26,6 +26,24 @@ declare_args() {
   cobalt_fastbuild = getenv("IS_CI") == 1
 }
 
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
+
+declare_args() {
+  use_asan = is_debug || is_devel
+}
+
+# Set some variables we never want to change.
+sb_allows_memory_tracking = !is_gold
+host_byteorder = "little"
+is_official_build = false  # Chromium's build files expect this to be set.
+shlib_extension = ".so"  # TODO(andrewsavage)
+
+# The os/cpu definitions are here to set the current platform type in
+# os_definitions.gni below.
 if (target_os == "") {
   target_os = host_os
 }
@@ -40,21 +58,8 @@ if (current_cpu == "") {
 }
 import("//starboard/build/config/os_definitions.gni")
 
-is_debug = build_type == "debug"
-is_devel = build_type == "devel"
-is_qa = build_type == "qa"
-is_gold = build_type == "gold"
-assert(is_debug || is_devel || is_qa || is_gold)
-
-declare_args() {
-  use_asan = is_debug || is_devel
-}
-
-# Set some variables we never want to change
-sb_allows_memory_tracking = !is_gold
-host_byteorder = "little"
-is_official_build = false  # Chromium's build files expect this to be set.
-
+# Get the path to the starboard implementation and include its GN
+# configuration.
 foreach(platform, platforms) {
   if (platform.name == target_platform) {
     starboard_path = platform.path
@@ -66,7 +71,6 @@ import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
 
 host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
-shlib_extension = ".so"  # TODO(andrewsavage)
 set_default_toolchain(host_toolchain)
 
 # =============================================================================
@@ -114,6 +118,8 @@ set_defaults("shared_library") {
   configs = default_compiler_configs
 }
 
+# Set up the method of generating the install targets as defined by the
+# platform.
 import("$install_target_path")
 template("executable") {
   executable(target_name) {
