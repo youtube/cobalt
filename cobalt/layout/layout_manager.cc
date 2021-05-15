@@ -57,7 +57,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   // Called to perform a synchronous layout.
   void DoSynchronousLayout();
-  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
 
   void Suspend();
   void Resume();
@@ -184,8 +183,6 @@ LayoutManager::Impl::Impl(
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
-  window_->SetSynchronousLayoutAndProduceRenderTreeCallback(base::Bind(
-      &Impl::DoSynchronousLayoutAndGetRenderTree, base::Unretained(this)));
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ =
@@ -236,30 +233,6 @@ void LayoutManager::Impl::OnMutation() {
   if (layout_trigger_ == kOnDocumentMutation) {
     DirtyLayout();
   }
-}
-
-scoped_refptr<render_tree::Node>
-LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree() {
-  TRACE_EVENT0("cobalt::layout",
-               "LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree()");
-  DoSynchronousLayout();
-
-  scoped_refptr<render_tree::Node> render_tree_root =
-      layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
-                                            layout_stat_tracker_,
-                                            &initial_containing_block_);
-
-  base::optional<double> current_time_milliseconds =
-      this->window_->document()->timeline()->current_time();
-  base::TimeDelta current_time =
-      base::TimeDelta::FromMillisecondsD(*current_time_milliseconds);
-
-  using render_tree::animations::AnimateNode;
-  AnimateNode* animate_node =
-      base::polymorphic_downcast<AnimateNode*>(render_tree_root.get());
-  AnimateNode::AnimateResults results = animate_node->Apply(current_time);
-
-  return results.animated->source();
 }
 
 void LayoutManager::Impl::DoSynchronousLayout() {

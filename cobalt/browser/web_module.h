@@ -292,8 +292,6 @@ class WebModule : public LifecycleObserver {
   // system indication that memory usage is nearing a critical level.
   void ReduceMemory();
 
-  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
-
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

@@ -169,8 +169,7 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
   FilePath output_path = dir.Append(screenshot_file_name);
   browser_module->RequestScreenshotToFile(
-      output_path, loader::image::EncodedStaticImage::ImageFormat::kPNG,
-      /*clip_rect=*/base::nullopt, base::Bind(&ScreenshotCompleteCallback, output_path));
+      output_path, base::Bind(&ScreenshotCompleteCallback, output_path));
 }
 #endif  // defined(ENABLE_SCREENSHOT)
 
@@ -556,46 +555,21 @@ bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
 }
 
 #if defined(ENABLE_SCREENSHOT)
-void BrowserModule::RequestScreenshotToFile(
-    const FilePath& path,
-    loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
-    const base::Closure& done_callback) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
-  DCHECK(screen_shot_writer_);
-
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
-  if (!render_tree) {
-    LOG(WARNING) << "Unable to get animated render tree";
-    done_callback.Run();
-    return;
+void BrowserModule::RequestScreenshotToFile(const FilePath& path,
+                                            const base::Closure& done_cb) {
+  if (screen_shot_writer_) {
+    screen_shot_writer_->RequestScreenshot(path, done_cb);
   }
-
-  screen_shot_writer_->RequestScreenshotToFile(image_format, path, render_tree,
-                                               clip_rect, done_callback);
 }
 
-void BrowserModule::RequestScreenshotToMemory(
-    loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::optional<math::Rect>& clip_rect,
-    const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
-  DCHECK(screen_shot_writer_);
-
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
-  if (!render_tree) {
-    LOG(WARNING) << "Unable to get animated render tree";
-    screenshot_ready.Run(scoped_refptr<loader::image::EncodedStaticImage>());
-    return;
+void BrowserModule::RequestScreenshotToBuffer(
+    const ScreenShotWriter::PNGEncodeCompleteCallback&
+        encode_complete_callback) {
+  if (screen_shot_writer_) {
+    screen_shot_writer_->RequestScreenshotToMemory(encode_complete_callback);
   }
-
-  screen_shot_writer_->RequestScreenshotToMemory(image_format, render_tree,
-                                                 clip_rect, screenshot_ready);
 }
-#endif  // defined(ENABLE_SCREENSHOT)
-
+#endif
 
 void BrowserModule::ProcessRenderTreeSubmissionQueue() {
   TRACE_EVENT0("cobalt::browser",
@@ -662,6 +636,12 @@ void BrowserModule::OnRenderTreeProduced(
   }
   main_web_module_layer_->Submit(renderer_submission);
 
+#if defined(ENABLE_SCREENSHOT)
+  if (screen_shot_writer_) {
+    screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
+        layout_results.render_tree, layout_results.layout_time));
+  }
+#endif
   SubmitCurrentRenderTreeToRenderer();
 }
 
@@ -1316,6 +1296,15 @@ void BrowserModule::SuspendInternal(bool is_start) {
   // Flush out any submitted render trees pushed since we started shutting down
   // the web modules above.
   render_tree_submission_queue_.ProcessAll();
+
+#if defined(ENABLE_SCREENSHOT)
+  // The screenshot writer may be holding on to a reference to a render tree
+  // which could in turn be referencing resources like images, so clear that
+  // out.
+  if (screen_shot_writer_) {
+    screen_shot_writer_->ClearLastPipelineSubmission();
+  }
+#endif
 
   // Clear out the render tree combiner so that it doesn't hold on to any
   // render tree resources either.

@@ -525,13 +525,9 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
   return error_event->default_prevented();
 }
 
-void Window::SetSynchronousLayoutCallback(const base::Closure& callback) {
-  document_->set_synchronous_layout_callback(callback);
-}
-
-void Window::SetSynchronousLayoutAndProduceRenderTreeCallback(
-    const SynchronousLayoutAndProduceRenderTreeCallback& callback) {
-  document_->set_synchronous_layout_and_produce_render_tree_callback(callback);
+void Window::SetSynchronousLayoutCallback(
+    const base::Closure& synchronous_layout_callback) {
+  document_->set_synchronous_layout_callback(synchronous_layout_callback);
 }
 
 void Window::SetSize(int width, int height, float device_pixel_ratio) {

@@ -24,7 +24,6 @@
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/window_id.h"
-#include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/server.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "cobalt/webdriver/util/command_result.h"
@@ -138,6 +137,22 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
     }
   }
   return element_driver;
+}
+
+// Helper struct for getting a PNG screenshot synchronously.
+struct ScreenshotResultContext {
+  ScreenshotResultContext() : num_bytes(0), complete_event(true, false) {}
+  scoped_array<uint8> png_data;
+  size_t num_bytes;
+  base::WaitableEvent complete_event;
+};
+
+// Callback function to be called when PNG encoding is complete.
+void OnPNGEncodeComplete(ScreenshotResultContext* context,
+                         scoped_array<uint8> png_data, size_t num_bytes) {
+  context->png_data = png_data.Pass();
+  context->num_bytes = num_bytes;
+  context->complete_event.Signal();
 }
 
 }  // namespace
@@ -349,21 +364,18 @@ WebDriverModule::WebDriverModule(
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/name", kSessionIdVariable,
-                   kElementId),
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/name",
+                                          kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetTagName)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/text", kSessionIdVariable,
-                   kElementId),
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/text",
+                                          kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetText)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/displayed", kSessionIdVariable,
-                   kElementId),
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/displayed",
+                                          kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::IsDisplayed)));
   webdriver_dispatcher_->RegisterCommand(
@@ -372,15 +384,13 @@ WebDriverModule::WebDriverModule(
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::SendKeys)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/element", kSessionIdVariable,
-                   kElementId),
+      WebDriverServer::kPost, StringPrintf("/session/%s/element/%s/element",
+                                           kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElement)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kPost,
-      StringPrintf("/session/%s/element/%s/elements", kSessionIdVariable,
-                   kElementId),
+      WebDriverServer::kPost, StringPrintf("/session/%s/element/%s/elements",
+                                           kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElements)));
   webdriver_dispatcher_->RegisterCommand(
@@ -404,12 +414,7 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/element/%s/css/%s", kSessionIdVariable,
                    kElementId, kCssPropertyName),
       base::Bind(&WebDriverModule::GetCssProperty, base::Unretained(this)));
-  webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet,
-      StringPrintf("/session/%s/element/%s/screenshot", kSessionIdVariable,
-                   kElementId),
-      base::Bind(&WebDriverModule::RequestElementScreenshot,
-                 base::Unretained(this)));
+
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
       StringPrintf("/session/%s/timeouts", kSessionIdVariable),
@@ -563,9 +568,7 @@ void WebDriverModule::RequestScreenshot(
   if (session_driver) {
     typedef util::CommandResult<std::string> CommandResult;
 
-    CommandResult result =
-        Screenshot::RequestScreenshot(get_screenshot_function_,
-                                      /*clip_rect=*/base::nullopt);
+    CommandResult result = RequestScreenshotInternal();
     util::internal::ReturnResponse(session_driver->session_id(), result,
                                    result_handler.get());
   }
@@ -658,28 +661,6 @@ void WebDriverModule::GetCssProperty(
   }
 }
 
-void WebDriverModule::RequestElementScreenshot(
-    const base::Value* parameters,
-    const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
-      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
-      path_variables, result_handler.get());
-  if (session_driver) {
-    ElementDriver* element_driver = LookUpElementDriverOrReturnInvalidResponse(
-        kElementId, session_driver, path_variables, result_handler.get());
-    if (element_driver) {
-      typedef util::CommandResult<std::string> CommandResult;
-      CommandResult result =
-          element_driver->RequestScreenshot(get_screenshot_function_);
-      util::internal::ReturnResponse(session_driver->session_id(), result,
-                                     result_handler.get());
-    }
-  }
-}
-
 void WebDriverModule::GetCookieByName(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -709,7 +690,8 @@ void WebDriverModule::IgnoreCommand(
     scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
   // TODO: Hook up and implement timeouts.
   return result_handler->SendResult(
-      protocol::SessionId(kWebDriverSessionId), protocol::Response::kSuccess,
+      protocol::SessionId(kWebDriverSessionId),
+      protocol::Response::kSuccess,
       make_scoped_ptr(base::Value::CreateNullValue()));
 }
 
@@ -752,6 +734,35 @@ WebDriverModule::CreateSessionInternal(
   }
 
   return session_->GetCapabilities();
+}
+
+util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
+  typedef util::CommandResult<std::string> CommandResult;
+
+  // Request the screenshot and wait for the PNG data.
+  ScreenshotResultContext context;
+  get_screenshot_function_.Run(
+      base::Bind(&OnPNGEncodeComplete, base::Unretained(&context)));
+  context.complete_event.Wait();
+
+  if (context.num_bytes == 0 || !context.png_data.get()) {
+    return CommandResult(protocol::Response::kUnknownError,
+                         "Failed to take screenshot.");
+  }
+
+  // Encode the PNG data as a base64 encoded string.
+  std::string encoded;
+  {
+    // base64 encode the contents of the file to be returned to the client.
+    if (!base::Base64Encode(
+            base::StringPiece(reinterpret_cast<char*>(context.png_data.get()),
+                              context.num_bytes),
+            &encoded)) {
+      return CommandResult(protocol::Response::kUnknownError,
+                           "Failed to base64 encode screenshot file contents.");
+    }
+  }
+  return CommandResult(encoded);
 }
 
 }  // namespace webdriver

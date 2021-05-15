@@ -24,7 +24,6 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/language.h"
@@ -216,9 +215,6 @@ class WebModule::Impl {
 
   void LogScriptError(const base::SourceLocation& source_location,
                       const std::string& error_message);
-
-  void DoSynchronousLayoutAndGetRenderTree(
-      scoped_refptr<render_tree::Node>* render_tree);
 
  private:
   class DocumentLoadedObserver;
@@ -779,16 +775,6 @@ void WebModule::Impl::OnPartialLayoutConsoleCommandReceived(
   window_->document()->SetPartialLayout(message);
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
-void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
-    scoped_refptr<render_tree::Node>* render_tree) {
-  TRACE_EVENT0("cobalt::browser",
-               "WebModule::Impl::DoSynchronousLayoutAndGetRenderTree()");
-  DCHECK(render_tree);
-  scoped_refptr<render_tree::Node> tree =
-      window_->document()->DoSynchronousLayoutAndGetRenderTree();
-  *render_tree = tree;
-}
 
 void WebModule::Impl::OnCspPolicyChanged() {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -1444,24 +1430,6 @@ void WebModule::Impl::HandlePointerEvents() {
       topmost_event_target_->MaybeSendPointerEvents(event);
     }
   } while (event && !layout_manager_->IsRenderTreePending());
-}
-
-scoped_refptr<render_tree::Node>
-WebModule::DoSynchronousLayoutAndGetRenderTree() {
-  TRACE_EVENT0("cobalt::browser",
-               "WebModule::DoSynchronousLayoutAndGetRenderTree()");
-  DCHECK(message_loop());
-  DCHECK(impl_);
-  scoped_refptr<render_tree::Node> render_tree;
-  if (MessageLoop::current() != message_loop()) {
-    message_loop()->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&WebModule::Impl::DoSynchronousLayoutAndGetRenderTree,
-                   base::Unretained(impl_.get()), &render_tree));
-  } else {
-    impl_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
-  }
-  return render_tree;
 }
 
 }  // namespace browser
