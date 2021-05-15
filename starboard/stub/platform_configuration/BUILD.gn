@@ -72,11 +72,6 @@ config("platform_configuration") {
       "-Wno-sign-conversion",
       "-fno-strict-aliasing",  # See http://crbug.com/32204
 
-      # TODO(pkasting): In C++11 this is legal, so this should be
-      # removed when we change to that.  (This is also why we don"t
-      # bother fixing all these cases today.)
-      "-Wno-unnamed-type-template-args",
-
       # Triggered by the COMPILE_ASSERT macro.
       "-Wno-unused-local-typedef",
 
@@ -89,7 +84,8 @@ config("platform_configuration") {
     ]
   }
 
-  defines = [ "__STDC_FORMAT_MACROS" ]  # so that we get PRI*
+  # Defined to get format macro constants from <inttypes.h>.
+  defines = [ "__STDC_FORMAT_MACROS" ]
 
   if (sb_pedantic_warnings) {
     cflags += [
