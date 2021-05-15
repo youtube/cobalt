@@ -653,7 +653,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         GetWebDriverPort(), GetWebDriverListenIp(),
         base::Bind(&BrowserModule::CreateSessionDriver,
                    base::Unretained(browser_module_.get())),
-        base::Bind(&BrowserModule::RequestScreenshotToBuffer,
+        base::Bind(&BrowserModule::RequestScreenshotToMemory,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::SetProxy,
                    base::Unretained(browser_module_.get())),

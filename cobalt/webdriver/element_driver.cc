@@ -23,6 +23,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/webdriver/algorithms.h"
 #include "cobalt/webdriver/keyboard.h"
+#include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/search.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
@@ -61,6 +62,13 @@ std::string GetCssProperty(const std::string& property_name,
     }
   }
   return "";
+}
+
+math::Rect GetBoundingRect(dom::Element* element) {
+  scoped_refptr<dom::DOMRect> bounding_rect = element->GetBoundingClientRect();
+  return math::Rect::RoundFromRectF(
+      math::RectF(bounding_rect->x(), bounding_rect->y(),
+                  bounding_rect->width(), bounding_rect->height()));
 }
 
 }  // namespace
@@ -169,6 +177,15 @@ util::CommandResult<std::string> ElementDriver::GetCssProperty(
       protocol::Response::kStaleElementReference);
 }
 
+util::CommandResult<std::string> ElementDriver::RequestScreenshot(
+    Screenshot::GetScreenshotFunction get_screenshot_function) {
+  return util::CallOnMessageLoop(
+      element_message_loop_,
+      base::Bind(&ElementDriver::RequestScreenshotInternal,
+                 base::Unretained(this), get_screenshot_function),
+      protocol::Response::kStaleElementReference);
+}
+
 dom::Element* ElementDriver::GetWeakElement() {
   DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
   return element_.get();
@@ -269,6 +286,17 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
                               base::Tokens::pointerup(), event);
 
   return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
+    Screenshot::GetScreenshotFunction get_screenshot_function) {
+  typedef util::CommandResult<std::string> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  if (!element_) {
+    return CommandResult(protocol::Response::kStaleElementReference);
+  }
+  return Screenshot::RequestScreenshot(get_screenshot_function,
+                                       GetBoundingRect(element_.get()));
 }
 
 // Shared logic between FindElement and FindElements.

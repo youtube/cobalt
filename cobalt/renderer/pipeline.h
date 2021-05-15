@@ -25,6 +25,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/base/c_val_collection_timer_stats.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -90,8 +91,10 @@ class Pipeline {
   // |render_tree_submission| will be rasterized into a new offscreen surface.
   // The RGBA pixel data will be extracted from this surface, and |complete|
   // will be called with the pixel data and the dimensions of the image.
-  void RasterizeToRGBAPixels(const Submission& render_tree_submission,
-                             const RasterizationCompleteCallback& complete);
+  void RasterizeToRGBAPixels(
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const base::optional<math::Rect>& clip_rect,
+      const RasterizationCompleteCallback& complete);
 
   // Inserts a fence that ensures the rasterizer rasterizes up until the
   // submission time proceeding queuing additional submissions.  This is useful
