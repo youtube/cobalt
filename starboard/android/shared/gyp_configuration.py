@@ -293,6 +293,9 @@ class AndroidConfiguration(PlatformConfiguration):
           # Android currently does not support multi-video playback, which
           # the following tests depend upon.
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
+
+          # The video pipeline will hang if it doesn't receive any input.
+          'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
       ],
       'nplb': [
           # This test is failing because localhost is not defined for IPv6 in

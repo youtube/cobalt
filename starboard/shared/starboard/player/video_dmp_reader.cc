@@ -291,6 +291,14 @@ void VideoDmpReader::Parse() {
   dmp_info_.video_access_units_size = video_access_units_.size();
   dmp_info_.video_bitrate = CalculateAverageBitrate(video_access_units_);
 
+  // Guestimate the audio duration.
+  if (audio_access_units_.size() > 1) {
+    auto frame_duration =
+        audio_access_units_[audio_access_units_.size() - 1].timestamp() -
+        audio_access_units_[audio_access_units_.size() - 2].timestamp();
+    dmp_info_.audio_duration =
+        audio_access_units_.back().timestamp() + frame_duration;
+  }
   // Guestimate the video fps.
   if (video_access_units_.size() > 1) {
     SbTime first_timestamp = video_access_units_.front().timestamp();
@@ -302,7 +310,20 @@ void VideoDmpReader::Parse() {
       }
     }
     SB_DCHECK(first_timestamp < second_timestamp);
-    dmp_info_.video_fps = kSbTimeSecond / (second_timestamp - first_timestamp);
+    SbTime frame_duration = second_timestamp - first_timestamp;
+    dmp_info_.video_fps = kSbTimeSecond / frame_duration;
+
+    SbTime last_frame_timestamp = video_access_units_.back().timestamp();
+    for (auto it = video_access_units_.rbegin();
+         it != video_access_units_.rend(); it++) {
+      if (it->timestamp() > last_frame_timestamp) {
+        last_frame_timestamp = it->timestamp();
+      }
+      if (it->video_sample_info().is_key_frame) {
+        break;
+      }
+    }
+    dmp_info_.video_duration = last_frame_timestamp + frame_duration;
   }
 }
 
