@@ -46,7 +46,7 @@ function run_test() {
   OLD_TIMEOUT="${TIMEOUT}"
   TIMEOUT=300
 
-  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, log "error" code is 12"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, log \"error\" code is 12"
 
   # Remove the symbolic link.
   run_command "rm -f ${STORAGE_DIR}" 1> /dev/null
