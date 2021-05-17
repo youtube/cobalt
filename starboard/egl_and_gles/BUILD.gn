@@ -29,3 +29,21 @@ group("egl_and_gles") {
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
 }
+
+declare_args() {
+  enable_d3d11_feature_level_11 = false
+}
+
+config("egl_and_gles_angle_config") {
+  include_dirs = [ "//third_party/angle/include" ]
+  if (is_win && enable_d3d11_feature_level_11) {
+    defines = [ "GL_GLEXT_PROTOTYPES" ]
+  }
+}
+
+if (gl_type == "angle") {
+  group("egl_and_gles_angle") {
+    deps = [ "//third_party/angle" ]
+    public_configs = [ ":egl_and_gles_angle_config" ]
+  }
+}
