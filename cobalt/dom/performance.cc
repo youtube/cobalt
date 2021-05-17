@@ -34,19 +34,7 @@ Performance::Performance(script::EnvironmentSettings* settings,
       resource_timing_buffer_full_event_pending_flag_(false),
       resource_timing_secondary_buffer_current_size_(0),
       performance_observer_task_queued_flag_(false),
-      add_to_performance_entry_buffer_flag_(false),
-      thread_("Performance") {
-  base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
-                                       cobalt::browser::kBaseStackSize);
-  thread_options.priority = thread_priority;
-  thread_.StartWithOptions(thread_options);
-  DCHECK(message_loop());
-}
-
-Performance::~Performance() {
-  DCHECK(message_loop());
-  thread_.Stop();
-}
+      add_to_performance_entry_buffer_flag_(false) {}
 
 DOMHighResTimeStamp Performance::Now() const {
   base::TimeDelta now = base::Time::Now() - base::Time::UnixEpoch();
@@ -79,7 +67,7 @@ DOMHighResTimeStamp Performance::time_origin() const {
 }
 
 void Performance::UnregisterPerformanceObserver(
-    PerformanceObserver* old_observer) {
+    const scoped_refptr<PerformanceObserver>& old_observer) {
   auto iter = registered_performance_observers_.begin();
   while (iter != registered_performance_observers_.end()) {
     if (iter->observer == old_observer) {
@@ -91,15 +79,17 @@ void Performance::UnregisterPerformanceObserver(
 }
 
 void Performance::RegisterPerformanceObserver(
-    PerformanceObserver* observer, const PerformanceObserverInit& options) {
+    const scoped_refptr<PerformanceObserver>& observer,
+    const PerformanceObserverInit& options) {
   std::list<PerformanceObserverInit> options_list;
   options_list.push_back(options);
-  registered_performance_observers_.emplace_back(base::WrapRefCounted(observer),
+  registered_performance_observers_.emplace_back(observer,
                                                  options_list);
 }
 
 void Performance::ReplaceRegisteredPerformanceObserverOptionsList(
-    PerformanceObserver* observer, const PerformanceObserverInit& options) {
+    const scoped_refptr<PerformanceObserver>& observer,
+    const PerformanceObserverInit& options) {
   auto iter = registered_performance_observers_.begin();
   while (iter != registered_performance_observers_.end()) {
     if (iter->observer == observer) {
@@ -111,7 +101,8 @@ void Performance::ReplaceRegisteredPerformanceObserverOptionsList(
 }
 
 void Performance::UpdateRegisteredPerformanceObserverOptionsList(
-    PerformanceObserver* observer, const PerformanceObserverInit& options) {
+    const scoped_refptr<PerformanceObserver>& observer,
+    const PerformanceObserverInit& options) {
   auto iter = registered_performance_observers_.begin();
   while (iter != registered_performance_observers_.end()) {
     if (iter->observer == observer) {
@@ -280,10 +271,7 @@ void Performance::AddPerformanceResourceTimingEntry(
     resource_timing_buffer_full_event_pending_flag_ = true;
     // 3.2 Queue a task on the performance timeline task source to run fire
     // a buffer full event.
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Performance::FireResourceTimingBufferFullEvent,
-        base::Unretained(this)));
+    FireResourceTimingBufferFullEvent();
   }
   // 4. Add new entry to the resource timing secondary buffer.
   resource_timing_secondary_buffer_.push_back(resource_timing_entry);
@@ -339,10 +327,7 @@ void Performance::QueuePerformanceEntry(
   // 8. Queue a task that consists of running the following substeps.
   // The task source for the queued task is the performance timeline task
   // source.
-  DCHECK(message_loop());
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&Performance::QueuePerformanceTimelineTask,
-      base::Unretained(this)));
+  QueuePerformanceTimelineTask();
 }
 
 void Performance::QueuePerformanceTimelineTask() {
