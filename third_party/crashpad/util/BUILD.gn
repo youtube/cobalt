@@ -92,6 +92,7 @@ if (crashpad_is_mac) {
 }
 
 static_library("util") {
+  check_includes = false
   sources = [
     "file/delimited_file_reader.cc",
     "file/delimited_file_reader.h",
@@ -539,7 +540,7 @@ static_library("util") {
   if (crashpad_is_in_starboard) {
     public_deps += [ "//starboard:starboard_headers_only" ]
     configs += [ ":crashpad_starboard_config" ]
-    configs -= [ "//starboard/build/config:include_root" ]
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
   }
 
   configs += [ "..:disable_ubsan" ]
