@@ -165,6 +165,6 @@ static_library("base") {
 
   public_configs = [ ":base_public_config" ]
   if (is_starboard) {
-    configs -= [ "//starboard/build/config:include_root" ]
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
   }
 }
