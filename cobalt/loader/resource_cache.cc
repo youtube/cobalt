@@ -140,7 +140,9 @@ void CachedResourceBase::OnLoadingComplete(
     const base::Optional<std::string>& error) {
   DCHECK_CALLED_ON_VALID_THREAD(cached_resource_thread_checker_);
 
-  load_timing_info_ = loader_->get_load_timing_info();
+  if (loader_ != nullptr) {
+    load_timing_info_ = loader_->get_load_timing_info();
+  }
 
   // Success
   if (!error) {

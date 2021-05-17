@@ -85,6 +85,8 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
   DCHECK(!decoder_creator_.is_null());
   DCHECK(!on_load_complete_.is_null());
 
+  load_timing_info_ = net::LoadTimingInfo();
+
   std::unique_ptr<Decoder> decoder = decoder_creator_.Run(
       base::Bind(&Loader::LoadComplete, base::Unretained(this)));
   // We are doing this bizarre check because decoder_ used to be a scoped_ptr
