@@ -14,10 +14,7 @@
 
 config("platform_configuration") {
   # TODO(andrewsavage): Include //third_party/khronos only where necessary.
-  configs = [
-    "//starboard/build/config/sabi",
-    "//starboard/linux/x64x11/platform_configuration",
-  ]
+  configs = [ "//starboard/linux/x64x11/platform_configuration" ]
   libs = [
     "EGL",
     "GLESv2",
