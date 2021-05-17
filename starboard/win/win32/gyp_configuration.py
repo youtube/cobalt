@@ -127,6 +127,10 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/1',
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/2',
           'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/3',
+
+          # PlayerComponentsTests fail on our VMs. Preroll callback is always not called in
+          # 5 seconds, which causes timeout error.
+          'PlayerComponentsTests/*',
       ],
   }
 
