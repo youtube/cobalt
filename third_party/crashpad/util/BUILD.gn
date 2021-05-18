@@ -309,7 +309,7 @@ static_library("util") {
 
   deps = []
 
-  if (crashpad_is_linux || crashpad_is_fuchsia || crashpad_is_android) {
+  if (!crashpad_is_in_starboard && (crashpad_is_linux || crashpad_is_fuchsia || crashpad_is_android)) {
     sources += [ "net/http_transport_socket.cc" ]
     if (crashpad_use_boringssl_for_http_transport_socket) {
       defines += [ "CRASHPAD_USE_BORINGSSL" ]
