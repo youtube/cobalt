@@ -1,0 +1,10 @@
+template("test") {
+  executable(target_name) {
+    testonly = true
+    forward_variables_from(invoker, "*")
+  }
+}
+
+set_defaults("test") {
+  configs = default_compiler_configs
+}
