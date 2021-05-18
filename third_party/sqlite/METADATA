@@ -18,4 +18,5 @@ third_party {
     month: 5
     day: 19
   }
+  license_type: UNENCUMBERED
 }

@@ -19,4 +19,5 @@ third_party {
     month: 3
     day: 31
   }
+  license_type: NOTICE
 }

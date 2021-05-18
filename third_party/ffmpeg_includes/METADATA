@@ -24,4 +24,6 @@ third_party {
   # Note: "version" and "last_upgrade_date" for the version contained in each
   # sub-directory is unknown. The version specified in the sub-directory name
   # corresponds to the version of libavcodec, not the version of ffmpeg/libav.
+  license_type: RESTRICTED
+
 }
