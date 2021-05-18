@@ -12,5 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/linux/shared/enable_glx_via_angle.gni")
 import("//starboard/linux/shared/platform_configuration/configuration.gni")
