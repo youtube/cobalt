@@ -224,6 +224,12 @@ const char kDisableTimerResolutionLimitHelp[] =
     "removed and the resolution will be 1us (or larger depending on the "
     "platform.";
 
+const char kDisableUpdaterModule[] = "disable_updater_module";
+const char kDisableUpdaterModuleHelp[] =
+    "Disables the Cobalt Evergreen UpdaterModule which is responsible for "
+    "downloading and installing new Cobalt updates. Passing the flag is "
+    "equivalent to opting out from further updates.";
+
 const char kEncodedImageCacheSizeInBytes[] =
     "encoded_image_cache_size_in_bytes";
 const char kEncodedImageCacheSizeInBytesHelp[] =
@@ -455,6 +461,7 @@ std::string HelpMessage() {
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
+        {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
         {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},
