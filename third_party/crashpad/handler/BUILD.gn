@@ -88,6 +88,12 @@ static_library("handler") {
     "../tools:tool_support",
   ]
 
+  if (crashpad_is_in_starboard) {
+    sources += [ "../util/net/http_transport_socket.cc" ]
+    defines = [ "CRASHPAD_USE_BORINGSSL" ]
+    deps += [ "//third_party/boringssl:crypto_full" ]
+  }
+
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
   }
