@@ -2144,6 +2144,114 @@ https://cobalt.googlesource.com/cobalt.
       CompuServe Incorporated."
 
 
+  libjpeg-turbo
+
+  libjpeg-turbo Licenses libjpeg-turbo is covered by three compatible BSD-style
+  open source licenses:
+
+  The IJG (Independent JPEG Group) License, which is listed in README.ijg
+
+  This license applies to the libjpeg API library and associated programs (any
+  code inherited from libjpeg, and any modifications to that code.)
+
+  The Modified (3-clause) BSD License, which is listed below
+
+  This license covers the TurboJPEG API library and associated programs, as well
+  as the build system.
+
+  The zlib License
+
+  This license is a subset of the other two, and it covers the libjpeg-turbo
+  SIMD extensions.
+
+  Complying with the libjpeg-turbo Licenses This section provides a roll-up of
+  the libjpeg-turbo licensing terms, to the best of our understanding.
+
+  If you are distributing a modified version of the libjpeg-turbo source, then:
+
+  You cannot alter or remove any existing copyright or license notices from the
+  source.
+
+  Origin
+
+  Clause 1 of the IJG License Clause 1 of the Modified BSD License Clauses 1 and
+  3 of the zlib License You must add your own copyright notice to the header of
+  each source file you modified, so others can tell that you modified that file
+  (if there is not an existing copyright header in that file, then you can
+  simply add a notice stating that you modified the file.)
+
+  Origin
+
+  Clause 1 of the IJG License Clause 2 of the zlib License You must include the
+  IJG README file, and you must not alter any of the copyright or license text
+  in that file.
+
+  Origin
+
+  Clause 1 of the IJG License If you are distributing only libjpeg-turbo
+  binaries without the source, or if you are distributing an application that
+  statically links with libjpeg-turbo, then:
+
+  Your product documentation must include a message stating:
+
+  This software is based in part on the work of the Independent JPEG Group.
+
+  Origin
+
+  Clause 2 of the IJG license If your binary distribution includes or uses the
+  TurboJPEG API, then your product documentation must include the text of the
+  Modified BSD License (see below.)
+
+  Origin
+
+  Clause 2 of the Modified BSD License You cannot use the name of the IJG or The
+  libjpeg-turbo Project or the contributors thereof in advertising, publicity,
+  etc.
+
+  Origin
+
+  IJG License Clause 3 of the Modified BSD License The IJG and The libjpeg-turbo
+  Project do not warrant libjpeg-turbo to be free of defects, nor do we accept
+  any liability for undesirable consequences resulting from your use of the
+  software.
+
+  Origin
+
+  IJG License Modified BSD License zlib License The Modified (3-clause) BSD
+  License Copyright (C)2009-2021 D. R. Commander. All Rights Reserved.
+  Copyright (C)2015 Viktor Szathmáry. All Rights Reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.  Redistributions in binary
+  form must reproduce the above copyright notice, this list of conditions and
+  the following disclaimer in the documentation and/or other materials provided
+  with the distribution.  Neither the name of the libjpeg-turbo Project nor the
+  names of its contributors may be used to endorse or promote products derived
+  from this software without specific prior written permission.  THIS SOFTWARE
+  IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS", AND ANY EXPRESS
+  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+  EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+  Why Three Licenses?  The zlib License could have been used instead of the
+  Modified (3-clause) BSD License, and since the IJG License effectively
+  subsumes the distribution conditions of the zlib License, this would have
+  effectively placed libjpeg-turbo binary distributions under the IJG License.
+  However, the IJG License specifically refers to the Independent JPEG Group and
+  does not extend attribution and endorsement protections to other entities.
+  Thus, it was desirable to choose a license that granted us the same
+  protections for new code that were granted to the IJG for code derived from
+  their software.
+
 
   libpng
 
@@ -5493,3 +5601,73 @@ https://cobalt.googlesource.com/cobalt.
   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+  libwebp
+
+  Copyright (c) 2010, Google Inc. All rights reserved.  Redistribution and use
+  in source and binary forms, with or without modification, are permitted
+  provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+    * Neither the name of Google nor the names of its contributors may be used
+      to endorse or promote products derived from this software without specific
+      prior written permission.
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+  HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+  AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  Additional IP Rights Grant (Patents) ------------------------------------
+  "These implementations" means the copyrightable works that implement the
+  WebM codecs distributed by Google as part of the WebM Project.  Google
+  hereby grants to you a perpetual, worldwide, non-exclusive, no-charge,
+  royalty-free, irrevocable (except as stated in this section) patent
+  license to make, have made, use, offer to sell, sell, import, transfer,
+  and otherwise run, modify and propagate the contents of these
+  implementations of WebM, where such license applies only to those patent
+  claims, both currently owned by Google and acquired in the future,
+  licensable by Google that are necessarily infringed by these
+  implementations of WebM. This grant does not include claims that would be
+  infringed only as a consequence of further modification of these
+  implementations. If you or your agent or exclusive licensee institute or
+  order or agree to the institution of patent litigation or any other patent
+  enforcement activity against any entity (including a cross-claim or
+  counterclaim in a lawsuit) alleging that any of these implementations of
+  WebM or any code incorporated within any of these implementations of WebM
+  constitute direct or contributory patent infringement, or inducement of
+  patent infringement, then any patent rights granted to you under this
+  License for these implementations of WebM shall terminate as of the date
+  such litigation is filed.
+
+  QR-Code-generator
+
+  Copyright © 2020 Project Nayuki. (MIT License)
+  https://www.nayuki.io/page/qr-code-generator-library
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  The Software is provided "as is", without warranty of any kind, express or
+  implied, including but not limited to the warranties of merchantability,
+  fitness for a particular purpose and noninfringement. In no event shall the
+  authors or copyright holders be liable for any claim, damages or other
+  liability, whether in an action of contract, tort or otherwise, arising from,
+  out of or in connection with the Software or the use or other dealings in the
+  Software.
