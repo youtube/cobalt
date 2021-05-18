@@ -840,7 +840,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   AddCrashHandlerAnnotations();
 
 #if SB_IS(EVERGREEN)
-  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
+      !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
     updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
   }
 #endif

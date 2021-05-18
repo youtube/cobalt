@@ -100,6 +100,8 @@ extern const char kDisableMapToMesh[];
 extern const char kDisableMapToMeshHelp[];
 extern const char kDisableTimerResolutionLimit[];
 extern const char kDisableTimerResolutionLimitHelp[];
+extern const char kDisableUpdaterModule[];
+extern const char kDisableUpdaterModuleHelp[];
 extern const char kEncodedImageCacheSizeInBytes[];
 extern const char kEncodedImageCacheSizeInBytesHelp[];
 extern const char kForceMigrationForStoragePartitioning[];
