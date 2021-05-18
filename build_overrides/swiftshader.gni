@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import(
-    "//starboard/linux/x64x11/shared/platform_configuration/configuration.gni")
+# We are building SwiftShader in ANGLE
+swiftshader_standalone = false
 
-gl_type = "system_gles2"
+# Path to SwiftShader
+swiftshader_dir = "//third_party/SwiftShader"
+
+# Paths to SwiftShader dependencies
+swiftshader_spirv_tools_dir = "//third_party/spirv-tools/src"

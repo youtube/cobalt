@@ -23,4 +23,8 @@ source_set("libXNVCtrl") {
     ":libXNVCtrl_config",
     "//build/config/linux:x11",
   ]
+
+  if (is_starboard) {
+    configs -= [ "//build/config/linux:x11" ]
+  }
 }

@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import(
-    "//starboard/linux/x64x11/shared/platform_configuration/configuration.gni")
+angle_has_build = true
+angle_root = "//third_party/angle"
 
-gl_type = "system_gles2"
+# Overrides for ANGLE's dependencies
+angle_glslang_dir = ""
+angle_googletest_dir = "//testing/gtest"
+angle_libjpeg_turbo_dir = ""
+angle_jsoncpp_dir = ""
+angle_libpng_dir = ""
+angle_spirv_cross_dir = ""
+angle_spirv_tools_dir = ""

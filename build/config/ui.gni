@@ -25,7 +25,8 @@ declare_args() {
   # Indicates if Ozone is enabled. Ozone is a low-level library layer for Linux
   # that does not require X11.
   use_ozone =
-      is_chromeos || (is_chromecast && !is_android) || is_fuchsia || is_linux
+      is_chromeos || (is_chromecast && !is_android) || is_fuchsia ||
+      is_linux && !is_starboard
 
   # Indicates if the UI toolkit depends on X11.
   # Enabled by default. Can be disabled if Ozone only build is required and

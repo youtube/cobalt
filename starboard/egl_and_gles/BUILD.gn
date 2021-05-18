@@ -43,7 +43,10 @@ config("egl_and_gles_angle_config") {
 
 if (gl_type == "angle") {
   group("egl_and_gles_angle") {
-    deps = [ "//third_party/angle" ]
+    deps = [
+      "//third_party/angle:libEGL",
+      "//third_party/angle:libGLESv2",
+    ]
     public_configs = [ ":egl_and_gles_angle_config" ]
   }
 }
