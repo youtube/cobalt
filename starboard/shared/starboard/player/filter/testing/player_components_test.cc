@@ -630,7 +630,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
     VideoDmpReader audio_dmp_reader(ResolveTestFileName(*iter).c_str(),
                                     VideoDmpReader::kEnableReadOnDemand);
     if (audio_dmp_reader.audio_duration() < 5 * kSbTimeSecond) {
-      audio_files.erase(iter);
+      iter = audio_files.erase(iter);
     } else {
       iter++;
     }
@@ -640,7 +640,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
         ResolveTestFileName(std::get<0>(*iter)).c_str(),
         VideoDmpReader::kEnableReadOnDemand);
     if (video_dmp_reader.video_duration() < 5 * kSbTimeSecond) {
-      video_params.erase(iter);
+      iter = video_params.erase(iter);
     } else {
       iter++;
     }
