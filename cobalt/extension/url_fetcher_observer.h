@@ -21,6 +21,9 @@
 extern "C" {
 #endif
 
+#define URL_FETCHER_OBSERVER_MAX_URL_SIZE 128
+#define URL_FETCHER_COMMAND_LINE_SWITCH "url_fetcher_observer"
+
 #define kCobaltExtensionUrlFetcherObserverName \
   "dev.cobalt.extension.UrlFetcherObserver"
 
