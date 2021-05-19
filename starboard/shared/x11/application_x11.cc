@@ -35,6 +35,7 @@
 #include "starboard/key.h"
 #include "starboard/memory.h"
 #include "starboard/player.h"
+#include "starboard/shared/linux/system_network_status.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -707,6 +708,7 @@ ApplicationX11::ApplicationX11()
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   SbAudioSinkPrivate::Initialize();
+  NetworkNotifier::GetOrCreateInstance();
 }
 
 ApplicationX11::~ApplicationX11() {
