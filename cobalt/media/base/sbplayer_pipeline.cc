@@ -57,6 +57,8 @@ namespace {
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
+unsigned int g_pipeline_identifier_counter = 0;
+
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
@@ -325,7 +327,8 @@ SbPlayerPipeline::SbPlayerPipeline(
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider)
-    : pipeline_identifier_(base::StringPrintf("%p", this)),
+    : pipeline_identifier_(base::StringPrintf("%X",
+                           g_pipeline_identifier_counter++)),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       window_(window),

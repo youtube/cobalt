@@ -83,7 +83,9 @@ class AdditionalKeys():
   MEDIA_NEXT_TRACK = u'\uf000'
   MEDIA_PREV_TRACK = u'\uf001'
   MEDIA_STOP = u'\uf002'
-  MEDIA_PLAYPAUSE = u'\uf003'
+  MEDIA_PLAY_PAUSE = u'\uf003'
+  MEDIA_REWIND = u'\uf004'
+  MEDIA_FAST_FORWARD = u'\uf005'
 
 
 class Features(enum.Enum):
@@ -658,7 +660,10 @@ class TestApp():
     return js_code
 
   # The first input of |state_lambda| is an instance of TestApp.
-  def WaitUntilReachState(self, state_lambda, timeout=WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS):
+  def WaitUntilReachState(
+      self,
+      state_lambda,
+      timeout=WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS):
     start_time = time.time()
     while not state_lambda(self) and time.time() - start_time < timeout:
       time.sleep(WAIT_INTERVAL_SECONDS)
@@ -667,11 +672,20 @@ class TestApp():
       raise RuntimeError('WaitUntilReachState timed out after (%f) seconds.' %
                          (execute_interval))
 
-  def WaitUntilPlayerStart(self,
-                           timeout=WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS
-                          ):
+  def WaitUntilPlayerStart(
+      self, timeout=WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS):
     self.WaitUntilReachState(
         lambda _app: _app.player_state_handler.IsPlayerPlaying(), timeout)
+
+  def WaitUntilPlayerDestroyed(
+    self, timeout=WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS):
+    current_identifier = self.PlayerState().pipeline_state.identifier
+    if not current_identifier or len(current_identifier) == 0:
+      raise RuntimeError('No existing player when calling'
+        'WaitUntilPlayerDestroyed.')
+    self.WaitUntilReachState(
+        lambda _app: _app.PlayerState().pipeline_state.identifier !=
+        current_identifier, timeout)
 
   # TODO: Need to verify if it works without corp network.
   # TODO: Needs to recognize and skip survery.
@@ -730,15 +744,29 @@ class TestApp():
     if start_media_time > media_time:
       return
 
-    # Wait until playback starts, otherwise playback rate could be 0.
+    # Wait until playback starts.
     self.WaitUntilReachState(
-        lambda _app: _app.CurrentMediaTime() > start_media_time, timeout)
+        lambda _app: _app.PlayerState().pipeline_state.playback_rate > 0,
+        timeout)
 
+    duration = self.PlayerState().video_element_state.duration
+    if media_time > duration:
+      logging.info(
+          'Requested media time (%f) is greater than the duration (%f)',
+          media_time, duration)
+      media_time = duration
+
+    time_to_play = max(media_time - self.CurrentMediaTime(), 0)
     playback_rate = self.PlayerState().pipeline_state.playback_rate
-    if playback_rate == 0:
-      raise NotImplementedError
-
-    adjusted_timeout = (media_time -
-                        self.CurrentMediaTime()) / playback_rate + timeout
+    adjusted_timeout = time_to_play / playback_rate + timeout
     self.WaitUntilReachState(lambda _app: _app.CurrentMediaTime() > media_time,
                              adjusted_timeout)
+
+  def IsMediaTypeSupported(self, mime):
+    try:
+      result = self.runner.webdriver.execute_script(
+          'return MediaSource.isTypeSupported("%s")' % (mime))
+    except Exception as e:
+      raise RuntimeError('Media type supported query failed with error (%s)' %
+                         (str(e)))
+    return result
