@@ -322,8 +322,10 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
   void InjectOsNetworkDisconnectedEvent();
   void InjectOsNetworkConnectedEvent();
+#endif
 
   // Inject a window size change event.
   //
