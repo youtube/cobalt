@@ -189,6 +189,7 @@ void Application::InjectLowMemoryEvent() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
 }
 
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
 void Application::InjectOsNetworkDisconnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
 }
@@ -196,6 +197,7 @@ void Application::InjectOsNetworkDisconnectedEvent() {
 void Application::InjectOsNetworkConnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
 }
+#endif
 
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {

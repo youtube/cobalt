@@ -708,7 +708,9 @@ ApplicationX11::ApplicationX11()
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   SbAudioSinkPrivate::Initialize();
+#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
   NetworkNotifier::GetOrCreateInstance();
+#endif
 }
 
 ApplicationX11::~ApplicationX11() {

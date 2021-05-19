@@ -20,8 +20,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include <unistd.h>
-
 #if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
 
 namespace starboard {
