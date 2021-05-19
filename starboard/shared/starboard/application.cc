@@ -189,14 +189,6 @@ void Application::InjectLowMemoryEvent() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
 }
 
-void Application::InjectOsNetworkDisconnectedEvent() {
-  Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
-}
-
-void Application::InjectOsNetworkConnectedEvent() {
-  Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
-}
-
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
