@@ -322,9 +322,6 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
-  void InjectOsNetworkDisconnectedEvent();
-  void InjectOsNetworkConnectedEvent();
-
   // Inject a window size change event.
   //
   // |context|: A context value to pass to |callback| on event completion. Must
