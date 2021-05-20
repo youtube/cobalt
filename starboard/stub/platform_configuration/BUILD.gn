@@ -63,7 +63,6 @@ config("platform_configuration") {
 
       # protobuf uses hash_map.
       "-Wno-deprecated",
-      "-fno-exceptions",
 
       # Don"t warn about the "struct foo f = {0};" initialization pattern.
       "-Wno-missing-field-initializers",
