@@ -202,7 +202,7 @@ services:
     image: cobalt-build-raspi
     environment:
       <<: *shared-build-env
-      PLATFORM:
+      PLATFORM: ${PLATFORM:-raspi-2}
       CONFIG: ${CONFIG:-debug}
 
   # Define common build container for Evergreen
