@@ -29,4 +29,8 @@ platforms = [
     name = "linux-x64x11-egl"
     path = "starboard/linux/x64x11/egl"
   },
+  {
+    name = "linux-x64x11-internal"
+    path = "starboard/linux/x64x11/internal"
+  },
 ]
