@@ -240,17 +240,42 @@ void UpdaterModule::Update() {
       base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }
 
+// The following methods are called by other threads than the updater_thread_.
+
 void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
-  updater_configurator_->CompareAndSwapChannelChanged(old_value, new_value);
+  auto config = updater_configurator_;
+  if (config)
+    config->CompareAndSwapChannelChanged(old_value, new_value);
 }
 
-// The following three methods all called by the main web module thread.
 std::string UpdaterModule::GetUpdaterChannel() const {
-  return updater_configurator_->GetChannel();
+  auto config = updater_configurator_;
+  if (!config)
+    return "";
+
+  return config->GetChannel();
 }
 
 void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
-  updater_configurator_->SetChannel(updater_channel);
+  auto config = updater_configurator_;
+  if (config)
+    config->SetChannel(updater_channel);
+}
+
+bool UpdaterModule::IsChannelValid(const std::string& channel) {
+  auto config = updater_configurator_;
+  if (!config)
+    return false;
+
+  return config->IsChannelValid(channel);
+}
+
+std::string UpdaterModule::GetUpdaterStatus() const {
+  auto config = updater_configurator_;
+  if (!config)
+    return "";
+
+  return config->GetUpdaterStatus();
 }
 
 void UpdaterModule::RunUpdateCheck() {
