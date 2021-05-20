@@ -137,6 +137,7 @@ URLFetcherCore::URLFetcherCore(
       total_response_bytes_(-1),
       traffic_annotation_(traffic_annotation) {
   CHECK(original_url_.is_valid());
+  DCHECK(delegate_);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   const CobaltExtensionUrlFetcherObserverApi* observer_extension =
@@ -1121,8 +1122,10 @@ void URLFetcherCore::AssertHasNoUploadData() const {
 #if defined(STARBOARD)
 void URLFetcherCore::GetLoadTimingInfo(
     const net::LoadTimingInfo& timing_info) {
-  DCHECK(delegate_);
-  delegate_->ReportLoadTimingInfo(timing_info);
+  // Check if the URLFetcherCore has been stopped before.
+  if (delegate_) {
+    delegate_->ReportLoadTimingInfo(timing_info);
+  }
 }
 #endif  // defined(STARBOARD)
 
