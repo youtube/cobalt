@@ -252,6 +252,10 @@ template("angle_shared_library") {
       configs += [ angle_root + ":build_id_config" ]
       configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
     }
+
+    if (is_starboard) {
+      install_target = true
+    }
   }
 }
 

@@ -349,7 +349,7 @@ bool StabilizeCPUForBenchmarking()
             "default priority");
         success = false;
     }
-#    if ANGLE_PLATFORM_LINUX
+#    if defined(ANGLE_PLATFORM_LINUX)
     cpu_set_t affinity;
     CPU_SET(0, &affinity);
     errno = 0;
