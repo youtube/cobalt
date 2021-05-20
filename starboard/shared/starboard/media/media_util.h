@@ -58,6 +58,7 @@ bool IsSDRVideo(int bit_depth,
                 SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,
                 SbMediaMatrixId matrix_id);
+bool IsSDRVideo(const char* mime);
 
 // Turns |eotf| into value of SbMediaTransferId.  If |eotf| isn't recognized the
 // function returns kSbMediaTransferIdReserved0.
