@@ -221,7 +221,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   if (audio_specific_config_size > 0) {
     audio_specific_config_storage.resize(audio_specific_config_size);
     memcpy(audio_specific_config_storage.data(), audio_specific_config,
-                 audio_specific_config_size);
+           audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
@@ -308,6 +308,51 @@ bool IsSDRVideo(int bit_depth,
   }
 
   return true;
+}
+
+bool IsSDRVideo(const char* mime) {
+  SB_DCHECK(mime);
+
+  if (!mime) {
+    SB_LOG(WARNING) << mime << " is empty, assuming sdr video.";
+    return true;
+  }
+
+  MimeType mime_type(mime);
+  if (!mime_type.is_valid()) {
+    SB_LOG(WARNING) << mime << " is not a valid mime type, assuming sdr video.";
+    return true;
+  }
+  const std::vector<std::string> codecs = mime_type.GetCodecs();
+  if (codecs.empty()) {
+    SB_LOG(WARNING) << mime << " contains no codecs, assuming sdr video.";
+    return true;
+  }
+  if (codecs.size() > 1) {
+    SB_LOG(WARNING) << mime
+                    << " contains more than one codecs, assuming sdr video.";
+    return true;
+  }
+
+  SbMediaVideoCodec video_codec;
+  int profile = -1;
+  int level = -1;
+  int bit_depth = 8;
+  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
+  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
+  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
+
+  if (!ParseVideoCodec(codecs[0].c_str(), &video_codec, &profile, &level,
+                       &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
+    SB_LOG(WARNING) << "ParseVideoCodec() failed on mime: " << mime
+                    << ", assuming sdr video.";
+    return true;
+  }
+
+  SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
+  // TODO: Consider to consolidate the two IsSDRVideo() implementations by
+  //       calling IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id).
+  return bit_depth == 8;
 }
 
 SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
@@ -459,8 +504,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
          left.samples_per_second != right.samples_per_second ||
          left.number_of_channels != right.number_of_channels ||
          left.audio_specific_config_size != right.audio_specific_config_size ||
-         memcmp(left.audio_specific_config,
-                right.audio_specific_config,
+         memcmp(left.audio_specific_config, right.audio_specific_config,
                 left.audio_specific_config_size) != 0;
 }
 
@@ -471,8 +515,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
 
 bool operator==(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2) {
-  return memcmp(&metadata_1, &metadata_2,
-                sizeof(SbMediaColorMetadata)) == 0;
+  return memcmp(&metadata_1, &metadata_2, sizeof(SbMediaColorMetadata)) == 0;
 }
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
@@ -489,7 +532,7 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
     return false;
   }
   if (strcmp(sample_info_1.max_video_capabilities,
-                         sample_info_2.max_video_capabilities) != 0) {
+             sample_info_2.max_video_capabilities) != 0) {
     return false;
   }
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

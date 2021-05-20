@@ -38,8 +38,7 @@ bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
   if (annex_b_data_size < sizeof(kAnnexBHeader)) {
     return false;
   }
-  return memcmp(annex_b_data, kAnnexBHeader, sizeof(kAnnexBHeader)) ==
-         0;
+  return memcmp(annex_b_data, kAnnexBHeader, sizeof(kAnnexBHeader)) == 0;
 }
 
 // UInt8Type can be "uint8_t", or "const uint8_t".
@@ -125,6 +124,26 @@ AvcParameterSets::AvcParameterSets(Format format,
       << "AVC parameter set NALUs not found.";
 }
 
+std::vector<uint8_t> AvcParameterSets::GetAllSpses() const {
+  std::vector<uint8_t> result;
+  for (const auto& parameter_set : parameter_sets_) {
+    if (parameter_set[4] == kSpsStartCode) {
+      result.insert(result.end(), parameter_set.begin(), parameter_set.end());
+    }
+  }
+  return result;
+}
+
+std::vector<uint8_t> AvcParameterSets::GetAllPpses() const {
+  std::vector<uint8_t> result;
+  for (const auto& parameter_set : parameter_sets_) {
+    if (parameter_set[4] == kPpsStartCode) {
+      result.insert(result.end(), parameter_set.begin(), parameter_set.end());
+    }
+  }
+  return result;
+}
+
 AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
   if (format_ == new_format) {
     return *this;
@@ -204,7 +223,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
     avcc_destination[2] = static_cast<uint8_t>((payload_size & 0xff00) >> 8);
     avcc_destination[3] = static_cast<uint8_t>(payload_size & 0xff);
     memcpy(avcc_destination + kAvccLengthInBytes,
-                 last_source + kAnnexBHeaderSizeInBytes, payload_size);
+           last_source + kAnnexBHeaderSizeInBytes, payload_size);
     avcc_destination += annex_b_source - last_source;
     last_source = annex_b_source;
   }

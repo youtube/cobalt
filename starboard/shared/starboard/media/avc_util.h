@@ -83,6 +83,9 @@ class AvcParameterSets {
   }
   size_t combined_size_in_bytes() const { return combined_size_in_bytes_; }
 
+  std::vector<uint8_t> GetAllSpses() const;
+  std::vector<uint8_t> GetAllPpses() const;
+
   AvcParameterSets ConvertTo(Format new_format) const;
 
   bool operator==(const AvcParameterSets& that) const;
