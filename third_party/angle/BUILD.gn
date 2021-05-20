@@ -105,10 +105,12 @@ config("internal_config") {
 
   defines = []
 
-  if (angle_64bit_current_cpu) {
-    defines += [ "ANGLE_IS_64_BIT_CPU" ]
-  } else {
-    defines += [ "ANGLE_IS_32_BIT_CPU" ]
+  if (!is_starboard) {
+    if (angle_64bit_current_cpu) {
+      defines += [ "ANGLE_IS_64_BIT_CPU" ]
+    } else {
+      defines += [ "ANGLE_IS_32_BIT_CPU" ]
+    }
   }
 
   if (angle_enable_trace) {
@@ -1029,6 +1031,10 @@ angle_static_library("libEGL") {
   data_deps = [
     ":libGLESv2",
   ]
+
+  if (is_starboard) {
+    deps -= [ ":libEGL_egl_loader" ]
+  }
 }
 
 angle_static_library("libEGL_static") {

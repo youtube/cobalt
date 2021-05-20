@@ -19,10 +19,6 @@ config("compiler_flags") {
   defines = []
   ldflags = []
 
-  if (current_toolchain == host_toolchain) {
-    cflags += [ "-O2" ]
-  }
-
   if (is_debug) {
     cflags += [
       "-frtti",

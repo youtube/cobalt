@@ -123,35 +123,39 @@ import("//starboard/build/config/build_assertions.gni")
 import("$install_target_path")
 template("executable") {
   executable(target_name) {
-    forward_variables_from(invoker, "*")
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  executable_target_name = target_name
-  install_target(target_name + "_install") {
-    forward_variables_from(invoker,
-                           [
-                             "content",
-                             "testonly",
-                           ])
-    installable_target_name = executable_target_name
-    type = "executable"
+  if (!defined(invoker.install_target) || invoker.install_target) {
+    executable_target_name = target_name
+    install_target(target_name + "_install") {
+      forward_variables_from(invoker,
+                             [
+                               "content",
+                               "testonly",
+                             ])
+      installable_target_name = executable_target_name
+      type = "executable"
+    }
   }
 }
 
 template("shared_library") {
   shared_library(target_name) {
-    forward_variables_from(invoker, "*")
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  shared_library_target_name = target_name
-  install_target(target_name + "_install") {
-    forward_variables_from(invoker,
-                           [
-                             "content",
-                             "testonly",
-                           ])
-    installable_target_name = shared_library_target_name
-    type = "shared_library"
+  if (!defined(invoker.install_target) || invoker.install_target) {
+    shared_library_target_name = target_name
+    install_target(target_name + "_install") {
+      forward_variables_from(invoker,
+                             [
+                               "content",
+                               "testonly",
+                             ])
+      installable_target_name = shared_library_target_name
+      type = "shared_library"
+    }
   }
 }
 
