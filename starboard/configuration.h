@@ -110,6 +110,8 @@
 #define SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Added vfp4 to the cpu features for arm.
+#define SB_VFP4_FLAG_ADDED_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

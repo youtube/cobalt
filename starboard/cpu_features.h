@@ -94,6 +94,10 @@ typedef struct SbCPUFeaturesARM {
   bool has_vfp;
   // VFP version 3
   bool has_vfp3;
+#if SB_API_VERSION >= SB_VFP4_FLAG_ADDED_VERSION
+  // VFP version 4
+  bool has_vfp4;
+#endif
   // VFP version 3 with 32 D-registers.
   bool has_vfp3_d32;
   // SDIV and UDIV hardware division in ARM mode.
