@@ -12,29 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This file contains a mapping of platform names to paths to the platforms's
-# implementation. To add another platform, simply add another entry in the same
-# style to this list.
-
-platforms = [
-  {
-    name = "stub"
-    path = "starboard/stub"
-  },
-  {
-    name = "linux-x64x11"
-    path = "starboard/linux/x64x11"
-  },
-  {
-    name = "linux-x64x11-egl"
-    path = "starboard/linux/x64x11/egl"
-  },
-  {
-    name = "linux-x64x11-internal"
-    path = "starboard/linux/x64x11/internal"
-  },
-  {
-    name = "linux-x64x11-skia"
-    path = "starboard/linux/x64x11/skia"
-  },
-]
+import("//starboard/linux/x64x11/platform_configuration/configuration.gni")
