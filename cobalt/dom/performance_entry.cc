@@ -45,6 +45,8 @@ DOMHighResTimeStamp PerformanceEntry::duration() const {
 
 PerformanceEntry::EntryType PerformanceEntry::ToEntryTypeEnum(
     const std::string& entry_type) {
+  if (entry_type.empty()) return kInvalid;
+
   for (size_t i = 0; i < arraysize(PerformanceEntry::kEntryTypeString); ++i) {
     if (base::LowerCaseEqualsASCII(entry_type,
         PerformanceEntry::kEntryTypeString[i])) {
