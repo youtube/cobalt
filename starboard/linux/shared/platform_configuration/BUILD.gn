@@ -36,15 +36,6 @@ config("compiler_flags") {
     ]
   }
 
-  # TODO(andrewsavage): look at size vs speed flags
-  if (is_qa || is_gold) {
-    cflags += [
-      "-O2",
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-
   if (is_clang) {
     ldflags += [ "-fuse-ld=lld" ]
     cflags += [
@@ -196,5 +187,25 @@ config("libraries") {
     "X11",
     "Xcomposite",
     "Xrender",
+  ]
+}
+
+config("speed") {
+  cflags = [
+    "-O2",
+
+    # Compile symbols in separate sections
+    "-ffunction-sections",
+    "-fdata-sections",
+  ]
+}
+
+config("size") {
+  cflags = [
+    "-Os",
+
+    # Compile symbols in separate sections
+    "-ffunction-sections",
+    "-fdata-sections",
   ]
 }

@@ -92,6 +92,7 @@ default_compiler_configs = [
   "//build/config/compiler:no_exceptions",
   "//starboard/build/config:base",
   "//starboard/build/config:host",
+  "//starboard/build/config:size",
   "//starboard/build/config:target",
   "//$starboard_path/platform_configuration",
 ]

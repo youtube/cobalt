@@ -83,10 +83,6 @@ declare_args() {
   # Used to enable benchmarks.
   sb_enable_benchmark = false
 
-  # This variable dictates whether a given target should be compiled with
-  # optimization flags for size vs. speed.
-  optimize_target_for_speed = false
-
   # Where the Starboard ABI file for this platform can be found.
   sabi_path = "starboard/sabi/default/sabi.json"
 

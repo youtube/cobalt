@@ -63,6 +63,10 @@ source_set("zlib_adler32_simd") {
   }
 
   configs += [ ":zlib_internal_config" ]
+  if (is_starboard && !is_debug) {
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
+  }
 
   public_configs = [ ":zlib_adler32_simd_config" ]
 }
@@ -123,6 +127,10 @@ if (use_arm_neon_optimizations) {
     }
 
     configs += [ ":zlib_internal_config" ]
+    if (is_starboard && !is_debug) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    }
 
     public_configs = [ ":zlib_arm_crc32_config" ]
   }
@@ -175,6 +183,10 @@ source_set("zlib_inflate_chunk_simd") {
     ":zlib_internal_config",
     "//build/config/compiler:no_chromium_code",
   ]
+  if (is_starboard && !is_debug) {
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
+  }
 
   public_configs = [ ":zlib_inflate_chunk_simd_config" ]
 }
