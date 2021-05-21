@@ -40,7 +40,6 @@ declare_args() {
 sb_allows_memory_tracking = !is_gold
 host_byteorder = "little"
 is_official_build = false  # Chromium's build files expect this to be set.
-shlib_extension = ".so"  # TODO(andrewsavage)
 
 # The os/cpu definitions are here to set the current platform type in
 # os_definitions.gni below.
