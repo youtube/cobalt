@@ -28,7 +28,5 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player:video_dmp",
   ]
 
-  # TODO(andrewsavage): As with GYP, the below define does nothing.
-  defines = [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
