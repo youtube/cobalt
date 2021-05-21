@@ -45,12 +45,9 @@ std::string PerformanceResourceTiming::initiator_type() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
-  if (timing_info_.request_start.is_null()) {
-    return PerformanceEntry::start_time();
-  }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.request_start.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  // There is no worker in Cobalt, thus we need to return start_time()
+  // instead of worker ready time.
+  return PerformanceEntry::start_time();
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
@@ -73,7 +70,7 @@ DOMHighResTimeStamp PerformanceResourceTiming::connect_end() const {
 
 DOMHighResTimeStamp PerformanceResourceTiming::secure_connection_start() const {
   if (timing_info_.connect_timing.ssl_start.is_null()) {
-    return PerformanceEntry::start_time();
+    return 0.0;
   }
   return ConvertTimeDeltaToDOMHighResTimeStamp(
       timing_info_.connect_timing.ssl_start.since_origin(),
