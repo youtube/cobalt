@@ -96,7 +96,34 @@ static_library("crypto") {
     configs += [ "//starboard/build/config:speed" ]
 
     if (sb_is_evergreen) {
-      # TODO(andrewsavage): this requires the calling_convention variable from sabi
+      sabi_json = read_file(sabi_path, "json")
+      sabi_variables = sabi_json.variables
+      calling_convention = sabi_variables.calling_convention
+      if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
+           calling_convention != "sysv" && calling_convention != "windows") ||
+          (asm_target_arch != "x86" || asm_target_arch != "x64" ||
+           asm_target_arch != "arm" || asm_target_arch != "arm64")) {
+        defines = [ "OPENSSL_NO_ASM" ]
+      } else {
+        if (calling_convention == "aarch64" || calling_convention == "eabi" ||
+            calling_convention == "sysv") {
+          if (asm_target_arch == "x86") {
+            sources += boringssl_linux_x86_files
+          } else if (asm_target_arch == "x64") {
+            sources += boringssl_linux_x86_64_files
+          } else if (asm_target_arch == "arm") {
+            sources += boringssl_linux_arm_files
+          } else if (asm_target_arch == "arm64") {
+            sources += boringssl_linux_aarch64_files
+          } else if (calling_convention == "windows") {
+            if (asm_target_arch == "x86") {
+              sources += boringssl_win_x86_files
+            } else if (asm_target_arch == "x64") {
+              sources += boringssl_win_x86_64_files
+            }
+          }
+        }
+      }
     } else {
       if ((!is_linux && !is_android && !is_apple) ||
           (asm_target_arch != "x86" && asm_target_arch != "x64" &&
