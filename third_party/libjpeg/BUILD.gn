@@ -79,6 +79,8 @@ static_library("libjpeg") {
       "jdatadst.c",
       "jdatasrc.c",
     ]
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
   }
 
   if (!is_win) {

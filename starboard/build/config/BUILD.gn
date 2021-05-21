@@ -137,3 +137,15 @@ config("starboard_implementation") {
   # This allows the benchmarks to include internal only header files.
   defines = [ "STARBOARD_IMPLEMENTATION" ]
 }
+
+config("speed") {
+  if (defined(speed_config_path)) {
+    configs = [ speed_config_path ]
+  }
+}
+
+config("size") {
+  if (defined(size_config_path)) {
+    configs = [ size_config_path ]
+  }
+}
