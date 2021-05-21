@@ -27,7 +27,6 @@ group("starboard_platform") {
   ]
 
   deps = [
-    "//third_party/boringssl:crypto",
     "//third_party/libevent",
     "//third_party/opus",
   ]
@@ -78,6 +77,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_audio_sink_type.h",
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
+    "//starboard/shared/deviceauth/deviceauth_internal.cc",
     "//starboard/shared/dlmalloc/memory_map.cc",
     "//starboard/shared/dlmalloc/memory_protect.cc",
     "//starboard/shared/dlmalloc/memory_unmap.cc",
@@ -408,6 +408,7 @@ static_library("starboard_platform_sources") {
     "//starboard:starboard_headers_only",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
+  deps = [ "//third_party/boringssl:crypto" ]
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//third_party/de265_includes",
