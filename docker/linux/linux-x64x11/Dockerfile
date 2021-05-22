@@ -26,6 +26,7 @@ RUN apt update -qqy \
         libasound2-dev \
         libxrender-dev \
         libxcomposite-dev \
+        libxi-dev \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
