@@ -94,6 +94,6 @@ action("player_download_test_data") {
     "--sha1",
     sha1_dir,
     "--output",
-    outdir,
+    rebase_path(outdir, root_build_dir),
   ]
 }
