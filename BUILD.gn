@@ -21,3 +21,13 @@ group("gn_all") {
 
   deps = [ "//starboard:gn_all" ]
 }
+
+group("default") {
+  testonly = true
+
+  if (is_qa || is_gold) {
+    deps = [ "//starboard" ]
+  } else {
+    deps = [ ":gn_all" ]
+  }
+}
