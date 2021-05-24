@@ -102,9 +102,6 @@ class MediaKeySession : public EventTarget {
   bool callable_;
   scoped_refptr<MediaKeyStatusMap> key_status_map_;
 
-  // TODO: Remove |closed_callback_| and change call sites to use closed()
-  //       promise instead, once Cobalt switches to native SpiderMonkey
-  //       promises.
   const ClosedCallback closed_callback_;
   const VoidPromiseValue::Reference closed_promise_reference_;
 

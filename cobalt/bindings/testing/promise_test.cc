@@ -38,16 +38,6 @@ using Handle = script::Handle<T>;
 template <typename T>
 using Promise = script::Promise<T>;
 
-// Simple implementation of window.setTimeout. window.setTimeout is needed for
-// the Promise polyfill used in SpiderMonkey 24.
-int32_t SetTimeoutFunction(const Window::TimerCallbackArg& timer_callback,
-                           int32_t timeout) {
-  // Just execute immediately. This is sufficient for the tests below.
-  Handle<Window::TimerCallback> handle(timer_callback);
-  handle->Run();
-  return 1;
-}
-
 class PromiseTest : public InterfaceBindingsTest<PromiseInterface> {
  public:
   ~PromiseTest() {
@@ -57,9 +47,7 @@ class PromiseTest : public InterfaceBindingsTest<PromiseInterface> {
   }
 
  protected:
-  void SetUp() {
-    window()->SetSetTimeoutHandler(base::Bind(&SetTimeoutFunction));
-  }
+  void SetUp() {}
 };
 
 }  // namespace

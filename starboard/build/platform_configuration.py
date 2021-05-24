@@ -271,9 +271,6 @@ class PlatformConfiguration(object):
         'use_tsan':
             use_tsan,
 
-        # Which JavaScript engine to use.  Currently, both SpiderMonkey 45 and
-        # V8 are supported.  Note that V8 can only be used on platforms that
-        # support JIT.
         'javascript_engine':
             'v8',
 

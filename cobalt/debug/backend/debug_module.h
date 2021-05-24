@@ -31,7 +31,6 @@
 #include "cobalt/debug/backend/overlay_agent.h"
 #include "cobalt/debug/backend/page_agent.h"
 #include "cobalt/debug/backend/render_overlay.h"
-#include "cobalt/debug/backend/runtime_agent.h"
 #include "cobalt/debug/backend/script_debugger_agent.h"
 #include "cobalt/debug/backend/tracing_agent.h"
 #include "cobalt/debug/json_object.h"
@@ -141,7 +140,6 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   scoped_refptr<CSSAgent> css_agent_;
   std::unique_ptr<OverlayAgent> overlay_agent_;
   std::unique_ptr<PageAgent> page_agent_;
-  std::unique_ptr<RuntimeAgent> runtime_agent_;
   std::unique_ptr<ScriptDebuggerAgent> script_debugger_agent_;
   std::unique_ptr<TracingAgent> tracing_agent_;
 };
