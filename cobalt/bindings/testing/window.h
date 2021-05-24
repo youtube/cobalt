@@ -49,22 +49,6 @@ class Window : public GlobalInterfaceParent {
   void set_on_event(const TestEventHandler&) {}
   const TestEventHandler* on_event() { return NULL; }
 
-  // Stub implementation of window.setTimeout, which is needed for some tests.
-  int SetTimeout(const TimerCallbackArg& handler) {
-    return SetTimeout(handler, 0);
-  }
-
-  int32_t SetTimeout(const TimerCallbackArg& handler, int32_t timeout) {
-    if (!set_timeout_handler_.is_null()) {
-      return set_timeout_handler_.Run(handler, timeout);
-    }
-    return 0;
-  }
-
-  void SetSetTimeoutHandler(const SetTimeoutHandler& handler) {
-    set_timeout_handler_ = handler;
-  }
-
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
