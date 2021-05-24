@@ -356,7 +356,10 @@
       'type': 'none',
       'variables': {
         'content_test_input_files': [
-          '<(DEPTH)/starboard/nplb/testdata/file_tests/',
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/dir_with_files',
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/dir_with_only_subdir',
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/file01',
+          '<(DEPTH)/starboard/nplb/testdata/file_tests/file_with_long_name_and_contents_for_seek_testing_1234567890',
         ],
         'content_test_output_subdir': 'starboard/nplb/file_tests',
       },
