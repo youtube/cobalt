@@ -44,7 +44,7 @@
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 13
+#define SB_EXPERIMENTAL_API_VERSION 14
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
@@ -65,56 +65,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Add Concealed state support.
-#define SB_ADD_CONCEALED_STATE_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Iteration on UI navigation API.
-#define SB_UI_NAVIGATION2_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated the SB_OVERRIDE macro.
-#define SB_OVERRIDE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated the SB_DISALLOW_COPY_AND_ASSIGN macro.
-#define SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated SB_TRUE and SB_FALSE.
-#define SB_TRUE_FALSE_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated SbSystemSort
-#define SB_SYSTEM_SORT_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated SbSystemBinarySearch
-#define SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated Starboard character APIs
-#define SB_CHARACTER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated Starboard double APIs
-#define SB_DOUBLE_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated Starboard stdlib equivalent APIs
-#define SB_STDLIB_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce Network connectivity APIs
-#define SB_NETWORK_EVENTS_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Rename misspelled accessibility event types
-#define SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce event for date / time configuration changes
-#define SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Deprecated Device Auth certification secret
-#define SB_SYSTEM_CERTIFICATION_SECRET_DEPRECATED_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Added vfp4 to the cpu features for arm.
-#define SB_VFP4_FLAG_ADDED_VERSION SB_EXPERIMENTAL_API_VERSION
-
 // Deprecated Starbaord Speech Recognizer APIs
 #define SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -127,7 +80,7 @@
 
 // --- Common Helper Macros --------------------------------------------------
 
-#if SB_API_VERSION < SB_TRUE_FALSE_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 #define SB_TRUE 1
 #define SB_FALSE 0
 #else
@@ -192,7 +145,7 @@ struct CompileAssert {};
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
 
-#if SB_API_VERSION < SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 // A macro to disallow the copy constructor and operator= functions
 // This should be used in the private: declarations for a class
 #define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
@@ -201,7 +154,7 @@ struct CompileAssert {};
 #else
 #define SB_DISALLOW_COPY_AND_ASSIGN \
   #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
-#endif  // SB_DISALLOW_COPY_AND_ASSIGN_DEPRECATED_VERSION < SB_API_VERSION
+#endif  // SB_API_VERSION < 13
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
@@ -286,7 +239,7 @@ struct CompileAssert {};
 
 // Declares a function as overriding a virtual function on compilers that
 // support it.
-#if SB_API_VERSION < SB_OVERRIDE_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 #if !defined(SB_OVERRIDE)
 #if defined(COMPILER_MSVC)
 #define SB_OVERRIDE override
@@ -299,7 +252,7 @@ struct CompileAssert {};
 #else
 #define SB_OVERRIDE \
   #error "The SB_OVERRIDE macro is deprecated. Please use \"override\" instead."
-#endif  // SB_API_VERSION < SB_OVERRIDE_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13
 
 // Declare numeric literals of signed 64-bit type.
 #if !defined(SB_INT64_C)

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 #define STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
 
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/system.h"
@@ -29,11 +29,12 @@ class NetworkNotifier : public starboard::Singleton<NetworkNotifier> {
 
   bool is_online() { return is_online_; }
   void set_online(bool is_online) { is_online_ = is_online; }
+
  private:
   SbThread notifier_thread_;
   bool is_online_ = true;
 };
 
-#endif  // SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#endif  // SB_API_VERSION >= 13
 
 #endif  // STARBOARD_SHARED_LINUX_SYSTEM_NETWORK_STATUS_H_

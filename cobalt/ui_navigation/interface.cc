@@ -105,7 +105,7 @@ NativeInterface InitializeInterface() {
     interface.set_item_container_item = sb_ui_interface.set_item_container_item;
     interface.set_item_content_offset = sb_ui_interface.set_item_content_offset;
     interface.get_item_content_offset = sb_ui_interface.get_item_content_offset;
-#if SB_API_VERSION >= SB_UI_NAVIGATION2_VERSION
+#if SB_API_VERSION >= 13
     interface.set_item_focus_duration = sb_ui_interface.set_item_focus_duration;
     interface.do_batch_update = sb_ui_interface.do_batch_update;
 #else

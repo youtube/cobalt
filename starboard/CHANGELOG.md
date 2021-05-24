@@ -14,8 +14,90 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 13
+### Changed lifecycle events to add support for a concealed state.
+
+* The *Pause* event is renamed to *Blur*.
+* The *Unpause* event is renamed to *Focus*.
+* The *Suspend* event is replaced by *Conceal* and *Freeze*.
+* The *Resume* event is replaced by *Unfreeze* and *Reveal*.
+
+Most platforms should only need to replace 'Pause' with 'Blur', 'Unpause' with
+'Focus', 'Suspend' with 'Freeze', and 'Resume' with 'Reveal'.
+
+Since there is no longer a special *Preloading* state, applications should no
+longer use the *Start* event when a preloaded application is brought to the
+foreground. Instead, the same event(s) used for backgrounded applications
+(*Concealed* or *Frozen*) should be used.
+
+See `cobalt/doc/lifecycle.md` for more details.
+
+### Added network connectivity events and function.
+
+Added `kSbEventTypeOsNetworkDisconnected` and `kSbEventTypeOsNetworkConnected`
+so the platform can provide hints to the application of network connectivity
+changes.
+
+Added function `SbSystemNetworkIsDisconnected()` to allow the application to
+query the network connectivity status.
+
+### Added an event for date/time configuration changes.
+
+If the platform detects a change in the date/time configuration (e.g. timezone
+change), then it should send the new `kSbEventDateTimeConfigurationChanged`
+event.
+
+### Updated platform-based UI navigation API.
+
+Added functions to direct the platform's UI engine to maintain focus on an item
+for a specific time before allowing focus to change. Also added a function to
+perform a batch of UI updates so that UI changes are atomic.
+
+Functionality for a few existing APIs were clarified without changing the API
+itself.
+
+### Fixed spelling on accessibility events.
+
+Changed `kSbEventTypeAccessiblityTextToSpeechSettingsChanged` to
+`kSbEventTypeAccessibilityTextToSpeechSettingsChanged`.
+
+Changed `kSbEventTypeAccessiblitySettingsChanged` to
+`kSbEventTypeAccessibilitySettingsChanged`.
+
+### Deprecated some starboard macros.
+
+The following macros have been removed:
+
+* `SB_TRUE`
+* `SB_FALSE`
+* `SB_OVERRIDE`
+* `SB_DISALLOW_COPY_AND_ASSIGN`
+
+### Deprecated some standalone starboard functions.
+
+The following starboard functions have been removed:
+
+* `SbCharacterIsAlphanumeric`
+* `SbCharacterIsDigit`
+* `SbCharacterIsHexDigit`
+* `SbCharacterIsSpace`
+* `SbCharacterIsUpper`
+* `SbCharacterToLower`
+* `SbCharacterToUpper`
+* `SbDoubleAbsolute`
+* `SbDoubleExponent`
+* `SbDoubleFloor`
+* `SbDoubleIsFinite`
+* `SbDoubleIsNan`
+* `SbStringParseDouble`
+* `SbStringParseSignedInteger`
+* `SbStringParseUInt64`
+* `SbStringParseUnsignedInteger`
+* `SbSystemBinarySearch`
+* `SbSystemSort`
+
 ## Version 12
-###  Add support for platform-based UI navigation.
+### Add support for platform-based UI navigation.
 
 The system can be disabled by implementing the function
 `SbUiNavGetInterface()` to return `false`.  Platform-based UI navigation

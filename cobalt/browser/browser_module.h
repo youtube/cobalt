@@ -216,7 +216,7 @@ class BrowserModule {
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   void OnDateTimeConfigurationChanged(
       const base::DateTimeConfigurationChangedEvent* event);
 #endif

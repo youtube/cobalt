@@ -14,7 +14,7 @@
 
 #include "starboard/common/string.h"
 
-#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 
 // NOLINTNEXTLINE(runtime/int)
 unsigned long SbStringParseUnsignedInteger(const char* start,
@@ -23,4 +23,4 @@ unsigned long SbStringParseUnsignedInteger(const char* start,
   return 0UL;
 }
 
-#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13

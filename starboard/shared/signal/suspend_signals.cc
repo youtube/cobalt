@@ -59,7 +59,7 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
   ::sigaction(signal_id, &action, NULL);
 }
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
 void Conceal(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
   LogSignalCaught(signal_id);
@@ -103,7 +103,7 @@ void Resume(int signal_id) {
   starboard::Application::Get()->Unpause(NULL, NULL);
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
 void LowMemory(int signal_id) {
   SignalMask(kAllSignals, SIG_BLOCK);
@@ -162,7 +162,7 @@ void InstallSuspendSignalHandlers() {
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html
   SignalMask(kAllSignals, SIG_BLOCK);
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   SetSignalHandler(SIGUSR1, &Conceal);
   SetSignalHandler(SIGUSR2, &LowMemory);
   SetSignalHandler(SIGCONT, &Focus);
@@ -174,7 +174,7 @@ void InstallSuspendSignalHandlers() {
   SetSignalHandler(SIGUSR2, &LowMemory);
   SetSignalHandler(SIGCONT, &Resume);
   ConfigureSignalHandlerThread(true);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 }
 
 void UninstallSuspendSignalHandlers() {
@@ -184,9 +184,9 @@ void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGUSR1, SIG_DFL);
   SetSignalHandler(SIGUSR2, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   SetSignalHandler(SIGPWR, SIG_DFL);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
   ConfigureSignalHandlerThread(false);
 }
 

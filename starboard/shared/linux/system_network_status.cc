@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include <asm/types.h>
 #include <errno.h>
 #include <linux/netlink.h>
@@ -29,7 +28,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
 
 namespace {
 
@@ -130,4 +129,4 @@ bool SbSystemNetworkIsDisconnected() {
   return !NetworkNotifier::GetOrCreateInstance()->is_online();
 }
 
-#endif  // SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#endif  // SB_API_VERSION >= 13

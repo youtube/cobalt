@@ -327,7 +327,7 @@ static SB_C_INLINE int SbStringScanF(const char* buffer,
   return result;
 }
 
-#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 
 // Extracts a string that represents an integer from the beginning of |start|
 // into a signed integer in the given |base|. This function is meant to be a
@@ -402,7 +402,7 @@ SB_EXPORT uint64_t SbStringParseUInt64(const char* start,
 //   consumed portion of the string into |out_end|.
 SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
 
-#endif  // SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13
 
 #ifdef __cplusplus
 }  // extern "C"

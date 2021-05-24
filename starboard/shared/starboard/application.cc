@@ -128,7 +128,7 @@ const CommandLine* Application::GetCommandLine() {
   return command_line_.get();
 }
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
 void Application::Blur(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeBlur, context, callback));
 }
@@ -168,7 +168,7 @@ void Application::Suspend(void* context, EventHandledCallback callback) {
 void Application::Resume(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeResume, context, callback));
 }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
 void Application::Stop(int error_level) {
   Event* event = new Event(kSbEventTypeStop, NULL, NULL);
@@ -186,7 +186,7 @@ void Application::InjectLowMemoryEvent() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
 }
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
 void Application::InjectOsNetworkDisconnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
 }
@@ -235,11 +235,11 @@ void Application::SetStartLink(const char* start_link) {
 
 void Application::DispatchStart() {
   SB_DCHECK(IsCurrentThread());
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   SB_DCHECK(state_ == kStateUnstarted);
 #else
   SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart));
 }
 
@@ -262,7 +262,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
   switch (scoped_event->event->type) {
@@ -478,10 +478,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     default:
       break;
   }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
   SbEventHandle(scoped_event->event);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
       SB_DCHECK(state() == kStateUnstarted);
@@ -556,7 +556,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     default:
       break;
   }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
   // Should not be unstarted after the first event.
   SB_DCHECK(state() != kStateUnstarted);
   return true;

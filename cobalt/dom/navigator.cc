@@ -221,7 +221,7 @@ bool Navigator::java_enabled() const { return false; }
 bool Navigator::cookie_enabled() const { return false; }
 
 bool Navigator::on_line() const {
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
   return !SbSystemNetworkIsDisconnected();
 #else
   return true;
