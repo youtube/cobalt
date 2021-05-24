@@ -19,7 +19,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 
 namespace starboard {
 namespace nplb {
@@ -45,4 +45,4 @@ TEST(SbSystemBinarySearchTest, SunnyDayLetters) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // #if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
+#endif  // #if SB_API_VERSION < 13

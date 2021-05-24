@@ -88,7 +88,7 @@ class Application {
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   void OnDateTimeConfigurationChangedEvent(const base::Event* event);
 #endif
 
@@ -132,7 +132,7 @@ class Application {
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   base::EventCallback on_date_time_configuration_changed_event_callback_;
 #endif
 

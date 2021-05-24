@@ -908,7 +908,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnWindowOnOfflineEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowOnOfflineEvent::TypeId(),
                                      on_window_on_offline_event_callback_);
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   on_date_time_configuration_changed_event_callback_ =
       base::Bind(&Application::OnDateTimeConfigurationChangedEvent,
                  base::Unretained(this));
@@ -1001,7 +1001,7 @@ Application::~Application() {
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   event_dispatcher_.RemoveEventCallback(
       base::DateTimeConfigurationChangedEvent::TypeId(),
       on_date_time_configuration_changed_event_callback_);
@@ -1048,7 +1048,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
@@ -1066,7 +1066,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLowMemory:
       OnApplicationEvent(starboard_event->type);
       break;
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -1103,11 +1103,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data));
       break;
     }
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // B_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // B_API_VERSION >= 13
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
 #if SB_API_VERSION < 12
       // Also dispatch the newer text-to-speech settings changed event since
@@ -1124,16 +1124,16 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
       DispatchEventInternal(
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
       break;
 #endif
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
       DispatchEventInternal(new base::WindowOnOfflineEvent());
       break;
@@ -1141,7 +1141,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::WindowOnOnlineEvent());
       break;
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
       DispatchEventInternal(new base::DateTimeConfigurationChangedEvent());
       break;
@@ -1177,7 +1177,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Focus();
       DLOG(INFO) << "Finished starting.";
       break;
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
       app_status_ = kBlurredAppStatus;
@@ -1257,7 +1257,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
@@ -1270,11 +1270,11 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
@@ -1284,21 +1284,21 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeInput:
     case kSbEventTypeLink:
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
 #endif
       NOTREACHED() << "Unexpected event type: " << event_type;
@@ -1387,7 +1387,7 @@ void Application::OnWindowOnOfflineEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowOnOfflineEvent*>(event));
 }
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
 void Application::OnDateTimeConfigurationChangedEvent(
     const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",

@@ -45,7 +45,7 @@ void SbEventHandle(const SbEvent* event) {
       g_window = SbWindowCreate(NULL);
       SB_CHECK(SbWindowIsValid(g_window));
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
       SB_LOG(INFO) << "    F1 - Blur";
       SB_LOG(INFO) << "    F2 - Focus";
       SB_LOG(INFO) << "    F3 - Conceal";
@@ -56,7 +56,7 @@ void SbEventHandle(const SbEvent* event) {
       SB_LOG(INFO) << "    F2 - Unpause";
       SB_LOG(INFO) << "    F3 - Suspend";
       SB_LOG(INFO) << "    F5 - Stop";
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
       break;
     }
     case kSbEventTypeInput: {
@@ -92,7 +92,7 @@ void SbEventHandle(const SbEvent* event) {
           SB_LOG(INFO) << keys.str();
         }
       }
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
       switch (data->key) {
         case kSbKeyF1:
           SbSystemRequestBlur();
@@ -131,10 +131,10 @@ void SbEventHandle(const SbEvent* event) {
           // Do nothing.
           break;
       }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
       break;
     }
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur: {
       SB_LOG(INFO) << "BLUR";
       break;
@@ -186,7 +186,7 @@ void SbEventHandle(const SbEvent* event) {
       SB_LOG(INFO) << "UNPAUSE";
       break;
     }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
     default:
       SB_LOG(INFO) << "Event Type " << event->type << " not handled.";
       break;

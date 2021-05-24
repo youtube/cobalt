@@ -14,8 +14,8 @@
 
 #include "starboard/double.h"
 
-#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 bool SbDoubleIsFinite(const double d) {
   return false;
 }
-#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13

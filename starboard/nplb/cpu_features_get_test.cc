@@ -35,7 +35,7 @@ void ExpectArmInvalid(const SbCPUFeatures& features) {
   EXPECT_EQ(false, features.arm.has_thumb2);
   EXPECT_EQ(false, features.arm.has_vfp);
   EXPECT_EQ(false, features.arm.has_vfp3);
-#if SB_API_VERSION >= SB_VFP4_FLAG_ADDED_VERSION
+#if SB_API_VERSION >= 13
   EXPECT_EQ(false, features.arm.has_vfp4);
 #endif
   EXPECT_EQ(false, features.arm.has_vfp3_d32);

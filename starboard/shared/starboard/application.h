@@ -52,7 +52,7 @@ class Application {
   // Signature for a function that will be called at the beginning of Teardown.
   typedef void (*TeardownCallback)(void);
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   // Enumeration of states that the application can be in.
   enum State {
     // The initial Unstarted state.
@@ -105,7 +105,7 @@ class Application {
     // Suspended state.
     kStateStopped,
   };
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
@@ -202,7 +202,7 @@ class Application {
   // NULL until Run() is called.
   const CommandLine* GetCommandLine();
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   // Signals that the application should transition from STARTED to BLURRED as
   // soon as possible. Does nothing if already BLURRED or CONCEALED. May be
   // called from an external thread.
@@ -306,7 +306,7 @@ class Application {
   // possible. Will transition through PAUSED and SUSPENDED to STOPPED as
   // appropriate for the current state. May be called from an external thread.
   void Stop(int error_level);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
   // Injects a link event to the application with the given |link_data|, which
   // must be a null-terminated string. Makes a copy of |link_data|, so it only
@@ -317,7 +317,7 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
   void InjectOsNetworkDisconnectedEvent();
   void InjectOsNetworkConnectedEvent();
 #endif

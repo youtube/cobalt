@@ -97,7 +97,7 @@ void BaseEventHandler(const SbEvent* event) {
       g_at_exit = NULL;
       break;
     }
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
@@ -109,17 +109,17 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeInput:
     case kSbEventTypeUser:
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
@@ -134,17 +134,17 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
 #endif
       event_function(event);

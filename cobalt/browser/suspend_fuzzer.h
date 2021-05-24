@@ -37,13 +37,13 @@ class SuspendFuzzer {
   base::Thread thread_;
 
   enum StepType {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
     kShouldRequestFreeze,
     kShouldRequestFocus,
 #else
     kShouldRequestSuspend,
     kShouldRequestUnpause,
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
   } step_type_;
 };
 

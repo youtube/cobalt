@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// For SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+// For SB_API_VERSION >= 13
 //
 // Module Overview: Starboard Event module
 //
@@ -89,7 +89,7 @@
 // Note that the application is always expected to transition through |BLURRED|,
 // |CONCEALED| to |FROZEN| before receiving |Stop| or being killed.
 //
-// For SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+// For SB_API_VERSION < 13
 //
 // Module Overview: Starboard Event module
 //
@@ -176,7 +176,7 @@ extern "C" {
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
 typedef enum SbEventType {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#if SB_API_VERSION >= 13
   // Applications should perform initialization and prepare to react to
   // subsequent events, but must not initialize any graphics resources (through
   // GL or SbBlitter). The intent of this event is to allow the application to
@@ -310,7 +310,7 @@ typedef enum SbEventType {
   // event is handled. Can only be received after a Suspend event, in the
   // SUSPENDED state. No data argument.
   kSbEventTypeStop,
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION
+#endif  // SB_API_VERSION >= 13
 
   // A user input event, including keyboard, mouse, gesture, or something else.
   // SbInputData (from input.h) is passed as the data argument.
@@ -349,11 +349,11 @@ typedef enum SbEventType {
   // using older starboard versions should use
   // kSbEventTypeAccessib(i)litySettingsChanged for text-to-speech settings
   // changes.
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
   kSbEventTypeAccessibilitySettingsChanged,
 #else
   kSbEventTypeAccessiblitySettingsChanged,
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
 
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
@@ -423,14 +423,14 @@ typedef enum SbEventType {
 
 #if SB_API_VERSION >= 12
   // The platform's text-to-speech settings have changed.
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
   kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
 #else
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
   // The platform has detected a network disconnection. There are likely to
   // be cases where the platform cannot detect the disconnection but the
   // platform should make a best effort to send an event of this type when
@@ -446,12 +446,12 @@ typedef enum SbEventType {
   kSbEventTypeOsNetworkConnected,
 #endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   // The platform has detected a date and/or time configuration change (such
   // as a change in the timezone setting). This should trigger the application
   // to re-query the relevant APIs to update the date and time.
   kSbEventDateTimeConfigurationChanged,
-#endif  // SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#endif  // SB_API_VERSION >= 13
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
