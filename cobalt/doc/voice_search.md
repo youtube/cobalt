@@ -8,6 +8,8 @@ Cobalt enables voice search through either:
 Only one or the other can be used, and we recommend that the MediaRecorder API
 is followed, as we are considering deprecating the Speech Recognition API.
 
+**The Speech Recognition API is deprecated as of Starboard 13.**
+
 In both approaches, in order to check whether to enable voice control or not,
 web apps will call the [MediaDevices.enumerateDevices()](https://www.w3.org/TR/mediacapture-streams/#dom-mediadevices-enumeratedevices%28%29)
 Web API function within which Cobalt will in turn call a subset of the
@@ -19,7 +21,9 @@ To enable the MediaRecorder API in Cobalt, the complete
 [SbMicrophone API](../../starboard/microphone.h) must be implemented, and
 `SbSpeechRecognizerIsSupported()` must return `false`.
 
-## Speech Recognition API
+## Speech Recognition API - Deprecated
+
+**The Speech Recognition API is deprecated as of Starboard 13.**
 
 In order to provide support for using this API, platforms must implement the
 [Starboard SbSpeechRecognizer API](../../starboard/speech_recognizer.h) as well
@@ -54,3 +58,8 @@ Speech Recognition API when the platform does not support microphone input.
 This is no longer necessary, web apps should now rely on
 `MediaDevices.enumerateDevices()` to determine whether voice support is enabled
 or not.
+
+### Speech Recognition API is deprecated in Starboard 13 ###
+
+Web applications are expected to use the MediaRecorder API. This in turn relies
+on the SbMicrophone API as detailed above.

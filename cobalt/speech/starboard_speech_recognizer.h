@@ -54,9 +54,8 @@ class StarboardSpeechRecognizer : public SpeechRecognizer {
   void OnRecognizerResults(
       std::vector<SpeechRecognitionAlternative::Data>&& results, bool is_final);
 
-#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
   SbSpeechRecognizer speech_recognizer_;
-#endif
+
   // Used for accumulating final results.
   SpeechRecognitionResults final_results_;
 

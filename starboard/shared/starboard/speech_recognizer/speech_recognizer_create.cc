@@ -14,7 +14,7 @@
 
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION >= 13
 #error Speech Recognizer is deprecated. Implement full Microphone instead.
 #endif
 
