@@ -107,7 +107,7 @@ public class CobaltMediaSession
 
   public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
     this.lifecycleCallback = lifecycleCallback;
-    if (lifecycleCallback != null) {
+    if (lifecycleCallback != null && this.mediaSession != null) {
       lifecycleCallback.onMediaSessionLifecycle(
           this.mediaSession.isActive(), this.mediaSession.getSessionToken());
     }
