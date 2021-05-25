@@ -274,36 +274,24 @@ void UpdaterModule::Update() {
 
 void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
   auto config = updater_configurator_;
-  if (config)
-    config->CompareAndSwapChannelChanged(old_value, new_value);
+  if (config) config->CompareAndSwapChannelChanged(old_value, new_value);
 }
 
 std::string UpdaterModule::GetUpdaterChannel() const {
   auto config = updater_configurator_;
-  if (!config)
-    return "";
+  if (!config) return "";
 
   return config->GetChannel();
 }
 
 void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
   auto config = updater_configurator_;
-  if (config)
-    config->SetChannel(updater_channel);
-}
-
-bool UpdaterModule::IsChannelValid(const std::string& channel) {
-  auto config = updater_configurator_;
-  if (!config)
-    return false;
-
-  return config->IsChannelValid(channel);
+  if (config) config->SetChannel(updater_channel);
 }
 
 std::string UpdaterModule::GetUpdaterStatus() const {
   auto config = updater_configurator_;
-  if (!config)
-    return "";
+  if (!config) return "";
 
   return config->GetUpdaterStatus();
 }

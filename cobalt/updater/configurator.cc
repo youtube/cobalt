@@ -29,31 +29,6 @@ namespace {
 // Default time constants.
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
-const std::set<std::string> valid_channels = {
-    // Default channel for debug/devel builds.
-    "dev",
-    // Channel for dogfooders.
-    "dogfood",
-    // Default channel for gold builds.
-    "prod",
-    // Default channel for qa builds. A gold build can switch to this channel to
-    // get an official qa build.
-    "qa",
-    // Test an update with higher version than prod channel.
-    "test",
-    // Test an update with mismatched sabi.
-    "tmsabi",
-    // Test an update that does nothing.
-    "tnoop",
-    // Test an update that crashes.
-    "tcrash",
-    // Test an update that fails verification.
-    "tfailv",
-    // Test an update that works for one app only.
-    "t1app",
-    // Test a series of continuous updates with two channels.
-    "tseries1", "tseries2",
-};
 
 #if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
 const char kDefaultUpdaterChannel[] = "dev";
@@ -257,14 +232,6 @@ std::string Configurator::GetChannel() const {
 void Configurator::SetChannel(const std::string& updater_channel) {
   base::AutoLock auto_lock(updater_channel_lock_);
   updater_channel_ = updater_channel;
-}
-
-bool Configurator::IsChannelValid(const std::string& channel) {
-  if (!valid_channels.count(channel)) {
-    SetUpdaterStatus(std::string("Invalid channel requested"));
-    return false;
-  }
-  return true;
 }
 
 // The updater status is get by main web module thread and set by the updater
