@@ -47,6 +47,12 @@ If the platform detects a change in the date/time configuration (e.g. timezone
 change), then it should send the new `kSbEventDateTimeConfigurationChanged`
 event.
 
+### Deprected speech recognizer API.
+
+The `starboard/speech_recognizer.h` APIs have been deprecated -- even for
+platforms that define SB_HAS(SPEECH_RECOGNIZER). Instead, the application is
+expected to use the `starboard/microphone.h` APIs.
+
 ### Updated platform-based UI navigation API.
 
 Added functions to direct the platform's UI engine to maintain focus on an item

@@ -40,7 +40,7 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
-#if SB_API_VERSION < SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 #include "starboard/speech_recognizer.h"
 #endif
 #include "starboard/speech_synthesis.h"

@@ -65,9 +65,6 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Deprecated Starbaord Speech Recognizer APIs
-#define SB_SPEECH_RECOGNIZER_APIS_DEPRECATED_VERSION SB_EXPERIMENTAL_API_VERSION
-
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
