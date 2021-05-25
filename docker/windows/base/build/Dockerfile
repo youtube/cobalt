@@ -59,7 +59,7 @@ ENV ENCODED_GS_SERVICE_KEY_FILE ${encoded_gs_service_key_file}
 RUN powershell -ExecutionPolicy Unrestricted -c C:\sccache\setup_sccache.ps1
 
 # Install gsutil helpers to download from GCS
-COPY gsutil/.boto /Users/ContainerAdministrator/.boto
-COPY gsutil/download_from_gcs.ps1 /download_from_gcs.ps1
+COPY .boto /Users/ContainerAdministrator/.boto
+COPY download_from_gcs.ps1 /download_from_gcs.ps1
 ADD https://storage.googleapis.com/pub/gsutil.zip /gsutil.zip
 RUN powershell Expand-Archive -Force C:\gsutil.zip C:\gsutil
