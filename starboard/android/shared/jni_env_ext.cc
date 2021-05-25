@@ -40,6 +40,8 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+// Warning: use __android_log_write for logging in this file.
+
 // static
 void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
   SB_DCHECK(g_tls_key == kSbThreadLocalKeyInvalid);
@@ -49,10 +51,10 @@ void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
   env->GetJavaVM(&g_vm);
 
   SB_DCHECK(g_application_class_loader == NULL);
-  g_application_class_loader = env->ConvertLocalRefToGlobalRef(
-      env->CallObjectMethodOrAbort(env->GetObjectClass(starboard_bridge),
-                                   "getClassLoader",
-                                   "()Ljava/lang/ClassLoader;"));
+  g_application_class_loader =
+      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
+          env->GetObjectClass(starboard_bridge), "getClassLoader",
+          "()Ljava/lang/ClassLoader;"));
 
   SB_DCHECK(g_starboard_bridge == NULL);
   g_starboard_bridge = env->NewGlobalRef(starboard_bridge);
@@ -75,7 +77,7 @@ JniEnvExt* JniEnvExt::Get() {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
     SbThreadGetName(thread_name, sizeof(thread_name));
-    JavaVMAttachArgs args { JNI_VERSION_1_6, thread_name, NULL };
+    JavaVMAttachArgs args{JNI_VERSION_1_6, thread_name, NULL};
     g_vm->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.
     SbThreadSetLocalValue(g_tls_key, env);

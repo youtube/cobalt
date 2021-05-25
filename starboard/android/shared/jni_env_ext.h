@@ -40,6 +40,9 @@ namespace shared {
 // instances in a single step, with even simpler methods to call Java methods on
 // the StarboardBridge.
 struct JniEnvExt : public JNIEnv {
+  // Warning: use __android_log_write for logging in this file to avoid infinite
+  // recursion.
+
   // One-time initialization to be called before starting the application.
   static void Initialize(JniEnvExt* jni_env, jobject starboard_bridge);
 
