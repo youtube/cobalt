@@ -138,7 +138,7 @@ URLFetcherCore::URLFetcherCore(
       traffic_annotation_(traffic_annotation) {
   CHECK(original_url_.is_valid());
 
-#if !defined(COBALT_BUILD_TYPE_GOLD) && SB_API_VERSION >= 11
+#if SB_API_VERSION >= 11
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
   const CobaltExtensionUrlFetcherObserverApi* observer_extension =
