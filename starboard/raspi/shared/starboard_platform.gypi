@@ -17,6 +17,7 @@
   ],
   'variables': {
     'sb_pedantic_warnings': 1,
+    'starboard_platform_sources%': [],
   },
   'targets': [
     {
@@ -38,6 +39,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        '<@(starboard_platform_sources)',
         '<@(filter_based_player_sources)',
         '<(DEPTH)/starboard/linux/shared/atomic_public.h',
         '<(DEPTH)/starboard/linux/shared/configuration_constants.cc',
