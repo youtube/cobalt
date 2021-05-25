@@ -139,7 +139,6 @@ URLFetcherCore::URLFetcherCore(
   CHECK(original_url_.is_valid());
   DCHECK(delegate_);
 
-#if !defined(COBALT_BUILD_TYPE_GOLD)
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
   const CobaltExtensionUrlFetcherObserverApi* observer_extension =
@@ -158,10 +157,6 @@ URLFetcherCore::URLFetcherCore(
   } else {
     observer_extension_ = nullptr;
   }
-#else
-  observer_extension_ = nullptr;
-#endif
-
 }
 
 void URLFetcherCore::Start() {
