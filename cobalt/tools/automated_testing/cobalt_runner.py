@@ -83,10 +83,10 @@ class CobaltRunner(object):
   def __init__(self,
                launcher_params,
                url,
-               log_handler=None,
                log_file=None,
                target_params=None,
-               success_message=None):
+               success_message=None,
+               log_handler=None):
     """CobaltRunner constructor.
 
     Args:
