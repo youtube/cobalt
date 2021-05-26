@@ -24,14 +24,3 @@ config("platform_configuration") {
 
   cflags = [ "-march=armv7-a" ]
 }
-
-config("shared_library_config") {
-  configs = [
-    "//starboard/android/shared/platform_configuration:shared_library_config",
-  ]
-}
-
-config("executable_config") {
-  configs =
-      [ "//starboard/android/shared/platform_configuration:executable_config" ]
-}
