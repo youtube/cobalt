@@ -41,4 +41,8 @@ platforms = [
     name = "android-arm"
     path = "starboard/android/arm"
   },
+  {
+    name = "android-x86"
+    path = "starboard/android/x86"
+  },
 ]
