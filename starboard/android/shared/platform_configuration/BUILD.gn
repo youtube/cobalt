@@ -141,6 +141,9 @@ config("platform_configuration") {
       "-Wno-sign-conversion",
     ]
     defines += [
+      # Enable compile-time decisions based on the ABI
+      "ANDROID_ABI=$android_abi",
+
       # -DANDROID is an argument to some ifdefs in the NDK"s eglplatform.h
       "ANDROID",
 

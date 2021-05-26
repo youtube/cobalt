@@ -23,11 +23,6 @@ config("platform_configuration") {
       "GLESv1_CM_angle",
       "feature_support_angle",
     ]
-  } else {
-    defines = [
-      # Enable compile-time decisions based on the ABI
-      "ANDROID_ABI=$android_abi",
-    ]
   }
 
   ldflags = [
