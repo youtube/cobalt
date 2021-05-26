@@ -70,6 +70,9 @@ host_toolchain = "//$starboard_path/toolchain:host"
 _default_toolchain = "//$starboard_path/toolchain:target"
 set_default_toolchain(_default_toolchain)
 
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
+
 # =============================================================================
 # TARGET DEFAULTS
 # =============================================================================
@@ -102,23 +105,20 @@ if (is_starboard) {
 }
 
 set_defaults("static_library") {
-  configs = default_compiler_configs
+  configs = default_compiler_configs + static_library_configs
 }
 set_defaults("source_set") {
-  configs = default_compiler_configs
+  configs = default_compiler_configs + source_set_configs
 }
 set_defaults("loadable_module") {
-  configs = default_compiler_configs
+  configs = default_compiler_configs + loadable_module_configs
 }
 set_defaults("executable") {
-  configs = default_compiler_configs
+  configs = default_compiler_configs + executable_configs
 }
 set_defaults("shared_library") {
-  configs = default_compiler_configs
+  configs = default_compiler_configs + shared_library_configs
 }
-
-import("//$starboard_path/platform_configuration/configuration.gni")
-import("//starboard/build/config/build_assertions.gni")
 
 # Set up the method of generating the install targets as defined by the
 # platform.

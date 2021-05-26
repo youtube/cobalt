@@ -36,3 +36,10 @@ sb_enable_benchmark = true
 
 size_config_path = "//starboard/android/shared/platform_configuration:size"
 speed_config_path = "//starboard/android/shared/platform_configuration:speed"
+
+executable_configs +=
+    [ "//starboard/android/shared/platform_configuration:executable_config" ]
+shared_library_configs +=
+    [ "//starboard/android/shared/platform_configuration:library_config" ]
+static_library_configs +=
+    [ "//starboard/android/shared/platform_configuration:library_config" ]

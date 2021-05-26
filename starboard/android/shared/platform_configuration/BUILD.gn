@@ -193,6 +193,6 @@ config("executable_config") {
   ldflags = [ "-pie" ]
 }
 
-config("shared_library_config") {
+config("library_config") {
   cflags = [ "-fPIC" ]
 }
