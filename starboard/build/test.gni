@@ -1,10 +1,7 @@
 template("test") {
   executable(target_name) {
     testonly = true
-    forward_variables_from(invoker, "*")
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
   }
-}
-
-set_defaults("test") {
-  configs = default_compiler_configs
 }
