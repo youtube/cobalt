@@ -6,7 +6,6 @@
  */
 
 #include "include/core/SkContourMeasure.h"
-
 #include "include/core/SkPath.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkPathMeasurePriv.h"
