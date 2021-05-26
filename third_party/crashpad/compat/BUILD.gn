@@ -90,7 +90,7 @@ compat_target("compat") {
     ]
   }
 
-  if (crashpad_is_android) {
+  if (!crashpad_is_in_starboard && crashpad_is_android) {
     sources += [
       "android/android/api-level.cc",
       "android/android/api-level.h",
