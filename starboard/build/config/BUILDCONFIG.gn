@@ -24,8 +24,6 @@ declare_args() {
   is_starboard = true
 
   cobalt_fastbuild = getenv("IS_CI") == 1
-
-  has_unique_target_toolchain = false
 }
 
 is_debug = build_type == "debug"
@@ -68,12 +66,8 @@ foreach(platform, platforms) {
 }
 assert(defined(starboard_path),
        "Please port your platform to starboard/build/platforms.gni")
-host_toolchain = "//$starboard_path/toolchain:target"
-if (has_unique_target_toolchain) {
-  _default_toolchain = "//$starboard_path/toolchain:target"
-} else {
-  _default_toolchain = host_toolchain
-}
+host_toolchain = "//$starboard_path/toolchain:host"
+_default_toolchain = "//$starboard_path/toolchain:target"
 set_default_toolchain(_default_toolchain)
 
 # =============================================================================
