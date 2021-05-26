@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/starboard/player/buildfiles.gni")
+
 declare_args() {
   has_input_events_filter = false
 
@@ -419,6 +421,16 @@ static_library("starboard_platform") {
     "window_update_on_screen_keyboard_suggestions.cc",
   ]
 
+  sources += common_player_sources
+
+  sources -= [
+    "//starboard/shared/starboard/player/player_create.cc",
+    "//starboard/shared/starboard/player/player_destroy.cc",
+    "//starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc",
+    "//starboard/shared/starboard/player/player_set_bounds.cc",
+    "//starboard/shared/starboard/player/player_set_playback_rate.cc",
+  ]
+
   if (has_drm_system_extension) {
     # TODO(andrewsavage)
   } else {
@@ -443,7 +455,6 @@ static_library("starboard_platform") {
   ]
 
   deps = [
-    "//starboard/shared/starboard/player",
     "//third_party/libevent",
     "//third_party/opus",
   ]
