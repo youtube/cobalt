@@ -14,13 +14,5 @@
 
 config("platform_configuration") {
   configs = [ "//starboard/android/shared/platform_configuration" ]
-
-  if (current_toolchain != host_toolchain) {
-    defines = [
-      # Enable compile-time decisions based on the ABI
-      "ANDROID_ABI=$android_abi",
-    ]
-  }
-
   cflags = [ "-march=armv7-a" ]
 }
