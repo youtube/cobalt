@@ -131,6 +131,9 @@ if (use_arm_neon_optimizations) {
       configs -= [ "//starboard/build/config:size" ]
       configs += [ "//starboard/build/config:speed" ]
     }
+    if (is_starboard) {
+      deps = [ "//starboard:starboard_headers_only" ]
+    }
 
     public_configs = [ ":zlib_arm_crc32_config" ]
   }
