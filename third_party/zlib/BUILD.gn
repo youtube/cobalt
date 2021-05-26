@@ -98,7 +98,7 @@ if (use_arm_neon_optimizations) {
     if (!is_ios) {
       include_dirs = [ "." ]
 
-      if (is_android) {
+      if (!is_starboard && is_android) {
         import("//build/config/android/config.gni")
         if (defined(android_ndk_root) && android_ndk_root != "") {
           deps = [
