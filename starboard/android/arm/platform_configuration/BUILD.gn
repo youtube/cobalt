@@ -12,13 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-build_with_chromium = false
+config("platform_configuration") {
+  configs = [ "//starboard/android/shared/platform_configuration" ]
 
-declare_args() {
-  # Android 32-bit non-component, non-clang builds cannot have symbol_level=2
-  # due to 4GiB file size limit, see https://crbug.com/648948.
-  # Set this flag to true to skip the assertion.
-  ignore_elf32_limitations = false
+  if (current_toolchain != host_toolchain) {
+    defines = [
+      # Enable compile-time decisions based on the ABI
+      "ANDROID_ABI=$android_abi",
+    ]
+  }
+
+  cflags = [ "-march=armv7-a" ]
 }
 
-enable_java_templates = false
+config("shared_library_config") {
+  configs = [
+    "//starboard/android/shared/platform_configuration:shared_library_config",
+  ]
+}
+
+config("executable_config") {
+  configs =
+      [ "//starboard/android/shared/platform_configuration:executable_config" ]
+}

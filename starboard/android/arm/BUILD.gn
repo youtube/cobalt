@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-build_with_chromium = false
+static_library("starboard_platform") {
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
-declare_args() {
-  # Android 32-bit non-component, non-clang builds cannot have symbol_level=2
-  # due to 4GiB file size limit, see https://crbug.com/648948.
-  # Set this flag to true to skip the assertion.
-  ignore_elf32_limitations = false
+  public_deps = [ "//starboard/android/shared:starboard_platform" ]
 }
-
-enable_java_templates = false
