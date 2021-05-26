@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/starboard/player/buildfiles.gni")
+
 declare_args() {
   has_cdm = false
 }
@@ -23,7 +25,6 @@ group("starboard_platform") {
     "//starboard/common",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player",
   ]
 
   deps = [
@@ -382,6 +383,9 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
   ]
+
+  sources += common_player_sources
+
   if (has_cdm) {
     # TODO(andrewsavage)
   } else {
