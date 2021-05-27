@@ -19,7 +19,6 @@
 # https://cobalt.googlesource.com/cobalt/+/master/src/#Building-and-Running-the-Code
 
 # Allow for a developer-specific environment setup from .cobaltrc
-# e.g., it may set DEPOT_TOOLS and/or setup some distributed build tools.
 local_rc=$(dirname $0)/.cobaltrc
 global_rc=${HOME}/.cobaltrc
 if [ -r ${local_rc} ]; then
@@ -27,9 +26,6 @@ if [ -r ${local_rc} ]; then
 elif [ -r ${global_rc} ]; then
   source ${global_rc}
 fi
-
-# DEPOT_TOOLS may be set in .cobaltrc, otherwise assume it's in $HOME.
-[ -x ${DEPOT_TOOLS}/ninja ] || DEPOT_TOOLS=${HOME}/depot_tools
 
 # Use Cobalt's clang if it's not anywhere earlier in the PATH.
 SRC_DIR=$(cd $(dirname $0)/../../../..; pwd)
@@ -42,6 +38,4 @@ if [ "$1" == "-n" ]; then
   exit
 fi
 
-# When running in CMake, depot_tools isn't in the path, so we have to be
-# explicit about which ninja to run. Fail if we didn't find depot_tools.
-exec ${DEPOT_TOOLS}/ninja "$@"
+exec ninja "$@"
