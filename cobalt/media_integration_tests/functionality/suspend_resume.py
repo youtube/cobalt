@@ -20,6 +20,7 @@ import unittest
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import Features
 from cobalt.media_integration_tests.test_case import TestCase
+from cobalt.media_integration_tests.test_util import MimeStrings, PlaybackUrls
 
 
 class SuspendResumeTest(TestCase):
@@ -57,36 +58,34 @@ class SuspendResumeTest(TestCase):
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_h264_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=RACW52qnJMI')
+    self.run_test_with_url(PlaybackUrls.H264_ONLY)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_encrypted_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Vx5lkGS4w30')
+    self.run_test_with_url(PlaybackUrls.ENCRYPTED)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_live_stream(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=KI1XlTQrsa0')
+    self.run_test_with_url(PlaybackUrls.LIVE)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_vp9_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ',
-                           'video/webm; codecs=vp9')
+    self.run_test_with_url(PlaybackUrls.VP9, MimeStrings.VP9)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_av1_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=iXvy8ZeCs5M',
-                           'video/mp4; codecs=av01.0.08M.08')
+    self.run_test_with_url(PlaybackUrls.AV1, MimeStrings.AV1)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_vertical_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=jNQXAC9IVRw')
+    self.run_test_with_url(PlaybackUrls.VERTICAL)
 
   @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
                    'Suspend and resume is not supported on this platform.')
   def test_vr_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Ei0fgLfJ6Tk')
+    self.run_test_with_url(PlaybackUrls.VR)

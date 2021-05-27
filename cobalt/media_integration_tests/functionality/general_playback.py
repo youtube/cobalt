@@ -17,6 +17,7 @@ import logging
 
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_case import TestCase
+from cobalt.media_integration_tests.test_util import MimeStrings, PlaybackUrls
 
 
 class GeneralPlaybackTest(TestCase):
@@ -38,45 +39,37 @@ class GeneralPlaybackTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 10)
 
   def test_h264_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=RACW52qnJMI')
+    self.run_test_with_url(PlaybackUrls.H264_ONLY)
 
   def test_encrypted_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Vx5lkGS4w30')
+    self.run_test_with_url(PlaybackUrls.ENCRYPTED)
 
   def test_vr_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Ei0fgLfJ6Tk')
+    self.run_test_with_url(PlaybackUrls.VR)
 
   def test_vp9_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=x7GkebUe6XQ',
-                           'video/webm; codecs=vp9')
+    self.run_test_with_url(PlaybackUrls.VP9, MimeStrings.VP9)
 
   def test_vp9_playback_hfr(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Jsjtt5dWDYU',
-                           'video/webm; codecs=vp9; framerate=60')
+    self.run_test_with_url(PlaybackUrls.VP9_HFR, MimeStrings.VP9_HFR)
 
   def test_av1_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=iXvy8ZeCs5M',
-                           'video/mp4; codecs=av01.0.08M.08')
+    self.run_test_with_url(PlaybackUrls.AV1, MimeStrings.AV1)
 
   def test_av1_playback_hfr(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=9jZ01i92JI8',
-                           'video/mp4; codecs=av01.0.08M.08; framerate=60')
+    self.run_test_with_url(PlaybackUrls.AV1_HFR, MimeStrings.AV1_HFR)
 
   def test_vertical_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=jNQXAC9IVRw')
+    self.run_test_with_url(PlaybackUrls.VERTICAL)
 
   def test_short_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=NEf8Ug49FEw')
+    self.run_test_with_url(PlaybackUrls.SHORT)
 
   def test_hdr_playback_hlg(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=ebhEiRWGvZM',
-                           'video/webm; codecs=vp09.02.51.10.01.09.18.09.00')
+    self.run_test_with_url(PlaybackUrls.HDR_PQ_HFR, MimeStrings.VP9_HDR_HLG)
 
   def test_hdr_playback_pq(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Rw-qEKR5uv8',
-                           'video/webm; codecs=vp09.02.51.10.01.09.16.09.00')
+    self.run_test_with_url(PlaybackUrls.VP9_HDR_PQ, MimeStrings.AV1_HFR)
 
   def test_hdr_playback_hfr(self):
-    self.run_test_with_url(
-        'https://www.youtube.com/tv#/watch?v=LXb3EKWsInQ',
-        'video/webm; codecs=vp09.02.51.10.01.09.16.09.00; framerate=60')
+    self.run_test_with_url(PlaybackUrls.HDR_PQ_HFR, MimeStrings.VP9_HDR_PQ_HFR)

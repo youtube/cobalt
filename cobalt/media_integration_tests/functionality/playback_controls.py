@@ -19,6 +19,7 @@ import time
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import AdditionalKeys
 from cobalt.media_integration_tests.test_case import TestCase
+from cobalt.media_integration_tests.test_util import PlaybackUrls
 
 
 class PlaybackControlsTest(TestCase):
@@ -27,8 +28,7 @@ class PlaybackControlsTest(TestCase):
   """
 
   def test_play_pause(self):
-    app = self.CreateCobaltApp(
-        'https://www.youtube.com/tv#/watch?v=RACW52qnJMI')
+    app = self.CreateCobaltApp(PlaybackUrls.H264_ONLY)
     with app:
       # Wait until the playback starts.
       app.WaitUntilPlayerStart()
@@ -37,20 +37,19 @@ class PlaybackControlsTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Pause the playback.
       logging.info('Pause the playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
       app.WaitUntilReachState(
           lambda _app: _app.PlayerState().video_element_state.paused)
       # Resume the playback.
       logging.info('Resume the playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
       app.WaitUntilReachState(
           lambda _app: not _app.PlayerState().video_element_state.paused)
       # Let the playback play for another 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
   def test_rewind_fastforward(self):
-    app = self.CreateCobaltApp(
-        'https://www.youtube.com/tv#/watch?v=RACW52qnJMI')
+    app = self.CreateCobaltApp(PlaybackUrls.H264_ONLY)
     with app:
       # Wait until the playback starts.
       app.WaitUntilPlayerStart()
@@ -85,8 +84,7 @@ class PlaybackControlsTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
   def test_play_next_and_previous(self):
-    app = self.CreateCobaltApp('https://www.youtube.com/tv#/watch?'
-        'v=v3dclL2grbs&list=PLEo9nJ_lneYVn57sDqYmx9Bu6K80OauUs')
+    app = self.CreateCobaltApp(PlaybackUrls.PLAYLIST)
     with app:
       # Wait until the playback starts.
       app.WaitUntilPlayerStart()
