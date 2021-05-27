@@ -179,11 +179,6 @@
                   '_POSIX_PATH_MAX=255',
                 ],
               }],
-              ['sb_target_platform=="ps4"', {
-                'gtest_defines!' : [
-                  'GTEST_USE_OWN_TR1_TUPLE=1',
-                ],
-              }],
               ['target_os=="win"', {
                 'gtest_defines!' : [
                   'GTEST_USE_OWN_TR1_TUPLE=1',
