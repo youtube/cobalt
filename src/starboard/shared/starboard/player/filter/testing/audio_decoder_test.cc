@@ -634,10 +634,10 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   ASSERT_NO_FATAL_FAILURE(AssertInvalidOutputFormat());
 }
 
-INSTANTIATE_TEST_CASE_P(AudioDecoderTests,
-                        AudioDecoderTest,
-                        Combine(ValuesIn(GetSupportedAudioTestFiles(true)),
-                                Bool()));
+INSTANTIATE_TEST_CASE_P(
+    AudioDecoderTests,
+    AudioDecoderTest,
+    Combine(ValuesIn(GetSupportedAudioTestFiles(true, true)), Bool()));
 
 }  // namespace
 }  // namespace testing

@@ -157,9 +157,7 @@ target(gtest_target_type, "nplb") {
     "memory_map_test.cc",
     "memory_move_test.cc",
     "memory_reallocate_test.cc",
-
-    # TODO(andrewsavage)
-    # "memory_reporter_test.cc",
+    "memory_reporter_test.cc",
     "memory_set_test.cc",
     "microphone_close_test.cc",
     "microphone_create_test.cc",
@@ -213,12 +211,6 @@ target(gtest_target_type, "nplb") {
     "socket_waiter_wait_timed_test.cc",
     "socket_waiter_wake_up_test.cc",
     "socket_wrapper_test.cc",
-    "speech_recognizer_cancel_test.cc",
-    "speech_recognizer_create_test.cc",
-    "speech_recognizer_destroy_test.cc",
-    "speech_recognizer_helper.h",
-    "speech_recognizer_start_test.cc",
-    "speech_recognizer_stop_test.cc",
     "speech_synthesis_basic_test.cc",
     "state_machine_test.cc",
     "storage_close_record_test.cc",
@@ -266,6 +258,7 @@ target(gtest_target_type, "nplb") {
     "system_has_capability_test.cc",
     "system_hide_splash_screen_test.cc",
     "system_is_debugger_attached_test.cc",
+    "system_network_status_test.cc",
     "system_sign_with_certification_secret_key_test.cc",
     "system_sort_test.cc",
     "system_symbolize_test.cc",
@@ -302,13 +295,9 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  # TODO(andrewsavage): remove -fno-exceptions
-
-  # This allows the tests to include internal only header files.
-  defines = [ "STARBOARD_IMPLEMENTATION" ]
+  deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   public_deps = [
-    ":nplb_file_tests_data",
     "//starboard",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
@@ -320,19 +309,10 @@ target(gtest_target_type, "nplb") {
   if (gl_type != "none") {
     public_deps += [ "//starboard/egl_and_gles" ]
   }
-}
 
-copy("nplb_file_tests_data") {
-  sources = [
-    "testdata/file_tests/dir_with_files/file11",
-    "testdata/file_tests/dir_with_files/file12",
-    "testdata/file_tests/dir_with_only_subdir/dir_with_files/file21",
-    "testdata/file_tests/dir_with_only_subdir/dir_with_files/file22",
-    "testdata/file_tests/file01",
-    "testdata/file_tests/file_with_long_name_and_contents_for_seek_testing_1234567890",
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//starboard/build/config:starboard_implementation",
   ]
-
-  subdir = "starboard/nplb/file_tests"
-
-  outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  configs -= [ "//build/config/compiler:no_exceptions" ]
 }

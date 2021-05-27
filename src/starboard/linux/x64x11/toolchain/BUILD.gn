@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/toolchain/gcc_toolchain.gni")
+import("//build/toolchain/gcc_toolchain.gni")
 
-gcc_toolchain("toolchain") {
+_home_dir = getenv("HOME")
+_clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
+
+clang_toolchain("host") {
+  clang_base_path = _clang_base_path
+}
+
+clang_toolchain("target") {
+  clang_base_path = _clang_base_path
 }

@@ -7,7 +7,9 @@ import("gni/angle.gni")
 if (angle_has_build) {
   import("//build/config/linux/pkg_config.gni")
   import("//build/config/ui.gni")
-  import("//testing/libfuzzer/fuzzer_test.gni")
+  if (!is_starboard) {
+    import("//testing/libfuzzer/fuzzer_test.gni")
+  }
 
   if (is_android) {
     # android/rules.gni can only be imported for Android targets
@@ -31,7 +33,8 @@ declare_args() {
 
   # Don't build extra (test, samples etc) for Windows UWP. We don't have
   # infrastructure (e.g. windowing helper functions) in place to run them.
-  angle_build_all = !build_with_chromium && !angle_is_winuwp && angle_has_build
+  angle_build_all = !build_with_chromium && !angle_is_winuwp &&
+                    angle_has_build && !is_starboard
 }
 
 if (angle_build_all) {
@@ -45,6 +48,10 @@ if (angle_build_all) {
       "$angle_root/samples:angle_samples",
       "$angle_root/src/tests:angle_tests",
     ]
+
+    if (is_starboard) {
+      deps -= [ ":angle_shader_translator" ]
+    }
   }
 }
 
@@ -98,10 +105,12 @@ config("internal_config") {
 
   defines = []
 
-  if (angle_64bit_current_cpu) {
-    defines += [ "ANGLE_IS_64_BIT_CPU" ]
-  } else {
-    defines += [ "ANGLE_IS_32_BIT_CPU" ]
+  if (!is_starboard) {
+    if (angle_64bit_current_cpu) {
+      defines += [ "ANGLE_IS_64_BIT_CPU" ]
+    } else {
+      defines += [ "ANGLE_IS_32_BIT_CPU" ]
+    }
   }
 
   if (angle_enable_trace) {
@@ -215,6 +224,7 @@ config("includes_config") {
 angle_source_set("includes") {
   sources = libangle_includes
   public_configs = [ ":includes_config" ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
 
 angle_static_library("preprocessor") {
@@ -239,6 +249,19 @@ config("debug_annotations_config") {
 config("angle_release_asserts_config") {
   if (dcheck_always_on) {
     defines = [ "ANGLE_ENABLE_RELEASE_ASSERTS" ]
+  }
+}
+
+config("starboard_defines") {
+  defines = []
+  if (is_linux) {
+    defines += [ "ANGLE_PLATFORM_LINUX" ]
+  }
+  if (is_posix) {
+    defines += [ "ANGLE_PLATFORM_POSIX" ]
+  }
+  if (is_win) {
+    defines += [ "ANGLE_PLATFORM_WINDOWS" ]
   }
 }
 
@@ -276,7 +299,7 @@ angle_source_set("xxhash") {
   sources = xxhash_sources
 }
 
-if (angle_has_build) {
+if (angle_has_build && !is_starboard) {
   fuzzer_test("xxhash_fuzzer") {
     sources = [
       "src/common/third_party/xxhash/xxhash_fuzzer.cpp",
@@ -297,6 +320,7 @@ angle_static_library("angle_common") {
 
   deps = [
     ":xxhash",
+    "//starboard/common",
   ]
 
   public_deps = [
@@ -393,7 +417,7 @@ angle_static_library("angle_gpu_info_util") {
     }
   }
 
-  if (use_libpci) {
+  if (use_libpci && !is_starboard) {
     sources += libangle_gpu_info_util_libpci_sources
     defines += [ "GPU_INFO_USE_LIBPCI" ]
     libs += [ "pci" ]
@@ -459,6 +483,7 @@ angle_static_library("translator") {
   deps = [
     ":includes",
     ":preprocessor",
+    "//starboard:starboard_headers_only",
   ]
 
   public_deps = [
@@ -658,7 +683,7 @@ angle_source_set("libANGLE_base") {
   }
 
   # Enable extra Chromium style warnings for libANGLE.
-  if (is_clang && angle_has_build) {
+  if (is_clang && angle_has_build && !is_starboard) {
     suppressed_configs -= [ "//build/config/clang:find_bad_constructs" ]
   }
 
@@ -831,7 +856,7 @@ set_defaults("angle_libGLESv2") {
 }
 
 template("angle_libGLESv2") {
-  angle_shared_library(target_name) {
+  angle_static_library(target_name) {
     sources = libglesv2_sources + invoker.sources
 
     if (is_win) {
@@ -924,7 +949,7 @@ angle_static_library("libGLESv2_static") {
   ]
 }
 
-angle_shared_library("libGLESv1_CM") {
+angle_static_library("libGLESv1_CM") {
   sources = libglesv1_cm_sources
   output_name = "libGLESv1_CM${angle_libs_suffix}"
 
@@ -972,7 +997,7 @@ angle_source_set("libEGL_egl_loader") {
   ]
 }
 
-angle_shared_library("libEGL") {
+angle_static_library("libEGL") {
   sources = libegl_sources
   output_name = "libEGL${angle_libs_suffix}"
 
@@ -1006,6 +1031,10 @@ angle_shared_library("libEGL") {
   data_deps = [
     ":libGLESv2",
   ]
+
+  if (is_starboard) {
+    deps -= [ ":libEGL_egl_loader" ]
+  }
 }
 
 angle_static_library("libEGL_static") {
@@ -1078,7 +1107,6 @@ config("angle_util_config") {
 
 foreach(is_shared_library,
         [
-          true,
           false,
         ]) {
   if (is_shared_library) {
@@ -1089,6 +1117,10 @@ foreach(is_shared_library,
     library_type = "angle_static_library"
     library_name = "angle_util_static"
     dep_suffix = "_static"
+  }
+
+  if (is_starboard) {
+    not_needed([ "dep_suffix" ])
   }
 
   target(library_type, library_name) {
@@ -1121,13 +1153,11 @@ foreach(is_shared_library,
       ]
     }
 
-    if (angle_use_x11) {
+    if (angle_use_x11 && !is_starboard) {
       sources += util_x11_sources
     }
 
     if (is_android) {
-      # To prevent linux sources filtering on android
-      set_sources_assignment_filter([])
       sources += util_android_sources
       libs += [
         "android",
@@ -1180,21 +1210,23 @@ foreach(is_shared_library,
   }
 }
 
-# Convenience targets for some of the samples so they can be built
-# with Chromium's toolchain.
-angle_executable("angle_shader_translator") {
-  testonly = true
+if (!is_starboard) {
+  # Convenience targets for some of the samples so they can be built
+  # with Chromium's toolchain.
+  angle_executable("angle_shader_translator") {
+    testonly = true
 
-  sources = [
-    "samples/shader_translator/shader_translator.cpp",
-  ]
+    sources = [
+      "samples/shader_translator/shader_translator.cpp",
+    ]
 
-  deps = [
-    ":translator",
-  ]
+    deps = [
+      ":translator",
+    ]
+  }
 }
 
-if (angle_has_build) {
+if (angle_has_build && !is_starboard) {
   config("angle_feature_support_config") {
     include_dirs = [
       "include",

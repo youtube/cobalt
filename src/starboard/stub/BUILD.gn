@@ -32,12 +32,7 @@ static_library("starboard_platform") {
   ]
 }
 
-config("starboard_implementation") {
-  defines = [ "STARBOARD_IMPLEMENTATION" ]
-}
-
-source_set("stub_sources") {
-  public_configs = [ ":starboard_implementation" ]
+static_library("stub_sources") {
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
@@ -223,12 +218,6 @@ source_set("stub_sources") {
     "//starboard/shared/stub/socket_waiter_wait.cc",
     "//starboard/shared/stub/socket_waiter_wait_timed.cc",
     "//starboard/shared/stub/socket_waiter_wake_up.cc",
-    "//starboard/shared/stub/speech_recognizer_cancel.cc",
-    "//starboard/shared/stub/speech_recognizer_create.cc",
-    "//starboard/shared/stub/speech_recognizer_destroy.cc",
-    "//starboard/shared/stub/speech_recognizer_is_supported.cc",
-    "//starboard/shared/stub/speech_recognizer_start.cc",
-    "//starboard/shared/stub/speech_recognizer_stop.cc",
     "//starboard/shared/stub/speech_synthesis_cancel.cc",
     "//starboard/shared/stub/speech_synthesis_is_supported.cc",
     "//starboard/shared/stub/speech_synthesis_speak.cc",
@@ -347,4 +336,6 @@ source_set("stub_sources") {
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
   ]
+
+  public_configs = [ "//starboard/build/config:starboard_implementation" ]
 }

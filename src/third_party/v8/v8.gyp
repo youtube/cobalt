@@ -246,11 +246,10 @@
     'v8_compiler_sources': ['<!@pymod_do_main(third_party.v8.gypfiles.GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
 
     'conditions': [
-      ['v8_target_arch=="arm64" or v8_target_arch=="x64"', {
-        # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
-        'v8_enable_pointer_compression%': 1,
+      ['(target_arch=="arm64" or target_arch=="x64") and disable_v8_pointer_compression==0', {
+         'v8_enable_pointer_compression': 1,
       }, {
-        'v8_enable_pointer_compression%': 0,
+         'v8_enable_pointer_compression': 0,
       }],
       ['v8_enable_i18n_support', {
         'torque_files_v8_root_relative': [
@@ -281,21 +280,18 @@
   },
   'targets': [
     {
-      'target_name': 'run_torque',
-      'type': 'none',
+      'target_name': 'fake_torque_output',
       'hard_dependency': 1,
-      'dependent_settings': {
-        'direct_include_dirs': [
-          '<(torque_output_root)',
-        ],
-      },
+      'type': 'none',
       'actions': [
         {
-          'action_name': 'run_torque_action',
-          'inputs': [  # Order matters.
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(host_executable_suffix)',
-            '<@(torque_files_v8_root_relative)',
-          ],
+          'action_name': 'no-op',
+          # For some reason, if we put these outputs under target run_torque, they
+          # will be rebuilt unconditionally even if their template files are not
+          # modified. This could be a bug in our gyp runner.
+          # As a solution, we put the outputs here in its own target so that ninja
+          # will know that some target does provide these generated files and ninja
+          # does not rebuild them all the time.
           'outputs': [
             '<(torque_output_root)/torque-generated/bit-fields.h',
             '<(torque_output_root)/torque-generated/builtin-definitions.h',
@@ -323,6 +319,35 @@
             '<(torque_output_root)/torque-generated/internal-class-definitions-inl.h',
             '<(torque_output_root)/torque-generated/exported-class-definitions.h',
             '<(torque_output_root)/torque-generated/exported-class-definitions-inl.h',
+          ],
+          'inputs': [],
+          'action': [
+            # Windows gyp runner does not like empty actions.
+            'echo',
+          ],
+        },
+      ],
+    },
+    {
+      'target_name': 'run_torque',
+      'type': 'none',
+      'hard_dependency': 1,
+      'dependent_settings': {
+        'direct_include_dirs': [
+          '<(torque_output_root)',
+        ],
+      },
+      'dependencies': [
+        'fake_torque_output',
+      ],
+      'actions': [
+        {
+          'action_name': 'run_torque_action',
+          'inputs': [  # Order matters.
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(host_executable_suffix)',
+            '<@(torque_files_v8_root_relative)',
+          ],
+          'outputs': [
             '<@(torque_outputs)',
           ],
           'action': [

@@ -16,9 +16,22 @@
 # depend on this common target, and not any of the specific "starboard_platform"
 # targets.
 
+static_library("wrapper") {
+  sources = [
+    "wrapper.cc",
+    "wrapper.h",
+  ]
+
+  deps = [
+    "//starboard/elf_loader:evergreen_info",
+    "//third_party/crashpad/client",
+  ]
+}
+
 static_library("wrapper_stub") {
   sources = [
     "wrapper_stub.cc",
     "wrapper.h",
   ]
+  deps = [ "//starboard/elf_loader:evergreen_info" ]
 }

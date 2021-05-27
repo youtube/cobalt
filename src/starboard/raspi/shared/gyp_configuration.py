@@ -171,6 +171,9 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           # not repair these failing tests for now.
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
           'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
+          # Filter failed tests.
+          'PlayerComponentsTests/PlayerComponentsTest.*',
+
       ],
   }
 

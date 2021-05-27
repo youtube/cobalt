@@ -185,6 +185,72 @@ TEST_F(DOMStringBindingsTest, ForeignStringContainingNull) {
   EXPECT_STREQ("かわいい\0です", result.c_str());
 }
 
+// Invalid UTF-16 surrogates with UTF-8 encoding
+// \uFFDD = Replacement char (utf-8) = \xEF\xBF\xBD
+
+// Sanity check
+TEST_F(DOMStringBindingsTest, ReplaceUT8SanityCheck) {
+  EXPECT_CALL(test_mock(), set_property(std::string("abc123")));
+  std::string result;
+  std::string input("test.property = \"abc123\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ("abc123", result.c_str());
+}
+
+// Surrogate half (low)
+TEST_F(DOMStringBindingsTest, ReplaceUT8SurrogateLow) {
+  EXPECT_CALL(test_mock(), set_property(std::string("\xEF\xBF\xBD")));
+  std::string result;
+  std::string input("test.property = \"\\uD800\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ("\xEF\xBF\xBD", result.c_str());
+}
+
+// Surrogate half (high)
+TEST_F(DOMStringBindingsTest, ReplaceUT8SurrogateHigh) {
+  EXPECT_CALL(test_mock(), set_property(std::string("\xEF\xBF\xBD")));
+  std::string result;
+  std::string input("test.property = \"\\uDC00\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ("\xEF\xBF\xBD", result.c_str());
+}
+
+// Surrogate half (low), in a string
+TEST_F(DOMStringBindingsTest, ReplaceUT8SurrogateLowInString) {
+  EXPECT_CALL(test_mock(), set_property(std::string("abc\xEF\xBF\xBD"
+                                                    "123")));
+  std::string result;
+  std::string input("test.property = \"abc\\uD800123\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ(
+      "abc\xEF\xBF\xBD"
+      "123",
+      result.c_str());
+}
+
+// Surrogate half (high), in a string
+TEST_F(DOMStringBindingsTest, ReplaceUT8SurrogateHighInString) {
+  EXPECT_CALL(test_mock(), set_property(std::string("abc\xEF\xBF\xBD"
+                                                    "123")));
+  std::string result;
+  std::string input("test.property = \"abc\\uDC00123\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ(
+      "abc\xEF\xBF\xBD"
+      "123",
+      result.c_str());
+}
+
+// Surrogates in wrong order
+TEST_F(DOMStringBindingsTest, ReplaceUT8WrongOrder) {
+  EXPECT_CALL(test_mock(),
+              set_property(std::string("\xEF\xBF\xBD\xEF\xBF\xBD")));
+  std::string result;
+  std::string input("test.property = \"\\uDC00\\uD800\";");
+  EXPECT_TRUE(EvaluateScript(input, &result));
+  EXPECT_STREQ("\xEF\xBF\xBD\xEF\xBF\xBD", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt

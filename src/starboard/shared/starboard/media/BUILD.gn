@@ -13,6 +13,7 @@
 # limitations under the License.
 
 static_library("media_util") {
+  check_includes = false
   sources = [
     "//starboard/shared/starboard/media/avc_util.cc",
     "//starboard/shared/starboard/media/avc_util.h",
@@ -26,10 +27,6 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/vp9_util.h",
   ]
 
-  defines = [
-    # This allows the tests to include internal only header files.
-    "STARBOARD_IMPLEMENTATION",
-  ]
-
   public_deps = [ "//starboard/common" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }

@@ -38,7 +38,7 @@ config("platform_configuration") {
     cflags += [
       "-fno-rtti",
       "-O2",
-      "gline-tables-only",
+      "-gline-tables-only",
     ]
   }
 
@@ -63,7 +63,6 @@ config("platform_configuration") {
 
       # protobuf uses hash_map.
       "-Wno-deprecated",
-      "-fno-exceptions",
 
       # Don"t warn about the "struct foo f = {0};" initialization pattern.
       "-Wno-missing-field-initializers",
@@ -71,11 +70,6 @@ config("platform_configuration") {
       # Do not warn for implicit sign conversions.
       "-Wno-sign-conversion",
       "-fno-strict-aliasing",  # See http://crbug.com/32204
-
-      # TODO(pkasting): In C++11 this is legal, so this should be
-      # removed when we change to that.  (This is also why we don"t
-      # bother fixing all these cases today.)
-      "-Wno-unnamed-type-template-args",
 
       # Triggered by the COMPILE_ASSERT macro.
       "-Wno-unused-local-typedef",
@@ -89,7 +83,8 @@ config("platform_configuration") {
     ]
   }
 
-  defines = [ "__STDC_FORMAT_MACROS" ]  # so that we get PRI*
+  # Defined to get format macro constants from <inttypes.h>.
+  defines = [ "__STDC_FORMAT_MACROS" ]
 
   if (sb_pedantic_warnings) {
     cflags += [

@@ -72,11 +72,11 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
+        '<(DEPTH)/third_party/devtools/devtools.gyp:devtools',
         'console_command_manager',
         'copy_backend_web_files',
         'copy_console_web_files',
         'copy_remote_web_files',
-        'remote/devtools/devtools.gyp:devtools',
       ],
     },
 

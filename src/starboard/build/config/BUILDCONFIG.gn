@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/platforms.gni")
 
 declare_args() {
@@ -23,8 +22,27 @@ declare_args() {
   target_platform = "stub"
 
   is_starboard = true
+
+  cobalt_fastbuild = getenv("IS_CI") == 1
 }
 
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
+
+declare_args() {
+  use_asan = is_debug || is_devel
+}
+
+# Set some variables we never want to change.
+sb_allows_memory_tracking = !is_gold
+host_byteorder = "little"
+is_official_build = false  # Chromium's build files expect this to be set.
+
+# The os/cpu definitions are here to set the current platform type in
+# os_definitions.gni below.
 if (target_os == "") {
   target_os = host_os
 }
@@ -37,24 +55,20 @@ if (current_os == "") {
 if (current_cpu == "") {
   current_cpu = target_cpu
 }
+import("//starboard/build/config/os_definitions.gni")
 
-is_debug = build_type == "debug"
-is_devel = build_type == "devel"
-is_qa = build_type == "qa"
-is_gold = build_type == "gold"
-assert(is_debug || is_devel || is_qa || is_gold)
-
-# Set some variables we never want to change
-sb_allows_memory_tracking = !is_gold
-host_byteorder = "little"
-is_official_build = false  # Chromium's build files expect this to be set.
-
-starboard_path = platforms["$target_platform"]
-import("//$starboard_path/platform_configuration/configuration.gni")
-
-host_toolchain = "//$starboard_path/toolchain:host"  # TODO(andrewsavage)
-shlib_extension = ".so"  # TODO(andrewsavage)
-set_default_toolchain(host_toolchain)
+# Get the path to the starboard implementation and include its GN
+# configuration.
+foreach(platform, platforms) {
+  if (platform.name == target_platform) {
+    starboard_path = platform.path
+  }
+}
+assert(defined(starboard_path),
+       "Please port your platform to starboard/build/platforms.gni")
+host_toolchain = "//$starboard_path/toolchain:host"
+_default_toolchain = "//$starboard_path/toolchain:target"
+set_default_toolchain(_default_toolchain)
 
 # =============================================================================
 # TARGET DEFAULTS
@@ -74,9 +88,11 @@ set_default_toolchain(host_toolchain)
 # sub-config of an existing one, most commonly the main "compiler" one.
 
 default_compiler_configs = [
+  "//build/config/compiler:default_include_dirs",
+  "//build/config/compiler:no_exceptions",
   "//starboard/build/config:base",
   "//starboard/build/config:host",
-  "//starboard/build/config:include_root",
+  "//starboard/build/config:size",
   "//starboard/build/config:target",
   "//$starboard_path/platform_configuration",
 ]
@@ -101,38 +117,47 @@ set_defaults("shared_library") {
   configs = default_compiler_configs
 }
 
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
+
+# Set up the method of generating the install targets as defined by the
+# platform.
 import("$install_target_path")
 template("executable") {
   executable(target_name) {
-    forward_variables_from(invoker, "*")
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  executable_target_name = target_name
-  install_target(target_name + "_install") {
-    forward_variables_from(invoker,
-                           [
-                             "content",
-                             "testonly",
-                           ])
-    installable_target_name = executable_target_name
-    type = "executable"
+  if (!defined(invoker.install_target) || invoker.install_target) {
+    executable_target_name = target_name
+    install_target(target_name + "_install") {
+      forward_variables_from(invoker,
+                             [
+                               "content",
+                               "testonly",
+                             ])
+      installable_target_name = executable_target_name
+      type = "executable"
+    }
   }
 }
 
 template("shared_library") {
   shared_library(target_name) {
-    forward_variables_from(invoker, "*")
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  shared_library_target_name = target_name
-  install_target(target_name + "_install") {
-    forward_variables_from(invoker,
-                           [
-                             "content",
-                             "testonly",
-                           ])
-    installable_target_name = shared_library_target_name
-    type = "shared_library"
+  if (!defined(invoker.install_target) || invoker.install_target) {
+    shared_library_target_name = target_name
+    install_target(target_name + "_install") {
+      forward_variables_from(invoker,
+                             [
+                               "content",
+                               "testonly",
+                             ])
+      installable_target_name = shared_library_target_name
+      type = "shared_library"
+    }
   }
 }
 

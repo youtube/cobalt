@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html50/webappapis.html#navigatorlanguage
+// https://html.spec.whatwg.org/commit-snapshots/e2f08b4e56d9a098038fb16c7ff6bb820a57cfab/#language-preferences
 
 [NoInterfaceObject]
 interface NavigatorLanguage {
   readonly attribute DOMString language;
+  readonly attribute sequence<DOMString> languages;
 };

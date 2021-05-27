@@ -112,11 +112,13 @@ class VideoDmpReader {
   }
   int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
   std::string audio_mime_type() const;
+  SbTime audio_duration() const { return dmp_info_.audio_duration; }
 
   SbMediaVideoCodec video_codec() const { return dmp_info_.video_codec; }
   int64_t video_bitrate() const { return dmp_info_.video_bitrate; }
   int video_fps() const { return dmp_info_.video_fps; }
   std::string video_mime_type();
+  SbTime video_duration() const { return dmp_info_.video_duration; }
 
   size_t number_of_audio_buffers() const {
     return dmp_info_.audio_access_units_size;
@@ -134,11 +136,13 @@ class VideoDmpReader {
     SbMediaAudioSampleInfoWithConfig audio_sample_info;
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
+    int audio_duration = 0;
 
     SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
     size_t video_access_units_size = 0;
     int64_t video_bitrate = 0;
     int video_fps = 0;
+    int video_duration = 0;
   };
 
   class Registry {

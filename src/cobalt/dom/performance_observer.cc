@@ -166,13 +166,15 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
     // observer is the context object, replace its options list with a list
     // containing options as its only item.
     if (is_registered_) {
-      performance_->ReplaceRegisteredPerformanceObserverOptionsList(this, options);
+      performance_->ReplaceRegisteredPerformanceObserverOptionsList(
+          base::WrapRefCounted(this), options);
     // 6.5  Otherwise, create and append a registered performance observer
     // object to the list of registered performance observer objects of
     // relevantGlobal, with observer set to the context object and options list
     // set to a list containing options as its only item.
     } else {
-      performance_->RegisterPerformanceObserver(this, options);
+      performance_->RegisterPerformanceObserver(
+          base::WrapRefCounted(this), options);
       is_registered_ = true;
     }
   // 7.  Otherwise, run the following steps:
@@ -197,13 +199,15 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
       // currentOptions whose type is equal to options's type, replace
       // currentOptions with options in obs's options list.
       // 7.3.2  Otherwise, append options to obs's options list.
-      performance_->UpdateRegisteredPerformanceObserverOptionsList(this, options);
+      performance_->UpdateRegisteredPerformanceObserverOptionsList(
+          base::WrapRefCounted(this), options);
     // 7.4  Otherwise, create and append a registered performance observer
     // object to the list of registered performance observer objects of
     // relevantGlobal, with observer set to the context object and options
     // list set to a list containing options as its only item.
     } else {
-      performance_->RegisterPerformanceObserver(this, options);
+      performance_->RegisterPerformanceObserver(
+          base::WrapRefCounted(this), options);
       is_registered_ = true;
     }
   }
@@ -220,7 +224,7 @@ void PerformanceObserver::Disconnect() {
   // also empty context object's observer buffer.
   //   https://www.w3.org/TR/2019/WD-performance-timeline-2-20191024/#disconnect-method
   if (performance_) {
-    performance_->UnregisterPerformanceObserver(this);
+    performance_->UnregisterPerformanceObserver(base::WrapRefCounted(this));
   }
   observer_buffer_.clear();
   is_registered_ = false;

@@ -126,9 +126,9 @@ template("gcc_toolchain") {
     assert(defined(invoker.toolchain_args),
            "Toolchains must specify toolchain_args")
     invoker_toolchain_args = invoker.toolchain_args
-    assert(defined(invoker_toolchain_args.current_cpu),
+    assert(is_starboard || defined(invoker_toolchain_args.current_cpu),
            "toolchain_args must specify a current_cpu")
-    assert(defined(invoker_toolchain_args.current_os),
+    assert(is_starboard || defined(invoker_toolchain_args.current_os),
            "toolchain_args must specify a current_os")
 
     # When invoking this toolchain not as the default one, these args will be
@@ -141,10 +141,12 @@ template("gcc_toolchain") {
       # needs to be passed through unchanged to all secondary toolchains to
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
-      host_toolchain = host_toolchain
+      if (!is_starboard) {
+        host_toolchain = host_toolchain
 
-      if (!defined(invoker_toolchain_args.v8_current_cpu)) {
-        v8_current_cpu = invoker_toolchain_args.current_cpu
+        if (!defined(invoker_toolchain_args.v8_current_cpu)) {
+          v8_current_cpu = invoker_toolchain_args.current_cpu
+        }
       }
     }
 
@@ -651,6 +653,9 @@ template("clang_toolchain") {
     toolprefix = invoker.toolprefix
   } else {
     toolprefix = ""
+  }
+  if (is_starboard) {
+    clang_base_path = invoker.clang_base_path
   }
 
   gcc_toolchain(target_name) {

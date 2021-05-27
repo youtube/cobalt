@@ -155,9 +155,6 @@
 
 // --- Platform Specific Configuration ---------------------------------------
 
-// Enable SB_HAS_CONCEALED_STATE support.
-#define SB_HAS_CONCEALED_STATE 1
-
 // --- Platform Specific Audits ----------------------------------------------
 
 #if !defined(__GNUC__)

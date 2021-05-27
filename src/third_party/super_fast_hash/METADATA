@@ -9,4 +9,5 @@ third_party {
     type: HOMEPAGE
     value: "http://www.azillionmonkeys.com/qed/hash.html"
   }
+  license_type: NOTICE
 }

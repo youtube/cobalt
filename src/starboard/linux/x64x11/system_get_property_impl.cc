@@ -44,8 +44,8 @@ bool CopyStringAndTestIfSuccess(char* out_value,
 }
 
 bool GetSystemProperty(SbSystemPropertyId property_id,
-                         char* out_value,
-                         int value_length) {
+                       char* out_value,
+                       int value_length) {
   if (!out_value || !value_length) {
     return false;
   }
@@ -77,11 +77,6 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kCertificationScope);
 
-    case kSbSystemPropertyBase64EncodedCertificationSecret:
-      if (kBase64EncodedCertificationSecret[0] == '\0')
-        return false;
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kBase64EncodedCertificationSecret);
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

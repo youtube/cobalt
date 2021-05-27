@@ -271,6 +271,7 @@ void HTMLElement::Blur() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
 scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element on which it was invoked does not have an associated
@@ -287,6 +288,7 @@ scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 float HTMLElement::client_top() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
@@ -305,6 +307,7 @@ float HTMLElement::client_top() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 float HTMLElement::client_left() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
@@ -323,6 +326,7 @@ float HTMLElement::client_left() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 float HTMLElement::client_width() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
@@ -345,6 +349,7 @@ float HTMLElement::client_width() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 float HTMLElement::client_height() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
@@ -373,6 +378,7 @@ int32 HTMLElement::scroll_width() {
     return 0;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   int32 element_scroll_width = 0;
@@ -409,6 +415,7 @@ int32 HTMLElement::scroll_height() {
     return 0;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   int32 element_scroll_height = 0;
@@ -454,6 +461,7 @@ float HTMLElement::scroll_left() {
     return 0.0f;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
@@ -496,6 +504,7 @@ float HTMLElement::scroll_top() {
     return 0.0f;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
@@ -540,6 +549,7 @@ void HTMLElement::set_scroll_left(float x) {
     return;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
@@ -592,6 +602,7 @@ void HTMLElement::set_scroll_top(float y) {
     return;
   }
 
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   if (!ui_nav_item_ || !ui_nav_item_->IsContainer()) {
@@ -631,6 +642,7 @@ void HTMLElement::set_scroll_top(float y) {
 //   https://drafts.csswg.org/date/2019-10-11/cssom-view/#extensions-to-the-htmlelement-interface
 Element* HTMLElement::offset_parent() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If any of the following holds true return null and terminate this
@@ -678,6 +690,7 @@ Element* HTMLElement::offset_parent() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
 float HTMLElement::offset_top() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element is the HTML body element or does not have any associated
@@ -717,6 +730,7 @@ float HTMLElement::offset_top() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
 float HTMLElement::offset_left() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element is the HTML body element or does not have any associated
@@ -756,6 +770,7 @@ float HTMLElement::offset_left() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 float HTMLElement::offset_width() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element does not have any associated CSS layout box return zero
@@ -777,6 +792,7 @@ float HTMLElement::offset_width() {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 float HTMLElement::offset_height() {
   DCHECK(node_document());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   node_document()->DoSynchronousLayout();
 
   // 1. If the element does not have any associated CSS layout box return zero

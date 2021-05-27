@@ -137,16 +137,23 @@ URLFetcherCore::URLFetcherCore(
       total_response_bytes_(-1),
       traffic_annotation_(traffic_annotation) {
   CHECK(original_url_.is_valid());
+  DCHECK(delegate_);
 
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
   const CobaltExtensionUrlFetcherObserverApi* observer_extension =
       static_cast<const CobaltExtensionUrlFetcherObserverApi*>(
           SbSystemGetExtension(kCobaltExtensionUrlFetcherObserverName));
-  if (observer_extension &&
+  if (command_line.HasSwitch(URL_FETCHER_COMMAND_LINE_SWITCH) &&
+      observer_extension &&
       SbStringCompareAll(observer_extension->name,
                          kCobaltExtensionUrlFetcherObserverName) == 0 &&
       observer_extension->version >= 1) {
     observer_extension_ = observer_extension;
-    observer_extension_->FetcherCreated(original_url_.spec().c_str());
+    observer_extension_->FetcherCreated(
+        original_url_.spec()
+            .substr(0, URL_FETCHER_OBSERVER_MAX_URL_SIZE)
+            .c_str());
   } else {
     observer_extension_ = nullptr;
   }
@@ -612,7 +619,10 @@ void URLFetcherCore::SetIgnoreCertificateRequests(bool ignored) {
 
 URLFetcherCore::~URLFetcherCore() {
   if (observer_extension_ != nullptr) {
-    observer_extension_->FetcherDestroyed(original_url_.spec().c_str());
+    observer_extension_->FetcherDestroyed(
+        original_url_.spec()
+            .substr(0, URL_FETCHER_OBSERVER_MAX_URL_SIZE)
+            .c_str());
   }
   // |request_| should be NULL. If not, it's unsafe to delete it here since we
   // may not be on the IO thread.
@@ -643,7 +653,10 @@ void URLFetcherCore::StartURLRequest() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (observer_extension_ != nullptr) {
-    observer_extension_->StartURLRequest(original_url_.spec().c_str());
+    observer_extension_->StartURLRequest(
+        original_url_.spec()
+            .substr(0, URL_FETCHER_OBSERVER_MAX_URL_SIZE)
+            .c_str());
   }
   if (was_cancelled_) {
     // Since StartURLRequest() is posted as a *delayed* task, it may
@@ -1116,8 +1129,10 @@ void URLFetcherCore::AssertHasNoUploadData() const {
 #if defined(STARBOARD)
 void URLFetcherCore::GetLoadTimingInfo(
     const net::LoadTimingInfo& timing_info) {
-  DCHECK(delegate_);
-  delegate_->ReportLoadTimingInfo(timing_info);
+  // Check if the URLFetcherCore has been stopped before.
+  if (delegate_) {
+    delegate_->ReportLoadTimingInfo(timing_info);
+  }
 }
 #endif  // defined(STARBOARD)
 

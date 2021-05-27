@@ -78,9 +78,11 @@ typedef enum SbSystemPropertyId {
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
 
+#if SB_API_VERSION < 13
   // The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
   // query parameters from the application startup URL.
   kSbSystemPropertyBase64EncodedCertificationSecret,
+#endif  // SB_API_VERSION < 13
 
   // The full model number of the main platform chipset, including any
   // vendor-specific prefixes.
@@ -304,7 +306,7 @@ SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 // Returns the device's current network connection type.
 SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
 // Returns if the device is disconnected from network. "Disconnected" is chosen
 // over connected because disconnection can be determined with more certainty
 // than connection usually.
@@ -443,8 +445,7 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
 // Requests that the application move into the Blurred state at the next
 // convenient point. This should roughly correspond to "unfocused application"
 // in a traditional window manager, where the application may be partially
@@ -539,8 +540,7 @@ SB_EXPORT void SbSystemRequestUnpause();
 // running. The expectation is that an external system event will bring the
 // application out of the Suspended state.
 SB_EXPORT void SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
 
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and
@@ -553,7 +553,7 @@ SB_EXPORT void SbSystemRequestSuspend();
 //   that is eventually terminated as a result of a call to this function.
 SB_EXPORT void SbSystemRequestStop(int error_level);
 
-#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 // Binary searches a sorted table |base| of |element_count| objects, each
 // element |element_width| bytes in size for an element that |comparator|
 // compares equal to |key|.
@@ -573,7 +573,7 @@ SB_EXPORT void* SbSystemBinarySearch(const void* key,
                                      SbSystemComparator comparator);
 #endif
 
-#if SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 // Sorts an array of elements |base|, with |element_count| elements of
 // |element_width| bytes each, using |comparator| as the comparison function.
 //

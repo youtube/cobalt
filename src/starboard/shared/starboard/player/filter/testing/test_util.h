@@ -43,7 +43,8 @@ void StubDeallocateSampleFunc(SbPlayer player,
                               const void* sample_buffer);
 
 std::string ResolveTestFileName(const char* filename);
-std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac);
+std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
+                                                    bool ignore_channels);
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(bool using_stub_decoder,

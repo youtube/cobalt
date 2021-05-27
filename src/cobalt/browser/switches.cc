@@ -118,10 +118,6 @@ const char kMinCompatibilityVersionHelp[] =
     "The minimum version of Cobalt that will be checked during compatibility "
     "validations.";
 
-const char kMinLogLevel[] = "min_log_level";
-const char kMinLogLevelHelp[] =
-    "Set the minimum logging level: info|warning|error|fatal.";
-
 const char kNullSavegame[] = "null_savegame";
 const char kNullSavegameHelp[] =
     "Setting NullSavegame will result in no data being read from previous "
@@ -209,6 +205,9 @@ const char kDisableOnScreenKeyboardHelp[] =
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+const char kMinLogLevel[] = "min_log_level";
+const char kMinLogLevelHelp[] =
+    "Set the minimum logging level: info|warning|error|fatal.";
 const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";
@@ -225,6 +224,12 @@ const char kDisableTimerResolutionLimitHelp[] =
     "minimum resolution of 20us.  By specifying this flag, the limit will be "
     "removed and the resolution will be 1us (or larger depending on the "
     "platform.";
+
+const char kDisableUpdaterModule[] = "disable_updater_module";
+const char kDisableUpdaterModuleHelp[] =
+    "Disables the Cobalt Evergreen UpdaterModule which is responsible for "
+    "downloading and installing new Cobalt updates. Passing the flag is "
+    "equivalent to opting out from further updates.";
 
 const char kEncodedImageCacheSizeInBytes[] =
     "encoded_image_cache_size_in_bytes";
@@ -438,7 +443,7 @@ std::string HelpMessage() {
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
-        {kMinLogLevel, kMinLogLevelHelp}, {kNullSavegame, kNullSavegameHelp},
+        {kNullSavegame, kNullSavegameHelp},
         {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
@@ -454,10 +459,10 @@ std::string HelpMessage() {
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
+        {kDisableUpdaterModule, kDisableUpdaterModuleHelp},
         {kEncodedImageCacheSizeInBytes, kEncodedImageCacheSizeInBytesHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},
@@ -469,6 +474,7 @@ std::string HelpMessage() {
         {kLocalStoragePartitionUrl, kLocalStoragePartitionUrlHelp},
         {kMaxCobaltCpuUsage, kMaxCobaltCpuUsageHelp},
         {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
+        {kMinLogLevel, kMinLogLevelHelp},
         {kOffscreenTargetCacheSizeInBytes,
          kOffscreenTargetCacheSizeInBytesHelp},
         {kOmitDeviceAuthenticationQueryParameters,

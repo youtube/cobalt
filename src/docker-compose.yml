@@ -99,7 +99,7 @@ services:
       context: ./docker/linux
       dockerfile: stub/gn/Dockerfile
     image: cobalt-build-linux-stub-gn
-    depends_on: [ build-base ]
+    depends_on: [ stub ]
     environment:
       <<: *shared-build-env
       PLATFORM: stub
@@ -112,6 +112,18 @@ services:
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
     depends_on: [ build-base ]
+    environment:
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11
+      CONFIG: ${CONFIG:-debug}
+
+  linux-x64x11-gn:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/gn/Dockerfile
+    image: cobalt-build-linux-gn
+    depends_on: [ linux-x64x11 ]
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11
@@ -202,7 +214,7 @@ services:
     image: cobalt-build-raspi
     environment:
       <<: *shared-build-env
-      PLATFORM:
+      PLATFORM: ${PLATFORM:-raspi-2}
       CONFIG: ${CONFIG:-debug}
 
   # Define common build container for Evergreen

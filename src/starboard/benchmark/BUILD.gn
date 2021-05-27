@@ -14,7 +14,6 @@
 
 target(final_executable_type, "benchmark") {
   testonly = true
-  defines = [ "STARBOARD_IMPLEMENTATION" ]
 
   sources = [
     "//starboard/common/benchmark_main.cc",
@@ -26,4 +25,6 @@ target(final_executable_type, "benchmark") {
     "//starboard",
     "//third_party/google_benchmark",
   ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 }

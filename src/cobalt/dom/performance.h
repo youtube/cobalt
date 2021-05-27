@@ -55,7 +55,6 @@ class Performance : public EventTarget {
 
   Performance(script::EnvironmentSettings* settings,
               const scoped_refptr<base::BasicClock>& clock);
-  ~Performance();
 
   // Web API: Performance
   //   https://www.w3.org/TR/hr-time-2/#sec-performance
@@ -93,15 +92,19 @@ class Performance : public EventTarget {
   base::TimeDelta get_time_origin() const { return time_origin_; }
 
   // Register and unregisterthe performance observer.
-  void UnregisterPerformanceObserver(PerformanceObserver* old_observer);
-  void RegisterPerformanceObserver(PerformanceObserver* observer,
-                                   const PerformanceObserverInit& options);
+  void UnregisterPerformanceObserver(
+      const scoped_refptr<PerformanceObserver>& observer);
+  void RegisterPerformanceObserver(
+      const scoped_refptr<PerformanceObserver>& observer,
+      const PerformanceObserverInit& options);
 
   // Replace and update registered performance observer options list.
   void ReplaceRegisteredPerformanceObserverOptionsList(
-      PerformanceObserver* observer, const PerformanceObserverInit& options);
+      const scoped_refptr<PerformanceObserver>& observer,
+      const PerformanceObserverInit& options);
   void UpdateRegisteredPerformanceObserverOptionsList(
-      PerformanceObserver* observer, const PerformanceObserverInit& options);
+      const scoped_refptr<PerformanceObserver>& observer,
+      const PerformanceObserverInit& options);
 
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);
@@ -141,18 +144,6 @@ class Performance : public EventTarget {
 
   bool performance_observer_task_queued_flag_;
   bool add_to_performance_entry_buffer_flag_;
-
-  // The thread created and owned by this Performance.
-  // All queuing functions should be run on this thread.
-  base::Thread thread_;
-
-  // Specifies the priority of the Performance queuing thread.
-  // This is the thread that is responsible for queuing PerformanceEntries.
-  // This thread should have lower priority(BACKGROUND).
-  base::ThreadPriority thread_priority = base::ThreadPriority::BACKGROUND;
-
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

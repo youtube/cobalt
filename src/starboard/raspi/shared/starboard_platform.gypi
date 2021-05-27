@@ -17,6 +17,7 @@
   ],
   'variables': {
     'sb_pedantic_warnings': 1,
+    'starboard_platform_sources%': [],
   },
   'targets': [
     {
@@ -38,6 +39,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        '<@(starboard_platform_sources)',
         '<@(filter_based_player_sources)',
         '<(DEPTH)/starboard/linux/shared/atomic_public.h',
         '<(DEPTH)/starboard/linux/shared/configuration_constants.cc',
@@ -368,12 +370,6 @@
         '<(DEPTH)/starboard/shared/stub/microphone_is_sample_rate_supported.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_open.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_read.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_cancel.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_create.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_destroy.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_is_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_start.cc',
-        '<(DEPTH)/starboard/shared/stub/speech_recognizer_stop.cc',
         '<(DEPTH)/starboard/shared/stub/speech_synthesis_cancel.cc',
         '<(DEPTH)/starboard/shared/stub/speech_synthesis_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/speech_synthesis_speak.cc',

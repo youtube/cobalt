@@ -17,6 +17,7 @@ group("gn_all") {
 
   deps = [
     ":starboard",
+    "//starboard/client_porting/cwrappers:cwrappers_test",
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
@@ -29,7 +30,7 @@ group("gn_all") {
   ]
 
   if (gl_type != "none") {
-    deps += [ "//starboard/examples/glclear:starboard_gclear_example" ]
+    deps += [ "//starboard/examples/glclear:starboard_glclear_example" ]
   }
 
   if (has_platform_targets) {
@@ -42,15 +43,33 @@ group("gn_all") {
     deps += [ ":starboard_platform_tests" ]
   }
 
+  if (sb_filter_based_player) {
+    deps += [
+      "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
+      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player",
+    ]
+  }
+
   if (sb_enable_benchmark) {
     deps += [ "//starboard/benchmark" ]
+  }
+
+  if (!sb_is_evergreen) {
+    deps += [ "//third_party/lz4_lib:lz4" ]
+
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//third_party/crashpad/client",
+        "//third_party/crashpad/handler",
+      ]
+    }
   }
 }
 
 group("starboard") {
   public_deps = [ ":starboard_headers_only" ]
 
-  if (sb_evergreen) {
+  if (sb_is_evergreen) {
     public_deps += []
   } else {
     public_deps += [
@@ -60,9 +79,8 @@ group("starboard") {
       "//starboard/common",
     ]
 
-    if (sb_evergreen_compatible) {
-      # TODO(andrewsavage): This should not be stubbed out
-      public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (sb_is_evergreen_compatible) {
+      public_deps += [ "//third_party/crashpad/wrapper" ]
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
@@ -76,7 +94,7 @@ group("starboard") {
   }
 }
 
-source_set("starboard_headers_only") {
+static_library("starboard_headers_only") {
   # We include starboard/common/log.h in starboard_headers, but some common
   # files include starboard headers.
   check_includes = false

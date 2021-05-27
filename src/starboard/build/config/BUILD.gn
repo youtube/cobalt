@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("include_root") {
-  include_dirs = [ "//" ]
-}
-
 config("base") {
   defines = []
 
@@ -59,7 +55,7 @@ config("host") {
   if (current_toolchain == host_toolchain) {
     if (host_os == "linux") {
       ldflags = [ "-pthread" ]
-      cflags_cc = [ "--std=gnu++14" ]
+      cflags_cc = [ "-std=gnu++14" ]
 
       if (target_cpu == "arm" || target_cpu == "x86") {
         cflags = [ "-m32" ]
@@ -114,19 +110,19 @@ config("starboard") {
     defines += [ "SB_IS_LIBRARY=1" ]
   }
 
-  if (sb_evergreen) {
+  if (sb_is_evergreen) {
     defines += [ "SB_IS_EVERGREEN=1" ]
   }
 
-  if (sb_evergreen_compatible) {
+  if (sb_is_evergreen_compatible) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
   }
 
-  if (sb_evergreen_compatible_libunwind) {
+  if (sb_evergreen_compatible_use_libunwind) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
   }
 
-  if (sb_evergreen_compatible_lite) {
+  if (sb_evergreen_compatible_enable_lite) {
     defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
   }
 
@@ -135,4 +131,21 @@ config("starboard") {
     "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
     "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
   ]
+}
+
+config("starboard_implementation") {
+  # This allows the benchmarks to include internal only header files.
+  defines = [ "STARBOARD_IMPLEMENTATION" ]
+}
+
+config("speed") {
+  if (defined(speed_config_path)) {
+    configs = [ speed_config_path ]
+  }
+}
+
+config("size") {
+  if (defined(size_config_path)) {
+    configs = [ size_config_path ]
+  }
 }

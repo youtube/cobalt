@@ -85,7 +85,8 @@ class CobaltRunner(object):
                url,
                log_file=None,
                target_params=None,
-               success_message=None):
+               success_message=None,
+               log_handler=None):
     """CobaltRunner constructor.
 
     Args:
@@ -112,6 +113,8 @@ class CobaltRunner(object):
         'webdriver')
 
     self.launcher_params = launcher_params
+    self.log_handler = log_handler
+
     if log_file:
       self.log_file = open(log_file)
       logging.basicConfig(stream=self.log_file, level=logging.INFO)
@@ -152,6 +155,14 @@ class CobaltRunner(object):
     """Sends a system signal to put Cobalt into stopped state."""
     self.launcher.SendStop()
 
+  def SendSystemSuspend(self):
+    """Ask the system to suspend Cobalt."""
+    self.launcher.SendSystemSuspend()
+
+  def SendSystemResume(self):
+    """Ask the system to resume Cobalt."""
+    self.launcher.SendSystemResume()
+
   def SendDeepLink(self, link):
     """Sends a deep link to Cobalt."""
     return self.launcher.SendDeepLink(link)
@@ -175,17 +186,21 @@ class CobaltRunner(object):
     while True:
       line = self.launcher_read_pipe.readline()
       if line:
+        if self.log_handler is not None:
+          self.log_handler(line)
         self.log_file.write(line)
         # Calling flush() to ensure the logs are delivered timely.
         self.log_file.flush()
       else:
         break
 
-      if RE_WINDOWDRIVER_CREATED.search(line):
+      if not self.windowdriver_created.set() and \
+          RE_WINDOWDRIVER_CREATED.search(line):
         self.windowdriver_created.set()
         continue
 
-      if RE_WEBMODULE_LOADED.search(line):
+      if not self.webmodule_loaded.set() and \
+          RE_WEBMODULE_LOADED.search(line):
         self.webmodule_loaded.set()
         continue
 

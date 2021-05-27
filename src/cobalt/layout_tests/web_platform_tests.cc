@@ -426,7 +426,12 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
     performance_timeline, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("performance_timeline")),
+    ::testing::ValuesIn(EnumerateWebPlatformTests("performance-timeline")),
+    GetTestName());
+
+INSTANTIATE_TEST_CASE_P(
+    resource_timing, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("resource-timing")),
     GetTestName());
 
 INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,

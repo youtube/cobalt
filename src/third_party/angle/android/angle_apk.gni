@@ -14,6 +14,10 @@ angle_libraries = [
   "libfeature_support",
 ]
 
+if (is_starboard) {
+  angle_libraries -= [ "libfeature_support" ]
+}
+
 if (enable_java_templates) {
   template("angle_apk") {
     manifest_target_name = "${target_name}__manifest"

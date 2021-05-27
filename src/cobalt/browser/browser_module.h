@@ -216,7 +216,7 @@ class BrowserModule {
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   void OnDateTimeConfigurationChanged(
       const base::DateTimeConfigurationChangedEvent* event);
 #endif
@@ -467,10 +467,6 @@ class BrowserModule {
 
   // Get the SbWindow via |system_window_| or potentially NULL.
   SbWindow GetSbWindow();
-
-  // This returns the render tree of the most recent submission, with animations
-  // applied according to the current time.
-  scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
 
   // Sets the fallback splash screen url to a topic-specific URL, if applicable.
   // Returns the topic used, or an empty Optional if a topic isn't found.

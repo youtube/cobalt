@@ -25,6 +25,7 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/audio_renderer_internal_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/file_cache_reader_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/media_time_provider_impl_test.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_components_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/test_util.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/testing/video_decoder_test.cc',

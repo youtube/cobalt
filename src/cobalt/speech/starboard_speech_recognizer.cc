@@ -16,6 +16,8 @@
 
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
 
+#include <utility>
+
 #include "cobalt/base/tokens.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
@@ -27,7 +29,9 @@ namespace speech {
 
 // static
 bool StarboardSpeechRecognizer::IsSupported() {
-#if SB_API_VERSION >= 12
+#if SB_API_VERSION >= 13
+  return false;
+#elif SB_API_VERSION >= 12
   return SbSpeechRecognizerIsSupported();
 #else
   return true;

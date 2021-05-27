@@ -14,8 +14,8 @@
 
 #include "starboard/double.h"
 
-#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 double SbDoubleExponent(const double base, const double exponent) {
   return 0.0;
 }
-#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13

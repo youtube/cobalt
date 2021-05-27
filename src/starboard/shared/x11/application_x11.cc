@@ -35,6 +35,7 @@
 #include "starboard/key.h"
 #include "starboard/memory.h"
 #include "starboard/player.h"
+#include "starboard/shared/linux/system_network_status.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -698,15 +699,16 @@ using shared::starboard::player::filter::CpuVideoFrame;
 ApplicationX11::ApplicationX11()
     : wake_up_atom_(None),
       wm_delete_atom_(None),
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
       wm_change_state_atom_(None),
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   SbAudioSinkPrivate::Initialize();
+#if SB_API_VERSION >= 13
+  NetworkNotifier::GetOrCreateInstance();
+#endif
 }
 
 ApplicationX11::~ApplicationX11() {
@@ -959,11 +961,9 @@ bool ApplicationX11::EnsureX() {
 
   wake_up_atom_ = XInternAtom(display_, "WakeUpAtom", 0);
   wm_delete_atom_ = XInternAtom(display_, "WM_DELETE_WINDOW", True);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
   wm_change_state_atom_ = XInternAtom(display_, "WM_CHANGE_STATE", True);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
 
   Composite();
 
@@ -982,11 +982,9 @@ void ApplicationX11::StopX() {
   display_ = NULL;
   wake_up_atom_ = None;
   wm_delete_atom_ = None;
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
   wm_change_state_atom_ = None;
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
 }
 
 shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
@@ -1200,8 +1198,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
         return NULL;
       }
 
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
       if (client_message->message_type == wm_change_state_atom_) {
         SB_DLOG(INFO) << "Received WM_CHANGE_STATE message.";
         if (x_event->xclient.data.l[0] == IconicState) {
@@ -1212,8 +1209,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
           return NULL;
         }
       }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
 
       // Unknown event, ignore.
       return NULL;
@@ -1319,8 +1315,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       return new Event(kSbEventTypeInput, data.release(),
                        &DeleteDestructor<SbInputData>);
     }
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
     case FocusIn: {
       Focus(NULL, NULL);
       return NULL;
@@ -1338,8 +1333,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       Pause(NULL, NULL);
       return NULL;
     }
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
     case ConfigureNotify: {
       XConfigureEvent* x_configure_event =
           reinterpret_cast<XConfigureEvent*>(x_event);

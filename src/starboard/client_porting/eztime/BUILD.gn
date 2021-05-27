@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("eztime") {
+static_library("eztime") {
   sources = [
     "eztime.cc",
     "eztime.h",
   ]
 
-  public_deps = [
+  deps = [
     "//starboard:starboard_headers_only",
     "//starboard/client_porting/icu_init",
+    "//starboard/common",
+    "//third_party/icu",
   ]
 }
 

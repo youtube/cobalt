@@ -40,17 +40,17 @@ declare_args() {
   sb_install_output_dir = "$root_out_dir/install"
 
   # Whether this is an Evergreen build.
-  sb_evergreen = false
+  sb_is_evergreen = false
 
   # Whether this is an Evergreen compatible platform. A compatible platform
   # can run the elf_loader and launch the Evergreen build.
-  sb_evergreen_compatible = false
+  sb_is_evergreen_compatible = false
 
   # Whether to use the libunwind library on Evergreen compatible platform.
-  sb_evergreen_compatible_libunwind = false
+  sb_evergreen_compatible_use_libunwind = false
 
   # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
-  sb_evergreen_compatible_lite = false
+  sb_evergreen_compatible_enable_lite = false
 
   # The variables allow changing the target type on platforms where the
   # native code may require an additional packaging step (ex. Android).
@@ -83,12 +83,8 @@ declare_args() {
   # Used to enable benchmarks.
   sb_enable_benchmark = false
 
-  # This variable dictates whether a given target should be compiled with
-  # optimization flags for size vs. speed.
-  optimize_target_for_speed = false
-
   # Where the Starboard ABI file for this platform can be found.
-  sabi_path = ""
+  sabi_path = "starboard/sabi/default/sabi.json"
 
   # Whether the platform implements platforms tests.
   has_platform_tests = false

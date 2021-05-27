@@ -535,6 +535,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Signal whether the UI navigation item may need to be updated.
   bool ui_nav_needs_update_ = false;
 
+  // Thread checker ensures all calls to DOM element are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
+
   // HTMLElement is a friend of Animatable so that animatable can insert and
   // remove animations into HTMLElement's set of animations.
   friend class DOMAnimatable;

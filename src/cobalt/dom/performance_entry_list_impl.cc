@@ -31,13 +31,12 @@ PerformanceEntryList FilterBufferByNameAndType(
   //   https://www.w3.org/TR/2019/WD-performance-timeline-2-20191024/#filter-buffer-by-name-and-type
   // 1.  Let the list of entry objects be the empty PerformanceEntryList.
   PerformanceEntryList buffer;
-
   // 2.  For each PerformanceEntry object (entryObject) in the buffer,
   // in chronological order with respect to startTime:
   for (const auto& entry : performance_entry_buffer) {
     // 2.1  If name is not null and entryObject's name attribute does not
     // match name in a case-sensitive manner, go to next entryObject.
-    bool is_name_not_valid = !entry->name().empty() && name != entry->name();
+    bool is_name_not_valid = !name.empty() && name != entry->name();
     if (is_name_not_valid) {
       continue;
     }
@@ -46,7 +45,7 @@ PerformanceEntryList FilterBufferByNameAndType(
     // match type in a case-sensitive manner, go to next entryObject.
     const PerformanceEntry::EntryType type =
         PerformanceEntry::ToEntryTypeEnum(entry_type.as_string());
-    bool is_entry_type_not_valid = entry_type.data() != nullptr &&
+    bool is_entry_type_not_valid = type != PerformanceEntry::kInvalid &&
         type != entry->EntryTypeEnum();
     if (is_entry_type_not_valid) {
       continue;

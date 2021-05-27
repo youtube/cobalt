@@ -35,6 +35,9 @@ void ExpectArmInvalid(const SbCPUFeatures& features) {
   EXPECT_EQ(false, features.arm.has_thumb2);
   EXPECT_EQ(false, features.arm.has_vfp);
   EXPECT_EQ(false, features.arm.has_vfp3);
+#if SB_API_VERSION >= 13
+  EXPECT_EQ(false, features.arm.has_vfp4);
+#endif
   EXPECT_EQ(false, features.arm.has_vfp3_d32);
   EXPECT_EQ(false, features.arm.has_idiva);
   EXPECT_EQ(false, features.arm.has_aes);
@@ -118,7 +121,7 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
 #if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitectureArm ||
                 features.architecture == kSbCPUFeaturesArchitectureArm64);
-#else   // !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64)
+#else  // !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64)
     ExpectArmInvalid(features);
 #endif  // SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 

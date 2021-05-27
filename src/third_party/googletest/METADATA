@@ -10,4 +10,5 @@ third_party {
     type: GIT
     value: "https://github.com/google/googletest"
   }
+  license_type: NOTICE
 }

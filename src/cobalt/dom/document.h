@@ -206,6 +206,10 @@ class Document : public Node,
 
   scoped_refptr<HTMLHeadElement> head() const;
 
+  scoped_refptr<HTMLScriptElement> current_script() const;
+  void set_current_script(
+      const scoped_refptr<HTMLScriptElement>& current_script);
+
   // https://www.w3.org/TR/html50/editing.html#dom-document-hasfocus
   bool HasFocus() const;
 
@@ -532,6 +536,8 @@ class Document : public Node,
   scoped_refptr<DOMImplementation> implementation_;
   // List of CSS style sheets.
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
+  // <script> element whose script is currently being processed, if any.
+  scoped_refptr<HTMLScriptElement> current_script_;
   // List of scripts that will execute in order as soon as possible.
   std::deque<HTMLScriptElement*> scripts_to_be_executed_;
   // A mapping from keyframes declaration names to their parsed structure.

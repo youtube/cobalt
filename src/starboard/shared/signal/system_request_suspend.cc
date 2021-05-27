@@ -21,8 +21,7 @@
 #include "starboard/loader_app/pending_restart.h"
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-#if SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION && \
-    !SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION < 13
 void SuspendDone(void* /*context*/) {
   // Stop all thread execution after fully transitioning into Suspended.
   raise(SIGSTOP);
@@ -42,5 +41,4 @@ void SbSystemRequestSuspend() {
   starboard::shared::starboard::Application::Get()->Suspend(NULL, &SuspendDone);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }
-#endif  // SB_API_VERSION < SB_ADD_CONCEALED_STATE_SUPPORT_VERSION &&
-        // !SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION < 13

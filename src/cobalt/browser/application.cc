@@ -445,13 +445,15 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
 }
 
 std::string GetMinLogLevelString() {
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kMinLogLevel)) {
     return command_line->GetSwitchValueASCII(switches::kMinLogLevel);
   }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+#if defined(OFFICIAL_BUILD)
+  return "fatal";
+#else
   return "info";
+#endif
 }
 
 int StringToLogLevel(const std::string& log_level) {
@@ -465,7 +467,11 @@ int StringToLogLevel(const std::string& log_level) {
     return logging::LOG_FATAL;
   } else {
     NOTREACHED() << "Unrecognized logging level: " << log_level;
+#if defined(OFFICIAL_BUILD)
+    return logging::LOG_FATAL;
+#else
     return logging::LOG_INFO;
+#endif
   }
 }
 
@@ -585,9 +591,6 @@ struct RecordCheckerStub : public base::RecordHistogramChecker {
 // Static user logs
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
-
-Application::AppStatus Application::app_status_ =
-    Application::kUninitializedAppStatus;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(base::MessageLoop::current()),
@@ -834,7 +837,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   AddCrashHandlerAnnotations();
 
 #if SB_IS(EVERGREEN)
-  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
+  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
+      !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
     updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
   }
 #endif
@@ -849,8 +853,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       options));
 
   UpdateUserAgent();
-
-  app_status_ = (should_preload ? kConcealedAppStatus : kRunningAppStatus);
 
   // Register event callbacks.
   window_size_change_event_callback_ = base::Bind(
@@ -901,7 +903,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnWindowOnOfflineEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowOnOfflineEvent::TypeId(),
                                      on_window_on_offline_event_callback_);
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   on_date_time_configuration_changed_event_callback_ =
       base::Bind(&Application::OnDateTimeConfigurationChangedEvent,
                  base::Unretained(this));
@@ -994,24 +996,17 @@ Application::~Application() {
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
   event_dispatcher_.RemoveEventCallback(
       base::DateTimeConfigurationChangedEvent::TypeId(),
       on_date_time_configuration_changed_event_callback_);
 #endif
-
-  app_status_ = kShutDownAppStatus;
 }
 
 void Application::Start() {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
-    return;
-  }
-
-  if (app_status_ != kConcealedAppStatus) {
-    NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
 
@@ -1026,7 +1021,6 @@ void Application::Quit() {
   }
 
   quit_closure_.Run();
-  app_status_ = kQuitAppStatus;
 }
 
 void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
@@ -1041,8 +1035,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
@@ -1060,8 +1053,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLowMemory:
       OnApplicationEvent(starboard_event->type);
       break;
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -1098,11 +1090,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchDeepLink(static_cast<const char*>(starboard_event->data));
       break;
     }
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // B_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // B_API_VERSION >= 13
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
 #if SB_API_VERSION < 12
       // Also dispatch the newer text-to-speech settings changed event since
@@ -1119,16 +1111,16 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
       DispatchEventInternal(
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
       break;
 #endif
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
       DispatchEventInternal(new base::WindowOnOfflineEvent());
       break;
@@ -1136,7 +1128,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::WindowOnOnlineEvent());
       break;
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
       DispatchEventInternal(new base::DateTimeConfigurationChangedEvent());
       break;
@@ -1161,47 +1153,39 @@ void Application::OnApplicationEvent(SbEventType event_type) {
   switch (event_type) {
     case kSbEventTypeStop:
       DLOG(INFO) << "Got quit event.";
-      app_status_ = kWillQuitAppStatus;
       Quit();
       DLOG(INFO) << "Finished quitting.";
       break;
     case kSbEventTypeStart:
       DLOG(INFO) << "Got start event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Reveal();
       browser_module_->Focus();
       DLOG(INFO) << "Finished starting.";
       break;
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Blur();
       DLOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       DLOG(INFO) << "Got focus event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Focus();
       DLOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       DLOG(INFO) << "Got conceal event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Conceal();
       DLOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got reveal event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       DLOG(INFO) << "Got freeze event.";
-      app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
@@ -1210,7 +1194,6 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     case kSbEventTypeUnfreeze:
       DLOG(INFO) << "Got unfreeze event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Unfreeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
@@ -1220,21 +1203,17 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
-      app_status_ = kBlurredAppStatus;
       browser_module_->Blur();
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
-      app_status_ = kRunningAppStatus;
       browser_module_->Focus();
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Conceal();
-      app_status_ = kFrozenAppStatus;
       browser_module_->Freeze();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
@@ -1244,17 +1223,14 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      app_status_ = kConcealedAppStatus;
       browser_module_->Unfreeze();
-      app_status_ = kBlurredAppStatus;
       browser_module_->Reveal();
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
       DLOG(INFO) << "Finished resuming.";
       break;
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
@@ -1267,11 +1243,11 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= 12
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardBlurred:
@@ -1281,21 +1257,21 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // SB_API_VERSION >= SB_ACCESSIBILITY_EVENTS_RENAMED_VERSION
+#endif  // SB_API_VERSION >= 13
     case kSbEventTypeInput:
     case kSbEventTypeLink:
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
 #endif
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
 #endif
       NOTREACHED() << "Unexpected event type: " << event_type;
@@ -1384,7 +1360,7 @@ void Application::OnWindowOnOfflineEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowOnOfflineEvent*>(event));
 }
 
-#if SB_API_VERSION >= SB_EVENT_DATE_TIME_CONFIGURATION_CHANGED_VERSION
+#if SB_API_VERSION >= 13
 void Application::OnDateTimeConfigurationChangedEvent(
     const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",

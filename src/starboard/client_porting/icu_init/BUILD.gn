@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("icu_init") {
+static_library("icu_init") {
   sources = [
     "icu_init.cc",
     "icu_init.h",
   ]
 
-  public_deps = [
+  deps = [
     "//starboard/common",
     "//third_party/icu",
   ]

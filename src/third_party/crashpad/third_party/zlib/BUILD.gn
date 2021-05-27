@@ -14,7 +14,8 @@
 
 import("../../build/crashpad_buildconfig.gni")
 
-if (crashpad_is_in_chromium || crashpad_is_in_fuchsia || crashpad_is_in_dart) {
+if (crashpad_is_in_chromium || crashpad_is_in_fuchsia || crashpad_is_in_dart ||
+    crashpad_is_in_starboard) {
   zlib_source = "external"
 } else if (!crashpad_is_win && !crashpad_is_fuchsia) {
   zlib_source = "system"

@@ -21,7 +21,7 @@
 #include "starboard/double.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 
 namespace starboard {
 namespace nplb {
@@ -255,4 +255,4 @@ TEST(SbStringParseDoubleTest, NegInf) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13

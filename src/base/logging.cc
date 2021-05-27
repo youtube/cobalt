@@ -138,7 +138,11 @@ const char* log_severity_name(int severity) {
   return "UNKNOWN";
 }
 
-int g_min_log_level = 0;
+#if defined(OFFICIAL_BUILD)
+int g_min_log_level = LOG_FATAL;
+#else
+int g_min_log_level = LOG_INFO;
+#endif
 
 LoggingDestination g_logging_destination = LOG_DEFAULT;
 
@@ -551,7 +555,7 @@ void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
 }
 
-#if defined(OFFICIAL_BUILD)
+#if defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 int GetMinLogLevel() {
   return LOG_NUM_SEVERITIES;
 }
@@ -575,7 +579,7 @@ void SetLogItems(bool enable_process_id,
 
 void SetLogPrefix(const char* prefix) {}
 
-#else  // defined(OFFICIAL_BUILD)
+#else  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 
 int GetMinLogLevel() {
   return g_min_log_level;
@@ -619,7 +623,7 @@ void SetLogPrefix(const char* prefix) {
          base::ContainsOnlyChars(prefix, "abcdefghijklmnopqrstuvwxyz"));
   g_log_prefix = prefix;
 }
-#endif  // defined(OFFICIAL_BUILD)
+#endif  // defined(OFFICIAL_BUILD) && !SB_IS(EVERGREEN)
 
 void SetShowErrorDialogs(bool enable_dialogs) {
   show_error_dialogs = enable_dialogs;

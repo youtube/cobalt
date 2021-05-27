@@ -16,8 +16,8 @@
 
 #include <math.h>
 
-#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
 bool SbDoubleIsNan(const double d) {
   return isnan(d);
 }
-#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13

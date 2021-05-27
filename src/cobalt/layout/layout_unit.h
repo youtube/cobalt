@@ -105,34 +105,13 @@ class LayoutUnit {
   }
   bool IsNaN() const { return is_nan_; }
 #else
-  bool LessThanOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this < other;
-  }
-  bool LessEqualOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this <= other;
-  }
-  bool GreaterThanOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this > other;
-  }
-  bool GreaterEqualOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this >= other;
-  }
-  bool EqualOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this == other;
-  }
-  bool NotEqualOrNaN(LayoutUnit other) const {
-    NOTREACHED();
-    return *this != other;
-  }
-  bool IsNaN() const {
-    NOTREACHED();
-    return false;
-  }
+  bool LessThanOrNaN(LayoutUnit other) const { return *this < other; }
+  bool LessEqualOrNaN(LayoutUnit other) const { return *this <= other; }
+  bool GreaterThanOrNaN(LayoutUnit other) const { return *this > other; }
+  bool GreaterEqualOrNaN(LayoutUnit other) const { return *this >= other; }
+  bool EqualOrNaN(LayoutUnit other) const { return *this == other; }
+  bool NotEqualOrNaN(LayoutUnit other) const { return *this != other; }
+  bool IsNaN() const { return false; }
 #endif
 
   LayoutUnit operator+() const { return LayoutUnit(*this); }

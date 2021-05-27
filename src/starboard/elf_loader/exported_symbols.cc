@@ -40,7 +40,9 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#if SB_API_VERSION < 13
 #include "starboard/speech_recognizer.h"
+#endif
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"
@@ -75,7 +77,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
-#if SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbCharacterIsAlphanumeric);
   REGISTER_SYMBOL(SbCharacterIsDigit);
   REGISTER_SYMBOL(SbCharacterIsHexDigit);
@@ -83,7 +85,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbCharacterIsUpper);
   REGISTER_SYMBOL(SbCharacterToLower);
   REGISTER_SYMBOL(SbCharacterToUpper);
-#endif  // SB_API_VERSION < SB_CHARACTER_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
@@ -97,13 +99,13 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDirectoryCreate);
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
-#if SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbDoubleAbsolute);
   REGISTER_SYMBOL(SbDoubleExponent);
   REGISTER_SYMBOL(SbDoubleFloor);
   REGISTER_SYMBOL(SbDoubleIsFinite);
   REGISTER_SYMBOL(SbDoubleIsNan);
-#endif  // SB_API_VERSION < SB_DOUBLE_APIS_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
@@ -226,14 +228,14 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringGetLength);
   REGISTER_SYMBOL(SbStringGetLengthWide);
-#if SB_API_VERSION < SB_STDLIB_APIS_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringParseDouble);
   REGISTER_SYMBOL(SbStringParseSignedInteger);
   REGISTER_SYMBOL(SbStringParseUInt64);
   REGISTER_SYMBOL(SbStringParseUnsignedInteger);
 #endif
   REGISTER_SYMBOL(SbStringScan);
-#if SB_API_VERSION < SB_SYSTEM_BINARY_SEARCH_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemBinarySearch);
 #endif
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
@@ -256,8 +258,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
-#if SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION || \
-    SB_HAS(CONCEALED_STATE)
+#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRequestBlur);
   REGISTER_SYMBOL(SbSystemRequestConceal);
   REGISTER_SYMBOL(SbSystemRequestFocus);
@@ -269,12 +270,11 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
-#endif  // SB_API_VERSION >= SB_ADD_CONCEALED_STATE_SUPPORT_VERSION ||
-        // SB_HAS(CONCEALED_STATE)
+#endif  // SB_API_VERSION >= 13
 
-#if SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemSort);
-#endif  // SB_API_VERSION < SB_SYSTEM_SORT_DEPRECATED_VERSION
+#endif  // SB_API_VERSION < 13
 
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadCreate);
@@ -380,17 +380,17 @@ ExportedSymbols::ExportedSymbols(
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(TIME_THREAD_NOW)
 
-#if SB_API_VERSION >= 12
+#if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
 #endif
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
+#if SB_API_VERSION == 12 || (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
   REGISTER_SYMBOL(SbSpeechRecognizerCancel);
 #endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(SPEECH_RECOGNIZER)
+        // (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
 
 #if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
@@ -460,9 +460,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #endif  // SB_API_VERSION >= 12
 
-#if SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
-#endif  // SB_API_VERSION >= SB_NETWORK_EVENTS_VERSION
+#endif  // SB_API_VERSION >= 13
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
