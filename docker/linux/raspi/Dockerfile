@@ -20,10 +20,14 @@ ARG raspi_tools=cobalt_raspi_tools.tar.bz2
 # Required by the gyp build system.
 ENV RASPI_HOME=${raspi_home}
 
+# libxml2 and binutils* needed for evergreen
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         g++-multilib \
         bzip2 \
+        libxml2 \
+        binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabi \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
