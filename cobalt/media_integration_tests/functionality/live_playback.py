@@ -18,6 +18,7 @@ import time
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import AdditionalKeys
 from cobalt.media_integration_tests.test_case import TestCase
+from cobalt.media_integration_tests.test_util import PlaybackUrls
 
 
 class LivePlaybackTest(TestCase):
@@ -46,10 +47,10 @@ class LivePlaybackTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 5)
 
   def test_live_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=o7UP6i4PAbk')
+    self.run_test_with_url(PlaybackUrls.LIVE)
 
   def test_ull_live_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=KI1XlTQrsa0')
+    self.run_test_with_url(PlaybackUrls.LIVE_ULL)
 
   def test_vr_live_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=soeo5OPv7CA')
+    self.run_test_with_url(PlaybackUrls.LIVE_VR)
