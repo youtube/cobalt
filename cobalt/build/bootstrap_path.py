@@ -25,12 +25,6 @@ import sys
 
 def _GetSrcRoot():
   """Finds the first directory named 'src' that this module is in."""
-  current_path = os.path.normpath(__file__)
-  while not (os.path.basename(current_path) == 'src'):
-    next_path = os.path.dirname(current_path)
-    if next_path == current_path:
-      raise RuntimeError('Could not find src directory.')
-    current_path = next_path
-  return os.path.abspath(current_path)
+  return os.path.abspath(os.path.join(__file__ ,os.pardir, os.pardir, os.pardir))
 
 sys.path.insert(0, _GetSrcRoot())
