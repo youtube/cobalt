@@ -259,6 +259,8 @@
         'performance_entry.h',
         'performance_entry_list_impl.cc',
         'performance_entry_list_impl.h',
+        'performance_lifecycle_timing.cc',
+        'performance_lifecycle_timing.h',
         'performance_observer.cc',
         'performance_observer.h',
         'performance_observer_entry_list.cc',

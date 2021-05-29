@@ -36,11 +36,12 @@ class PerformanceEntry : public script::Wrappable {
   enum EntryType : PerformanceEntryType {
     kResource = 0,
     kNavigation = 1,
-    kInvalid = 2,
+    kLifecycle = 2,
+    kInvalid = 3,
   };
 
   static constexpr const char* kEntryTypeString[] =
-      {"resource", "navigation", "invalid"};
+      {"resource", "navigation", "lifecycle", "invalid"};
 
   std::string name() const { return name_; }
   DOMHighResTimeStamp start_time() const;

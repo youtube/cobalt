@@ -13,7 +13,7 @@
 // limitations under the License.
 
 [Exposed=Window]
-interface PerformanceResourceTiming : PerformanceEntry {
+interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appStart;
   readonly  attribute DOMHighResTimeStamp appBlur;
   readonly  attribute DOMHighResTimeStamp appFocus;
