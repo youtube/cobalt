@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
-#include "starboard/common/log.h"
+#include "starboard/common/condition_variable.h"
 
 namespace starboard {
 namespace shared {

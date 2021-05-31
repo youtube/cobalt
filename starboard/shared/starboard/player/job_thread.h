@@ -15,6 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
+#include <utility>
+
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -38,6 +41,41 @@ class JobThread {
   ~JobThread();
 
   JobQueue* job_queue() { return job_queue_.get(); }
+  const JobQueue* job_queue() const { return job_queue_.get(); }
+
+  bool BelongsToCurrentThread() const {
+    SB_DCHECK(job_queue_);
+
+    return job_queue_->BelongsToCurrentThread();
+  }
+
+  JobQueue::JobToken Schedule(const JobQueue::Job& job,
+                              SbTimeMonotonic delay = 0) {
+    SB_DCHECK(job_queue_);
+
+    return job_queue_->Schedule(job, delay);
+  }
+  JobQueue::JobToken Schedule(JobQueue::Job&& job, SbTimeMonotonic delay = 0) {
+    SB_DCHECK(job_queue_);
+
+    return job_queue_->Schedule(std::move(job), delay);
+  }
+  void ScheduleAndWait(const JobQueue::Job& job) {
+    SB_DCHECK(job_queue_);
+
+    job_queue_->ScheduleAndWait(job);
+  }
+  void ScheduleAndWait(JobQueue::Job&& job) {
+    SB_DCHECK(job_queue_);
+
+    job_queue_->ScheduleAndWait(std::move(job));
+  }
+
+  void RemoveJobByToken(JobQueue::JobToken job_token) {
+    SB_DCHECK(job_queue_);
+
+    return job_queue_->RemoveJobByToken(job_token);
+  }
 
  private:
   static void* ThreadEntryPoint(void* context);
