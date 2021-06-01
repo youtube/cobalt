@@ -5,11 +5,10 @@
 #include "base/files/file_path.h"
 
 #include <string.h>
+
 #include <algorithm>
-
-#include "starboard/types.h"
-
-#include "starboard/common/string.h"
+#include <set>
+#include <string>
 
 #include "base/logging.h"
 #include "base/macros.h"
@@ -19,6 +18,8 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/common/string.h"
+#include "starboard/types.h"
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_cftyperef.h"
@@ -57,7 +58,28 @@ StringPieceType::size_type FindDriveLetter(StringPieceType path) {
        (path[0] >= L'a' && path[0] <= L'z'))) {
     return 1;
   }
-#endif  // FILE_PATH_USES_DRIVE_LETTERS
+#elif defined(FILE_PATH_USES_MOUNT_POINT_NAME)
+  StringType::size_type delimiter_position = std::string(path).find(":");
+
+  auto has_disabled_symbols = [](std::string test_string) {
+    std::set<char> disabled_set = {'*', ':', '<', '>', '?', '|'};
+    std::set<char> tmp(test_string.begin(), test_string.end());
+    std::set<char> intersect;
+    std::set_intersection(disabled_set.begin(), disabled_set.end(), tmp.begin(),
+                          tmp.end(),
+                          std::inserter(intersect, intersect.begin()));
+    return !intersect.empty();
+  };
+  std::string mount_point = std::string(path).substr(0, delimiter_position);
+  std::string file_name = std::string(path).substr(delimiter_position + 1);
+  if (has_disabled_symbols(mount_point) || has_disabled_symbols(file_name)) {
+    return StringType::npos;
+  }
+
+  if (mount_point.size() >= 2 && delimiter_position != std::string::npos) {
+    return delimiter_position;
+  }
+#endif
   return StringType::npos;
 }
 
@@ -81,7 +103,8 @@ bool EqualDriveLetterCaseInsensitive(StringPieceType a, StringPieceType b) {
 #endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
 
 bool IsPathAbsolute(StringPieceType path) {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if defined(FILE_PATH_USES_DRIVE_LETTERS) || \
+    defined(FILE_PATH_USES_MOUNT_POINT_NAME)
   StringType::size_type letter = FindDriveLetter(path);
   if (letter != StringType::npos) {
     // Look for a separator right after the drive specification.
@@ -91,10 +114,10 @@ bool IsPathAbsolute(StringPieceType path) {
   // Look for a pair of leading separators.
   return path.length() > 1 &&
       FilePath::IsSeparator(path[0]) && FilePath::IsSeparator(path[1]);
-#else  // FILE_PATH_USES_DRIVE_LETTERS
+#else  // FILE_PATH_USES_DRIVE_LETTERS || FILE_PATH_USES_MOUNT_POINT_NAME
   // Look for a separator in the first position.
   return path.length() > 0 && FilePath::IsSeparator(path[0]);
-#endif  // FILE_PATH_USES_DRIVE_LETTERS
+#endif  // FILE_PATH_USES_DRIVE_LETTERS || FILE_PATH_USES_MOUNT_POINT_NAME
 }
 
 bool AreAllSeparators(const StringType& input) {
