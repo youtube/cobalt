@@ -8,7 +8,6 @@
 #include <unordered_map>
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"

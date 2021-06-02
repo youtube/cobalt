@@ -17,10 +17,6 @@
 #endif
 #endif
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 #define LOG_TAG "v8"
 #include <android/log.h>  // NOLINT

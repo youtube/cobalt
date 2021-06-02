@@ -11,11 +11,9 @@
 #if defined(USE_SIMULATOR)
 
 #include <stdarg.h>
-
 #include <vector>
 
 #include "src/base/compiler-specific.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/arm64/decoder-arm64.h"
 #include "src/codegen/assembler.h"
@@ -340,8 +338,7 @@ class SimRegisterBase {
     DCHECK_GE(lane, 0);
     DCHECK_LE(sizeof(new_value) + (lane * sizeof(new_value)),
               static_cast<unsigned>(kSizeInBytes));
-    memcpy(&value_[lane * sizeof(new_value)], &new_value,
-                 sizeof(new_value));
+    memcpy(&value_[lane * sizeof(new_value)], &new_value, sizeof(new_value));
     NotifyRegisterWrite();
   }
 

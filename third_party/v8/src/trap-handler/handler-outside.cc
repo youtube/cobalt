@@ -30,10 +30,6 @@
 #include "src/trap-handler/trap-handler-internal.h"
 #include "src/trap-handler/trap-handler.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace {
 size_t gNextCodeObject = 0;
 

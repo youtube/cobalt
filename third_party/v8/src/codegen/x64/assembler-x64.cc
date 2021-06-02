@@ -17,7 +17,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
@@ -408,7 +407,6 @@ win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
   DCHECK(options().collect_win64_unwind_info);
   DCHECK_NOT_NULL(xdata_encoder_);
   return win64_unwindinfo::BuiltinUnwindInfo();
-  // return xdata_encoder_->unwinding_info();
 }
 #endif
 

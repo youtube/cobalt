@@ -9,10 +9,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 

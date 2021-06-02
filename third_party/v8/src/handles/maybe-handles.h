@@ -14,7 +14,7 @@ namespace internal {
 
 struct NullMaybeHandleType {};
 
-constexpr NullMaybeHandleType kNullMaybeHandle{};
+constexpr NullMaybeHandleType kNullMaybeHandle;
 
 // ----------------------------------------------------------------------------
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
