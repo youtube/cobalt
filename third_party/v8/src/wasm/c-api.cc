@@ -2220,7 +2220,7 @@ struct borrowed_vec {
                              const wasm_##name##_t data[]) {            \
     auto v2 = wasm::vec<Name>::make_uninitialized(size);                \
     if (v2.size() != 0) {                                               \
-      v8::base::Memcpy(v2.get(), data, size * sizeof(wasm_##name##_t)); \
+      memcpy(v2.get(), data, size * sizeof(wasm_##name##_t));           \
     }                                                                   \
     *out = release_##name##_vec(std::move(v2));                         \
   }                                                                     \

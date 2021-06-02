@@ -58,7 +58,7 @@ class Writer {
   void WriteVector(const Vector<const byte> v) {
     DCHECK_GE(current_size(), v.size());
     if (v.size() > 0) {
-      base::Memcpy(current_location(), v.begin(), v.size());
+      memcpy(current_location(), v.begin(), v.size());
       pos_ += v.size();
     }
     if (FLAG_trace_wasm_serialization) {
@@ -382,7 +382,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     code_start = aligned_buffer.get();
   }
 #endif
-  base::Memcpy(code_start, code->instructions().begin(), code_size);
+  memcpy(code_start, code->instructions().begin(), code_size);
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
@@ -429,7 +429,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   }
   // If we copied to an aligned buffer, copy code into serialized buffer.
   if (code_start != serialized_code_start) {
-    base::Memcpy(serialized_code_start, code_start, code_size);
+    memcpy(serialized_code_start, code_start, code_size);
   }
   return true;
 }
