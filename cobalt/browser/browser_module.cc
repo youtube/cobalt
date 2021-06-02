@@ -2007,7 +2007,11 @@ base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
   std::map<std::string, std::string> url_param_map;
   // If this is the initial startup, use topic within deeplink, if specified.
   if (main_web_module_generation_ == 1) {
-    GetParamMap(GetInitialDeepLink(), url_param_map);
+    std::string deeplink = GetInitialDeepLink();
+    size_t query_pos = deeplink.find('?');
+    if (query_pos != std::string::npos) {
+      GetParamMap(deeplink.substr(query_pos + 1), url_param_map);
+    }
   }
   // If this is not the initial startup, there was no deeplink specified, or
   // the deeplink did not have a topic, check the current url for a topic.
