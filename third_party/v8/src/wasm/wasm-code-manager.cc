@@ -186,7 +186,7 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   byte* ptr = new byte[total_size];
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
-    base::Memcpy(ptr, vec.begin(), vec.size());
+    memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
   return std::unique_ptr<const byte[]>(ptr);
@@ -840,7 +840,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   DCHECK_LE(module_->num_declared_functions, max_functions);
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
-    base::Memcpy(new_table.get(), code_table_.get(),
+    memcpy(new_table.get(), code_table_.get(),
                  module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
@@ -918,7 +918,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
+  memcpy(dst_code_bytes.begin(), instructions.begin(),
                instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
@@ -1044,7 +1044,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int instr_size = desc.instr_size;
 
   CODE_SPACE_WRITE_SCOPE
-  base::Memcpy(dst_code_bytes.begin(), desc.buffer,
+  memcpy(dst_code_bytes.begin(), desc.buffer,
                static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
@@ -1191,7 +1191,7 @@ WasmCode* NativeModule::AddDeserializedCode(
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
+  memcpy(dst_code_bytes.begin(), instructions.begin(),
                instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{

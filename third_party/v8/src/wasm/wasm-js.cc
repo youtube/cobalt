@@ -638,7 +638,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    base::Memcpy(copy.get(), bytes.start(), bytes.length());
+    memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     validated = i_isolate->wasm_engine()->SyncValidate(
@@ -681,7 +681,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    base::Memcpy(copy.get(), bytes.start(), bytes.length());
+    memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     module_obj = i_isolate->wasm_engine()->SyncCompile(
@@ -2550,7 +2550,7 @@ static Handle<Object> WasmValueToObject(Isolate* isolate,
             "failed to allocate backing store");
       }
 
-      base::Memcpy(buffer->allocation_base(), s128.bytes(),
+      memcpy(buffer->allocation_base(), s128.bytes(),
                    buffer->byte_length());
       return isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                                  buffer->byte_length());

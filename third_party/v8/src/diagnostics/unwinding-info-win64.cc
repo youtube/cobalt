@@ -171,7 +171,7 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  base::Memcpy(&record->exception_thunk[0], masm.buffer_start(),
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
                masm.instruction_size());
 }
 
@@ -449,7 +449,7 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
            Operand(reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME)));
   masm.Br(x16);
   DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
-  base::Memcpy(&record->exception_thunk[0], masm.buffer_start(),
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
                masm.instruction_size());
 }
 

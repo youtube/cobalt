@@ -41,7 +41,7 @@ class MaybeUtf8 {
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
         DisallowHeapAllocation no_gc;
-        base::Memcpy(
+        memcpy(
             buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc), len);
       }
     } else {
