@@ -46,6 +46,12 @@ if(NOT COBALT_CONTENT_DIR)
   )
 endif()
 
+# If COBALT_LIBRARY_DIR isn't set for a particular deploy target use the
+# base product directory.
+if(NOT COBALT_LIBRARY_DIR)
+  set(COBALT_LIBRARY_DIR COBALT_PRODUCT_DIR)
+endif()
+
 # For platform deploy builds, use the -n parameter to skip Cobalt ninja and
 # just copy the .so that was already built and waiting in COBALT_PRODUCT_DIR.
 if(COBALT_PLATFORM_DEPLOY)
@@ -58,7 +64,7 @@ add_custom_command(OUTPUT coat_lib
     COMMAND ${CMAKE_CURRENT_LIST_DIR}/cobalt-ninja.sh
             ${skip_ninja_arg} -C ${COBALT_PRODUCT_DIR} ${COBALT_TARGET}
     COMMAND ${CMAKE_COMMAND} -E copy
-            ${COBALT_PRODUCT_DIR}/lib/lib${COBALT_TARGET}.so
+            ${COBALT_LIBRARY_DIR}/lib${COBALT_TARGET}.so
             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
 )
 

@@ -47,6 +47,7 @@
         '-P', 'cobaltContentDir=$${PWD}/<(content_deploy_dir)',
         '-P', 'cobaltGradleDir=$${PWD}/<(GRADLE_FILES_DIR)',
         '-P', 'cobaltProductDir=$${PWD}/<(PRODUCT_DIR)',
+        '-P', 'cobaltLibraryDir=$${PWD}/<(PRODUCT_DIR)/lib',
         '-P', 'cobaltTarget=<(executable_name)',
         '-P', 'enableVulkan=<(enable_vulkan)',
         'assembleCobalt_<(GRADLE_BUILD_TYPE)',
