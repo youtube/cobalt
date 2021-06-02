@@ -91,7 +91,7 @@ template("install_target") {
       "-P",
       "cobaltTarget=$installable_target_name",
       "-P",
-      "enableVulkan=0",  # TODO(andrewsavage)
+      "enableVulkan=$enable_vulkan",
       "assembleCobalt_$gradle_build_type",
     ]
   }

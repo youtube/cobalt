@@ -19,6 +19,8 @@ declare_args() {
   android_ndk_path = ""
   sb_android_ndk_version = "21.1.6352462"
   android_ndk_api_level = 21
+
+  enable_vulkan = false
 }
 
 if (android_sdk_path == "") {
