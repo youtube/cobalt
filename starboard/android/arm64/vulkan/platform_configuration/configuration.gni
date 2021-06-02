@@ -16,3 +16,5 @@ import("//starboard/android/shared/platform_configuration/configuration.gni")
 
 android_abi = "arm64-v8a"
 sabi_path = "//starboard/sabi/arm64/sabi-v$sb_api_version.json"
+
+enable_vulkan = true
