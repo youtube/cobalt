@@ -34,7 +34,11 @@ Performance::Performance(script::EnvironmentSettings* settings,
       resource_timing_buffer_full_event_pending_flag_(false),
       resource_timing_secondary_buffer_current_size_(0),
       performance_observer_task_queued_flag_(false),
-      add_to_performance_entry_buffer_flag_(false) {}
+      add_to_performance_entry_buffer_flag_(false),
+      performance_lifecycle_timing_(
+          new PerformanceLifecycleTiming("lifecycle timing", 0.0, 0.0)) {
+  QueuePerformanceEntry(performance_lifecycle_timing_);
+}
 
 DOMHighResTimeStamp Performance::Now() const {
   base::TimeDelta now = base::Time::Now() - base::Time::UnixEpoch();
@@ -131,13 +135,13 @@ PerformanceEntryList Performance::GetEntries() {
 PerformanceEntryList Performance::GetEntriesByType(
     const std::string& entry_type) {
   return PerformanceEntryListImpl::GetEntriesByType(performance_entry_buffer_,
-                                                      entry_type);
+                                                    entry_type);
 }
 
 PerformanceEntryList Performance::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
   return PerformanceEntryListImpl::GetEntriesByName(performance_entry_buffer_,
-                                                      name, type);
+                                                    name, type);
 }
 
 void Performance::ClearResourceTimings() {

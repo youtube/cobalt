@@ -26,6 +26,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/dom/performance_lifecycle_timing.h"
 #include "cobalt/dom/performance_observer.h"
 #include "cobalt/dom/performance_observer_callback_options.h"
 #include "cobalt/dom/performance_observer_init.h"
@@ -88,6 +89,7 @@ class Performance : public EventTarget {
   void CreatePerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
                                        const std::string& initiator_type,
                                        const std::string& requested_url);
+  void CreatePerformanceLifecycleTiming();
   // Custom, not in any spec.
   base::TimeDelta get_time_origin() const { return time_origin_; }
 
@@ -144,6 +146,8 @@ class Performance : public EventTarget {
 
   bool performance_observer_task_queued_flag_;
   bool add_to_performance_entry_buffer_flag_;
+
+  scoped_refptr<PerformanceLifecycleTiming> performance_lifecycle_timing_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };
