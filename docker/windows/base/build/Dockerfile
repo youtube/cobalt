@@ -45,6 +45,12 @@ RUN reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabl
 
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
+# Helper script to run an looping command to persist the container instead of
+# running the main command.
+COPY ./spin.ps1 /spin.ps1
+# Helper script to output all the running python processes showing the details
+# of the execution, i.e. the full invocation string.
+COPY ./list_python_processes.py /list_python_processes.py
 
 # This env var is read during GYP step and serves two purposes:
 #   - Disables PDB generation in win32 and xb1 builds
