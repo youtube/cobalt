@@ -94,10 +94,10 @@ int GetBytesPerSample(SbMediaAudioSampleType sample_type);
 SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
                                            const char* key_system);
 
-std::string GetStringRepresentation(const uint8_t* data, int size);
+std::string GetStringRepresentation(const uint8_t* data, const int size);
 std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line);
+                                   const int size,
+                                   const int bytes_per_line);
 
 //  When this function returns true, usually indicates that the two sample info
 //  cannot be processed by the same audio decoder.

@@ -411,7 +411,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   return kSbMediaSupportTypeNotSupported;
 }
 
-std::string GetStringRepresentation(const uint8_t* data, int size) {
+std::string GetStringRepresentation(const uint8_t* data, const int size) {
   std::string result;
 
   for (int i = 0; i < size; ++i) {
@@ -428,20 +428,20 @@ std::string GetStringRepresentation(const uint8_t* data, int size) {
 }
 
 std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line) {
+                                   const int size,
+                                   const int bytes_per_line) {
   std::string result;
 
   for (int i = 0; i < size; i += bytes_per_line) {
     if (i + bytes_per_line <= size) {
-      result += ::starboard::HexEncode(data + i, bytes_per_line);
+      result += HexEncode(data + i, bytes_per_line);
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_per_line);
       result += '\n';
     } else {
       int bytes_left = size - i;
-      result += ::starboard::HexEncode(data + i, bytes_left);
-      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
+      result += HexEncode(data + i, bytes_left);
+      result += std::string((bytes_per_line - bytes_left) * 2, ' ');
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_left);
       result += std::string(bytes_per_line - bytes_left, ' ');
