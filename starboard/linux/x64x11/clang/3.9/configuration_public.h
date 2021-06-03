@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_X64X11_CLANG_3_6_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_LINUX_X64X11_CLANG_3_6_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_LINUX_X64X11_CLANG_3_9_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_LINUX_X64X11_CLANG_3_9_CONFIGURATION_PUBLIC_H_
 
 #include "starboard/linux/x64x11/configuration_public.h"
 
-#endif  // STARBOARD_LINUX_X64X11_CLANG_3_6_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_LINUX_X64X11_CLANG_3_9_CONFIGURATION_PUBLIC_H_

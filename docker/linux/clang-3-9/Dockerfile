@@ -17,7 +17,7 @@ FROM linux-x64x11-xenial
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends clang-3.6 \
+    && apt install -qqy --no-install-recommends clang-3.9 \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
