@@ -70,7 +70,6 @@ TEST(AutoMem, CommandLineOverrides) {
   // Load up command line settings of command lines.
   AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
   command_line_settings.cobalt_image_cache_size_in_bytes = 1234;
-  command_line_settings.javascript_garbage_collection_threshold_in_bytes = 2345;
   command_line_settings.skia_cache_size_in_bytes = 3456;
   command_line_settings.skia_texture_atlas_dimensions =
       TextureDimensions(1234, 5678, 2);
@@ -83,13 +82,9 @@ TEST(AutoMem, CommandLineOverrides) {
 
     AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
 
-    // image_cache_size_in_bytes and javascript_gc_threshold_in_bytes settings
-    // ignore the blitter type.
+    // image_cache_size_in_bytes settings ignore the blitter type.
     EXPECT_MEMORY_SETTING(auto_mem.image_cache_size_in_bytes(),
                           MemorySetting::kCmdLine, MemorySetting::kGPU, 1234);
-
-    EXPECT_MEMORY_SETTING(auto_mem.javascript_gc_threshold_in_bytes(),
-                          MemorySetting::kCmdLine, MemorySetting::kCPU, 2345);
 
     if (auto_mem.offscreen_target_cache_size_in_bytes()->valid()) {
       EXPECT_MEMORY_SETTING(auto_mem.offscreen_target_cache_size_in_bytes(),
@@ -263,31 +258,6 @@ TEST(AutoMem, ConstrainedGPUEnvironment) {
 
 // Tests the expectation that constraining the CPU memory to 40MB will result
 // in AutoMem reducing the the memory footprint.
-TEST(AutoMem, ExplicitReducedCPUMemoryConsumption) {
-  // STEP ONE: Get the "natural" size of the engine at the default test
-  // settings.
-  std::unique_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
-
-  AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
-  command_line_settings.reduce_cpu_memory_by = 5 * 1024 * 1024;
-  AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
-  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line_settings,
-                                      build_settings);
-
-  EXPECT_EQ(5 * 1024 * 1024,
-            reduced_cpu_memory_auto_mem.reduced_cpu_bytes_->value());
-
-  const int64_t original_memory_consumption =
-      default_auto_mem->SumAllMemoryOfType(MemorySetting::kCPU);
-  const int64_t reduced_memory_consumption =
-      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kCPU);
-
-  EXPECT_LE(5 * 1024 * 1024,
-            original_memory_consumption - reduced_memory_consumption);
-}
-
-// Tests the expectation that constraining the CPU memory to 40MB will result
-// in AutoMem reducing the the memory footprint.
 TEST(AutoMem, ExplicitReducedGPUMemoryConsumption) {
   // STEP ONE: Get the "natural" size of the engine at the default test
   // settings.
@@ -296,44 +266,16 @@ TEST(AutoMem, ExplicitReducedGPUMemoryConsumption) {
   AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
   command_line_settings.reduce_gpu_memory_by = 5 * 1024 * 1024;
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
-  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line_settings,
+  AutoMem reduced_gpu_memory_auto_mem(kResolution1080p, command_line_settings,
                                       build_settings);
   EXPECT_EQ(5 * 1024 * 1024,
-            reduced_cpu_memory_auto_mem.reduced_gpu_bytes_->value());
+            reduced_gpu_memory_auto_mem.reduced_gpu_bytes_->value());
 
   const int64_t original_memory_consumption =
       default_auto_mem->SumAllMemoryOfType(MemorySetting::kGPU);
   const int64_t reduced_memory_consumption =
-      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kGPU);
+      reduced_gpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kGPU);
 
-  EXPECT_LE(5 * 1024 * 1024,
-            original_memory_consumption - reduced_memory_consumption);
-}
-
-// Tests the expectation that the max cpu value is ignored when reducing
-// memory.
-TEST(AutoMem, MaxCpuIsIgnoredDuringExplicitMemoryReduction) {
-  // STEP ONE: Get the "natural" size of the engine at the default test
-  // settings.
-  std::unique_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
-
-  AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
-  command_line_settings.reduce_cpu_memory_by = 5 * 1024 * 1024;
-  AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
-  build_settings.max_cpu_in_bytes = 1;
-  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line_settings,
-                                      build_settings);
-
-  EXPECT_EQ(5 * 1024 * 1024,
-            reduced_cpu_memory_auto_mem.reduced_cpu_bytes_->value());
-
-  const int64_t original_memory_consumption =
-      default_auto_mem->SumAllMemoryOfType(MemorySetting::kCPU);
-  const int64_t reduced_memory_consumption =
-      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kCPU);
-
-  // Max_cpu_in_bytes specifies one byte of memory, but reduce must override
-  // this for this test to pass.
   EXPECT_LE(5 * 1024 * 1024,
             original_memory_consumption - reduced_memory_consumption);
 }

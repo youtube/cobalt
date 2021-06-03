@@ -69,8 +69,6 @@ void TestAllParseInt(const base::Optional<int64_t>& expected,
 
   TEST_PARSE_INT(expected, value, switches::kImageCacheSizeInBytes,
                  cobalt_image_cache_size_in_bytes);
-  TEST_PARSE_INT(expected, value, switches::kJavaScriptGcThresholdInBytes,
-                 javascript_garbage_collection_threshold_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kRemoteTypefaceCacheSizeInBytes,
                  remote_typeface_cache_capacity_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kSkiaCacheSizeInBytes,
@@ -83,8 +81,6 @@ void TestAllParseInt(const base::Optional<int64_t>& expected,
                  max_cpu_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kMaxCobaltGpuUsage,
                  max_gpu_in_bytes);
-  TEST_PARSE_INT(expected, value, switches::kReduceCpuMemoryBy,
-                 reduce_cpu_memory_by);
   TEST_PARSE_INT(expected, value, switches::kReduceGpuMemoryBy,
                  reduce_gpu_memory_by);
 #undef TEST_PARSE_INT
@@ -119,7 +115,6 @@ TEST(AutoMemSettingsTest, InitialState) {
   AutoMemSettings settings(AutoMemSettings::kTypeCommandLine);
   EXPECT_EQ(AutoMemSettings::kTypeCommandLine, settings.type);
   EXPECT_FALSE(settings.cobalt_image_cache_size_in_bytes);
-  EXPECT_FALSE(settings.javascript_garbage_collection_threshold_in_bytes);
   EXPECT_FALSE(settings.remote_typeface_cache_capacity_in_bytes);
   EXPECT_FALSE(settings.skia_cache_size_in_bytes);
   EXPECT_FALSE(settings.skia_texture_atlas_dimensions);
@@ -127,7 +122,6 @@ TEST(AutoMemSettingsTest, InitialState) {
   EXPECT_FALSE(settings.offscreen_target_cache_size_in_bytes);
   EXPECT_FALSE(settings.max_cpu_in_bytes);
   EXPECT_FALSE(settings.max_gpu_in_bytes);
-  EXPECT_FALSE(settings.reduce_cpu_memory_by);
   EXPECT_FALSE(settings.reduce_gpu_memory_by);
 
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);

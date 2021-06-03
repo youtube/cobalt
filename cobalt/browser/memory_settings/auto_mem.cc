@@ -278,7 +278,7 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
 
   const int64_t target_cpu_memory = GenerateTargetMemoryBytes(
       max_cpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kCPU),
-      reduced_cpu_bytes_->optional_value());
+      base::Optional<int64_t>(0));
   const int64_t target_gpu_memory = GenerateTargetMemoryBytes(
       max_gpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kGPU),
       reduced_gpu_bytes_->optional_value());
@@ -308,10 +308,6 @@ const IntSetting* AutoMem::encoded_image_cache_size_in_bytes() const {
 
 const IntSetting* AutoMem::image_cache_size_in_bytes() const {
   return image_cache_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::javascript_gc_threshold_in_bytes() const {
-  return javascript_gc_threshold_in_bytes_.get();
 }
 
 const DimensionSetting* AutoMem::skia_atlas_texture_dimensions() const {
@@ -354,7 +350,6 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   // Keep these in alphabetical order.
   all_settings.push_back(encoded_image_cache_size_in_bytes_.get());
   all_settings.push_back(image_cache_size_in_bytes_.get());
-  all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
   all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
   all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
   all_settings.push_back(offscreen_target_cache_size_in_bytes_.get());
@@ -426,20 +421,11 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   max_cpu_bytes_ = CreateCpuSetting(command_line_settings, build_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line_settings, build_settings);
 
-  reduced_cpu_bytes_ = CreateSystemMemorySetting(
-      switches::kReduceCpuMemoryBy, MemorySetting::kCPU,
-      command_line_settings.reduce_cpu_memory_by,
-      build_settings.reduce_cpu_memory_by, -1);
-  if (reduced_cpu_bytes_->value() == -1) {
-    // This effectively disables the value from being used in the constrainer.
-    reduced_cpu_bytes_->set_value(MemorySetting::kUnset, 0);
-  }
-
   reduced_gpu_bytes_ = CreateSystemMemorySetting(
       switches::kReduceGpuMemoryBy, MemorySetting::kGPU,
       command_line_settings.reduce_gpu_memory_by,
       build_settings.reduce_gpu_memory_by, -1);
-  if (reduced_cpu_bytes_->value() == -1) {
+  if (reduced_gpu_bytes_->value() == -1) {
     // This effectively disables the value from being used in the constrainer.
     reduced_gpu_bytes_->set_value(MemorySetting::kUnset, 0);
   }
@@ -467,16 +453,6 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   // be increased beyond that.
   image_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(.75, 1.0));
-
-  // Set javascript gc threshold
-  JavaScriptGcThresholdSetting* js_setting = new JavaScriptGcThresholdSetting;
-  SetMemorySetting<IntSetting, int64_t>(
-      command_line_settings.javascript_garbage_collection_threshold_in_bytes,
-      build_settings.javascript_garbage_collection_threshold_in_bytes,
-      kDefaultJsGarbageCollectionThresholdSize, js_setting);
-  EnsureValuePositive(js_setting);
-  js_setting->PostInit();
-  javascript_gc_threshold_in_bytes_.reset(js_setting);
 
   // Set the misc cobalt size to a specific size.
   misc_cobalt_cpu_size_in_bytes_.reset(

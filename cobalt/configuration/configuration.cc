@@ -439,24 +439,6 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
 #endif
 }
 
-int Configuration::CobaltJsGarbageCollectionThresholdInBytes() {
-  if (configuration_api_) {
-    return configuration_api_->CobaltJsGarbageCollectionThresholdInBytes();
-  }
-#if SB_API_VERSION >= 12
-#if defined(COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES)
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES is deprecated after Starboard version 12."
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltJsGarbageCollectionThresholdInBytes()"
-#error "instead."
-#endif
-  return 8 * 1024 * 1024;
-#else
-  return 8 * 1024 * 1024;
-#endif
-}
-
 int Configuration::CobaltSkiaGlyphAtlasWidth() {
   if (configuration_api_) {
 #if defined(COBALT_SKIA_GLYPH_ATLAS_WIDTH)

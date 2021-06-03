@@ -1919,14 +1919,6 @@ void BrowserModule::ApplyAutoMemSettings() {
 
   LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
 
-  if (javascript_gc_threshold_in_bytes_) {
-    DCHECK_EQ(*javascript_gc_threshold_in_bytes_,
-              auto_mem_->javascript_gc_threshold_in_bytes()->value());
-  } else {
-    javascript_gc_threshold_in_bytes_ =
-        auto_mem_->javascript_gc_threshold_in_bytes()->value();
-  }
-
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =
       static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
@@ -1934,9 +1926,6 @@ void BrowserModule::ApplyAutoMemSettings() {
       static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
       auto_mem_->remote_typeface_cache_size_in_bytes()->value());
-  options_.web_module_options.javascript_engine_options.gc_threshold_bytes =
-      static_cast<size_t>(
-          auto_mem_->javascript_gc_threshold_in_bytes()->value());
   if (web_module_) {
     web_module_->SetImageCacheCapacity(
         auto_mem_->image_cache_size_in_bytes()->value());

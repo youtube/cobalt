@@ -181,12 +181,6 @@ class SkiaGlyphAtlasTextureSetting : public DimensionSetting {
   static size_t NumberOfReductions(double reduction_factor);
 };
 
-class JavaScriptGcThresholdSetting : public IntSetting {
- public:
-  JavaScriptGcThresholdSetting();
-  void PostInit();
-};
-
 int64_t SumMemoryConsumption(
     base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings);

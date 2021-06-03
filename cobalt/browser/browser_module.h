@@ -709,11 +709,6 @@ class BrowserModule {
   int current_splash_screen_timeline_id_;
   int current_main_web_module_timeline_id_;
 
-  // Remember the first set value for JavaScript's GC threshold setting computed
-  // by automem.  We want this so that we can check that it never changes, since
-  // we do not have the ability to modify it after startup.
-  base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
-
   // Save the current window size before transitioning to Concealed state,
   // and reuse this value to recreate the window.
   math::Size window_size_;
