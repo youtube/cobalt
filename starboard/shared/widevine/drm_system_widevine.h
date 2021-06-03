@@ -156,7 +156,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
-  const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const SbDrmSessionKeyStatusesChangedFunc
+      session_key_statuses_changed_callback_;
   const SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback_;
   const SbDrmSessionClosedFunc session_closed_callback_;
 

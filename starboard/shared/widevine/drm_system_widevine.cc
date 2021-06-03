@@ -213,7 +213,8 @@ DrmSystemWidevine::DrmSystemWidevine(
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
-      key_statuses_changed_callback_(key_statuses_changed_callback),
+      session_key_statuses_changed_callback_(
+          session_key_statuses_changed_callback),
       server_certificate_updated_callback_(server_certificate_updated_callback),
       session_closed_callback_(session_closed_callback),
       ticket_thread_id_(SbThreadGetId()) {
@@ -659,9 +660,9 @@ void DrmSystemWidevine::onKeyStatusesChange(
 
   const std::string sb_drm_session_id =
       WvdmSessionIdToSbDrmSessionId(wvcdm_session_id);
-  key_statuses_changed_callback_(this, context_, sb_drm_session_id.c_str(),
-                                 sb_drm_session_id.size(), sb_key_ids.size(),
-                                 sb_key_ids.data(), sb_key_statuses.data());
+  session_key_statuses_changed_callback_(
+      this, context_, sb_drm_session_id.c_str(), sb_drm_session_id.size(),
+      sb_key_ids.size(), sb_key_ids.data(), sb_key_statuses.data());
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {
