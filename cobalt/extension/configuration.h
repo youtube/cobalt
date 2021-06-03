@@ -178,12 +178,8 @@ typedef struct CobaltExtensionConfigurationApi {
   int (*CobaltSkiaGlyphAtlasWidth)();
   int (*CobaltSkiaGlyphAtlasHeight)();
 
-  // Determines the size of garbage collection threshold. After this many
-  // bytes have been allocated, the SpiderMonkey garbage collector will run.
-  // Lowering this has been found to reduce performance and decrease
-  // JavaScript memory usage. For example, we have measured on at least one
-  // platform that performance becomes 7% worse on average in certain cases
-  // when adjusting this number from 8MB to 1MB.
+  // This configuration has been deprecated and is only kept for
+  // backward-compatibility. It has no effect on V8.
   int (*CobaltJsGarbageCollectionThresholdInBytes)();
 
   // When specified this value will reduce the cpu memory consumption by

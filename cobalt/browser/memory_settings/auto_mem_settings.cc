@@ -209,9 +209,6 @@ AutoMemSettings GetDefaultBuildSettings() {
   settings.cobalt_image_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           config->CobaltImageCacheSizeInBytes());
-  settings.javascript_garbage_collection_threshold_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(
-          config->CobaltJsGarbageCollectionThresholdInBytes());
   settings.remote_typeface_cache_capacity_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           config->CobaltRemoteTypefaceCacheSizeInBytes());
@@ -241,8 +238,6 @@ AutoMemSettings GetDefaultBuildSettings() {
 #endif  // defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
 #endif  // SB_API_VERSION < 12
 
-  settings.reduce_cpu_memory_by =
-      MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceCpuMemoryBy());
   settings.reduce_gpu_memory_by =
       MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceGpuMemoryBy());
 
@@ -257,8 +252,6 @@ AutoMemSettings GetSettings(const base::CommandLine& command_line) {
       switches::kEncodedImageCacheSizeInBytes);
   Set(command_line, &settings.cobalt_image_cache_size_in_bytes,
       switches::kImageCacheSizeInBytes);
-  Set(command_line, &settings.javascript_garbage_collection_threshold_in_bytes,
-      switches::kJavaScriptGcThresholdInBytes);
   Set(command_line, &settings.remote_typeface_cache_capacity_in_bytes,
       switches::kRemoteTypefaceCacheSizeInBytes);
   Set(command_line, &settings.skia_cache_size_in_bytes,
@@ -271,8 +264,6 @@ AutoMemSettings GetSettings(const base::CommandLine& command_line) {
       switches::kOffscreenTargetCacheSizeInBytes);
   Set(command_line, &settings.max_cpu_in_bytes, switches::kMaxCobaltCpuUsage);
   Set(command_line, &settings.max_gpu_in_bytes, switches::kMaxCobaltGpuUsage);
-  Set(command_line, &settings.reduce_cpu_memory_by,
-      switches::kReduceCpuMemoryBy);
   Set(command_line, &settings.reduce_gpu_memory_by,
       switches::kReduceGpuMemoryBy);
 

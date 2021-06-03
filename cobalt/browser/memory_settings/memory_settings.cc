@@ -131,19 +131,6 @@ size_t SkiaGlyphAtlasTextureSetting::NumberOfReductions(
   return num_of_reductions;
 }
 
-JavaScriptGcThresholdSetting::JavaScriptGcThresholdSetting()
-    : IntSetting(switches::kJavaScriptGcThresholdInBytes) {}
-
-void JavaScriptGcThresholdSetting::PostInit() {
-  const int64_t normal_memory_consumption = MemoryConsumption();
-  const int64_t min_memory_consumption =
-      std::min<int64_t>(normal_memory_consumption, 1 * 1024 * 1024);
-
-  ScalingFunction function =
-      MakeJavaScriptGCScaler(min_memory_consumption, normal_memory_consumption);
-  set_memory_scaling_function(function);
-}
-
 int64_t SumMemoryConsumption(
     base::Optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings) {

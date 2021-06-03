@@ -72,9 +72,6 @@ class TestSettingGroup {
     MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
                 switches::kImageCacheSizeInBytes, 1234);
 
-    MakeSetting(MemorySetting::kAutoSet, MemorySetting::kCPU,
-                switches::kJavaScriptGcThresholdInBytes, 1112);
-
     MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
                 switches::kSkiaTextureAtlasDimensions,
                 TextureDimensions(1234, 4567, 2));

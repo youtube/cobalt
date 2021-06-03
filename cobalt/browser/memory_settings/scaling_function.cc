@@ -29,33 +29,6 @@ namespace browser {
 namespace memory_settings {
 namespace {
 
-class JavaScriptGCMemoryScaler {
- public:
-  JavaScriptGCMemoryScaler(int64_t min_memory, int64_t max_memory) {
-    DCHECK_LE(min_memory, max_memory);
-    min_memory = std::min(min_memory, max_memory);
-    const double min_factor =
-        static_cast<double>(min_memory) / static_cast<double>(max_memory);
-    // From 95% -> 0%, the memory will stay the same. This effectively
-    // clamps the minimum value.
-    interp_table_.Add(0.0, min_factor);
-
-    // At 95% memory, the memory falls to the min_factor. The rationale here
-    // is that most of the memory for JavaScript can be eliminated without
-    // a large performance penalty, so it's quickly reduced.
-    interp_table_.Add(.95, min_factor);
-
-    // At 100% we have 100% of memory.
-    interp_table_.Add(1.0, 1.0);
-  }
-  double Factor(double requested_memory_scale) const {
-    return interp_table_.Map(requested_memory_scale);
-  }
-
- private:
-  math::LinearInterpolator<double, double> interp_table_;
-};
-
 double LinearFunctionWithClampValue(double min_clamp_value,
                                     double max_clamp_value,
                                     double requested_memory_scale) {
@@ -77,15 +50,6 @@ ScalingFunction MakeLinearMemoryScaler(double min_clamp_value,
   ScalingFunction function = base::Bind(&LinearFunctionWithClampValue,
                                         min_clamp_value, max_clamp_value);
   return function;
-}
-
-ScalingFunction MakeJavaScriptGCScaler(int64_t min_consumption,
-                                       int64_t max_consumption) {
-  JavaScriptGCMemoryScaler* constrainer =
-      new JavaScriptGCMemoryScaler(min_consumption, max_consumption);
-  // Note that Bind() will implicitly ref-count the constrainer pointer.
-  return base::Bind(&JavaScriptGCMemoryScaler::Factor,
-                    base::Owned(constrainer));
 }
 
 ScalingFunction MakeSkiaGlyphAtlasMemoryScaler() {
