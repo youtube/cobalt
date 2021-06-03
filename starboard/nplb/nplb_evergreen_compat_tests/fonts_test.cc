@@ -36,9 +36,15 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
                               system_fonts_dir.data(), kSbFileMaxPath));
-
   ASSERT_TRUE(SbFileExists(system_fonts_dir.data()));
-  std::string fonts_descriptor_file = system_fonts_dir.data();
+}
+
+TEST(FontsTest, VerifySystemFontsConfigDirectory) {
+  std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
+  ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,
+                              system_fonts_conf_dir.data(), kSbFileMaxPath));
+  ASSERT_TRUE(SbFileExists(system_fonts_conf_dir.data()));
+  std::string fonts_descriptor_file = system_fonts_conf_dir.data();
   fonts_descriptor_file += kSbFileSepString;
   fonts_descriptor_file += kFileName;
   ASSERT_TRUE(SbFileExists(fonts_descriptor_file.c_str()));
