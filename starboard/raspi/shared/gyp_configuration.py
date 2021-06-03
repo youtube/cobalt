@@ -98,7 +98,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       raise RuntimeError('RasPi builds require the "RASPI_HOME" '
                          'environment variable to be set.')
     if not os.path.isdir(self.sysroot):
-      raise RuntimeError('RasPi builds require $RASPI_HOME/sysroot '
+      raise RuntimeError('RasPi builds require $RASPI_HOME/busterroot '
                          'to be a valid directory.')
 
   def GetTargetToolchain(self, **kwargs):
