@@ -93,6 +93,13 @@ config("platform_configuration") {
       "-Wl,-u_sanitizer_options_link_helper",
     ]
     defines += [ "ADDRESS_SANITIZER" ]
+  } else if (use_tsan) {
+    cflags += [
+      "-fsanitize=thread",
+      "-fno-omit-frame-pointer",
+    ]
+    ldflags += [ "-fsanitize=thread" ]
+    defines += [ "THREAD_SANITIZER" ]
   }
 
   if (current_toolchain != host_toolchain) {
