@@ -34,14 +34,13 @@ RUN apt update -qqy \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
 
-# Get the combined toolchains package and trim the unneeded older versions
+# Get the combined toolchains package.
 RUN cd /tmp \
     && curl --silent -O -J \
     "https://storage.googleapis.com/cobalt-static-storage/${raspi_tools}" \
     && mkdir -p ${raspi_home} \
     && cd ${raspi_home} \
     && tar xjvf /tmp/${raspi_tools} \
-    && rm -rf sysroot tools/arm-bcm2708/arm-* tools/.git \
     && rm /tmp/${raspi_tools}
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
