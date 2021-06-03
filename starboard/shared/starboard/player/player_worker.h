@@ -60,6 +60,9 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
+    typedef PlayerWorker::Bounds Bounds;
+    typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+
     typedef std::function<
         void(SbTime media_time, int dropped_video_frames, bool is_progressing)>
         UpdateMediaInfoCB;
