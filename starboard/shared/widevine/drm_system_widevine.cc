@@ -205,7 +205,7 @@ DrmSystemWidevine::DrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionKeyStatusesChangedFunc session_key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback,
     const std::string& company_name,
