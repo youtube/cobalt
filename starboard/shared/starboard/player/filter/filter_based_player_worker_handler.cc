@@ -391,8 +391,7 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   }
 }
 
-bool FilterBasedPlayerWorkerHandler::SetBounds(
-    const PlayerWorker::Bounds& bounds) {
+bool FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (SbMemoryCompare(&bounds_, &bounds, sizeof(bounds_)) != 0) {

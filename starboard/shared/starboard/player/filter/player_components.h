@@ -48,6 +48,13 @@ namespace filter {
 // object, so it is safe to cache the returned objects.
 class PlayerComponents {
  public:
+  typedef ::starboard::shared::starboard::player::filter::AudioRenderer
+      AudioRenderer;
+  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
+      MediaTimeProvider;
+  typedef ::starboard::shared::starboard::player::filter::VideoRenderer
+      VideoRenderer;
+
   // This class creates PlayerComponents.
   class Factory {
    public:
