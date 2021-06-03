@@ -33,8 +33,14 @@ is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
 declare_args() {
-  use_asan = is_debug || is_devel
+  use_tsan = getenv("USE_TSAN") == 1
 }
+
+declare_args() {
+  use_asan = (is_debug || is_devel || getenv("USE_ASAN") == 1) && !use_tsan
+}
+
+assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 
 # Set some variables we never want to change.
 sb_allows_memory_tracking = !is_gold
