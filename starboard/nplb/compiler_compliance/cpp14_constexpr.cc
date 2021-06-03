@@ -33,6 +33,11 @@ constexpr size_t CompileTimeStringLength(const char* str) {
 SB_COMPILE_ASSERT(CompileTimeStringLength(kPangram) == sizeof(kPangram),
                   CompileTimeStringLength_does_not_return_correct_length);
 
+// Verify constexpr initialization. Supported from Clang 3.9, GCC 4.6, VS2017
+// See: http://open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#253
+struct CheckInitializerTag {};
+static constexpr CheckInitializerTag kEmptyTag;
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
