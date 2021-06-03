@@ -174,7 +174,7 @@ services:
       dockerfile: linux-x64x11/Dockerfile
       args:
         - FROM_IMAGE=cobalt-build-evergreen
-    image: cobalt-build-linux-x64x11-sbversion12-evergreen
+    image: cobalt-build-linux-x64x11-evergreen
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-sbversion-12
