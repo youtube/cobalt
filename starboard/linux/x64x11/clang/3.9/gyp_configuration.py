@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 X11 Clang 3.6 platform configuration."""
+"""Starboard Linux X64 X11 Clang 3.9 platform configuration."""
 
 import logging
 import os
@@ -26,27 +26,27 @@ from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
 
 
-class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
-  """Starboard Linux X64 X11 Clang 3.6 platform configuration."""
+class LinuxX64X11Clang39Configuration(shared_configuration.LinuxConfiguration):
+  """Starboard Linux X64 X11 Clang 3.9 platform configuration."""
 
   def __init__(self,
-               platform='linux-x64x11-clang-3-6',
+               platform='linux-x64x11-clang-3-9',
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(LinuxX64X11Clang36Configuration,
+    super(LinuxX64X11Clang39Configuration,
           self).__init__(platform, asan_enabled_by_default, sabi_json_path)
 
-    self.toolchain_dir = '/usr/lib/llvm-3.6'
+    self.toolchain_dir = '/usr/lib/llvm-3.9'
 
   def SetupPlatformTools(self, build_number):
-    ret = subprocess.call('/usr/bin/clang-3.6 --version', shell=True)
+    ret = subprocess.call('/usr/bin/clang-3.9 --version', shell=True)
     if ret != 0:
-      raise Exception('clang-3.6 is not installed.')
+      raise Exception('clang-3.9 is not installed.')
 
   def GetEnvironmentVariables(self):
     toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
 
-    env_variables = super(LinuxX64X11Clang36Configuration,
+    env_variables = super(LinuxX64X11Clang39Configuration,
                           self).GetEnvironmentVariables()
     env_variables.update({
         'CC':
@@ -59,7 +59,7 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
     return env_variables
 
   def GetVariables(self, config_name):
-    variables = super(LinuxX64X11Clang36Configuration,
+    variables = super(LinuxX64X11Clang39Configuration,
                       self).GetVariables(config_name)
     return variables
 
@@ -102,7 +102,7 @@ class LinuxX64X11Clang36Configuration(shared_configuration.LinuxConfiguration):
 
 def CreatePlatformConfig():
   try:
-    return LinuxX64X11Clang36Configuration(
+    return LinuxX64X11Clang39Configuration(
         sabi_json_path='starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json')
   except RuntimeError as e:
     logging.critical(e)

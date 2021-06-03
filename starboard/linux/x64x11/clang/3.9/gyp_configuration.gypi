@@ -14,24 +14,24 @@
 
 {
   'variables': {
-    'sb_target_platform': 'linux-x64x11-clang-3-6',
+    'sb_target_platform': 'linux-x64x11-clang-3-9',
     'cobalt_v8_emit_builtins_as_inline_asm': 1,
     'sb_disable_cpp14_audit': 0,
   },
 
   'target_defaults': {
-    'default_configuration': 'linux-x64x11-clang-3-6_debug',
+    'default_configuration': 'linux-x64x11-clang-3-9_debug',
     'configurations': {
-      'linux-x64x11-clang-3-6_debug': {
+      'linux-x64x11-clang-3-9_debug': {
         'inherit_from': ['debug_base'],
       },
-      'linux-x64x11-clang-3-6_devel': {
+      'linux-x64x11-clang-3-9_devel': {
         'inherit_from': ['devel_base'],
       },
-      'linux-x64x11-clang-3-6_qa': {
+      'linux-x64x11-clang-3-9_qa': {
         'inherit_from': ['qa_base'],
       },
-      'linux-x64x11-clang-3-6_gold': {
+      'linux-x64x11-clang-3-9_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
