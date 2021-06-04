@@ -39,7 +39,8 @@ class PerformanceResourceTiming : public PerformanceEntry {
   PerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
                             const std::string& initiator_type,
                             const std::string& requested_url,
-                            Performance* performance);
+                            Performance* performance,
+                            base::TimeTicks time_origin);
 
   // Web API.
   std::string initiator_type() const;
@@ -73,6 +74,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   uint64_t transfer_size_;
   std::string requested_url_;
   net::LoadTimingInfo timing_info_;
+  base::TimeTicks time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };

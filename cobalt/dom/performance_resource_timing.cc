@@ -29,70 +29,70 @@ PerformanceResourceTiming::PerformanceResourceTiming(
 
 PerformanceResourceTiming::PerformanceResourceTiming(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
-    const std::string& requested_url, Performance* performance)
+    const std::string& requested_url, Performance* performance,
+    base::TimeTicks time_origin)
     : PerformanceEntry(
-          requested_url, performance->Now(),
-          ConvertTimeDeltaToDOMHighResTimeStamp(
-              timing_info.receive_headers_end.since_origin(),
-              Performance::kPerformanceTimerMinResolutionInMicroseconds)),
+          requested_url,
+          Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin,
+              timing_info.request_start),
+          Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin,
+              timing_info.receive_headers_end)),
       initiator_type_(initiator_type),
       cache_mode_(kPerformanceResourceTimingCacheMode),
       transfer_size_(0),
-      timing_info_(timing_info) {}
+      timing_info_(timing_info),
+      time_origin_(time_origin) {}
 
 std::string PerformanceResourceTiming::initiator_type() const {
   return initiator_type_;
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
-  // There is no worker in Cobalt, thus we need to return start_time()
-  // instead of worker ready time.
-  return PerformanceEntry::start_time();
+  if (timing_info_.request_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.request_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
   if (timing_info_.connect_timing.connect_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.connect_timing.connect_start.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.connect_timing.connect_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_end() const {
   if (timing_info_.connect_timing.connect_end.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.connect_timing.connect_end.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.connect_timing.connect_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::secure_connection_start() const {
   if (timing_info_.connect_timing.ssl_start.is_null()) {
     return 0.0;
   }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.connect_timing.ssl_start.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.connect_timing.ssl_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::request_start() const {
   if (timing_info_.send_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.send_start.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.send_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
   if (timing_info_.receive_headers_end.is_null()) {
     PerformanceEntry::start_time();
   }
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      timing_info_.receive_headers_end.since_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.receive_headers_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {

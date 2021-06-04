@@ -21,6 +21,7 @@
 #include <string>
 
 #include "cobalt/base/clock.h"
+#include "base/time/default_tick_clock.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/event_target.h"
@@ -63,6 +64,12 @@ class Performance : public EventTarget {
   scoped_refptr<MemoryInfo> memory() const;
   DOMHighResTimeStamp Now() const;
   DOMHighResTimeStamp time_origin() const;
+  DOMHighResTimeStamp MonotonicTimeToDOMHighResTimeStamp(
+      base::TimeTicks monotonic_time) const;
+
+  static DOMHighResTimeStamp MonotonicTimeToDOMHighResTimeStamp(
+      base::TimeTicks time_origin,
+      base::TimeTicks monotonic_time);
 
   // Web API: Performance Timeline extensions to the Performance.
   //   https://www.w3.org/TR/performance-timeline-2/#extensions-to-the-performance-interface
@@ -91,8 +98,10 @@ class Performance : public EventTarget {
                                        const std::string& requested_url);
   void CreatePerformanceLifecycleTiming();
   // Custom, not in any spec.
-  base::TimeDelta get_time_origin() const { return time_origin_; }
-
+  // Internal getter method for the time origin value.
+  base::TimeTicks GetTimeOrigin() const {
+      return time_origin_;
+  }
   // Register and unregisterthe performance observer.
   void UnregisterPerformanceObserver(
       const scoped_refptr<PerformanceObserver>& observer);
@@ -116,7 +125,9 @@ class Performance : public EventTarget {
 
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;
-  base::TimeDelta time_origin_;
+  base::TimeTicks time_origin_;
+  const base::TickClock* tick_clock_;
+  base::TimeDelta unix_at_zero_monotonic_;
 
   PerformanceEntryList performance_entry_buffer_;
   struct RegisteredPerformanceObserver : public script::Traceable {
