@@ -29,18 +29,16 @@ TEST(PerformanceTest, Now) {
 
   // Test that now returns a result that is within a correct range for the
   // current time.
-  base::TimeDelta lower_limit = base::Time::Now() - base::Time::UnixEpoch();
+  DOMHighResTimeStamp lower_limit =
+      performance->MonotonicTimeToDOMHighResTimeStamp(base::TimeTicks::Now());
 
   DOMHighResTimeStamp current_time_in_milliseconds = performance->Now();
 
-  base::TimeDelta upper_limit = base::Time::Now() - base::Time::UnixEpoch();
+  DOMHighResTimeStamp upper_limit =
+      performance->MonotonicTimeToDOMHighResTimeStamp(base::TimeTicks::Now());
 
-  DCHECK_GE(current_time_in_milliseconds, ConvertTimeDeltaToDOMHighResTimeStamp(
-      lower_limit - performance->get_time_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds));
-  DCHECK_LE(current_time_in_milliseconds, ConvertTimeDeltaToDOMHighResTimeStamp(
-      upper_limit - performance->get_time_origin(),
-      Performance::kPerformanceTimerMinResolutionInMicroseconds));
+  DCHECK_GE(current_time_in_milliseconds, lower_limit);
+  DCHECK_LE(current_time_in_milliseconds, upper_limit);
 }
 
 TEST(PerformanceTest, TimeOrigin) {
@@ -58,19 +56,36 @@ TEST(PerformanceTest, TimeOrigin) {
   base::TimeDelta lower_limit_delta = lower_limit - base::Time::UnixEpoch();
   base::TimeDelta upper_limit_delta = upper_limit - base::Time::UnixEpoch();
 
-  base::TimeDelta time_zero =
-      base::Time::UnixEpoch().ToDeltaSinceWindowsEpoch();
-
   DOMHighResTimeStamp lower_limit_milliseconds =
-        ConvertTimeDeltaToDOMHighResTimeStamp(lower_limit_delta + time_zero,
+        ClampTimeStampMinimumResolution(lower_limit_delta,
             Performance::kPerformanceTimerMinResolutionInMicroseconds);
 
   DOMHighResTimeStamp upper_limit_milliseconds =
-        ConvertTimeDeltaToDOMHighResTimeStamp(upper_limit_delta + time_zero,
+        ClampTimeStampMinimumResolution(upper_limit_delta,
             Performance::kPerformanceTimerMinResolutionInMicroseconds);
 
   DCHECK_GE(performance->time_origin(), lower_limit_milliseconds);
   DCHECK_LE(performance->time_origin(), upper_limit_milliseconds);
+}
+
+TEST(PerformanceTest, MonotonicTimeToDOMHighResTimeStamp) {
+  scoped_refptr<base::SystemMonotonicClock> clock(
+      new base::SystemMonotonicClock());
+
+  testing::StubEnvironmentSettings environment_settings;
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
+
+  base::TimeTicks current_time_ticks = base::TimeTicks::Now();
+  DOMHighResTimeStamp  current_time = ClampTimeStampMinimumResolution(
+      current_time_ticks,
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  DOMHighResTimeStamp current_time_respect_to_time_origin =
+      performance->MonotonicTimeToDOMHighResTimeStamp(current_time_ticks);
+  DOMHighResTimeStamp time_origin = ClampTimeStampMinimumResolution(
+      performance->GetTimeOrigin(),
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  DCHECK_EQ(current_time_respect_to_time_origin, current_time - time_origin);
 }
 
 TEST(PerformanceTest, NavigationStart) {
