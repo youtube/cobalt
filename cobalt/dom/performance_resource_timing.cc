@@ -55,6 +55,22 @@ DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
       timing_info_.request_start);
 }
 
+DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_start() const {
+  if (timing_info_.connect_timing.dns_start.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.connect_timing.dns_start);
+}
+
+DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_end() const {
+  if (timing_info_.connect_timing.dns_end.is_null()) {
+    return PerformanceEntry::start_time();
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+      timing_info_.connect_timing.dns_end);
+}
+
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
   if (timing_info_.connect_timing.connect_start.is_null()) {
     return PerformanceEntry::start_time();

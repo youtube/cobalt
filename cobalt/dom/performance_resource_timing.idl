@@ -18,6 +18,8 @@
 interface PerformanceResourceTiming : PerformanceEntry {
   readonly  attribute DOMString           initiatorType;
   readonly  attribute DOMHighResTimeStamp fetchStart;
+  readonly  attribute DOMHighResTimeStamp domainLookupStart;
+  readonly  attribute DOMHighResTimeStamp domainLookupEnd;
   readonly  attribute DOMHighResTimeStamp connectStart;
   readonly  attribute DOMHighResTimeStamp connectEnd;
   readonly  attribute DOMHighResTimeStamp secureConnectionStart;

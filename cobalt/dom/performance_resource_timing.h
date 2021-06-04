@@ -45,6 +45,8 @@ class PerformanceResourceTiming : public PerformanceEntry {
   // Web API.
   std::string initiator_type() const;
   DOMHighResTimeStamp fetch_start() const;
+  DOMHighResTimeStamp domain_lookup_start() const;
+  DOMHighResTimeStamp domain_lookup_end() const;
   DOMHighResTimeStamp connect_start() const;
   DOMHighResTimeStamp connect_end() const;
   DOMHighResTimeStamp secure_connection_start() const;
