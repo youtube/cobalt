@@ -41,6 +41,33 @@ TEST(PerformanceTest, Now) {
   DCHECK_LE(current_time_in_milliseconds, upper_limit);
 }
 
+TEST(PerformanceTest, TimeOrigin) {
+  scoped_refptr<base::SystemMonotonicClock> clock(
+      new base::SystemMonotonicClock());
+  // Test that time_origin returns a result that is within a correct range for
+  // the current time.
+  base::Time lower_limit = base::Time::Now();
+
+  testing::StubEnvironmentSettings environment_settings;
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
+
+  base::Time upper_limit = base::Time::Now();
+
+  base::TimeDelta lower_limit_delta = lower_limit - base::Time::UnixEpoch();
+  base::TimeDelta upper_limit_delta = upper_limit - base::Time::UnixEpoch();
+
+  DOMHighResTimeStamp lower_limit_milliseconds =
+        ClampTimeStampMinimumResolution(lower_limit_delta,
+            Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  DOMHighResTimeStamp upper_limit_milliseconds =
+        ClampTimeStampMinimumResolution(upper_limit_delta,
+            Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  DCHECK_GE(performance->time_origin(), lower_limit_milliseconds);
+  DCHECK_LE(performance->time_origin(), upper_limit_milliseconds);
+}
+
 TEST(PerformanceTest, MonotonicTimeToDOMHighResTimeStamp) {
   scoped_refptr<base::SystemMonotonicClock> clock(
       new base::SystemMonotonicClock());
