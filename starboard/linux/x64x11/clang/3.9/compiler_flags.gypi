@@ -98,6 +98,8 @@
           '-Wno-unused-value',
           # Suppress warnings related to unused compilation flags in clang.
           '-Wno-unused-command-line-argument',
+          # Suppress warnings in libjpeg
+          '-Wno-shift-negative-value',
         ],
       }],
       ['cobalt_fastbuild==0', {
