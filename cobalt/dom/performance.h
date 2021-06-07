@@ -123,10 +123,11 @@ class Performance : public EventTarget {
  private:
   unsigned long GetDroppedEntriesCount(const std::string& entry_type);
 
-  scoped_refptr<PerformanceTiming> timing_;
-  scoped_refptr<MemoryInfo> memory_;
   base::TimeTicks time_origin_;
   const base::TickClock* tick_clock_;
+  scoped_refptr<PerformanceTiming> timing_;
+  scoped_refptr<MemoryInfo> memory_;
+  scoped_refptr<PerformanceLifecycleTiming> lifecycle_timing_;
   base::TimeDelta unix_at_zero_monotonic_;
 
   PerformanceEntryList performance_entry_buffer_;
@@ -157,8 +158,6 @@ class Performance : public EventTarget {
 
   bool performance_observer_task_queued_flag_;
   bool add_to_performance_entry_buffer_flag_;
-
-  scoped_refptr<PerformanceLifecycleTiming> performance_lifecycle_timing_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

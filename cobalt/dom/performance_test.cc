@@ -70,19 +70,17 @@ TEST(PerformanceTest, NavigationStart) {
   // the object will be created at the beginning of a new navigation.
   scoped_refptr<base::SystemMonotonicClock> clock(
       new base::SystemMonotonicClock());
-  base::Time lower_limit = base::Time::Now();
+  base::TimeTicks lower_limit = base::TimeTicks::Now();
 
   scoped_refptr<PerformanceTiming> performance_timing(
-      new PerformanceTiming(clock));
+      new PerformanceTiming(clock, base::TimeTicks::Now()));
 
-  base::Time upper_limit = base::Time::Now();
+  base::TimeTicks upper_limit = base::TimeTicks::Now();
 
   DCHECK_GE(performance_timing->navigation_start(),
-            static_cast<uint64>(
-                (lower_limit - base::Time::UnixEpoch()).InMilliseconds()));
+            static_cast<uint64>((lower_limit.ToInternalValue())));
   DCHECK_LE(performance_timing->navigation_start(),
-            static_cast<uint64>(
-                (upper_limit - base::Time::UnixEpoch()).InMilliseconds()));
+            static_cast<uint64>((upper_limit.ToInternalValue())));
 }
 
 }  // namespace dom

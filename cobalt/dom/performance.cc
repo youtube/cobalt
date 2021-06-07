@@ -37,22 +37,22 @@ namespace {
 Performance::Performance(script::EnvironmentSettings* settings,
                          const scoped_refptr<base::BasicClock>& clock)
     : EventTarget(settings),
-      timing_(new PerformanceTiming(clock)),
-      memory_(new MemoryInfo()),
       time_origin_(base::TimeTicks::Now()),
       tick_clock_(base::DefaultTickClock::GetInstance()),
+      timing_(new PerformanceTiming(clock, time_origin_)),
+      memory_(new MemoryInfo()),
+      lifecycle_timing_(
+          new PerformanceLifecycleTiming("lifecycle timing", 0.0, 0.0)),
       resource_timing_buffer_size_limit_(
           Performance::kMaxResourceTimingBufferSize),
       resource_timing_buffer_current_size_(0),
       resource_timing_buffer_full_event_pending_flag_(false),
       resource_timing_secondary_buffer_current_size_(0),
       performance_observer_task_queued_flag_(false),
-      add_to_performance_entry_buffer_flag_(false),
-      performance_lifecycle_timing_(
-          new PerformanceLifecycleTiming("lifecycle timing", 0.0, 0.0)) {
+      add_to_performance_entry_buffer_flag_(false) {
   unix_at_zero_monotonic_ = GetUnixAtZeroMonotonic(
       base::DefaultClock::GetInstance(), tick_clock_);
-  QueuePerformanceEntry(performance_lifecycle_timing_);
+  QueuePerformanceEntry(lifecycle_timing_);
 }
 
 // static
