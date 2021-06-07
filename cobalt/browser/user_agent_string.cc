@@ -23,9 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
-#if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
-#endif
 
 namespace cobalt {
 namespace browser {
@@ -109,14 +106,11 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
                         platform_info.rasterizer_type().c_str());
   }
 
-// Evergreen version
-#if SB_IS(EVERGREEN)
-  const std::string evergreen_version = updater::GetCurrentEvergreenVersion();
-  if (!evergreen_version.empty()) {
+  // Evergreen version
+  if (!platform_info.evergreen_version().empty()) {
     base::StringAppendF(&user_agent, " Evergreen/%s",
-                        evergreen_version.c_str());
+                        platform_info.evergreen_version().c_str());
   }
-#endif
 
   // Starboard/APIVersion,
   if (!platform_info.starboard_version().empty()) {

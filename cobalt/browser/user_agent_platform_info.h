@@ -66,7 +66,9 @@ class UserAgentPlatformInfo : public dom::UserAgentPlatformInfo {
   const std::string& rasterizer_type() const override {
     return rasterizer_type_;
   }
-
+  const std::string& evergreen_version() const override {
+    return evergreen_version_;
+  }
   const std::string& cobalt_version() const override { return cobalt_version_; }
   const std::string& cobalt_build_version_number() const override {
     return cobalt_build_version_number_;
@@ -126,6 +128,9 @@ class UserAgentPlatformInfo : public dom::UserAgentPlatformInfo {
   void set_rasterizer_type(const std::string& rasterizer_type) {
     rasterizer_type_ = rasterizer_type;
   }
+  void set_evergreen_version(const std::string& evergreen_version) {
+    evergreen_version_ = evergreen_version;
+  }
   void set_cobalt_version(const std::string& cobalt_version) {
     cobalt_version_ = cobalt_version;
   }
@@ -159,6 +164,7 @@ class UserAgentPlatformInfo : public dom::UserAgentPlatformInfo {
   std::string connection_type_string_;
   std::string javascript_engine_version_;
   std::string rasterizer_type_;
+  std::string evergreen_version_;
 
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;

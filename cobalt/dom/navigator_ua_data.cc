@@ -55,7 +55,8 @@ NavigatorUAData::NavigatorUAData(
   all_high_entropy_values_.set_js_engine_version(
       platform_info->javascript_engine_version());
   all_high_entropy_values_.set_rasterizer(platform_info->rasterizer_type());
-  // TODO: Fill out evergreen info
+  all_high_entropy_values_.set_evergreen_version(
+      platform_info->evergreen_version());
   all_high_entropy_values_.set_starboard_version(
       platform_info->starboard_version());
   all_high_entropy_values_.set_original_design_manufacturer(
