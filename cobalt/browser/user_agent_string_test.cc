@@ -36,6 +36,7 @@ UserAgentPlatformInfo CreateEmptyPlatformInfo() {
   platform_info.set_connection_type(base::nullopt);
   platform_info.set_javascript_engine_version("");
   platform_info.set_rasterizer_type("");
+  platform_info.set_evergreen_version("");
   platform_info.set_cobalt_version("");
   platform_info.set_cobalt_build_version_number("");
   platform_info.set_build_configuration("");

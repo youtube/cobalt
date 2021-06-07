@@ -128,6 +128,11 @@ void UserAgentPlatformInfo::InitializeFields() {
   rasterizer_type_ =
       renderer::GetDefaultRasterizerForPlatform().rasterizer_name;
 
+// Evergreen version
+#if SB_IS(EVERGREEN)
+  evergreen_version_ = updater::GetCurrentEvergreenVersion();
+#endif
+
   cobalt_version_ = COBALT_VERSION;
   cobalt_build_version_number_ = COBALT_BUILD_VERSION_NUMBER;
 
