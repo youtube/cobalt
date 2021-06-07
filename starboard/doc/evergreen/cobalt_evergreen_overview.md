@@ -120,7 +120,7 @@ The following additional Starboard interfaces are necessary to implement for
 Evergreen:
 
 *   `kSbSystemPathStorageDirectory`
-    *   Dedidated location for storing Cobalt Evergreen-related binaries
+    *   Dedicated location for storing Cobalt Evergreen-related binaries
     *   This path must be writable and have at least 96MB of reserved space for
         Evergreen updates. Please see the “Platforms Requirements” section below
         for more details.
@@ -403,7 +403,7 @@ Image required for all slot configurations:
 │   └── app
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
-│           │   ├── fonts <--(`minimal` configuration)
+│           │   ├── fonts <--(`empty` configuration)
 │           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
 │           │   ├── licenses
 │           │   ├── ssl
@@ -424,7 +424,7 @@ updates in an example 3-slot configuration:
     ├── installation_1 <--(SLOT_1 - currently unused)
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
     │   ├── content
-    │   │   ├── fonts <--(`minimal` configuration)
+    │   │   ├── fonts <--(`empty` configuration)
     │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
     │   │   ├── licenses
     │   │   ├── ssl
@@ -460,13 +460,13 @@ easy way to do that is to use the `kSbSystemPathContentDirectory` to contain
 the system font directory and setting the `cobalt_font_package` to `standard` or
 `limited` in your port.
 
-Cobalt Evergreen (built by Google), will by default use the `minimal` font
-package which is around 16KB to minimize storage requirements. A separate
-`cobalt_font_package` variable is set to `minimal` in the Evergreen platform.
+Cobalt Evergreen (built by Google), will by default use the `empty` font
+package to minimize storage requirements. A separate
+`cobalt_font_package` variable is set to `empty` in the Evergreen platform.
 
 On Raspberry Pi this is:
 
-`minimal` set of fonts under:
+`empty` set of fonts under:
 ```
 <kSbSystemPathContentDirectory>/app/cobalt/content/fonts
 ```
