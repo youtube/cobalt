@@ -23,7 +23,7 @@ SkStrike::SkStrike(
     const SkFontMetrics& fontMetrics)
         : fDesc{desc}
         , fScalerContext{std::move(scaler)}
-        , fFontMetrics(fontMetrics)
+        , fFontMetrics{fontMetrics}
         , fRoundingSpec{fScalerContext->isSubpixel(),
                         fScalerContext->computeAxisAlignmentForHText()} {
     SkASSERT(fScalerContext != nullptr);

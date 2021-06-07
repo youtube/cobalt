@@ -927,6 +927,6 @@ SkIPoint SkGlyphPositionRoundingSpec::IgnorePositionMask(
 
 SkGlyphPositionRoundingSpec::SkGlyphPositionRoundingSpec(bool isSubpixel,
                                                          SkAxisAlignment axisAlignment)
-        : halfAxisSampleFreq(HalfAxisSampleFreq(isSubpixel, axisAlignment))
-        , ignorePositionMask(IgnorePositionMask(isSubpixel, axisAlignment)) {
+        : halfAxisSampleFreq{HalfAxisSampleFreq(isSubpixel, axisAlignment)}
+        , ignorePositionMask{IgnorePositionMask(isSubpixel, axisAlignment)} {
 }
