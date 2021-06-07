@@ -39,8 +39,10 @@ NavigatorUAData::NavigatorUAData(
   all_high_entropy_values_.set_brands(brands_);
   all_high_entropy_values_.set_mobile(mobile_);
   all_high_entropy_values_.set_platform(platform_);
-  // TODO: Fill in architecture from sabi.json
-  // TODO: Fill in bitness from sabi.json
+#if SB_API_VERSION >= 12
+  all_high_entropy_values_.set_architecture(SB_SABI_TARGET_ARCH);
+  all_high_entropy_values_.set_bitness(SB_SABI_WORD_SIZE);
+#endif
   all_high_entropy_values_.set_model(platform_info->model().value_or(""));
   all_high_entropy_values_.set_platform_version(
       platform_info->firmware_version().value_or(""));

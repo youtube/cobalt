@@ -74,6 +74,9 @@
 
       'SB_API_VERSION=<(sb_api_version)',
 
+      'SB_SABI_TARGET_ARCH="<(target_arch)"',
+      'SB_SABI_WORD_SIZE="<(word_size)"',
+
       # Inlined Python used to capitalize the variable values.
       'SB_IS_ARCH_<!pymod_do_main(starboard.build.gyp_functions str_upper <(target_arch))=1',
       'SB_HAS_<!pymod_do_main(starboard.build.gyp_functions str_upper <(calling_convention))_CALLING=1',
