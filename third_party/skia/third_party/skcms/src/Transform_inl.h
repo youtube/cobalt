@@ -175,7 +175,7 @@ SI F F_from_Half(U16 half) {
 #endif
 }
 
-#if defined(__clang__) && (__clang_major__ * 1000 + __clang_minor__) >= 3007
+#if defined(__clang__)
     // The -((127-15)<<10) underflows that side of the math when
     // we pass a denorm half float.  It's harmless... we'll take the 0 side anyway.
     __attribute__((no_sanitize("unsigned-integer-overflow")))
