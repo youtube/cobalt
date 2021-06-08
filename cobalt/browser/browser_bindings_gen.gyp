@@ -135,6 +135,8 @@
         '../dom/performance.idl',
         '../dom/performance_entry.idl',
         '../dom/performance_lifecycle_timing.idl',
+        '../dom/performance_mark.idl',
+        '../dom/performance_measure.idl',
         '../dom/performance_observer.idl',
         '../dom/performance_observer_entry_list.idl',
         '../dom/performance_resource_timing.idl',

@@ -25,4 +25,14 @@ interface Performance {
   void clearResourceTimings ();
   void setResourceTimingBufferSize (unsigned long maxSize);
   attribute EventHandler onresourcetimingbufferfull;
+
+  // Web API: User Timing extensions to Performance
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#extensions-performance-interface
+  [RaisesException] void mark(DOMString name);
+  [RaisesException] void measure(
+      DOMString measureName,
+      optional DOMString startMark = "",
+      optional DOMString endMark = "");
+  void clearMarks(optional DOMString name = "");
+  void clearMeasures(optional DOMString measureName = "");
 };
