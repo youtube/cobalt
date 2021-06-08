@@ -25,20 +25,50 @@ namespace dom {
 
 class CobaltUADataValuesInterface : public script::Wrappable {
  public:
-  explicit CobaltUADataValuesInterface(const CobaltUADataValues& init_dict)
-      : cobalt_build_number_(init_dict.cobalt_build_number()),
-        cobalt_build_configuration_(init_dict.cobalt_build_configuration()),
-        js_engine_version_(init_dict.js_engine_version()),
-        rasterizer_(init_dict.rasterizer()),
-        evergreen_version_(init_dict.evergreen_version()),
-        starboard_version_(init_dict.starboard_version()),
-        original_design_manufacturer_(init_dict.original_design_manufacturer()),
-        device_type_(init_dict.device_type()),
-        chipset_(init_dict.chipset()),
-        model_year_(init_dict.model_year()),
-        device_brand_(init_dict.device_brand()),
-        connection_type_(init_dict.connection_type()),
-        aux_(init_dict.aux()) {}
+  explicit CobaltUADataValuesInterface(const CobaltUADataValues& init_dict) {
+    // In many cases, |init_dict| will not have all its fields initialized, only
+    // the ones specified when calling NavigatorUAData::getHighEntropyValues().
+    // Thus, we first must check whether the fields have been initialized.
+    if (init_dict.has_cobalt_build_number()) {
+      cobalt_build_number_ = init_dict.cobalt_build_number();
+    }
+    if (init_dict.has_cobalt_build_configuration()) {
+      cobalt_build_configuration_ = init_dict.cobalt_build_configuration();
+    }
+    if (init_dict.has_js_engine_version()) {
+      js_engine_version_ = init_dict.js_engine_version();
+    }
+    if (init_dict.has_rasterizer()) {
+      rasterizer_ = init_dict.rasterizer();
+    }
+    if (init_dict.has_evergreen_version()) {
+      evergreen_version_ = init_dict.evergreen_version();
+    }
+    if (init_dict.has_starboard_version()) {
+      starboard_version_ = init_dict.starboard_version();
+    }
+    if (init_dict.has_original_design_manufacturer()) {
+      original_design_manufacturer_ = init_dict.original_design_manufacturer();
+    }
+    if (init_dict.has_device_type()) {
+      device_type_ = init_dict.device_type();
+    }
+    if (init_dict.has_chipset()) {
+      chipset_ = init_dict.chipset();
+    }
+    if (init_dict.has_model_year()) {
+      model_year_ = init_dict.model_year();
+    }
+    if (init_dict.has_device_brand()) {
+      device_brand_ = init_dict.device_brand();
+    }
+    if (init_dict.has_connection_type()) {
+      connection_type_ = init_dict.connection_type();
+    }
+    if (init_dict.has_aux()) {
+      aux_ = init_dict.aux();
+    }
+  }
 
   const std::string& cobalt_build_number() const {
     return cobalt_build_number_;
