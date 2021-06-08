@@ -1290,7 +1290,7 @@ private:
 };
 
 #if GR_TEST_UTILS || defined(SK_ENABLE_DUMP_GPU)
-static constexpr onst char* GrBackendApiToStr(GrBackendApi api) {
+static constexpr const char* GrBackendApiToStr(GrBackendApi api) {
     switch (api) {
         case GrBackendApi::kMetal:  return "Metal";
         case GrBackendApi::kDawn:   return "Dawn";
