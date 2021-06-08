@@ -65,26 +65,15 @@ render_tree::GlyphIndex SkiaTypeface::GetGlyphForCharacter(
                render_tree::kUnknownGlyphIndex) {
       return primary_page_character_glyphs_[utf32_character];
     }
-    // Otherwise, check for the character's glyph within the map.
-  } else {
-    CharacterToGlyphMap::iterator glyph_iterator =
-        character_to_glyph_map_.find(utf32_character);
-    if (glyph_iterator != character_to_glyph_map_.end()) {
-      return glyph_iterator->second;
-    }
   }
-
-  // If we reach this point, the character's glyph was not previously cached and
-  // needs to be retrieved now.
   render_tree::GlyphIndex glyph = render_tree::kInvalidGlyphIndex;
   typeface_->unicharsToGlyphs(&utf32_character, 1, &glyph);
 
   // Both cache and return the character's glyph.
   if (utf32_character < kPrimaryPageSize) {
     return primary_page_character_glyphs_[utf32_character] = glyph;
-  } else {
-    return character_to_glyph_map_[utf32_character] = glyph;
   }
+  return glyph;
 }
 
 }  // namespace skia

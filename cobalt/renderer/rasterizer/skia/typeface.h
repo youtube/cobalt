@@ -63,7 +63,6 @@ class SkiaTypeface : public render_tree::Typeface {
  private:
   // Usually covers Latin-1 in a single page.
   static const int kPrimaryPageSize = 256;
-  typedef base::hash_map<int32, render_tree::GlyphIndex> CharacterToGlyphMap;
 
   // The underlying SkTypeface that was used to create this typeface.
   sk_sp<SkTypeface_Cobalt> typeface_;
@@ -73,7 +72,6 @@ class SkiaTypeface : public render_tree::Typeface {
   // Thread checking is used to used to ensure that they are only accessed and
   // modified on a single thread.
   std::unique_ptr<render_tree::GlyphIndex[]> primary_page_character_glyphs_;
-  CharacterToGlyphMap character_to_glyph_map_;
   THREAD_CHECKER(character_glyph_thread_checker_);
 };
 
