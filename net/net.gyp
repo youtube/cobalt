@@ -2098,7 +2098,7 @@
         'proxy_resolution/proxy_list_unittest.cc',
         'proxy_resolution/proxy_resolution_service_unittest.cc',
         'proxy_resolution/proxy_server_unittest.cc',
-        # We still have Mozjs.
+        # not useful to us.
         # 'proxy_resolution/proxy_resolver_v8_tracing_unittest.cc',
         # 'proxy_resolution/proxy_resolver_v8_tracing_wrapper_unittest.cc',
         # 'proxy_resolution/proxy_resolver_v8_unittest.cc',
