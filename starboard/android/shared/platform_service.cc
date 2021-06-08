@@ -137,7 +137,11 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JniEnvExt* env,
                                                       jbyteArray j_data) {
   CobaltExtensionPlatformService service =
       reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
-  SB_DCHECK(CobaltExtensionPlatformServiceIsValid(service));
+  if (!CobaltExtensionPlatformServiceIsValid(service)) {
+    SB_LOG(WARNING) << "Trying to send message through platform service when "
+                       "the service is already closed";
+    return;
+  }
 
   jsize length = env->GetArrayLength(j_data);
   char* data = new char[length];
