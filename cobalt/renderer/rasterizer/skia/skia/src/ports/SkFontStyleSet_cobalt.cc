@@ -90,6 +90,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     return;
   }
 
+  character_map_ = base::MakeRefCounted<font_character_map::CharacterMap>();
+
   family_name_ = family_info.names[0];
   SkTHashMap<SkString, int> styles_index_map;
 
@@ -333,11 +335,8 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
 }
 
 bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(SkUnichar character) {
-  font_character_map::CharacterMap::iterator page_iterator =
-      character_map_.find(font_character_map::GetPage(character));
-  return page_iterator != character_map_.end() &&
-         page_iterator->second.test(
-             font_character_map::GetPageCharacterIndex(character));
+  font_character_map::Character c = character_map_->Find(character);
+  return c.is_set && c.id > 0;
 }
 
 bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
@@ -349,7 +348,7 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
   // Providing a pointer to the character map will cause it to be generated
   // during ScanFont. Only provide it if it hasn't already been generated.
   font_character_map::CharacterMap* character_map =
-      !is_character_map_generated_ ? &character_map_ : NULL;
+      !is_character_map_generated_ ? character_map_.get() : NULL;
 
   if (!sk_freetype_cobalt::ScanFont(
           stream, style->face_index, &style->face_name, &style->font_style,
@@ -396,7 +395,7 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
-        style_entry->disable_synthetic_bolding));
+        style_entry->disable_synthetic_bolding, character_map_));
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();
