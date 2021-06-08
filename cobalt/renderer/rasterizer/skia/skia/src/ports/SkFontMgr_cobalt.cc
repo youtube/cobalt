@@ -273,12 +273,17 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
   bool is_fixed_pitch;
   SkFontStyle style;
   SkString name;
+
+  // To pre-fetch glyphs for remote fonts, we could pass character_map here.
   if (!sk_freetype_cobalt::ScanFont(stream.get(), face_index, &name, &style,
-                                    &is_fixed_pitch)) {
+                                    &is_fixed_pitch, nullptr)) {
     return NULL;
   }
-  return sk_sp<SkTypeface>(new SkTypeface_CobaltStream(
-      std::move(stream), face_index, style, is_fixed_pitch, name));
+  scoped_refptr<font_character_map::CharacterMap> character_map =
+      base::MakeRefCounted<font_character_map::CharacterMap>();
+  return sk_sp<SkTypeface>(
+      new SkTypeface_CobaltStream(std::move(stream), face_index, style,
+                                  is_fixed_pitch, name, character_map));
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromFile(const char path[],
