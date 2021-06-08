@@ -51,12 +51,12 @@ struct SkPackedGlyphID {
             : fID{glyphID} { }
 
     constexpr SkPackedGlyphID(SkGlyphID glyphID, SkFixed x, SkFixed y)
-            : fID{PackIDXY(glyphID, x, y)} {
+            : fID {PackIDXY(glyphID, x, y)} {
         SkASSERT(fID != kImpossibleID);
     }
 
     constexpr SkPackedGlyphID(SkGlyphID code, SkIPoint pt)
-        : SkPackedGlyphID(code, pt.fX, pt.fY) {}
+        : SkPackedGlyphID(code, pt.fX, pt.fY) { }
 
     constexpr SkPackedGlyphID() : fID{kImpossibleID} {}
 

@@ -45,7 +45,7 @@ struct GrGlyph {
         return skGlyph.maskFormat() == SkMask::kSDF_Format
            ? GrGlyph::MaskStyle::kDistance_MaskStyle
            : GrGlyph::MaskStyle::kCoverage_MaskStyle;
-	}
+    }
 
     GrGlyph(const SkGlyph& skGlyph)
         : fPackedID{skGlyph.getPackedID()}

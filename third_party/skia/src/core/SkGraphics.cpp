@@ -7,8 +7,6 @@
 
 #include "include/core/SkGraphics.h"
 
-#include <stdlib.h>
-
 #include "include/core/SkCanvas.h"
 #include "include/core/SkMath.h"
 #include "include/core/SkMatrix.h"
@@ -30,6 +28,7 @@
 #include "src/core/SkTypefaceCache.h"
 #include "src/utils/SkUTF.h"
 
+#include <stdlib.h>
 
 void SkGraphics::Init() {
     // SkGraphics::Init() must be thread-safe and idempotent.
