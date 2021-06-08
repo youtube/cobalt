@@ -164,6 +164,7 @@ void Performance::UpdateRegisteredPerformanceObserverOptionsList(
 void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(timing_);
   tracer->Trace(memory_);
+  tracer->Trace(lifecycle_timing_);
 }
 
 PerformanceEntryList Performance::GetEntries() {
