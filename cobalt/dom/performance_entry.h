@@ -29,19 +29,20 @@ typedef unsigned PerformanceEntryType;
 //   https://w3c.github.io/performance-timeline/#the-performanceentry-interface
 class PerformanceEntry : public script::Wrappable {
  public:
-  PerformanceEntry(const std::string& name,
-                   DOMHighResTimeStamp start_time,
+  PerformanceEntry(const std::string& name, DOMHighResTimeStamp start_time,
                    DOMHighResTimeStamp finish_time);
 
   enum EntryType : PerformanceEntryType {
     kResource = 0,
     kNavigation = 1,
     kLifecycle = 2,
-    kInvalid = 3,
+    kMark = 3,
+    kMeasure = 4,
+    kInvalid = 5,
   };
 
-  static constexpr const char* kEntryTypeString[] =
-      {"resource", "navigation", "lifecycle", "invalid"};
+  static constexpr const char* kEntryTypeString[] = {
+      "resource", "navigation", "lifecycle", "mark", "measure", "invalid"};
 
   std::string name() const { return name_; }
   DOMHighResTimeStamp start_time() const;
@@ -54,8 +55,9 @@ class PerformanceEntry : public script::Wrappable {
   static PerformanceEntry::EntryType ToEntryTypeEnum(
       const std::string& entry_type);
 
-  static bool StartTimeCompareLessThan(const scoped_refptr<PerformanceEntry>& a,
-                                       const scoped_refptr<PerformanceEntry>& b);
+  static bool StartTimeCompareLessThan(
+      const scoped_refptr<PerformanceEntry>& a,
+      const scoped_refptr<PerformanceEntry>& b);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceEntry);
 

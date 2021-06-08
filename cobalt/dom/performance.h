@@ -24,6 +24,7 @@
 #include "base/time/default_tick_clock.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
@@ -34,7 +35,7 @@
 #include "cobalt/dom/performance_resource_timing.h"
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/environment_settings.h"
-
+#include "cobalt/script/exception_state.h"
 #include "net/base/load_timing_info.h"
 
 namespace cobalt {
@@ -51,9 +52,11 @@ class Performance : public EventTarget {
   // order to mitigate potential Spectre-related attacks.  This is following
   // Mozilla's lead as described here:
   //   https://www.mozilla.org/en-US/security/advisories/mfsa2018-01/
+  // NOLINT(runtime/int)
   static constexpr int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
   //   https://www.w3.org/TR/2021/WD-resource-timing-2-20210414/#sec-extensions-performance-interface
-  static constexpr unsigned long kMaxResourceTimingBufferSize = 250;
+  static constexpr unsigned long  // NOLINT(runtime/int)
+      kMaxResourceTimingBufferSize = 250;
 
   Performance(script::EnvironmentSettings* settings,
               const scoped_refptr<base::BasicClock>& clock);
@@ -78,10 +81,22 @@ class Performance : public EventTarget {
   PerformanceEntryList GetEntriesByName(const std::string& name,
                                         const base::StringPiece& type);
 
+  // Web API: User Timing extensions to Performance
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#extensions-performance-interface
+  void Mark(const std::string& mark_name,
+            script::ExceptionState* exception_state);
+  void ClearMarks(const std::string& mark_name);
+  void Measure(const std::string& measure_name, const std::string& start_mark,
+               const std::string& end_mark,
+               script::ExceptionState* exception_state);
+  void ClearMeasures(const std::string& measure_name);
+
   // Web API: Performance Resource Timing extensions to Performance.
   //   https://w3c.github.io/resource-timing/#sec-extensions-performance-interface
   void ClearResourceTimings();
-  void SetResourceTimingBufferSize(unsigned long max_size);
+  // NOLINT(runtime/int)
+  void SetResourceTimingBufferSize(
+      unsigned long max_size);  // NOLINT(runtime/int)
   bool CanAddResourceTimingEntry();
   void CopySecondaryBuffer();
   void set_onresourcetimingbufferfull(
@@ -152,7 +167,8 @@ class Performance : public EventTarget {
   unsigned long resource_timing_buffer_size_limit_;
   unsigned long resource_timing_buffer_current_size_;
   bool resource_timing_buffer_full_event_pending_flag_;
-  unsigned long resource_timing_secondary_buffer_current_size_;
+  unsigned long
+      resource_timing_secondary_buffer_current_size_;
   std::deque<scoped_refptr<PerformanceResourceTiming>>
       resource_timing_secondary_buffer_;
 
