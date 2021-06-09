@@ -79,7 +79,7 @@ NavigatorUAData::NavigatorUAData(
   low_entropy_json_.set_platform(platform_);
 }
 
-script::Handle<NavigatorUAData::CobaltUADataValuesInterfacePromise>
+script::Handle<NavigatorUAData::InterfacePromise>
 NavigatorUAData::GetHighEntropyValues(script::Sequence<std::string> hints) {
   // https://wicg.github.io/ua-client-hints/#getHighEntropyValues
   CobaltUADataValues select_high_entropy_values_;
@@ -92,66 +92,74 @@ NavigatorUAData::GetHighEntropyValues(script::Sequence<std::string> hints) {
   // Set other hints if specified
   for (script::Sequence<std::string>::iterator it = hints.begin();
        it != hints.end(); ++it) {
-    if ((*it).compare("architecture")) {
+    if ((*it).compare("brands") == 0) {
+      select_high_entropy_values_.set_brands(all_high_entropy_values_.brands());
+    } else if ((*it).compare("mobile") == 0) {
+      select_high_entropy_values_.set_mobile(all_high_entropy_values_.mobile());
+    } else if ((*it).compare("platform") == 0) {
+      select_high_entropy_values_.set_platform(
+          all_high_entropy_values_.platform());
+    } else if ((*it).compare("architecture") == 0) {
       select_high_entropy_values_.set_architecture(
           all_high_entropy_values_.architecture());
-    } else if ((*it).compare("bitness")) {
+    } else if ((*it).compare("bitness") == 0) {
       select_high_entropy_values_.set_bitness(
           all_high_entropy_values_.bitness());
-    } else if ((*it).compare("model")) {
+    } else if ((*it).compare("model") == 0) {
       select_high_entropy_values_.set_model(all_high_entropy_values_.model());
-    } else if ((*it).compare("platformVersion")) {
+    } else if ((*it).compare("platformVersion") == 0) {
       select_high_entropy_values_.set_platform_version(
           all_high_entropy_values_.platform_version());
-    } else if ((*it).compare("uaFullVersion")) {
+    } else if ((*it).compare("uaFullVersion") == 0) {
       select_high_entropy_values_.set_ua_full_version(
           all_high_entropy_values_.ua_full_version());
-    } else if ((*it).compare("cobaltBuildNumber")) {
+    } else if ((*it).compare("cobaltBuildNumber") == 0) {
       select_high_entropy_values_.set_cobalt_build_number(
           all_high_entropy_values_.cobalt_build_number());
-    } else if ((*it).compare("cobaltBuildConfiguration")) {
+    } else if ((*it).compare("cobaltBuildConfiguration") == 0) {
       select_high_entropy_values_.set_cobalt_build_configuration(
           all_high_entropy_values_.cobalt_build_configuration());
-    } else if ((*it).compare("jsEngineVersion")) {
+    } else if ((*it).compare("jsEngineVersion") == 0) {
       select_high_entropy_values_.set_js_engine_version(
           all_high_entropy_values_.js_engine_version());
-    } else if ((*it).compare("rasterizer")) {
+    } else if ((*it).compare("rasterizer") == 0) {
       select_high_entropy_values_.set_rasterizer(
           all_high_entropy_values_.rasterizer());
-    } else if ((*it).compare("evergreenVersion")) {
+    } else if ((*it).compare("evergreenVersion") == 0) {
       select_high_entropy_values_.set_evergreen_version(
           all_high_entropy_values_.evergreen_version());
-    } else if ((*it).compare("starboardVersion")) {
+    } else if ((*it).compare("starboardVersion") == 0) {
       select_high_entropy_values_.set_starboard_version(
           all_high_entropy_values_.starboard_version());
-    } else if ((*it).compare("originalDesignManufacturer")) {
+    } else if ((*it).compare("originalDesignManufacturer") == 0) {
       select_high_entropy_values_.set_original_design_manufacturer(
           all_high_entropy_values_.original_design_manufacturer());
-    } else if ((*it).compare("deviceType")) {
+    } else if ((*it).compare("deviceType") == 0) {
       select_high_entropy_values_.set_device_type(
           all_high_entropy_values_.device_type());
-    } else if ((*it).compare("chipset")) {
+    } else if ((*it).compare("chipset") == 0) {
       select_high_entropy_values_.set_chipset(
           all_high_entropy_values_.chipset());
-    } else if ((*it).compare("modelYear")) {
+    } else if ((*it).compare("modelYear") == 0) {
       select_high_entropy_values_.set_model_year(
           all_high_entropy_values_.model_year());
-    } else if ((*it).compare("deviceBrand")) {
+    } else if ((*it).compare("deviceBrand") == 0) {
       select_high_entropy_values_.set_device_brand(
           all_high_entropy_values_.device_brand());
-    } else if ((*it).compare("connectionType")) {
+    } else if ((*it).compare("connectionType") == 0) {
       select_high_entropy_values_.set_connection_type(
           all_high_entropy_values_.connection_type());
-    } else if ((*it).compare("aux")) {
+    } else if ((*it).compare("aux") == 0) {
       select_high_entropy_values_.set_aux(all_high_entropy_values_.aux());
     }
   }
 
-  script::Handle<NavigatorUAData::CobaltUADataValuesInterfacePromise> promise =
+  script::Handle<InterfacePromise> promise =
       script_value_factory_->CreateInterfacePromise<
-          script::ScriptValueFactory::WrappablePromise>();
-  promise->Resolve(
+          scoped_refptr<CobaltUADataValuesInterface>>();
+  scoped_refptr<CobaltUADataValuesInterface> promise_result(
       new CobaltUADataValuesInterface(select_high_entropy_values_));
+  promise->Resolve(promise_result);
   return promise;
 }
 
