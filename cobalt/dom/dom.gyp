@@ -53,6 +53,7 @@
         'cdata_section.h',
         'character_data.cc',
         'character_data.h',
+        'cobalt_ua_data_values_interface.cc',
         'cobalt_ua_data_values_interface.h',
         'comment.cc',
         'comment.h',

@@ -59,6 +59,7 @@
         '../dom/captions/system_caption_settings.idl',
         '../dom/cdata_section.idl',
         '../dom/character_data.idl',
+        '../dom/cobalt_ua_data_values_interface.idl',
         '../dom/comment.idl',
         '../dom/crypto.idl',
         '../dom/custom_event.idl',

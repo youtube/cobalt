@@ -17,6 +17,14 @@
 
 [Constructor(CobaltUADataValues cobaltUADataValues)]
 interface CobaltUADataValuesInterface {
+  readonly attribute sequence<NavigatorUABrandVersion> brands;
+  readonly attribute boolean mobile;
+  readonly attribute DOMString platform;
+  readonly attribute DOMString architecture;
+  readonly attribute DOMString bitness;
+  readonly attribute DOMString model;
+  readonly attribute DOMString platformVersion;
+  readonly attribute DOMString uaFullVersion;
   readonly attribute DOMString cobaltBuildNumber;
   readonly attribute DOMString cobaltBuildConfiguration;
   readonly attribute DOMString jsEngineVersion;

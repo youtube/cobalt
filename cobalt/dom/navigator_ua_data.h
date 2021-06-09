@@ -34,8 +34,7 @@ namespace dom {
 // https://wicg.github.io/ua-client-hints/#navigatoruadata
 class NavigatorUAData : public script::Wrappable {
  public:
-  using CobaltUADataValuesInterfacePromise =
-      script::Promise<script::ScriptValueFactory::WrappablePromise>;
+  using InterfacePromise = script::Promise<scoped_refptr<script::Wrappable>>;
 
   NavigatorUAData(UserAgentPlatformInfo* platform_info,
                   script::ScriptValueFactory* script_value_factory);
@@ -46,7 +45,7 @@ class NavigatorUAData : public script::Wrappable {
 
   std::string platform() const { return platform_; }
 
-  script::Handle<CobaltUADataValuesInterfacePromise> GetHighEntropyValues(
+  script::Handle<InterfacePromise> GetHighEntropyValues(
       script::Sequence<std::string> hints);
 
   UALowEntropyJSON ToJSON() { return low_entropy_json_; }
