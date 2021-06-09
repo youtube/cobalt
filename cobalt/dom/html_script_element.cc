@@ -596,6 +596,9 @@ void HTMLScriptElement::OnLoadingComplete(
   // once the resource has been fetched (defined above) has been run.
   document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
+  // GetLoadTimingInfo and create resource timing before loader released.
+  GetLoadTimingInfoAndCreateResourceTiming();
+
   // Post a task to release the loader.
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
@@ -720,15 +723,15 @@ void HTMLScriptElement::AllowGCAfterLoadComplete() {
 void HTMLScriptElement::ReleaseLoader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
-  // GetLoadTimingInfo from loader before reset.
-  GetLoadTimingInfoAndCreateResourceTiming();
   loader_.reset();
 }
 
 void HTMLScriptElement::GetLoadTimingInfoAndCreateResourceTiming() {
   if (html_element_context()->performance() == nullptr) return;
-  html_element_context()->performance()->CreatePerformanceResourceTiming(
+  if (loader_) {
+    html_element_context()->performance()->CreatePerformanceResourceTiming(
       loader_->get_load_timing_info(), kTagName, url_.spec());
+  }
 }
 
 }  // namespace dom

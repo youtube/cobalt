@@ -279,6 +279,9 @@ void HTMLLinkElement::OnLoadingComplete(
     // complete.
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
+
+  // GetLoadTimingInfo and create resource timing before loader released.
+  GetLoadTimingInfoAndCreateResourceTiming();
 }
 
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
@@ -313,8 +316,6 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
 void HTMLLinkElement::ReleaseLoader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(loader_);
-  // GetLoadTimingInfo from loader before reset.
-  GetLoadTimingInfoAndCreateResourceTiming();
   loader_.reset();
 }
 
@@ -327,8 +328,10 @@ void HTMLLinkElement::CollectStyleSheet(
 
 void HTMLLinkElement::GetLoadTimingInfoAndCreateResourceTiming() {
   if (html_element_context()->performance() == nullptr) return;
-  html_element_context()->performance()->CreatePerformanceResourceTiming(
-      loader_->get_load_timing_info(), kTagName, absolute_url_.spec());
+  if (loader_) {
+    html_element_context()->performance()->CreatePerformanceResourceTiming(
+        loader_->get_load_timing_info(), kTagName, absolute_url_.spec());
+  }
 }
 
 }  // namespace dom
