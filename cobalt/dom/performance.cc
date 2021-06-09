@@ -381,7 +381,9 @@ void Performance::ClearResourceTimings() {
   // entry buffer.
   PerformanceEntryList performance_entry_buffer;
   for (const auto& entry : performance_entry_buffer_) {
-    if (!base::polymorphic_downcast<PerformanceResourceTiming*>(entry.get())) {
+    bool should_be_removed = PerformanceEntry::ToEntryTypeEnum(
+        entry->entry_type()) == PerformanceEntry::kResource;
+    if (!should_be_removed) {
       performance_entry_buffer.push_back(entry);
     }
   }
