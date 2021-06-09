@@ -33,11 +33,6 @@ static_library("starboard_platform") {
 }
 
 static_library("stub_sources") {
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-  ]
-
   sources = [
     "//starboard/shared/starboard/application.cc",
     "//starboard/shared/starboard/command_line.cc",
@@ -338,4 +333,12 @@ static_library("stub_sources") {
   ]
 
   public_configs = [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
+  if (is_internal_build) {
+    deps = [ "//starboard/private/shared/stub:private_sources" ]
+  }
 }

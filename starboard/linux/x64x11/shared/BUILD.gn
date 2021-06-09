@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  has_private_system_properties = false
-}
-
 group("starboard_platform") {
   public_deps = [
     ":starboard_platform_sources",
@@ -47,7 +43,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/x11/window_internal.cc",
   ]
 
-  if (has_private_system_properties) {
+  if (is_internal_build) {
     sources += [ "//starboard/keyboxes/linux/system_properties.cc" ]
   } else {
     sources += [ "//starboard/linux/x64x11/public_system_properties.cc" ]
