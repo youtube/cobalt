@@ -65,7 +65,7 @@ single Evergreen test case.
 * `tests/continuous_updates_test.sh`
 * `tests/crashing_binary_test.sh`
 * `tests/crashpad_runs_test.sh`
-* `tests/disabled_updater_test.sh`
+* `tests/evergreen_lite_test.sh`
 * `tests/load_slot_being_updated_test.sh`
 * `tests/mismatched_architecture_test.sh`
 * `tests/noop_binary_test.sh`
