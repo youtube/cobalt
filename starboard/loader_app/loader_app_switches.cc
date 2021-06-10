@@ -19,7 +19,7 @@ namespace loader_app {
 
 const char kContent[] = "content";
 const char kURL[] = "url";
-const char kDisableUpdates[] = "disable_updates";
+const char kEvergreenLite[] = "evergreen_lite";
 
 }  // namespace loader_app
 }  // namespace starboard

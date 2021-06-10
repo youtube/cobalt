@@ -164,15 +164,15 @@ void SbEventHandle(const SbEvent* event) {
     const starboard::shared::starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
 
-    bool disable_updates =
-        command_line.HasSwitch(starboard::loader_app::kDisableUpdates);
-    SB_LOG(INFO) << "disable_updates=" << disable_updates;
+    bool is_evergreen_lite =
+        command_line.HasSwitch(starboard::loader_app::kEvergreenLite);
+    SB_LOG(INFO) << "is_evergreen_lite=" << is_evergreen_lite;
 
     std::string alternative_content =
         command_line.GetSwitchValue(starboard::loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
-    if (disable_updates) {
+    if (is_evergreen_lite) {
       LoadLibraryAndInitialize(alternative_content);
     } else {
       std::string url =

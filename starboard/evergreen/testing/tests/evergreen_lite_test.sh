@@ -19,7 +19,7 @@ unset TEST_NAME
 unset TEST_FILE
 unset -f run_test
 
-TEST_NAME="DisabledUpdater"
+TEST_NAME="EvergreenLite"
 TEST_FILE="test.html"
 
 function run_test() {
@@ -39,7 +39,7 @@ function run_test() {
     return 1
   fi
 
-  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "disable_updates=1" "--disable_updates"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "evergreen_lite=1" "--evergreen_lite"
 
   if [[ $? -ne 0 ]]; then
     log "error" "Failed to run system installation"
