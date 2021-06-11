@@ -14,6 +14,8 @@
 
 #include "starboard/raspi/shared/dispmanx_util.h"
 
+#include <utility>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
@@ -91,8 +93,8 @@ void DispmanxYUV420Resource::WriteData(const void* data) {
 
 void DispmanxYUV420Resource::ClearWithBlack() {
   scoped_array<uint8_t> data(new uint8_t[width() * height() * 3 / 2]);
-  SbMemorySet(data.get(), width() * height(), 0);
-  SbMemorySet(data.get() + width() * height(), width() * height() / 2, 0x80);
+  SbMemorySet(data.get(), 0, width() * height());
+  SbMemorySet(data.get() + width() * height(), 0x80, width() * height() / 2);
   WriteData(data.get());
 }
 
@@ -108,7 +110,7 @@ void DispmanxRGB565Resource::WriteData(const void* data) {
 
 void DispmanxRGB565Resource::ClearWithBlack() {
   scoped_array<uint8_t> data(new uint8_t[width() * height() * 2]);
-  SbMemorySet(data.get(), width() * height() * 2, 0);
+  SbMemorySet(data.get(), 0, width() * height() * 2);
   WriteData(data.get());
 }
 

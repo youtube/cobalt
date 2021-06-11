@@ -563,7 +563,7 @@ bool AddCrashHandlerAnnotations() {
   version.push_back('\0');
 
   CrashpadAnnotations crashpad_annotations;
-  SbMemorySet(&crashpad_annotations, sizeof(CrashpadAnnotations), 0);
+  SbMemorySet(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
   SbStringCopy(crashpad_annotations.user_agent_string, user_agent.c_str(),
                USER_AGENT_STRING_MAX_SIZE);
   SbStringCopy(crashpad_annotations.product, product.c_str(),
