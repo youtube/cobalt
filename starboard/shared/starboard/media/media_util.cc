@@ -459,9 +459,9 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
          left.samples_per_second != right.samples_per_second ||
          left.number_of_channels != right.number_of_channels ||
          left.audio_specific_config_size != right.audio_specific_config_size ||
-         SbMemoryCompare(left.audio_specific_config,
-                         right.audio_specific_config,
-                         left.audio_specific_config_size) != 0;
+         memcmp(left.audio_specific_config,
+                right.audio_specific_config,
+                left.audio_specific_config_size) != 0;
 }
 
 }  // namespace media
@@ -471,8 +471,8 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
 
 bool operator==(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2) {
-  return SbMemoryCompare(&metadata_1, &metadata_2,
-                         sizeof(SbMediaColorMetadata)) == 0;
+  return memcmp(&metadata_1, &metadata_2,
+                sizeof(SbMediaColorMetadata)) == 0;
 }
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,

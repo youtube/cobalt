@@ -884,7 +884,7 @@ TEST_F(TrackRunIteratorTest, SharedAuxInfoTest) {
   EXPECT_TRUE(iter_->CacheAuxInfo(kAuxInfo, arraysize(kAuxInfo)));
   std::unique_ptr<DecryptConfig> config = iter_->GetDecryptConfig();
   ASSERT_EQ(arraysize(kIv1), config->iv().size());
-  EXPECT_TRUE(!SbMemoryCompare(kIv1, config->iv().data(), config->iv().size()));
+  EXPECT_TRUE(!memcmp(kIv1, config->iv().data(), config->iv().size()));
   iter_->AdvanceSample();
   EXPECT_EQ(iter_->GetMaxClearOffset(), 50);
   iter_->AdvanceRun();
@@ -893,7 +893,7 @@ TEST_F(TrackRunIteratorTest, SharedAuxInfoTest) {
   EXPECT_TRUE(iter_->CacheAuxInfo(kAuxInfo, arraysize(kAuxInfo)));
   EXPECT_EQ(iter_->GetMaxClearOffset(), 200);
   ASSERT_EQ(arraysize(kIv1), config->iv().size());
-  EXPECT_TRUE(!SbMemoryCompare(kIv1, config->iv().data(), config->iv().size()));
+  EXPECT_TRUE(!memcmp(kIv1, config->iv().data(), config->iv().size()));
   iter_->AdvanceSample();
   EXPECT_EQ(iter_->GetMaxClearOffset(), 201);
 }

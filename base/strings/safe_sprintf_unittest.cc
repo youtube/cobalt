@@ -75,16 +75,16 @@ TEST(SafeSPrintfTest, NoArguments) {
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), text));
-  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
 
   // Zero buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, 0, text));
-  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
 
   // A one-byte buffer should always print a single NUL byte.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 1, text));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!SbMemoryCompare(buf + 1, ref + 1, sizeof(buf) - 1));
+  EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
@@ -92,7 +92,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 2, text));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!SbMemoryCompare(buf + 2, ref + 2, sizeof(buf) - 2));
+  EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
@@ -100,14 +100,14 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, sizeof(buf), text));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, text));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
@@ -139,17 +139,17 @@ TEST(SafeSPrintfTest, OneArgument) {
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), fmt, ' '));
-  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
 
   // Zero buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, 0, fmt, ' '));
-  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
 
   // A one-byte buffer should always print a single NUL byte.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, 1, fmt, ' '));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!SbMemoryCompare(buf + 1, ref + 1, sizeof(buf) - 1));
+  EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
@@ -158,7 +158,7 @@ TEST(SafeSPrintfTest, OneArgument) {
             SafeSNPrintf(buf, 2, fmt, ' '));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!SbMemoryCompare(buf + 2, ref + 2, sizeof(buf) - 2));
+  EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
@@ -166,14 +166,14 @@ TEST(SafeSPrintfTest, OneArgument) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, sizeof(buf), fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
   SbMemoryCopy(buf, ref, sizeof(buf));
 

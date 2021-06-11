@@ -129,7 +129,6 @@ SB_MEMORY_REPLACEMENT_DICT = {
     'free': 'SbMemoryFree',
     'malloc': 'SbMemoryAllocate',
     'memchr': 'SbMemoryFindByte',
-    'memcmp': 'SbMemoryCompare',
     'memcpy': 'SbMemoryCopy',
     'realloc': 'SbMemoryReallocate'
 }

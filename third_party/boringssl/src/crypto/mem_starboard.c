@@ -111,7 +111,7 @@ int OPENSSL_memcmp(const void *s1, const void *s2, size_t n) {
     return 0;
   }
 
-  return SbMemoryCompare(s1, s2, n);
+  return memcmp(s1, s2, n);
 }
 
 void *OPENSSL_memcpy(void *dst, const void *src, size_t n) {

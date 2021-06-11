@@ -96,7 +96,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockSync) {
 
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -178,7 +178,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliTwoBlockSync) {
   int bytes_read = ReadStream(callback);
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -195,7 +195,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockAsync) {
   int rv = callback.WaitForResult();
   EXPECT_EQ(static_cast<int>(source_data_len()), rv);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -223,7 +223,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferSync) {
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                total_bytes_read));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
@@ -255,7 +255,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferAsync) {
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                total_bytes_read));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
@@ -282,7 +282,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }

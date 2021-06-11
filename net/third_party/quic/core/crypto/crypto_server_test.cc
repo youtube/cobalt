@@ -1098,7 +1098,7 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDIsHashOfServerConfig) {
 
   // scid is a SHA-256 hash, truncated to 16 bytes.
   ASSERT_EQ(scid.size(), 16u);
-  EXPECT_EQ(0, SbMemoryCompare(digest, scid_str.c_str(), scid.size()));
+  EXPECT_EQ(0, memcmp(digest, scid_str.c_str(), scid.size()));
 }
 
 class CryptoServerTestNoConfig : public CryptoServerTest {

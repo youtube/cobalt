@@ -103,16 +103,16 @@ TEST(BitmapTest, Map) {
       EXPECT_FALSE(bitmap.Get(i * 8));
   }
 
-  EXPECT_EQ(0, SbMemoryCompare(local_map, bitmap.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map, bitmap.GetMap(), kMapSize));
 
   // Now let's create a bitmap that shares local_map as storage.
   disk_cache::Bitmap bitmap2(reinterpret_cast<uint32_t*>(local_map),
                              kMapSize * 8, kMapSize / 4);
-  EXPECT_EQ(0, SbMemoryCompare(local_map, bitmap2.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map, bitmap2.GetMap(), kMapSize));
 
   local_map[kMapSize / 2] = 'a';
-  EXPECT_EQ(0, SbMemoryCompare(local_map, bitmap2.GetMap(), kMapSize));
-  EXPECT_NE(0, SbMemoryCompare(local_map, bitmap.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map, bitmap2.GetMap(), kMapSize));
+  EXPECT_NE(0, memcmp(local_map, bitmap.GetMap(), kMapSize));
 }
 
 TEST(BitmapTest, SetAll) {
@@ -124,14 +124,14 @@ TEST(BitmapTest, SetAll) {
   memset(zeros, 0, kMapSize);
 
   disk_cache::Bitmap map(kMapSize * 8, true);
-  EXPECT_EQ(0, SbMemoryCompare(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
   map.SetAll(true);
-  EXPECT_EQ(0, SbMemoryCompare(ones, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(ones, map.GetMap(), kMapSize));
   map.SetAll(false);
-  EXPECT_EQ(0, SbMemoryCompare(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
   map.SetAll(true);
   map.Clear();
-  EXPECT_EQ(0, SbMemoryCompare(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
 }
 
 TEST(BitmapTest, Range) {

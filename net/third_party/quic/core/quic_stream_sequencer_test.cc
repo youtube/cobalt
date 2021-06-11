@@ -130,7 +130,7 @@ class QuicStreamSequencerTest : public QuicTest {
                       << expected.length();
       return false;
     }
-    if (SbMemoryCompare(IOVEC.iov_base, expected.data(), expected.length()) !=
+    if (memcmp(IOVEC.iov_base, expected.data(), expected.length()) !=
         0) {
       QUIC_LOG(ERROR) << "Invalid data: " << static_cast<char*>(IOVEC.iov_base)
                       << " vs " << expected;

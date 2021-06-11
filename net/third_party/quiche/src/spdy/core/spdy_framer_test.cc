@@ -72,8 +72,8 @@ MATCHER_P(IsFrameUnionOf, frame_list, "") {
                  << "higher total frame length than non-incremental method.";
       return false;
     }
-    if (SbMemoryCompare(arg.data() + size_verified, frame.data(),
-                        frame.size())) {
+    if (memcmp(arg.data() + size_verified, frame.data(),
+               frame.size())) {
       CompareCharArraysWithHexError(
           "Header serialization methods should be equivalent: ",
           reinterpret_cast<unsigned char*>(arg.data() + size_verified),

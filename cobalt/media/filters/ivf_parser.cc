@@ -45,8 +45,8 @@ bool IvfParser::Initialize(const uint8_t* stream, size_t size,
   SbMemoryCopy(file_header, ptr_, sizeof(IvfFileHeader));
   file_header->ByteSwap();
 
-  if (SbMemoryCompare(file_header->signature, kIvfHeaderSignature,
-                      sizeof(file_header->signature)) != 0) {
+  if (memcmp(file_header->signature, kIvfHeaderSignature,
+             sizeof(file_header->signature)) != 0) {
     DLOG(ERROR) << "IVF signature mismatch";
     return false;
   }

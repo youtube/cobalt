@@ -168,7 +168,7 @@ TEST_P(SharedMemoryTest, OpenClose) {
 
   // Write data to the first memory segment, verify contents of second.
   memset(memory1.memory(), '1', kDataSize);
-  EXPECT_EQ(SbMemoryCompare(memory1.memory(), memory2.memory(), kDataSize), 0);
+  EXPECT_EQ(memcmp(memory1.memory(), memory2.memory(), kDataSize), 0);
 
   // Close the first memory segment, and verify the second has the right data.
   memory1.Close();

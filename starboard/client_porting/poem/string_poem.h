@@ -205,8 +205,6 @@ static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
 
 #undef memcpy
 #define memcpy(d, s, c) SbMemoryCopy(d, s, c)
-#undef memcmp
-#define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
 
 // TODO: Replace forward declarations with <cstring> once string_poem is
 // trimmed down.

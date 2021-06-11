@@ -22,12 +22,12 @@ namespace {
 struct HashValueToRootCertDataComp {
   bool operator()(const HashValue& hash, const RootCertData& root_cert) {
     DCHECK_EQ(HASH_VALUE_SHA256, hash.tag());
-    return SbMemoryCompare(hash.data(), root_cert.sha256_spki_hash, 32) < 0;
+    return memcmp(hash.data(), root_cert.sha256_spki_hash, 32) < 0;
   }
 
   bool operator()(const RootCertData& root_cert, const HashValue& hash) {
     DCHECK_EQ(HASH_VALUE_SHA256, hash.tag());
-    return SbMemoryCompare(root_cert.sha256_spki_hash, hash.data(), 32) < 0;
+    return memcmp(root_cert.sha256_spki_hash, hash.data(), 32) < 0;
   }
 };
 

@@ -59,7 +59,7 @@ int Compare(QuicStringPiece a, const unsigned char* b, size_t b_len) {
   if (len > b_len) {
     len = b_len;
   }
-  int n = SbMemoryCompare(a.data(), b, len);
+  int n = memcmp(a.data(), b, len);
   if (n != 0) {
     return n;
   }

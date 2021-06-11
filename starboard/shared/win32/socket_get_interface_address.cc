@@ -164,8 +164,8 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
           return false;
       }
 
-      if (SbMemoryCompare(unicast_address_buffer, interface_address_buffer,
-                          bytes_to_check) != 0) {
+      if (memcmp(unicast_address_buffer, interface_address_buffer,
+                 bytes_to_check) != 0) {
         continue;
       }
 

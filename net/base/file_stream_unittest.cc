@@ -138,7 +138,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
       base::MakeRefCounted<IOBufferWithSize>(kTestDataSize);
   rv = read_stream->Read(read_buffer.get(), kTestDataSize, callback.callback());
   ASSERT_EQ(kTestDataSize, callback.GetResult(rv));
-  ASSERT_EQ(0, SbMemoryCompare(kTestData, read_buffer->data(), kTestDataSize));
+  ASSERT_EQ(0, memcmp(kTestData, read_buffer->data(), kTestDataSize));
   read_stream.reset();
 
   // 2. Test writing with a file handle.
@@ -162,7 +162,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   ASSERT_EQ(kTestDataSize,
             base::ReadFile(temp_file_path(), read_buffer->data(),
                            kTestDataSize));
-  ASSERT_EQ(0, SbMemoryCompare(kTestData, read_buffer->data(), kTestDataSize));
+  ASSERT_EQ(0, memcmp(kTestData, read_buffer->data(), kTestDataSize));
 }
 
 TEST_F(FileStreamTest, UseClosedStream) {

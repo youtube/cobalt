@@ -84,8 +84,8 @@ bool HttpVaryData::MatchesRequest(
     // by a build before crbug.com/469675 was fixed.
     return false;
   }
-  return SbMemoryCompare(&new_vary_data.request_digest_, &request_digest_,
-                         sizeof(request_digest_)) == 0;
+  return memcmp(&new_vary_data.request_digest_, &request_digest_,
+                sizeof(request_digest_)) == 0;
 }
 
 // static

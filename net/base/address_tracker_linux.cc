@@ -366,7 +366,7 @@ void AddressTrackerLinux::HandleMessage(char* buffer,
           if (it == address_map_.end()) {
             address_map_.insert(it, std::make_pair(address, *msg));
             *address_changed = true;
-          } else if (SbMemoryCompare(&it->second, msg, sizeof(*msg))) {
+          } else if (memcmp(&it->second, msg, sizeof(*msg))) {
             it->second = *msg;
             *address_changed = true;
           }

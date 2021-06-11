@@ -80,7 +80,7 @@
 #if defined(STARBOARD)
 #include "starboard/string.h"
 #include "starboard/memory.h"
-#define ft_memcmp   SbMemoryCompare
+#define ft_memcmp   memcmp
 #define ft_memcpy   SbMemoryCopy
 #define ft_memmove  memmove
 #define ft_memset   memset

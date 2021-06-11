@@ -676,7 +676,7 @@ bool Point::SetFromString(base::StringPiece in) {
 
   ::Add(&rhs, rhs, kB);
   Contract(&rhs);
-  return SbMemoryCompare(&lhs, &rhs, sizeof(lhs)) == 0;
+  return memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
 }
 
 std::string Point::ToString() const {

@@ -97,8 +97,8 @@ TEST(JwkSerializerTest, ConvertSpkiFromDerToJwkEc) {
       &decoded_coordinate));
   EXPECT_EQ(kEcCoordinateSize, decoded_coordinate.size());
   EXPECT_EQ(
-      0, SbMemoryCompare(decoded_coordinate.data(),
-                         kSpkiEc + sizeof(kP256SpkiPrefix), kEcCoordinateSize));
+      0, memcmp(decoded_coordinate.data(),
+                kSpkiEc + sizeof(kP256SpkiPrefix), kEcCoordinateSize));
 
   EXPECT_TRUE(public_key_jwk.GetString("y", &string_value));
   EXPECT_FALSE(ContainsNonUrlSafeBase64Characters(string_value));
@@ -107,9 +107,9 @@ TEST(JwkSerializerTest, ConvertSpkiFromDerToJwkEc) {
       &decoded_coordinate));
   EXPECT_EQ(kEcCoordinateSize, decoded_coordinate.size());
   EXPECT_EQ(
-      0, SbMemoryCompare(decoded_coordinate.data(),
-                         kSpkiEc + sizeof(kP256SpkiPrefix) + kEcCoordinateSize,
-                         kEcCoordinateSize));
+      0, memcmp(decoded_coordinate.data(),
+                kSpkiEc + sizeof(kP256SpkiPrefix) + kEcCoordinateSize,
+                kEcCoordinateSize));
 
   // Test the result of a corner case: leading 0s in the x, y coordinates are
   // not trimmed, but the point is fixed-length encoded.
@@ -128,9 +128,9 @@ TEST(JwkSerializerTest, ConvertSpkiFromDerToJwkEc) {
       string_value, base::Base64UrlDecodePolicy::DISALLOW_PADDING,
       &decoded_coordinate));
   EXPECT_EQ(kEcCoordinateSize, decoded_coordinate.size());
-  EXPECT_EQ(0, SbMemoryCompare(decoded_coordinate.data(),
-                               kSpkiEcWithLeadingZero + sizeof(kP256SpkiPrefix),
-                               kEcCoordinateSize));
+  EXPECT_EQ(0, memcmp(decoded_coordinate.data(),
+                      kSpkiEcWithLeadingZero + sizeof(kP256SpkiPrefix),
+                      kEcCoordinateSize));
 
   EXPECT_TRUE(public_key_jwk.GetString("y", &string_value));
   EXPECT_FALSE(ContainsNonUrlSafeBase64Characters(string_value));
@@ -138,10 +138,10 @@ TEST(JwkSerializerTest, ConvertSpkiFromDerToJwkEc) {
       string_value, base::Base64UrlDecodePolicy::DISALLOW_PADDING,
       &decoded_coordinate));
   EXPECT_EQ(kEcCoordinateSize, decoded_coordinate.size());
-  EXPECT_EQ(0, SbMemoryCompare(decoded_coordinate.data(),
-                               kSpkiEcWithLeadingZero +
-                                   sizeof(kP256SpkiPrefix) + kEcCoordinateSize,
-                               kEcCoordinateSize));
+  EXPECT_EQ(0, memcmp(decoded_coordinate.data(),
+                      kSpkiEcWithLeadingZero +
+                         sizeof(kP256SpkiPrefix) + kEcCoordinateSize,
+                      kEcCoordinateSize));
 }
 
 }  // namespace net

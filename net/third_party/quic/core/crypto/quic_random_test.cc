@@ -17,11 +17,11 @@ TEST_F(QuicRandomTest, RandBytes) {
   unsigned char buf2[16];
   memset(buf1, 0xaf, sizeof(buf1));
   memset(buf2, 0xaf, sizeof(buf2));
-  ASSERT_EQ(0, SbMemoryCompare(buf1, buf2, sizeof(buf1)));
+  ASSERT_EQ(0, memcmp(buf1, buf2, sizeof(buf1)));
 
   QuicRandom* rng = QuicRandom::GetInstance();
   rng->RandBytes(buf1, sizeof(buf1));
-  EXPECT_NE(0, SbMemoryCompare(buf1, buf2, sizeof(buf1)));
+  EXPECT_NE(0, memcmp(buf1, buf2, sizeof(buf1)));
 }
 
 TEST_F(QuicRandomTest, RandUint64) {

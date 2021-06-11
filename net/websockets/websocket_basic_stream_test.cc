@@ -669,8 +669,8 @@ TEST_F(WebSocketBasicStreamSocketSingleReadTest,
   ASSERT_EQ(1U, frames_.size());
   EXPECT_EQ(WebSocketFrameHeader::kOpCodeClose, frames_[0]->header.opcode);
   EXPECT_EQ(kCloseFrameSize - 2, frames_[0]->header.payload_length);
-  EXPECT_EQ(0, SbMemoryCompare(frames_[0]->data->data(), kCloseFrame + 2,
-                               kCloseFrameSize - 2));
+  EXPECT_EQ(0, memcmp(frames_[0]->data->data(), kCloseFrame + 2,
+                      kCloseFrameSize - 2));
 }
 
 // Check that a control frame which partially arrives at the end of the response

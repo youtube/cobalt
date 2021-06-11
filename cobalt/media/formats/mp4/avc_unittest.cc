@@ -221,7 +221,7 @@ TEST_P(AVCConversionTest, ParseCorrectly) {
   EXPECT_TRUE(AVC::ConvertFrameToAnnexB(GetParam(), &buf, &subsamples));
   EXPECT_TRUE(AVC::IsValidAnnexB(buf, subsamples));
   EXPECT_EQ(buf.size(), sizeof(kExpected));
-  EXPECT_EQ(0, SbMemoryCompare(kExpected, &buf[0], sizeof(kExpected)));
+  EXPECT_EQ(0, memcmp(kExpected, &buf[0], sizeof(kExpected)));
   EXPECT_EQ("P,SDC", AnnexBToString(buf, subsamples));
 }
 
@@ -326,7 +326,7 @@ TEST_F(AVCConversionTest, ConvertConfigToAnnexB) {
   std::vector<uint8_t> buf;
   std::vector<SubsampleEntry> subsamples;
   EXPECT_TRUE(AVC::ConvertConfigToAnnexB(avc_config, &buf));
-  EXPECT_EQ(0, SbMemoryCompare(kExpectedParamSets, &buf[0],
+  EXPECT_EQ(0, memcmp(kExpectedParamSets, &buf[0],
                                sizeof(kExpectedParamSets)));
   EXPECT_EQ("SPS,SPS,PPS", AnnexBToString(buf, subsamples));
 }

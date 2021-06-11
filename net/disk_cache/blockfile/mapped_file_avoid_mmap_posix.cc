@@ -44,7 +44,7 @@ void MappedFile::Flush() {
   const size_t block_size = 4096;
   for (size_t offset = 0; offset < view_size_; offset += block_size) {
     size_t size = std::min(view_size_ - offset, block_size);
-    if (SbMemoryCompare(snapshot_ptr + offset, buffer_ptr + offset, size)) {
+    if (memcmp(snapshot_ptr + offset, buffer_ptr + offset, size)) {
       SbMemoryCopy(snapshot_ptr + offset, buffer_ptr + offset, size);
       Write(snapshot_ptr + offset, size, offset);
     }

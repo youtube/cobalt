@@ -56,7 +56,7 @@ void NeedKeyCB(const std::string& type, std::unique_ptr<uint8[]> init_data,
 }
 
 bool IsMP4(const std::vector<uint8>& content) {
-  return content.size() >= 8 && SbMemoryCompare(&content[4], "ftyp", 4) == 0;
+  return content.size() >= 8 && memcmp(&content[4], "ftyp", 4) == 0;
 }
 
 std::vector<std::string> MakeStringVector(const char* string) {
@@ -219,7 +219,7 @@ bool LoadIVF(const std::vector<uint8>& content,
   const size_t kIVFFileHeaderSize = 32;
   const size_t kIVFFrameHeaderSize = 12;
   if (content.size() < kIVFFileHeaderSize ||
-      SbMemoryCompare(&content[0], "DKIF", 4) != 0) {
+      memcmp(&content[0], "DKIF", 4) != 0) {
     return false;
   }
   size_t offset = kIVFFileHeaderSize;

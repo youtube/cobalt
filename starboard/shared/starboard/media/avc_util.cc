@@ -38,7 +38,7 @@ bool StartsWithAnnexBHeader(const uint8_t* annex_b_data,
   if (annex_b_data_size < sizeof(kAnnexBHeader)) {
     return false;
   }
-  return SbMemoryCompare(annex_b_data, kAnnexBHeader, sizeof(kAnnexBHeader)) ==
+  return memcmp(annex_b_data, kAnnexBHeader, sizeof(kAnnexBHeader)) ==
          0;
 }
 

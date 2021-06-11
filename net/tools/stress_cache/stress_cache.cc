@@ -204,7 +204,7 @@ void EntryWrapper::DoRead() {
 void EntryWrapper::OnReadDone(int result) {
   DCHECK_EQ(state_, READ);
   CHECK_EQ(result, kReadSize);
-  CHECK_EQ(0, SbMemoryCompare(buffer_->data(), "Write: ", 7));
+  CHECK_EQ(0, memcmp(buffer_->data(), "Write: ", 7));
   DoWrite();
 }
 

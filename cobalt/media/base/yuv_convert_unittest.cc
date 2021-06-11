@@ -341,7 +341,7 @@ TEST(YUVConvertTest, Clamp) {
   SwapRedAndBlueChannels(rgb, kBpp);
 #endif
 
-  int expected_test = SbMemoryCompare(rgb, expected, sizeof(expected));
+  int expected_test = memcmp(rgb, expected, sizeof(expected));
   EXPECT_EQ(0, expected_test);
 }
 
@@ -522,7 +522,7 @@ TEST(YUVConvertTest, YUVAtoARGB_MMX_MatchReference) {
       kSourceWidth / 2, kSourceWidth, kSourceWidth * kBpp, media::YV12);
 
   EXPECT_EQ(0,
-            SbMemoryCompare(rgb_converted_bytes.get(),
+            memcmp(rgb_converted_bytes.get(),
                             rgb_converted_bytes_ref.get(), kRGBSizeConverted));
 }
 #endif  // !defined(OS_ANDROID)
@@ -626,7 +626,7 @@ TEST(YUVConvertTest, ConvertYUVToRGB32Row_SSE) {
                            rgb_bytes_converted.get(), kWidth,
                            GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                                rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
@@ -656,7 +656,7 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE) {
                          rgb_bytes_converted.get(), kWidth, kSourceDx,
                          GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                                rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
@@ -683,7 +683,7 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_SSE) {
       yuv_bytes.get() + kSourceVOffset, rgb_bytes_converted.get(), kWidth,
       kSourceDx, GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                                rgb_bytes_converted.get(), kWidth * kBpp));
 }
 #endif  // defined(OS_WIN) && (ARCH_CPU_X86 || COMPONENT_BUILD)
@@ -748,7 +748,7 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
   media::FilterYUVRows_SSE2(dst_ptr, src.get(), src.get(), 37, 128);
   media::EmptyRegisterState();
 
-  EXPECT_EQ(0, SbMemoryCompare(dst_sample.get(), dst_ptr, 37));
+  EXPECT_EQ(0, memcmp(dst_sample.get(), dst_ptr, 37));
 }
 
 #if defined(ARCH_CPU_X86_64)
@@ -770,7 +770,7 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE2_X64) {
                               rgb_bytes_converted.get(), kWidth, kSourceDx,
                               GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                                rgb_bytes_converted.get(), kWidth * kBpp));
 }
 
@@ -791,7 +791,7 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX_X64) {
       yuv_bytes.get() + kSourceVOffset, rgb_bytes_converted.get(), kWidth,
       kSourceDx, GetLookupTable(YV12));
   media::EmptyRegisterState();
-  EXPECT_EQ(0, SbMemoryCompare(rgb_bytes_reference.get(),
+  EXPECT_EQ(0, memcmp(rgb_bytes_reference.get(),
                                rgb_bytes_converted.get(), kWidth * kBpp));
 }
 

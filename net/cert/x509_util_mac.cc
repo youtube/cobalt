@@ -140,8 +140,8 @@ bool IsSelfSigned(SecCertificateRef cert_handle) {
     return false;
 
   if (subject.field()->Length != issuer.field()->Length ||
-      SbMemoryCompare(subject.field()->Data, issuer.field()->Data,
-                      issuer.field()->Length) != 0) {
+      memcmp(subject.field()->Data, issuer.field()->Data,
+             issuer.field()->Length) != 0) {
     return false;
   }
 

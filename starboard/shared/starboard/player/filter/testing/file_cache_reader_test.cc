@@ -76,7 +76,7 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
     ASSERT_EQ(bytes_read, size_to_read);
     // Compare the true content of these files, with the chunked contents of
     // these files to ensure that file I/O is working as expected.
-    int result = SbMemoryCompare(
+    int result = memcmp(
         read_contents.data(), true_contents.data() + true_offset, bytes_read);
     ASSERT_EQ(0, result);
     true_offset += bytes_read;

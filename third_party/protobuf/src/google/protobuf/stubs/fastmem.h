@@ -69,11 +69,7 @@ namespace internal {
 inline bool memeq(const char* a, const char* b, size_t n) {
   size_t n_rounded_down = n & ~static_cast<size_t>(7);
   if (GOOGLE_PREDICT_FALSE(n_rounded_down == 0)) {  // n <= 7
-#ifndef STARBOARD
     return memcmp(a, b, n) == 0;
-#else
-    return SbMemoryCompare(a, b, n) == 0;
-#endif  // STARBOARD
   }
   // n >= 8
   uint64 u = GOOGLE_UNALIGNED_LOAD64(a) ^ GOOGLE_UNALIGNED_LOAD64(b);
@@ -88,11 +84,7 @@ inline bool memeq(const char* a, const char* b, size_t n) {
     // As of 2012, memcmp on x86-64 uses a big unrolled loop with SSE2
     // instructions, and while we could try to do something faster, it
     // doesn't seem worth pursuing.
-#ifndef STARBOARD
     return memcmp(a, b, n) == 0;
-#else
-    return SbMemoryCompare(a, b, n) == 0;
-#endif  // STARBOARD
   }
   for (; n >= 16; n -= 16) {
     uint64 x = GOOGLE_UNALIGNED_LOAD64(a) ^ GOOGLE_UNALIGNED_LOAD64(b);
@@ -109,11 +101,7 @@ inline bool memeq(const char* a, const char* b, size_t n) {
 
 inline int fastmemcmp_inlined(const char *a, const char *b, size_t n) {
   if (n >= 64) {
-#ifndef STARBOARD
     return memcmp(a, b, n);
-#else
-    return SbMemoryCompare(a, b, n);
-#endif  // STARBOARD
   }
   const char* a_limit = a + n;
   while (a + sizeof(uint64) <= a_limit &&

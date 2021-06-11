@@ -108,7 +108,7 @@ bool Stats::Init(void* data, int num_bytes, Addr address) {
     stats = reinterpret_cast<OnDiskStats*>(data);
     if (!VerifyStats(stats)) {
       memset(&local_stats, 0, sizeof(local_stats));
-      if (SbMemoryCompare(stats, &local_stats, sizeof(local_stats))) {
+      if (memcmp(stats, &local_stats, sizeof(local_stats))) {
         return false;
       } else {
         // The storage is empty which means that SerializeStats() was never

@@ -239,9 +239,9 @@ TEST_F(HttpAuthHandlerNtlmPortableTest, NtlmV1AuthenticationSuccess) {
   ASSERT_EQ(arraysize(ntlm::test::kExpectedAuthenticateMsgSpecResponseV1),
             decoded.size());
   ASSERT_EQ(0,
-            SbMemoryCompare(decoded.data(),
-                            ntlm::test::kExpectedAuthenticateMsgSpecResponseV1,
-                            decoded.size()));
+            memcmp(decoded.data(),
+                   ntlm::test::kExpectedAuthenticateMsgSpecResponseV1,
+                   decoded.size()));
 }
 
 }  // namespace net

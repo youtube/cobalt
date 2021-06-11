@@ -115,9 +115,9 @@ bool CTLogVerifier::VerifySignedTreeHead(
                       signed_tree_head.signature.signature_data)) {
     if (signed_tree_head.tree_size == 0) {
       // Root hash must equate SHA256 hash of the empty string.
-      return (SbMemoryCompare(signed_tree_head.sha256_root_hash,
-                              kSHA256EmptyStringHash,
-                              ct::kSthRootHashLength) == 0);
+      return (memcmp(signed_tree_head.sha256_root_hash,
+                     kSHA256EmptyStringHash,
+                     ct::kSthRootHashLength) == 0);
     }
     return true;
   }

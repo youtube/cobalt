@@ -390,9 +390,9 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                           &receive_frame));
 
     // Now check that the received frame matches the sent frame.
-    EXPECT_EQ(0, SbMemoryCompare(transmit_frame.data_buffer.data(),
-                                 receive_frame.data_buffer.data(),
-                                 kQuicPathFrameBufferSize));
+    EXPECT_EQ(0, memcmp(transmit_frame.data_buffer.data(),
+                        receive_frame.data_buffer.data(),
+                        kQuicPathFrameBufferSize));
     return true;
   }
 
@@ -423,9 +423,9 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                          &receive_frame));
 
     // Now check that the received frame matches the sent frame.
-    EXPECT_EQ(0, SbMemoryCompare(transmit_frame.data_buffer.data(),
-                                 receive_frame.data_buffer.data(),
-                                 kQuicPathFrameBufferSize));
+    EXPECT_EQ(0, memcmp(transmit_frame.data_buffer.data(),
+                        receive_frame.data_buffer.data(),
+                        kQuicPathFrameBufferSize));
     return true;
   }
 
@@ -1086,7 +1086,7 @@ TEST_F(QuicIetfFramerTest, AckFrameNoRanges) {
   };
   EXPECT_EQ(expected_size, sizeof(packet));
   EXPECT_EQ(sizeof(packet), writer.length());
-  EXPECT_EQ(0, SbMemoryCompare(packet, packet_buffer, writer.length()));
+  EXPECT_EQ(0, memcmp(packet, packet_buffer, writer.length()));
 
   // Now set up a reader to read in the frame.
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
@@ -1423,7 +1423,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   };
 
   // clang-format on
-  EXPECT_EQ(0, SbMemoryCompare(packet_buffer, packet, sizeof(packet)));
+  EXPECT_EQ(0, memcmp(packet_buffer, packet, sizeof(packet)));
 
   // Set up reader and empty receive QuicPaddingFrame.
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
@@ -1464,7 +1464,7 @@ TEST_F(QuicIetfFramerTest, RetireConnectionIdFrame) {
   };
 
   // clang-format on
-  EXPECT_EQ(0, SbMemoryCompare(packet_buffer, packet, sizeof(packet)));
+  EXPECT_EQ(0, memcmp(packet_buffer, packet, sizeof(packet)));
 
   // Set up reader and empty receive QuicPaddingFrame.
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);

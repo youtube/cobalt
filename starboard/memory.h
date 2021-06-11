@@ -285,7 +285,6 @@ SB_EXPORT void* SbMemoryMove(void* destination,
 // |destination|: The destination of the copied memory.
 // |count|: The number of sequential bytes to be set.
 SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
-#endif // SB_API_VERSION < 13
 
 // Compares the contents of the first |count| bytes of |buffer1| and |buffer2|.
 // This function returns:
@@ -301,6 +300,7 @@ SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
 SB_EXPORT int SbMemoryCompare(const void* buffer1,
                               const void* buffer2,
                               size_t count);
+#endif // SB_API_VERSION < 13
 
 // Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|
 // and returns either a pointer to the first found occurrence or |NULL| if
@@ -328,7 +328,7 @@ static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
   }
   const char* char_buffer = (const char*)(buffer);
   return char_buffer[0] == 0 &&
-         SbMemoryCompare(char_buffer, char_buffer + 1, count - 1) == 0;
+         memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
 }
 
 /////////////////////////////////////////////////////////////////
