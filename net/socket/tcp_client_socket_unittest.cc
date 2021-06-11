@@ -274,7 +274,7 @@ TEST(TCPClientSocketTest, Tag) {
   const char kRequest2[] = "\n\n";
   scoped_refptr<IOBufferWithSize> write_buffer2 =
       base::MakeRefCounted<IOBufferWithSize>(SbStringGetLength(kRequest2));
-  SbMemoryMove(write_buffer2->data(), kRequest2, SbStringGetLength(kRequest2));
+  memmmove(write_buffer2->data(), kRequest2, SbStringGetLength(kRequest2));
   TestCompletionCallback write_callback2;
   EXPECT_EQ(s.Write(write_buffer2.get(), SbStringGetLength(kRequest2),
                     write_callback2.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),

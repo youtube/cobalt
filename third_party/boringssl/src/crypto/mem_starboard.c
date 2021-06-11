@@ -127,7 +127,7 @@ void *OPENSSL_memmove(void *dst, const void *src, size_t n) {
     return dst;
   }
 
-  return SbMemoryMove(dst, src, n);
+  return memmove(dst, src, n);
 }
 
 void *OPENSSL_memset(void *dst, int c, size_t n) {

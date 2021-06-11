@@ -26,6 +26,8 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
+#include <cstring>
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -350,7 +352,7 @@ int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
 
   // Remove the frames which are read.
   int frames_to_move = wsola_output_->frames() - rendered_frames;
-  SbMemoryMove(wsola_output_->buffer(),
+  memmove(wsola_output_->buffer(),
                wsola_output_->buffer() + rendered_frames * bytes_per_frame_,
                frames_to_move * bytes_per_frame_);
   num_complete_frames_ -= rendered_frames;

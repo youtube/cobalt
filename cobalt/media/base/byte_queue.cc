@@ -52,7 +52,7 @@ void ByteQueue::Push(const uint8_t* data, int size) {
     offset_ = 0;
   } else if ((offset_ + used_ + size) > size_) {
     // The buffer is big enough, but we need to move the data in the queue.
-    SbMemoryMove(buffer_.get(), front(), used_);
+    memmove(buffer_.get(), front(), used_);
     offset_ = 0;
   }
 

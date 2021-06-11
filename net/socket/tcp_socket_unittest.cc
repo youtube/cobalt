@@ -204,7 +204,7 @@ class TCPSocketTest : public PlatformTest, public WithScopedTaskEnvironment {
 
       scoped_refptr<IOBufferWithSize> write_buffer =
           base::MakeRefCounted<IOBufferWithSize>(message.size());
-      SbMemoryMove(write_buffer->data(), message.data(), message.size());
+      memmove(write_buffer->data(), message.data(), message.size());
 
       TestCompletionCallback write_callback;
       int write_result = accepted_socket->Write(
@@ -428,7 +428,7 @@ TEST_F(TCPSocketTest, ReadWrite) {
   while (bytes_written < message.size()) {
     scoped_refptr<IOBufferWithSize> write_buffer =
         base::MakeRefCounted<IOBufferWithSize>(message.size() - bytes_written);
-    SbMemoryMove(write_buffer->data(), message.data() + bytes_written,
+    memmove(write_buffer->data(), message.data() + bytes_written,
                  message.size() - bytes_written);
 
     TestCompletionCallback write_callback;
@@ -451,7 +451,7 @@ TEST_F(TCPSocketTest, ReadWrite) {
     read_result = read_callback.GetResult(read_result);
     ASSERT_TRUE(read_result >= 0);
     ASSERT_TRUE(bytes_read + read_result <= message.size());
-    SbMemoryMove(&buffer[bytes_read], read_buffer->data(), read_result);
+    memmove(&buffer[bytes_read], read_buffer->data(), read_result);
     bytes_read += read_result;
   }
 

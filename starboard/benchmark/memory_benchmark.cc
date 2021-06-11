@@ -16,6 +16,8 @@
 
 #include "third_party/google_benchmark/include/benchmark/benchmark.h"
 
+#include <cstring>
+
 namespace starboard {
 namespace benchmark {
 namespace {
@@ -40,7 +42,7 @@ void BM_MemoryMove(::benchmark::State& state) {
   void* memory2 = SbMemoryAllocate(state.range(0));
 
   for (auto _ : state) {
-    SbMemoryMove(memory1, memory2, state.range(0));
+    memmove(memory1, memory2, state.range(0));
     ::benchmark::ClobberMemory();
   }
   state.SetBytesProcessed(int64_t(state.iterations()) *

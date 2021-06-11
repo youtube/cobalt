@@ -361,7 +361,7 @@ TEST(SafeSPrintfTest, DataTypes) {
   sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
   SbMemorySet(
       addr, ' ',
-      (char*)SbMemoryMove(addr + sizeof(addr) - SbStringGetLength(addr) - 1,
+      (char*)memmove(addr + sizeof(addr) - SbStringGetLength(addr) - 1,
                           addr, SbStringGetLength(addr) + 1) -
           addr);
   SafeSPrintf(buf, "%19p", buf);

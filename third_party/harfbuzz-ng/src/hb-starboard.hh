@@ -15,6 +15,8 @@
 #ifndef HB_STARBOARD_HH
 #define HB_STARBOARD_HH
 
+#include <string.h>
+
 #include "starboard/memory.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
@@ -30,7 +32,6 @@
 #define assert SB_DCHECK
 #define getenv(x) NULL
 #define memcpy SbMemoryCopy
-#define memmove SbMemoryMove
 #define memset SbMemorySet
 #define snprintf SbStringFormatF
 #define strchr (char *)SbStringFindCharacter

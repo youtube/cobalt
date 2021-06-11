@@ -70,7 +70,7 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
     if (IsExternalBuffer(buffer, buf_len)) {
       SbMemoryCopy(next_write_location, buffer, buf_len);
     } else if (IsInternalBuffer(buffer, buf_len)) {
-      SbMemoryMove(next_write_location, buffer, buf_len);
+      memmove(next_write_location, buffer, buf_len);
     } else {
       QUIC_BUG << "Buffer[" << static_cast<const void*>(buffer) << ", "
                << static_cast<const void*>(buffer + buf_len)
@@ -119,7 +119,7 @@ QuicBatchWriterBuffer::PopResult QuicBatchWriterBuffer::PopBufferedWrite(
     size_t buffer_len_to_move = buffered_writes_.rbegin()->buffer +
                                 buffered_writes_.rbegin()->buf_len -
                                 buffer_before_move;
-    SbMemoryMove(buffer_, buffer_before_move, buffer_len_to_move);
+    memmove(buffer_, buffer_before_move, buffer_len_to_move);
 
     size_t distance_to_move = buffer_before_move - buffer_;
     for (BufferedWrite& buffered_write : buffered_writes_) {
