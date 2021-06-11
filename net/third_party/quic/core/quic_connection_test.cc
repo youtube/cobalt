@@ -7655,9 +7655,9 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
   // The final check is to ensure that the random data in the response matches
   // the random data from the challenge.
   EXPECT_EQ(
-      0, SbMemoryCompare(&challenge_data,
-                         &(writer_->path_response_frames().front().data_buffer),
-                         sizeof(challenge_data)));
+      0, memcmp(&challenge_data,
+                &(writer_->path_response_frames().front().data_buffer),
+                sizeof(challenge_data)));
 }
 
 // Regression test for b/110259444

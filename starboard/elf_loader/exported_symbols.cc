@@ -152,7 +152,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
   REGISTER_SYMBOL(SbMemoryAllocateUnchecked);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryCompare);
+#endif
   REGISTER_SYMBOL(SbMemoryCopy);
   REGISTER_SYMBOL(SbMemoryFindByte);
   REGISTER_SYMBOL(SbMemoryFree);

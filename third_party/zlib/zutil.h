@@ -251,7 +251,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
 #  elif defined(STARBOARD)
 #    define zmemcpy SbMemoryCopy
-#    define zmemcmp(a, b) SbMemoryCompare((a), (b), kSbInt32Max)
+#    define zmemcmp(a, b) memcmp((a), (b), kSbInt32Max)
 #    define zmemzero(dest, len) memset(dest, 0, len)
 #  else
 #    define zmemcpy memcpy

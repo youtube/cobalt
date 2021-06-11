@@ -615,7 +615,7 @@ class SandboxSymbolizeHelper {
       static_assert(SELFMAG <= sizeof(ElfW(Ehdr)), "SELFMAG too large");
       if ((r.permissions & MappedMemoryRegion::READ) &&
           safe_memcpy(&ehdr, r.start, sizeof(ElfW(Ehdr))) &&
-          SbMemoryCompare(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
+          memcmp(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
         switch (ehdr.e_type) {
           case ET_EXEC:
             cur_base = 0;

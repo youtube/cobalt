@@ -2366,13 +2366,13 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
   rv = sock_->ExportKeyingMaterial(kKeyingLabel2, false, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 
   const char kKeyingContext2[] = "context";
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, true, kKeyingContext2,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 
   // Using an empty context should give different key material from not using a
   // context at all.
@@ -2380,7 +2380,7 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, true, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 }
 
 // Verifies that SSLClientSocket::ClearSessionCache can be called without

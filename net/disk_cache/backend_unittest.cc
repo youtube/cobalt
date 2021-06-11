@@ -803,7 +803,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
   scoped_refptr<net::IOBuffer> buffer2(
       base::MakeRefCounted<net::IOBuffer>(kSize));
   ASSERT_EQ(kSize, base::ReadFile(filename, buffer2->data(), kSize));
-  EXPECT_EQ(0, SbMemoryCompare(buffer1->data(), buffer2->data(), kSize));
+  EXPECT_EQ(0, memcmp(buffer1->data(), buffer2->data(), kSize));
 }
 
 // Tests that we deal with file-level pending operations at destruction time.
@@ -3798,7 +3798,7 @@ TEST_F(DiskCacheBackendTest, FileSharing) {
   memset(buffer2, 0, kSize);
   EXPECT_TRUE(file->Write(buffer1, kSize, 0));
   EXPECT_TRUE(file->Read(buffer2, kSize, 0));
-  EXPECT_EQ(0, SbMemoryCompare(buffer1, buffer2, kSize));
+  EXPECT_EQ(0, memcmp(buffer1, buffer2, kSize));
 
   EXPECT_TRUE(disk_cache::DeleteCacheFile(name));
 }
@@ -4548,7 +4548,7 @@ TEST_F(DiskCacheBackendTest, SimpleFdLimit) {
     scoped_refptr<net::IOBuffer> read_buf =
         base::MakeRefCounted<net::IOBuffer>(kSize);
     ASSERT_EQ(kSize, ReadData(entries[i], 1, 0, read_buf.get(), kSize));
-    EXPECT_EQ(0, SbMemoryCompare(read_buf->data(), buf1->data(), kSize));
+    EXPECT_EQ(0, memcmp(read_buf->data(), buf1->data(), kSize));
   }
 
   histogram_tester.ExpectBucketCount(
@@ -4566,12 +4566,12 @@ TEST_F(DiskCacheBackendTest, SimpleFdLimit) {
   scoped_refptr<net::IOBuffer> read_buf =
       base::MakeRefCounted<net::IOBuffer>(kSize);
   ASSERT_EQ(kSize, ReadData(entries[0], 1, 0, read_buf.get(), kSize));
-  EXPECT_EQ(0, SbMemoryCompare(read_buf->data(), buf1->data(), kSize));
+  EXPECT_EQ(0, memcmp(read_buf->data(), buf1->data(), kSize));
 
   scoped_refptr<net::IOBuffer> read_buf2 =
       base::MakeRefCounted<net::IOBuffer>(kSize);
   ASSERT_EQ(kSize, ReadData(alt_entry, 1, 0, read_buf2.get(), kSize));
-  EXPECT_EQ(0, SbMemoryCompare(read_buf2->data(), buf2->data(), kSize));
+  EXPECT_EQ(0, memcmp(read_buf2->data(), buf2->data(), kSize));
 
   // Two more things than last time --- entries[0] and |alt_entry|
   histogram_tester.ExpectBucketCount(

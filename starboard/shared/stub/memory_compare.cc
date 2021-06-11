@@ -14,6 +14,8 @@
 
 #include "starboard/memory.h"
 
+#if SB_API_VERSION < 13
 int SbMemoryCompare(const void* buffer1, const void* buffer2, size_t count) {
   return 0;
 }
+#endif // SB_API_VERSION < 13

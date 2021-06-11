@@ -44,7 +44,7 @@ TEST(DecoderBufferTest, CopyFrom) {
   ASSERT_TRUE(buffer2.get());
   EXPECT_NE(kData, buffer2->data());
   EXPECT_EQ(buffer2->data_size(), kDataSize);
-  EXPECT_EQ(0, SbMemoryCompare(buffer2->data(), kData, kDataSize));
+  EXPECT_EQ(0, memcmp(buffer2->data(), kData, kDataSize));
   EXPECT_FALSE(buffer2->end_of_stream());
   EXPECT_FALSE(buffer2->is_key_frame());
 
@@ -54,10 +54,10 @@ TEST(DecoderBufferTest, CopyFrom) {
   ASSERT_TRUE(buffer3.get());
   EXPECT_NE(kData, buffer3->data());
   EXPECT_EQ(buffer3->data_size(), kDataSize);
-  EXPECT_EQ(0, SbMemoryCompare(buffer3->data(), kData, kDataSize));
+  EXPECT_EQ(0, memcmp(buffer3->data(), kData, kDataSize));
   EXPECT_NE(kData, buffer3->side_data());
   EXPECT_EQ(buffer3->side_data_size(), kDataSize);
-  EXPECT_EQ(0, SbMemoryCompare(buffer3->side_data(), kData, kDataSize));
+  EXPECT_EQ(0, memcmp(buffer3->side_data(), kData, kDataSize));
   EXPECT_FALSE(buffer3->end_of_stream());
   EXPECT_FALSE(buffer3->is_key_frame());
 }
@@ -103,7 +103,7 @@ TEST(DecoderBufferTest, ReadingWriting) {
   SbMemoryCopy(data, kData, kDataSize);
   const uint8_t* read_only_data = buffer->data();
   ASSERT_EQ(data, read_only_data);
-  ASSERT_EQ(0, SbMemoryCompare(read_only_data, kData, kDataSize));
+  ASSERT_EQ(0, memcmp(read_only_data, kData, kDataSize));
   EXPECT_FALSE(buffer->end_of_stream());
 }
 

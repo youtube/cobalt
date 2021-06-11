@@ -183,7 +183,7 @@ class CSSMCachedCertificate {
 // Compares two OIDs by value.
 inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
   return oid1->Length == oid2->Length &&
-         (SbMemoryCompare(oid1->Data, oid2->Data, oid1->Length) == 0);
+         (memcmp(oid1->Data, oid2->Data, oid1->Length) == 0);
 }
 
 #pragma clang diagnostic pop  // "-Wdeprecated-declarations"

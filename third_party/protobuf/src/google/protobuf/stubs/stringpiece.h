@@ -314,11 +314,7 @@ class LIBPROTOBUF_EXPORT StringPiece {
   int compare(StringPiece x) const {
     const stringpiece_ssize_type min_size =
         length_ < x.length_ ? length_ : x.length_;
-#ifndef STARBOARD
     int r = memcmp(ptr_, x.ptr_, min_size);
-#else
-    int r = SbMemoryCompare(ptr_, x.ptr_, min_size);
-#endif  // STARBOARD
     if (r < 0) return -1;
     if (r > 0) return 1;
     if (length_ < x.length_) return -1;
@@ -347,21 +343,12 @@ class LIBPROTOBUF_EXPORT StringPiece {
   void AppendToString(string* target) const;
 
   bool starts_with(StringPiece x) const {
-#ifndef STARBOARD
     return (length_ >= x.length_) && (memcmp(ptr_, x.ptr_, x.length_) == 0);
-#else
-    return (length_ >= x.length_) && (SbMemoryCompare(ptr_, x.ptr_, x.length_) == 0);
-#endif  // STARBOARD
   }
 
   bool ends_with(StringPiece x) const {
-#ifndef STARBOARD
     return ((length_ >= x.length_) &&
             (memcmp(ptr_ + (length_-x.length_), x.ptr_, x.length_) == 0));
-#else
-    return ((length_ >= x.length_) &&
-            (SbMemoryCompare(ptr_ + (length_-x.length_), x.ptr_, x.length_) == 0));
-#endif  // STARBOARD
   }
 
   // Checks whether StringPiece starts with x and if so advances the beginning
@@ -432,13 +419,8 @@ inline bool operator==(StringPiece x, StringPiece y) {
     return false;
   }
 
-#ifndef STARBOARD
   return x.data() == y.data() || len <= 0 ||
       memcmp(x.data(), y.data(), len) == 0;
-#else
-  return x.data() == y.data() || len <= 0 ||
-      SbMemoryCompare(x.data(), y.data(), len) == 0;
-#endif  // STARBOARD
 }
 
 inline bool operator!=(StringPiece x, StringPiece y) {
@@ -448,11 +430,7 @@ inline bool operator!=(StringPiece x, StringPiece y) {
 inline bool operator<(StringPiece x, StringPiece y) {
   const stringpiece_ssize_type min_size =
       x.size() < y.size() ? x.size() : y.size();
-#ifndef STARBOARD
   const int r = memcmp(x.data(), y.data(), min_size);
-#else
-  const int r = SbMemoryCompare(x.data(), y.data(), min_size);
-#endif  // STARBOARD
   return (r < 0) || (r == 0 && x.size() < y.size());
 }
 

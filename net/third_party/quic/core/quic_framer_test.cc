@@ -11204,8 +11204,8 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
 
   EXPECT_EQ(sizeof(expected_token_value), visitor_.new_token_.token.length());
   EXPECT_EQ(
-      0, SbMemoryCompare(expected_token_value, visitor_.new_token_.token.data(),
-                         sizeof(expected_token_value)));
+      0, memcmp(expected_token_value, visitor_.new_token_.token.data(),
+                sizeof(expected_token_value)));
 
   CheckFramingBoundaries(packet, QUIC_INVALID_NEW_TOKEN);
 }

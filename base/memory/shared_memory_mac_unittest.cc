@@ -387,8 +387,8 @@ TEST_F(SharedMemoryMacMultiProcessTest, MachDuplicate) {
     SharedMemory shared_memory2(shm2, true);
     shared_memory2.Map(s_memory_size);
 
-    ASSERT_EQ(0, SbMemoryCompare(shared_memory->memory(),
-                                 shared_memory2.memory(), s_memory_size));
+    ASSERT_EQ(0, memcmp(shared_memory->memory(),
+                        shared_memory2.memory(), s_memory_size));
   }
 
   EXPECT_EQ(active_name_count, GetActiveNameCount());

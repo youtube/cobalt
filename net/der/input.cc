@@ -38,7 +38,7 @@ base::StringPiece Input::AsStringPiece() const {
 bool operator==(const Input& lhs, const Input& rhs) {
   if (lhs.Length() != rhs.Length())
     return false;
-  return SbMemoryCompare(lhs.UnsafeData(), rhs.UnsafeData(), lhs.Length()) == 0;
+  return memcmp(lhs.UnsafeData(), rhs.UnsafeData(), lhs.Length()) == 0;
 }
 
 bool operator!=(const Input& lhs, const Input& rhs) {

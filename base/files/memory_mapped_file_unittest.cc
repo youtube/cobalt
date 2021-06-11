@@ -28,7 +28,7 @@ std::unique_ptr<uint8_t[]> CreateTestBuffer(size_t size, size_t offset) {
 // Check that the watermark sequence is consistent with the |offset| provided.
 bool CheckBufferContents(const uint8_t* data, size_t size, size_t offset) {
   std::unique_ptr<uint8_t[]> test_data(CreateTestBuffer(size, offset));
-  return SbMemoryCompare(test_data.get(), data, size) == 0;
+  return memcmp(test_data.get(), data, size) == 0;
 }
 
 class MemoryMappedFileTest : public PlatformTest {

@@ -606,7 +606,7 @@ TEST_F(TCPSocketTest, CancelPendingReadIfReady) {
   }
 
   ASSERT_EQ(msg_size, read_result);
-  ASSERT_EQ(0, SbMemoryCompare(&kMsg, read_buffer->data(), msg_size));
+  ASSERT_EQ(0, memcmp(&kMsg, read_buffer->data(), msg_size));
 }
 
 // Starboard does not provide any equivalent of getsockopt.

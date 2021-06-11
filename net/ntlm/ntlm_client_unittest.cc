@@ -108,8 +108,8 @@ TEST(NtlmClientTest, VerifyNegotiateMessageV1) {
   std::vector<uint8_t> result = client.GetNegotiateMessage();
 
   ASSERT_EQ(kNegotiateMessageLen, result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNegotiateMsg, result.data(),
-                               kNegotiateMessageLen));
+  ASSERT_EQ(0, memcmp(test::kExpectedNegotiateMsg, result.data(),
+                      kNegotiateMessageLen));
 }
 
 TEST(NtlmClientTest, MinimalStructurallyValidChallenge) {
@@ -286,8 +286,8 @@ TEST(NtlmClientTest, Type3UnicodeWithSessionSecuritySpecTest) {
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV1),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgSpecResponseV1,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV1,
+                      result.data(), result.size()));
 }
 
 TEST(NtlmClientTest, Type3WithoutUnicode) {
@@ -318,10 +318,10 @@ TEST(NtlmClientTest, Type3WithoutUnicode) {
   ASSERT_TRUE(ReadBytesPayload(&reader, actual_lm_response));
   ASSERT_TRUE(ReadBytesPayload(&reader, actual_ntlm_response));
 
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedLmResponseWithV1SS,
-                               actual_lm_response, kResponseLenV1));
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNtlmResponseWithV1SS,
-                               actual_ntlm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedLmResponseWithV1SS,
+                      actual_lm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS,
+                      actual_ntlm_response, kResponseLenV1));
 
   std::string domain;
   std::string username;
@@ -375,10 +375,10 @@ TEST(NtlmClientTest, ClientDoesNotDowngradeSessionSecurity) {
   // The important part of this test is that even though the
   // server told the client to drop session security. The client
   // DID NOT drop it.
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedLmResponseWithV1SS,
-                               actual_lm_response, kResponseLenV1));
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNtlmResponseWithV1SS,
-                               actual_ntlm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedLmResponseWithV1SS,
+                      actual_lm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS,
+                      actual_ntlm_response, kResponseLenV1));
 
   base::string16 domain;
   base::string16 username;
@@ -420,8 +420,8 @@ TEST(NtlmClientTest, VerifyNegotiateMessageV2) {
   std::vector<uint8_t> result = client.GetNegotiateMessage();
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedNegotiateMsg), result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNegotiateMsg, result.data(),
-                               result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedNegotiateMsg, result.data(),
+                      result.size()));
 }
 
 TEST(NtlmClientTest, VerifyAuthenticateMessageV2) {
@@ -433,8 +433,8 @@ TEST(NtlmClientTest, VerifyAuthenticateMessageV2) {
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV2),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgSpecResponseV2,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV2,
+                      result.data(), result.size()));
 }
 
 TEST(NtlmClientTest,
@@ -450,8 +450,8 @@ TEST(NtlmClientTest,
 
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgToOldV1ChallegeV2),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgToOldV1ChallegeV2,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgToOldV1ChallegeV2,
+                      result.data(), result.size()));
 }
 
 }  // namespace ntlm

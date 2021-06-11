@@ -204,7 +204,7 @@ void TestAESCTREncrypt(
   EXPECT_TRUE(encryptor.Encrypt(plaintext_str, &encrypted));
 
   EXPECT_EQ(ciphertext_size, encrypted.size());
-  EXPECT_EQ(0, SbMemoryCompare(encrypted.data(), ciphertext, encrypted.size()));
+  EXPECT_EQ(0, memcmp(encrypted.data(), ciphertext, encrypted.size()));
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.SetCounter(init_counter_str));
@@ -242,7 +242,7 @@ void TestAESCTRMultipleDecrypt(
     EXPECT_TRUE(
         encryptor.Decrypt(ciphertext_str.substr(offset, len), &decrypted));
     EXPECT_EQ(len, decrypted.size());
-    EXPECT_EQ(0, SbMemoryCompare(decrypted.data(), plaintext + offset, len));
+    EXPECT_EQ(0, memcmp(decrypted.data(), plaintext + offset, len));
     offset += len;
   }
 }
@@ -324,7 +324,7 @@ TEST(EncryptorTest, CTRCounter) {
   for (int i = 0; i < 10; ++i)
     counter1.Increment();
   counter1.Write(buf);
-  EXPECT_EQ(0, SbMemoryCompare(buf, kTest1, 15));
+  EXPECT_EQ(0, memcmp(buf, kTest1, 15));
   EXPECT_EQ(10, buf[15]);
 
   // Check corner cases.
@@ -338,7 +338,7 @@ TEST(EncryptorTest, CTRCounter) {
       std::string(reinterpret_cast<const char*>(kTest2), kCounterSize));
   counter2.Increment();
   counter2.Write(buf);
-  EXPECT_EQ(0, SbMemoryCompare(buf, kExpect2, kCounterSize));
+  EXPECT_EQ(0, memcmp(buf, kExpect2, kCounterSize));
 
   const unsigned char kTest3[] = {
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -350,7 +350,7 @@ TEST(EncryptorTest, CTRCounter) {
       std::string(reinterpret_cast<const char*>(kTest3), kCounterSize));
   counter3.Increment();
   counter3.Write(buf);
-  EXPECT_EQ(0, SbMemoryCompare(buf, kExpect3, kCounterSize));
+  EXPECT_EQ(0, memcmp(buf, kExpect3, kCounterSize));
 }
 
 // TODO(wtc): add more known-answer tests.  Test vectors are available from
@@ -422,7 +422,7 @@ TEST(EncryptorTest, EncryptAES256CBC) {
 
   EXPECT_EQ(sizeof(kRawCiphertext), ciphertext.size());
   EXPECT_EQ(
-      0, SbMemoryCompare(ciphertext.data(), kRawCiphertext, ciphertext.size()));
+      0, memcmp(ciphertext.data(), kRawCiphertext, ciphertext.size()));
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));

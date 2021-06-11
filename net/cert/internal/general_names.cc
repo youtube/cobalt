@@ -41,8 +41,7 @@ bool IsSuffixZero(const IPAddressBytes& mask, unsigned prefix_length) {
   size_t zero_bits = mask.size() * CHAR_BIT - prefix_length;
   size_t zero_bytes = zero_bits / CHAR_BIT;
   std::vector<uint8_t> zeros(zero_bytes, 0);
-  if (SbMemoryCompare(zeros.data(), mask.data() + mask.size() - zero_bytes,
-                      zero_bytes))
+  if (memcmp(zeros.data(), mask.data() + mask.size() - zero_bytes, zero_bytes))
     return false;
   size_t leftover_bits = zero_bits % CHAR_BIT;
   if (leftover_bits) {

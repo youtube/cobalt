@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionId& v) {
 }
 
 bool QuicConnectionId::operator==(const QuicConnectionId& v) const {
-  return length_ == v.length_ && SbMemoryCompare(data_, v.data_, length_) == 0;
+  return length_ == v.length_ && memcmp(data_, v.data_, length_) == 0;
 }
 
 bool QuicConnectionId::operator!=(const QuicConnectionId& v) const {
@@ -92,7 +92,7 @@ bool QuicConnectionId::operator<(const QuicConnectionId& v) const {
   if (length_ > v.length_) {
     return false;
   }
-  return SbMemoryCompare(data_, v.data_, length_) < 0;
+  return memcmp(data_, v.data_, length_) < 0;
 }
 
 QuicConnectionId EmptyQuicConnectionId() {

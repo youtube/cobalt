@@ -102,12 +102,12 @@ const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
-  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
 // Determine if two |SbMediaColorMetadata|s are equal.
 bool Equal(const SbMediaColorMetadata& lhs, const SbMediaColorMetadata& rhs) {
-  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
 // TODO: For whatever reason, Cobalt will always pass us this us for

@@ -247,10 +247,10 @@ TEST(MD5, IntermediateFinal) {
 
   // The header and full digest pairs are the same, and they aren't the same as
   // each other.
-  EXPECT_TRUE(!SbMemoryCompare(&header_digest, &check_header_digest,
+  EXPECT_TRUE(!memcmp(&header_digest, &check_header_digest,
                                sizeof(header_digest)));
-  EXPECT_TRUE(!SbMemoryCompare(&digest, &check_full_digest, sizeof(digest)));
-  EXPECT_TRUE(SbMemoryCompare(&digest, &header_digest, sizeof(digest)));
+  EXPECT_TRUE(!memcmp(&digest, &check_full_digest, sizeof(digest)));
+  EXPECT_TRUE(memcmp(&digest, &header_digest, sizeof(digest)));
 }
 
 }  // namespace base

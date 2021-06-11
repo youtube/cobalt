@@ -254,7 +254,7 @@ int MPEGAudioStreamParserBase::ParseIcecastHeader(const uint8_t* data,
 
   if (size < 4) return 0;
 
-  if (SbMemoryCompare("ICY ", data, 4)) return -1;
+  if (memcmp("ICY ", data, 4)) return -1;
 
   int locate_size = std::min(size, kMaxIcecastHeaderSize);
   int offset = LocateEndOfHeaders(data, locate_size, 4);
@@ -277,7 +277,7 @@ int MPEGAudioStreamParserBase::ParseID3v1(const uint8_t* data, int size) {
 
   // TODO(acolwell): Add code to actually validate ID3v1 data and
   // expose it as a metadata text track.
-  return !SbMemoryCompare(data, "TAG+", 4) ? kID3v1ExtendedSize : kID3v1Size;
+  return !memcmp(data, "TAG+", 4) ? kID3v1ExtendedSize : kID3v1Size;
 }
 
 int MPEGAudioStreamParserBase::ParseID3v2(const uint8_t* data, int size) {

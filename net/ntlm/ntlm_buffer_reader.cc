@@ -243,7 +243,7 @@ bool NtlmBufferReader::MatchSignature() {
   if (!CanRead(kSignatureLen))
     return false;
 
-  if (SbMemoryCompare(kSignature, GetBufferAtCursor(), kSignatureLen) != 0)
+  if (memcmp(kSignature, GetBufferAtCursor(), kSignatureLen) != 0)
     return false;
 
   AdvanceCursor(kSignatureLen);

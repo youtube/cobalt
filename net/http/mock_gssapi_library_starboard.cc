@@ -389,9 +389,9 @@ OM_uint32 MockGSSAPILibrary::init_sec_context(
   } else {
     EXPECT_EQ(input_token->length, security_query.expected_input_token.length);
     if (input_token->length) {
-      EXPECT_EQ(0, SbMemoryCompare(input_token->value,
-                                   security_query.expected_input_token.value,
-                                   input_token->length));
+      EXPECT_EQ(0, memcmp(input_token->value,
+                          security_query.expected_input_token.value,
+                          input_token->length));
     }
   }
   CopyBuffer(output_token, &security_query.output_token);

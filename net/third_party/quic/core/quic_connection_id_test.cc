@@ -51,10 +51,10 @@ TEST_F(QuicConnectionIdTest, Data) {
   EXPECT_EQ(connection_id1, connection_id2);
   EXPECT_EQ(connection_id1.length(), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(connection_id1.data(), connection_id1.mutable_data());
-  EXPECT_EQ(0, SbMemoryCompare(connection_id1.data(), connection_id2.data(),
-                               sizeof(connection_id_data)));
-  EXPECT_EQ(0, SbMemoryCompare(connection_id1.data(), connection_id_data,
-                               sizeof(connection_id_data)));
+  EXPECT_EQ(0, memcmp(connection_id1.data(), connection_id2.data(),
+                      sizeof(connection_id_data)));
+  EXPECT_EQ(0, memcmp(connection_id1.data(), connection_id_data,
+                      sizeof(connection_id_data)));
   connection_id2.mutable_data()[0] = 0x33;
   EXPECT_NE(connection_id1, connection_id2);
   static const uint8_t kNewLength = 4;

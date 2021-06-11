@@ -33,7 +33,7 @@ bool ElfHeader::LoadElfHeader(File* file) {
     return false;
   }
 
-  if (SbMemoryCompare(elf_header_->e_ident, ELFMAG, SELFMAG) != 0) {
+  if (memcmp(elf_header_->e_ident, ELFMAG, SELFMAG) != 0) {
     SB_LOG(ERROR) << "Bad ELF magic: " << elf_header_->e_ident;
     return false;
   }

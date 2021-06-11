@@ -75,14 +75,14 @@ bool VerifyPlanCopyWithPadding(const uint8_t* src, size_t src_stride,
   const uint8_t *src_ptr = src, *dst_ptr = dst;
   for (size_t i = 0; i < src_height;
        ++i, src_ptr += src_stride, dst_ptr += dst_stride) {
-    if (SbMemoryCompare(src_ptr, dst_ptr, src_width)) return false;
+    if (memcmp(src_ptr, dst_ptr, src_width)) return false;
     for (size_t j = src_width; j < dst_width; ++j) {
       if (src_ptr[src_width - 1] != dst_ptr[j]) return false;
     }
   }
   if (src_height < dst_height) {
     src_ptr = dst + (src_height - 1) * dst_stride;
-    if (SbMemoryCompare(src_ptr, dst_ptr, dst_width)) return false;
+    if (memcmp(src_ptr, dst_ptr, dst_width)) return false;
   }
   return true;
 }
@@ -365,7 +365,7 @@ TEST_P(VideoUtilRotationTest, Rotate) {
   RotatePlaneByPixels(GetParam().src, dest, GetParam().width, GetParam().height,
                       rotation, GetParam().flip_vert, GetParam().flip_horiz);
 
-  EXPECT_EQ(SbMemoryCompare(dest, GetParam().target, size), 0);
+  EXPECT_EQ(memcmp(dest, GetParam().target, size), 0);
 }
 
 INSTANTIATE_TEST_CASE_P(, VideoUtilRotationTest,

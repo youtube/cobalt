@@ -1108,9 +1108,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[10];
     wchar_t wdst[10];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdefg", 8));
+    EXPECT_EQ(0, memcmp(dst, "abcdefg", 8));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdefg", sizeof(wchar_t) * 8));
+    EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wchar_t) * 8));
   }
 
   // Test dst_size == 0, nothing should be written to |dst| and we should
@@ -1131,9 +1131,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[8];
     wchar_t wdst[8];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdefg", 8));
+    EXPECT_EQ(0, memcmp(dst, "abcdefg", 8));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdefg", sizeof(wchar_t) * 8));
+    EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wchar_t) * 8));
   }
 
   // Test the case were we we are one smaller, so we can't fit the null.
@@ -1141,9 +1141,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[7];
     wchar_t wdst[7];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdef", 7));
+    EXPECT_EQ(0, memcmp(dst, "abcdef", 7));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdef", sizeof(wchar_t) * 7));
+    EXPECT_EQ(0, memcmp(wdst, L"abcdef", sizeof(wchar_t) * 7));
   }
 
   // Test the case were we are just too small.
@@ -1151,9 +1151,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[3];
     wchar_t wdst[3];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, SbMemoryCompare(dst, "ab", 3));
+    EXPECT_EQ(0, memcmp(dst, "ab", 3));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, SbMemoryCompare(wdst, L"ab", sizeof(wchar_t) * 3));
+    EXPECT_EQ(0, memcmp(wdst, L"ab", sizeof(wchar_t) * 3));
   }
 }
 

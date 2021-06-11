@@ -778,8 +778,8 @@ TEST(P224, ExternalToInternalAndBack) {
   const std::string external = point.ToString();
 
   ASSERT_EQ(external.size(), 56u);
-  EXPECT_EQ(0, SbMemoryCompare(external.data(), kBasePointExternal,
-                               sizeof(kBasePointExternal)));
+  EXPECT_EQ(0, memcmp(external.data(), kBasePointExternal,
+                      sizeof(kBasePointExternal)));
 }
 
 TEST(P224, ScalarBaseMult) {
@@ -789,8 +789,8 @@ TEST(P224, ScalarBaseMult) {
     p224::ScalarBaseMult(kNISTTestVectors[i].scalar, &point);
     const std::string external = point.ToString();
     ASSERT_EQ(external.size(), 56u);
-    EXPECT_EQ(0, SbMemoryCompare(external.data(), kNISTTestVectors[i].affine,
-                                 external.size()));
+    EXPECT_EQ(0, memcmp(external.data(), kNISTTestVectors[i].affine,
+                        external.size()));
   }
 }
 
@@ -804,7 +804,7 @@ TEST(P224, Addition) {
 
   p224::Negate(b, &minus_b);
   p224::Add(a, b, &sum);
-  EXPECT_NE(0, SbMemoryCompare(&sum, &a, sizeof(sum)));
+  EXPECT_NE(0, memcmp(&sum, &a, sizeof(sum)));
   p224::Add(minus_b, sum, &a_again);
   EXPECT_EQ(a_again.ToString(), a.ToString());
 }
@@ -816,7 +816,7 @@ TEST(P224, Infinity) {
   // Test that x^0 = ∞.
   Point a;
   p224::ScalarBaseMult(reinterpret_cast<const uint8_t*>(zeros), &a);
-  EXPECT_EQ(0, SbMemoryCompare(zeros, a.ToString().data(), sizeof(zeros)));
+  EXPECT_EQ(0, memcmp(zeros, a.ToString().data(), sizeof(zeros)));
 
   // We shouldn't allow ∞ to be imported.
   EXPECT_FALSE(a.SetFromString(std::string(zeros, sizeof(zeros))));

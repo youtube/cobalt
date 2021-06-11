@@ -70,14 +70,14 @@ TYPED_TEST(SharedMemoryRegionTest, MoveRegion) {
   typename TypeParam::MappingType mapping = moved_region.Map();
   ASSERT_TRUE(mapping.IsValid());
   EXPECT_NE(this->rw_mapping_.memory(), mapping.memory());
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
-                            kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
+                   kRegionSize),
             0);
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
-                            kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
+                   kRegionSize),
             0);
 }
 
@@ -95,14 +95,14 @@ TYPED_TEST(SharedMemoryRegionTest, MapTwice) {
   typename TypeParam::MappingType mapping = this->region_.Map();
   ASSERT_TRUE(mapping.IsValid());
   EXPECT_NE(this->rw_mapping_.memory(), mapping.memory());
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
-                            kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
+                   kRegionSize),
             0);
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
-                            kRegionSize),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
+                   kRegionSize),
             0);
 
   // Close the region and unmap the first memory segment, verify the second

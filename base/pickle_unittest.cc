@@ -101,7 +101,7 @@ void VerifyResult(const Pickle& pickle) {
   int outdatalen;
   EXPECT_TRUE(iter.ReadData(&outdata, &outdatalen));
   EXPECT_EQ(testdatalen, outdatalen);
-  EXPECT_EQ(SbMemoryCompare(testdata, outdata, outdatalen), 0);
+  EXPECT_EQ(memcmp(testdata, outdata, outdatalen), 0);
 
   // reads past the end should fail
   EXPECT_FALSE(iter.ReadInt(&outint));

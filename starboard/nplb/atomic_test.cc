@@ -394,8 +394,8 @@ TYPED_TEST(AdvancedSbAtomicTest, OnceMultipleThreads) {
     // Ensure that exactly one thread initialized the data.
     bool match = false;
     for (int i = 0; i < kNumThreads; ++i) {
-      if (SbMemoryCompare(target_data, data + i * kDataPerThread,
-                          kDataPerThread) == 0) {
+      if (memcmp(target_data, data + i * kDataPerThread,
+                 kDataPerThread) == 0) {
         match = true;
         break;
       }

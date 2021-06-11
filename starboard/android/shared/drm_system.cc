@@ -67,8 +67,8 @@ bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   if (left.identifier_size != right.identifier_size) {
     return false;
   }
-  return SbMemoryCompare(left.identifier, right.identifier,
-                         left.identifier_size) == 0;
+  return memcmp(left.identifier, right.identifier,
+                left.identifier_size) == 0;
 }
 
 extern "C" SB_EXPORT_PLATFORM void

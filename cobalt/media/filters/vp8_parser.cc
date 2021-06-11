@@ -98,7 +98,7 @@ bool Vp8Parser::ParseFrameTag(Vp8FrameHeader* fhdr) {
     if (bytes_left_ < kKeyframeTagSize) return false;
 
     static const uint8_t kVp8StartCode[] = {0x9d, 0x01, 0x2a};
-    if (SbMemoryCompare(stream_, kVp8StartCode, sizeof(kVp8StartCode)) != 0)
+    if (memcmp(stream_, kVp8StartCode, sizeof(kVp8StartCode)) != 0)
       return false;
 
     stream_ += sizeof(kVp8StartCode);

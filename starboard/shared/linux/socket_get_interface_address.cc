@@ -128,7 +128,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     if (!GetPotentialMatch(interface->ifa_addr, &potential_match))
       continue;
 
-    if (SbMemoryCompare(&to_match, potential_match, sizeof(in_addr_type)) !=
+    if (memcmp(&to_match, potential_match, sizeof(in_addr_type)) !=
         0) {
       continue;
     }

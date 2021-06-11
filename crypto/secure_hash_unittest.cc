@@ -65,14 +65,14 @@ TEST(SecureHashTest, TestClone) {
   ctx2->Update(input2.data(), input2.size());
   ctx2->Finish(output2, sizeof(output2));
 
-  EXPECT_EQ(0, SbMemoryCompare(output1, output2, crypto::kSHA256Length));
-  EXPECT_EQ(0, SbMemoryCompare(output1, kExpectedHashOfInput1And2,
-                               crypto::kSHA256Length));
+  EXPECT_EQ(0, memcmp(output1, output2, crypto::kSHA256Length));
+  EXPECT_EQ(0, memcmp(output1, kExpectedHashOfInput1And2,
+                      crypto::kSHA256Length));
 
   // Finish() ctx3, which should produce the hash of input1.
   ctx3->Finish(&output3, sizeof(output3));
-  EXPECT_EQ(0, SbMemoryCompare(output3, kExpectedHashOfInput1,
-                               crypto::kSHA256Length));
+  EXPECT_EQ(0, memcmp(output3, kExpectedHashOfInput1,
+                      crypto::kSHA256Length));
 }
 
 TEST(SecureHashTest, TestLength) {
@@ -103,5 +103,5 @@ TEST(SecureHashTest, Equality) {
   ctx2->Finish(output2, sizeof(output2));
 
   // The hash should be the same.
-  EXPECT_EQ(0, SbMemoryCompare(output1, output2, crypto::kSHA256Length));
+  EXPECT_EQ(0, memcmp(output1, output2, crypto::kSHA256Length));
 }

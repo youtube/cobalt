@@ -439,8 +439,8 @@ class EqualsFramesMatcher : public ::testing::MatcherInterface<
         return false;
       }
       if (expected_length != 0 &&
-          SbMemoryCompare(actual_frame.data->data(), expected_frame.data,
-                          actual_frame.header.payload_length) != 0) {
+          memcmp(actual_frame.data->data(), expected_frame.data,
+                 actual_frame.header.payload_length) != 0) {
         *listener << "the data content differs";
         return false;
       }
@@ -2587,8 +2587,8 @@ TEST_F(WebSocketChannelStreamTest, WrittenBinaryFramesAre8BitClean) {
   const WebSocketFrame* out_frame = (*frames)[0].get();
   EXPECT_EQ(kBinaryBlobSize, out_frame->header.payload_length);
   ASSERT_TRUE(out_frame->data.get());
-  EXPECT_EQ(0, SbMemoryCompare(kBinaryBlob, out_frame->data->data(),
-                               kBinaryBlobSize));
+  EXPECT_EQ(0, memcmp(kBinaryBlob, out_frame->data->data(),
+                      kBinaryBlobSize));
 }
 
 // Test the read path for 8-bit cleanliness as well.

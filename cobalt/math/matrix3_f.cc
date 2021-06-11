@@ -97,7 +97,7 @@ bool Matrix3F::IsIdentity() const {
 }
 
 bool Matrix3F::IsEqual(const Matrix3F& rhs) const {
-  return 0 == SbMemoryCompare(data_, rhs.data_, sizeof(data_));
+  return 0 == memcmp(data_, rhs.data_, sizeof(data_));
 }
 
 bool Matrix3F::IsNear(const Matrix3F& rhs, float precision) const {
