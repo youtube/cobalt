@@ -80,7 +80,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
     CrashpadAnnotations cobalt_version_info;
-    SbMemorySet(&cobalt_version_info, sizeof(CrashpadAnnotations), 0);
+    SbMemorySet(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
     SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
                  USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
