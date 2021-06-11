@@ -36,7 +36,7 @@ FilePath BuildSearchFilter(FileEnumerator::FolderSearchPolicy policy,
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  SbMemorySet(&find_data_, 0, sizeof(find_data_));
+  memset(&find_data_, 0, sizeof(find_data_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {
@@ -92,7 +92,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       folder_search_policy_(folder_search_policy) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
-  SbMemorySet(&find_data_, 0, sizeof(find_data_));
+  memset(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 

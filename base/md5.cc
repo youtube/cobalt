@@ -238,15 +238,15 @@ void MD5Final(MD5Digest* digest, MD5Context* context) {
   /* Pad out to 56 mod 64 */
   if (count < 8) {
     /* Two lots of padding:  Pad the first block to 64 bytes */
-    SbMemorySet(p, 0, count);
+    memset(p, 0, count);
     byteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
 
     /* Now fill the next block with 56 bytes */
-    SbMemorySet(ctx->in, 0, 56);
+    memset(ctx->in, 0, 56);
   } else {
     /* Pad block to 56 bytes */
-    SbMemorySet(p, 0, count - 8);
+    memset(p, 0, count - 8);
   }
   byteReverse(ctx->in, 14);
 
@@ -259,7 +259,7 @@ void MD5Final(MD5Digest* digest, MD5Context* context) {
   MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
   byteReverse(reinterpret_cast<uint8_t*>(ctx->buf), 4);
   SbMemoryCopy(digest->a, ctx->buf, 16);
-  SbMemorySet(ctx, 0, sizeof(*ctx)); /* In case it's sensitive */
+  memset(ctx, 0, sizeof(*ctx)); /* In case it's sensitive */
 }
 
 void MD5IntermediateFinal(MD5Digest* digest, const MD5Context* context) {

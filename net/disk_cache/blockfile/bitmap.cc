@@ -151,7 +151,7 @@ void Bitmap::SetRange(int begin, int end, bool value) {
   SetWordBits(end, end_offset, value);
 
   // Set all the words in the middle.
-  SbMemorySet(map_ + (begin / kIntBits), (value ? 0xFF : 0x00),
+  memset(map_ + (begin / kIntBits), (value ? 0xFF : 0x00),
               ((end / kIntBits) - (begin / kIntBits)) * sizeof(*map_));
 }
 

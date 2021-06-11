@@ -117,7 +117,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
     case kSbSocketAddressTypeIpv4: {
       struct sockaddr_in* addr = sockaddr_in();
       length = kAddressStructLengthIpv4;
-      SbMemorySet(addr, 0, length);
+      memset(addr, 0, length);
       addr->sin_family = AF_INET;
       addr->sin_port = htons(address->port);
       SbMemoryCopy(&addr->sin_addr, address->address, kAddressLengthIpv4);
@@ -127,7 +127,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
     case kSbSocketAddressTypeIpv6: {
       struct sockaddr_in6* addr6 = sockaddr_in6();
       length = kAddressStructLengthIpv6;
-      SbMemorySet(addr6, 0, length);
+      memset(addr6, 0, length);
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = htons(address->port);
       SbMemoryCopy(&addr6->sin6_addr, address->address, kAddressLengthIpv6);

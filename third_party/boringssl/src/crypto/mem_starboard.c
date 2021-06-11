@@ -135,7 +135,7 @@ void *OPENSSL_memset(void *dst, int c, size_t n) {
     return dst;
   }
 
-  return SbMemorySet(dst, c, n);
+  return memset(dst, c, n);
 }
 
 uint32_t OPENSSL_hash32(const void *ptr, size_t len) {

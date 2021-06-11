@@ -78,7 +78,7 @@ TEST(DecoderBufferTest, PaddingAlignment) {
   // the end of the data by DecoderBuffer::kPaddingSize bytes without crashing
   // or Valgrind/ASAN throwing errors.
   const uint8_t kFillChar = 0xFF;
-  SbMemorySet(buffer2->writable_data() + kDataSize, kFillChar,
+  memset(buffer2->writable_data() + kDataSize, kFillChar,
               DecoderBuffer::kPaddingSize);
   for (int i = 0; i < DecoderBuffer::kPaddingSize; i++)
     EXPECT_EQ((buffer2->data() + kDataSize)[i], kFillChar);

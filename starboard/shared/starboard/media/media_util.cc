@@ -207,7 +207,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 }  // namespace
 
 AudioSampleInfo::AudioSampleInfo() {
-  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
   codec = kSbMediaAudioCodecNone;
 }
 
@@ -237,7 +237,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 }
 
 VideoSampleInfo::VideoSampleInfo() {
-  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
   codec = kSbMediaVideoCodecNone;
 }
 

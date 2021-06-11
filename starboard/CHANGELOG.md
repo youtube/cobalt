@@ -102,6 +102,7 @@ The following starboard functions have been removed:
 * `SbSystemBinarySearch`
 * `SbSystemSort`
 * `SbMemoryMove`
+* `SbMemorySet`
 
 ## Version 12
 ### Add support for platform-based UI navigation.

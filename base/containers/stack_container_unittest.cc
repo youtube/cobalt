@@ -105,7 +105,7 @@ namespace {
 template <size_t alignment>
 class AlignedData {
  public:
-  AlignedData() { SbMemorySet(data_, 0, alignment); }
+  AlignedData() { memset(data_, 0, alignment); }
   ~AlignedData() = default;
   alignas(alignment) char data_[alignment];
 };

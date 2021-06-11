@@ -189,7 +189,7 @@ TCPSocketWin::Core::Core(TCPSocketWin* socket)
       socket_(socket),
       reader_(this),
       writer_(this) {
-  SbMemorySet(&write_overlapped_, 0, sizeof(write_overlapped_));
+  memset(&write_overlapped_, 0, sizeof(write_overlapped_));
   write_overlapped_.hEvent = WSACreateEvent();
 }
 
@@ -201,7 +201,7 @@ TCPSocketWin::Core::~Core() {
   // in Detach().
   write_watcher_.StopWatching();
   WSACloseEvent(write_overlapped_.hEvent);
-  SbMemorySet(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
+  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
 }
 
 void TCPSocketWin::Core::WatchForRead() {

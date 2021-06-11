@@ -32,7 +32,7 @@ namespace {
 class TestActivityTracker : public ThreadActivityTracker {
  public:
   TestActivityTracker(std::unique_ptr<char[]> memory, size_t mem_size)
-      : ThreadActivityTracker(SbMemorySet(memory.get(), 0, mem_size), mem_size),
+      : ThreadActivityTracker(memset(memory.get(), 0, mem_size), mem_size),
         mem_segment_(std::move(memory)) {}
 
   ~TestActivityTracker() override = default;
@@ -110,7 +110,7 @@ class ActivityTrackerTest : public testing::Test {
 
 TEST_F(ActivityTrackerTest, UserDataTest) {
   char buffer[256];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   ActivityUserData data(buffer, sizeof(buffer));
   size_t space = sizeof(buffer) - sizeof(ActivityUserData::MemoryHeader);
   ASSERT_EQ(space, data.available_);

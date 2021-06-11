@@ -38,14 +38,14 @@ QuicPacketReader::QuicPacketReader() {
 void QuicPacketReader::Initialize() {
 #if MMSG_MORE
   // Zero initialize uninitialized memory.
-  SbMemorySet(mmsg_hdr_, 0, sizeof(mmsg_hdr_));
+  memset(mmsg_hdr_, 0, sizeof(mmsg_hdr_));
 
   for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
     packets_[i].iov.iov_base = packets_[i].buf;
     packets_[i].iov.iov_len = sizeof(packets_[i].buf);
-    SbMemorySet(&packets_[i].raw_address, 0, sizeof(packets_[i].raw_address));
-    SbMemorySet(packets_[i].cbuf, 0, sizeof(packets_[i].cbuf));
-    SbMemorySet(packets_[i].buf, 0, sizeof(packets_[i].buf));
+    memset(&packets_[i].raw_address, 0, sizeof(packets_[i].raw_address));
+    memset(packets_[i].cbuf, 0, sizeof(packets_[i].cbuf));
+    memset(packets_[i].buf, 0, sizeof(packets_[i].buf));
 
     msghdr* hdr = &mmsg_hdr_[i].msg_hdr;
     hdr->msg_name = &packets_[i].raw_address;

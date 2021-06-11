@@ -443,7 +443,7 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
 // MessagePumpForIO public:
 
 MessagePumpForIO::IOContext::IOContext() {
-  SbMemorySet(&overlapped, 0, sizeof(overlapped));
+  memset(&overlapped, 0, sizeof(overlapped));
 }
 
 MessagePumpForIO::MessagePumpForIO() {
@@ -576,7 +576,7 @@ bool MessagePumpForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
 
 // Asks the OS for another IO completion result.
 bool MessagePumpForIO::GetIOItem(DWORD timeout, IOItem* item) {
-  SbMemorySet(item, 0, sizeof(*item));
+  memset(item, 0, sizeof(*item));
   ULONG_PTR key = reinterpret_cast<ULONG_PTR>(nullptr);
   OVERLAPPED* overlapped = nullptr;
   if (!GetQueuedCompletionStatus(port_.Get(), &item->bytes_transfered, &key,

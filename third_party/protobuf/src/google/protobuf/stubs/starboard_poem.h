@@ -13,7 +13,3 @@
 // limitations under the License.
 
 #include "starboard/memory.h"
-
-#ifndef memset
-#define memset SbMemorySet
-#endif  // memset

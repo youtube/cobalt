@@ -211,7 +211,7 @@ ALWAYS_INLINE void PartitionPage::Free(void* ptr) {
   PartitionCookieCheckValue(reinterpret_cast<char*>(ptr) + slot_size -
                             kCookieSize);
 
-  SbMemorySet(ptr, kFreedByte, slot_size);
+  memset(ptr, kFreedByte, slot_size);
 #endif
 
   DCHECK(this->num_allocated_slots);

@@ -83,7 +83,7 @@
 //
 //     // If the decode works, you can get the texture out and render it.
 //     SbDecodeTargetInfo info;
-//     SbMemorySet(&info, 0, sizeof(info));
+//     memset(&info, 0, sizeof(info));
 //     SbDecodeTargetGetInfo(target, &info);
 //     GLuint texture =
 //         info.planes[kSbDecodeTargetPlaneRGBA].texture;

@@ -38,7 +38,7 @@ class SharedMemoryRegionTest : public ::testing::Test {
         CreateMappedRegion<SharedMemoryRegionType>(kRegionSize);
     ASSERT_TRUE(region_.IsValid());
     ASSERT_TRUE(rw_mapping_.IsValid());
-    SbMemorySet(rw_mapping_.memory(), 'G', kRegionSize);
+    memset(rw_mapping_.memory(), 'G', kRegionSize);
     EXPECT_TRUE(IsMemoryFilledWithByte(rw_mapping_.memory(), kRegionSize, 'G'));
   }
 
@@ -75,7 +75,7 @@ TYPED_TEST(SharedMemoryRegionTest, MoveRegion) {
             0);
 
   // Verify that the second mapping reflects changes in the first.
-  SbMemorySet(this->rw_mapping_.memory(), '#', kRegionSize);
+  memset(this->rw_mapping_.memory(), '#', kRegionSize);
   EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
                             kRegionSize),
             0);
@@ -100,7 +100,7 @@ TYPED_TEST(SharedMemoryRegionTest, MapTwice) {
             0);
 
   // Verify that the second mapping reflects changes in the first.
-  SbMemorySet(this->rw_mapping_.memory(), '#', kRegionSize);
+  memset(this->rw_mapping_.memory(), '#', kRegionSize);
   EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
                             kRegionSize),
             0);
@@ -132,7 +132,7 @@ TYPED_TEST(SharedMemoryRegionTest, SerializeAndDeserialize) {
   EXPECT_TRUE(IsMemoryFilledWithByte(mapping.memory(), kRegionSize, 'G'));
 
   // Verify that the second mapping reflects changes in the first.
-  SbMemorySet(this->rw_mapping_.memory(), '#', kRegionSize);
+  memset(this->rw_mapping_.memory(), '#', kRegionSize);
   EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
                             kRegionSize),
             0);
@@ -276,7 +276,7 @@ TEST_F(ReadOnlySharedMemoryRegionTest,
   ReadOnlySharedMemoryMapping mapping = region.Map();
   ASSERT_TRUE(mapping.IsValid());
   void* memory_ptr = const_cast<void*>(mapping.memory());
-  EXPECT_DEATH_IF_SUPPORTED(SbMemorySet(memory_ptr, 'G', kRegionSize), "");
+  EXPECT_DEATH_IF_SUPPORTED(memset(memory_ptr, 'G', kRegionSize), "");
 }
 
 TEST_F(ReadOnlySharedMemoryRegionTest,
@@ -286,7 +286,7 @@ TEST_F(ReadOnlySharedMemoryRegionTest,
   ReadOnlySharedMemoryMapping mapping = region.Map();
   ASSERT_TRUE(mapping.IsValid());
   void* memory_ptr = const_cast<void*>(mapping.memory());
-  EXPECT_DEATH_IF_SUPPORTED(SbMemorySet(memory_ptr, 'G', kRegionSize), "");
+  EXPECT_DEATH_IF_SUPPORTED(memset(memory_ptr, 'G', kRegionSize), "");
 }
 
 class UnsafeSharedMemoryRegionTest : public ::testing::Test {};

@@ -120,8 +120,8 @@ UDPSocketWin::Core::Core(UDPSocketWin* socket)
     : socket_(socket),
       reader_(this),
       writer_(this) {
-  SbMemorySet(&read_overlapped_, 0, sizeof(read_overlapped_));
-  SbMemorySet(&write_overlapped_, 0, sizeof(write_overlapped_));
+  memset(&read_overlapped_, 0, sizeof(read_overlapped_));
+  memset(&write_overlapped_, 0, sizeof(write_overlapped_));
 
   read_overlapped_.hEvent = WSACreateEvent();
   write_overlapped_.hEvent = WSACreateEvent();
@@ -133,9 +133,9 @@ UDPSocketWin::Core::~Core() {
   write_watcher_.StopWatching();
 
   WSACloseEvent(read_overlapped_.hEvent);
-  SbMemorySet(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
+  memset(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
   WSACloseEvent(write_overlapped_.hEvent);
-  SbMemorySet(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
+  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
 }
 
 void UDPSocketWin::Core::WatchForRead() {

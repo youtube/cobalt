@@ -29,7 +29,7 @@ bool ProcessIterator::CheckForNextProcess() {
 }
 
 void ProcessIterator::InitProcessEntry(ProcessEntry* entry) {
-  SbMemorySet(entry, 0, sizeof(*entry));
+  memset(entry, 0, sizeof(*entry));
   entry->dwSize = sizeof(*entry);
 }
 

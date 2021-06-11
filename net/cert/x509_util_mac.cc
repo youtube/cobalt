@@ -161,7 +161,7 @@ bool IsSelfSigned(SecCertificateRef cert_handle) {
 
 SHA256HashValue CalculateFingerprint256(SecCertificateRef cert) {
   SHA256HashValue sha256;
-  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
+  memset(sha256.data, 0, sizeof(sha256.data));
 
   CSSM_DATA cert_data;
   OSStatus status = SecCertificateGetData(cert, &cert_data);
@@ -238,7 +238,7 @@ OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
   // This behaviour is used to implement EV-only revocation checking.
   if (enable_revocation_checking) {
     CSSM_APPLE_TP_CRL_OPTIONS tp_crl_options;
-    SbMemorySet(&tp_crl_options, 0, sizeof(tp_crl_options));
+    memset(&tp_crl_options, 0, sizeof(tp_crl_options));
     tp_crl_options.Version = CSSM_APPLE_TP_CRL_OPTS_VERSION;
     // Only allow network CRL fetches if the caller explicitly requests
     // online revocation checking. Note that, as of OS X 10.7.2, the system
@@ -263,7 +263,7 @@ OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
   // accessing the network. This is done because the TP will force an OCSP
   // policy to be present when it believes the certificate is EV.
   CSSM_APPLE_TP_OCSP_OPTIONS tp_ocsp_options;
-  SbMemorySet(&tp_ocsp_options, 0, sizeof(tp_ocsp_options));
+  memset(&tp_ocsp_options, 0, sizeof(tp_ocsp_options));
   tp_ocsp_options.Version = CSSM_APPLE_TP_OCSP_OPTS_VERSION;
 
   if (enable_revocation_checking) {

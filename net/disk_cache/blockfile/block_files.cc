@@ -353,7 +353,7 @@ void BlockFiles::DeleteBlock(Addr address, bool deep) {
 
   if (!zero_buffer_) {
     zero_buffer_ = new char[Addr::BlockSizeForFileType(BLOCK_4K) * 4];
-    SbMemorySet(zero_buffer_, 0, Addr::BlockSizeForFileType(BLOCK_4K) * 4);
+    memset(zero_buffer_, 0, Addr::BlockSizeForFileType(BLOCK_4K) * 4);
   }
   MappedFile* file = GetFile(address);
   if (!file)
@@ -448,7 +448,7 @@ bool BlockFiles::CreateBlockFile(int index, FileType file_type, bool force) {
     return false;
 
   BlockFileHeader header;
-  SbMemorySet(&header, 0, sizeof(header));
+  memset(&header, 0, sizeof(header));
   header.magic = kBlockMagic;
   header.version = kBlockVersion2;
   header.entry_size = Addr::BlockSizeForFileType(file_type);

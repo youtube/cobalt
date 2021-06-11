@@ -38,7 +38,7 @@ void BasicTest(SbSystemPathId id,
                int line) {
 #define LOCAL_CONTEXT "Context : id=" << id << ", line=" << line;
   std::vector<char> path(kPathSize);
-  SbMemorySet(path.data(), 0xCD, kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
   bool result = SbSystemGetPath(id, path.data(), kPathSize);
   if (expect_result) {
     EXPECT_EQ(expected_result, result) << LOCAL_CONTEXT;
@@ -55,7 +55,7 @@ void BasicTest(SbSystemPathId id,
 
 void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
   std::vector<char> path(kPathSize);
-  SbMemorySet(path.data(), 0xCD, kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
   for (size_t i = 0; i <= kPathSize; ++i) {
     if (SbSystemGetPath(id, path.data(), i)) {
       return;
@@ -111,7 +111,7 @@ TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
 
 TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
   std::vector<char> path(kPathSize);
-  SbMemorySet(path.data(), 0xCD, kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
   bool result =
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), kPathSize);
   EXPECT_TRUE(result);
@@ -140,7 +140,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
 
 TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   std::vector<char> path(kPathSize);
-  SbMemorySet(path.data(), 0xCD, kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
   bool result =
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), kPathSize);
   EXPECT_TRUE(result);
@@ -189,7 +189,7 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   // Verify that the creation time of the current executable file is not
   // greater than the current time.
   std::vector<char> path(kPathSize);
-  SbMemorySet(path.data(), 0xCD, kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
   bool result =
       SbSystemGetPath(kSbSystemPathExecutableFile, path.data(), kPathSize);
   ASSERT_TRUE(result);

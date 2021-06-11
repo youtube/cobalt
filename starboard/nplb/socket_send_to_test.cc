@@ -43,7 +43,7 @@ void* SendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // The contents of this buffer are inconsequential.
   const size_t kBufSize = 1024;
   char* send_buf = new char[kBufSize];
-  SbMemorySet(send_buf, 0, kBufSize);
+  memset(send_buf, 0, kBufSize);
 
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application

@@ -1050,7 +1050,7 @@ DevInput::Event* CreateAnalogButtonKeyEvent(SbWindow window,
   }
 
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
   data->timestamp = SbTimeGetMonotonicNow();
   data->window = window;
   data->type = type;
@@ -1070,7 +1070,7 @@ DevInput::Event* CreateMoveEventWithKey(SbWindow window,
                                         int modifiers,
                                         const SbInputVector& input_vector) {
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
 
   data->timestamp = SbTimeGetMonotonicNow();
   data->window = window;
@@ -1097,7 +1097,7 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
                                      int modifiers,
                                      const SbInputVector& input_vector) {
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
 
   data->timestamp = SbTimeGetMonotonicNow();
   data->window = window;
@@ -1288,7 +1288,7 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
   }
 
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
   data->timestamp = SbTimeGetMonotonicNow();
   data->window = window_;
   data->type =

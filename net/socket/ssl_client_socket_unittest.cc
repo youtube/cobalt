@@ -2355,14 +2355,14 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
   const char kKeyingLabel1[] = "client-socket-test-1";
   const char kKeyingContext1[] = "";
   unsigned char client_out1[kKeyingMaterialSize];
-  SbMemorySet(client_out1, 0, sizeof(client_out1));
+  memset(client_out1, 0, sizeof(client_out1));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, false, kKeyingContext1,
                                    client_out1, sizeof(client_out1));
   EXPECT_EQ(rv, OK);
 
   const char kKeyingLabel2[] = "client-socket-test-2";
   unsigned char client_out2[kKeyingMaterialSize];
-  SbMemorySet(client_out2, 0, sizeof(client_out2));
+  memset(client_out2, 0, sizeof(client_out2));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel2, false, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
@@ -2376,7 +2376,7 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
 
   // Using an empty context should give different key material from not using a
   // context at all.
-  SbMemorySet(client_out2, 0, sizeof(client_out2));
+  memset(client_out2, 0, sizeof(client_out2));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, true, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
@@ -3503,7 +3503,7 @@ TEST_F(SSLClientSocketTest, SendGoodCert) {
 HashValueVector MakeHashValueVector(uint8_t value) {
   HashValueVector out;
   HashValue hash(HASH_VALUE_SHA256);
-  SbMemorySet(hash.data(), value, hash.size());
+  memset(hash.data(), value, hash.size());
   out.push_back(hash);
   return out;
 }

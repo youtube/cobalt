@@ -692,8 +692,8 @@ TEST(YUVConvertTest, FilterYUVRows_C_OutOfBounds) {
   std::unique_ptr<uint8_t[]> src(new uint8_t[16]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[16]);
 
-  SbMemorySet(src.get(), 0xff, 16);
-  SbMemorySet(dst.get(), 0, 16);
+  memset(src.get(), 0xff, 16);
+  memset(dst.get(), 0, 16);
 
   media::FilterYUVRows_C(dst.get(), src.get(), src.get(), 1, 255);
 
@@ -713,8 +713,8 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_OutOfBounds) {
   std::unique_ptr<uint8_t[]> src(new uint8_t[16]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[16]);
 
-  SbMemorySet(src.get(), 0xff, 16);
-  SbMemorySet(dst.get(), 0, 16);
+  memset(src.get(), 0xff, 16);
+  memset(dst.get(), 0, 16);
 
   media::FilterYUVRows_SSE2(dst.get(), src.get(), src.get(), 1, 255);
 
@@ -736,8 +736,8 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
   std::unique_ptr<uint8_t[]> dst_sample(new uint8_t[kSize]);
   std::unique_ptr<uint8_t[]> dst(new uint8_t[kSize]);
 
-  SbMemorySet(dst_sample.get(), 0, kSize);
-  SbMemorySet(dst.get(), 0, kSize);
+  memset(dst_sample.get(), 0, kSize);
+  memset(dst.get(), 0, kSize);
   for (int i = 0; i < kSize; ++i) src[i] = 100 + i;
 
   media::FilterYUVRows_C(dst_sample.get(), src.get(), src.get(), 37, 128);

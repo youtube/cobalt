@@ -209,8 +209,8 @@ SparseControl::SparseControl(EntryImpl* entry)
       child_offset_(0),
       child_len_(0),
       result_(0) {
-  SbMemorySet(&sparse_header_, 0, sizeof(sparse_header_));
-  SbMemorySet(&child_data_, 0, sizeof(child_data_));
+  memset(&sparse_header_, 0, sizeof(sparse_header_));
+  memset(&child_data_, 0, sizeof(child_data_));
 }
 
 SparseControl::~SparseControl() {
@@ -389,7 +389,7 @@ int SparseControl::CreateSparseEntry() {
   if (CHILD_ENTRY & entry_->GetEntryFlags())
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
-  SbMemorySet(&sparse_header_, 0, sizeof(sparse_header_));
+  memset(&sparse_header_, 0, sizeof(sparse_header_));
   sparse_header_.signature = Time::Now().ToInternalValue();
   sparse_header_.magic = kIndexMagic;
   sparse_header_.parent_key_len = entry_->GetKey().size();
@@ -670,7 +670,7 @@ int SparseControl::PartialBlockLength(int block_index) const {
 void SparseControl::InitChildData() {
   child_->SetEntryFlags(CHILD_ENTRY);
 
-  SbMemorySet(&child_data_, 0, sizeof(child_data_));
+  memset(&child_data_, 0, sizeof(child_data_));
   child_data_.header = sparse_header_;
 
   scoped_refptr<net::WrappedIOBuffer> buf =

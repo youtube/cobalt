@@ -64,7 +64,7 @@ void DummyConfigCallback(const DnsConfig& config) {
 
 // Fills in |res| with sane configuration.
 void InitializeResState(res_state res) {
-  SbMemorySet(res, 0, sizeof(*res));
+  memset(res, 0, sizeof(*res));
   res->options = RES_INIT | RES_RECURSE | RES_DEFNAMES | RES_DNSRCH |
                  RES_ROTATE;
   res->ndots = 2;
@@ -98,7 +98,7 @@ void InitializeResState(res_state res) {
     sa6->sin6_port = base::HostToNet16(NS_DEFAULTPORT - i);
     inet_pton(AF_INET6, kNameserversIPv6[i], &sa6->sin6_addr);
     res->_u._ext.nsaddrs[i] = sa6;
-    SbMemorySet(&res->nsaddr_list[i], 0, sizeof res->nsaddr_list[i]);
+    memset(&res->nsaddr_list[i], 0, sizeof res->nsaddr_list[i]);
     ++nscount6;
   }
   res->_u._ext.nscount6 = nscount6;

@@ -32,7 +32,6 @@
 #define assert SB_DCHECK
 #define getenv(x) NULL
 #define memcpy SbMemoryCopy
-#define memset SbMemorySet
 #define snprintf SbStringFormatF
 #define strchr (char *)SbStringFindCharacter
 #define strcmp SbStringCompareAll

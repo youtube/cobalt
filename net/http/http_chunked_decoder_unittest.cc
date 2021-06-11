@@ -399,7 +399,7 @@ TEST(HttpChunkedDecoderTest, MultipleExtraDataBlocks) {
 TEST(HttpChunkedDecoderTest, LongChunkLengthLine) {
   int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
   std::unique_ptr<char[]> big_chunk(new char[big_chunk_length + 1]);
-  SbMemorySet(big_chunk.get(), '0', big_chunk_length);
+  memset(big_chunk.get(), '0', big_chunk_length);
   big_chunk[big_chunk_length] = 0;
   const char* const inputs[] = {
     big_chunk.get(),
@@ -413,7 +413,7 @@ TEST(HttpChunkedDecoderTest, LongChunkLengthLine) {
 TEST(HttpChunkedDecoderTest, LongLengthLengthLine) {
   int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
   std::unique_ptr<char[]> big_chunk(new char[big_chunk_length + 1]);
-  SbMemorySet(big_chunk.get(), '0', big_chunk_length);
+  memset(big_chunk.get(), '0', big_chunk_length);
   big_chunk[big_chunk_length] = 0;
   const char* const inputs[] = {
     "5;",

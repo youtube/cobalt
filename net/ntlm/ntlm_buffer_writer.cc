@@ -69,7 +69,7 @@ bool NtlmBufferWriter::WriteZeros(size_t count) {
   if (!CanWrite(count))
     return false;
 
-  SbMemorySet(GetBufferPtrAtCursor(), 0, count);
+  memset(GetBufferPtrAtCursor(), 0, count);
   AdvanceCursor(count);
   return true;
 }

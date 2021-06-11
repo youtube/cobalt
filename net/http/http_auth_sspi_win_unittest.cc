@@ -45,7 +45,7 @@ TEST(HttpAuthSSPITest, SplitUserAndDomain) {
 
 TEST(HttpAuthSSPITest, DetermineMaxTokenLength_Normal) {
   SecPkgInfoW package_info;
-  SbMemorySet(&package_info, 0x0, sizeof(package_info));
+  memset(&package_info, 0x0, sizeof(package_info));
   package_info.cbMaxToken = 1337;
 
   MockSSPILibrary mock_library;

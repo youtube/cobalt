@@ -148,7 +148,7 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
   }
 
   SB_DCHECK(dest_write_iterator_end >= dest_write_iterator);
-  SbMemorySet(dest_write_iterator, '\0',
+  memset(dest_write_iterator, '\0',
               dest_write_iterator_end - dest_write_iterator);
 
   return dest;
@@ -203,8 +203,6 @@ static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
 #undef strcspn
 #define strcspn(s1, s2) PoemGetSpanUntilCharacter(s1, s2)
 
-#undef memset
-#define memset(s, c, n) SbMemorySet(s, c, n)
 #undef memcpy
 #define memcpy(d, s, c) SbMemoryCopy(d, s, c)
 #undef memcmp

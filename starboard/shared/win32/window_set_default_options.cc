@@ -16,7 +16,7 @@
 #include "starboard/window.h"
 
 void SbWindowSetDefaultOptions(SbWindowOptions* options) {
-  SbMemorySet(options, 0, sizeof(*options));
+  memset(options, 0, sizeof(*options));
   options->size.width = 1920;
   options->size.height = 1080;
   options->name = "YouTube";

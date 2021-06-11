@@ -67,7 +67,7 @@ TYPED_TEST_CASE(AdvancedSbAtomicTest, AdvancedSbAtomicTestTypes);
 template <class SbAtomicType>
 SbAtomicType TestFillValue() {
   SbAtomicType val = 0;
-  SbMemorySet(&val, 0xa5, sizeof(SbAtomicType));
+  memset(&val, 0xa5, sizeof(SbAtomicType));
   return val;
 }
 
@@ -145,8 +145,8 @@ TYPED_TEST(AdvancedSbAtomicTest, IncrementSingleThread) {
   } s;
 
   TypeParam prev_word_value, next_word_value;
-  SbMemorySet(&prev_word_value, 0xFF, sizeof(TypeParam));
-  SbMemorySet(&next_word_value, 0xEE, sizeof(TypeParam));
+  memset(&prev_word_value, 0xFF, sizeof(TypeParam));
+  memset(&next_word_value, 0xEE, sizeof(TypeParam));
 
   s.prev_word = prev_word_value;
   s.count = 0;
@@ -364,7 +364,7 @@ TYPED_TEST(AdvancedSbAtomicTest, OnceMultipleThreads) {
 
     // The target buffer to store the data.
     char* target_data = new char[kDataPerThread];
-    SbMemorySet(target_data, 0, kDataPerThread);
+    memset(target_data, 0, kDataPerThread);
 
     // Each thread has a different set of data that it will try to set.
     char* data = new char[kTotalData];

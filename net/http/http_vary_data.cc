@@ -42,7 +42,7 @@ bool HttpVaryData::Init(const HttpRequestInfo& request_info,
     if (request_header == "*") {
       // What's in request_digest_ will never be looked at, but make it
       // deterministic so we don't serialize out uninitialized memory content.
-      SbMemorySet(&request_digest_, 0, sizeof(request_digest_));
+      memset(&request_digest_, 0, sizeof(request_digest_));
       return is_valid_ = true;
     }
     AddField(request_info, request_header, &ctx);

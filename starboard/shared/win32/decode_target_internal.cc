@@ -19,7 +19,7 @@
 #include "starboard/memory.h"
 
 SbDecodeTargetPrivate::SbDecodeTargetPrivate() : refcount(1) {
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
 }
 
 void SbDecodeTargetPrivate::AddRef() {

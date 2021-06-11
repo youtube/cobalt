@@ -739,7 +739,7 @@ TEST_F(PartitionAllocTest, GenericAllocSizes) {
          kExtraAllocSize;
   ptr = generic_allocator.root()->Alloc(size, type_name);
   EXPECT_TRUE(ptr);
-  SbMemorySet(ptr, 'A', size);
+  memset(ptr, 'A', size);
   ptr2 = generic_allocator.root()->Alloc(size, type_name);
   EXPECT_TRUE(ptr2);
   void* ptr3 = generic_allocator.root()->Alloc(size, type_name);
@@ -871,7 +871,7 @@ TEST_F(PartitionAllocTest, Realloc) {
   // realloc(0, size) should be equivalent to malloc().
   void* ptr =
       generic_allocator.root()->Realloc(nullptr, kTestAllocSize, type_name);
-  SbMemorySet(ptr, 'A', kTestAllocSize);
+  memset(ptr, 'A', kTestAllocSize);
   PartitionPage* page =
       PartitionPage::FromPointer(PartitionCookieFreePointerAdjust(ptr));
   // realloc(ptr, 0) should be equivalent to free().
@@ -884,7 +884,7 @@ TEST_F(PartitionAllocTest, Realloc) {
   size_t size = kSystemPageSize - kExtraAllocSize;
   EXPECT_EQ(size, generic_allocator.root()->ActualSize(size));
   ptr = generic_allocator.root()->Alloc(size, type_name);
-  SbMemorySet(ptr, 'A', size);
+  memset(ptr, 'A', size);
   ptr2 = generic_allocator.root()->Realloc(ptr, size + 1, type_name);
   EXPECT_NE(ptr, ptr2);
   char* char_ptr2 = static_cast<char*>(ptr2);
@@ -1927,8 +1927,8 @@ TEST_F(PartitionAllocTest, PurgeDiscardable) {
         requested_size - kExtraAllocSize, type_name);
     void* ptr4 = generic_allocator.root()->Alloc(
         requested_size - kExtraAllocSize, type_name);
-    SbMemorySet(ptr1, 'A', requested_size - kExtraAllocSize);
-    SbMemorySet(ptr2, 'A', requested_size - kExtraAllocSize);
+    memset(ptr1, 'A', requested_size - kExtraAllocSize);
+    memset(ptr2, 'A', requested_size - kExtraAllocSize);
     generic_allocator.root()->Free(ptr2);
     generic_allocator.root()->Free(ptr1);
     {
@@ -1973,7 +1973,7 @@ TEST_F(PartitionAllocTest, PurgeDiscardable) {
   {
     char* ptr1 = reinterpret_cast<char*>(generic_allocator.root()->Alloc(
         (32 * kSystemPageSize) - kExtraAllocSize, type_name));
-    SbMemorySet(ptr1, 'A', (32 * kSystemPageSize) - kExtraAllocSize);
+    memset(ptr1, 'A', (32 * kSystemPageSize) - kExtraAllocSize);
     generic_allocator.root()->Free(ptr1);
     ptr1 = reinterpret_cast<char*>(generic_allocator.root()->Alloc(
         (31 * kSystemPageSize) - kExtraAllocSize, type_name));
@@ -2005,7 +2005,7 @@ TEST_F(PartitionAllocTest, PurgeDiscardable) {
   {
     char* ptr1 = reinterpret_cast<char*>(generic_allocator.root()->Alloc(
         (64 * kSystemPageSize) - kExtraAllocSize, type_name));
-    SbMemorySet(ptr1, 'A', (64 * kSystemPageSize) - kExtraAllocSize);
+    memset(ptr1, 'A', (64 * kSystemPageSize) - kExtraAllocSize);
     generic_allocator.root()->Free(ptr1);
     ptr1 = reinterpret_cast<char*>(generic_allocator.root()->Alloc(
         (61 * kSystemPageSize) - kExtraAllocSize, type_name));
@@ -2170,11 +2170,11 @@ TEST_F(PartitionAllocTest, ReallocMovesCookies) {
   void* ptr = generic_allocator.root()->Alloc(kSize + 1, type_name);
   EXPECT_TRUE(ptr);
 
-  SbMemorySet(ptr, 0xbd, kSize + 1);
+  memset(ptr, 0xbd, kSize + 1);
   ptr = generic_allocator.root()->Realloc(ptr, kSize + 2, type_name);
   EXPECT_TRUE(ptr);
 
-  SbMemorySet(ptr, 0xbd, kSize + 2);
+  memset(ptr, 0xbd, kSize + 2);
   generic_allocator.root()->Free(ptr);
 }
 

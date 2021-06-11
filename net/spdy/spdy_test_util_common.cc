@@ -1075,7 +1075,7 @@ spdy::SpdyHeaderBlock SpdyTestUtil::ConstructHeaderBlock(
 namespace test {
 HashValue GetTestHashValue(uint8_t label) {
   HashValue hash_value(HASH_VALUE_SHA256);
-  SbMemorySet(hash_value.data(), label, hash_value.size());
+  memset(hash_value.data(), label, hash_value.size());
   return hash_value;
 }
 

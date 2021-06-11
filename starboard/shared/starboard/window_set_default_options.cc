@@ -17,5 +17,5 @@
 #include "starboard/memory.h"
 
 void SbWindowSetDefaultOptions(SbWindowOptions* options) {
-  SbMemorySet(options, 0, sizeof(*options));
+  memset(options, 0, sizeof(*options));
 }

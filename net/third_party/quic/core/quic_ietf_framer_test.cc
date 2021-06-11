@@ -473,7 +473,7 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
 
     char packet_buffer[kNormalPacketBufferSize];
-    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+    memset(packet_buffer, 0, sizeof(packet_buffer));
 
     Perspective old_perspective = framer_.perspective();
     // Set up the writer and transmit QuicMaxStreamIdFrame
@@ -535,7 +535,7 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
 
     char packet_buffer[kNormalPacketBufferSize];
-    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+    memset(packet_buffer, 0, sizeof(packet_buffer));
 
     Perspective old_perspective = framer_.perspective();
     // Set up the writer and transmit QuicMaxStreamIdFrame
@@ -1189,7 +1189,7 @@ TEST_F(QuicIetfFramerTest, MaxDataFrame) {
                                      20,      50,       100,      200,     500,
                                      1000000, kOffset8, kOffset4, kOffset2};
   for (QuicStreamOffset window_size : window_sizes) {
-    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+    memset(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicWindowUpdateFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1230,7 +1230,7 @@ TEST_F(QuicIetfFramerTest, MaxStreamDataFrame) {
 
   for (QuicIetfStreamId stream_id : stream_ids) {
     for (QuicStreamOffset window_size : window_sizes) {
-      SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+      memset(packet_buffer, 0, sizeof(packet_buffer));
 
       // Set up the writer and transmit QuicWindowUpdateFrame
       QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1286,7 +1286,7 @@ TEST_F(QuicIetfFramerTest, BlockedFrame) {
                                 kOffset0};
 
   for (QuicStreamOffset offset : offsets) {
-    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+    memset(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicBlockedFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1328,7 +1328,7 @@ TEST_F(QuicIetfFramerTest, StreamBlockedFrame) {
 
   for (QuicIetfStreamId stream_id : stream_ids) {
     for (QuicStreamOffset offset : offsets) {
-      SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+      memset(packet_buffer, 0, sizeof(packet_buffer));
 
       // Set up the writer and transmit QuicWindowUpdateFrame
       QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1398,7 +1398,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   SbMemoryCopy(&transmit_frame.stateless_reset_token, token_bytes,
                sizeof(transmit_frame.stateless_reset_token));
 
-  SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+  memset(packet_buffer, 0, sizeof(packet_buffer));
 
   // Set up the writer and transmit QuicStreamIdBlockedFrame
   QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1446,7 +1446,7 @@ TEST_F(QuicIetfFramerTest, RetireConnectionIdFrame) {
   QuicRetireConnectionIdFrame transmit_frame;
   transmit_frame.sequence_number = 0x01020304;
 
-  SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
+  memset(packet_buffer, 0, sizeof(packet_buffer));
 
   // Set up the writer and transmit QuicStreamIdBlockedFrame
   QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,

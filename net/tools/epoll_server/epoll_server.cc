@@ -534,7 +534,7 @@ void EpollServer::LogStateOnCrash() {
 
 void EpollServer::DelFD(int fd) const {
   struct epoll_event ee;
-  SbMemorySet(&ee, 0, sizeof(ee));
+  memset(&ee, 0, sizeof(ee));
 #ifdef EPOLL_SERVER_EVENT_TRACING
   event_recorder_.RecordFDMaskEvent(fd, 0, "DelFD");
 #endif
@@ -550,7 +550,7 @@ void EpollServer::DelFD(int fd) const {
 
 void EpollServer::AddFD(int fd, int event_mask) const {
   struct epoll_event ee;
-  SbMemorySet(&ee, 0, sizeof(ee));
+  memset(&ee, 0, sizeof(ee));
   ee.events = event_mask | EPOLLERR | EPOLLHUP;
   ee.data.fd = fd;
 #ifdef EPOLL_SERVER_EVENT_TRACING
@@ -568,7 +568,7 @@ void EpollServer::AddFD(int fd, int event_mask) const {
 
 void EpollServer::ModFD(int fd, int event_mask) const {
   struct epoll_event ee;
-  SbMemorySet(&ee, 0, sizeof(ee));
+  memset(&ee, 0, sizeof(ee));
   ee.events = event_mask | EPOLLERR | EPOLLHUP;
   ee.data.fd = fd;
 #ifdef EPOLL_SERVER_EVENT_TRACING

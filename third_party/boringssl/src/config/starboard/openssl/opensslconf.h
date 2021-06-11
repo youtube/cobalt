@@ -240,7 +240,7 @@
 #define OPENSSL_port_malloc SbMemoryAllocate
 #define OPENSSL_port_memcmp SbMemoryCompare
 #define OPENSSL_port_memcpy SbMemoryCopy
-#define OPENSSL_port_memset SbMemorySet
+#define OPENSSL_port_memset memset
 #define OPENSSL_port_printf SbLogFormatF
 #define OPENSSL_port_printferr SbLogFormatF
 #define OPENSSL_port_realloc SbMemoryReallocate

@@ -109,7 +109,7 @@ static SB_C_INLINE void ReadAndCheckStorage(SbStorageRecord record,
                                             int64_t total,
                                             int64_t pattern_offset = 0) {
   char* data = new char[total];
-  SbMemorySet(data, 0, total);
+  memset(data, 0, total);
   EXPECT_EQ(expected_length,
             SbStorageReadRecord(record, data + offset, length));
   CheckStorageBuffer(data, offset, expected_length, total, pattern_offset);

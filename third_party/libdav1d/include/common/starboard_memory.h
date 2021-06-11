@@ -31,11 +31,6 @@
 #endif
 #define memcpy SbMemoryCopy
 
-#ifdef memset
-#undef memset
-#endif
-#define memset SbMemorySet
-
 #ifdef free
 #undef free
 #endif

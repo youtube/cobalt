@@ -45,6 +45,8 @@
 #include "starboard/system.h"
 #include "starboard/types.h"
 
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -272,7 +274,6 @@ SB_EXPORT void* SbMemoryMove(void* destination,
                              const void* source,
                              size_t count);
 
-#endif
 
 // Fills |count| sequential bytes starting at |destination|, with the unsigned
 // char coercion of |byte_value|. This function is meant to be a drop-in
@@ -284,6 +285,7 @@ SB_EXPORT void* SbMemoryMove(void* destination,
 // |destination|: The destination of the copied memory.
 // |count|: The number of sequential bytes to be set.
 SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
+#endif // SB_API_VERSION < 13
 
 // Compares the contents of the first |count| bytes of |buffer1| and |buffer2|.
 // This function returns:
@@ -314,7 +316,7 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   size_t total = count * size;
   void* result = SbMemoryAllocate(total);
   if (result) {
-    SbMemorySet(result, 0, total);
+    memset(result, 0, total);
   }
   return result;
 }

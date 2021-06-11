@@ -331,7 +331,7 @@ TEST(PickleTest, FindNext) {
 TEST(PickleTest, FindNextWithIncompleteHeader) {
   size_t header_size = sizeof(Pickle::Header);
   std::unique_ptr<char[]> buffer(new char[header_size - 1]);
-  SbMemorySet(buffer.get(), 0x1, header_size - 1);
+  memset(buffer.get(), 0x1, header_size - 1);
 
   const char* start = buffer.get();
   const char* end = start + header_size - 1;

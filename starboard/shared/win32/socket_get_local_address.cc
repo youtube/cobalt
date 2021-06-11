@@ -33,11 +33,11 @@ bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress* out_address) {
     out_address->type = socket->address_type;
     switch (socket->address_type) {
       case kSbSocketAddressTypeIpv4:
-        SbMemorySet(out_address->address, 0, sbwin32::kAddressLengthIpv4);
+        memset(out_address->address, 0, sbwin32::kAddressLengthIpv4);
         out_address->port = 0;
         return true;
       case kSbSocketAddressTypeIpv6:
-        SbMemorySet(out_address->address, 0, sbwin32::kAddressLengthIpv6);
+        memset(out_address->address, 0, sbwin32::kAddressLengthIpv6);
         out_address->port = 0;
         return true;
       default:

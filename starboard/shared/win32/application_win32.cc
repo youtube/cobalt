@@ -280,7 +280,7 @@ Application::Event* ApplicationWin32::ProcessWinMouseEvent(SbWindow window,
                                                            WPARAM w_param,
                                                            LPARAM l_param) {
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
 
   data->window = window;
   data->device_type = kSbInputDeviceTypeMouse;

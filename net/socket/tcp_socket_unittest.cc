@@ -531,7 +531,7 @@ TEST_F(TCPSocketTest, DestroyWithPendingWrite) {
   scoped_refptr<IOBufferWithDestructionCallback> write_buffer(
       base::MakeRefCounted<IOBufferWithDestructionCallback>(
           run_loop.QuitClosure()));
-  SbMemorySet(write_buffer->data(), '1', write_buffer->size());
+  memset(write_buffer->data(), '1', write_buffer->size());
   TestCompletionCallback write_callback;
   while (true) {
     int result = connecting_socket->Write(

@@ -4177,7 +4177,7 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayOnDecompressionFailure) {
   // Read HEADERS with corrupted payload.
   spdy::SpdySerializedFrame resp(
       spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
-  SbMemorySet(resp.data() + 12, 0xcf, resp.size() - 12);
+  memset(resp.data() + 12, 0xcf, resp.size() - 12);
   MockRead reads[] = {CreateMockRead(resp, 1)};
 
   SequencedSocketData data(reads, writes);

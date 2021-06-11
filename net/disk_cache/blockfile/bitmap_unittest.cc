@@ -120,8 +120,8 @@ TEST(BitmapTest, SetAll) {
   const int kMapSize = 80;
   char ones[kMapSize];
   char zeros[kMapSize];
-  SbMemorySet(ones, 0xff, kMapSize);
-  SbMemorySet(zeros, 0, kMapSize);
+  memset(ones, 0xff, kMapSize);
+  memset(zeros, 0, kMapSize);
 
   disk_cache::Bitmap map(kMapSize * 8, true);
   EXPECT_EQ(0, SbMemoryCompare(zeros, map.GetMap(), kMapSize));

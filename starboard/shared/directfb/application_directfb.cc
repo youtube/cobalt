@@ -453,7 +453,7 @@ void ApplicationDirectFB::Teardown() {
       _exit(0);
     } else {
       struct sigaction sigaction_config;
-      SbMemorySet(&sigaction_config, 0, sizeof(sigaction_config));
+      memset(&sigaction_config, 0, sizeof(sigaction_config));
 
       sigaction_config.sa_handler = on_segv;
       sigemptyset(&sigaction_config.sa_mask);
@@ -523,7 +523,7 @@ shared::starboard::Application::Event* ApplicationDirectFB::DFBEventToEvent(
     SB_DCHECK(event.flags & DIEF_KEYID);
 
     SbInputData* data = new SbInputData();
-    SbMemorySet(data, 0, sizeof(*data));
+    memset(data, 0, sizeof(*data));
     data->timestamp = SbTimeGetMonotonicNow();
     data->window = window_;
     SB_DCHECK(SbWindowIsValid(data->window));

@@ -75,7 +75,7 @@ class WebSocketMessageContainerTest : public ::testing::Test {
         new net::IOBufferWithSize(payload_size));
 
     net::IOBufferWithSize& data_array(*chunk->data.get());
-    SbMemorySet(data_array.data(), payload_filler, data_array.size());
+    memset(data_array.data(), payload_filler, data_array.size());
 
     chunk->final_chunk = true;
     WebSocketFrameContainer::ErrorCode error_code =

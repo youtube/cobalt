@@ -69,7 +69,7 @@ struct WebPData {
 // Initializes the contents of the 'webp_data' object with default values.
 static WEBP_INLINE void WebPDataInit(WebPData* webp_data) {
   if (webp_data != NULL) {
-    SbMemorySet(webp_data, 0, sizeof(*webp_data));
+    memset(webp_data, 0, sizeof(*webp_data));
   }
 }
 

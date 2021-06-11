@@ -245,7 +245,7 @@ int EntryImpl::UserBuffer::Read(int offset, IOBuffer* buf, int len) {
   if (offset < offset_) {
     // We don't have a file so lets fill the first part with 0.
     clean_bytes = std::min(offset_ - offset, len);
-    SbMemorySet(buf->data(), 0, clean_bytes);
+    memset(buf->data(), 0, clean_bytes);
     if (len == clean_bytes)
       return len;
     offset = offset_;
@@ -425,9 +425,9 @@ bool EntryImpl::CreateEntry(Addr node_address,
   Trace("Create entry In");
   EntryStore* entry_store = entry_.Data();
   RankingsNode* node = node_.Data();
-  SbMemorySet(entry_store, 0,
+  memset(entry_store, 0,
               sizeof(EntryStore) * entry_.address().num_blocks());
-  SbMemorySet(node, 0, sizeof(RankingsNode));
+  memset(node, 0, sizeof(RankingsNode));
   if (!node_.LazyInit(backend_->File(node_address), node_address))
     return false;
 

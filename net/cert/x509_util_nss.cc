@@ -430,7 +430,7 @@ bool GetValidityTimes(CERTCertificate* cert,
 
 SHA256HashValue CalculateFingerprint256(CERTCertificate* cert) {
   SHA256HashValue sha256;
-  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
+  memset(sha256.data, 0, sizeof(sha256.data));
 
   DCHECK(cert->derCert.data);
   DCHECK_NE(0U, cert->derCert.len);

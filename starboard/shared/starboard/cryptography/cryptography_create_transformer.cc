@@ -106,7 +106,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
 
   SbCryptographyTransformer transformer =
       new SbCryptographyTransformerPrivate();
-  SbMemorySet(transformer, 0, sizeof(transformer));
+  memset(transformer, 0, sizeof(transformer));
   transformer->key = aeskey;
   transformer->algorithm = combined_algorithm;
   transformer->direction = direction;

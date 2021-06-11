@@ -126,7 +126,7 @@ HardwareDecodeTargetPrivate::HardwareDecodeTargetPrivate(
     const RECT& video_area,
     bool texture_RGBA)
     : texture_RGBA_(texture_RGBA) {
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.is_opaque = true;
   info.width = video_area.right;
   info.height = video_area.bottom;

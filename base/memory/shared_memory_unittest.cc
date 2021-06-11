@@ -167,7 +167,7 @@ TEST_P(SharedMemoryTest, OpenClose) {
   ASSERT_NE(memory2.memory(), static_cast<void*>(nullptr));
 
   // Write data to the first memory segment, verify contents of second.
-  SbMemorySet(memory1.memory(), '1', kDataSize);
+  memset(memory1.memory(), '1', kDataSize);
   EXPECT_EQ(SbMemoryCompare(memory1.memory(), memory2.memory(), kDataSize), 0);
 
   // Close the first memory segment, and verify the second has the right data.
@@ -213,7 +213,7 @@ TEST_P(SharedMemoryTest, OpenExclusive) {
   EXPECT_LT(memory1.mapped_size(),
             kDataSize + SysInfo::VMAllocationGranularity());
 
-  SbMemorySet(memory1.memory(), 'G', kDataSize);
+  memset(memory1.memory(), 'G', kDataSize);
 
   SharedMemory memory2;
   // Should not be able to create if openExisting is false.
@@ -261,7 +261,7 @@ TEST_P(SharedMemoryTest, CloseNoUnmap) {
   ASSERT_TRUE(memory.CreateAndMapAnonymous(kDataSize));
   char* ptr = static_cast<char*>(memory.memory());
   ASSERT_NE(ptr, static_cast<void*>(nullptr));
-  SbMemorySet(ptr, 'G', kDataSize);
+  memset(ptr, 'G', kDataSize);
 
   memory.Close();
 

@@ -98,7 +98,7 @@ void InitTrace(void) {
     return;
 
   s_trace_buffer = new TraceBuffer;
-  SbMemorySet(s_trace_buffer, 0, sizeof(*s_trace_buffer));
+  memset(s_trace_buffer, 0, sizeof(*s_trace_buffer));
 }
 
 void DestroyTrace(void) {

@@ -34,7 +34,7 @@ const Sword kTestAddend = 5;
 class RelocationsTest : public ::testing::Test {
  protected:
   RelocationsTest() {
-    SbMemorySet(buf_, 'A', sizeof(buf_));
+    memset(buf_, 'A', sizeof(buf_));
     base_addr_ = reinterpret_cast<Addr>(&buf_);
     dynamic_table_[0].d_tag = DT_REL;
 

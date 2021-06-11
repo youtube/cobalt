@@ -11,7 +11,7 @@
 namespace quic {
 
 QuicBatchWriterBuffer::QuicBatchWriterBuffer() {
-  SbMemorySet(buffer_, 0, sizeof(buffer_));
+  memset(buffer_, 0, sizeof(buffer_));
 }
 
 QuicString QuicBatchWriterBuffer::DebugString() const {

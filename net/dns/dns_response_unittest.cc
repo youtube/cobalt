@@ -725,7 +725,7 @@ TEST(DnsResponseWriteTest,
       2 /* qclass */ +
       10 /* extra bytes that inflate the internal buffer of a query */;
   auto buf = base::MakeRefCounted<IOBufferWithSize>(buf_size);
-  SbMemorySet(buf->data(), 0, buf->size());
+  memset(buf->data(), 0, buf->size());
   base::BigEndianWriter writer(buf->data(), buf_size);
   writer.WriteU16(0x1234);                              // id
   writer.WriteU16(0);                                   // flags, is query

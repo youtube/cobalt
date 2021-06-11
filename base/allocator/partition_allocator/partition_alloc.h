@@ -433,7 +433,7 @@ template <size_t N>
 class SizeSpecificPartitionAllocator {
  public:
   SizeSpecificPartitionAllocator() {
-    SbMemorySet(
+    memset(
         actual_buckets_, 0,
         sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
   }

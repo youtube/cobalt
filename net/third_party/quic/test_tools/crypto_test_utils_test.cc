@@ -142,7 +142,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   QuicString nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
 
   char public_value[32];
-  SbMemorySet(public_value, 42, sizeof(public_value));
+  memset(public_value, 42, sizeof(public_value));
   QuicString pub_hex =
       "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 

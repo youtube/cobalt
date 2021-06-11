@@ -830,7 +830,7 @@ TEST_P(QuicFramerTest, LargePacket) {
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
 
-  SbMemorySet(p + header_size, 0, kMaxPacketSize - header_size);
+  memset(p + header_size, 0, kMaxPacketSize - header_size);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
   EXPECT_QUIC_BUG(framer_.ProcessPacket(encrypted), "Packet too large:1");
@@ -5441,7 +5441,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5673,7 +5673,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5762,7 +5762,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5851,7 +5851,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);

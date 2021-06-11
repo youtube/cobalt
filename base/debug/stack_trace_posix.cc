@@ -242,7 +242,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // replaced this signal handler upon entry, but we want to stay
     // installed. Thus, we reinstall ourselves before returning.
     struct sigaction action;
-    SbMemorySet(&action, 0, sizeof(action));
+    memset(&action, 0, sizeof(action));
     action.sa_flags = SA_RESETHAND | SA_SIGINFO;
     action.sa_sigaction = &StackDumpSignalHandler;
     sigemptyset(&action.sa_mask);
@@ -778,7 +778,7 @@ bool EnableInProcessStackDumping() {
   // to be ignored.  Therefore, when testing that same code, it should run
   // with SIGPIPE ignored as well.
   struct sigaction sigpipe_action;
-  SbMemorySet(&sigpipe_action, 0, sizeof(sigpipe_action));
+  memset(&sigpipe_action, 0, sizeof(sigpipe_action));
   sigpipe_action.sa_handler = SIG_IGN;
   sigemptyset(&sigpipe_action.sa_mask);
   bool success = (sigaction(SIGPIPE, &sigpipe_action, nullptr) == 0);
@@ -787,7 +787,7 @@ bool EnableInProcessStackDumping() {
   WarmUpBacktrace();
 
   struct sigaction action;
-  SbMemorySet(&action, 0, sizeof(action));
+  memset(&action, 0, sizeof(action));
   action.sa_flags = SA_RESETHAND | SA_SIGINFO;
   action.sa_sigaction = &StackDumpSignalHandler;
   sigemptyset(&action.sa_mask);

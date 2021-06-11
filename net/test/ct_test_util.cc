@@ -309,7 +309,7 @@ bool GetBadEmptySignedTreeHead(SignedTreeHead* sth) {
   sth->timestamp = base::Time::UnixEpoch() +
                    base::TimeDelta::FromMilliseconds(INT64_C(1450870952897));
   sth->tree_size = 0;
-  SbMemorySet(sth->sha256_root_hash, 'f', kSthRootHashLength);
+  memset(sth->sha256_root_hash, 'f', kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 
   std::string tree_head_signature = HexToBytes(

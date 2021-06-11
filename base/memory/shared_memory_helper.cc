@@ -134,8 +134,8 @@ bool PrepareMapFile(ScopedFD fd,
       crash_ptr = SbStringCopy(crash_ptr, kFileDataMarker,
                                SbStringGetLength(kFileDataMarker));
       for (int i = original_fd_limit; i >= 0; --i) {
-        SbMemorySet(buf, 0, arraysize(buf));
-        SbMemorySet(fd_path, 0, arraysize(fd_path));
+        memset(buf, 0, arraysize(buf));
+        memset(fd_path, 0, arraysize(fd_path));
         snprintf(fd_path, arraysize(fd_path) - 1, "/proc/self/fd/%d", i);
         ssize_t count = readlink(fd_path, buf, arraysize(buf) - 1);
         if (count < 0) {

@@ -26,7 +26,7 @@ namespace {
 
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
   CrashpadAnnotations annotations;
-  SbMemorySet(&annotations, 0, sizeof(CrashpadAnnotations));
+  memset(&annotations, 0, sizeof(CrashpadAnnotations));
   SbMemoryCopy(&annotations, crashpad_annotations, sizeof(CrashpadAnnotations));
   return third_party::crashpad::wrapper::AddAnnotationsToCrashpad(annotations);
 }

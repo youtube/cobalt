@@ -757,7 +757,7 @@ Vp9InterpolationFilter Vp9UncompressedHeaderParser::ReadInterpolationFilter() {
 }
 
 void Vp9UncompressedHeaderParser::SetupPastIndependence(Vp9FrameHeader* fhdr) {
-  SbMemorySet(&context_->segmentation_, 0, sizeof(context_->segmentation_));
+  memset(&context_->segmentation_, 0, sizeof(context_->segmentation_));
   ResetLoopfilter();
   fhdr->frame_context = kVp9DefaultFrameContext;
   DCHECK(fhdr->frame_context.IsValid());
@@ -898,7 +898,7 @@ void Vp9UncompressedHeaderParser::ResetLoopfilter() {
   loop_filter.ref_deltas[VP9_FRAME_GOLDEN] = -1;
   loop_filter.ref_deltas[VP9_FRAME_ALTREF] = -1;
 
-  SbMemorySet(loop_filter.mode_deltas, 0, sizeof(loop_filter.mode_deltas));
+  memset(loop_filter.mode_deltas, 0, sizeof(loop_filter.mode_deltas));
 }
 
 // 6.2 Uncompressed header syntax

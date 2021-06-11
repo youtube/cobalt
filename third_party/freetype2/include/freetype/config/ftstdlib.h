@@ -83,7 +83,7 @@
 #define ft_memcmp   SbMemoryCompare
 #define ft_memcpy   SbMemoryCopy
 #define ft_memmove  memmove
-#define ft_memset   SbMemorySet
+#define ft_memset   memset
 #define ft_strcat   SbStringConcatUnsafe
 #define ft_strcmp   SbStringCompareAll
 #define ft_strcpy   SbStringCopyUnsafe
@@ -164,7 +164,7 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
     return NULL;
   }
 
-  SbMemorySet(memory, 0, size);
+  memset(memory, 0, size);
   return memory;
 }
 #define ft_sfree     SbMemoryDeallocate

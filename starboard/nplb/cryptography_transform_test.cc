@@ -169,7 +169,7 @@ TEST_P(Aes, SunnyDayIdentity) {
   const int kInputSize = static_cast<int>(SbStringGetLength(kClearText));
   const int kBufferSize = static_cast<int>(sizeof(kClearText));
   char* cipher_text = new char[kBufferSize];
-  SbMemorySet(cipher_text, 0, kBufferSize);
+  memset(cipher_text, 0, kBufferSize);
   int count =
       SbCryptographyTransform(encrypter, kClearText, kInputSize, cipher_text);
   EXPECT_EQ(kInputSize, count);
@@ -201,7 +201,7 @@ TEST_P(Aes, SunnyDayIdentity) {
   }
 
   char* decrypted_text = new char[kBufferSize];
-  SbMemorySet(decrypted_text, 0, kBufferSize);
+  memset(decrypted_text, 0, kBufferSize);
   count = SbCryptographyTransform(decrypter, cipher_text, kInputSize,
                                   decrypted_text);
 

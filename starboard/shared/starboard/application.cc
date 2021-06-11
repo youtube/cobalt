@@ -572,7 +572,7 @@ void Application::CallTeardownCallbacks() {
 Application::Event* Application::CreateInitialEvent(SbEventType type) {
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
   SbEventStartData* start_data = new SbEventStartData();
-  SbMemorySet(start_data, 0, sizeof(SbEventStartData));
+  memset(start_data, 0, sizeof(SbEventStartData));
   const CommandLine::StringVector& args = command_line_->argv();
   start_data->argument_count = static_cast<int>(args.size());
   // Cobalt web_platform_tests expect an extra argv[argc] set to NULL.

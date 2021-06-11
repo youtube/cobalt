@@ -73,7 +73,7 @@ void UDPSocketPerfTest::WritePacketsToSocket(UDPClientSocket* socket,
                                              base::Closure done_callback) {
   scoped_refptr<IOBufferWithSize> io_buffer =
       base::MakeRefCounted<IOBufferWithSize>(kPacketSize);
-  SbMemorySet(io_buffer->data(), 'G', kPacketSize);
+  memset(io_buffer->data(), 'G', kPacketSize);
 
   while (num_of_packets) {
     int rv =

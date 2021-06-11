@@ -55,7 +55,7 @@ bool WebSocketDeflater::Initialize(int window_bits) {
   // See https://crbug.com/691074
   window_bits = -std::max(window_bits, 9);
 
-  SbMemorySet(stream_.get(), 0, sizeof(*stream_));
+  memset(stream_.get(), 0, sizeof(*stream_));
   int result = deflateInit2(stream_.get(),
                             Z_DEFAULT_COMPRESSION,
                             Z_DEFLATED,

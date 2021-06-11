@@ -29,7 +29,7 @@ namespace test_default {
 
 HashValue GetTestHashValue(uint8_t label, HashValueTag tag) {
   HashValue hash_value(tag);
-  SbMemorySet(hash_value.data(), label, hash_value.size());
+  memset(hash_value.data(), label, hash_value.size());
   return hash_value;
 }
 

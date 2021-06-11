@@ -87,7 +87,7 @@ TEST_P(SSLPlatformKeyNSSTest, KeyMatches) {
     SECItem encrypted_item = {siBuffer, encrypted.data(),
                               static_cast<unsigned>(encrypted.size())};
     SECKEYEncryptedPrivateKeyInfo epki;
-    SbMemorySet(&epki, 0, sizeof(epki));
+    memset(&epki, 0, sizeof(epki));
     crypto::ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
     ASSERT_EQ(SECSuccess,
               SEC_QuickDERDecodeItem(

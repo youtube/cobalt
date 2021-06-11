@@ -55,7 +55,7 @@ TraceEvent::TraceEvent()
       phase_(TRACE_EVENT_PHASE_BEGIN) {
   for (int i = 0; i < kTraceMaxNumArgs; ++i)
     arg_names_[i] = nullptr;
-  SbMemorySet(arg_values_, 0, sizeof(arg_values_));
+  memset(arg_values_, 0, sizeof(arg_values_));
 }
 
 TraceEvent::~TraceEvent() = default;

@@ -479,7 +479,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
       DLOG(FATAL) << "Attempted to init header streaming with "
                   << "invalid control frame type: " << header_control_type;
     }
-    SbMemorySet(header_buffer_.get(), 0, header_buffer_size_);
+    memset(header_buffer_.get(), 0, header_buffer_size_);
     header_buffer_length_ = 0;
     header_stream_id_ = stream_id;
     header_control_type_ = header_control_type;
@@ -3590,7 +3590,7 @@ TEST_P(SpdyFramerTest, ExpectContinuationReceiveControlFrame) {
 
 TEST_P(SpdyFramerTest, ReadGarbage) {
   unsigned char garbage_frame[256];
-  SbMemorySet(garbage_frame, ~0, sizeof(garbage_frame));
+  memset(garbage_frame, ~0, sizeof(garbage_frame));
   TestSpdyVisitor visitor(SpdyFramer::DISABLE_COMPRESSION);
   visitor.SimulateInFramer(garbage_frame, sizeof(garbage_frame));
   EXPECT_EQ(1, visitor.error_count_);

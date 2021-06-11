@@ -200,7 +200,7 @@ TlsVectorEntry* ConstructTlsVector() {
   // our service is in place. (i.e., don't even call new until after we're
   // setup)
   TlsVectorEntry stack_allocated_tls_data[kThreadLocalStorageSize];
-  SbMemorySet(stack_allocated_tls_data, 0, sizeof(stack_allocated_tls_data));
+  memset(stack_allocated_tls_data, 0, sizeof(stack_allocated_tls_data));
   // Ensure that any rentrant calls change the temp version.
   PlatformThreadLocalStorage::SetTLSValue(key, stack_allocated_tls_data);
 

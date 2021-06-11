@@ -26,7 +26,7 @@ void TestProperty(SbUser user, SbUserPropertyId property_id) {
 
   if (size > 0) {
     char* property = new char[size + 10];
-    SbMemorySet(property, 0, size + 10);
+    memset(property, 0, size + 10);
     EXPECT_TRUE(SbUserGetProperty(user, property_id, property, size));
     for (int i = 0; i < size - 1; ++i) {
       EXPECT_NE(property[i], '\0') << "position " << i;

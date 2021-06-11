@@ -549,7 +549,7 @@ uint64_t MockGetMSTime() {
 void MockGenerateRandom(uint8_t* output, size_t n) {
   // This is set to 0xaa because the client challenge for testing in
   // [MS-NLMP] Section 4.2.1 is 8 bytes of 0xaa.
-  SbMemorySet(output, 0xaa, n);
+  memset(output, 0xaa, n);
 }
 
 std::string MockGetHostName() {

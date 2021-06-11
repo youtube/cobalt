@@ -55,7 +55,7 @@ class ElfHeaderTest : public ::testing::Test {
  protected:
   ElfHeaderTest() {
     elf_header_.reset(new ElfHeader());
-    SbMemorySet(reinterpret_cast<char*>(&ehdr_data_), 0, sizeof(ehdr_data_));
+    memset(reinterpret_cast<char*>(&ehdr_data_), 0, sizeof(ehdr_data_));
     ehdr_data_.e_machine = ELF_MACHINE;
     ehdr_data_.e_ident[0] = 0x7F;
     ehdr_data_.e_ident[1] = 'E';

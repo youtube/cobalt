@@ -16,6 +16,8 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
 void* SbMemorySet(void* destination, int byte_value, size_t count) {
   return memset(destination, byte_value, count);
 }
+#endif

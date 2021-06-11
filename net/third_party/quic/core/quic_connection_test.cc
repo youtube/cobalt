@@ -120,7 +120,7 @@ class TaggingEncrypter : public QuicEncrypter {
     // Memmove is safe for inplace encryption.
     memmove(output, plaintext.data(), plaintext.size());
     output += plaintext.size();
-    SbMemorySet(output, tag_, kTagSize);
+    memset(output, tag_, kTagSize);
     *output_length = len;
     return true;
   }
@@ -2844,7 +2844,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(8);
   size_t len = 10000;
   std::unique_ptr<char[]> data_array(new char[len]);
-  SbMemorySet(data_array.get(), '?', len);
+  memset(data_array.get(), '?', len);
   struct IOVEC iov;
   iov.iov_base = data_array.get();
   iov.iov_len = len;

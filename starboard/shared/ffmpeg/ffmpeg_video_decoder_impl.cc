@@ -70,7 +70,7 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
   frame->opaque = NULL;
 
   // The FFmpeg API expects us to zero the data pointers in this callback.
-  SbMemorySet(frame->data, 0, sizeof(frame->data));
+  memset(frame->data, 0, sizeof(frame->data));
 }
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 

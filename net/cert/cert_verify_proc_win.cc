@@ -689,7 +689,7 @@ CertDllVerifyRevocationWithCRLSet(DWORD encoding_type,
   // copy. If the caller didn't supply anything, it will be empty; otherwise,
   // it will be (non-owning) copies of the caller's original params.
   CERT_REVOCATION_PARA local_params;
-  SbMemorySet(&local_params, 0, sizeof(local_params));
+  memset(&local_params, 0, sizeof(local_params));
   if (revocation_params) {
     DWORD bytes_to_copy = std::min(revocation_params->cbSize,
                                    static_cast<DWORD>(sizeof(local_params)));
@@ -865,7 +865,7 @@ int CertVerifyProcWin::VerifyInternal(
 
   // Build and validate certificate chain.
   CERT_CHAIN_PARA chain_para;
-  SbMemorySet(&chain_para, 0, sizeof(chain_para));
+  memset(&chain_para, 0, sizeof(chain_para));
   chain_para.cbSize = sizeof(chain_para);
   // ExtendedKeyUsage.
   // We still need to request szOID_SERVER_GATED_CRYPTO and szOID_SGC_NETSCAPE
@@ -946,7 +946,7 @@ int CertVerifyProcWin::VerifyInternal(
   }
 
   CERT_STRONG_SIGN_SERIALIZED_INFO strong_signed_info;
-  SbMemorySet(&strong_signed_info, 0, sizeof(strong_signed_info));
+  memset(&strong_signed_info, 0, sizeof(strong_signed_info));
   strong_signed_info.dwFlags = 0;  // Don't check OCSP or CRL signatures.
 
   // Note that the following two configurations result in disabling support for
@@ -968,7 +968,7 @@ int CertVerifyProcWin::VerifyInternal(
   strong_signed_info.pwszCNGPubKeyMinBitLengths = key_sizes;
 
   CERT_STRONG_SIGN_PARA strong_sign_params;
-  SbMemorySet(&strong_sign_params, 0, sizeof(strong_sign_params));
+  memset(&strong_sign_params, 0, sizeof(strong_sign_params));
   strong_sign_params.cbSize = sizeof(strong_sign_params);
   strong_sign_params.dwInfoChoice = CERT_STRONG_SIGN_SERIALIZED_INFO_CHOICE;
   strong_sign_params.pSerializedInfo = &strong_signed_info;
@@ -1107,7 +1107,7 @@ int CertVerifyProcWin::VerifyInternal(
   base::string16 hostname16 = base::ASCIIToUTF16(hostname);
 
   SSL_EXTRA_CERT_CHAIN_POLICY_PARA extra_policy_para;
-  SbMemorySet(&extra_policy_para, 0, sizeof(extra_policy_para));
+  memset(&extra_policy_para, 0, sizeof(extra_policy_para));
   extra_policy_para.cbSize = sizeof(extra_policy_para);
   extra_policy_para.dwAuthType = AUTHTYPE_SERVER;
   // Certificate name validation happens separately, later, using an internal
@@ -1118,13 +1118,13 @@ int CertVerifyProcWin::VerifyInternal(
       const_cast<base::char16*>(hostname16.c_str());
 
   CERT_CHAIN_POLICY_PARA policy_para;
-  SbMemorySet(&policy_para, 0, sizeof(policy_para));
+  memset(&policy_para, 0, sizeof(policy_para));
   policy_para.cbSize = sizeof(policy_para);
   policy_para.dwFlags = 0;
   policy_para.pvExtraPolicyPara = &extra_policy_para;
 
   CERT_CHAIN_POLICY_STATUS policy_status;
-  SbMemorySet(&policy_status, 0, sizeof(policy_status));
+  memset(&policy_status, 0, sizeof(policy_status));
   policy_status.cbSize = sizeof(policy_status);
 
   if (!CertVerifyCertificateChainPolicy(

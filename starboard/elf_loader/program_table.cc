@@ -218,7 +218,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     // if the segment is writable, and does not end on a page boundary,
     // zero-fill it until the page limit.
     if ((phdr->p_flags & PF_W) != 0 && PAGE_OFFSET(seg_file_end) > 0) {
-      SbMemorySet(reinterpret_cast<void*>(seg_file_end), 0,
+      memset(reinterpret_cast<void*>(seg_file_end), 0,
                   PAGE_SIZE - PAGE_OFFSET(seg_file_end));
     }
 
@@ -242,7 +242,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       SB_CHECK(false);
 #endif
 
-      SbMemorySet(reinterpret_cast<void*>(seg_file_end), 0,
+      memset(reinterpret_cast<void*>(seg_file_end), 0,
                   seg_page_end - seg_file_end);
 #if (SB_API_VERSION >= 12 || SB_HAS(MMAP)) && SB_CAN(MAP_EXECUTABLE_MEMORY)
       SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
@@ -380,7 +380,7 @@ bool ProgramTable::ReserveLoadMemory() {
 
 void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   EvergreenInfo evergreen_info;
-  SbMemorySet(&evergreen_info, 0, sizeof(EvergreenInfo));
+  memset(&evergreen_info, 0, sizeof(EvergreenInfo));
   SbStringCopy(evergreen_info.file_path_buf, file_path,
                EVERGREEN_FILE_PATH_MAX_SIZE);
   evergreen_info.base_address = base_memory_address_;
