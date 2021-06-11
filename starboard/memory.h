@@ -255,6 +255,8 @@ SB_EXPORT void* SbMemoryCopy(void* destination,
                              const void* source,
                              size_t count);
 
+#if SB_API_VERSION < 13
+
 // Copies |count| sequential bytes from |source| to |destination|, with support
 // for the |source| and |destination| regions overlapping. This function is
 // meant to be a drop-in replacement for |memmove|.
@@ -269,6 +271,8 @@ SB_EXPORT void* SbMemoryCopy(void* destination,
 SB_EXPORT void* SbMemoryMove(void* destination,
                              const void* source,
                              size_t count);
+
+#endif
 
 // Fills |count| sequential bytes starting at |destination|, with the unsigned
 // char coercion of |byte_value|. This function is meant to be a drop-in

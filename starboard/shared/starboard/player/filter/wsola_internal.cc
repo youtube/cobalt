@@ -32,6 +32,8 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
+#include <cstring>
+
 // TODO: Detect Neon on ARM platform and enable SIMD.
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
@@ -254,7 +256,7 @@ int DecimatedSearch(int decimation,
       optimal_index = n;
       best_similarity = similarity[2];
     }
-    SbMemoryMove(similarity, &similarity[1], 2 * sizeof(*similarity));
+    memmove(similarity, &similarity[1], 2 * sizeof(*similarity));
   }
   return optimal_index;
 }

@@ -3917,7 +3917,7 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
   // Copy in the header, because the encrypter only populates the encrypted
   // plaintext content.
   const size_t ad_len = associated_data.length();
-  SbMemoryMove(buffer, associated_data.data(), ad_len);
+  memmove(buffer, associated_data.data(), ad_len);
   // Encrypt the plaintext into the buffer.
   size_t output_length = 0;
   if (!encrypter_[level]->EncryptPacket(

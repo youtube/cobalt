@@ -122,7 +122,7 @@ ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
     // JNI generator to generate dot-separated names. http://crbug.com/461773
     size_t bufsize = SbStringGetLength(class_name) + 1;
     char dotted_name[bufsize];
-    SbMemoryMove(dotted_name, class_name, bufsize);
+    memmove(dotted_name, class_name, bufsize);
     for (size_t i = 0; i < bufsize; ++i) {
       if (dotted_name[i] == '/') {
         dotted_name[i] = '.';

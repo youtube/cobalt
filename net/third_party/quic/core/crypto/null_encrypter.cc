@@ -47,7 +47,7 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
   }
   // TODO(ianswett): memmove required for in place encryption.  Placing the
   // hash at the end would allow use of memcpy, doing nothing for in place.
-  SbMemoryMove(output + GetHashLength(), plaintext.data(), plaintext.length());
+  memmove(output + GetHashLength(), plaintext.data(), plaintext.length());
   QuicUtils::SerializeUint128Short(hash,
                                    reinterpret_cast<unsigned char*>(output));
   *output_length = len;

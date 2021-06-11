@@ -787,7 +787,7 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
     }
     read_buf_->set_offset(save_amount);
     if (additional_save_amount) {
-      SbMemoryMove(read_buf_->data(),
+      memmove(read_buf_->data(),
                    read_buf_->StartOfBuffer() + read_buf_unused_offset_,
                    additional_save_amount);
       read_buf_->set_offset(save_amount + additional_save_amount);
@@ -897,7 +897,7 @@ int HttpStreamParser::HandleReadHeaderResult(int result) {
       int extra_bytes = read_buf_->offset() - end_of_header_offset;
       if (extra_bytes) {
         CHECK_GT(extra_bytes, 0);
-        SbMemoryMove(read_buf_->StartOfBuffer(),
+        memmove(read_buf_->StartOfBuffer(),
                      read_buf_->StartOfBuffer() + end_of_header_offset,
                      extra_bytes);
       }

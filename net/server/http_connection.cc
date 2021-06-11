@@ -72,7 +72,7 @@ void HttpConnection::ReadIOBuffer::DidConsume(int bytes) {
   DCHECK_LE(0, unconsumed_size);
   if (unconsumed_size > 0) {
     // Move unconsumed data to the start of buffer.
-    SbMemoryMove(StartOfBuffer(), StartOfBuffer() + bytes, unconsumed_size);
+    memmove(StartOfBuffer(), StartOfBuffer() + bytes, unconsumed_size);
   }
   base_->set_offset(unconsumed_size);
   data_ = base_->data();

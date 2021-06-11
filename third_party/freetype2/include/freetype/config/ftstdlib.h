@@ -82,7 +82,7 @@
 #include "starboard/memory.h"
 #define ft_memcmp   SbMemoryCompare
 #define ft_memcpy   SbMemoryCopy
-#define ft_memmove  SbMemoryMove
+#define ft_memmove  memmove
 #define ft_memset   SbMemorySet
 #define ft_strcat   SbStringConcatUnsafe
 #define ft_strcmp   SbStringCompareAll

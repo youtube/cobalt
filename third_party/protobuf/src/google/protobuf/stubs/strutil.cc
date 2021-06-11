@@ -45,7 +45,6 @@
 // "reverse poems" to move past this issue for host builds.  For why we don't
 // just use poems, see the comment in the #else clause.
 #define SbMemoryCopy memcpy
-#define SbMemoryMove memmove
 #define SbStringGetLength strlen
 #define SbStringCopyUnsafe strcpy
 #define PoemFindCharacterInString strchr
@@ -1293,7 +1292,7 @@ void DelocalizeRadix(char* buffer) {
     // extra bytes.
     char* target = buffer;
     do { ++buffer; } while (!IsValidFloatChar(*buffer) && *buffer != '\0');
-    SbMemoryMove(target, buffer, SbStringGetLength(buffer) + 1);
+    memmove(target, buffer, SbStringGetLength(buffer) + 1);
   }
 }
 

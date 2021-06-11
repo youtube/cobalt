@@ -173,7 +173,7 @@ int DecimatedSearch(int decimation, Interval exclude_interval,
       optimal_index = n;
       best_similarity = similarity[2];
     }
-    SbMemoryMove(similarity, &similarity[1], 2 * sizeof(*similarity));
+    memmove(similarity, &similarity[1], 2 * sizeof(*similarity));
   }
   return optimal_index;
 }
