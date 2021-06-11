@@ -240,7 +240,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 OBJECT_CONSTRUCTORS_IMPL(MutableBigInt, FreshlyAllocatedBigInt)
 NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
-#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 template <typename T, typename Isolate>
@@ -362,10 +361,9 @@ Handle<MutableBigInt> MutableBigInt::Copy(Isolate* isolate,
   int length = source->length();
   // Allocating a BigInt of the same length as an existing BigInt cannot throw.
   Handle<MutableBigInt> result = New(isolate, length).ToHandleChecked();
-  memcpy(
-      reinterpret_cast<void*>(result->address() + BigIntBase::kHeaderSize),
-      reinterpret_cast<void*>(source->address() + BigIntBase::kHeaderSize),
-      BigInt::SizeFor(length) - BigIntBase::kHeaderSize);
+  memcpy(reinterpret_cast<void*>(result->address() + BigIntBase::kHeaderSize),
+         reinterpret_cast<void*>(source->address() + BigIntBase::kHeaderSize),
+         BigInt::SizeFor(length) - BigIntBase::kHeaderSize);
   return result;
 }
 

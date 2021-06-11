@@ -5,7 +5,6 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 // TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/external-reference.h"

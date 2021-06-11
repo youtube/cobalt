@@ -98,10 +98,6 @@
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64

@@ -7,11 +7,6 @@
 
 #include <string>
 
-// The v8config.h above is needed to turn on V8_OS_STARBOARD
-#if defined(V8_OS_STARBOARD)
-#include "starboard/types.h"
-#endif
-
 // Conversion routines between UT8 and UTF16, used by string-16.{h,cc}. You may
 // want to use string-16.h directly rather than these.
 namespace v8_inspector {

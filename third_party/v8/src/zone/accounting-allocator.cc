@@ -14,10 +14,6 @@
 #include "src/zone/zone-compression.h"
 #include "src/zone/zone-segment.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 

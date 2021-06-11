@@ -16,10 +16,6 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/memory.h"
-#endif
-
 namespace v8 {
 namespace base {
 

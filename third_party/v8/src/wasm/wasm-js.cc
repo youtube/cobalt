@@ -12,7 +12,6 @@
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/wrappers.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"

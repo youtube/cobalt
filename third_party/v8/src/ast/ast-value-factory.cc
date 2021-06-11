@@ -29,7 +29,6 @@
 
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
@@ -39,10 +38,6 @@
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/utils-inl.h"
-
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
 
 namespace v8 {
 namespace internal {

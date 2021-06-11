@@ -136,10 +136,6 @@
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
-#if defined(V8_OS_STARBOARD)
-#include "src/poems.h"
-#endif
-
 #define TRACE_BS(...)                                     \
   do {                                                    \
     if (i::FLAG_trace_backing_store) PrintF(__VA_ARGS__); \

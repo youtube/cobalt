@@ -11,7 +11,6 @@
 #include <inttypes.h>
 
 #include "src/base/platform/elapsed-timer.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
@@ -3157,8 +3156,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #undef DECODE_IMPL2
 
   OpcodeHandler GetOpcodeHandler(uint8_t opcode) {
+#ifndef V8_OS_STARBOARD
+    static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers =
+        base::make_array<256>(GetOpcodeHandlerTableEntry);
+#else
     DCHECK(false);
     static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers{};
+#endif
     return kOpcodeHandlers[opcode];
   }
 

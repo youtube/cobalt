@@ -8,11 +8,6 @@
 #include <string.h>
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
-
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif  // V8_OS_STARBOARD
 
 namespace v8 {
 namespace base {

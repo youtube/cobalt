@@ -18,10 +18,6 @@
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 namespace v8 {
 namespace internal {
 namespace wasm {

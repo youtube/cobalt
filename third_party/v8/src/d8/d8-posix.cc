@@ -16,7 +16,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "src/base/platform/wrappers.h"
 #include "src/d8/d8.h"
 
 namespace v8 {

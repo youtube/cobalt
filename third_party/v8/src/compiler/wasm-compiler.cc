@@ -9,7 +9,6 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler-inl.h"
