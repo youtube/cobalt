@@ -9,6 +9,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"

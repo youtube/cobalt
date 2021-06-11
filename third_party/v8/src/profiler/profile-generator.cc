@@ -14,6 +14,10 @@
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

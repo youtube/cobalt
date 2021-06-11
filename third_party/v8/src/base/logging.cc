@@ -12,6 +12,10 @@
 #include "src/base/debug/stack_trace.h"
 #include "src/base/platform/platform.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace base {
 

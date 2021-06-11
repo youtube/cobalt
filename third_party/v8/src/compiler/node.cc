@@ -4,6 +4,10 @@
 
 #include "src/compiler/node.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {

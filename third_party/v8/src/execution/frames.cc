@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"

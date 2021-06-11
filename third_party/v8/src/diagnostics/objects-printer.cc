@@ -22,6 +22,11 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -2678,7 +2683,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
     void* object) {
   i::Object o(GetObjectFromRaw(object));
   if (!o.IsLayoutDescriptor()) {
-    i::PrintF("Please provide a layout descriptor\n");
+    printf("Please provide a layout descriptor\n");
   } else {
     i::LayoutDescriptor::cast(o).Print();
   }
@@ -2692,7 +2697,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object o(GetObjectFromRaw(object));
   if (!o.IsMap()) {
-    i::PrintF("Please provide a valid Map\n");
+    printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::DisallowHeapAllocation no_gc;

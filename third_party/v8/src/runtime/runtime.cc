@@ -5,6 +5,7 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"

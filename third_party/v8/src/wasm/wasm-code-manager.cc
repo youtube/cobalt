@@ -35,8 +35,13 @@
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN64)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
+
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
 
 #define TRACE_HEAP(...)                                   \
   do {                                                    \

@@ -22,6 +22,10 @@
 #include "unicode/uchar.h"
 #endif  // V8_INTL_SUPPORT
 
+#if defined(V8_OS_STARBOARD)
+#include "src/poems.h"
+#endif
+
 // Use token threaded dispatch iff the compiler supports computed gotos and the
 // build argument v8_enable_regexp_interpreter_threaded_dispatch was set.
 #if V8_HAS_COMPUTED_GOTO && \

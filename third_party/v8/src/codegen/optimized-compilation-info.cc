@@ -5,6 +5,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 
 #include "src/api/api.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"

@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "src/api/api-inl.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/execution/frames-inl.h"

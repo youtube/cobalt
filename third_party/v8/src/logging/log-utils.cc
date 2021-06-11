@@ -16,6 +16,10 @@
 #include "src/utils/vector.h"
 #include "src/utils/version.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

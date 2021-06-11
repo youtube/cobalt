@@ -4,6 +4,7 @@
 
 #include "src/compiler/simd-scalar-lowering.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/diamond.h"

@@ -15,6 +15,10 @@
 #include "src/base/platform/wrappers.h"
 #include "src/utils/memcopy.h"
 
+#if defined(V8_OS_STARBOARD)
+#include "v8/src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

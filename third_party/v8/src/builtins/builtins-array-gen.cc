@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-array-gen.h"
+#include "src/objects/torque-defined-classes.h"
+#include "src/objects/torque-defined-classes-inl.h"
 
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-string-gen.h"
@@ -15,6 +17,7 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
+
 #include "src/objects/torque-defined-classes.h"
 #include "src/objects/torque-defined-classes-inl.h"
 
