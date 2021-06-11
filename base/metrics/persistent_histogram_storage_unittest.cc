@@ -10,6 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -76,6 +77,9 @@ TEST_F(PersistentHistogramStorageTest, HistogramWriteTest) {
   // destruction of the PersistentHistogramStorage instance.
   EXPECT_TRUE(DirectoryExists(test_storage_dir()));
   EXPECT_FALSE(IsDirectoryEmpty(test_storage_dir()));
+
+  // Clean up for subsequent tests.
+  GlobalHistogramAllocator::ReleaseForTesting();
 }
 #endif  // !defined(OS_NACL) && !defined(OS_IOS)
 
