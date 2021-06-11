@@ -457,6 +457,9 @@ typedef enum SbEventType {
 // Structure representing a Starboard event and its data.
 typedef struct SbEvent {
   SbEventType type;
+#if SB_API_VERSION >= 13
+  SbTimeMonotonic timestamp;
+#endif  // SB_API_VERSION >= 13
   void* data;
 } SbEvent;
 

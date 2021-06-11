@@ -144,6 +144,31 @@ class Application {
   // deleting the event and calling the destructor on its data when it is
   // deleted.
   struct Event {
+#if SB_API_VERSION >= 13
+     Event(SbEventType type, SbTimeMonotonic timestamp,
+           void* data, SbEventDataDestructor destructor)
+        : event(new SbEvent()), destructor(destructor), error_level(0) {
+      event->type = type;
+      event->timestamp = timestamp;
+      event->data = data;
+    }
+
+    Event(SbEventType type, void* data, SbEventDataDestructor destructor)
+        : event(new SbEvent()), destructor(destructor), error_level(0) {
+      event->type = type;
+      event->timestamp = SbTimeGetMonotonicNow();
+      event->data = data;
+    }
+
+    explicit Event(TimedEvent* data)
+        : event(new SbEvent()),
+          destructor(&DeleteDestructor<TimedEvent>),
+          error_level(0) {
+      event->type = kSbEventTypeScheduled;
+      event->timestamp = SbTimeGetMonotonicNow();
+      event->data = data;
+    }
+#else  // SB_API_VERSION >= 13
     Event(SbEventType type, void* data, SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
       event->type = type;
@@ -156,6 +181,7 @@ class Application {
       event->type = kSbEventTypeScheduled;
       event->data = data;
     }
+#endif  // SB_API_VERSION >= 13
     ~Event() {
       if (destructor) {
         destructor(event->data);
