@@ -43,8 +43,6 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
           'SbMicrophoneOpenTest.*',
           'SbMicrophoneReadTest.*',
           'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
-          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
-          '.SunnyDaySourceForDestination/*',
           'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
           '.WriteContinuedLimitedInput/*',
       ],
