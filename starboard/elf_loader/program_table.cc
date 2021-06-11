@@ -65,7 +65,8 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   SB_DLOG(INFO) << "elf_header->e_phnum=" << elf_header->e_phnum;
 
   Addr page_min = PAGE_START(elf_header->e_phoff);
-  Addr page_max = PAGE_END(elf_header->e_phoff + (phdr_num_ * elf_header->e_phentsize));
+  Addr page_max =
+      PAGE_END(elf_header->e_phoff + (phdr_num_ * elf_header->e_phentsize));
   Addr page_offset = PAGE_OFFSET(elf_header->e_phoff);
 
   SB_DLOG(INFO) << "page_min=" << page_min;
@@ -379,7 +380,7 @@ bool ProgramTable::ReserveLoadMemory() {
 
 void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   EvergreenInfo evergreen_info;
-  SbMemorySet(&evergreen_info, sizeof(EvergreenInfo), 0);
+  SbMemorySet(&evergreen_info, 0, sizeof(EvergreenInfo));
   SbStringCopy(evergreen_info.file_path_buf, file_path,
                EVERGREEN_FILE_PATH_MAX_SIZE);
   evergreen_info.base_address = base_memory_address_;
