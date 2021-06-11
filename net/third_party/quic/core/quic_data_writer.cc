@@ -156,7 +156,7 @@ bool QuicDataWriter::WriteRepeatedByte(uint8_t byte, size_t count) {
     return false;
   }
 
-  SbMemorySet(dest, byte, count);
+  memset(dest, byte, count);
 
   length_ += count;
   return true;
@@ -167,7 +167,7 @@ void QuicDataWriter::WritePadding() {
   if (length_ > capacity_) {
     return;
   }
-  SbMemorySet(buffer_ + length_, 0x00, capacity_ - length_);
+  memset(buffer_ + length_, 0x00, capacity_ - length_);
   length_ = capacity_;
 }
 

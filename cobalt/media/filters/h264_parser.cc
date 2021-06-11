@@ -28,9 +28,9 @@ bool H264SliceHeader::IsSPSlice() const { return (slice_type % 5 == kSPSlice); }
 
 bool H264SliceHeader::IsSISlice() const { return (slice_type % 5 == kSISlice); }
 
-H264NALU::H264NALU() { SbMemorySet(this, 0, sizeof(*this)); }
+H264NALU::H264NALU() { memset(this, 0, sizeof(*this)); }
 
-H264SPS::H264SPS() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SPS::H264SPS() { memset(this, 0, sizeof(*this)); }
 
 // Based on T-REC-H.264 7.4.2.1.1, "Sequence parameter set data semantics",
 // available from http://www.itu.int/rec/T-REC-H.264.
@@ -107,11 +107,11 @@ base::Optional<math::Rect> H264SPS::GetVisibleRect() const {
                     coded_size->height() - crop_top - crop_bottom);
 }
 
-H264PPS::H264PPS() { SbMemorySet(this, 0, sizeof(*this)); }
+H264PPS::H264PPS() { memset(this, 0, sizeof(*this)); }
 
-H264SliceHeader::H264SliceHeader() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SliceHeader::H264SliceHeader() { memset(this, 0, sizeof(*this)); }
 
-H264SEIMessage::H264SEIMessage() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SEIMessage::H264SEIMessage() { memset(this, 0, sizeof(*this)); }
 
 #define READ_BITS_OR_RETURN(num_bits, out)                                 \
   do {                                                                     \
@@ -1216,7 +1216,7 @@ H264Parser::Result H264Parser::ParseSliceHeader(const H264NALU& nalu,
   const H264PPS* pps;
   Result res;
 
-  SbMemorySet(shdr, 0, sizeof(*shdr));
+  memset(shdr, 0, sizeof(*shdr));
 
   shdr->idr_pic_flag = (nalu.nal_unit_type == 5);
   shdr->nal_ref_idc = nalu.nal_ref_idc;
@@ -1358,7 +1358,7 @@ H264Parser::Result H264Parser::ParseSliceHeader(const H264NALU& nalu,
 H264Parser::Result H264Parser::ParseSEI(H264SEIMessage* sei_msg) {
   int byte;
 
-  SbMemorySet(sei_msg, 0, sizeof(*sei_msg));
+  memset(sei_msg, 0, sizeof(*sei_msg));
 
   READ_BITS_OR_RETURN(8, &byte);
   while (byte == 0xff) {

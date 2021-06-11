@@ -50,7 +50,7 @@ ColorSpace::ColorSpace()
       transfer_(kTransferIdUnspecified),
       matrix_(kMatrixIdUnspecified),
       range_(kRangeIdLimited) {
-  SbMemorySet(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
+  memset(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
 }
 
 ColorSpace::ColorSpace(PrimaryID primaries, TransferID transfer,
@@ -59,7 +59,7 @@ ColorSpace::ColorSpace(PrimaryID primaries, TransferID transfer,
       transfer_(transfer),
       matrix_(matrix),
       range_(range) {
-  SbMemorySet(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
+  memset(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
 }
 
 ColorSpace::ColorSpace(int primaries, int transfer, int matrix, RangeID range)
@@ -67,7 +67,7 @@ ColorSpace::ColorSpace(int primaries, int transfer, int matrix, RangeID range)
       transfer_(TransferIDFromInt(transfer)),
       matrix_(MatrixIDFromInt(matrix)),
       range_(range) {
-  SbMemorySet(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
+  memset(custom_primary_matrix_, 0, sizeof(custom_primary_matrix_));
 }
 
 ColorSpace::ColorSpace(const ColorSpace& other)

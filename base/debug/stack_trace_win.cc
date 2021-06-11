@@ -215,7 +215,7 @@ class SymbolContext {
           kMaxNameLength * sizeof(wchar_t) +
           sizeof(ULONG64) - 1) /
         sizeof(ULONG64)];
-      SbMemorySet(buffer, 0, sizeof(buffer));
+      memset(buffer, 0, sizeof(buffer));
 
       // Initialize symbol information retrieval structures.
       DWORD64 sym_displacement = 0;
@@ -315,7 +315,7 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   count_ = 0;
   // Initialize stack walking.
   STACKFRAME64 stack_frame;
-  SbMemorySet(&stack_frame, 0, sizeof(stack_frame));
+  memset(&stack_frame, 0, sizeof(stack_frame));
 #if defined(_WIN64)
   int machine_type = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset = context_record->Rip;

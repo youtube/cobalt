@@ -1567,7 +1567,7 @@ int SimpleEntryImpl::SetStream0Data(net::IOBuffer* buf,
     // zero-filled.
     const int fill_size = offset <= data_size ? 0 : offset - data_size;
     if (fill_size > 0)
-      SbMemorySet(stream_0_data_->data() + data_size, 0, fill_size);
+      memset(stream_0_data_->data() + data_size, 0, fill_size);
     if (buf)
       SbMemoryCopy(stream_0_data_->data() + offset, buf->data(), buf_len);
     data_size_[0] = buffer_size;

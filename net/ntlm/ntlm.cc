@@ -171,7 +171,7 @@ void Create3DesKeysFromNtlmHash(
   keys[16] = ntlm_hash[14];
   keys[17] = ntlm_hash[14] << 7 | ntlm_hash[15] >> 1;
   keys[18] = ntlm_hash[15] << 6;
-  SbMemorySet(keys.data() + 19, 0, 5);
+  memset(keys.data() + 19, 0, 5);
 }
 
 void GenerateNtlmHashV1(const base::string16& password,
@@ -245,7 +245,7 @@ void GenerateLMResponseV1WithSessionSecurity(
   // In NTLM v1 with Session Security (aka NTLM2) the lm_response is 8 bytes of
   // client challenge and 16 bytes of zeros. (See 3.3.1)
   SbMemoryCopy(lm_response.data(), client_challenge.data(), kChallengeLen);
-  SbMemorySet(lm_response.data() + kChallengeLen, 0,
+  memset(lm_response.data() + kChallengeLen, 0,
               kResponseLenV1 - kChallengeLen);
 }
 

@@ -148,7 +148,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     SbMemoryCopy(orbit_, orbit.data(), orbit.size());
 
     char public_value[32];
-    SbMemorySet(public_value, 42, sizeof(public_value));
+    memset(public_value, 42, sizeof(public_value));
 
     nonce_hex_ = "#" + QuicTextUtils::HexEncode(GenerateNonce());
     pub_hex_ =

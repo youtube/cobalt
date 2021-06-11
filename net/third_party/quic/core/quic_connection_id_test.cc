@@ -43,7 +43,7 @@ TEST_F(QuicConnectionIdTest, ZeroIsNotEmpty) {
 
 TEST_F(QuicConnectionIdTest, Data) {
   char connection_id_data[kQuicDefaultConnectionIdLength];
-  SbMemorySet(connection_id_data, 0x42, sizeof(connection_id_data));
+  memset(connection_id_data, 0x42, sizeof(connection_id_data));
   QuicConnectionId connection_id1 =
       QuicConnectionId(connection_id_data, sizeof(connection_id_data));
   QuicConnectionId connection_id2 =

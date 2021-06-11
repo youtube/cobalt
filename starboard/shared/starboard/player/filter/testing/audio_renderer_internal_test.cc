@@ -210,7 +210,7 @@ class AudioRendererTest : public ::testing::Test {
         kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
         frames * kDefaultNumberOfChannels *
             media::GetBytesPerSample(sample_type_));
-    SbMemorySet(decoded_audio->buffer(), 0, decoded_audio->size());
+    memset(decoded_audio->buffer(), 0, decoded_audio->size());
     return decoded_audio;
   }
 

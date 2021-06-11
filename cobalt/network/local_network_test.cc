@@ -28,7 +28,7 @@ SbSocketAddress ParseSocketAddress(const char (&address)[N]) {
   const char* spec = address;
   url::Component component = url::MakeRange(0, N - 1);
   SbSocketAddress out_socket_address;
-  SbMemorySet(&out_socket_address, 0, sizeof(SbSocketAddress));
+  memset(&out_socket_address, 0, sizeof(SbSocketAddress));
   CHECK(ParseSocketAddress(spec, component, &out_socket_address));
   return out_socket_address;
 }

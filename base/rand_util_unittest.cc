@@ -43,7 +43,7 @@ TEST(RandUtilTest, RandDouble) {
 TEST(RandUtilTest, RandBytes) {
   const size_t buffer_size = 50;
   char buffer[buffer_size];
-  SbMemorySet(buffer, 0, buffer_size);
+  memset(buffer, 0, buffer_size);
   base::RandBytes(buffer, buffer_size);
   std::sort(buffer, buffer + buffer_size);
   // Probability of occurrence of less than 25 unique bytes in 50 random bytes

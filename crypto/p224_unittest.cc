@@ -811,7 +811,7 @@ TEST(P224, Addition) {
 
 TEST(P224, Infinity) {
   char zeros[56];
-  SbMemorySet(zeros, 0, sizeof(zeros));
+  memset(zeros, 0, sizeof(zeros));
 
   // Test that x^0 = ∞.
   Point a;

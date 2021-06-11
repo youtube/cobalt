@@ -266,7 +266,7 @@ scoped_refptr<render_tree::Image>
 HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
   DCHECK_NE(kSbDecodeTargetFormat1PlaneBGRA, info.format);
 

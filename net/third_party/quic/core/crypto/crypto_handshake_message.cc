@@ -254,7 +254,7 @@ QuicErrorCode CryptoHandshakeMessage::GetPOD(QuicTag tag,
   }
 
   if (ret != QUIC_NO_ERROR) {
-    SbMemorySet(out, 0, len);
+    memset(out, 0, len);
     return ret;
   }
 

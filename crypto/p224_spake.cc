@@ -106,8 +106,8 @@ namespace crypto {
 P224EncryptedKeyExchange::P224EncryptedKeyExchange(PeerType peer_type,
                                                    base::StringPiece password)
     : state_(kStateInitial), is_server_(peer_type == kPeerTypeServer) {
-  SbMemorySet(&x_, 0, sizeof(x_));
-  SbMemorySet(&expected_authenticator_, 0, sizeof(expected_authenticator_));
+  memset(&x_, 0, sizeof(x_));
+  memset(&expected_authenticator_, 0, sizeof(expected_authenticator_));
 
   // x_ is a random scalar.
   RandBytes(x_, sizeof(x_));
@@ -265,7 +265,7 @@ const std::string& P224EncryptedKeyExchange::GetUnverifiedKey() const {
 }
 
 void P224EncryptedKeyExchange::SetXForTesting(const std::string& x) {
-  SbMemorySet(&x_, 0, sizeof(x_));
+  memset(&x_, 0, sizeof(x_));
   SbMemoryCopy(&x_, x.data(), std::min(x.size(), sizeof(x_)));
   Init();
 }

@@ -409,7 +409,7 @@ TEST(DiscardableSharedMemoryTest, ZeroFilledPagesAfterPurge) {
   ASSERT_TRUE(rv);
 
   // Initialize all memory to '0xaa'.
-  SbMemorySet(memory2.memory(), 0xaa, kDataSize);
+  memset(memory2.memory(), 0xaa, kDataSize);
 
   // Unlock memory.
   memory2.SetNow(Time::FromDoubleT(1));

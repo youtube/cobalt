@@ -193,7 +193,7 @@ class QuicUdpBatchWriterIOTest
     for (int bytes_sent = 0; bytes_sent < data_size_;
          bytes_sent += this_packet_size, ++this_packet_content) {
       this_packet_size = std::min(packet_size_, data_size_ - bytes_sent);
-      SbMemorySet(&packet_buffer_[0], this_packet_content, this_packet_size);
+      memset(&packet_buffer_[0], this_packet_content, this_packet_size);
 
       result = GetWriter()->WritePacket(&packet_buffer_[0], this_packet_size,
                                         self_address_.host(), peer_address_,

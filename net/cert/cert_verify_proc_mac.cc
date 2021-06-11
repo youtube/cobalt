@@ -539,7 +539,7 @@ int BuildAndEvaluateSecTrustRef(CFArrayRef cert_array,
   }
 
   CSSM_APPLE_TP_ACTION_DATA tp_action_data;
-  SbMemorySet(&tp_action_data, 0, sizeof(tp_action_data));
+  memset(&tp_action_data, 0, sizeof(tp_action_data));
   tp_action_data.Version = CSSM_APPLE_TP_ACTION_VERSION;
   // Allow CSSM to download any missing intermediate certificates if an
   // authorityInfoAccess extension or issuerAltName extension is present.

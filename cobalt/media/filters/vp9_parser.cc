@@ -149,9 +149,9 @@ void Vp9Parser::Context::Vp9FrameContextManager::UpdateFromClient(
 }
 
 void Vp9Parser::Context::Reset() {
-  SbMemorySet(&segmentation_, 0, sizeof(segmentation_));
-  SbMemorySet(&loop_filter_, 0, sizeof(loop_filter_));
-  SbMemorySet(&ref_slots_, 0, sizeof(ref_slots_));
+  memset(&segmentation_, 0, sizeof(segmentation_));
+  memset(&loop_filter_, 0, sizeof(loop_filter_));
+  memset(&ref_slots_, 0, sizeof(ref_slots_));
   for (auto& manager : frame_context_managers_) manager.Reset();
 }
 
@@ -224,7 +224,7 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(Vp9FrameHeader* fhdr) {
     curr_frame_info_ = frames_.front();
     frames_.pop_front();
 
-    SbMemorySet(&curr_frame_header_, 0, sizeof(curr_frame_header_));
+    memset(&curr_frame_header_, 0, sizeof(curr_frame_header_));
 
     Vp9UncompressedHeaderParser uncompressed_parser(&context_);
     if (!uncompressed_parser.Parse(curr_frame_info_.ptr, curr_frame_info_.size,
@@ -504,7 +504,7 @@ void Vp9Parser::SetupLoopFilter() {
     }
 
     if (!loop_filter.delta_enabled) {
-      SbMemorySet(loop_filter.lvl[i], level, sizeof(loop_filter.lvl[i]));
+      memset(loop_filter.lvl[i], level, sizeof(loop_filter.lvl[i]));
     } else {
       loop_filter.lvl[i][Vp9RefType::VP9_FRAME_INTRA][0] = ClampLf(
           level + loop_filter.ref_deltas[Vp9RefType::VP9_FRAME_INTRA] * scale);

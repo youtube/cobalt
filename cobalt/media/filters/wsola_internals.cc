@@ -44,7 +44,7 @@ void MultiChannelDotProduct(const AudioBus* a, int frame_offset_a,
   DCHECK_LE(frame_offset_a + num_frames, a->frames());
   DCHECK_LE(frame_offset_b + num_frames, b->frames());
 
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
+  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
   for (int k = 0; k < a->channels(); ++k) {
     const float* ch_a = a->channel(k) + frame_offset_a;
     const float* ch_b = b->channel(k) + frame_offset_b;

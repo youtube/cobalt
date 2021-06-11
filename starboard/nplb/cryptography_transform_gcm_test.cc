@@ -376,7 +376,7 @@ TEST_P(Gcm, TestCase) {
   }
 
   SbCryptographySetInitializationVector(encrypter, nonce.get(), nonce_len);
-  SbMemorySet(out.get(), 0, plaintext_len);
+  memset(out.get(), 0, plaintext_len);
   if (additional_data) {
     SbCryptographySetAuthenticatedData(encrypter, additional_data.get(),
                                        additional_data_len);
@@ -389,7 +389,7 @@ TEST_P(Gcm, TestCase) {
   }
 
   scoped_array<uint8_t> actual_tag(new uint8_t[tag_len]);
-  SbMemorySet(actual_tag.get(), 0, tag_len);
+  memset(actual_tag.get(), 0, tag_len);
   SbCryptographyGetTag(encrypter, actual_tag.get(), tag_len);
   if (tag) {
     EXPECT_STREQ(HexDump(tag.get(), tag_len).c_str(),
@@ -412,7 +412,7 @@ TEST_P(Gcm, TestCase) {
   ASSERT_THAT(decrypter, NotNull());
 
   SbCryptographySetInitializationVector(decrypter, nonce.get(), nonce_len);
-  SbMemorySet(out.get(), 0, plaintext_len);
+  memset(out.get(), 0, plaintext_len);
   if (additional_data) {
     SbCryptographySetAuthenticatedData(decrypter, additional_data.get(),
                                        additional_data_len);
@@ -425,7 +425,7 @@ TEST_P(Gcm, TestCase) {
   }
 
   actual_tag.reset(new uint8_t[tag_len]);
-  SbMemorySet(actual_tag.get(), 0, tag_len);
+  memset(actual_tag.get(), 0, tag_len);
   SbCryptographyGetTag(decrypter, actual_tag.get(), tag_len);
   if (tag) {
     EXPECT_STREQ(HexDump(tag.get(), tag_len).c_str(),

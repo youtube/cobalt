@@ -53,7 +53,7 @@ TEST(SbAccessibilityTest, CallGetCaptionSettingsWithInvalidArgument) {
   // |settings| should be zero-initialized.
   const int kInvalidValue = 0xFE;
   SbAccessibilityCaptionSettings settings;
-  SbMemorySet(&settings, kInvalidValue, sizeof(settings));
+  memset(&settings, kInvalidValue, sizeof(settings));
   EXPECT_FALSE(SbAccessibilityGetCaptionSettings(&settings));
 
   // Argument should not be NULL.
@@ -64,7 +64,7 @@ TEST(SbAccessibilityTest, GetCaptionSettingsReturnIsValid) {
   // |settings| should be zero-initialized.
   SbAccessibilityCaptionSettings settings;
   const int kValidInitialValue = 0;
-  SbMemorySet(&settings, kValidInitialValue, sizeof(settings));
+  memset(&settings, kValidInitialValue, sizeof(settings));
   EXPECT_TRUE(SbAccessibilityGetCaptionSettings(&settings));
 
   if (settings.background_color_state !=
@@ -135,7 +135,7 @@ TEST(SbAccessibilityTest, GetCaptionSettingsReturnIsValid) {
 TEST(SbAccessibilityTest, CallSetCaptionsEnabled) {
   SbAccessibilityCaptionSettings settings;
   const int kValidInitialValue = 0;
-  SbMemorySet(&settings, kValidInitialValue, sizeof(settings));
+  memset(&settings, kValidInitialValue, sizeof(settings));
   EXPECT_TRUE(SbAccessibilityGetCaptionSettings(&settings));
 
   if (settings.supports_is_enabled && settings.supports_set_enabled) {
@@ -143,7 +143,7 @@ TEST(SbAccessibilityTest, CallSetCaptionsEnabled) {
     EXPECT_TRUE(SbAccessibilitySetCaptionsEnabled(!settings.is_enabled));
 
     SbAccessibilityCaptionSettings settings2;
-    SbMemorySet(&settings2, kValidInitialValue, sizeof(settings2));
+    memset(&settings2, kValidInitialValue, sizeof(settings2));
     EXPECT_TRUE(SbAccessibilityGetCaptionSettings(&settings2));
     EXPECT_NE(settings.is_enabled, settings2.is_enabled);
 
@@ -151,7 +151,7 @@ TEST(SbAccessibilityTest, CallSetCaptionsEnabled) {
     EXPECT_TRUE(SbAccessibilitySetCaptionsEnabled(settings.is_enabled));
 
     SbAccessibilityCaptionSettings settings3;
-    SbMemorySet(&settings3, kValidInitialValue, sizeof(settings3));
+    memset(&settings3, kValidInitialValue, sizeof(settings3));
     EXPECT_TRUE(SbAccessibilityGetCaptionSettings(&settings3));
     EXPECT_EQ(settings.is_enabled, settings3.is_enabled);
   }

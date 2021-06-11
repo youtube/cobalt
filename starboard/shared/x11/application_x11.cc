@@ -1161,7 +1161,7 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
   }
 
   scoped_ptr<SbInputData> data(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
   data->timestamp = SbTimeGetMonotonicNow();
   data->window = windows_[0];
   SB_DCHECK(SbWindowIsValid(data->window));
@@ -1241,7 +1241,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       }
 
       scoped_ptr<SbInputData> data(new SbInputData());
-      SbMemorySet(data.get(), 0, sizeof(*data));
+      memset(data.get(), 0, sizeof(*data));
       data->timestamp = SbTimeGetMonotonicNow();
       data->window = FindWindow(x_key_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
@@ -1267,7 +1267,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
         return NULL;
       }
       scoped_ptr<SbInputData> data(new SbInputData());
-      SbMemorySet(data.get(), 0, sizeof(*data));
+      memset(data.get(), 0, sizeof(*data));
       data->timestamp = SbTimeGetMonotonicNow();
       data->window = FindWindow(x_button_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
@@ -1293,7 +1293,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
       scoped_ptr<SbInputData> data(new SbInputData());
-      SbMemorySet(data.get(), 0, sizeof(*data));
+      memset(data.get(), 0, sizeof(*data));
       data->timestamp = SbTimeGetMonotonicNow();
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));

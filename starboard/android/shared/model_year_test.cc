@@ -24,7 +24,7 @@ namespace {
 TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
   const size_t kValueSize = 1024;
   char value[kValueSize] = {0};
-  SbMemorySet(value, 0xCD, kValueSize);
+  memset(value, 0xCD, kValueSize);
   bool result =
       SbSystemGetProperty(kSbSystemPropertyModelYear, value, kValueSize);
   SB_DCHECK(result);

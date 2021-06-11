@@ -308,7 +308,7 @@ class QuicPacketGeneratorTest : public QuicTest {
 
   void CreateData(size_t len) {
     data_array_.reset(new char[len]);
-    SbMemorySet(data_array_.get(), '?', len);
+    memset(data_array_.get(), '?', len);
     iov_.iov_base = data_array_.get();
     iov_.iov_len = len;
   }

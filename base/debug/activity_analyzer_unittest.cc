@@ -36,7 +36,7 @@ namespace {
 class TestActivityTracker : public ThreadActivityTracker {
  public:
   TestActivityTracker(std::unique_ptr<char[]> memory, size_t mem_size)
-      : ThreadActivityTracker(SbMemorySet(memory.get(), 0, mem_size), mem_size),
+      : ThreadActivityTracker(memset(memory.get(), 0, mem_size), mem_size),
         mem_segment_(std::move(memory)) {}
 
   ~TestActivityTracker() override = default;

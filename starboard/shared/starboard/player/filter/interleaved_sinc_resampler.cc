@@ -262,7 +262,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     scoped_refptr<Buffer> buffer = pending_buffers_.front();
     if (buffer->IsEndOfStream()) {
       // Zero fill the buffer after EOS has reached.
-      SbMemorySet(destination, 0, frame_size_in_bytes_ * frames);
+      memset(destination, 0, frame_size_in_bytes_ * frames);
       return;
     }
     // Copy the data over.

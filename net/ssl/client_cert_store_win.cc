@@ -127,7 +127,7 @@ ClientCertIdentityList GetClientCertsImpl(HCERTSTORE cert_store,
 
   // Enumerate the client certificates.
   CERT_CHAIN_FIND_BY_ISSUER_PARA find_by_issuer_para;
-  SbMemorySet(&find_by_issuer_para, 0, sizeof(find_by_issuer_para));
+  memset(&find_by_issuer_para, 0, sizeof(find_by_issuer_para));
   find_by_issuer_para.cbSize = sizeof(find_by_issuer_para);
   find_by_issuer_para.pszUsageIdentifier = szOID_PKIX_KP_CLIENT_AUTH;
   find_by_issuer_para.cIssuer = static_cast<DWORD>(auth_count);
@@ -295,7 +295,7 @@ bool ClientCertStoreWin::SelectClientCertsForTesting(
     // Add dummy private key data to the certificate - otherwise the certificate
     // would be discarded by the filtering routines.
     CRYPT_KEY_PROV_INFO private_key_data;
-    SbMemorySet(&private_key_data, 0, sizeof(private_key_data));
+    memset(&private_key_data, 0, sizeof(private_key_data));
     if (!CertSetCertificateContextProperty(cert,
                                            CERT_KEY_PROV_INFO_PROP_ID,
                                            0, &private_key_data)) {

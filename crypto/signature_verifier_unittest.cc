@@ -232,7 +232,7 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 6: import a key with extra data.
   uint8_t long_public_key_info[sizeof(public_key_info) + 5];
-  SbMemorySet(long_public_key_info, 0, sizeof(long_public_key_info));
+  memset(long_public_key_info, 0, sizeof(long_public_key_info));
   SbMemoryCopy(long_public_key_info, public_key_info, sizeof(public_key_info));
   EXPECT_FALSE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                    signature, long_public_key_info));

@@ -76,7 +76,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest,
   void SetupMocks(MockAuthLibrary* mock_library) {
 #if defined(OS_WIN)
     security_package_.reset(new SecPkgInfoW);
-    SbMemorySet(security_package_.get(), 0x0, sizeof(SecPkgInfoW));
+    memset(security_package_.get(), 0x0, sizeof(SecPkgInfoW));
     security_package_->cbMaxToken = 1337;
     mock_library->ExpectQuerySecurityPackageInfo(
         L"Negotiate", SEC_E_OK, security_package_.get());

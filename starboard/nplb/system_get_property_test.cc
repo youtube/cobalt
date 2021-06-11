@@ -47,7 +47,7 @@ void BasicTest(SbSystemPropertyId id,
                int line) {
 #define LOCAL_CONTEXT "Context : id=" << id << ", line=" << line;
   char value[kValueSize] = {0};
-  SbMemorySet(value, 0xCD, kValueSize);
+  memset(value, 0xCD, kValueSize);
   bool result = SbSystemGetProperty(id, value, kValueSize);
   if (expect_result) {
     EXPECT_EQ(expected_result, result) << LOCAL_CONTEXT;
@@ -64,7 +64,7 @@ void BasicTest(SbSystemPropertyId id,
 
 void UnmodifiedOnFailureTest(SbSystemPropertyId id, int line) {
   char value[kValueSize] = {0};
-  SbMemorySet(value, 0xCD, kValueSize);
+  memset(value, 0xCD, kValueSize);
   for (size_t i = 0; i <= kValueSize; ++i) {
     if (SbSystemGetProperty(id, value, i)) {
       return;

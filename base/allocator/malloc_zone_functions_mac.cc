@@ -17,7 +17,7 @@ static_assert(std::is_pod<MallocZoneFunctions>::value,
 
 void StoreZoneFunctions(const ChromeMallocZone* zone,
                         MallocZoneFunctions* functions) {
-  SbMemorySet(functions, 0, sizeof(MallocZoneFunctions));
+  memset(functions, 0, sizeof(MallocZoneFunctions));
   functions->malloc = zone->malloc;
   functions->calloc = zone->calloc;
   functions->valloc = zone->valloc;
@@ -107,7 +107,7 @@ int GetMallocZoneCountForTesting() {
 void ClearAllMallocZonesForTesting() {
   base::AutoLock l(GetLock());
   EnsureMallocZonesInitializedLocked();
-  SbMemorySet(g_malloc_zones, 0, kMaxZoneCount * sizeof(MallocZoneFunctions));
+  memset(g_malloc_zones, 0, kMaxZoneCount * sizeof(MallocZoneFunctions));
   g_zone_count = 0;
 }
 

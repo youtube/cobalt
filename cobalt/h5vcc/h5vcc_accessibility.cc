@@ -72,7 +72,7 @@ void H5vccAccessibility::set_built_in_screen_reader(bool value) {
 
 bool H5vccAccessibility::high_contrast_text() const {
   SbAccessibilityDisplaySettings settings;
-  SbMemorySet(&settings, 0, sizeof(settings));
+  memset(&settings, 0, sizeof(settings));
 
   if (!SbAccessibilityGetDisplaySettings(&settings)) {
     return false;
@@ -87,7 +87,7 @@ bool H5vccAccessibility::text_to_speech() const {
     return true;
   }
   SbAccessibilityTextToSpeechSettings settings;
-  SbMemorySet(&settings, 0, sizeof(settings));
+  memset(&settings, 0, sizeof(settings));
 
   if (!SbAccessibilityGetTextToSpeechSettings(&settings)) {
     return false;

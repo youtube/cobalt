@@ -53,8 +53,8 @@ void EnsureYUVToRGBLookupTableInitialized() {
   // The minimum value of |v| can be 2.112f * (-128) = -271, the maximum value
   // of |v| can be 1.164f * 255 + 2.112f * 127 = 565.  So we need 512 bytes at
   // each side of the clamp buffer.
-  SbMemorySet(s_clamp_table, 0, 512);
-  SbMemorySet(s_clamp_table + 768, 0xff, 512);
+  memset(s_clamp_table, 0, 512);
+  memset(s_clamp_table + 768, 0xff, 512);
 
   uint8_t i = 0;
   while (true) {

@@ -31,7 +31,7 @@ struct SecWebSocketKey {
   typedef char SecWebSocketKeyBytes[kKeySizeInBytes];
 
   SecWebSocketKey() {
-    SbMemorySet(&key_bytes[0], 0, kKeySizeInBytes);
+    memset(&key_bytes[0], 0, kKeySizeInBytes);
     base::StringPiece key_stringpiece(key_bytes, sizeof(key_bytes));
     bool success = base::Base64Encode(key_stringpiece, &key_base64_encoded);
     DCHECK(success);

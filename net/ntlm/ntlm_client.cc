@@ -216,7 +216,7 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
         GenerateUpdatedTargetInfo(IsMicEnabled(), IsEpaEnabled(),
                                   channel_bindings, spn, av_pairs, &timestamp);
 
-    SbMemorySet(lm_response, 0, kResponseLenV1);
+    memset(lm_response, 0, kResponseLenV1);
     if (timestamp == UINT64_MAX) {
       // If the server didn't send a time, then use the clients time.
       timestamp = client_time;

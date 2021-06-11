@@ -87,7 +87,7 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
 
   SbDecodeTargetFormat format = info.format;

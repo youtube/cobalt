@@ -2004,35 +2004,35 @@ TEST(URLCanonTest, _itoa_s) {
   // null-terminated. We also allocate one byte more than what we tell
   // _itoa_s about, and ensure that the extra byte is untouched.
   char buf[6];
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
   // Test the edge cases - exactly the buffer size and one over
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("1234", buf);
   EXPECT_EQ('\xFF', buf[5]);
 
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(EINVAL, _itoa_s(12345, buf, sizeof(buf) - 1, 10));
   EXPECT_EQ('\xFF', buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12, buf, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(12345, buf, 10));
   EXPECT_STREQ("12345", buf);
 
   EXPECT_EQ(EINVAL, _itoa_s(123456, buf, 10));
 
   // Test that radix 16 is supported.
-  SbMemorySet(buf, 0xff, sizeof(buf));
+  memset(buf, 0xff, sizeof(buf));
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 16));
   EXPECT_STREQ("4d2", buf);
   EXPECT_EQ('\xFF', buf[5]);
@@ -2045,7 +2045,7 @@ TEST(URLCanonTest, _itow_s) {
   base::char16 buf[6];
   const char fill_mem = 0xff;
   const base::char16 fill_char = 0xffff;
-  SbMemorySet(buf, fill_mem, sizeof(buf));
+  memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, sizeof(buf) / 2 - 1, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12"), base::string16(buf));
   EXPECT_EQ(fill_char, buf[3]);
@@ -2055,18 +2055,18 @@ TEST(URLCanonTest, _itow_s) {
   EXPECT_EQ(base::UTF8ToUTF16("1234"), base::string16(buf));
   EXPECT_EQ(fill_char, buf[5]);
 
-  SbMemorySet(buf, fill_mem, sizeof(buf));
+  memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(EINVAL, _itow_s(12345, buf, sizeof(buf) / 2 - 1, 10));
   EXPECT_EQ(fill_char, buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  SbMemorySet(buf, fill_mem, sizeof(buf));
+  memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12"),
             base::string16(buf));
   EXPECT_EQ(fill_char, buf[3]);
 
-  SbMemorySet(buf, fill_mem, sizeof(buf));
+  memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12345, buf, 10));
   EXPECT_EQ(base::UTF8ToUTF16("12345"), base::string16(buf));
 

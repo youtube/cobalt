@@ -360,7 +360,7 @@ TEST_P(VideoUtilRotationTest, Rotate) {
 
   int size = GetParam().width * GetParam().height;
   uint8_t* dest = dest_plane();
-  SbMemorySet(dest, 255, size);
+  memset(dest, 255, size);
 
   RotatePlaneByPixels(GetParam().src, dest, GetParam().width, GetParam().height,
                       rotation, GetParam().flip_vert, GetParam().flip_horiz);

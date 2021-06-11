@@ -759,7 +759,7 @@ SHA256HashValue X509Certificate::CalculateFingerprint256(
 
 SHA256HashValue X509Certificate::CalculateChainFingerprint256() const {
   SHA256HashValue sha256;
-  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
+  memset(sha256.data, 0, sizeof(sha256.data));
 
   SHA256_CTX sha256_ctx;
   SHA256_Init(&sha256_ctx);

@@ -63,7 +63,7 @@ std::unique_ptr<SharedMemory> CreateSharedMemory(int size) {
   }
   std::unique_ptr<SharedMemory> shared_memory(new SharedMemory(shm, false));
   shared_memory->Map(size);
-  SbMemorySet(shared_memory->memory(), 'a', size);
+  memset(shared_memory->memory(), 'a', size);
   return shared_memory;
 }
 
@@ -270,9 +270,9 @@ TEST_F(SharedMemoryMacMultiProcessTest, MachBasedSharedMemoryWithOffset) {
 
   size_t page_size = SysInfo::VMAllocationGranularity();
   char* start = static_cast<char*>(shared_memory.memory());
-  SbMemorySet(start, 'a', page_size);
-  SbMemorySet(start + page_size, 'b', page_size);
-  SbMemorySet(start + 2 * page_size, 'c', page_size);
+  memset(start, 'a', page_size);
+  memset(start + page_size, 'b', page_size);
+  memset(start + 2 * page_size, 'c', page_size);
 
   // Send the underlying memory object to the client process.
   SendMachPort(
@@ -371,7 +371,7 @@ TEST_F(SharedMemoryMacMultiProcessTest, MachReadOnly) {
   ASSERT_TRUE(shm2.IsValid());
   SharedMemory shared_memory2(shm2, true);
   shared_memory2.Map(s_memory_size);
-  ASSERT_DEATH(SbMemorySet(shared_memory2.memory(), 'b', s_memory_size), "");
+  ASSERT_DEATH(memset(shared_memory2.memory(), 'b', s_memory_size), "");
 }
 
 // Tests that duplication of the underlying handle works.
@@ -432,7 +432,7 @@ TEST_F(SharedMemoryMacMultiProcessTest, MachReadonly) {
 
   // The memory should still be readonly, since the underlying memory object
   // is readonly.
-  ASSERT_DEATH(SbMemorySet(shared_memory2.memory(), 'b', s_memory_size), "");
+  ASSERT_DEATH(memset(shared_memory2.memory(), 'b', s_memory_size), "");
 }
 
 // Tests that the method GetReadOnlyHandle() doesn't leak.

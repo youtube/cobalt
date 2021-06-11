@@ -162,7 +162,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMemoryMove);
 #endif
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemorySet);
+#endif
   REGISTER_SYMBOL(SbMutexAcquire);
   REGISTER_SYMBOL(SbMutexAcquireTry);
   REGISTER_SYMBOL(SbMutexCreate);

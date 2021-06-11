@@ -188,11 +188,11 @@ void AudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
     return;
   }
   if (storage_type_ == kInterleaved) {
-    SbMemorySet(GetSamplePtr(0, start_frame), 0,
+    memset(GetSamplePtr(0, start_frame), 0,
                 GetSampleSizeInBytes() * (end_frame - start_frame) * channels_);
   } else {
     for (size_t channel = 0; channel < channels_; ++channel) {
-      SbMemorySet(GetSamplePtr(channel, start_frame), 0,
+      memset(GetSamplePtr(channel, start_frame), 0,
                   GetSampleSizeInBytes() * (end_frame - start_frame));
     }
   }

@@ -14,6 +14,8 @@
 
 #include "starboard/memory.h"
 
+#if SB_API_VERSION < 13
 void* SbMemorySet(void* destination, int byte_value, size_t count) {
   return NULL;
 }
+#endif

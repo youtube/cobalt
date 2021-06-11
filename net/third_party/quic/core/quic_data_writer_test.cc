@@ -620,7 +620,7 @@ const int kVarIntBufferLength = 1024;
 bool EncodeDecodeValue(uint64_t value_in, char* buffer, size_t size_of_buffer) {
   // Init the buffer to all 0, just for cleanliness. Makes for better
   // output if, in debugging, we need to dump out the buffer.
-  SbMemorySet(buffer, 0, size_of_buffer);
+  memset(buffer, 0, size_of_buffer);
   // make a writer. Note that for IETF encoding
   // we do not care about endianness... It's always big-endian,
   // but the c'tor expects to be told what endianness is in force...
@@ -669,7 +669,7 @@ TEST_P(QuicDataWriterTest, VarInt8Layout) {
 
   // Check that the layout of bytes in the buffer is correct. Bytes
   // are always encoded big endian...
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(UINT64_C(0x3142f3e4d5c6b7a8)));
@@ -691,7 +691,7 @@ TEST_P(QuicDataWriterTest, VarInt4Layout) {
 
   // Check that the layout of bytes in the buffer is correct. Bytes
   // are always encoded big endian...
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3243f4e5));
@@ -709,7 +709,7 @@ TEST_P(QuicDataWriterTest, VarInt2Layout) {
 
   // Check that the layout of bytes in the buffer is correct. Bytes
   // are always encoded big endian...
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3647));
@@ -725,7 +725,7 @@ TEST_P(QuicDataWriterTest, VarInt1Layout) {
 
   // Check that the layout of bytes in the buffer
   // is correct. Bytes are always encoded big endian...
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3f));
@@ -831,7 +831,7 @@ const int kMultiVarCount = 1000;
 TEST_P(QuicDataWriterTest, MultiVarInt8) {
   uint64_t test_val;
   char buffer[8 * kMultiVarCount];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
@@ -860,7 +860,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt8) {
 TEST_P(QuicDataWriterTest, MultiVarInt4) {
   uint64_t test_val;
   char buffer[4 * kMultiVarCount];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
@@ -889,7 +889,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt4) {
 TEST_P(QuicDataWriterTest, MultiVarInt2) {
   uint64_t test_val;
   char buffer[2 * kMultiVarCount];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
@@ -918,7 +918,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt2) {
 TEST_P(QuicDataWriterTest, MultiVarInt1) {
   uint64_t test_val;
   char buffer[1 * kMultiVarCount];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
@@ -947,7 +947,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt1) {
 // Test writing varints with a forced length.
 TEST_P(QuicDataWriterTest, VarIntFixedLength) {
   char buffer[90];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
                         Endianness::NETWORK_BYTE_ORDER);
 
@@ -1017,7 +1017,7 @@ TEST_P(QuicDataWriterTest, VarIntFixedLength) {
 // Test encoding/decoding stream-id values.
 void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
   char buffer[1 * kMultiVarCount];
-  SbMemorySet(buffer, 0, sizeof(buffer));
+  memset(buffer, 0, sizeof(buffer));
 
   // Encode the given Stream ID.
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),

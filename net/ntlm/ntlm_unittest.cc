@@ -155,8 +155,8 @@ TEST(NtlmTest, GenerateResponsesV1WithSessionSecurityClientChallengeUsed) {
   uint8_t client_challenge1[kChallengeLen];
   uint8_t client_challenge2[kChallengeLen];
 
-  SbMemorySet(client_challenge1, 0x01, kChallengeLen);
-  SbMemorySet(client_challenge2, 0x02, kChallengeLen);
+  memset(client_challenge1, 0x01, kChallengeLen);
+  memset(client_challenge2, 0x02, kChallengeLen);
 
   GenerateResponsesV1WithSessionSecurity(
       test::kPassword, test::kServerChallenge, client_challenge1, lm_response1,
@@ -295,7 +295,7 @@ TEST(NtlmTest, GenerateMicSpecResponseV2) {
   std::vector<uint8_t> authenticate_msg(
       std::begin(test::kExpectedAuthenticateMsgSpecResponseV2),
       std::end(test::kExpectedAuthenticateMsgSpecResponseV2));
-  SbMemorySet(&authenticate_msg[kMicOffsetV2], 0x00, kMicLenV2);
+  memset(&authenticate_msg[kMicOffsetV2], 0x00, kMicLenV2);
 
   uint8_t mic[kMicLenV2];
 #ifdef STARBOARD

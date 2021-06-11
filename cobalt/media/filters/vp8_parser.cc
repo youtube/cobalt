@@ -43,7 +43,7 @@ namespace media {
     *out = _out;                                                      \
   } while (0)
 
-Vp8FrameHeader::Vp8FrameHeader() { SbMemorySet(this, 0, sizeof(*this)); }
+Vp8FrameHeader::Vp8FrameHeader() { memset(this, 0, sizeof(*this)); }
 
 Vp8Parser::Vp8Parser() : stream_(NULL), bytes_left_(0) {}
 
@@ -54,7 +54,7 @@ bool Vp8Parser::ParseFrame(const uint8_t* ptr, size_t frame_size,
   stream_ = ptr;
   bytes_left_ = frame_size;
 
-  SbMemorySet(fhdr, 0, sizeof(*fhdr));
+  memset(fhdr, 0, sizeof(*fhdr));
   fhdr->data = stream_;
   fhdr->frame_size = bytes_left_;
 
@@ -206,7 +206,7 @@ bool Vp8Parser::ParseFrameHeader(Vp8FrameHeader* fhdr) {
 bool Vp8Parser::ParseSegmentationHeader(bool keyframe) {
   Vp8SegmentationHeader* shdr = &curr_segmentation_hdr_;
 
-  if (keyframe) SbMemorySet(shdr, 0, sizeof(*shdr));
+  if (keyframe) memset(shdr, 0, sizeof(*shdr));
 
   BD_READ_BOOL_OR_RETURN(&shdr->segmentation_enabled);
   if (!shdr->segmentation_enabled) return true;
@@ -255,7 +255,7 @@ bool Vp8Parser::ParseSegmentationHeader(bool keyframe) {
 bool Vp8Parser::ParseLoopFilterHeader(bool keyframe) {
   Vp8LoopFilterHeader* lfhdr = &curr_loopfilter_hdr_;
 
-  if (keyframe) SbMemorySet(lfhdr, 0, sizeof(*lfhdr));
+  if (keyframe) memset(lfhdr, 0, sizeof(*lfhdr));
 
   int type;
   BD_READ_UNSIGNED_OR_RETURN(1, &type);
@@ -288,7 +288,7 @@ bool Vp8Parser::ParseLoopFilterHeader(bool keyframe) {
 
 bool Vp8Parser::ParseQuantizationHeader(Vp8QuantizationHeader* qhdr) {
   // If any of the delta values is not present, the delta should be zero.
-  SbMemorySet(qhdr, 0, sizeof(*qhdr));
+  memset(qhdr, 0, sizeof(*qhdr));
 
   BD_READ_UNSIGNED_OR_RETURN(7, &qhdr->y_ac_qi);
 

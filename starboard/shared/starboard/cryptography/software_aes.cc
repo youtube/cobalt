@@ -1297,11 +1297,11 @@ void CRYPTO_ghash_init(gmult_func* out_mult,
 }
 
 void AES_gcm128_init(GCM128_CONTEXT* ctx, const AES_KEY* aes_key, int enc) {
-  SbMemorySet(ctx, 0, sizeof(*ctx));
+  memset(ctx, 0, sizeof(*ctx));
   ctx->block = AES_encrypt;
 
   uint8_t gcm_key[16];
-  SbMemorySet(gcm_key, 0, sizeof(gcm_key));
+  memset(gcm_key, 0, sizeof(gcm_key));
   (*ctx->block)(gcm_key, gcm_key, aes_key);
 
   int is_avx;

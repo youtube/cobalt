@@ -36,7 +36,7 @@ BufferedFileWriter::BufferedFileWriter(const std::string& file_path)
       diskwrite_cond_(diskwrite_mutex_),
       quit_thread_(false),
       file_path_(file_path) {
-  SbMemorySet(log_buffers_, 0, sizeof(log_buffers_));
+  memset(log_buffers_, 0, sizeof(log_buffers_));
   StartThread();
 }
 

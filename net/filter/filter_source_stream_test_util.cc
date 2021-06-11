@@ -21,7 +21,7 @@ void CompressGzip(const char* source,
                   bool gzip_framing) {
   size_t dest_left = *dest_len;
   z_stream zlib_stream;
-  SbMemorySet(&zlib_stream, 0, sizeof(zlib_stream));
+  memset(&zlib_stream, 0, sizeof(zlib_stream));
   int code;
   if (gzip_framing) {
     const int kMemLevel = 8;  // the default, see deflateInit2(3)

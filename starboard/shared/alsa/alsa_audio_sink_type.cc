@@ -190,7 +190,7 @@ AlsaAudioSink::AlsaAudioSink(
   SB_DCHECK(frame_buffer_);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
 
-  SbMemorySet(silence_frames_, 0,
+  memset(silence_frames_, 0,
               channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   ScopedLock lock(mutex_);

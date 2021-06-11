@@ -269,7 +269,7 @@ TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
   // Let's create an invalid file.
   base::FilePath filename(files.Name(5));
   char header[kBlockHeaderSize];
-  SbMemorySet(header, 'a', kBlockHeaderSize);
+  memset(header, 'a', kBlockHeaderSize);
   EXPECT_EQ(kBlockHeaderSize,
             base::WriteFile(filename, header, kBlockHeaderSize));
 

@@ -347,7 +347,7 @@ void Pickle::Resize(size_t new_capacity) {
 void* Pickle::ClaimBytes(size_t num_bytes) {
   void* p = ClaimUninitializedBytesInternal(num_bytes);
   CHECK(p);
-  SbMemorySet(p, 0, num_bytes);
+  memset(p, 0, num_bytes);
   return p;
 }
 
@@ -421,7 +421,7 @@ inline void* Pickle::ClaimUninitializedBytesInternal(size_t length) {
   }
 
   char* write = mutable_payload() + write_offset_;
-  SbMemorySet(write + length, 0,
+  memset(write + length, 0,
               data_len - length);  // Always initialize padding
   header_->payload_size = static_cast<uint32_t>(new_size);
   write_offset_ = new_size;

@@ -157,7 +157,7 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
   // Initialize for overlap-and-add of the first block.
-  SbMemorySet(wsola_output_->buffer(), 0, wsola_output_->size());
+  memset(wsola_output_->buffer(), 0, wsola_output_->size());
 
   // Auxiliary containers.
   optimal_block_ = new DecodedAudio(channels_, sample_type_,
@@ -201,7 +201,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     // audio_buffer_.frames()+1.
     int seek_frames = std::min(static_cast<int>(muted_partial_frame_),
                                audio_buffer_.frames());
-    SbMemorySet(dest->buffer(), 0, frames_to_render * bytes_per_frame_);
+    memset(dest->buffer(), 0, frames_to_render * bytes_per_frame_);
     audio_buffer_.SeekFrames(seek_frames);
 
     // Determine the partial frame that remains to be skipped for next call. If
@@ -244,7 +244,7 @@ void AudioTimeStretcher::FlushBuffers() {
   output_time_ = 0.0;
   search_block_index_ = 0;
   target_block_index_ = 0;
-  SbMemorySet(wsola_output_->buffer(), 0, wsola_output_->size());
+  memset(wsola_output_->buffer(), 0, wsola_output_->size());
   num_complete_frames_ = 0;
 
   // Reset |capacity_| so growth triggered by underflows doesn't penalize seek
@@ -434,7 +434,7 @@ void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
     read_offset_frames = 0;
     num_frames_to_read -= num_zero_frames_appended;
     write_offset = num_zero_frames_appended;
-    SbMemorySet(dest->buffer(), 0, num_zero_frames_appended * bytes_per_frame_);
+    memset(dest->buffer(), 0, num_zero_frames_appended * bytes_per_frame_);
   }
   audio_buffer_.PeekFrames(num_frames_to_read, read_offset_frames, write_offset,
                            dest);

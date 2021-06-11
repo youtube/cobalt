@@ -99,9 +99,9 @@ TEST_F(ProgramTableTest, LoadSegments) {
   Phdr ent1;
   Phdr ent2;
   Phdr ent3;
-  SbMemorySet(&ent1, 0, sizeof(Phdr));
-  SbMemorySet(&ent2, 0, sizeof(Phdr));
-  SbMemorySet(&ent3, 0, sizeof(Phdr));
+  memset(&ent1, 0, sizeof(Phdr));
+  memset(&ent2, 0, sizeof(Phdr));
+  memset(&ent3, 0, sizeof(Phdr));
 
   ent1.p_type = PT_LOAD;
   ent1.p_vaddr = 0;
@@ -135,7 +135,7 @@ TEST_F(ProgramTableTest, LoadSegments) {
   dynamic_table_data[2].d_tag = DT_DEBUG;
 
   char program_table_page[PAGE_SIZE];
-  SbMemorySet(program_table_page, 0, sizeof(program_table_page));
+  memset(program_table_page, 0, sizeof(program_table_page));
   SbMemoryCopy(program_table_page, program_table_data,
                sizeof(program_table_data));
 

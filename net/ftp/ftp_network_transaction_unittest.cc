@@ -832,7 +832,7 @@ class FtpNetworkTransactionTest : public PlatformTest,
     if (expected_result == OK) {
       scoped_refptr<IOBuffer> io_buffer =
           base::MakeRefCounted<IOBuffer>(kBufferSize);
-      SbMemorySet(io_buffer->data(), 0, kBufferSize);
+      memset(io_buffer->data(), 0, kBufferSize);
       ASSERT_EQ(ERR_IO_PENDING, transaction_->Read(io_buffer.get(), kBufferSize,
                                                    callback_.callback()));
       ASSERT_EQ(static_cast<int>(mock_data.length()),

@@ -997,7 +997,7 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size) {
   // added to the process now istead of only when first accessed).
   address = SbMemoryAllocate(size);
   DPCHECK(address);
-  SbMemorySet(address, 0, size);
+  memset(address, 0, size);
   return Memory(address, MEM_MALLOC);
 }
 

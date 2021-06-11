@@ -208,7 +208,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
         (int (*)(void*, struct evbuffer*))rplystruct##_unmarshal;             \
     return (evrpc_make_request(ctx));                                         \
   error:                                                                      \
-    SbMemorySet(&status, 0, sizeof(status));                                  \
+    memset(&status, 0, sizeof(status));                                  \
     status.error = EVRPC_STATUS_ERR_UNSTARTED;                                \
     (*(cb))(&status, request, reply, cbarg);                                  \
     return (-1);                                                              \

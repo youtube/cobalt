@@ -148,9 +148,9 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   DCHECK_EQ(r5_ + kBlockSize * channel_count_,
             r1_ + kBufferSize * channel_count_);
 
-  SbMemorySet(kernel_storage_.get(), 0,
+  memset(kernel_storage_.get(), 0,
               sizeof(*kernel_storage_.get()) * kKernelStorageSize);
-  SbMemorySet(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
 
   InitializeKernel();
 }
@@ -300,7 +300,7 @@ void InterleavedSincResampler::Resample(float* destination, int frames) {
 void InterleavedSincResampler::Flush() {
   virtual_source_idx_ = 0;
   buffer_primed_ = false;
-  SbMemorySet(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
   while (!pending_buffers_.empty()) {
     pending_buffers_.pop();
   }
@@ -344,7 +344,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     scoped_refptr<Buffer> buffer = pending_buffers_.front();
     if (buffer->IsEndOfStream()) {
       // Zero fill the buffer after EOS has reached.
-      SbMemorySet(destination, 0, frame_size_in_bytes_ * frames);
+      memset(destination, 0, frame_size_in_bytes_ * frames);
       return;
     }
     // Copy the data over.

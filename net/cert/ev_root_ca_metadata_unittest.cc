@@ -71,7 +71,7 @@ class EVOidData {
 
 SECOidTag RegisterOID(PLArenaPool* arena, const char* oid_string) {
   SECOidData oid_data;
-  SbMemorySet(&oid_data, 0, sizeof(oid_data));
+  memset(&oid_data, 0, sizeof(oid_data));
   oid_data.offset = SEC_OID_UNKNOWN;
   oid_data.desc = oid_string;
   oid_data.mechanism = CKM_INVALID_MECHANISM;

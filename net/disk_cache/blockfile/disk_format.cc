@@ -8,7 +8,7 @@
 namespace disk_cache {
 
 IndexHeader::IndexHeader() {
-  SbMemorySet(this, 0, sizeof(*this));
+  memset(this, 0, sizeof(*this));
   magic = kIndexMagic;
   version = kCurrentVersion;
 }

@@ -103,7 +103,7 @@ bool GetAddress(const struct nlmsghdr* header,
 
 // static
 char* AddressTrackerLinux::GetInterfaceName(int interface_index, char* buf) {
-  SbMemorySet(buf, 0, IFNAMSIZ);
+  memset(buf, 0, IFNAMSIZ);
   base::ScopedFD ioctl_socket = GetSocketForIoctl();
   if (!ioctl_socket.is_valid())
     return buf;

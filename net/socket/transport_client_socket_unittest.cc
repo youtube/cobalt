@@ -409,7 +409,7 @@ TEST_P(TransportClientSocketTest, FullDuplex_ReadFirst) {
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kWriteBufLen);
   char* request_data = request_buffer->data();
-  SbMemorySet(request_data, 'A', kWriteBufLen);
+  memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
 
   int bytes_written = 0;
@@ -443,7 +443,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kWriteBufLen);
   char* request_data = request_buffer->data();
-  SbMemorySet(request_data, 'A', kWriteBufLen);
+  memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
 
   int bytes_written = 0;

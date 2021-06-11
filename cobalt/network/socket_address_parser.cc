@@ -45,7 +45,7 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
         return false;
       }
 
-      SbMemorySet(out_socket_address, 0, sizeof(SbSocketAddress));
+      memset(out_socket_address, 0, sizeof(SbSocketAddress));
       out_socket_address->type = kSbSocketAddressTypeIpv4;
       DCHECK_GE(sizeof(address_v4),
                 static_cast<std::size_t>(num_ipv4_components));
@@ -65,7 +65,7 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
         break;
       }
 
-      SbMemorySet(out_socket_address, 0, sizeof(SbSocketAddress));
+      memset(out_socket_address, 0, sizeof(SbSocketAddress));
       out_socket_address->type = kSbSocketAddressTypeIpv6;
       static_assert(sizeof(address_v6) == net::IPAddress::kIPv6AddressSize, "");
       SbMemoryCopy(out_socket_address->address, address_v6, sizeof(address_v6));

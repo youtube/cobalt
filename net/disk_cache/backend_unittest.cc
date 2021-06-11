@@ -458,7 +458,7 @@ void DiskCacheBackendTest::BackendKeying() {
 
   // Now verify long keys.
   char buffer2[20000];
-  SbMemorySet(buffer2, 's', sizeof(buffer2));
+  memset(buffer2, 's', sizeof(buffer2));
   buffer2[1023] = '\0';
   ASSERT_EQ(net::OK, CreateEntry(buffer2, &entry2)) << "key on block file";
   entry2->Close();
@@ -1036,7 +1036,7 @@ void DiskCacheBackendTest::BackendSetSize() {
 
   scoped_refptr<net::IOBuffer> buffer =
       base::MakeRefCounted<net::IOBuffer>(cache_size);
-  SbMemorySet(buffer->data(), 0, cache_size);
+  memset(buffer->data(), 0, cache_size);
   EXPECT_EQ(cache_size / 10,
             WriteData(entry, 0, 0, buffer.get(), cache_size / 10, false))
       << "normal file";
@@ -1238,7 +1238,7 @@ void DiskCacheBackendTest::BackendValidEntry() {
   const int kSize = 50;
   scoped_refptr<net::IOBuffer> buffer1 =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer1->data(), 0, kSize);
+  memset(buffer1->data(), 0, kSize);
   base::strlcpy(buffer1->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer1.get(), kSize, false));
   entry->Close();
@@ -1248,7 +1248,7 @@ void DiskCacheBackendTest::BackendValidEntry() {
 
   scoped_refptr<net::IOBuffer> buffer2 =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer2->data(), 0, kSize);
+  memset(buffer2->data(), 0, kSize);
   EXPECT_EQ(kSize, ReadData(entry, 0, 0, buffer2.get(), kSize));
   entry->Close();
   EXPECT_STREQ(buffer1->data(), buffer2->data());
@@ -1276,7 +1276,7 @@ void DiskCacheBackendTest::BackendInvalidEntry() {
   const int kSize = 50;
   scoped_refptr<net::IOBuffer> buffer =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer->data(), 0, kSize);
+  memset(buffer->data(), 0, kSize);
   base::strlcpy(buffer->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer.get(), kSize, false));
   SimulateCrash();
@@ -1321,7 +1321,7 @@ void DiskCacheBackendTest::BackendInvalidEntryRead() {
   const int kSize = 50;
   scoped_refptr<net::IOBuffer> buffer =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer->data(), 0, kSize);
+  memset(buffer->data(), 0, kSize);
   base::strlcpy(buffer->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer.get(), kSize, false));
   entry->Close();
@@ -1449,7 +1449,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
 
   scoped_refptr<net::IOBuffer> buffer =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer->data(), 0, kSize);
+  memset(buffer->data(), 0, kSize);
   EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer.get(), kSize, false));
 
   // Simulate a crash.
@@ -1499,7 +1499,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
 
   scoped_refptr<net::IOBuffer> buffer =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer->data(), 0, kSize);
+  memset(buffer->data(), 0, kSize);
   disk_cache::Entry* entry;
 
   // Writing 32 entries to this cache chains most of them.
@@ -1771,7 +1771,7 @@ TEST_F(DiskCacheBackendTest, ShaderCacheEnumerationReadData) {
       base::MakeRefCounted<net::IOBuffer>(kSize);
 
   ASSERT_THAT(CreateEntry(first, &entry1), IsOk());
-  SbMemorySet(buffer1->data(), 0, kSize);
+  memset(buffer1->data(), 0, kSize);
   base::strlcpy(buffer1->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry1, 0, 0, buffer1.get(), kSize, false));
 
@@ -1806,7 +1806,7 @@ void DiskCacheBackendTest::BackendInvalidEntryEnumeration() {
   const int kSize = 50;
   scoped_refptr<net::IOBuffer> buffer1 =
       base::MakeRefCounted<net::IOBuffer>(kSize);
-  SbMemorySet(buffer1->data(), 0, kSize);
+  memset(buffer1->data(), 0, kSize);
   base::strlcpy(buffer1->data(), "And the data to save", kSize);
   EXPECT_EQ(kSize, WriteData(entry1, 0, 0, buffer1.get(), kSize, false));
   entry1->Close();
@@ -3236,7 +3236,7 @@ void DiskCacheBackendTest::BackendDisable4() {
   const int kBufSize = 20000;
   scoped_refptr<net::IOBuffer> buf =
       base::MakeRefCounted<net::IOBuffer>(kBufSize);
-  SbMemorySet(buf->data(), 0, kBufSize);
+  memset(buf->data(), 0, kBufSize);
   EXPECT_EQ(100, WriteData(entry2, 0, 0, buf.get(), 100, false));
   EXPECT_EQ(kBufSize, WriteData(entry3, 0, 0, buf.get(), kBufSize, false));
 
@@ -3794,8 +3794,8 @@ TEST_F(DiskCacheBackendTest, FileSharing) {
   const int kSize = 200;
   char buffer1[kSize];
   char buffer2[kSize];
-  SbMemorySet(buffer1, 't', kSize);
-  SbMemorySet(buffer2, 0, kSize);
+  memset(buffer1, 't', kSize);
+  memset(buffer2, 0, kSize);
   EXPECT_TRUE(file->Write(buffer1, kSize, 0));
   EXPECT_TRUE(file->Read(buffer2, kSize, 0));
   EXPECT_EQ(0, SbMemoryCompare(buffer1, buffer2, kSize));

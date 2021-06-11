@@ -815,9 +815,9 @@ VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
       unique_id_(g_unique_id_generator.GetNext()) {
   DCHECK(IsValidConfig(format_, storage_type, coded_size_, visible_rect_,
                        natural_size_));
-  SbMemorySet(&mailbox_holders_, 0, sizeof(mailbox_holders_));
-  SbMemorySet(&strides_, 0, sizeof(strides_));
-  SbMemorySet(&data_, 0, sizeof(data_));
+  memset(&mailbox_holders_, 0, sizeof(mailbox_holders_));
+  memset(&strides_, 0, sizeof(strides_));
+  memset(&data_, 0, sizeof(data_));
 }
 
 VideoFrame::~VideoFrame() {
@@ -1071,7 +1071,7 @@ void VideoFrame::AllocateYUV(bool zero_initialize_memory) {
 
   uint8_t* data = reinterpret_cast<uint8_t*>(
       base::AlignedAlloc(data_size, kFrameAddressAlignment));
-  if (zero_initialize_memory) SbMemorySet(data, 0, data_size);
+  if (zero_initialize_memory) memset(data, 0, data_size);
 
   for (size_t plane = 0; plane < NumPlanes(format_); ++plane)
     data_[plane] = data + offset[plane];

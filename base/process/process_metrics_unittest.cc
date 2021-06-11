@@ -619,7 +619,7 @@ TEST(ProcessMetricsTestLinux, GetPageFaultCounts) {
     const size_t kMappedSize = 4 * (1 << 20);
     SharedMemory memory;
     ASSERT_TRUE(memory.CreateAndMapAnonymous(kMappedSize));
-    SbMemorySet(memory.memory(), 42, kMappedSize);
+    memset(memory.memory(), 42, kMappedSize);
     memory.Unmap();
   }
 

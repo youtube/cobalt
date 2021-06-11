@@ -75,7 +75,7 @@ TEST(BigEndianWriterTest, WritesValues) {
                       0xF, 0x1A, 0x2B, 0x3C };
   char data[sizeof(expected)];
   char buf[] = { 0x2, 0x3 };
-  SbMemorySet(data, 0, sizeof(data));
+  memset(data, 0, sizeof(data));
   BigEndianWriter writer(data, sizeof(data));
 
   EXPECT_TRUE(writer.Skip(2));

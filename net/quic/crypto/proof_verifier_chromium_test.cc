@@ -442,7 +442,7 @@ TEST_F(ProofVerifierChromiumTest, CTEVHistogramCompliant) {
 
 HashValueVector MakeHashValueVector(uint8_t tag) {
   HashValue hash(HASH_VALUE_SHA256);
-  SbMemorySet(hash.data(), tag, hash.size());
+  memset(hash.data(), tag, hash.size());
   HashValueVector hashes;
   hashes.push_back(hash);
   return hashes;

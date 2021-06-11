@@ -460,7 +460,7 @@ class TestIOHandler : public MessagePumpForIO::IOHandler {
 
 TestIOHandler::TestIOHandler(const wchar_t* name, HANDLE signal, bool wait)
     : signal_(signal), wait_(wait) {
-  SbMemorySet(buffer_, 0, sizeof(buffer_));
+  memset(buffer_, 0, sizeof(buffer_));
 
   file_.Set(CreateFile(name, GENERIC_READ, 0, NULL, OPEN_EXISTING,
                        FILE_FLAG_OVERLAPPED, NULL));

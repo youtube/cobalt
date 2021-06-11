@@ -48,7 +48,7 @@ bool WebSocketInflater::Initialize(int window_bits) {
   DCHECK_LE(8, window_bits);
   DCHECK_GE(15, window_bits);
   stream_ = std::make_unique<z_stream>();
-  SbMemorySet(stream_.get(), 0, sizeof(*stream_));
+  memset(stream_.get(), 0, sizeof(*stream_));
   int result = inflateInit2(stream_.get(), -window_bits);
   if (result != Z_OK) {
     inflateEnd(stream_.get());

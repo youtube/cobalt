@@ -34,7 +34,7 @@ namespace media {
     }                                                                \
   } while (0)
 
-H265NALU::H265NALU() { SbMemorySet(this, 0, sizeof(*this)); }
+H265NALU::H265NALU() { memset(this, 0, sizeof(*this)); }
 
 H265Parser::H265Parser() { Reset(); }
 

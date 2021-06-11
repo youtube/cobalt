@@ -1592,7 +1592,7 @@ int MockSSLClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
                                               const base::StringPiece& context,
                                               unsigned char* out,
                                               unsigned int outlen) {
-  SbMemorySet(out, 'A', outlen);
+  memset(out, 'A', outlen);
   return OK;
 }
 

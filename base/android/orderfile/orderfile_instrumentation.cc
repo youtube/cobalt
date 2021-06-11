@@ -293,9 +293,9 @@ NO_INSTRUMENT_FUNCTION void ResetForTesting() {
   Disable();
   g_data_index = 0;
   for (int i = 0; i < kPhases; i++) {
-    SbMemorySet(reinterpret_cast<uint32_t*>(g_data[i].offsets), 0,
+    memset(reinterpret_cast<uint32_t*>(g_data[i].offsets), 0,
                 sizeof(uint32_t) * kBitfieldSize);
-    SbMemorySet(reinterpret_cast<uint32_t*>(g_data[i].ordered_offsets), 0,
+    memset(reinterpret_cast<uint32_t*>(g_data[i].ordered_offsets), 0,
                 sizeof(uint32_t) * kMaxElements);
     g_data[i].index.store(0);
   }

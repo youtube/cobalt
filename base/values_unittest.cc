@@ -824,7 +824,7 @@ TEST(ValuesTest, BinaryValue) {
   ASSERT_EQ(15U, binary->GetBlob().size());
 
   char stack_buffer[42];
-  SbMemorySet(stack_buffer, '!', 42);
+  memset(stack_buffer, '!', 42);
   binary = Value::CreateWithCopiedBuffer(stack_buffer, 42);
   ASSERT_TRUE(binary.get());
   ASSERT_TRUE(binary->GetBlob().data());

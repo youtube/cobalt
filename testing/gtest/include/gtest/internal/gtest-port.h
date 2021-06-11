@@ -2497,7 +2497,7 @@ inline int StrNCmp(const char *s1, const char *s2, size_t n) {
 }
 
 inline void *MemSet(void *s, int c, size_t n) {
-  return SbMemorySet(s, c, n);
+  return memset(s, c, n);
 }
 
 inline void Assert(bool b) { SB_CHECK(b); }

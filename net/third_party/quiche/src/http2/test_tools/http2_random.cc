@@ -28,7 +28,7 @@ Http2String Http2Random::Key() const {
 }
 
 void Http2Random::FillRandom(void* buffer, size_t buffer_size) {
-  SbMemorySet(buffer, 0, buffer_size);
+  memset(buffer, 0, buffer_size);
   uint8_t* buffer_u8 = reinterpret_cast<uint8_t*>(buffer);
   CRYPTO_chacha_20(buffer_u8, buffer_u8, buffer_size, key_, kZeroNonce,
                    counter_++);

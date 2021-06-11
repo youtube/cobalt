@@ -101,7 +101,7 @@ class FakeProofVerifier : public quic::ProofVerifier {
 
 QuicSocketAddress LookupAddress(QuicString host, QuicString port) {
   addrinfo hint;
-  SbMemorySet(&hint, 0, sizeof(hint));
+  memset(&hint, 0, sizeof(hint));
   hint.ai_protocol = IPPROTO_UDP;
 
   addrinfo* info_list = nullptr;

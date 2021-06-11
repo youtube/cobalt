@@ -20,7 +20,7 @@ TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
   ASSERT_TRUE(file->Init(filename, 8192));
 
   CacheEntryBlock entry1(file.get(), disk_cache::Addr(0xa0010001));
-  SbMemorySet(entry1.Data(), 0, sizeof(disk_cache::EntryStore));
+  memset(entry1.Data(), 0, sizeof(disk_cache::EntryStore));
   entry1.Data()->hash = 0xaa5555aa;
   entry1.Data()->rankings_node = 0xa0010002;
 

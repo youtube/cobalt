@@ -48,11 +48,11 @@ TEST(ContainerNamesTest, CheckSmallBuffer) {
 
   // Try a large buffer all zeros.
   char buffer3[4096];
-  SbMemorySet(buffer3, 0, sizeof(buffer3));
+  memset(buffer3, 0, sizeof(buffer3));
   VERIFY(buffer3, CONTAINER_UNKNOWN);
 
   // Reuse buffer, but all \n this time.
-  SbMemorySet(buffer3, '\n', sizeof(buffer3));
+  memset(buffer3, '\n', sizeof(buffer3));
   VERIFY(buffer3, CONTAINER_UNKNOWN);
 }
 

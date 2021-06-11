@@ -70,7 +70,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   // always add a trailing NUL; it always deduplicates '%' characters).
   static const char text[] = "hello world";
   char ref[20], buf[20];
-  SbMemorySet(ref, 'X', sizeof(ref));
+  memset(ref, 'X', sizeof(ref));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
@@ -134,7 +134,7 @@ TEST(SafeSPrintfTest, OneArgument) {
   const char text[] = "hello world";
   const char fmt[]  = "hello%cworld";
   char ref[20], buf[20];
-  SbMemorySet(ref, 'X', sizeof(buf));
+  memset(ref, 'X', sizeof(buf));
   SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
@@ -359,7 +359,7 @@ TEST(SafeSPrintfTest, DataTypes) {
   SafeSPrintf(buf, "%019p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
   sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
-  SbMemorySet(
+  memset(
       addr, ' ',
       (char*)memmove(addr + sizeof(addr) - SbStringGetLength(addr) - 1,
                           addr, SbStringGetLength(addr) + 1) -
@@ -377,7 +377,7 @@ void PrintLongString(char* buf, size_t sz) {
   // Allocate slightly more space, so that we can verify that SafeSPrintf()
   // never writes past the end of the buffer.
   std::unique_ptr<char[]> tmp(new char[sz + 2]);
-  SbMemorySet(tmp.get(), 'X', sz + 2);
+  memset(tmp.get(), 'X', sz + 2);
 
   // Use SafeSPrintf() to output a complex list of arguments:
   // - test padding and truncating %c single characters.

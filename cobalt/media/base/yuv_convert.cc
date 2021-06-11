@@ -531,7 +531,7 @@ void ScaleYUVToRGB32WithRect(const uint8_t* y_buf, const uint8_t* u_buf,
   const bool kAvoidUsingOptimizedFilter = source_width > kFilterBufferSize;
   uint8_t yuv_temp[16 + kFilterBufferSize * 3 + 16];
   // memset() yuv_temp to 0 to avoid bogus warnings when running on Valgrind.
-  if (RunningOnValgrind()) SbMemorySet(yuv_temp, 0, sizeof(yuv_temp));
+  if (RunningOnValgrind()) memset(yuv_temp, 0, sizeof(yuv_temp));
   uint8_t* y_temp = reinterpret_cast<uint8_t*>(
       reinterpret_cast<uintptr_t>(yuv_temp + 15) & ~15);
   uint8_t* u_temp = y_temp + kFilterBufferSize;

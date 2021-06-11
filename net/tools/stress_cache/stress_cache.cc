@@ -125,7 +125,7 @@ class EntryWrapper {
  public:
   EntryWrapper() : entry_(nullptr), state_(NONE) {
     buffer_ = base::MakeRefCounted<net::IOBuffer>(kBufferSize);
-    SbMemorySet(buffer_->data(), 'k', kBufferSize);
+    memset(buffer_->data(), 'k', kBufferSize);
   }
 
   Operation state() const { return state_; }
@@ -193,7 +193,7 @@ void EntryWrapper::DoRead() {
     return DoWrite();
 
   state_ = READ;
-  SbMemorySet(buffer_->data(), 'k', kReadSize);
+  memset(buffer_->data(), 'k', kReadSize);
   int rv = entry_->ReadData(
       0, 0, buffer_.get(), kReadSize,
       base::Bind(&EntryWrapper::OnReadDone, base::Unretained(this)));

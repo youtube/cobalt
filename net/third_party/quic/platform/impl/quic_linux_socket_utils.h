@@ -103,7 +103,7 @@ class QuicMMsgHdr {
     }
 
     storage_.reset(new char[StorageSize()]);
-    SbMemorySet(&storage_[0], 0, StorageSize());
+    memset(&storage_[0], 0, StorageSize());
 
     int i = -1;
     for (auto it = first; it != last; ++it) {

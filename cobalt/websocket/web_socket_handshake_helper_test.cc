@@ -30,7 +30,7 @@ using cobalt::websocket::SecWebSocketKey;
 
 SecWebSocketKey NullMaskingKeyGenerator() {
   SecWebSocketKey::SecWebSocketKeyBytes key_bytes;
-  SbMemorySet(&key_bytes, 0, sizeof(key_bytes));
+  memset(&key_bytes, 0, sizeof(key_bytes));
   return SecWebSocketKey(key_bytes);
 }
 

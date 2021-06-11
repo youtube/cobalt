@@ -56,13 +56,13 @@ constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
 base::Optional<net::IPEndPoint> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
   SbSocketAddress local_ip;
-  SbMemorySet(&local_ip, 0, sizeof(local_ip));
+  memset(&local_ip, 0, sizeof(local_ip));
   bool result = false;
 
   // Dial Server only supports Ipv4 now.
   SbSocketAddressType address_types = {kSbSocketAddressTypeIpv4};
   SbSocketAddress destination;
-  SbMemorySet(&(destination.address), 0, sizeof(destination.address));
+  memset(&(destination.address), 0, sizeof(destination.address));
   destination.type = address_types;
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL) ||
       !ip_addr.FromSbSocketAddress(&local_ip)) {

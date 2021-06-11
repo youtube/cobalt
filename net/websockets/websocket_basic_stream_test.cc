@@ -802,7 +802,7 @@ TEST_F(WebSocketBasicStreamSocketChunkedReadTest, OneMegFrame) {
   std::unique_ptr<char[]> big_frame(new char[kWireSize]);
   SbMemoryCopy(big_frame.get(), "\x81\x7F", 2);
   base::WriteBigEndian(big_frame.get() + 2, kPayloadSize);
-  SbMemorySet(big_frame.get() + kLargeFrameHeaderSize, 'A', kPayloadSize);
+  memset(big_frame.get() + kLargeFrameHeaderSize, 'A', kPayloadSize);
 
   CreateChunkedRead(ASYNC,
                     big_frame.get(),

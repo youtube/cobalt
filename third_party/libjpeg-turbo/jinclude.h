@@ -66,7 +66,7 @@
 #if defined(NEED_STARBOARD_MEMORY)
 
 #include "starboard/memory.h"
-#define MEMZERO(target,size)	SbMemorySet((void *)(target), 0, (size_t)(size))
+#define MEMZERO(target,size)	memset((void *)(target), 0, (size_t)(size))
 #define MEMCOPY(dest,src,size)	SbMemoryCopy((void *)(dest), (const void *)(src), (size_t)(size))
 
 #elif NEED_BSD_STRINGS

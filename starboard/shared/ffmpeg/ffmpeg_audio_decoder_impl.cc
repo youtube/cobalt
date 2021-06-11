@@ -288,7 +288,7 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     SbMemoryCopy(codec_context_->extradata,
                  audio_sample_info_.audio_specific_config,
                  codec_context_->extradata_size);
-    SbMemorySet(codec_context_->extradata + codec_context_->extradata_size, 0,
+    memset(codec_context_->extradata + codec_context_->extradata_size, 0,
                 kAvInputBufferPaddingSize);
   }
 

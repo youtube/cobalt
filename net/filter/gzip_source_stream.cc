@@ -60,7 +60,7 @@ bool GzipSourceStream::Init() {
   zlib_stream_.reset(new z_stream);
   if (!zlib_stream_)
     return false;
-  SbMemorySet(zlib_stream_.get(), 0, sizeof(z_stream));
+  memset(zlib_stream_.get(), 0, sizeof(z_stream));
 
   int ret;
   if (type() == TYPE_GZIP) {

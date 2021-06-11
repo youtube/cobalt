@@ -27,7 +27,7 @@ void GetStat(const FilePath& path, bool show_links, struct stat* st) {
     // symlinks.
     if (!(errno == ENOENT && !show_links))
       DPLOG(ERROR) << "Couldn't stat" << path.value();
-    SbMemorySet(st, 0, sizeof(*st));
+    memset(st, 0, sizeof(*st));
   }
 }
 
@@ -36,7 +36,7 @@ void GetStat(const FilePath& path, bool show_links, struct stat* st) {
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  SbMemorySet(&stat_, 0, sizeof(stat_));
+  memset(&stat_, 0, sizeof(stat_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {

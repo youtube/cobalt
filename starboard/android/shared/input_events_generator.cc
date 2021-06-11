@@ -77,7 +77,7 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
     SbKeyLocation location,
     const SbInputVector& input_vector) {
   std::unique_ptr<SbInputData> data(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
 
   // window
   data->window = window;
@@ -488,7 +488,7 @@ void PushKeyEvent(SbKey key,
   }
 
   std::unique_ptr<SbInputData> data(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
 
   // window
   data->window = window;
@@ -693,7 +693,7 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
       AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_Y, 0);
 
   std::unique_ptr<SbInputData> data(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   SB_DCHECK(SbWindowIsValid(data->window));
@@ -895,7 +895,7 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
 
   // Press event
   std::unique_ptr<SbInputData> data(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   data->type = kSbInputEventTypePress;
@@ -913,7 +913,7 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
 
   // Unpress event
   data.reset(new SbInputData());
-  SbMemorySet(data.get(), 0, sizeof(*data));
+  memset(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   data->type = kSbInputEventTypeUnpress;

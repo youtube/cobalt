@@ -472,7 +472,7 @@ QuicString CertCompressor::CompressChain(
   ScopedZLib scoped_z(ScopedZLib::DEFLATE);
 
   if (uncompressed_size > 0) {
-    SbMemorySet(&z, 0, sizeof(z));
+    memset(&z, 0, sizeof(z));
     int rv = deflateInit(&z, Z_DEFAULT_COMPRESSION);
     DCHECK_EQ(Z_OK, rv);
     if (rv != Z_OK) {
@@ -584,7 +584,7 @@ bool CertCompressor::DecompressChain(
     z_stream z;
     ScopedZLib scoped_z(ScopedZLib::INFLATE);
 
-    SbMemorySet(&z, 0, sizeof(z));
+    memset(&z, 0, sizeof(z));
     z.next_out = uncompressed_data.get();
     z.avail_out = uncompressed_size;
     z.next_in =

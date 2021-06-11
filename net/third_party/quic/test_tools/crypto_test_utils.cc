@@ -1023,7 +1023,7 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
 
 QuicString GenerateClientPublicValuesHex() {
   char public_value[32];
-  SbMemorySet(public_value, 42, sizeof(public_value));
+  memset(public_value, 42, sizeof(public_value));
   return ("#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value)));
 }
 

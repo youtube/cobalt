@@ -405,12 +405,12 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
                           max_cached_frames_;
 
       if (silence_frames_to_write <= max_cached_frames_ - start_offset) {
-        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+        memset(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
                     silence_frames_to_write * bytes_per_frame_);
       } else {
-        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+        memset(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
                     (max_cached_frames_ - start_offset) * bytes_per_frame_);
-        SbMemorySet(
+        memset(
             frame_buffer_.data(), 0,
             (silence_frames_to_write - max_cached_frames_ + start_offset) *
                 bytes_per_frame_);
