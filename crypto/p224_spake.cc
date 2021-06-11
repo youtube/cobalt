@@ -219,7 +219,7 @@ P224EncryptedKeyExchange::Result P224EncryptedKeyExchange::ProcessMessage(
 
   next_message_ =
       std::string(reinterpret_cast<const char*>(my_hash), kSHA256Length);
-  SbMemoryCopy(expected_authenticator_, their_hash, kSHA256Length);
+  memcpy(expected_authenticator_, their_hash, kSHA256Length);
   state_ = kStateSendHash;
   return kResultPending;
 }
@@ -266,7 +266,7 @@ const std::string& P224EncryptedKeyExchange::GetUnverifiedKey() const {
 
 void P224EncryptedKeyExchange::SetXForTesting(const std::string& x) {
   memset(&x_, 0, sizeof(x_));
-  SbMemoryCopy(&x_, x.data(), std::min(x.size(), sizeof(x_)));
+  memcpy(&x_, x.data(), std::min(x.size(), sizeof(x_)));
   Init();
 }
 

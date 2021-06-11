@@ -253,7 +253,7 @@ DnsResponse::DnsResponse(const void* data, size_t length, size_t answer_offset)
       io_buffer_size_(length),
       parser_(io_buffer_->data(), length, answer_offset) {
   DCHECK(data);
-  SbMemoryCopy(io_buffer_->data(), data, length);
+  memcpy(io_buffer_->data(), data, length);
 }
 
 DnsResponse::~DnsResponse() = default;

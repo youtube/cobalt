@@ -213,7 +213,7 @@ void AudioDecoder::ProcessOutputBuffer(
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 
-    SbMemoryCopy(decoded_audio->buffer(), data, size);
+    memcpy(decoded_audio->buffer(), data, size);
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);

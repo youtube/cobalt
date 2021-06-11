@@ -119,7 +119,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
 
     for (size_t i = 0; i < common_set_hashes.size() / sizeof(uint64_t); i++) {
       uint64_t hash;
-      SbMemoryCopy(&hash, common_set_hashes.data() + i * sizeof(uint64_t),
+      memcpy(&hash, common_set_hashes.data() + i * sizeof(uint64_t),
                    sizeof(uint64_t));
 
       for (size_t j = 0; j < QUIC_ARRAYSIZE(kSets); j++) {

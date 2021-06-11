@@ -407,7 +407,7 @@ void ScaleYUVToRGB32(const uint8_t* y_buf, const uint8_t* u_buf,
         g_filter_yuv_rows_proc_(ybuf, y_ptr, y_ptr + y_pitch, source_width,
                                 source_y_fraction);
       } else {
-        SbMemoryCopy(ybuf, y_ptr, source_width);
+        memcpy(ybuf, y_ptr, source_width);
       }
       y_ptr = ybuf;
       ybuf[source_width] = ybuf[source_width - 1];
@@ -429,8 +429,8 @@ void ScaleYUVToRGB32(const uint8_t* y_buf, const uint8_t* u_buf,
         g_filter_yuv_rows_proc_(vbuf, v_ptr, v_ptr + uv_pitch, uv_source_width,
                                 source_uv_fraction);
       } else {
-        SbMemoryCopy(ubuf, u_ptr, uv_source_width);
-        SbMemoryCopy(vbuf, v_ptr, uv_source_width);
+        memcpy(ubuf, u_ptr, uv_source_width);
+        memcpy(vbuf, v_ptr, uv_source_width);
       }
       u_ptr = ubuf;
       v_ptr = vbuf;

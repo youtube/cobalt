@@ -454,7 +454,7 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
        i < original_audio_sample_info.audio_specific_config_size; ++i) {
     std::vector<uint8_t> config(
         original_audio_sample_info.audio_specific_config_size);
-    SbMemoryCopy(config.data(),
+    memcpy(config.data(),
                  original_audio_sample_info.audio_specific_config,
                  original_audio_sample_info.audio_specific_config_size);
     auto audio_sample_info = original_audio_sample_info;
@@ -478,7 +478,7 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
   for (uint16_t i = 0;
        i < original_audio_sample_info.audio_specific_config_size; ++i) {
     std::vector<uint8_t> config(i);
-    SbMemoryCopy(config.data(),
+    memcpy(config.data(),
                  original_audio_sample_info.audio_specific_config, i);
     auto audio_sample_info = original_audio_sample_info;
     audio_sample_info.audio_specific_config = config.data();

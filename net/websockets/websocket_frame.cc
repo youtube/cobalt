@@ -228,7 +228,7 @@ void MaskWebSocketFramePayload(const WebSocketMaskingKey& masking_key,
 
   for (size_t i = 0; i < kPackedMaskKeySize; i += kMaskingKeyLength) {
     // memcpy() is allegedly blessed by the C++ standard for type-punning.
-    SbMemoryCopy(reinterpret_cast<char*>(&packed_mask_key) + i, realigned_mask,
+    memcpy(reinterpret_cast<char*>(&packed_mask_key) + i, realigned_mask,
                  kMaskingKeyLength);
   }
 

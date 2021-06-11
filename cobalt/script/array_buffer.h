@@ -43,7 +43,7 @@ class ArrayBuffer {
   static Handle<ArrayBuffer> New(GlobalEnvironment* global_environment,
                                  const void* data, size_t byte_length) {
     Handle<ArrayBuffer> array_buffer = New(global_environment, byte_length);
-    SbMemoryCopy(array_buffer->Data(), data, byte_length);
+    memcpy(array_buffer->Data(), data, byte_length);
     return array_buffer;
   }
 

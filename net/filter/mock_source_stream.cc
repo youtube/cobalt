@@ -46,7 +46,7 @@ int MockSourceStream::Read(IOBuffer* dest_buffer,
   }
 
   results_.pop();
-  SbMemoryCopy(dest_buffer->data(), r.data, r.len);
+  memcpy(dest_buffer->data(), r.data, r.len);
   return r.error == OK ? r.len : r.error;
 }
 
@@ -94,7 +94,7 @@ void MockSourceStream::CompleteNextRead() {
   DCHECK_EQ(ASYNC, r.mode);
   results_.pop();
   DCHECK_GE(dest_buffer_size_, r.len);
-  SbMemoryCopy(dest_buffer_->data(), r.data, r.len);
+  memcpy(dest_buffer_->data(), r.data, r.len);
   dest_buffer_ = nullptr;
   std::move(callback_).Run(r.error == OK ? r.len : r.error);
 }

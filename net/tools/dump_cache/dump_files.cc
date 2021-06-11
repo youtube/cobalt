@@ -255,7 +255,7 @@ bool CacheDumper::LoadEntry(disk_cache::CacheAddr addr,
   if (!entry_block.Load())
     return false;
 
-  SbMemoryCopy(entry, entry_block.Data(), sizeof(*entry));
+  memcpy(entry, entry_block.Data(), sizeof(*entry));
   if (!entry_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
@@ -287,7 +287,7 @@ bool CacheDumper::LoadRankings(disk_cache::CacheAddr addr,
   if (!rank_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
-  SbMemoryCopy(rankings, rank_block.Data(), sizeof(*rankings));
+  memcpy(rankings, rank_block.Data(), sizeof(*rankings));
   return true;
 }
 

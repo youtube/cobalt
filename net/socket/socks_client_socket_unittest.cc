@@ -227,7 +227,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
     scoped_refptr<IOBuffer> buffer =
         base::MakeRefCounted<IOBuffer>(payload_write.size());
-    SbMemoryCopy(buffer->data(), payload_write.data(), payload_write.size());
+    memcpy(buffer->data(), payload_write.data(), payload_write.size());
     rv = user_sock_->Write(buffer.get(), payload_write.size(),
                            callback_.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(rv, IsError(ERR_IO_PENDING));

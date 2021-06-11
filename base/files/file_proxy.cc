@@ -209,7 +209,7 @@ class WriteHelper : public FileHelper {
         buffer_(new char[bytes_to_write]),
         bytes_to_write_(bytes_to_write),
         bytes_written_(0) {
-    SbMemoryCopy(buffer_.get(), buffer, bytes_to_write);
+    memcpy(buffer_.get(), buffer, bytes_to_write);
   }
 
   void RunWork(int64_t offset) {

@@ -104,7 +104,7 @@ class MockTransaction : public DnsTransaction,
         DnsResponse response;
         char* buffer = response.io_buffer()->data();
         int nbytes = query.io_buffer()->size();
-        SbMemoryCopy(buffer, query.io_buffer()->data(), nbytes);
+        memcpy(buffer, query.io_buffer()->data(), nbytes);
         dns_protocol::Header* header =
             reinterpret_cast<dns_protocol::Header*>(buffer);
         header->flags |= dns_protocol::kFlagResponse;

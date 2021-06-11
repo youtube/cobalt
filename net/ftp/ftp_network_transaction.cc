@@ -484,8 +484,8 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
       base::MakeRefCounted<IOBufferWithSize>(command.length() + 2);
   write_buf_ = base::MakeRefCounted<DrainableIOBuffer>(
       write_command_buf_, write_command_buf_->size());
-  SbMemoryCopy(write_command_buf_->data(), command.data(), command.length());
-  SbMemoryCopy(write_command_buf_->data() + command.length(), kCRLF, 2);
+  memcpy(write_command_buf_->data(), command.data(), command.length());
+  memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
 
   net_log_.AddEvent(NetLogEventType::FTP_COMMAND_SENT,
                     NetLog::StringCallback("command", &command_for_log));

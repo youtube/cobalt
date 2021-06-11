@@ -155,15 +155,15 @@ void DrawRectShadowBlur::ExecuteUpdateVertexBuffer(
   if (attributes_square_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_square_.size() * sizeof(attributes_square_[0]));
-    SbMemoryCopy(vertex_buffer_, &attributes_square_[0],
+    memcpy(vertex_buffer_, &attributes_square_[0],
                  attributes_square_.size() * sizeof(attributes_square_[0]));
   } else if (attributes_round_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_round_.size() * sizeof(attributes_round_[0]));
-    SbMemoryCopy(vertex_buffer_, &attributes_round_[0],
+    memcpy(vertex_buffer_, &attributes_round_[0],
                  attributes_round_.size() * sizeof(attributes_round_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
-    SbMemoryCopy(index_buffer_, &indices_[0],
+    memcpy(index_buffer_, &indices_[0],
                  indices_.size() * sizeof(indices_[0]));
   }
 }

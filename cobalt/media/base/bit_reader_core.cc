@@ -148,7 +148,7 @@ bool BitReaderCore::Refill(int min_nbits) {
   if (window_size == 0) return false;
 
   reg_next_ = 0;
-  SbMemoryCopy(&reg_next_, byte_stream_window, window_size);
+  memcpy(&reg_next_, byte_stream_window, window_size);
   reg_next_ = base::NetToHost64(reg_next_);
   nbits_next_ = window_size * 8;
 

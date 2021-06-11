@@ -1750,7 +1750,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     QuicStringPiece remaining = encrypted_reader->PeekRemainingPayload();
     if (remaining.length() >= sizeof(header->possible_stateless_reset_token)) {
       header->has_possible_stateless_reset_token = true;
-      SbMemoryCopy(
+      memcpy(
           &header->possible_stateless_reset_token,
           &remaining.data()[remaining.length() -
                             sizeof(header->possible_stateless_reset_token)],

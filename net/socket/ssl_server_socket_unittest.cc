@@ -190,7 +190,7 @@ class FakeDataChannel {
   int PropagateData(scoped_refptr<IOBuffer> read_buf, int read_buf_len) {
     scoped_refptr<DrainableIOBuffer> buf = data_.front();
     int copied = std::min(buf->BytesRemaining(), read_buf_len);
-    SbMemoryCopy(read_buf->data(), buf->data(), copied);
+    memcpy(read_buf->data(), buf->data(), copied);
     buf->DidConsume(copied);
 
     if (!buf->BytesRemaining())

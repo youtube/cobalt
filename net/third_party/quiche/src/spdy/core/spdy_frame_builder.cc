@@ -136,7 +136,7 @@ bool SpdyFrameBuilder::WriteBytes(const void* data, uint32_t data_len) {
 
   if (output_ == nullptr) {
     char* dest = GetWritableBuffer(data_len);
-    SbMemoryCopy(dest, data, data_len);
+    memcpy(dest, data, data_len);
     Seek(data_len);
   } else {
     char* dest = nullptr;
@@ -151,7 +151,7 @@ bool SpdyFrameBuilder::WriteBytes(const void* data, uint32_t data_len) {
       }
       uint32_t to_copy = std::min<uint32_t>(data_len, size);
       const char* src = data_ptr + total_written;
-      SbMemoryCopy(dest, src, to_copy);
+      memcpy(dest, src, to_copy);
       Seek(to_copy);
       data_len -= to_copy;
       total_written += to_copy;

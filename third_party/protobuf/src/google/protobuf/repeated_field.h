@@ -1336,11 +1336,7 @@ void ElementCopier<Element, HasTrivialCopy>::operator()(
 template <typename Element>
 struct ElementCopier<Element, true> {
   void operator()(Element* to, const Element* from, int array_size) {
-#ifndef STARBOARD
     memcpy(to, from, array_size * sizeof(Element));
-#else
-    SbMemoryCopy(to, from, array_size * sizeof(Element));
-#endif  // STARBOARD
   }
 };
 

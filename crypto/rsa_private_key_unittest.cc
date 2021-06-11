@@ -334,9 +334,9 @@ TEST(RSAPrivateKeyUnitTest, ShortIntegers) {
   input1.resize(sizeof(short_integer_with_high_bit));
   input2.resize(sizeof(short_integer_without_high_bit));
 
-  SbMemoryCopy(&input1.front(), short_integer_with_high_bit,
+  memcpy(&input1.front(), short_integer_with_high_bit,
                sizeof(short_integer_with_high_bit));
-  SbMemoryCopy(&input2.front(), short_integer_without_high_bit,
+  memcpy(&input2.front(), short_integer_without_high_bit,
                sizeof(short_integer_without_high_bit));
 
   std::unique_ptr<crypto::RSAPrivateKey> keypair1(

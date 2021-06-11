@@ -107,7 +107,7 @@ FileEnumerator::FileInfo FileEnumerator::GetInfo() const {
     return FileInfo();
   }
   FileInfo ret;
-  SbMemoryCopy(&ret.find_data_, &find_data_, sizeof(find_data_));
+  memcpy(&ret.find_data_, &find_data_, sizeof(find_data_));
   return ret;
 }
 

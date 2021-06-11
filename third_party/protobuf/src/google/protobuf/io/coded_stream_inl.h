@@ -58,11 +58,7 @@ inline bool CodedInputStream::InternalReadStringInline(string* buffer,
       // Oddly enough, memcpy() requires its first two args to be non-NULL even
       // if we copy 0 bytes.  So, we have ensured that z.first is non-NULL here.
       GOOGLE_DCHECK(z.first != NULL);
-#ifndef STARBOARD
       memcpy(z.first, buffer_, size);
-#else
-      SbMemoryCopy(z.first, buffer_, size);
-#endif  // STARBOARD
       Advance(size);
     }
     return true;
@@ -78,7 +74,7 @@ inline bool CodedInputStream::InternalReadRawInline(void* buffer, int size) {
 #ifndef STARBOARD
     memcpy(buffer, buffer_, current_buffer_size);
 #else
-    SbMemoryCopy(buffer, buffer_, current_buffer_size);
+    memcpy(buffer, buffer_, current_buffer_size);
 #endif  // STARBOARD
     buffer = reinterpret_cast<uint8*>(buffer) + current_buffer_size;
     size -= current_buffer_size;
@@ -89,7 +85,7 @@ inline bool CodedInputStream::InternalReadRawInline(void* buffer, int size) {
 #ifndef STARBOARD
   memcpy(buffer, buffer_, size);
 #else
-  SbMemoryCopy(buffer, buffer_, size);
+  memcpy(buffer, buffer_, size);
 #endif  // STARBOARD
   Advance(size);
 

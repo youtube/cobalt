@@ -74,7 +74,7 @@ void SwizzlePixels(void* in_data,
       in_data_bytes += in_pitch_in_bytes - width * in_bytes_per_pixel;
       out_data_bytes += out_pitch_in_bytes - width * 4;
     } else {
-      SbMemoryCopy(out_data_bytes, in_data_bytes, width * 4);
+      memcpy(out_data_bytes, in_data_bytes, width * 4);
       in_data_bytes += in_pitch_in_bytes;
       out_data_bytes += out_pitch_in_bytes;
     }

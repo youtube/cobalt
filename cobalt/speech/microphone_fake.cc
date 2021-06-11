@@ -93,7 +93,7 @@ MicrophoneFake::MicrophoneFake(const Options& options)
         new AudioBus(kSupportedMonoChannel,
                      file_length_ / audio::GetSampleTypeSize(AudioBus::kInt16),
                      AudioBus::kInt16, AudioBus::kInterleaved));
-    SbMemoryCopy(audio_bus_->interleaved_data(), options.external_audio_data,
+    memcpy(audio_bus_->interleaved_data(), options.external_audio_data,
                  file_length_);
   }
 }
@@ -135,7 +135,7 @@ bool MicrophoneFake::Open() {
           kSupportedMonoChannel,
           file_buffer_size / audio::GetSampleTypeSize(AudioBus::kInt16),
           AudioBus::kInt16, AudioBus::kInterleaved));
-      SbMemoryCopy(audio_bus_->interleaved_data(), audio_input.get(),
+      memcpy(audio_bus_->interleaved_data(), audio_input.get(),
                    file_buffer_size);
       file_length_ = file_buffer_size;
     } else if (reader->sample_type() != AudioBus::kInt16 ||
@@ -163,7 +163,7 @@ int MicrophoneFake::Read(char* out_data, int data_size) {
   }
 
   int copy_bytes = std::min(file_length_ - read_index_, data_size);
-  SbMemoryCopy(out_data, audio_bus_->interleaved_data() + read_index_,
+  memcpy(out_data, audio_bus_->interleaved_data() + read_index_,
                copy_bytes);
   read_index_ += copy_bytes;
   if (read_index_ == file_length_) {

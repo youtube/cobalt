@@ -87,7 +87,7 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
   if (side_data_size_ > 0) {
     DCHECK(side_data);
     side_data_.reset(new uint8_t[side_data_size_]);
-    SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
+    memcpy(side_data_.get(), side_data, side_data_size_);
   }
 }
 
@@ -104,7 +104,7 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
   }
   if (side_data_size_ > 0) {
     side_data_.reset(new uint8_t[side_data_size_]);
-    SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
+    memcpy(side_data_.get(), side_data, side_data_size_);
   }
 }
 

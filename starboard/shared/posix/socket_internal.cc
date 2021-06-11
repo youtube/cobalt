@@ -120,7 +120,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
       memset(addr, 0, length);
       addr->sin_family = AF_INET;
       addr->sin_port = htons(address->port);
-      SbMemoryCopy(&addr->sin_addr, address->address, kAddressLengthIpv4);
+      memcpy(&addr->sin_addr, address->address, kAddressLengthIpv4);
       break;
     }
 #if SB_HAS(IPV6)
@@ -130,7 +130,7 @@ bool SockAddr::FromSbSocketAddress(const SbSocketAddress* address) {
       memset(addr6, 0, length);
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = htons(address->port);
-      SbMemoryCopy(&addr6->sin6_addr, address->address, kAddressLengthIpv6);
+      memcpy(&addr6->sin6_addr, address->address, kAddressLengthIpv6);
       break;
     }
 #endif
@@ -162,7 +162,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
       return false;
     }
 
-    SbMemoryCopy(out_address->address, &addr->sin_addr, kAddressLengthIpv4);
+    memcpy(out_address->address, &addr->sin_addr, kAddressLengthIpv4);
     out_address->port = ntohs(addr->sin_port);
     out_address->type = kSbSocketAddressTypeIpv4;
     return true;
@@ -176,7 +176,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
       return false;
     }
 
-    SbMemoryCopy(out_address->address, &addr6->sin6_addr, kAddressLengthIpv6);
+    memcpy(out_address->address, &addr6->sin6_addr, kAddressLengthIpv6);
     out_address->port = ntohs(addr6->sin6_port);
     out_address->type = kSbSocketAddressTypeIpv6;
     return true;

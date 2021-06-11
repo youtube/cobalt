@@ -66,7 +66,7 @@ void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
                                                       sizeof(VertexAttributes));
-  SbMemoryCopy(vertex_buffer_, &attributes_[0],
+  memcpy(vertex_buffer_, &attributes_[0],
                attributes_.size() * sizeof(VertexAttributes));
 }
 

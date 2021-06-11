@@ -326,7 +326,7 @@ void* PartitionReallocGenericFlags(PartitionRootGeneric* root,
   if (new_size < copy_size)
     copy_size = new_size;
 
-  SbMemoryCopy(ret, ptr, copy_size);
+  memcpy(ret, ptr, copy_size);
   root->Free(ptr);
   return ret;
 #endif

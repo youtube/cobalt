@@ -69,7 +69,7 @@ inline Dest bit_cast(const Source& source) {
   SB_COMPILE_ASSERT(sizeof(Dest) == sizeof(source),
                     Source_and_destination_types_should_have_equal_sizes);
   Dest dest;
-  SbMemoryCopy(&dest, &source, sizeof(dest));
+  memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 

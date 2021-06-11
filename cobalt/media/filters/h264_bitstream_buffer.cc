@@ -52,7 +52,7 @@ void H264BitstreamBuffer::FlushReg() {
   // Make sure we have enough space. Grow() will CHECK() on allocation failure.
   if (pos_ + bytes_in_reg < capacity_) Grow();
 
-  SbMemoryCopy(data_ + pos_, &reg_, bytes_in_reg);
+  memcpy(data_ + pos_, &reg_, bytes_in_reg);
   pos_ += bytes_in_reg;
 
   reg_ = 0;

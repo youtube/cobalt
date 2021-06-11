@@ -94,7 +94,7 @@ class TestEncrypter : public QuicEncrypter {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = QuicString(associated_data);
     plaintext_ = QuicString(plaintext);
-    SbMemoryCopy(output, plaintext.data(), plaintext.length());
+    memcpy(output, plaintext.data(), plaintext.length());
     *output_length = plaintext.length();
     return true;
   }
@@ -137,7 +137,7 @@ class TestDecrypter : public QuicDecrypter {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = QuicString(associated_data);
     ciphertext_ = QuicString(ciphertext);
-    SbMemoryCopy(output, ciphertext.data(), ciphertext.length());
+    memcpy(output, ciphertext.data(), ciphertext.length());
     *output_length = ciphertext.length();
     return true;
   }
@@ -211,7 +211,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
     size_t coalesced_data_length = packet.length();
     char* coalesced_data = new char[coalesced_data_length];
-    SbMemoryCopy(coalesced_data, packet.data(), coalesced_data_length);
+    memcpy(coalesced_data, packet.data(), coalesced_data_length);
     coalesced_packets_.push_back(QuicMakeUnique<QuicEncryptedPacket>(
         coalesced_data, coalesced_data_length,
         /*owns_buffer=*/true));
@@ -555,7 +555,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     char* buffer = new char[kMaxPacketSize + 1];
     size_t len = 0;
     for (const auto& fragment : fragments) {
-      SbMemoryCopy(buffer + len, fragment.fragment.data(),
+      memcpy(buffer + len, fragment.fragment.data(),
                    fragment.fragment.size());
       len += fragment.fragment.size();
     }

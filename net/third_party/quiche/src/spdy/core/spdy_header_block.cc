@@ -389,12 +389,12 @@ size_t Join(char* dst,
   }
   auto* original_dst = dst;
   auto it = fragments.begin();
-  SbMemoryCopy(dst, it->data(), it->size());
+  memcpy(dst, it->data(), it->size());
   dst += it->size();
   for (++it; it != fragments.end(); ++it) {
-    SbMemoryCopy(dst, separator.data(), separator.size());
+    memcpy(dst, separator.data(), separator.size());
     dst += separator.size();
-    SbMemoryCopy(dst, it->data(), it->size());
+    memcpy(dst, it->data(), it->size());
     dst += it->size();
   }
   return dst - original_dst;

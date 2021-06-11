@@ -190,7 +190,7 @@ void WebSocketInflater::OutputBuffer::Read(char* dest, size_t size) {
   if (tail_ < head_) {
     size_t num_bytes_to_copy = std::min(size, buffer_.size() - head_);
     DCHECK_LT(head_, buffer_.size());
-    SbMemoryCopy(&dest[num_bytes_copied], &buffer_[head_], num_bytes_to_copy);
+    memcpy(&dest[num_bytes_copied], &buffer_[head_], num_bytes_to_copy);
     AdvanceHead(num_bytes_to_copy);
     num_bytes_copied += num_bytes_to_copy;
   }
@@ -201,7 +201,7 @@ void WebSocketInflater::OutputBuffer::Read(char* dest, size_t size) {
   size_t num_bytes_to_copy = size - num_bytes_copied;
   DCHECK_LE(num_bytes_to_copy, tail_ - head_);
   DCHECK_LT(head_, buffer_.size());
-  SbMemoryCopy(&dest[num_bytes_copied], &buffer_[head_], num_bytes_to_copy);
+  memcpy(&dest[num_bytes_copied], &buffer_[head_], num_bytes_to_copy);
   AdvanceHead(num_bytes_to_copy);
   num_bytes_copied += num_bytes_to_copy;
   DCHECK_EQ(size, num_bytes_copied);
@@ -274,7 +274,7 @@ size_t WebSocketInflater::InputQueue::PushToLastBuffer(const char* data,
   if (!num_bytes_to_copy)
     return 0;
   IOBufferWithSize* buffer = buffers_.back().get();
-  SbMemoryCopy(&buffer->data()[tail_of_last_buffer_], data, num_bytes_to_copy);
+  memcpy(&buffer->data()[tail_of_last_buffer_], data, num_bytes_to_copy);
   tail_of_last_buffer_ += num_bytes_to_copy;
   return num_bytes_to_copy;
 }

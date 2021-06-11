@@ -201,7 +201,7 @@ class SampleTable {
     CHECK_GE(position, file_offset_);
     CHECK_LE(position + size, file_offset_ + combined_.size());
     uint32 offset = position - file_offset_;
-    SbMemoryCopy(data, &combined_[0] + offset, size);
+    memcpy(data, &combined_[0] + offset, size);
     ++read_count_;
     read_bytes_ += size;
     return size;

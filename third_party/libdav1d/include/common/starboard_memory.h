@@ -26,11 +26,6 @@
 #endif
 #define realloc SbMemoryReallocate
 
-#ifdef memcpy
-#undef memcpy
-#endif
-#define memcpy SbMemoryCopy
-
 #ifdef free
 #undef free
 #endif

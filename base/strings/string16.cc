@@ -62,7 +62,7 @@ char16* c16SbMemoryMove(char16* s1, const char16* s2, size_t n) {
 }
 
 char16* c16SbMemoryCopy(char16* s1, const char16* s2, size_t n) {
-  return static_cast<char16*>(SbMemoryCopy(s1, s2, n * sizeof(char16)));
+  return static_cast<char16*>(memcpy(s1, s2, n * sizeof(char16)));
 }
 
 char16* c16SbMemorySet(char16* s, char16 c, size_t n) {

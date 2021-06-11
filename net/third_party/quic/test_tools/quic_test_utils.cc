@@ -51,7 +51,7 @@ QuicConnectionId TestConnectionId(uint64_t connection_number) {
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
   DCHECK_EQ(connection_id.length(), kQuicDefaultConnectionIdLength);
   uint64_t connection_id64_net = 0;
-  SbMemoryCopy(&connection_id64_net, connection_id.data(),
+  memcpy(&connection_id64_net, connection_id.data(),
                std::min<size_t>(static_cast<size_t>(connection_id.length()),
                                 sizeof(connection_id64_net)));
   return QuicEndian::NetToHost64(connection_id64_net);
@@ -143,7 +143,7 @@ uint64_t SimpleRandom::RandUint64() {
   QuicString hash =
       Sha1Hash(QuicStringPiece(reinterpret_cast<char*>(&seed_), sizeof(seed_)));
   DCHECK_EQ(static_cast<size_t>(SHA_DIGEST_LENGTH), hash.length());
-  SbMemoryCopy(&seed_, hash.data(), sizeof(seed_));
+  memcpy(&seed_, hash.data(), sizeof(seed_));
   return seed_;
 }
 
@@ -889,7 +889,7 @@ QuicReceivedPacket* ConstructReceivedPacket(
     const QuicEncryptedPacket& encrypted_packet,
     QuicTime receipt_time) {
   char* buffer = new char[encrypted_packet.length()];
-  SbMemoryCopy(buffer, encrypted_packet.data(), encrypted_packet.length());
+  memcpy(buffer, encrypted_packet.data(), encrypted_packet.length());
   return new QuicReceivedPacket(buffer, encrypted_packet.length(), receipt_time,
                                 true);
 }

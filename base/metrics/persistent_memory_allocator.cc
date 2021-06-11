@@ -414,7 +414,7 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
       shared_meta()->name = Allocate(name_length, 0);
       char* name_cstr = GetAsArray<char>(shared_meta()->name, 0, name_length);
       if (name_cstr)
-        SbMemoryCopy(name_cstr, name.data(), name.length());
+        memcpy(name_cstr, name.data(), name.length());
     }
 
     shared_meta()->memory_state.store(MEMORY_INITIALIZED,

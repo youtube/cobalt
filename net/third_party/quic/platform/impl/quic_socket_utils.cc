@@ -275,7 +275,7 @@ size_t QuicSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
     memset(pktinfo, 0, sizeof(in_pktinfo));
     pktinfo->ipi_ifindex = 0;
     address_string = self_address.ToPackedString();
-    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_string.c_str(),
+    memcpy(&pktinfo->ipi_spec_dst, address_string.c_str(),
                  address_string.length());
     return sizeof(in_pktinfo);
   } else if (self_address.IsIPv6()) {
@@ -285,7 +285,7 @@ size_t QuicSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
     in6_pktinfo* pktinfo = reinterpret_cast<in6_pktinfo*>(CMSG_DATA(cmsg));
     memset(pktinfo, 0, sizeof(in6_pktinfo));
     address_string = self_address.ToPackedString();
-    SbMemoryCopy(&pktinfo->ipi6_addr, address_string.c_str(),
+    memcpy(&pktinfo->ipi6_addr, address_string.c_str(),
                  address_string.length());
     return sizeof(in6_pktinfo);
   } else {
@@ -365,11 +365,11 @@ void QuicSocketUtils::SetIpInfoInCmsgData(const QuicIpAddress& self_address,
   if (self_address.IsIPv4()) {
     in_pktinfo* pktinfo = static_cast<in_pktinfo*>(cmsg_data);
     pktinfo->ipi_ifindex = 0;
-    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_str.c_str(),
+    memcpy(&pktinfo->ipi_spec_dst, address_str.c_str(),
                  address_str.length());
   } else if (self_address.IsIPv6()) {
     in6_pktinfo* pktinfo = static_cast<in6_pktinfo*>(cmsg_data);
-    SbMemoryCopy(&pktinfo->ipi6_addr, address_str.c_str(),
+    memcpy(&pktinfo->ipi6_addr, address_str.c_str(),
                  address_str.length());
   } else {
     QUIC_BUG << "Unrecognized IPAddress";

@@ -60,7 +60,7 @@ bool HttpVaryData::InitFromPickle(base::PickleIterator* iter) {
   is_valid_ = false;
   const char* data;
   if (iter->ReadBytes(&data, sizeof(request_digest_))) {
-    SbMemoryCopy(&request_digest_, data, sizeof(request_digest_));
+    memcpy(&request_digest_, data, sizeof(request_digest_));
     return is_valid_ = true;
   }
   return false;

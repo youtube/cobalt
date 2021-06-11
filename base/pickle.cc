@@ -36,7 +36,7 @@ inline bool PickleIterator::ReadBuiltinType(Type* result) {
   if (!read_from)
     return false;
   if (sizeof(Type) > sizeof(uint32_t))
-    SbMemoryCopy(result, read_from, sizeof(*result));
+    memcpy(result, read_from, sizeof(*result));
   else
     *result = *reinterpret_cast<const Type*>(read_from);
   return true;
@@ -127,7 +127,7 @@ bool PickleIterator::ReadFloat(float* result) {
   const char* read_from = GetReadPointerAndAdvance<float>();
   if (!read_from)
     return false;
-  SbMemoryCopy(result, read_from, sizeof(*result));
+  memcpy(result, read_from, sizeof(*result));
   return true;
 }
 
@@ -139,7 +139,7 @@ bool PickleIterator::ReadDouble(double* result) {
   const char* read_from = GetReadPointerAndAdvance<double>();
   if (!read_from)
     return false;
-  SbMemoryCopy(result, read_from, sizeof(*result));
+  memcpy(result, read_from, sizeof(*result));
   return true;
 }
 
@@ -262,7 +262,7 @@ Pickle::Pickle(const Pickle& other)
       capacity_after_header_(0),
       write_offset_(other.write_offset_) {
   Resize(other.header_->payload_size);
-  SbMemoryCopy(header_, other.header_,
+  memcpy(header_, other.header_,
                header_size_ + other.header_->payload_size);
 }
 
@@ -285,7 +285,7 @@ Pickle& Pickle::operator=(const Pickle& other) {
     header_size_ = other.header_size_;
   }
   Resize(other.header_->payload_size);
-  SbMemoryCopy(header_, other.header_,
+  memcpy(header_, other.header_,
                other.header_size_ + other.header_->payload_size);
   write_offset_ = other.write_offset_;
   return *this;
@@ -433,7 +433,7 @@ inline void Pickle::WriteBytesCommon(const void* data, size_t length) {
       << "oops: pickle is readonly";
   MSAN_CHECK_MEM_IS_INITIALIZED(data, length);
   void* write = ClaimUninitializedBytesInternal(length);
-  SbMemoryCopy(write, data, length);
+  memcpy(write, data, length);
 }
 
 }  // namespace base

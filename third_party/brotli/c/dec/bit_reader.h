@@ -9,13 +9,8 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
-#if !defined(STARBOARD)
 #include <string.h>  /* memcpy*/
 #define MEMCPY_BIT_READER memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_BIT_READER SbMemoryCopy
-#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>

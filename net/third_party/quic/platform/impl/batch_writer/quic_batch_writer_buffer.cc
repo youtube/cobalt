@@ -68,7 +68,7 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
 
   if (buffer != next_write_location) {
     if (IsExternalBuffer(buffer, buf_len)) {
-      SbMemoryCopy(next_write_location, buffer, buf_len);
+      memcpy(next_write_location, buffer, buf_len);
     } else if (IsInternalBuffer(buffer, buf_len)) {
       memmove(next_write_location, buffer, buf_len);
     } else {

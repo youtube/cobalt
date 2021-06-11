@@ -28,7 +28,7 @@ SignedTreeHead::SignedTreeHead(Version version,
       tree_size(tree_size),
       signature(signature),
       log_id(log_id) {
-  SbMemoryCopy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
+  memcpy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
 }
 
 SignedTreeHead::SignedTreeHead(const SignedTreeHead& other) = default;

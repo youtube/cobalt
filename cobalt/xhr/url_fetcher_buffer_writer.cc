@@ -236,7 +236,7 @@ void URLFetcherResponseWriter::Buffer::Write(const void* buffer,
 
   auto destination = static_cast<uint8_t*>(data_as_array_buffer_.data()) +
                      data_as_array_buffer_size_;
-  SbMemoryCopy(destination, buffer, num_bytes);
+  memcpy(destination, buffer, num_bytes);
   data_as_array_buffer_size_ += num_bytes;
 }
 
@@ -281,7 +281,7 @@ void URLFetcherResponseWriter::Buffer::UpdateType_Locked(Type type) {
   if (type == kArrayBuffer) {
     data_as_array_buffer_.Resize(data_as_string_.capacity());
     data_as_array_buffer_size_ = data_as_string_.size();
-    SbMemoryCopy(data_as_array_buffer_.data(), data_as_string_.data(),
+    memcpy(data_as_array_buffer_.data(), data_as_string_.data(),
                  data_as_array_buffer_size_);
 
     ReleaseMemory(&data_as_string_);

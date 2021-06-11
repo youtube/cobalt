@@ -106,7 +106,7 @@ size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct IOVEC* iov,
       auto body = bodies_[index];
       size_t bytes_to_copy =
           std::min<size_t>(body.length() - src_offset, dest_remaining);
-      SbMemoryCopy(dest, body.substr(src_offset, bytes_to_copy).data(),
+      memcpy(dest, body.substr(src_offset, bytes_to_copy).data(),
                    bytes_to_copy);
       dest += bytes_to_copy;
       dest_remaining -= bytes_to_copy;

@@ -190,7 +190,7 @@ std::string GetDerEncodedX509Cert() { return HexToBytes(kDefaultDerCert); }
 void GetPrecertSignedEntry(SignedEntryData* entry) {
   entry->type = ct::SignedEntryData::LOG_ENTRY_TYPE_PRECERT;
   std::string issuer_hash(HexToBytes(kDefaultIssuerKeyHash));
-  SbMemoryCopy(entry->issuer_key_hash.data, issuer_hash.data(),
+  memcpy(entry->issuer_key_hash.data, issuer_hash.data(),
                issuer_hash.size());
   entry->tbs_certificate = HexToBytes(kDefaultDerTbsCert);
 }
@@ -278,7 +278,7 @@ bool GetSampleSignedTreeHead(SignedTreeHead* sth) {
                    base::TimeDelta::FromMilliseconds(kTestTimestamp);
   sth->tree_size = kSampleSTHTreeSize;
   std::string sha256_root_hash = GetSampleSTHSHA256RootHash();
-  SbMemoryCopy(sth->sha256_root_hash, sha256_root_hash.c_str(),
+  memcpy(sth->sha256_root_hash, sha256_root_hash.c_str(),
                kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 
@@ -292,7 +292,7 @@ bool GetSampleEmptySignedTreeHead(SignedTreeHead* sth) {
   sth->tree_size = 0;
   std::string empty_root_hash = HexToBytes(
       "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-  SbMemoryCopy(sth->sha256_root_hash, empty_root_hash.c_str(),
+  memcpy(sth->sha256_root_hash, empty_root_hash.c_str(),
                kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 

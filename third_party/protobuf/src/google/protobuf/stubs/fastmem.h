@@ -128,7 +128,6 @@ inline int fastmemcmp_inlined(const char *a, const char *b, size_t n) {
 inline void memcpy_inlined(char *dst, const char *src, size_t size) {
   // Compiler inlines code with minimal amount of data movement when third
   // parameter of memcpy is a constant.
-#ifndef STARBOARD
   switch (size) {
     case  1: memcpy(dst, src, 1); break;
     case  2: memcpy(dst, src, 2); break;
@@ -148,27 +147,6 @@ inline void memcpy_inlined(char *dst, const char *src, size_t size) {
     case 16: memcpy(dst, src, 16); break;
     default: memcpy(dst, src, size); break;
   }
-#else
-  switch (size) {
-    case  1: SbMemoryCopy(dst, src, 1); break;
-    case  2: SbMemoryCopy(dst, src, 2); break;
-    case  3: SbMemoryCopy(dst, src, 3); break;
-    case  4: SbMemoryCopy(dst, src, 4); break;
-    case  5: SbMemoryCopy(dst, src, 5); break;
-    case  6: SbMemoryCopy(dst, src, 6); break;
-    case  7: SbMemoryCopy(dst, src, 7); break;
-    case  8: SbMemoryCopy(dst, src, 8); break;
-    case  9: SbMemoryCopy(dst, src, 9); break;
-    case 10: SbMemoryCopy(dst, src, 10); break;
-    case 11: SbMemoryCopy(dst, src, 11); break;
-    case 12: SbMemoryCopy(dst, src, 12); break;
-    case 13: SbMemoryCopy(dst, src, 13); break;
-    case 14: SbMemoryCopy(dst, src, 14); break;
-    case 15: SbMemoryCopy(dst, src, 15); break;
-    case 16: SbMemoryCopy(dst, src, 16); break;
-    default: SbMemoryCopy(dst, src, size); break;
-  }
-#endif  // STARBOARD
 }
 
 }  // namespace internal

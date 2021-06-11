@@ -25,11 +25,11 @@ uint32_t MurmurHash2_32(const void* src, uint32_t size, uint32_t prev_hash) {
     enum { kInlineSize = 1024 };
     if (size <= kInlineSize) {
       uint32_t aligned_src[kInlineSize / 4];
-      SbMemoryCopy(aligned_src, src, size);
+      memcpy(aligned_src, src, size);
       return MurmurHash2_32_Aligned(aligned_src, size, prev_hash);
     } else {
       scoped_array<char> aligned_src(new char[size]);
-      SbMemoryCopy(aligned_src.get(), src, size);
+      memcpy(aligned_src.get(), src, size);
       return MurmurHash2_32_Aligned(aligned_src.get(), size, prev_hash);
     }
   }

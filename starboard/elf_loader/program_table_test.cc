@@ -60,7 +60,7 @@ class DummyFile : public File {
                     << file_chunk.size_;
       return false;
     }
-    SbMemoryCopy(buffer, file_chunk.buffer_, size);
+    memcpy(buffer, file_chunk.buffer_, size);
     return true;
   }
   void Close() {}
@@ -136,13 +136,13 @@ TEST_F(ProgramTableTest, LoadSegments) {
 
   char program_table_page[PAGE_SIZE];
   memset(program_table_page, 0, sizeof(program_table_page));
-  SbMemoryCopy(program_table_page, program_table_data,
+  memcpy(program_table_page, program_table_data,
                sizeof(program_table_data));
 
   char segment_file_data1[2 * PAGE_SIZE];
   char segment_file_data2[3 * PAGE_SIZE];
 
-  SbMemoryCopy(segment_file_data1 + 250, dynamic_table_data,
+  memcpy(segment_file_data1 + 250, dynamic_table_data,
                sizeof(dynamic_table_data));
 
   std::vector<DummyFile::FileChunk> file_chunks;

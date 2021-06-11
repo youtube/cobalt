@@ -455,7 +455,7 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
             const uint8_t* constant_iv =
                 index == 0 ? track_encryption->default_constant_iv
                            : info_entry->constant_iv;
-            SbMemoryCopy(entry.initialization_vector, constant_iv,
+            memcpy(entry.initialization_vector, constant_iv,
                          constant_iv_size);
           }
         }
@@ -742,7 +742,7 @@ bool TrackRunIterator::ApplyConstantIv(size_t sample_index,
       index == 0 ? track_encryption().default_constant_iv
                  : GetSampleEncryptionInfoEntry(*run_itr_, index)->constant_iv;
   RCHECK(constant_iv != nullptr);
-  SbMemoryCopy(entry->initialization_vector, constant_iv,
+  memcpy(entry->initialization_vector, constant_iv,
                kInitializationVectorSize);
   return true;
 }

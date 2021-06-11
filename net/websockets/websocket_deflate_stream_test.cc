@@ -55,7 +55,7 @@ const int kWindowBits = 15;
 
 scoped_refptr<IOBuffer> ToIOBuffer(const std::string& s) {
   auto buffer = base::MakeRefCounted<IOBuffer>(s.size());
-  SbMemoryCopy(buffer->data(), s.data(), s.size());
+  memcpy(buffer->data(), s.data(), s.size());
   return buffer;
 }
 

@@ -128,7 +128,7 @@ URLRequestMockDataJob::~URLRequestMockDataJob() = default;
 int URLRequestMockDataJob::ReadRawData(IOBuffer* buf, int buf_size) {
   int bytes_read =
       std::min(static_cast<size_t>(buf_size), data_.length() - data_offset_);
-  SbMemoryCopy(buf->data(), data_.c_str() + data_offset_, bytes_read);
+  memcpy(buf->data(), data_.c_str() + data_offset_, bytes_read);
   data_offset_ += bytes_read;
   return bytes_read;
 }

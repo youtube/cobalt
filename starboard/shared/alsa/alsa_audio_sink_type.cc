@@ -384,7 +384,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
       const uint8_t* source_addr = static_cast<uint8_t*>(frame_buffer_);
       source_addr += static_cast<int>(offset_in_frames + source_frames) %
                      frames_per_channel_ * bytes_per_frame;
-      SbMemoryCopy(&resample_buffer_[0] + bytes_per_frame * target_frames,
+      memcpy(&resample_buffer_[0] + bytes_per_frame * target_frames,
                    source_addr, bytes_per_frame);
       ++target_frames;
       source_frames += playback_rate;

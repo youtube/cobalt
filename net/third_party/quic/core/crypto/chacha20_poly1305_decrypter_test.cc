@@ -121,7 +121,7 @@ QuicData* DecryptWithNonce(ChaCha20Poly1305Decrypter* decrypter,
   QuicStringPiece nonce_prefix(nonce.data(),
                                nonce.size() - sizeof(packet_number));
   decrypter->SetNoncePrefix(nonce_prefix);
-  SbMemoryCopy(&packet_number, nonce.data() + nonce_prefix.size(),
+  memcpy(&packet_number, nonce.data() + nonce_prefix.size(),
                sizeof(packet_number));
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;

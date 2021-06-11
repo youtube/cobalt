@@ -479,7 +479,7 @@ void NativeStackSamplerMac::WalkStack(
   // exactly those registers in exactly the same order, so just bulk copy them
   // over.
   unw_context_t unwind_context;
-  SbMemoryCopy(&unwind_context, &thread_state, sizeof(uintptr_t) * 17);
+  memcpy(&unwind_context, &thread_state, sizeof(uintptr_t) * 17);
   bool result = WalkStackFromContext(&unwind_context, &frame_count, callback,
                                      continue_unwind);
 

@@ -111,7 +111,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
   transformer->algorithm = combined_algorithm;
   transformer->direction = direction;
   if (initialization_vector_size) {
-    SbMemoryCopy(transformer->ivec, initialization_vector,
+    memcpy(transformer->ivec, initialization_vector,
                  initialization_vector_size);
   }
 

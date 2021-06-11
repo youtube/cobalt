@@ -28,7 +28,7 @@ TEST(MurmerHash2, AlignedEqualsUnaligned) {
   uint32_t hash_aligned = MurmurHash2_32_Aligned(&val, sizeof(val));
   EXPECT_EQ(hash_aligned, hash_unaligned);
   char data[sizeof(uint32_t)*2];
-  SbMemoryCopy(data+1, &val, sizeof(val));
+  memcpy(data+1, &val, sizeof(val));
   EXPECT_EQ(hash_aligned, MurmurHash2_32(data + 1, sizeof(val)));
 }
 

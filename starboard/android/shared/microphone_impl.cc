@@ -249,7 +249,7 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   while (!ready_queue_.empty() &&
          audio_data_size - read_bytes >= kBufferSizeInBytes) {
     buffer.reset(ready_queue_.front());
-    SbMemoryCopy(static_cast<uint8_t*>(out_audio_data) + read_bytes,
+    memcpy(static_cast<uint8_t*>(out_audio_data) + read_bytes,
                  buffer.get(), kBufferSizeInBytes);
     ready_queue_.pop();
     read_bytes += kBufferSizeInBytes;

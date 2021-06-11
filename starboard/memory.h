@@ -242,6 +242,8 @@ SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 // |out_low|: The lowest addressable byte for the current thread.
 SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
+#if SB_API_VERSION < 13
+
 // Copies |count| sequential bytes from |source| to |destination|, without
 // support for the |source| and |destination| regions overlapping. This
 // function is meant to be a drop-in replacement for |memcpy|.
@@ -256,8 +258,6 @@ SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 SB_EXPORT void* SbMemoryCopy(void* destination,
                              const void* source,
                              size_t count);
-
-#if SB_API_VERSION < 13
 
 // Copies |count| sequential bytes from |source| to |destination|, with support
 // for the |source| and |destination| regions overlapping. This function is

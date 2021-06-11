@@ -46,7 +46,7 @@ void CompressGzip(const char* source,
         0xff,  // OS 0xff == unknown
     };
     DCHECK_GE(dest_left, sizeof(gzip_header));
-    SbMemoryCopy(dest, gzip_header, sizeof(gzip_header));
+    memcpy(dest, gzip_header, sizeof(gzip_header));
     dest += sizeof(gzip_header);
     dest_left -= sizeof(gzip_header);
   }

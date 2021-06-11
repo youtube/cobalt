@@ -1158,7 +1158,7 @@ void FieldTrialList::ClearParamsFromSharedMemoryForTesting() {
     // in memory, so we can avoid this memcpy.
     char* dst = reinterpret_cast<char*>(new_entry) +
                 sizeof(FieldTrial::FieldTrialEntry);
-    SbMemoryCopy(dst, pickle.data(), pickle.size());
+    memcpy(dst, pickle.data(), pickle.size());
 
     // Update the ref on the field trial and add it to the list to be made
     // iterable.
@@ -1458,7 +1458,7 @@ void FieldTrialList::AddToAllocatorWhileLocked(
   // memory, so we can avoid this memcpy.
   char* dst =
       reinterpret_cast<char*>(entry) + sizeof(FieldTrial::FieldTrialEntry);
-  SbMemoryCopy(dst, pickle.data(), pickle.size());
+  memcpy(dst, pickle.data(), pickle.size());
 
   allocator->MakeIterable(ref);
   field_trial->ref_ = ref;

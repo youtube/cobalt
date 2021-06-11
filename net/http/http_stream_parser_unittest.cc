@@ -1266,7 +1266,7 @@ class SimpleGetRunner {
     int offset = read_buffer_->offset();
     int size = data.size();
     read_buffer_->SetCapacity(offset + size);
-    SbMemoryCopy(read_buffer_->StartOfBuffer() + offset, data.data(), size);
+    memcpy(read_buffer_->StartOfBuffer() + offset, data.data(), size);
     read_buffer_->set_offset(offset + size);
   }
 

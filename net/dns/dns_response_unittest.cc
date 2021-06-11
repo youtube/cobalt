@@ -212,7 +212,7 @@ TEST(DnsResponseTest, InitParse) {
   };
 
   DnsResponse resp;
-  SbMemoryCopy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
 
   // Reject too short.
   EXPECT_FALSE(resp.InitParse(query->io_buffer()->size() - 1, *query));
@@ -257,7 +257,7 @@ TEST(DnsResponseTest, InitParse) {
 
 TEST(DnsResponseTest, InitParseWithoutQuery) {
   DnsResponse resp;
-  SbMemoryCopy(resp.io_buffer()->data(), kT0ResponseDatagram,
+  memcpy(resp.io_buffer()->data(), kT0ResponseDatagram,
                sizeof(kT0ResponseDatagram));
 
   // Accept matching question.
@@ -305,7 +305,7 @@ TEST(DnsResponseTest, InitParseWithoutQueryNoQuestions) {
   };
 
   DnsResponse resp;
-  SbMemoryCopy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
 
   EXPECT_TRUE(resp.InitParseWithoutQuery(sizeof(response_data)));
 
@@ -360,7 +360,7 @@ TEST(DnsResponseTest, InitParseWithoutQueryTwoQuestions) {
   };
 
   DnsResponse resp;
-  SbMemoryCopy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
 
   EXPECT_TRUE(resp.InitParseWithoutQuery(sizeof(response_data)));
 
@@ -391,7 +391,7 @@ TEST(DnsResponseTest, InitParseWithoutQueryPacketTooShort) {
   };
 
   DnsResponse resp;
-  SbMemoryCopy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(sizeof(response_data)));
 }

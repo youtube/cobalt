@@ -154,7 +154,7 @@ spdy::SpdySerializedFrame CombineFrames(
   auto data = std::unique_ptr<char[]>(new char[total_size]);
   char* ptr = data.get();
   for (const auto* frame : frames) {
-    SbMemoryCopy(ptr, frame->data(), frame->size());
+    memcpy(ptr, frame->data(), frame->size());
     ptr += frame->size();
   }
   return spdy::SpdySerializedFrame(data.release(), total_size,

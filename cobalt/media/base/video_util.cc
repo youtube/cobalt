@@ -69,12 +69,12 @@ void RotatePlaneByPixels(const uint8_t* src, uint8_t* dest, int width,
         // Fast copy by rows.
         dest += width * (height - 1);
         for (int row = 0; row < height; ++row) {
-          SbMemoryCopy(dest, src, width);
+          memcpy(dest, src, width);
           src += width;
           dest -= width;
         }
       } else {
-        SbMemoryCopy(dest, src, width * height);
+        memcpy(dest, src, width * height);
       }
       return;
     }

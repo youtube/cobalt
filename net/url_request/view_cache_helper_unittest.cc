@@ -74,7 +74,7 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string& data) {
 
   int len = data.length();
   scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(len);
-  SbMemoryCopy(buf->data(), data.data(), data.length());
+  memcpy(buf->data(), data.data(), data.length());
 
   TestCompletionCallback cb;
   int rv = entry->WriteData(index, 0, buf.get(), len, cb.callback(), true);

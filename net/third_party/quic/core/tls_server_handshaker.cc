@@ -314,7 +314,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
     return ssl_private_key_failure;
   }
   *out_len = cert_verify_sig_.size();
-  SbMemoryCopy(out, cert_verify_sig_.data(), *out_len);
+  memcpy(out, cert_verify_sig_.data(), *out_len);
   cert_verify_sig_.clear();
   cert_verify_sig_.shrink_to_fit();
   return ssl_private_key_success;

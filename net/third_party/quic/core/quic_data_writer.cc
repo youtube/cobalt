@@ -144,7 +144,7 @@ bool QuicDataWriter::WriteBytes(const void* data, size_t data_len) {
     return false;
   }
 
-  SbMemoryCopy(dest, data, data_len);
+  memcpy(dest, data, data_len);
 
   length_ += data_len;
   return true;

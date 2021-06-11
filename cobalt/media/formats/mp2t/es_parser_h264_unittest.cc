@@ -118,10 +118,10 @@ void EsParserH264Test::InsertAUD() {
     access_units_with_aud[k].offset = offset;
     access_units_with_aud[k].size = access_units_[k].size + sizeof(aud);
 
-    SbMemoryCopy(&stream_with_aud[offset], aud, sizeof(aud));
+    memcpy(&stream_with_aud[offset], aud, sizeof(aud));
     offset += sizeof(aud);
 
-    SbMemoryCopy(&stream_with_aud[offset], &stream_[access_units_[k].offset],
+    memcpy(&stream_with_aud[offset], &stream_[access_units_[k].offset],
                  access_units_[k].size);
     offset += access_units_[k].size;
   }

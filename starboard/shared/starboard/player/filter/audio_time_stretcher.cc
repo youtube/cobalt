@@ -301,7 +301,7 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
       reinterpret_cast<const float*>(optimal_block_->buffer());
   float* ch_output = reinterpret_cast<float*>(wsola_output_->buffer()) +
                      num_complete_frames_ * sizeof(float);
-  SbMemoryCopy(&ch_output[ola_hop_size_ * channels_],
+  memcpy(&ch_output[ola_hop_size_ * channels_],
                &ch_opt_frame[ola_hop_size_ * channels_],
                sizeof(*ch_opt_frame) * ola_hop_size_ * channels_);
 
@@ -347,7 +347,7 @@ int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
   if (rendered_frames == 0)
     return 0;  // There is nothing to read from |wsola_output_|, return.
 
-  SbMemoryCopy(dest->buffer() + bytes_per_frame_ * dest_offset,
+  memcpy(dest->buffer() + bytes_per_frame_ * dest_offset,
                wsola_output_->buffer(), rendered_frames * bytes_per_frame_);
 
   // Remove the frames which are read.

@@ -72,7 +72,7 @@ inline Dest bit_cast(const Source& source) {
                 "bit_cast requires the source type to be copyable");
 
   Dest dest;
-  SbMemoryCopy(&dest, &source, sizeof(dest));
+  memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 

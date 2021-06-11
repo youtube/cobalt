@@ -81,7 +81,7 @@
 #include "starboard/string.h"
 #include "starboard/memory.h"
 #define ft_memcmp   memcmp
-#define ft_memcpy   SbMemoryCopy
+#define ft_memcpy   memcpy
 #define ft_memmove  memmove
 #define ft_memset   memset
 #define ft_strcat   SbStringConcatUnsafe

@@ -161,12 +161,12 @@ bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
   switch (GetFamily()) {
     case ADDRESS_FAMILY_IPV4:
       out_address->type = kSbSocketAddressTypeIpv4;
-      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+      memcpy(&out_address->address, address_.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       break;
     case ADDRESS_FAMILY_IPV6:
       out_address->type = kSbSocketAddressTypeIpv6;
-      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+      memcpy(&out_address->address, address_.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       break;
     default:
@@ -205,7 +205,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memset(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
       addr->sin_port = base::HostToNet16(port_);
-      SbMemoryCopy(&addr->sin_addr, address_.bytes().data(),
+      memcpy(&addr->sin_addr, address_.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       break;
     }
@@ -218,7 +218,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memset(addr6, 0, sizeof(struct sockaddr_in6));
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = base::HostToNet16(port_);
-      SbMemoryCopy(&addr6->sin6_addr, address_.bytes().data(),
+      memcpy(&addr6->sin6_addr, address_.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       break;
     }

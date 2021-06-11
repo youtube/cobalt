@@ -66,7 +66,7 @@ int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
   SB_CHECK(file_cache_offset_ <= file_cache_.size());
   bytes_to_read = std::min(
       static_cast<int>(file_cache_.size()) - file_cache_offset_, bytes_to_read);
-  SbMemoryCopy(out_buffer, file_cache_.data() + file_cache_offset_,
+  memcpy(out_buffer, file_cache_.data() + file_cache_offset_,
                bytes_to_read);
   file_cache_offset_ += bytes_to_read;
   return bytes_to_read;

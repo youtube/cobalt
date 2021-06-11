@@ -257,7 +257,7 @@ int URLRequestTestJob::CopyDataForRead(IOBuffer* buf, int buf_size) {
     if (bytes_read + offset_ > static_cast<int>(response_data_.length()))
       bytes_read = static_cast<int>(response_data_.length()) - offset_;
 
-    SbMemoryCopy(buf->data(), &response_data_.c_str()[offset_], bytes_read);
+    memcpy(buf->data(), &response_data_.c_str()[offset_], bytes_read);
     offset_ += bytes_read;
   }
   return bytes_read;

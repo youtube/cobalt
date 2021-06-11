@@ -71,7 +71,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   static const char text[] = "hello world";
   char ref[20], buf[20];
   memset(ref, 'X', sizeof(ref));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), text));
@@ -85,7 +85,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 1, text));
   EXPECT_EQ(0, buf[0]);
   EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
   // unchanged.
@@ -93,7 +93,7 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
   EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
   // unchanged.
@@ -102,14 +102,14 @@ TEST(SafeSPrintfTest, NoArguments) {
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, text));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
   EXPECT_EQ(1, SafeSPrintf(buf, "%%"));
@@ -135,7 +135,7 @@ TEST(SafeSPrintfTest, OneArgument) {
   const char fmt[]  = "hello%cworld";
   char ref[20], buf[20];
   memset(ref, 'X', sizeof(buf));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), fmt, ' '));
@@ -150,7 +150,7 @@ TEST(SafeSPrintfTest, OneArgument) {
             SafeSNPrintf(buf, 1, fmt, ' '));
   EXPECT_EQ(0, buf[0]);
   EXPECT_TRUE(!memcmp(buf + 1, ref + 1, sizeof(buf) - 1));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
   // unchanged.
@@ -159,7 +159,7 @@ TEST(SafeSPrintfTest, OneArgument) {
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
   EXPECT_TRUE(!memcmp(buf + 2, ref + 2, sizeof(buf) - 2));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
   // unchanged.
@@ -168,14 +168,14 @@ TEST(SafeSPrintfTest, OneArgument) {
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
   EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
                                sizeof(buf) - sizeof(text)));
-  SbMemoryCopy(buf, ref, sizeof(buf));
+  memcpy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
   EXPECT_EQ(1, SafeSPrintf(buf, "%%", 0));
@@ -462,7 +462,7 @@ void PrintLongString(char* buf, size_t sz) {
   // We allocated a slightly larger buffer, so that we could perform some
   // extra sanity checks. Now that the tests have all passed, we copy the
   // data to the output buffer that the caller provided.
-  SbMemoryCopy(buf, tmp.get(), len + 1);
+  memcpy(buf, tmp.get(), len + 1);
 }
 
 #if !defined(NDEBUG)

@@ -351,7 +351,7 @@ int MockNetworkTransaction::Read(net::IOBuffer* buf,
       if (test_mode_ & TEST_MODE_SLOW_READ)
         num = std::min(num, 1);
       if (num) {
-        SbMemoryCopy(buf->data(), data_.data() + data_cursor_, num);
+        memcpy(buf->data(), data_.data() + data_cursor_, num);
         data_cursor_ += num;
       }
     }

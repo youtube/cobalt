@@ -111,7 +111,7 @@ TEST(DataBufferTest, ReadingWriting) {
 
   uint8_t* data = buffer->writable_data();
   ASSERT_TRUE(data);
-  SbMemoryCopy(data, kData, kDataSize);
+  memcpy(data, kData, kDataSize);
   buffer->set_data_size(kDataSize);
   const uint8_t* read_only_data = buffer->data();
   ASSERT_EQ(data, read_only_data);
@@ -121,7 +121,7 @@ TEST(DataBufferTest, ReadingWriting) {
   scoped_refptr<DataBuffer> buffer2(new DataBuffer(kNewDataSize + 10));
   data = buffer2->writable_data();
   ASSERT_TRUE(data);
-  SbMemoryCopy(data, kNewData, kNewDataSize);
+  memcpy(data, kNewData, kNewDataSize);
   buffer2->set_data_size(kNewDataSize);
   read_only_data = buffer2->data();
   EXPECT_EQ(kNewDataSize, buffer2->data_size());

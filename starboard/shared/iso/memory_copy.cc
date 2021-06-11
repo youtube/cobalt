@@ -16,6 +16,8 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
 void* SbMemoryCopy(void* destination, const void* source, size_t count) {
   return memcpy(destination, source, count);
 }
+#endif

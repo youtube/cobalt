@@ -77,7 +77,7 @@ class StreamingUtf8ValidatorThoroughTest : public ::testing::Test {
   // whether it is valid UTF-8 or not.
   void TestNumber(uint32_t n) const {
     char test[sizeof n];
-    SbMemoryCopy(test, &n, sizeof n);
+    memcpy(test, &n, sizeof n);
     StreamingUtf8Validator validator;
     EXPECT_EQ(IsStringUtf8(test, sizeof n),
               validator.AddBytes(test, sizeof n) == VALID_ENDPOINT)

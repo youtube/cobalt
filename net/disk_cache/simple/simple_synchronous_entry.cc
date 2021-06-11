@@ -149,7 +149,7 @@ SimpleEntryStat::SimpleEntryStat(base::Time last_used,
     : last_used_(last_used),
       last_modified_(last_modified),
       sparse_data_size_(sparse_data_size) {
-  SbMemoryCopy(data_size_, data_size, sizeof(data_size_));
+  memcpy(data_size_, data_size, sizeof(data_size_));
 }
 
 // These size methods all assume the presence of the SHA256 on stream zero,
@@ -1523,7 +1523,7 @@ bool SimpleSynchronousEntry::ReadFromFileOrPrefetched(
         end_numeric >= file_0_prefetch.size())
       return false;
 
-    SbMemoryCopy(dest, file_0_prefetch.data() + offset, size);
+    memcpy(dest, file_0_prefetch.data() + offset, size);
     return true;
   }
 }

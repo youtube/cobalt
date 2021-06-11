@@ -79,7 +79,7 @@ void VP8LoadNewBytes(VP8BitReader* const br) {
     );
 #else
     lbit_t in_bits;
-    SbMemoryCopy(&in_bits, br->buf_, sizeof(in_bits));
+    memcpy(&in_bits, br->buf_, sizeof(in_bits));
 #endif
     br->buf_ += BITS >> 3;
 #if !defined(WORDS_BIGENDIAN)

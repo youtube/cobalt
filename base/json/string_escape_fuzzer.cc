@@ -19,7 +19,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // overflow that touches the last byte (which is used in put_in_quotes).
   size_t actual_size_char8 = size - 1;
   std::unique_ptr<char[]> input(new char[actual_size_char8]);
-  SbMemoryCopy(input.get(), data, actual_size_char8);
+  memcpy(input.get(), data, actual_size_char8);
 
   base::StringPiece input_string(input.get(), actual_size_char8);
   std::string escaped_string;

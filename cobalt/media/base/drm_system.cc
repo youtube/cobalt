@@ -423,7 +423,7 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
                     static_cast<const char*>(session_id) + session_id_size);
 
     content_copy.reset(new uint8[content_size]);
-    SbMemoryCopy(content_copy.get(), content, content_size);
+    memcpy(content_copy.get(), content, content_size);
   }
 
   drm_system->message_loop_->PostTask(

@@ -316,7 +316,7 @@ SSLServerContextImpl::SocketImpl::PrivateKeyCompleteCallback(uint8_t* out,
     OpenSSLPutNetError(FROM_HERE, ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED);
     return ssl_private_key_failure;
   }
-  SbMemoryCopy(out, signature_.data(), signature_.size());
+  memcpy(out, signature_.data(), signature_.size());
   *out_len = signature_.size();
   signature_.clear();
   return ssl_private_key_success;

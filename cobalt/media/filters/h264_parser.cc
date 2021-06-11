@@ -492,10 +492,10 @@ static inline void DefaultScalingList4x4(
   DCHECK_LT(i, 6);
 
   if (i < 3)
-    SbMemoryCopy(scaling_list4x4[i], kDefault4x4Intra,
+    memcpy(scaling_list4x4[i], kDefault4x4Intra,
                  sizeof(kDefault4x4Intra));
   else if (i < 6)
-    SbMemoryCopy(scaling_list4x4[i], kDefault4x4Inter,
+    memcpy(scaling_list4x4[i], kDefault4x4Inter,
                  sizeof(kDefault4x4Inter));
 }
 
@@ -504,10 +504,10 @@ static inline void DefaultScalingList8x8(
   DCHECK_LT(i, 6);
 
   if (i % 2 == 0)
-    SbMemoryCopy(scaling_list8x8[i], kDefault8x8Intra,
+    memcpy(scaling_list8x8[i], kDefault8x8Intra,
                  sizeof(kDefault8x8Intra));
   else
-    SbMemoryCopy(scaling_list8x8[i], kDefault8x8Inter,
+    memcpy(scaling_list8x8[i], kDefault8x8Inter,
                  sizeof(kDefault8x8Inter));
 }
 
@@ -520,32 +520,32 @@ static void FallbackScalingList4x4(
 
   switch (i) {
     case 0:
-      SbMemoryCopy(scaling_list4x4[i], default_scaling_list_intra,
+      memcpy(scaling_list4x4[i], default_scaling_list_intra,
                    kScalingList4x4ByteSize);
       break;
 
     case 1:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[0],
+      memcpy(scaling_list4x4[i], scaling_list4x4[0],
                    kScalingList4x4ByteSize);
       break;
 
     case 2:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[1],
+      memcpy(scaling_list4x4[i], scaling_list4x4[1],
                    kScalingList4x4ByteSize);
       break;
 
     case 3:
-      SbMemoryCopy(scaling_list4x4[i], default_scaling_list_inter,
+      memcpy(scaling_list4x4[i], default_scaling_list_inter,
                    kScalingList4x4ByteSize);
       break;
 
     case 4:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[3],
+      memcpy(scaling_list4x4[i], scaling_list4x4[3],
                    kScalingList4x4ByteSize);
       break;
 
     case 5:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[4],
+      memcpy(scaling_list4x4[i], scaling_list4x4[4],
                    kScalingList4x4ByteSize);
       break;
 
@@ -564,32 +564,32 @@ static void FallbackScalingList8x8(
 
   switch (i) {
     case 0:
-      SbMemoryCopy(scaling_list8x8[i], default_scaling_list_intra,
+      memcpy(scaling_list8x8[i], default_scaling_list_intra,
                    kScalingList8x8ByteSize);
       break;
 
     case 1:
-      SbMemoryCopy(scaling_list8x8[i], default_scaling_list_inter,
+      memcpy(scaling_list8x8[i], default_scaling_list_inter,
                    kScalingList8x8ByteSize);
       break;
 
     case 2:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[0],
+      memcpy(scaling_list8x8[i], scaling_list8x8[0],
                    kScalingList8x8ByteSize);
       break;
 
     case 3:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[1],
+      memcpy(scaling_list8x8[i], scaling_list8x8[1],
                    kScalingList8x8ByteSize);
       break;
 
     case 4:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[2],
+      memcpy(scaling_list8x8[i], scaling_list8x8[2],
                    kScalingList8x8ByteSize);
       break;
 
     case 5:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[3],
+      memcpy(scaling_list8x8[i], scaling_list8x8[3],
                    kScalingList8x8ByteSize);
       break;
 

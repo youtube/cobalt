@@ -44,7 +44,6 @@
 // platforms, and Starboard is not available there.  So we define these
 // "reverse poems" to move past this issue for host builds.  For why we don't
 // just use poems, see the comment in the #else clause.
-#define SbMemoryCopy memcpy
 #define SbStringGetLength strlen
 #define SbStringCopyUnsafe strcpy
 #define PoemFindCharacterInString strchr
@@ -1482,35 +1481,35 @@ AlphaNum::AlphaNum(strings::Hex hex) {
 //    of a mix of raw C strings, C++ strings, and integer values.
 // ----------------------------------------------------------------------
 
-// Append is merely a version of SbMemoryCopy that returns the address of the byte
+// Append is merely a version of memcpy that returns the address of the byte
 // after the area just overwritten.  It comes in multiple flavors to minimize
 // call overhead.
 static char *Append1(char *out, const AlphaNum &x) {
-  SbMemoryCopy(out, x.data(), x.size());
+  memcpy(out, x.data(), x.size());
   return out + x.size();
 }
 
 static char *Append2(char *out, const AlphaNum &x1, const AlphaNum &x2) {
-  SbMemoryCopy(out, x1.data(), x1.size());
+  memcpy(out, x1.data(), x1.size());
   out += x1.size();
 
-  SbMemoryCopy(out, x2.data(), x2.size());
+  memcpy(out, x2.data(), x2.size());
   return out + x2.size();
 }
 
 static char *Append4(char *out,
                      const AlphaNum &x1, const AlphaNum &x2,
                      const AlphaNum &x3, const AlphaNum &x4) {
-  SbMemoryCopy(out, x1.data(), x1.size());
+  memcpy(out, x1.data(), x1.size());
   out += x1.size();
 
-  SbMemoryCopy(out, x2.data(), x2.size());
+  memcpy(out, x2.data(), x2.size());
   out += x2.size();
 
-  SbMemoryCopy(out, x3.data(), x3.size());
+  memcpy(out, x3.data(), x3.size());
   out += x3.size();
 
-  SbMemoryCopy(out, x4.data(), x4.size());
+  memcpy(out, x4.data(), x4.size());
   return out + x4.size();
 }
 
@@ -2316,7 +2315,7 @@ int EncodeAsUTF8Char(uint32 code_point, char* output) {
     len = 4;
   }
   tmp = ghtonl(tmp);
-  SbMemoryCopy(output, reinterpret_cast<const char*>(&tmp) + sizeof(tmp) - len, len);
+  memcpy(output, reinterpret_cast<const char*>(&tmp) + sizeof(tmp) - len, len);
   return len;
 }
 

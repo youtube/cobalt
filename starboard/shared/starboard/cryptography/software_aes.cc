@@ -82,13 +82,13 @@ namespace cryptography {
 namespace {
 inline uint32_t GETU32(const void* in) {
   uint32_t value;
-  SbMemoryCopy(&value, in, sizeof(value));
+  memcpy(&value, in, sizeof(value));
   return SbByteSwapU32(value);
 }
 
 inline void PUTU32(void* out, uint32_t value) {
   value = SbByteSwapU32(value);
-  SbMemoryCopy(out, &value, sizeof(value));
+  memcpy(out, &value, sizeof(value));
 }
 
 inline uint32_t GETU32_aligned(const void* in) {
@@ -730,7 +730,7 @@ void CRYPTO_cbc128_encrypt(const void* in_pointer,
     in += 16;
     out += 16;
   }
-  SbMemoryCopy(ivec, iv, 16);
+  memcpy(ivec, iv, 16);
 }
 
 void CRYPTO_cbc128_decrypt(const void* in_pointer,
@@ -766,7 +766,7 @@ void CRYPTO_cbc128_decrypt(const void* in_pointer,
         out += 16;
       }
     }
-    SbMemoryCopy(ivec, iv, 16);
+    memcpy(ivec, iv, 16);
   } else {
     if (16 % sizeof(size_t) == 0) { /* always true */
       while (len >= 16) {
@@ -1283,13 +1283,13 @@ void CRYPTO_ghash_init(gmult_func* out_mult,
     uint8_t c[16];
   } H;
 
-  SbMemoryCopy(H.c, gcm_key, 16);
+  memcpy(H.c, gcm_key, 16);
 
   /* H is stored in host byte order */
   H.u[0] = SbByteSwapU64(H.u[0]);
   H.u[1] = SbByteSwapU64(H.u[1]);
 
-  SbMemoryCopy(out_key, H.c, 16);
+  memcpy(out_key, H.c, 16);
 
   gcm_init_4bit(out_table, H.u);
   *out_mult = gcm_gmult_4bit;
@@ -1326,7 +1326,7 @@ void AES_gcm128_setiv(GCM128_CONTEXT* ctx,
   ctx->mres = 0;
 
   if (len == 12) {
-    SbMemoryCopy(ctx->Yi.c, iv, 12);
+    memcpy(ctx->Yi.c, iv, 12);
     ctx->Yi.c[15] = 1;
     ctr = 1;
   } else {
@@ -1574,7 +1574,7 @@ void AES_gcm128_tag(GCM128_CONTEXT* ctx, void* tag, size_t len) {
   ctx->Xi.u[0] ^= ctx->EK0.u[0];
   ctx->Xi.u[1] ^= ctx->EK0.u[1];
 
-  SbMemoryCopy(tag, ctx->Xi.c,
+  memcpy(tag, ctx->Xi.c,
                len <= sizeof(ctx->Xi.c) ? len : sizeof(ctx->Xi.c));
 }
 

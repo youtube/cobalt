@@ -22,7 +22,7 @@ TEST(InputTest, Equals) {
   EXPECT_EQ(test, test2);
 
   uint8_t input_copy[base::size(kInput)] = {0};
-  SbMemoryCopy(input_copy, kInput, base::size(kInput));
+  memcpy(input_copy, kInput, base::size(kInput));
   Input test_copy(input_copy);
   EXPECT_EQ(test, test_copy);
 

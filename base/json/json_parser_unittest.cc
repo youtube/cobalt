@@ -36,7 +36,7 @@ class JSONParserTest : public testing::Test {
                                          std::unique_ptr<char[]>* owner) {
     size_t str_len = SbStringGetLength(input);
     owner->reset(new char[str_len]);
-    SbMemoryCopy(owner->get(), input, str_len);
+    memcpy(owner->get(), input, str_len);
     return StringPiece(owner->get(), str_len);
   }
 

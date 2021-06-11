@@ -24,7 +24,7 @@ class SecureHashSHA256 : public SecureHash {
   }
 
   SecureHashSHA256(const SecureHashSHA256& other) {
-    SbMemoryCopy(&ctx_, &other.ctx_, sizeof(ctx_));
+    memcpy(&ctx_, &other.ctx_, sizeof(ctx_));
   }
 
   ~SecureHashSHA256() override {

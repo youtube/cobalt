@@ -413,7 +413,7 @@ void SourceBuffer::AppendBufferInternal(
       pending_append_data_.reset(new uint8_t[size]);
       pending_append_data_capacity_ = size;
     }
-    SbMemoryCopy(pending_append_data_.get(), data, size);
+    memcpy(pending_append_data_.get(), data, size);
   }
   pending_append_data_size_ = size;
   pending_append_data_offset_ = 0;

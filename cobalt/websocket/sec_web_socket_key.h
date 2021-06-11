@@ -38,7 +38,7 @@ struct SecWebSocketKey {
   }
 
   explicit SecWebSocketKey(const SecWebSocketKeyBytes& key) {
-    SbMemoryCopy(&key_bytes[0], &key[0], sizeof(key_bytes));
+    memcpy(&key_bytes[0], &key[0], sizeof(key_bytes));
     base::StringPiece key_stringpiece(key_bytes, sizeof(key_bytes));
     bool success = base::Base64Encode(key_stringpiece, &key_base64_encoded);
     DCHECK(success);

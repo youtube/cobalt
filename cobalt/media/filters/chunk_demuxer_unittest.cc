@@ -281,23 +281,23 @@ class ChunkDemuxerTest : public ::testing::Test {
     buffer->reset(new uint8_t[*size]);
 
     uint8_t* buf = buffer->get();
-    SbMemoryCopy(buf, ebml_header->data(), ebml_header->data_size());
+    memcpy(buf, ebml_header->data(), ebml_header->data_size());
     buf += ebml_header->data_size();
 
-    SbMemoryCopy(buf, info->data(), info->data_size());
+    memcpy(buf, info->data(), info->data_size());
     buf += info->data_size();
 
-    SbMemoryCopy(buf, kTracksHeader, kTracksHeaderSize);
+    memcpy(buf, kTracksHeader, kTracksHeaderSize);
     WriteInt64(buf + kTracksSizeOffset, tracks_element_size);
     buf += kTracksHeaderSize;
 
     // TODO(xhwang): Simplify this! Probably have test data files that contain
     // ContentEncodings directly instead of trying to create one at run-time.
     if (has_video) {
-      SbMemoryCopy(buf, video_track_entry->data(),
+      memcpy(buf, video_track_entry->data(),
                    video_track_entry->data_size());
       if (is_video_encrypted) {
-        SbMemoryCopy(buf + video_track_entry->data_size(),
+        memcpy(buf + video_track_entry->data_size(),
                      video_content_encodings->data(),
                      video_content_encodings->data_size());
         WriteInt64(buf + kVideoTrackSizeOffset,
@@ -310,10 +310,10 @@ class ChunkDemuxerTest : public ::testing::Test {
     }
 
     if (has_audio) {
-      SbMemoryCopy(buf, audio_track_entry->data(),
+      memcpy(buf, audio_track_entry->data(),
                    audio_track_entry->data_size());
       if (is_audio_encrypted) {
-        SbMemoryCopy(buf + audio_track_entry->data_size(),
+        memcpy(buf + audio_track_entry->data_size(),
                      audio_content_encodings->data(),
                      audio_content_encodings->data_size());
         WriteInt64(buf + kAudioTrackSizeOffset,
@@ -326,7 +326,7 @@ class ChunkDemuxerTest : public ::testing::Test {
     }
 
     if (has_text) {
-      SbMemoryCopy(buf, text_track_entry->data(),
+      memcpy(buf, text_track_entry->data(),
                    text_track_entry->data_size());
       buf += text_track_entry->data_size();
     }
@@ -2046,13 +2046,13 @@ TEST_F(ChunkDemuxerTest, AppendingInPieces) {
   size_t buffer_size = info_tracks_size + cluster_a->size() + cluster_b->size();
   std::unique_ptr<uint8_t[]> buffer(new uint8_t[buffer_size]);
   uint8_t* dst = buffer.get();
-  SbMemoryCopy(dst, info_tracks.get(), info_tracks_size);
+  memcpy(dst, info_tracks.get(), info_tracks_size);
   dst += info_tracks_size;
 
-  SbMemoryCopy(dst, cluster_a->data(), cluster_a->size());
+  memcpy(dst, cluster_a->data(), cluster_a->size());
   dst += cluster_a->size();
 
-  SbMemoryCopy(dst, cluster_b->data(), cluster_b->size());
+  memcpy(dst, cluster_b->data(), cluster_b->size());
   dst += cluster_b->size();
 
   ExpectInitMediaLogs(HAS_AUDIO | HAS_VIDEO);

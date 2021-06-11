@@ -36,7 +36,7 @@ void SetBuffer(gss_buffer_t dest, const void* src, size_t length) {
   dest->length = length;
   if (length) {
     dest->value = new char[length];
-    SbMemoryCopy(dest->value, src, length);
+    memcpy(dest->value, src, length);
   }
 }
 

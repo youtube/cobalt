@@ -33,7 +33,7 @@ void EsParserTestBase::LoadStream(const char* filename) {
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   stream_.resize(stream.length());
-  SbMemoryCopy(&stream_[0], stream.data(), stream_.size());
+  memcpy(&stream_[0], stream.data(), stream_.size());
 }
 
 std::vector<EsParserTestBase::Packet> EsParserTestBase::LoadPacketsFromFiles(

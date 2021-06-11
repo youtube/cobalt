@@ -124,8 +124,8 @@ bool Stats::Init(void* data, int num_bytes, Addr address) {
 
   storage_addr_ = address;
 
-  SbMemoryCopy(data_sizes_, stats->data_sizes, sizeof(data_sizes_));
-  SbMemoryCopy(counters_, stats->counters, sizeof(counters_));
+  memcpy(data_sizes_, stats->data_sizes, sizeof(data_sizes_));
+  memcpy(counters_, stats->counters, sizeof(counters_));
 
   // Clean up old value.
   SetCounter(UNUSED, 0);
@@ -245,8 +245,8 @@ int Stats::SerializeStats(void* data, int num_bytes, Addr* address) {
 
   stats->signature = kDiskSignature;
   stats->size = sizeof(*stats);
-  SbMemoryCopy(stats->data_sizes, data_sizes_, sizeof(data_sizes_));
-  SbMemoryCopy(stats->counters, counters_, sizeof(counters_));
+  memcpy(stats->data_sizes, data_sizes_, sizeof(data_sizes_));
+  memcpy(stats->counters, counters_, sizeof(counters_));
 
   *address = storage_addr_;
   return sizeof(*stats);

@@ -1256,7 +1256,7 @@ TEST(CertVerifyProcTest, DigiNotarCerts) {
     HashValueVector public_keys;
     HashValue hash(HASH_VALUE_SHA256);
     ASSERT_EQ(hash.size(), spki_sha256.size());
-    SbMemoryCopy(hash.data(), spki_sha256.data(), spki_sha256.size());
+    memcpy(hash.data(), spki_sha256.data(), spki_sha256.size());
     public_keys.push_back(hash);
 
     EXPECT_TRUE(CertVerifyProc::IsPublicKeyBlacklisted(public_keys))
@@ -1421,7 +1421,7 @@ class CertVerifyProcInspectSignatureAlgorithmsTest : public ::testing::Test {
       return false;
     }
 
-    SbMemoryCopy(const_cast<char*>(algorithm_sequence->data()),
+    memcpy(const_cast<char*>(algorithm_sequence->data()),
                  replacement_sequence.data(), replacement_sequence.size());
     return true;
   }

@@ -385,7 +385,7 @@ bool WebMClusterParser::OnBinary(int id, const uint8_t* data, int size) {
         return false;
       }
       block_data_.reset(new uint8_t[size]);
-      SbMemoryCopy(block_data_.get(), data, size);
+      memcpy(block_data_.get(), data, size);
       block_data_size_ = size;
       return true;
 
@@ -405,9 +405,9 @@ bool WebMClusterParser::OnBinary(int id, const uint8_t* data, int size) {
       // demuxer's behavior.
       block_additional_data_size_ = size + sizeof(block_add_id);
       block_additional_data_.reset(new uint8_t[block_additional_data_size_]);
-      SbMemoryCopy(block_additional_data_.get(), &block_add_id,
+      memcpy(block_additional_data_.get(), &block_add_id,
                    sizeof(block_add_id));
-      SbMemoryCopy(block_additional_data_.get() + 8, data, size);
+      memcpy(block_additional_data_.get() + 8, data, size);
       return true;
     }
     case kWebMIdDiscardPadding: {

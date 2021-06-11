@@ -27,7 +27,7 @@ void BM_MemoryCopy(::benchmark::State& state) {
   void* memory2 = SbMemoryAllocate(state.range(0));
 
   for (auto _ : state) {
-    SbMemoryCopy(memory1, memory2, state.range(0));
+    memcpy(memory1, memory2, state.range(0));
     ::benchmark::ClobberMemory();
   }
   state.SetBytesProcessed(int64_t(state.iterations()) *

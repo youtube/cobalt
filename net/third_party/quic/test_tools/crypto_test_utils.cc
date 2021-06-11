@@ -667,7 +667,7 @@ class MockCommonCertSets : public CommonCertSets {
     bool client_has_set = false;
     for (size_t i = 0; i < common_set_hashes.size(); i += sizeof(uint64_t)) {
       uint64_t hash;
-      SbMemoryCopy(&hash, common_set_hashes.data() + i, sizeof(hash));
+      memcpy(&hash, common_set_hashes.data() + i, sizeof(hash));
       if (hash == hash_) {
         client_has_set = true;
         break;

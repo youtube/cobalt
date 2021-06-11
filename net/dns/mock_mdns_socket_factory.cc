@@ -59,7 +59,7 @@ int MockMDnsDatagramServerSocket::HandleRecvNow(
     CompletionRepeatingCallback callback) {
   int size_returned =
       std::min(response_packet_.size(), static_cast<size_t>(size));
-  SbMemoryCopy(buffer->data(), response_packet_.data(), size_returned);
+  memcpy(buffer->data(), response_packet_.data(), size_returned);
   return size_returned;
 }
 
@@ -106,7 +106,7 @@ void MockMDnsSocketFactory::SimulateReceive(const uint8_t* packet, int size) {
   DCHECK(recv_buffer_.get());
   DCHECK(!recv_callback_.is_null());
 
-  SbMemoryCopy(recv_buffer_->data(), packet, size);
+  memcpy(recv_buffer_->data(), packet, size);
   base::ResetAndReturn(&recv_callback_).Run(size);
 }
 

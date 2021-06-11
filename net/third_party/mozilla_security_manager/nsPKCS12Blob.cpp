@@ -71,7 +71,7 @@ void unicodeToItem(const PRUnichar *uni, SECItem *item)
     item->data[2*i+1] = (unsigned char )(uni[i]);
   }
 #else
-  SbMemoryCopy(item->data, uni, item->len);
+  memcpy(item->data, uni, item->len);
 #endif
 }
 
@@ -141,7 +141,7 @@ pip_ucs2_ascii_conversion_fn(PRBool toUnicode,
   CHECK_GE(maxOutBufLen, inBufLen);
   // do a no-op, since I've already got Unicode.  Hah!
   *outBufLen = inBufLen;
-  SbMemoryCopy(outBuf, inBuf, inBufLen);
+  memcpy(outBuf, inBuf, inBufLen);
   return PR_TRUE;
 }
 

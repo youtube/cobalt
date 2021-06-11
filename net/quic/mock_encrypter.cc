@@ -39,7 +39,7 @@ bool MockEncrypter::EncryptPacket(uint64_t /*packet_number*/,
   if (max_output_length < plaintext.size()) {
     return false;
   }
-  SbMemoryCopy(output, plaintext.data(), plaintext.length());
+  memcpy(output, plaintext.data(), plaintext.length());
   *output_length = plaintext.size();
   return true;
 }

@@ -983,7 +983,7 @@ class SPDY_EXPORT_PRIVATE SpdySerializedFrame {
     } else {
       // Otherwise, we need to make a copy to give to the caller.
       buffer = new char[size_];
-      SbMemoryCopy(buffer, frame_, size_);
+      memcpy(buffer, frame_, size_);
     }
     *this = SpdySerializedFrame();
     return buffer;

@@ -209,7 +209,7 @@ StackTrace::StackTrace() : StackTrace(arraysize(trace_)) {}
 StackTrace::StackTrace(const void* const* trace, size_t count) {
   count = std::min(count, arraysize(trace_));
   if (count)
-    SbMemoryCopy(trace_, trace, count * sizeof(trace_[0]));
+    memcpy(trace_, trace, count * sizeof(trace_[0]));
   count_ = count;
 }
 

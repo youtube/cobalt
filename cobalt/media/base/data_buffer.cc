@@ -35,7 +35,7 @@ DataBuffer::DataBuffer(const uint8_t* data, int data_size)
 
   CHECK_GE(data_size, 0);
   data_.reset(new uint8_t[buffer_size_]);
-  SbMemoryCopy(data_.get(), data, data_size_);
+  memcpy(data_.get(), data, data_size_);
 }
 
 DataBuffer::~DataBuffer() {}

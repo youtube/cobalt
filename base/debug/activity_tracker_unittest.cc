@@ -519,7 +519,7 @@ TEST_F(ActivityTrackerTest, ProcessDeathTest) {
   // Make a copy of the thread-tracker state so it can be restored later.
   const size_t tracker_size = global->allocator()->GetAllocSize(tracker_ref);
   std::unique_ptr<char[]> tracker_copy(new char[tracker_size]);
-  SbMemoryCopy(tracker_copy.get(), thread->GetBaseAddress(), tracker_size);
+  memcpy(tracker_copy.get(), thread->GetBaseAddress(), tracker_size);
 
   // Change the objects to appear to be owned by another process. Use a "past"
   // time so that exit-time is always later than create-time.
@@ -569,7 +569,7 @@ TEST_F(ActivityTrackerTest, ProcessDeathTest) {
 
   // Restore memory contents and types so things don't crash when doing real
   // process clean-up.
-  SbMemoryCopy(const_cast<void*>(thread->GetBaseAddress()), tracker_copy.get(),
+  memcpy(const_cast<void*>(thread->GetBaseAddress()), tracker_copy.get(),
                tracker_size);
   global->allocator()->ChangeType(
       proc_data_ref, GlobalActivityTracker::kTypeIdProcessDataRecord,

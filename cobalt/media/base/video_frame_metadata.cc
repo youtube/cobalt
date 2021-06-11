@@ -122,7 +122,7 @@ bool ToTimeValue(const base::BinaryValue& binary_value, TimeType* value) {
   DCHECK(value);
   int64_t internal_value;
   if (binary_value.GetSize() != sizeof(internal_value)) return false;
-  SbMemoryCopy(&internal_value, binary_value.GetBuffer(),
+  memcpy(&internal_value, binary_value.GetBuffer(),
                sizeof(internal_value));
   *value = TimeType::FromInternalValue(internal_value);
   return true;

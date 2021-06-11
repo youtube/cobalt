@@ -278,7 +278,7 @@ int HttpStreamParser::SendRequest(
     request_headers_ = base::MakeRefCounted<DrainableIOBuffer>(
         merged_request_headers_and_body, merged_size);
 
-    SbMemoryCopy(request_headers_->data(), request.data(),
+    memcpy(request_headers_->data(), request.data(),
                  request_headers_length_);
     request_headers_->DidConsume(request_headers_length_);
 
@@ -677,7 +677,7 @@ int HttpStreamParser::DoReadBody() {
     if (available) {
       CHECK_GT(available, 0);
       int bytes_from_buffer = std::min(available, user_read_buf_len_);
-      SbMemoryCopy(user_read_buf_->data(),
+      memcpy(user_read_buf_->data(),
                    read_buf_->StartOfBuffer() + read_buf_unused_offset_,
                    bytes_from_buffer);
       read_buf_unused_offset_ += bytes_from_buffer;
@@ -782,7 +782,7 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
 
     if (save_amount) {
       received_bytes_ -= save_amount;
-      SbMemoryCopy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
+      memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
                    save_amount);
     }
     read_buf_->set_offset(save_amount);
@@ -1154,11 +1154,11 @@ int HttpStreamParser::EncodeChunk(const base::StringPiece& payload,
   cursor += num_chars;
   // Add the payload if any.
   if (payload.size() > 0) {
-    SbMemoryCopy(cursor, payload.data(), payload.size());
+    memcpy(cursor, payload.data(), payload.size());
     cursor += payload.size();
   }
   // Add the trailing CRLF.
-  SbMemoryCopy(cursor, "\r\n", 2);
+  memcpy(cursor, "\r\n", 2);
   cursor += 2;
 
   return cursor - output;

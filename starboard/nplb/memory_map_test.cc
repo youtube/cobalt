@@ -191,7 +191,7 @@ CopySumFunctionIntoMemory(void* memory) {
         nullptr, nullptr);
   }
 
-  SbMemoryCopy(memory, sum_function_start, bytes_to_copy);
+  memcpy(memory, sum_function_start, bytes_to_copy);
   SbMemoryFlush(memory, bytes_to_copy);
 
   SumFunction mapped_function = reinterpret_cast<SumFunction>(

@@ -15,7 +15,7 @@ bool SpdyHexDecodeToUInt32Impl(SpdyStringPiece data, uint32_t* out) {
     return false;
   // Pad with leading zeros.
   std::string data_padded(8u, '0');
-  SbMemoryCopy(&data_padded[8u - data.size()], data.data(), data.size());
+  memcpy(&data_padded[8u - data.size()], data.data(), data.size());
   return base::HexStringToUInt(data_padded, out);
 }
 

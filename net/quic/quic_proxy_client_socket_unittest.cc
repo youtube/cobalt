@@ -510,7 +510,7 @@ class QuicProxyClientSocketTest
   void AssertWriteReturns(const char* data, int len, int rv) {
     scoped_refptr<IOBufferWithSize> buf =
         base::MakeRefCounted<IOBufferWithSize>(len);
-    SbMemoryCopy(buf->data(), data, len);
+    memcpy(buf->data(), data, len);
     EXPECT_EQ(rv,
               sock_->Write(buf.get(), buf->size(), write_callback_.callback(),
                            TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -519,7 +519,7 @@ class QuicProxyClientSocketTest
   void AssertSyncWriteSucceeds(const char* data, int len) {
     scoped_refptr<IOBufferWithSize> buf =
         base::MakeRefCounted<IOBufferWithSize>(len);
-    SbMemoryCopy(buf->data(), data, len);
+    memcpy(buf->data(), data, len);
     EXPECT_EQ(len,
               sock_->Write(buf.get(), buf->size(), CompletionOnceCallback(),
                            TRAFFIC_ANNOTATION_FOR_TESTS));

@@ -97,7 +97,7 @@ void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
   CHECK_GT(1u << 14, length);
   {
     int32_t wire_length = SpdyHostToNet32(length);
-    SbMemoryCopy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);
+    memcpy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);
   }
 }
 

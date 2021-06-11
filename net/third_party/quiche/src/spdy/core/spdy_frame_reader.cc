@@ -101,7 +101,7 @@ bool SpdyFrameReader::ReadUInt24(uint32_t* result) {
 
   // Read into result.
   *result = 0;
-  SbMemoryCopy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
+  memcpy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
   *result = SpdyNetToHost32(*result);
 
   // Iterate.
@@ -164,7 +164,7 @@ bool SpdyFrameReader::ReadBytes(void* result, size_t size) {
   }
 
   // Read into result.
-  SbMemoryCopy(result, data_ + ofs_, size);
+  memcpy(result, data_ + ofs_, size);
 
   // Iterate.
   ofs_ += size;

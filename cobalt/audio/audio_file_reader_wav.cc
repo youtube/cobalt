@@ -200,7 +200,7 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
   if ((!is_src_sample_in_float && sample_type_ == kSampleTypeInt16) ||
       (is_src_sample_in_float && sample_type_ == kSampleTypeFloat32)) {
     SB_LOG(INFO) << "Copying " << size << " bytes of wav data.";
-    SbMemoryCopy(audio_bus_->interleaved_data(), data + offset, size);
+    memcpy(audio_bus_->interleaved_data(), data + offset, size);
   } else if (!is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
     // Convert from int16 to float32
     SB_LOG(INFO) << "Converting " << number_of_frames_ * number_of_channels_

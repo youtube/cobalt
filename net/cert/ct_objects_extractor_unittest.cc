@@ -82,7 +82,7 @@ TEST_F(CTObjectsExtractorTest, ExtractPrecert) {
   ASSERT_TRUE(entry.leaf_certificate.empty());
   // Compare hash values of issuer spki.
   SHA256HashValue expected_issuer_key_hash;
-  SbMemoryCopy(expected_issuer_key_hash.data, GetDefaultIssuerKeyHash().data(),
+  memcpy(expected_issuer_key_hash.data, GetDefaultIssuerKeyHash().data(),
                32);
   ASSERT_EQ(expected_issuer_key_hash, entry.issuer_key_hash);
 }

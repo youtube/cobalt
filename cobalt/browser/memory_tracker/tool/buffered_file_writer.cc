@@ -95,7 +95,7 @@ void BufferedFileWriter::Append(const char* data, size_t num_bytes) {
   }
 
   LogBuffer& current_buffer = log_buffers_[current_log_buffer_];
-  SbMemoryCopy(current_buffer.buffer + current_buffer.num_bytes, data,
+  memcpy(current_buffer.buffer + current_buffer.num_bytes, data,
                num_bytes);
   current_buffer.num_bytes += num_bytes;
   return;

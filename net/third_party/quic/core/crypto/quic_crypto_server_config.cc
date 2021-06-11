@@ -309,7 +309,7 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
 
   char orbit_bytes[kOrbitSize];
   if (options.orbit.size() == sizeof(orbit_bytes)) {
-    SbMemoryCopy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
+    memcpy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
   } else {
     DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
@@ -1784,7 +1784,7 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
     return nullptr;
   }
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
-  SbMemoryCopy(config->orbit, orbit.data(), sizeof(config->orbit));
+  memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
   if (kexs_tags.size() != static_cast<size_t>(protobuf->key_size())) {
     QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()

@@ -9,13 +9,8 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#if !defined(STARBOARD)
 #include <string.h>  /* memcpy*/
 #define MEMCPY_RINGBUFFER memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_RINGBUFFER SbMemoryCopy
-#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>

@@ -44,7 +44,7 @@ const void TransformCoords(
                   lower_left_coords.first,  upper_right_coords.second,
                   upper_right_coords.first, lower_left_coords.second,
                   upper_right_coords.first, upper_right_coords.second};
-  SbMemoryCopy(vertex_data, temp, sizeof(float) * 8);
+  memcpy(vertex_data, temp, sizeof(float) * 8);
 }
 
 }  // namespace

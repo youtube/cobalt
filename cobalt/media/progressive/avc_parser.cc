@@ -425,17 +425,17 @@ bool AVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
     return false;
   }
   // start code for sps comes first
-  SbMemoryCopy(video_prepend_, kAnnexBStartCode, kAnnexBStartCodeSize);
+  memcpy(video_prepend_, kAnnexBStartCode, kAnnexBStartCodeSize);
   // followed by sps body
-  SbMemoryCopy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
+  memcpy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
   int prepend_offset = kAnnexBStartCodeSize + sps_size;
   if (pps_size > 0) {
     // pps start code comes next
-    SbMemoryCopy(video_prepend_ + prepend_offset, kAnnexBStartCode,
+    memcpy(video_prepend_ + prepend_offset, kAnnexBStartCode,
                  kAnnexBStartCodeSize);
     prepend_offset += kAnnexBStartCodeSize;
     // followed by pps
-    SbMemoryCopy(video_prepend_ + prepend_offset, pps, pps_size);
+    memcpy(video_prepend_ + prepend_offset, pps, pps_size);
     prepend_offset += pps_size;
   }
 

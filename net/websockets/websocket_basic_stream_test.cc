@@ -133,7 +133,7 @@ class WebSocketBasicStreamSocketTest : public TestWithScopedTaskEnvironment {
   void SetHttpReadBuffer(const char* data, size_t size) {
     http_read_buffer_ = base::MakeRefCounted<GrowableIOBuffer>();
     http_read_buffer_->SetCapacity(size);
-    SbMemoryCopy(http_read_buffer_->data(), data, size);
+    memcpy(http_read_buffer_->data(), data, size);
     http_read_buffer_->set_offset(size);
   }
 
@@ -234,7 +234,7 @@ class WebSocketBasicStreamSocketWriteTest
         kWriteFrameSize - (WebSocketFrameHeader::kBaseHeaderSize +
                            WebSocketFrameHeader::kMaskingKeyLength);
     frame->data = base::MakeRefCounted<IOBuffer>(payload_size);
-    SbMemoryCopy(frame->data->data(),
+    memcpy(frame->data->data(),
                  kWriteFrame + kWriteFrameSize - payload_size, payload_size);
     WebSocketFrameHeader& header = frame->header;
     header.final = true;
@@ -800,7 +800,7 @@ TEST_F(WebSocketBasicStreamSocketChunkedReadTest, OneMegFrame) {
   const size_t kExpectedFrameCount =
       (kWireSize + kReadBufferSize - 1) / kReadBufferSize;
   std::unique_ptr<char[]> big_frame(new char[kWireSize]);
-  SbMemoryCopy(big_frame.get(), "\x81\x7F", 2);
+  memcpy(big_frame.get(), "\x81\x7F", 2);
   base::WriteBigEndian(big_frame.get() + 2, kPayloadSize);
   memset(big_frame.get() + kLargeFrameHeaderSize, 'A', kPayloadSize);
 
@@ -920,7 +920,7 @@ TEST_F(WebSocketBasicStreamSocketTest, WriteNonNulMask) {
   const std::string unmasked_payload = "graphics";
   const size_t payload_size = unmasked_payload.size();
   frame->data = base::MakeRefCounted<IOBuffer>(payload_size);
-  SbMemoryCopy(frame->data->data(), unmasked_payload.data(), payload_size);
+  memcpy(frame->data->data(), unmasked_payload.data(), payload_size);
   WebSocketFrameHeader& header = frame->header;
   header.final = true;
   header.masked = true;

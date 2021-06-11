@@ -41,7 +41,7 @@ class P256KeyExchangeFactory : public KeyExchange::Factory {
 P256KeyExchange::P256KeyExchange(bssl::UniquePtr<EC_KEY> private_key,
                                  const uint8_t* public_key)
     : private_key_(std::move(private_key)) {
-  SbMemoryCopy(public_key_, public_key, sizeof(public_key_));
+  memcpy(public_key_, public_key, sizeof(public_key_));
 }
 
 P256KeyExchange::~P256KeyExchange() {}
