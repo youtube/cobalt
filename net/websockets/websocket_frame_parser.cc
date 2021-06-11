@@ -186,7 +186,7 @@ std::unique_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
     frame_chunk->data =
         base::MakeRefCounted<IOBufferWithSize>(static_cast<int>(next_size));
     char* io_data = frame_chunk->data->data();
-    SbMemoryCopy(io_data, &buffer_.front() + current_read_pos_, next_size);
+    memcpy(io_data, &buffer_.front() + current_read_pos_, next_size);
     if (current_frame_header_->masked) {
       // The masking function is its own inverse, so we use the same function to
       // unmask as to mask.

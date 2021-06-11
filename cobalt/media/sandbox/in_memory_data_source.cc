@@ -44,7 +44,7 @@ void InMemoryDataSource::Read(int64 position, int size, uint8* data,
     return;
   }
 
-  SbMemoryCopy(data, &content_[0] + position, size);
+  memcpy(data, &content_[0] + position, size);
   read_cb.Run(size);
 }
 

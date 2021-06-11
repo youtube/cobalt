@@ -220,7 +220,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   *static_cast<SbMediaAudioSampleInfo*>(this) = that;
   if (audio_specific_config_size > 0) {
     audio_specific_config_storage.resize(audio_specific_config_size);
-    SbMemoryCopy(audio_specific_config_storage.data(), audio_specific_config,
+    memcpy(audio_specific_config_storage.data(), audio_specific_config,
                  audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }

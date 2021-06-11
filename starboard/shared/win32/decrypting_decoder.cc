@@ -41,7 +41,7 @@ ComPtr<IMFSample> CreateSample(const void* data,
   hr = buffer->Lock(&buffer_ptr, 0, 0);
   CheckResult(hr);
 
-  SbMemoryCopy(buffer_ptr, data, size);
+  memcpy(buffer_ptr, data, size);
 
   hr = buffer->Unlock();
   CheckResult(hr);

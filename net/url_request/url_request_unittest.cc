@@ -4081,7 +4081,7 @@ class URLRequestTestHTTP : public URLRequestTest {
     char* ptr = uploadBytes;
     char marker = 'a';
     for (int idx = 0; idx < kMsgSize/10; idx++) {
-      SbMemoryCopy(ptr, "----------", 10);
+      memcpy(ptr, "----------", 10);
       ptr += 10;
       if (idx % 100 == 0) {
         ptr--;

@@ -308,7 +308,7 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   // context may have had more register state (YMM, etc) than we need to unwind
   // the stack. Typically StackWalk64 only needs integer and control registers.
   CONTEXT context_copy;
-  SbMemoryCopy(&context_copy, context_record, sizeof(context_copy));
+  memcpy(&context_copy, context_record, sizeof(context_copy));
   context_copy.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
 
   // When walking an exception stack, we need to use StackWalk64().

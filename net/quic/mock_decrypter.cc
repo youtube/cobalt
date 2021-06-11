@@ -50,7 +50,7 @@ bool MockDecrypter::DecryptPacket(uint64_t /*packet_number*/,
     return false;
   }
 
-  SbMemoryCopy(output, ciphertext.data(), ciphertext.length());
+  memcpy(output, ciphertext.data(), ciphertext.length());
   *output_length = ciphertext.length();
   return true;
 }

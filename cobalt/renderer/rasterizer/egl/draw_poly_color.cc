@@ -93,10 +93,10 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
   if (attributes_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
                                                         sizeof(attributes_[0]));
-    SbMemoryCopy(vertex_buffer_, &attributes_[0],
+    memcpy(vertex_buffer_, &attributes_[0],
                  attributes_.size() * sizeof(attributes_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
-    SbMemoryCopy(index_buffer_, &indices_[0],
+    memcpy(index_buffer_, &indices_[0],
                  indices_.size() * sizeof(indices_[0]));
   }
 }

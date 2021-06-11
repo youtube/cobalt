@@ -130,7 +130,7 @@ bool SetReparsePoint(HANDLE source, const FilePath& target_path) {
   REPARSE_DATA_BUFFER* data = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
 
   data->ReparseTag = 0xa0000003;
-  SbMemoryCopy(data->MountPointReparseBuffer.PathBuffer, target,
+  memcpy(data->MountPointReparseBuffer.PathBuffer, target,
                size_target + 2);
 
   data->MountPointReparseBuffer.SubstituteNameLength = size_target;

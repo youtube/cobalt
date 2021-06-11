@@ -74,7 +74,7 @@ bool AeadBaseDecrypter::SetKey(QuicStringPiece key) {
   if (key.size() != key_size_) {
     return false;
   }
-  SbMemoryCopy(key_, key.data(), key.size());
+  memcpy(key_, key.data(), key.size());
 
   EVP_AEAD_CTX_cleanup(ctx_.get());
   if (!EVP_AEAD_CTX_init(ctx_.get(), aead_alg_, key_, key_size_, auth_tag_size_,
@@ -95,7 +95,7 @@ bool AeadBaseDecrypter::SetNoncePrefix(QuicStringPiece nonce_prefix) {
   if (nonce_prefix.size() != nonce_size_ - sizeof(QuicPacketNumber)) {
     return false;
   }
-  SbMemoryCopy(iv_, nonce_prefix.data(), nonce_prefix.size());
+  memcpy(iv_, nonce_prefix.data(), nonce_prefix.size());
   return true;
 }
 
@@ -108,7 +108,7 @@ bool AeadBaseDecrypter::SetIV(QuicStringPiece iv) {
   if (iv.size() != nonce_size_) {
     return false;
   }
-  SbMemoryCopy(iv_, iv.data(), iv.size());
+  memcpy(iv_, iv.data(), iv.size());
   return true;
 }
 
@@ -158,7 +158,7 @@ bool AeadBaseDecrypter::DecryptPacket(uint64_t packet_number,
   }
 
   uint8_t nonce[kMaxNonceSize];
-  SbMemoryCopy(nonce, iv_, nonce_size_);
+  memcpy(nonce, iv_, nonce_size_);
   size_t prefix_len = nonce_size_ - sizeof(packet_number);
   if (use_ietf_nonce_construction_) {
     for (size_t i = 0; i < sizeof(packet_number); ++i) {
@@ -166,7 +166,7 @@ bool AeadBaseDecrypter::DecryptPacket(uint64_t packet_number,
           (packet_number >> ((sizeof(packet_number) - i - 1) * 8)) & 0xff;
     }
   } else {
-    SbMemoryCopy(nonce + prefix_len, &packet_number, sizeof(packet_number));
+    memcpy(nonce + prefix_len, &packet_number, sizeof(packet_number));
   }
   if (!EVP_AEAD_CTX_open(
           ctx_.get(), reinterpret_cast<uint8_t*>(output), output_length,

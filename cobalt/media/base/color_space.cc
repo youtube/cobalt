@@ -75,7 +75,7 @@ ColorSpace::ColorSpace(const ColorSpace& other)
       transfer_(other.transfer_),
       matrix_(other.matrix_),
       range_(other.range_) {
-  SbMemoryCopy(custom_primary_matrix_, other.custom_primary_matrix_,
+  memcpy(custom_primary_matrix_, other.custom_primary_matrix_,
                sizeof(custom_primary_matrix_));
 }
 

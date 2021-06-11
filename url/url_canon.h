@@ -165,7 +165,7 @@ class RawCanonOutputT : public CanonOutputT<T> {
 
   void Resize(int sz) override {
     T* new_buf = new T[sz];
-    SbMemoryCopy(new_buf, this->buffer_,
+    memcpy(new_buf, this->buffer_,
                  sizeof(T) * (this->cur_len_ < sz ? this->cur_len_ : sz));
     if (this->buffer_ != fixed_buffer_)
       delete[] this->buffer_;

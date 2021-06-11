@@ -309,7 +309,7 @@ TEST(WebSocketFrameTest, MaskPayloadAlignment) {
       const size_t aligned_len = std::min(kScratchBufferSize - alignment,
                                           kTestInputSize - frame_offset);
       for (size_t chunk_size = 1; chunk_size < kMaxVectorSize; ++chunk_size) {
-        SbMemoryCopy(aligned_scratch, kTestInput + frame_offset, aligned_len);
+        memcpy(aligned_scratch, kTestInput + frame_offset, aligned_len);
         for (size_t chunk_start = 0; chunk_start < aligned_len;
              chunk_start += chunk_size) {
           const size_t this_chunk_size =

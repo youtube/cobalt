@@ -201,7 +201,7 @@ void EntryImpl::UserBuffer::Write(int offset, IOBuffer* buf, int len) {
   int valid_len = Size() - offset;
   int copy_len = std::min(valid_len, len);
   if (copy_len) {
-    SbMemoryCopy(&buffer_[offset], buffer, copy_len);
+    memcpy(&buffer_[offset], buffer, copy_len);
     len -= copy_len;
     buffer += copy_len;
   }
@@ -257,7 +257,7 @@ int EntryImpl::UserBuffer::Read(int offset, IOBuffer* buf, int len) {
   DCHECK_GE(start, 0);
   DCHECK_GE(available, 0);
   len = std::min(len, available);
-  SbMemoryCopy(buf->data() + clean_bytes, &buffer_[start], len);
+  memcpy(buf->data() + clean_bytes, &buffer_[start], len);
   return len + clean_bytes;
 }
 
@@ -458,7 +458,7 @@ bool EntryImpl::CreateEntry(Addr node_address,
     if (address.is_separate_file())
       key_file->SetLength(key.size() + 1);
   } else {
-    SbMemoryCopy(entry_store->key, key.data(), key.size());
+    memcpy(entry_store->key, key.data(), key.size());
     entry_store->key[key.size()] = '\0';
   }
   backend_->ModifyStorageSize(0, static_cast<int32_t>(key.size()));
@@ -1565,7 +1565,7 @@ void EntryImpl::GetData(int index, char** buffer, Addr* address) {
     if (data_len <= user_buffers_[index]->Size()) {
       DCHECK(!user_buffers_[index]->Start());
       *buffer = new char[data_len];
-      SbMemoryCopy(*buffer, user_buffers_[index]->Data(), data_len);
+      memcpy(*buffer, user_buffers_[index]->Data(), data_len);
       return;
     }
   }

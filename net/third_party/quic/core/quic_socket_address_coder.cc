@@ -50,7 +50,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   if (length < sizeof(address_family)) {
     return false;
   }
-  SbMemoryCopy(&address_family, data, sizeof(address_family));
+  memcpy(&address_family, data, sizeof(address_family));
   data += sizeof(address_family);
   length -= sizeof(address_family);
 
@@ -69,7 +69,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
     return false;
   }
   std::vector<uint8_t> ip(ip_length);
-  SbMemoryCopy(&ip[0], data, ip_length);
+  memcpy(&ip[0], data, ip_length);
   data += ip_length;
   length -= ip_length;
 
@@ -77,7 +77,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   if (length != sizeof(port)) {
     return false;
   }
-  SbMemoryCopy(&port, data, length);
+  memcpy(&port, data, length);
 
   QuicIpAddress ip_address;
   ip_address.FromPackedString(reinterpret_cast<const char*>(&ip[0]), ip_length);

@@ -169,7 +169,7 @@ bool QuicDataReader::ReadBytes(void* result, size_t size) {
   }
 
   // Read into result.
-  SbMemoryCopy(result, data_ + pos_, size);
+  memcpy(result, data_ + pos_, size);
 
   // Iterate.
   pos_ += size;

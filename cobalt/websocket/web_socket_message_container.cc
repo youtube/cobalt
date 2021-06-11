@@ -34,7 +34,7 @@ std::size_t CombineFramesChunks(WebSocketFrameContainer::const_iterator begin,
       std::size_t frame_chunk_size = data->size();
 
       if (bytes_available >= frame_chunk_size) {
-        SbMemoryCopy(out_destination, data->data(), frame_chunk_size);
+        memcpy(out_destination, data->data(), frame_chunk_size);
         out_destination += frame_chunk_size;
         bytes_written += frame_chunk_size;
         bytes_available -= frame_chunk_size;

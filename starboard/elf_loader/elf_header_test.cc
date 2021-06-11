@@ -41,7 +41,7 @@ class DummyFile : public File {
       SB_LOG(ERROR) << "ReadFromOffset: Invalid size " << size;
       return false;
     }
-    SbMemoryCopy(buffer, buffer_, size);
+    memcpy(buffer, buffer_, size);
     return true;
   }
   void Close() {}

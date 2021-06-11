@@ -225,7 +225,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
           " total_bytes_read_ = ", total_bytes_read_);
       return false;
     }
-    SbMemoryCopy(dest, source, bytes_to_copy);
+    memcpy(dest, source, bytes_to_copy);
     source += bytes_to_copy;
     source_remaining -= bytes_to_copy;
     offset += bytes_to_copy;
@@ -263,7 +263,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const IOVEC* dest_iov,
             " total_bytes_read_ = ", total_bytes_read_);
         return QUIC_STREAM_SEQUENCER_INVALID_STATE;
       }
-      SbMemoryCopy(dest, blocks_[block_idx]->buffer + start_offset_in_block,
+      memcpy(dest, blocks_[block_idx]->buffer + start_offset_in_block,
                    bytes_to_copy);
       dest += bytes_to_copy;
       dest_remaining -= bytes_to_copy;

@@ -71,7 +71,7 @@ Matrix3F Matrix3F::FromOuterProduct(const Vector3dF& a, const Vector3dF& bt) {
 // static
 Matrix3F Matrix3F::FromArray(const float data[9]) {
   Matrix3F matrix;
-  SbMemoryCopy(matrix.data_, data, sizeof(float) * 9);
+  memcpy(matrix.data_, data, sizeof(float) * 9);
   return matrix;
 }
 

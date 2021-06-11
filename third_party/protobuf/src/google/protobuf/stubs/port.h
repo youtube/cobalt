@@ -276,56 +276,32 @@ static const uint64 kuint64max = GOOGLE_ULONGLONG(0xFFFFFFFFFFFFFFFF);
 #else
 inline uint16 GOOGLE_UNALIGNED_LOAD16(const void *p) {
   uint16 t;
-#ifndef STARBOARD
   memcpy(&t, p, sizeof t);
-#else
-  SbMemoryCopy(&t, p, sizeof t);
-#endif  // STARBOARD
   return t;
 }
 
 inline uint32 GOOGLE_UNALIGNED_LOAD32(const void *p) {
   uint32 t;
-#ifndef STARBOARD
   memcpy(&t, p, sizeof t);
-#else
-  SbMemoryCopy(&t, p, sizeof t);
-#endif  // STARBOARD
   return t;
 }
 
 inline uint64 GOOGLE_UNALIGNED_LOAD64(const void *p) {
   uint64 t;
-#ifndef STARBOARD
   memcpy(&t, p, sizeof t);
-#else
-  SbMemoryCopy(&t, p, sizeof t);
-#endif  // STARBOARD
   return t;
 }
 
 inline void GOOGLE_UNALIGNED_STORE16(void *p, uint16 v) {
-#ifndef STARBOARD
   memcpy(p, &v, sizeof v);
-#else
-  SbMemoryCopy(p, &v, sizeof v);
-#endif  // STARBOARD
 }
 
 inline void GOOGLE_UNALIGNED_STORE32(void *p, uint32 v) {
-#ifndef STARBOARD
   memcpy(p, &v, sizeof v);
-#else
-  SbMemoryCopy(p, &v, sizeof v);
-#endif  // STARBOARD
 }
 
 inline void GOOGLE_UNALIGNED_STORE64(void *p, uint64 v) {
-#ifndef STARBOARD
   memcpy(p, &v, sizeof v);
-#else
-  SbMemoryCopy(p, &v, sizeof v);
-#endif  // STARBOARD
 }
 #endif
 

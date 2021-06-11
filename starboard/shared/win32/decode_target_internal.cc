@@ -54,6 +54,6 @@ bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }
-  SbMemoryCopy(out_info, &decode_target->info, sizeof(*out_info));
+  memcpy(out_info, &decode_target->info, sizeof(*out_info));
   return true;
 }

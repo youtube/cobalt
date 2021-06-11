@@ -65,7 +65,7 @@ void *OPENSSL_realloc(void *orig_ptr, size_t new_size) {
     to_copy = old_size;
   }
 
-  SbMemoryCopy(ret, orig_ptr, to_copy);
+  memcpy(ret, orig_ptr, to_copy);
   OPENSSL_free(orig_ptr);
 
   return ret;
@@ -119,7 +119,7 @@ void *OPENSSL_memcpy(void *dst, const void *src, size_t n) {
     return dst;
   }
 
-  return SbMemoryCopy(dst, src, n);
+  return memcpy(dst, src, n);
 }
 
 void *OPENSSL_memmove(void *dst, const void *src, size_t n) {

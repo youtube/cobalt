@@ -25,7 +25,7 @@ bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
     return false;
   }
 
-  SbMemoryCopy(out_info, &decode_target->data->info, sizeof(*out_info));
+  memcpy(out_info, &decode_target->data->info, sizeof(*out_info));
 
   return true;
 }

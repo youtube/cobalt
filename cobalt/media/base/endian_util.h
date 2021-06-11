@@ -30,42 +30,42 @@ namespace endian_util {
 // Load 2 little-endian bytes at |p| and return as a host-endian uint16_t.
 inline uint16_t load_uint16_little_endian(const uint8_t* p) {
   uint16_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::ByteSwapToLE16(aligned_p);
 }
 
 // Load 4 little-endian bytes at |p| and return as a host-endian uint32_t.
 inline uint32_t load_uint32_little_endian(const uint8_t* p) {
   uint32_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::ByteSwapToLE32(aligned_p);
 }
 
 // Load 8 little-endian bytes at |p| and return as a host-endian uint64_t.
 inline uint64_t load_uint64_little_endian(const uint8_t* p) {
   uint64_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::ByteSwapToLE64(aligned_p);
 }
 
 // Load 2 big-endian bytes at |p| and return as a host-endian uint16_t.
 inline uint16_t load_uint16_big_endian(const uint8_t* p) {
   uint16_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::NetToHost16(aligned_p);
 }
 
 // Load 4 big-endian bytes at |p| and return as a host-endian uint32_t.
 inline uint32_t load_uint32_big_endian(const uint8_t* p) {
   uint32_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::NetToHost32(aligned_p);
 }
 
 // Load 8 big-endian bytes at |p| and return as a host-endian uint64_t.
 inline uint64_t load_uint64_big_endian(const uint8_t* p) {
   uint64_t aligned_p;
-  SbMemoryCopy(&aligned_p, p, sizeof(aligned_p));
+  memcpy(&aligned_p, p, sizeof(aligned_p));
   return base::NetToHost64(aligned_p);
 }
 
@@ -102,37 +102,37 @@ inline int64_t load_int64_little_endian(const uint8_t* p) {
 // Store 2 host-endian bytes as big-endian at |p|.
 inline void store_uint16_big_endian(uint16_t d, uint8_t* p) {
   uint16_t big_d = base::HostToNet16(d);
-  SbMemoryCopy(p, &big_d, sizeof(big_d));
+  memcpy(p, &big_d, sizeof(big_d));
 }
 
 // Store 4 host-endian bytes as big-endian at |p|.
 inline void store_uint32_big_endian(uint32_t d, uint8_t* p) {
   uint32_t big_d = base::HostToNet32(d);
-  SbMemoryCopy(p, &big_d, sizeof(big_d));
+  memcpy(p, &big_d, sizeof(big_d));
 }
 
 // Store 8 host-endian bytes as big-endian at |p|.
 inline void store_uint64_big_endian(uint64_t d, uint8_t* p) {
   uint64_t big_d = base::HostToNet64(d);
-  SbMemoryCopy(p, &big_d, sizeof(big_d));
+  memcpy(p, &big_d, sizeof(big_d));
 }
 
 // Store 2 host-endian bytes as little-endian at |p|.
 inline void store_uint16_little_endian(uint16_t d, uint8_t* p) {
   uint16_t little_d = base::ByteSwapToLE16(d);
-  SbMemoryCopy(p, &little_d, sizeof(little_d));
+  memcpy(p, &little_d, sizeof(little_d));
 }
 
 // Store 4 host-endian bytes as little-endian at |p|.
 inline void store_uint32_little_endian(uint32_t d, uint8_t* p) {
   uint32_t little_d = base::ByteSwapToLE32(d);
-  SbMemoryCopy(p, &little_d, sizeof(little_d));
+  memcpy(p, &little_d, sizeof(little_d));
 }
 
 // Store 8 host-endian bytes as little-endian at |p|.
 inline void store_uint64_little_endian(uint64_t d, uint8_t* p) {
   uint64_t little_d = base::ByteSwapToLE64(d);
-  SbMemoryCopy(p, &little_d, sizeof(little_d));
+  memcpy(p, &little_d, sizeof(little_d));
 }
 
 }  // namespace endian_util

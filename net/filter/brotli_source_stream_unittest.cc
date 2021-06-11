@@ -219,7 +219,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferSync) {
     bytes_read = ReadStream(callback);
     EXPECT_LE(OK, bytes_read);
     EXPECT_GE(kSmallBufferSize, static_cast<size_t>(bytes_read));
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
@@ -251,7 +251,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferAsync) {
       bytes_read = callback.WaitForResult();
     }
     EXPECT_GE(static_cast<int>(kSmallBufferSize), bytes_read);
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
@@ -278,7 +278,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
     bytes_read = ReadStream(callback);
     EXPECT_NE(ERR_IO_PENDING, bytes_read);
     EXPECT_GE(1, bytes_read);
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
@@ -291,7 +291,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
 TEST_F(BrotliSourceStreamTest, DecodeCorruptedData) {
   char corrupt_data[kDefaultBufferSize];
   int corrupt_data_len = encoded_len();
-  SbMemoryCopy(corrupt_data, encoded_buffer(), encoded_len());
+  memcpy(corrupt_data, encoded_buffer(), encoded_len());
   int pos = corrupt_data_len / 2;
   corrupt_data[pos] = !corrupt_data[pos];
 
@@ -318,7 +318,7 @@ TEST_F(BrotliSourceStreamTest, DecodeCorruptedData) {
 TEST_F(BrotliSourceStreamTest, DecodeMissingData) {
   char corrupt_data[kDefaultBufferSize];
   int corrupt_data_len = encoded_len();
-  SbMemoryCopy(corrupt_data, encoded_buffer(), encoded_len());
+  memcpy(corrupt_data, encoded_buffer(), encoded_len());
 
   int pos = corrupt_data_len / 2;
   int len = corrupt_data_len - pos - 1;

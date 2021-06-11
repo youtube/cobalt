@@ -181,8 +181,8 @@ int TlsHandshaker::SetEncryptionSecretCallback(
   // TODO(nharper): replace these vectors and memcpys with spans (which
   // unfortunately doesn't yet exist in quic/platform/api).
   std::vector<uint8_t> read_secret(secret_len), write_secret(secret_len);
-  SbMemoryCopy(read_secret.data(), read_key, secret_len);
-  SbMemoryCopy(write_secret.data(), write_key, secret_len);
+  memcpy(read_secret.data(), read_key, secret_len);
+  memcpy(write_secret.data(), write_key, secret_len);
   HandshakerFromSsl(ssl)->SetEncryptionSecret(QuicEncryptionLevel(level),
                                               read_secret, write_secret);
   return 1;

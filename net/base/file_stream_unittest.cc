@@ -51,7 +51,7 @@ constexpr int kTestDataSize = base::size(kTestData) - 1;
 scoped_refptr<IOBufferWithSize> CreateTestDataBuffer() {
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(kTestDataSize);
-  SbMemoryCopy(buf->data(), kTestData, kTestDataSize);
+  memcpy(buf->data(), kTestData, kTestDataSize);
   return buf;
 }
 

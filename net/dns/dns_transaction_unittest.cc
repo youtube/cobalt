@@ -532,12 +532,12 @@ class URLRequestMockDohJob : public URLRequestJob, public AsyncSocket {
                    IOBuffer* buf,
                    int buf_size) {
     if (data_len > buf_size) {
-      SbMemoryCopy(buf->data(), data, buf_size);
+      memcpy(buf->data(), data, buf_size);
       leftover_data_ = data + buf_size;
       leftover_data_len_ = data_len - buf_size;
       return buf_size;
     }
-    SbMemoryCopy(buf->data(), data, data_len);
+    memcpy(buf->data(), data, data_len);
     return data_len;
   }
 

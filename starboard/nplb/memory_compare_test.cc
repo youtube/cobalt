@@ -16,6 +16,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_API_VERSION < 13
+
 namespace starboard {
 namespace nplb {
 namespace {

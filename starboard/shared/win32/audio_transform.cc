@@ -77,7 +77,7 @@ class WinAudioFormat {
     wave_format->wfInfo.wStructType = 0;  // AudioSpecificConfig()
 
     if (audio_sample_info.audio_specific_config_size > 0) {
-      SbMemoryCopy(wave_format->pbAudioSpecificConfig,
+      memcpy(wave_format->pbAudioSpecificConfig,
                    audio_sample_info.audio_specific_config,
                    audio_sample_info.audio_specific_config_size);
     }

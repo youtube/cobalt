@@ -1806,7 +1806,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     int max_length = sizeof("YYMMDDHHMMSS+hhmm") - 1;
     if (remaining < min_length || remaining > max_length)
       return 0;
-    OPENSSL_port_memcpy(p, str, 10);
+    memcpy(p, str, 10);
     p += 10;
     str += 10;
     remaining -= 10;
@@ -1816,7 +1816,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     int max_length = sizeof("YYYYMMDDHHMMSS.fff+hhmm") - 1;
     if (remaining < min_length || remaining > max_length)
       return 0;
-    OPENSSL_port_memcpy(p, str, 12);
+    memcpy(p, str, 12);
     p += 12;
     str += 12;
     remaining -= 12;

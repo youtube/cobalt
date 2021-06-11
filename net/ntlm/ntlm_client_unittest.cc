@@ -131,7 +131,7 @@ TEST(NtlmClientTest, MinimalStructurallyValidChallengeZeroOffset) {
   // In reality the offset should always be ignored if the length is zero.
   // Also implementations often just write zeros.
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the offset to zero.
   ASSERT_NE(0x00, raw[16]);
   raw[16] = 0x00;
@@ -157,7 +157,7 @@ TEST(NtlmClientTest, ChallengeMsgNoSig) {
 
   // Fail because the first 8 bytes don't match "NTLMSSP\0"
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the last byte of the
   // signature.
   ASSERT_NE(0xff, raw[7]);
@@ -173,7 +173,7 @@ TEST(NtlmClientTest, ChallengeMsgWrongMessageType) {
   // Fail because the message type should be MessageType::kChallenge
   // (0x00000002)
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the message type.
   ASSERT_NE(0x03, raw[8]);
   raw[8] = 0x03;
@@ -193,7 +193,7 @@ TEST(NtlmClientTest, ChallengeWithNoTargetName) {
   // In reality the offset should always be ignored if the length is zero.
   // Also implementations often just write zeros.
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the offset to zero.
   ASSERT_NE(0x00, raw[16]);
   raw[16] = 0x00;
@@ -209,7 +209,7 @@ TEST(NtlmClientTest, Type2MessageWithTargetName) {
 
   // One extra byte is provided for target name.
   uint8_t raw[kMinChallengeHeaderLen + 1];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Put something in the target name.
   raw[kMinChallengeHeaderLen] = 'Z';
 
@@ -231,7 +231,7 @@ TEST(NtlmClientTest, NoTargetNameOverflowFromOffset) {
   NtlmClient client(NtlmFeatures(false));
 
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to claim that the target name field is 1
   // byte long overrunning the end of the message message.
   ASSERT_NE(0x01, raw[12]);
@@ -256,7 +256,7 @@ TEST(NtlmClientTest, NoTargetNameOverflowFromLength) {
   // Message has 1 extra byte of space after the header for the target name.
   // One extra byte is provided for target name.
   uint8_t raw[kMinChallengeHeaderLen + 1];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Put something in the target name.
   raw[kMinChallengeHeaderLen] = 'Z';
 

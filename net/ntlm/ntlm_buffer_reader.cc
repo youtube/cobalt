@@ -59,7 +59,7 @@ bool NtlmBufferReader::ReadBytes(base::span<uint8_t> buffer) {
   if (buffer.empty())
     return true;
 
-  SbMemoryCopy(buffer.data(), GetBufferAtCursor(), buffer.size());
+  memcpy(buffer.data(), GetBufferAtCursor(), buffer.size());
 
   AdvanceCursor(buffer.size());
   return true;
@@ -73,7 +73,7 @@ bool NtlmBufferReader::ReadBytesFrom(const SecurityBuffer& sec_buf,
   if (buffer.empty())
     return true;
 
-  SbMemoryCopy(buffer.data(), GetBufferPtr() + sec_buf.offset, sec_buf.length);
+  memcpy(buffer.data(), GetBufferPtr() + sec_buf.offset, sec_buf.length);
 
   return true;
 }

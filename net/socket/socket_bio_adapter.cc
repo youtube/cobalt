@@ -160,7 +160,7 @@ int SocketBIOAdapter::BIORead(char* out, int len) {
   // Report the result of the last Read() if non-empty.
   CHECK_LT(read_offset_, read_result_);
   len = std::min(len, read_result_ - read_offset_);
-  SbMemoryCopy(out, read_buffer_->data() + read_offset_, len);
+  memcpy(out, read_buffer_->data() + read_offset_, len);
   read_offset_ += len;
 
   // Release the buffer when empty.
@@ -238,7 +238,7 @@ int SocketBIOAdapter::BIOWrite(const char* in, int len) {
   if (write_buffer_used_ < write_buffer_->RemainingCapacity()) {
     int chunk =
         std::min(write_buffer_->RemainingCapacity() - write_buffer_used_, len);
-    SbMemoryCopy(write_buffer_->data() + write_buffer_used_, in, chunk);
+    memcpy(write_buffer_->data() + write_buffer_used_, in, chunk);
     in += chunk;
     len -= chunk;
     bytes_copied += chunk;
@@ -252,7 +252,7 @@ int SocketBIOAdapter::BIOWrite(const char* in, int len) {
     CHECK_LE(write_buffer_->RemainingCapacity(), write_buffer_used_);
     int write_offset = write_buffer_used_ - write_buffer_->RemainingCapacity();
     int chunk = std::min(len, write_buffer_->capacity() - write_buffer_used_);
-    SbMemoryCopy(write_buffer_->StartOfBuffer() + write_offset, in, chunk);
+    memcpy(write_buffer_->StartOfBuffer() + write_offset, in, chunk);
     in += chunk;
     len -= chunk;
     bytes_copied += chunk;

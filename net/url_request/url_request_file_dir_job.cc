@@ -200,7 +200,7 @@ void URLRequestFileDirJob::CompleteRead(Error error) {
 int URLRequestFileDirJob::ReadBuffer(char* buf, int buf_size) {
   int count = std::min(buf_size, static_cast<int>(data_.size()));
   if (count) {
-    SbMemoryCopy(buf, &data_[0], count);
+    memcpy(buf, &data_[0], count);
     data_.erase(0, count);
     return count;
   }

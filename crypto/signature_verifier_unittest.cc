@@ -207,7 +207,7 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 3: verify the signature with incorrect data.
   uint8_t bad_tbs_certificate[sizeof(tbs_certificate)];
-  SbMemoryCopy(bad_tbs_certificate, tbs_certificate, sizeof(tbs_certificate));
+  memcpy(bad_tbs_certificate, tbs_certificate, sizeof(tbs_certificate));
   bad_tbs_certificate[10] += 1;  // Corrupt one byte of the data.
   EXPECT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                   signature, public_key_info));
@@ -216,7 +216,7 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 4: verify a bad signature.
   uint8_t bad_signature[sizeof(signature)];
-  SbMemoryCopy(bad_signature, signature, sizeof(signature));
+  memcpy(bad_signature, signature, sizeof(signature));
   bad_signature[10] += 1;  // Corrupt one byte of the signature.
   EXPECT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                   bad_signature, public_key_info));
@@ -225,7 +225,7 @@ TEST(SignatureVerifierTest, BasicTest) {
 
   // Test 5: import an invalid key.
   uint8_t bad_public_key_info[sizeof(public_key_info)];
-  SbMemoryCopy(bad_public_key_info, public_key_info, sizeof(public_key_info));
+  memcpy(bad_public_key_info, public_key_info, sizeof(public_key_info));
   bad_public_key_info[0] += 1;  // Corrupt part of the SPKI syntax.
   EXPECT_FALSE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                    signature, bad_public_key_info));
@@ -233,7 +233,7 @@ TEST(SignatureVerifierTest, BasicTest) {
   // Test 6: import a key with extra data.
   uint8_t long_public_key_info[sizeof(public_key_info) + 5];
   memset(long_public_key_info, 0, sizeof(long_public_key_info));
-  SbMemoryCopy(long_public_key_info, public_key_info, sizeof(public_key_info));
+  memcpy(long_public_key_info, public_key_info, sizeof(public_key_info));
   EXPECT_FALSE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                    signature, long_public_key_info));
 }

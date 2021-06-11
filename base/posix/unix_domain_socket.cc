@@ -92,7 +92,7 @@ bool UnixDomainSocket::SendMsg(int fd,
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = CMSG_LEN(sizeof(int) * fds.size());
-    SbMemoryCopy(CMSG_DATA(cmsg), &fds[0], sizeof(int) * fds.size());
+    memcpy(CMSG_DATA(cmsg), &fds[0], sizeof(int) * fds.size());
     msg.msg_controllen = cmsg->cmsg_len;
   }
 

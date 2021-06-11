@@ -28,7 +28,7 @@ bool ConvertBmpStringValue(const der::Input& in, std::string* out) {
 
   base::string16 in_16bit;
   if (in.Length()) {
-    SbMemoryCopy(base::WriteInto(&in_16bit, in.Length() / 2 + 1),
+    memcpy(base::WriteInto(&in_16bit, in.Length() / 2 + 1),
                  in.UnsafeData(), in.Length());
   }
   for (base::char16& c : in_16bit) {
@@ -53,7 +53,7 @@ bool ConvertUniversalStringValue(const der::Input& in, std::string* out) {
 
   std::vector<uint32_t> in_32bit(in.Length() / 4);
   if (in.Length())
-    SbMemoryCopy(in_32bit.data(), in.UnsafeData(), in.Length());
+    memcpy(in_32bit.data(), in.UnsafeData(), in.Length());
   for (const uint32_t c : in_32bit) {
     // UniversalString is UCS-4 in big-endian order.
     uint32_t codepoint = base::NetToHost32(c);

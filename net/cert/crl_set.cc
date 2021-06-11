@@ -46,7 +46,7 @@ base::DictionaryValue* ReadHeader(base::StringPiece* data) {
   if (data->size() < sizeof(header_len))
     return nullptr;
   // Assumes little-endian.
-  SbMemoryCopy(&header_len, data->data(), sizeof(header_len));
+  memcpy(&header_len, data->data(), sizeof(header_len));
   data->remove_prefix(sizeof(header_len));
 
   if (data->size() < header_len)
@@ -81,7 +81,7 @@ bool ReadCRL(base::StringPiece* data,
   if (data->size() < sizeof(num_serials))
     return false;
   // Assumes little endian.
-  SbMemoryCopy(&num_serials, data->data(), sizeof(num_serials));
+  memcpy(&num_serials, data->data(), sizeof(num_serials));
   data->remove_prefix(sizeof(num_serials));
 
   if (num_serials > 32 * 1024 * 1024)  // Sanity check.

@@ -100,7 +100,7 @@ TEST(DecoderBufferTest, ReadingWriting) {
   uint8_t* data = buffer->writable_data();
   ASSERT_TRUE(data);
   ASSERT_EQ(kDataSize, buffer->data_size());
-  SbMemoryCopy(data, kData, kDataSize);
+  memcpy(data, kData, kDataSize);
   const uint8_t* read_only_data = buffer->data();
   ASSERT_EQ(data, read_only_data);
   ASSERT_EQ(0, memcmp(read_only_data, kData, kDataSize));

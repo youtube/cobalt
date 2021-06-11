@@ -26,7 +26,7 @@ uint32_t Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
     return 0;
   }
   const uint32_t num_to_copy = db->MinLengthRemaining(target_size);
-  SbMemoryCopy(buffer_, db->cursor(), num_to_copy);
+  memcpy(buffer_, db->cursor(), num_to_copy);
   offset_ = num_to_copy;
   db->AdvanceCursor(num_to_copy);
   return num_to_copy;
@@ -60,7 +60,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
   const uint32_t needed = target_size - offset_;
   const uint32_t num_to_copy = db->MinLengthRemaining(needed);
   DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
-  SbMemoryCopy(&buffer_[offset_], db->cursor(), num_to_copy);
+  memcpy(&buffer_[offset_], db->cursor(), num_to_copy);
   db->AdvanceCursor(num_to_copy);
   offset_ += num_to_copy;
   return needed == num_to_copy;
@@ -82,7 +82,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
   const uint32_t num_to_copy =
       db->MinLengthRemaining(std::min(needed, *remaining_payload));
   DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
-  SbMemoryCopy(&buffer_[offset_], db->cursor(), num_to_copy);
+  memcpy(&buffer_[offset_], db->cursor(), num_to_copy);
   db->AdvanceCursor(num_to_copy);
   offset_ += num_to_copy;
   *remaining_payload -= num_to_copy;

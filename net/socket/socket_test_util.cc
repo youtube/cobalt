@@ -1250,7 +1250,7 @@ int MockTCPClientSocket::ReadIfReadyImpl(IOBuffer* buf,
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;
@@ -1925,7 +1925,7 @@ int MockUDPClientSocket::CompleteRead() {
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;

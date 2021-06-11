@@ -683,24 +683,24 @@ void Vp8Parser::ResetProbs() {
   static_assert(
       sizeof(curr_entropy_hdr_.coeff_probs) == sizeof(kDefaultCoeffProbs),
       "coeff_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.coeff_probs, kDefaultCoeffProbs,
+  memcpy(curr_entropy_hdr_.coeff_probs, kDefaultCoeffProbs,
                sizeof(curr_entropy_hdr_.coeff_probs));
 
   static_assert(sizeof(curr_entropy_hdr_.mv_probs) == sizeof(kDefaultMVProbs),
                 "mv_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.mv_probs, kDefaultMVProbs,
+  memcpy(curr_entropy_hdr_.mv_probs, kDefaultMVProbs,
                sizeof(curr_entropy_hdr_.mv_probs));
 
   static_assert(
       sizeof(curr_entropy_hdr_.y_mode_probs) == sizeof(kDefaultYModeProbs),
       "y_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.y_mode_probs, kDefaultYModeProbs,
+  memcpy(curr_entropy_hdr_.y_mode_probs, kDefaultYModeProbs,
                sizeof(curr_entropy_hdr_.y_mode_probs));
 
   static_assert(
       sizeof(curr_entropy_hdr_.uv_mode_probs) == sizeof(kDefaultUVModeProbs),
       "uv_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.uv_mode_probs, kDefaultUVModeProbs,
+  memcpy(curr_entropy_hdr_.uv_mode_probs, kDefaultUVModeProbs,
                sizeof(curr_entropy_hdr_.uv_mode_probs));
 }
 
@@ -721,7 +721,7 @@ bool Vp8Parser::ParseTokenProbs(Vp8EntropyHeader* ehdr,
   }
 
   if (update_curr_probs) {
-    SbMemoryCopy(curr_entropy_hdr_.coeff_probs, ehdr->coeff_probs,
+    memcpy(curr_entropy_hdr_.coeff_probs, ehdr->coeff_probs,
                  sizeof(curr_entropy_hdr_.coeff_probs));
   }
 
@@ -733,12 +733,12 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
   if (keyframe) {
     static_assert(sizeof(ehdr->y_mode_probs) == sizeof(kKeyframeYModeProbs),
                   "y_probs_arrays_must_be_of_correct_size");
-    SbMemoryCopy(ehdr->y_mode_probs, kKeyframeYModeProbs,
+    memcpy(ehdr->y_mode_probs, kKeyframeYModeProbs,
                  sizeof(ehdr->y_mode_probs));
 
     static_assert(sizeof(ehdr->uv_mode_probs) == sizeof(kKeyframeUVModeProbs),
                   "uv_probs_arrays_must_be_of_correct_size");
-    SbMemoryCopy(ehdr->uv_mode_probs, kKeyframeUVModeProbs,
+    memcpy(ehdr->uv_mode_probs, kKeyframeUVModeProbs,
                  sizeof(ehdr->uv_mode_probs));
   } else {
     bool intra_16x16_prob_update_flag;
@@ -748,7 +748,7 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
         BD_READ_UNSIGNED_OR_RETURN(8, &ehdr->y_mode_probs[i]);
 
       if (update_curr_probs) {
-        SbMemoryCopy(curr_entropy_hdr_.y_mode_probs, ehdr->y_mode_probs,
+        memcpy(curr_entropy_hdr_.y_mode_probs, ehdr->y_mode_probs,
                      sizeof(curr_entropy_hdr_.y_mode_probs));
       }
     }
@@ -760,7 +760,7 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
         BD_READ_UNSIGNED_OR_RETURN(8, &ehdr->uv_mode_probs[i]);
 
       if (update_curr_probs) {
-        SbMemoryCopy(curr_entropy_hdr_.uv_mode_probs, ehdr->uv_mode_probs,
+        memcpy(curr_entropy_hdr_.uv_mode_probs, ehdr->uv_mode_probs,
                      sizeof(curr_entropy_hdr_.uv_mode_probs));
       }
     }
@@ -784,7 +784,7 @@ bool Vp8Parser::ParseMVProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs) {
   }
 
   if (update_curr_probs) {
-    SbMemoryCopy(curr_entropy_hdr_.mv_probs, ehdr->mv_probs,
+    memcpy(curr_entropy_hdr_.mv_probs, ehdr->mv_probs,
                  sizeof(curr_entropy_hdr_.mv_probs));
   }
 

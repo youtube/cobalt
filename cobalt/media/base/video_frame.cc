@@ -901,7 +901,7 @@ VideoFrame::VideoFrame(VideoPixelFormat format, StorageType storage_type,
                        base::TimeDelta timestamp)
     : VideoFrame(format, storage_type, coded_size, visible_rect, natural_size,
                  timestamp) {
-  SbMemoryCopy(&mailbox_holders_, mailbox_holders, sizeof(mailbox_holders_));
+  memcpy(&mailbox_holders_, mailbox_holders, sizeof(mailbox_holders_));
   mailbox_holders_release_cb_ = mailbox_holder_release_cb;
 }
 

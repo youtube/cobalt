@@ -240,7 +240,7 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
                                const char *data, std::size_t length,
                                std::string *error_message) {
   scoped_refptr<net::IOBuffer> io_buffer(new net::IOBuffer(length));
-  SbMemoryCopy(io_buffer->data(), data, length);
+  memcpy(io_buffer->data(), data, length);
 
   if (delegate_task_runner_->BelongsToCurrentThread()) {
     SendOnDelegateThread(op_code, std::move(io_buffer), length);
@@ -280,7 +280,7 @@ void WebSocketImpl::ProcessSendQueue() {
       // quota is not enough to send the top message.
       scoped_refptr<net::IOBuffer> new_io_buffer(
           new net::IOBuffer(static_cast<size_t>(current_quota_)));
-      SbMemoryCopy(new_io_buffer->data(),
+      memcpy(new_io_buffer->data(),
                    message.io_buffer->data() + sent_size_of_top_message_,
                    current_quota_);
       sent_size_of_top_message_ += current_quota_;

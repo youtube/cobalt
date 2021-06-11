@@ -70,7 +70,7 @@ class InterleavedSincResampler {
     Buffer() {}
     Buffer(const float* data, int frames, int channel_count) : frames_(frames) {
       data_.reset(new float[frames * channel_count]);
-      SbMemoryCopy(data_.get(), data, frames * channel_count * sizeof(float));
+      memcpy(data_.get(), data, frames * channel_count * sizeof(float));
     }
     Buffer(scoped_array<float> data, int frames)
         : data_(data.Pass()), frames_(frames) {}

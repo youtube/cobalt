@@ -79,7 +79,7 @@ void QuicChromiumPacketWriter::ReusableIOBuffer::Set(const char* buffer,
   CHECK_LE(buf_len, capacity_);
   CHECK(HasOneRef());
   size_ = buf_len;
-  SbMemoryCopy(data(), buffer, buf_len);
+  memcpy(data(), buffer, buf_len);
 }
 
 QuicChromiumPacketWriter::QuicChromiumPacketWriter() : weak_factory_(this) {}

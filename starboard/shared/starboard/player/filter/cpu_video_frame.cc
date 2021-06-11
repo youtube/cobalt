@@ -82,7 +82,7 @@ void CopyPlane(int bit_depth,
                const uint8_t* source,
                int pixels) {
   if (bit_depth == 8) {
-    SbMemoryCopy(destination, source, pixels);
+    memcpy(destination, source, pixels);
     return;
   }
   SB_DCHECK(bit_depth == 10 || bit_depth == 12);

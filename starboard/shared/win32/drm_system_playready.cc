@@ -329,7 +329,7 @@ void DrmSystemPlayready::ReportKeyStatusChanged_Locked(
   GUID key_id = item.license_->key_id();
   SbDrmKeyId drm_key_id;
   SB_DCHECK(sizeof(drm_key_id.identifier) >= sizeof(key_id));
-  SbMemoryCopy(&(drm_key_id.identifier), &key_id, sizeof(key_id));
+  memcpy(&(drm_key_id.identifier), &key_id, sizeof(key_id));
   drm_key_id.identifier_size = sizeof(key_id);
 
   key_statuses_changed_callback_(this, context_,

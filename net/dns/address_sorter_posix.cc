@@ -378,7 +378,7 @@ void AddressSorterPosix::OnIPAddressChanged() {
       struct in6_ifreq ifr = {};
       SbStringCopy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name) - 1);
       DCHECK_LE(ifa->ifa_addr->sa_len, sizeof(ifr.ifr_ifru.ifru_addr));
-      SbMemoryCopy(&ifr.ifr_ifru.ifru_addr, ifa->ifa_addr,
+      memcpy(&ifr.ifr_ifru.ifru_addr, ifa->ifa_addr,
                    ifa->ifa_addr->sa_len);
       int rv = ioctl(ioctl_socket, SIOCGIFAFLAG_IN6, &ifr);
       if (rv >= 0) {

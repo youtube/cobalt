@@ -310,7 +310,7 @@ void SetData(SbAtomicType* state,
   if (atomic::NoBarrier_CompareAndSwap(state, kUninitialized, kInitializing) ==
       kUninitialized) {
     // We've locked the state, now we will initialize the data.
-    SbMemoryCopy(out_data, data, data_size);
+    memcpy(out_data, data, data_size);
     // Signal the initialization has completed.
     atomic::Release_Store(state, kInitialized);
     return;

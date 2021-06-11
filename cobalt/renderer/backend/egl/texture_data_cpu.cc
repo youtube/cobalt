@@ -53,7 +53,7 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
     buffer_for_pitch_adjustment.reset(static_cast<uint8_t*>(
         base::AlignedAlloc(width_in_bytes * size.height(), 8)));
     for (int i = 0; i < size.height(); ++i) {
-      SbMemoryCopy(buffer_for_pitch_adjustment.get() + i * width_in_bytes,
+      memcpy(buffer_for_pitch_adjustment.get() + i * width_in_bytes,
                    data + i * pitch_in_bytes, width_in_bytes);
     }
     data = reinterpret_cast<uint8_t*>(buffer_for_pitch_adjustment.get());

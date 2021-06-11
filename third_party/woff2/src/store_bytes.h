@@ -13,13 +13,8 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_STORE_BYTES memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_STORE_BYTES SbMemoryCopy
-#endif
 
 #include "./port.h"
 

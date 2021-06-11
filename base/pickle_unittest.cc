@@ -506,7 +506,7 @@ TEST(PickleTest, ReadBytes) {
   EXPECT_TRUE(iter.ReadBytes(&outdata_char, sizeof(data)));
 
   int outdata;
-  SbMemoryCopy(&outdata, outdata_char, sizeof(outdata));
+  memcpy(&outdata, outdata_char, sizeof(outdata));
   EXPECT_EQ(data, outdata);
 }
 
@@ -554,7 +554,7 @@ TEST(PickleTest, ClaimBytes) {
   pickle.WriteUInt32(data.size());
   void* bytes = pickle.ClaimBytes(data.size());
   pickle.WriteInt(42);
-  SbMemoryCopy(bytes, data.data(), data.size());
+  memcpy(bytes, data.data(), data.size());
 
   PickleIterator iter(pickle);
   uint32_t out_data_length;

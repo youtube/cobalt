@@ -4091,7 +4091,7 @@ TEST_F(DiskCacheEntryTest, SimpleCacheNonSequentialWrite) {
       base::MakeRefCounted<net::IOBuffer>(kSize);
   CacheTestFillBuffer(buffer1->data(), kSize, false);
   char* buffer1_data = buffer1->data() + kHalfSize;
-  SbMemoryCopy(buffer2->data(), buffer1_data, kHalfSize);
+  memcpy(buffer2->data(), buffer1_data, kHalfSize);
 
   disk_cache::Entry* entry = NULL;
   ASSERT_THAT(CreateEntry(key, &entry), IsOk());
@@ -5070,7 +5070,7 @@ class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
     // would be whether the result has a checkum or not.
     scoped_refptr<net::IOBuffer> second_half =
         base::MakeRefCounted<net::IOBuffer>(kRemSize);
-    SbMemoryCopy(second_half->data(), payload_->data() + kHalfSize, kRemSize);
+    memcpy(second_half->data(), payload_->data() + kHalfSize, kRemSize);
     ASSERT_EQ(kRemSize, WriteData(entry, 1, kHalfSize, second_half.get(),
                                   kRemSize, false));
     entry->Close();

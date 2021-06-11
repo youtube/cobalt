@@ -62,7 +62,7 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
     return false;
   }
   // Copy the plaintext to output.
-  SbMemoryCopy(output, plaintext.data(), plaintext.length());
+  memcpy(output, plaintext.data(), plaintext.length());
   *output_length = plaintext.length();
   return true;
 }

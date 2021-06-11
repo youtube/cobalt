@@ -83,7 +83,7 @@ class Reader {
     if (sizeof(*guid) > GetRemaining()) {
       return false;
     }
-    SbMemoryCopy(guid, curr_, sizeof(*guid));
+    memcpy(guid, curr_, sizeof(*guid));
     curr_ += sizeof(*guid);
     return true;
   }

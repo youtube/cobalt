@@ -693,7 +693,7 @@ CertDllVerifyRevocationWithCRLSet(DWORD encoding_type,
   if (revocation_params) {
     DWORD bytes_to_copy = std::min(revocation_params->cbSize,
                                    static_cast<DWORD>(sizeof(local_params)));
-    SbMemoryCopy(&local_params, revocation_params, bytes_to_copy);
+    memcpy(&local_params, revocation_params, bytes_to_copy);
   }
   local_params.cbSize = sizeof(local_params);
 

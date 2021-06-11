@@ -90,7 +90,7 @@ static WEBP_INLINE int WebPDataCopy(const WebPData* src, WebPData* dst) {
   if (src->bytes != NULL && src->size != 0) {
     dst->bytes = (uint8_t*)SbMemoryAllocate(src->size);
     if (dst->bytes == NULL) return 0;
-    SbMemoryCopy((void*)dst->bytes, src->bytes, src->size);
+    memcpy((void*)dst->bytes, src->bytes, src->size);
     dst->size = src->size;
   }
   return 1;

@@ -73,7 +73,7 @@ class ScopedJavaByteBuffer {
   void CopyInto(const void* source, jint count) {
     SB_DCHECK(!IsNull());
     SB_DCHECK(count >= 0 && count <= capacity());
-    SbMemoryCopy(address(), source, count);
+    memcpy(address(), source, count);
   }
 
  private:

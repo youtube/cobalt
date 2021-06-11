@@ -336,17 +336,17 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
     const uint8_t* src_buffer_ptr = input->buffer();
     uint8_t* dest_buffer_ptr = output->buffer();
     while (frames_left > 0) {
-      SbMemoryCopy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
+      memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
       dest_buffer_ptr += bytes_per_sample;
-      SbMemoryCopy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
+      memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
       dest_buffer_ptr += bytes_per_sample;
       src_buffer_ptr += bytes_per_sample;
       frames_left--;
     }
   } else {
     SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
-    SbMemoryCopy(output->buffer(), input->buffer(), input->size());
-    SbMemoryCopy(output->buffer() + input->size(), input->buffer(),
+    memcpy(output->buffer(), input->buffer(), input->size());
+    memcpy(output->buffer() + input->size(), input->buffer(),
                  input->size());
   }
   return output;

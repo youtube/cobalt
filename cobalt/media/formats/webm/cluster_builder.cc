@@ -92,7 +92,7 @@ void ClusterBuilder::AddSimpleBlock(int track_num, int64_t timecode, int flags,
 
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_offset = bytes_used_;
-  SbMemoryCopy(buf, kSimpleBlockHeader, sizeof(kSimpleBlockHeader));
+  memcpy(buf, kSimpleBlockHeader, sizeof(kSimpleBlockHeader));
   UpdateUInt64(block_offset + kSimpleBlockSizeOffset, block_size);
   buf += sizeof(kSimpleBlockHeader);
 
@@ -138,12 +138,12 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num, int64_t timecode,
   uint8_t* buf = buffer_.get() + bytes_used_;
   int block_group_offset = bytes_used_;
   if (include_block_duration) {
-    SbMemoryCopy(buf, kBlockGroupHeader, sizeof(kBlockGroupHeader));
+    memcpy(buf, kBlockGroupHeader, sizeof(kBlockGroupHeader));
     UpdateUInt64(block_group_offset + kBlockGroupDurationOffset, duration);
     UpdateUInt64(block_group_offset + kBlockGroupBlockSizeOffset, block_size);
     buf += sizeof(kBlockGroupHeader);
   } else {
-    SbMemoryCopy(buf, kBlockGroupHeaderWithoutBlockDuration,
+    memcpy(buf, kBlockGroupHeaderWithoutBlockDuration,
                  sizeof(kBlockGroupHeaderWithoutBlockDuration));
     UpdateUInt64(
         block_group_offset + kBlockGroupWithoutBlockDurationBlockSizeOffset,
@@ -161,7 +161,7 @@ void ClusterBuilder::AddBlockGroupInternal(int track_num, int64_t timecode,
   buf += size + 4;
 
   if (!is_key_frame) {
-    SbMemoryCopy(buf, kBlockGroupReferenceBlock,
+    memcpy(buf, kBlockGroupReferenceBlock,
                  sizeof(kBlockGroupReferenceBlock));
   }
 
@@ -186,7 +186,7 @@ void ClusterBuilder::WriteBlock(uint8_t* buf, int track_num, int64_t timecode,
   buf[1] = (timecode_delta >> 8) & 0xff;
   buf[2] = timecode_delta & 0xff;
   buf[3] = flags & 0xff;
-  SbMemoryCopy(buf + 4, data, size);
+  memcpy(buf + 4, data, size);
 }
 
 std::unique_ptr<Cluster> ClusterBuilder::Finish() {
@@ -212,7 +212,7 @@ std::unique_ptr<Cluster> ClusterBuilder::FinishWithUnknownSize() {
 void ClusterBuilder::Reset() {
   buffer_size_ = kInitialBufferSize;
   buffer_.reset(new uint8_t[buffer_size_]);
-  SbMemoryCopy(buffer_.get(), kClusterHeader, sizeof(kClusterHeader));
+  memcpy(buffer_.get(), kClusterHeader, sizeof(kClusterHeader));
   bytes_used_ = sizeof(kClusterHeader);
   cluster_timecode_ = -1;
 }
@@ -224,7 +224,7 @@ void ClusterBuilder::ExtendBuffer(int bytes_needed) {
 
   std::unique_ptr<uint8_t[]> new_buffer(new uint8_t[new_buffer_size]);
 
-  SbMemoryCopy(new_buffer.get(), buffer_.get(), bytes_used_);
+  memcpy(new_buffer.get(), buffer_.get(), bytes_used_);
   buffer_ = std::move(new_buffer);
   buffer_size_ = new_buffer_size;
 }

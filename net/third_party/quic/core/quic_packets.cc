@@ -260,7 +260,7 @@ QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer,
 
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
   char* buffer = new char[this->length()];
-  SbMemoryCopy(buffer, this->data(), this->length());
+  memcpy(buffer, this->data(), this->length());
   return QuicMakeUnique<QuicEncryptedPacket>(buffer, this->length(), true);
 }
 
@@ -328,10 +328,10 @@ QuicReceivedPacket::~QuicReceivedPacket() {
 
 std::unique_ptr<QuicReceivedPacket> QuicReceivedPacket::Clone() const {
   char* buffer = new char[this->length()];
-  SbMemoryCopy(buffer, this->data(), this->length());
+  memcpy(buffer, this->data(), this->length());
   if (this->packet_headers()) {
     char* headers_buffer = new char[this->headers_length()];
-    SbMemoryCopy(headers_buffer, this->packet_headers(),
+    memcpy(headers_buffer, this->packet_headers(),
                  this->headers_length());
     return QuicMakeUnique<QuicReceivedPacket>(
         buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
@@ -417,7 +417,7 @@ void ClearSerializedPacket(SerializedPacket* serialized_packet) {
 
 char* CopyBuffer(const SerializedPacket& packet) {
   char* dst_buffer = new char[packet.encrypted_length];
-  SbMemoryCopy(dst_buffer, packet.encrypted_buffer, packet.encrypted_length);
+  memcpy(dst_buffer, packet.encrypted_buffer, packet.encrypted_length);
   return dst_buffer;
 }
 

@@ -157,7 +157,7 @@ void CPU::Initialize() {
   static constexpr size_t kVendorNameSize = 3 * sizeof(cpu_info[1]);
   static_assert(kVendorNameSize < arraysize(cpu_string),
                 "cpu_string too small");
-  SbMemoryCopy(cpu_string, &cpu_info[1], kVendorNameSize);
+  memcpy(cpu_string, &cpu_info[1], kVendorNameSize);
   cpu_string[kVendorNameSize] = '\0';
   cpu_vendor_ = cpu_string;
 
@@ -218,7 +218,7 @@ void CPU::Initialize() {
     for (int parameter = kParameterStart; parameter <= kParameterEnd;
          ++parameter) {
       __cpuid(cpu_info, parameter);
-      SbMemoryCopy(&cpu_string[i], cpu_info, sizeof(cpu_info));
+      memcpy(&cpu_string[i], cpu_info, sizeof(cpu_info));
       i += sizeof(cpu_info);
     }
     cpu_string[i] = '\0';

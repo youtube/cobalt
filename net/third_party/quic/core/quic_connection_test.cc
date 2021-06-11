@@ -184,7 +184,7 @@ class TaggingDecrypter : public QuicDecrypter {
       return false;
     }
     *output_length = ciphertext.size() - kTagSize;
-    SbMemoryCopy(output, ciphertext.data(), *output_length);
+    memcpy(output, ciphertext.data(), *output_length);
     return true;
   }
 
@@ -320,7 +320,7 @@ class TestPacketWriter : public QuicPacketWriter {
 
     if (packet.length() >= sizeof(final_bytes_of_last_packet_)) {
       final_bytes_of_previous_packet_ = final_bytes_of_last_packet_;
-      SbMemoryCopy(&final_bytes_of_last_packet_,
+      memcpy(&final_bytes_of_last_packet_,
                    packet.data() + packet.length() - 4,
                    sizeof(final_bytes_of_last_packet_));
     }

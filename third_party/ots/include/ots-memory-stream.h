@@ -5,13 +5,8 @@
 #ifndef OTS_MEMORY_STREAM_H_
 #define OTS_MEMORY_STREAM_H_
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_OTS_MEMORY_STREAM std::memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_OTS_MEMORY_STREAM SbMemoryCopy
-#endif
 
 #include <limits>
 

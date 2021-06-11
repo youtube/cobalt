@@ -50,7 +50,7 @@ void* GetPermissionInfo(const FilePath& path, size_t* length) {
   *length = sizeof(PSECURITY_DESCRIPTOR) + dacl->AclSize;
   PermissionInfo* info = reinterpret_cast<PermissionInfo*>(new char[*length]);
   info->security_descriptor = security_descriptor;
-  SbMemoryCopy(&info->dacl, dacl, dacl->AclSize);
+  memcpy(&info->dacl, dacl, dacl->AclSize);
 
   return info;
 }

@@ -232,7 +232,7 @@ bool HashesIntersect(const HashValueVector& a,
 
 bool AddHash(const char* sha256_hash, HashValueVector* out) {
   HashValue hash(HASH_VALUE_SHA256);
-  SbMemoryCopy(hash.data(), sha256_hash, hash.size());
+  memcpy(hash.data(), sha256_hash, hash.size());
   out->push_back(hash);
   return true;
 }

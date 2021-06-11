@@ -68,7 +68,7 @@ DrawRectTexture::DrawRectTexture(
       sizeof(color_transform_) == sizeof(color_transform_in_column_major),
       "color_transform_ and color_transform_in_column_major size mismatch");
 
-  SbMemoryCopy(color_transform_, color_transform_in_column_major,
+  memcpy(color_transform_, color_transform_in_column_major,
                sizeof(color_transform_));
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
@@ -93,7 +93,7 @@ void DrawRectTexture::ExecuteUpdateVertexBuffer(
   COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
                  bad_padding);
   vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
-  SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+  memcpy(vertex_buffer_, attributes, sizeof(attributes));
 
   for (int i = 0; i < arraysize(attributes); ++i) {
     tile_texture_ = tile_texture_ || attributes[i].texcoord[0] < 0.0f ||

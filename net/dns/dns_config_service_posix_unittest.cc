@@ -72,7 +72,7 @@ void InitializeResState(res_state res) {
   res->retry = 7;
 
   const char kDnsrch[] = "chromium.org" "\0" "example.com";
-  SbMemoryCopy(res->defdname, kDnsrch, sizeof(kDnsrch));
+  memcpy(res->defdname, kDnsrch, sizeof(kDnsrch));
   res->dnsrch[0] = res->defdname;
   res->dnsrch[1] = res->defdname + sizeof("chromium.org");
 
@@ -162,7 +162,7 @@ TEST(DnsConfigServicePosixTest, RejectEmptyNameserver) {
   struct __res_state res = {};
   res.options = RES_INIT | RES_RECURSE | RES_DEFNAMES | RES_DNSRCH;
   const char kDnsrch[] = "chromium.org";
-  SbMemoryCopy(res.defdname, kDnsrch, sizeof(kDnsrch));
+  memcpy(res.defdname, kDnsrch, sizeof(kDnsrch));
   res.dnsrch[0] = res.defdname;
 
   struct sockaddr_in sa = {};

@@ -47,7 +47,7 @@ TEST(BlobTest, Constructors) {
   script::Handle<script::DataView> data_view = script::DataView::New(
       global_environment, array_buffer, 0, array_buffer->ByteLength());
   uint8 test_data[] = {0x06, 0x07, 0x00, 0x7B, 0xCD};
-  SbMemoryCopy(data_view->RawData(), test_data, 5);
+  memcpy(data_view->RawData(), test_data, 5);
   scoped_refptr<Blob> blob_with_buffer =
       new Blob(environment_settings, array_buffer);
 
@@ -101,7 +101,7 @@ TEST(BlobTest, HasOwnBuffer) {
       global_environment, array_buffer, 0, array_buffer->ByteLength());
 
   uint8 test_data[2] = {0x06, 0x07};
-  SbMemoryCopy(data_view->RawData(), test_data, 2);
+  memcpy(data_view->RawData(), test_data, 2);
 
   scoped_refptr<Blob> blob_with_buffer =
       new Blob(environment_settings, array_buffer);

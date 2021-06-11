@@ -26,7 +26,7 @@ bool ParseAndCreateDnsQueryFromRawPacket(const uint8_t* data,
                                          size_t length,
                                          std::unique_ptr<DnsQuery>* out) {
   auto packet = base::MakeRefCounted<IOBufferWithSize>(length);
-  SbMemoryCopy(packet->data(), data, length);
+  memcpy(packet->data(), data, length);
   out->reset(new DnsQuery(packet));
   return (*out)->Parse();
 }

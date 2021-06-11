@@ -1395,7 +1395,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   unsigned char token_bytes[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
                                  0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
                                  0x0c, 0x0d, 0x0e, 0x0f};
-  SbMemoryCopy(&transmit_frame.stateless_reset_token, token_bytes,
+  memcpy(&transmit_frame.stateless_reset_token, token_bytes,
                sizeof(transmit_frame.stateless_reset_token));
 
   memset(packet_buffer, 0, sizeof(packet_buffer));

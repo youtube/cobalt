@@ -38,8 +38,6 @@
 #include "base/base_export.h"
 #include "build/build_config.h"
 
-#include <cstring>
-
 #if defined(WCHAR_T_IS_UTF16)
 
 namespace base {

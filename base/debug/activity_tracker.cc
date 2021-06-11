@@ -518,7 +518,7 @@ void ActivityUserData::Set(StringPiece name,
     char* name_memory = reinterpret_cast<char*>(header) + sizeof(FieldHeader);
     void* value_memory =
         reinterpret_cast<char*>(header) + sizeof(FieldHeader) + name_extent;
-    SbMemoryCopy(name_memory, name.data(), name_size);
+    memcpy(name_memory, name.data(), name_size);
     header->type.store(type, std::memory_order_release);
 
     // Create an entry in |values_| so that this field can be found and changed
@@ -541,7 +541,7 @@ void ActivityUserData::Set(StringPiece name,
   DCHECK_EQ(type, info->type);
   size = std::min(size, info->extent);
   info->size_ptr->store(0, std::memory_order_seq_cst);
-  SbMemoryCopy(info->memory, memory, size);
+  memcpy(info->memory, memory, size);
   info->size_ptr->store(size, std::memory_order_release);
 }
 
@@ -955,12 +955,12 @@ bool ThreadActivityTracker::CreateSnapshot(Snapshot* output_snapshot) const {
     output_snapshot->activity_stack.resize(count);
     if (count > 0) {
       // Copy the existing contents. Memcpy is used for speed.
-      SbMemoryCopy(&output_snapshot->activity_stack[0], stack_,
+      memcpy(&output_snapshot->activity_stack[0], stack_,
                    count * sizeof(Activity));
     }
 
     // Capture the last exception.
-    SbMemoryCopy(&output_snapshot->last_exception, &header_->last_exception,
+    memcpy(&output_snapshot->last_exception, &header_->last_exception,
                  sizeof(Activity));
 
     // TODO(bcwhite): Snapshot other things here.
@@ -1125,7 +1125,7 @@ bool GlobalActivityTracker::ModuleInfoRecord::DecodeTo(
   info->size = static_cast<size_t>(size);
   info->timestamp = timestamp;
   info->age = age;
-  SbMemoryCopy(info->identifier, identifier, sizeof(info->identifier));
+  memcpy(info->identifier, identifier, sizeof(info->identifier));
 
   if (offsetof(ModuleInfoRecord, pickle) + pickle_size > record_size)
     return false;
@@ -1151,8 +1151,8 @@ GlobalActivityTracker::ModuleInfoRecord::CreateFrom(
   record->size = info.size;
   record->timestamp = info.timestamp;
   record->age = info.age;
-  SbMemoryCopy(record->identifier, info.identifier, sizeof(identifier));
-  SbMemoryCopy(record->pickle, pickler.data(), pickler.size());
+  memcpy(record->identifier, info.identifier, sizeof(identifier));
+  memcpy(record->pickle, pickler.data(), pickler.size());
   record->pickle_size = pickler.size();
   record->changes.store(0, std::memory_order_relaxed);
 
@@ -1611,7 +1611,7 @@ void GlobalActivityTracker::RecordLogMessage(StringPiece message) {
   char* memory = allocator_->GetAsArray<char>(ref, kTypeIdGlobalLogMessage,
                                               message.size() + 1);
   if (memory) {
-    SbMemoryCopy(memory, message.data(), message.size());
+    memcpy(memory, message.data(), message.size());
     allocator_->MakeIterable(ref);
   }
 }

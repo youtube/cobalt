@@ -45,7 +45,7 @@ void Contract(FieldElement* inout);
 // IsZero returns 0xffffffff if a == 0 mod p and 0 otherwise.
 uint32_t IsZero(const FieldElement& a) {
   FieldElement minimal;
-  SbMemoryCopy(&minimal, &a, sizeof(minimal));
+  memcpy(&minimal, &a, sizeof(minimal));
   Contract(&minimal);
 
   uint32_t is_zero = 0, is_p = 0;

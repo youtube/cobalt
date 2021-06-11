@@ -121,14 +121,14 @@ int DecodedAudioQueue::InternalRead(int frames,
               buffer->channels() * current_buffer_offset;
           float* destination = reinterpret_cast<float*>(dest->buffer()) +
                                dest->channels() * (dest_frame_offset + taken);
-          SbMemoryCopy(destination, source, copied * dest->channels() * 4);
+          memcpy(destination, source, copied * dest->channels() * 4);
         } else {
           const int16_t* source =
               reinterpret_cast<const int16_t*>(buffer->buffer()) +
               buffer->channels() * current_buffer_offset;
           int16_t* destination = reinterpret_cast<int16_t*>(dest->buffer()) +
                                  dest->channels() * (dest_frame_offset + taken);
-          SbMemoryCopy(destination, source, copied * dest->channels() * 2);
+          memcpy(destination, source, copied * dest->channels() * 2);
         }
       }
 

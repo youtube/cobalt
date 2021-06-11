@@ -109,7 +109,7 @@ void MultipartAllocator::Allocations::Write(int destination_offset,
           std::min(size, buffer_sizes_[buffer_index] - destination_offset);
       uint8_t* destination_in_uint8 =
           static_cast<uint8_t*>(buffers_[buffer_index]);
-      SbMemoryCopy(destination_in_uint8 + destination_offset, src_in_uint8,
+      memcpy(destination_in_uint8 + destination_offset, src_in_uint8,
                    bytes_to_copy);
       destination_offset = 0;
       src_in_uint8 += bytes_to_copy;
@@ -123,7 +123,7 @@ void MultipartAllocator::Allocations::Read(void* destination) const {
   uint8_t* destination_in_uint8 = static_cast<uint8_t*>(destination);
 
   for (size_t i = 0; i < number_of_buffers_; ++i) {
-    SbMemoryCopy(destination_in_uint8, buffers_[i], buffer_sizes_[i]);
+    memcpy(destination_in_uint8, buffers_[i], buffer_sizes_[i]);
     destination_in_uint8 += buffer_sizes_[i];
   }
 }
@@ -150,8 +150,8 @@ void MultipartAllocator::Allocations::Assign(int number_of_buffers,
   }
   buffers_ = new void*[number_of_buffers_];
   buffer_sizes_ = new int[number_of_buffers_];
-  SbMemoryCopy(buffers_, buffers, sizeof(*buffers_) * number_of_buffers_);
-  SbMemoryCopy(buffer_sizes_, buffer_sizes,
+  memcpy(buffers_, buffers, sizeof(*buffers_) * number_of_buffers_);
+  memcpy(buffer_sizes_, buffer_sizes,
                sizeof(*buffer_sizes_) * number_of_buffers_);
 }
 

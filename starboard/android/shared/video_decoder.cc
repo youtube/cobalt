@@ -748,7 +748,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
                              java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
-  SbMemoryCopy(matrix4x4, array_values, sizeof(float) * 16);
+  memcpy(matrix4x4, array_values, sizeof(float) * 16);
 
   env->DeleteLocalRef(java_array);
 }

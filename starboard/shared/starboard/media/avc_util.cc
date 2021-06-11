@@ -203,7 +203,7 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
     avcc_destination[1] = static_cast<uint8_t>((payload_size & 0xff0000) >> 16);
     avcc_destination[2] = static_cast<uint8_t>((payload_size & 0xff00) >> 8);
     avcc_destination[3] = static_cast<uint8_t>(payload_size & 0xff);
-    SbMemoryCopy(avcc_destination + kAvccLengthInBytes,
+    memcpy(avcc_destination + kAvccLengthInBytes,
                  last_source + kAnnexBHeaderSizeInBytes, payload_size);
     avcc_destination += annex_b_source - last_source;
     last_source = annex_b_source;

@@ -390,7 +390,7 @@ bool MessageHandler(int severity, const char* file, int line,
   char message[kMaxMessageLen];
   size_t len = std::min(str.length() - message_start, kMaxMessageLen - 1);
 
-  SbMemoryCopy(message, str.c_str() + message_start, len);
+  memcpy(message, str.c_str() + message_start, len);
   message[len] = '\0';
 #if !defined(DISK_CACHE_TRACE_TO_LOG)
   disk_cache::Trace("%s", message);

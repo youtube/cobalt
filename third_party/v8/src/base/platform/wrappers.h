@@ -58,7 +58,7 @@ inline void* Calloc(size_t count, size_t size) {
 }
 
 inline void* Memcpy(void* dest, const void* source, size_t count) {
-  return SbMemoryCopy(dest, source, count);
+  return memcpy(dest, source, count);
 }
 
 inline FILE* Fopen(const char* filename, const char* mode) { return NULL; }

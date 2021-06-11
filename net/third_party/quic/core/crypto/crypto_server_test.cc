@@ -145,7 +145,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     QuicStringPiece orbit;
     CHECK(msg->GetStringPiece(kORBT, &orbit));
     CHECK_EQ(sizeof(orbit_), orbit.size());
-    SbMemoryCopy(orbit_, orbit.data(), orbit.size());
+    memcpy(orbit_, orbit.data(), orbit.size());
 
     char public_value[32];
     memset(public_value, 42, sizeof(public_value));

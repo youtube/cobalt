@@ -531,7 +531,7 @@ void HttpCache::Writers::CompleteWaitingForReadTransactions(int result) {
     if (result >= 0) {  // success
       // Save the data in the waiting transaction's read buffer.
       it->second.write_len = std::min(it->second.read_buf_len, result);
-      SbMemoryCopy(it->second.read_buf->data(), read_buf_->data(),
+      memcpy(it->second.read_buf->data(), read_buf_->data(),
                    it->second.write_len);
       callback_result = it->second.write_len;
     }

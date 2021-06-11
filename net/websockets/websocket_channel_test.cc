@@ -377,7 +377,7 @@ std::vector<std::unique_ptr<WebSocketFrame>> CreateFrameVector(
     result_header.payload_length = frame_length;
     if (source_frame.data) {
       result_frame->data = base::MakeRefCounted<IOBuffer>(frame_length);
-      SbMemoryCopy(result_frame->data->data(), source_frame.data, frame_length);
+      memcpy(result_frame->data->data(), source_frame.data, frame_length);
     }
     result_frames.push_back(std::move(result_frame));
   }
@@ -2599,7 +2599,7 @@ TEST_F(WebSocketChannelEventInterfaceTest, ReadBinaryFramesAre8BitClean) {
   frame_header.final = true;
   frame_header.payload_length = kBinaryBlobSize;
   frame->data = base::MakeRefCounted<IOBuffer>(kBinaryBlobSize);
-  SbMemoryCopy(frame->data->data(), kBinaryBlob, kBinaryBlobSize);
+  memcpy(frame->data->data(), kBinaryBlob, kBinaryBlobSize);
   std::vector<std::unique_ptr<WebSocketFrame>> frames;
   frames.push_back(std::move(frame));
   auto stream = std::make_unique<ReadableFakeWebSocketStream>();

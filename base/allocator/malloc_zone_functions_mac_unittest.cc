@@ -46,7 +46,7 @@ TEST_F(MallocZoneFunctionsTest, CannotStoreMoreThanMaxZones) {
   zones.resize(kMaxZoneCount * 2);
   for (int i = 0; i < kMaxZoneCount * 2; ++i) {
     ChromeMallocZone& zone = zones[i];
-    SbMemoryCopy(&zone, malloc_default_zone(), sizeof(ChromeMallocZone));
+    memcpy(&zone, malloc_default_zone(), sizeof(ChromeMallocZone));
     StoreMallocZone(&zone);
   }
 

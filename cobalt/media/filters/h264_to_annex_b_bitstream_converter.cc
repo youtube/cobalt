@@ -232,10 +232,10 @@ bool H264ToAnnexBBitstreamConverter::ConvertNalUnitStreamToByteStream(
 
     // No need to write leading zero bits.
     // Write start-code prefix.
-    SbMemoryCopy(outscan, kStartCodePrefix, sizeof(kStartCodePrefix));
+    memcpy(outscan, kStartCodePrefix, sizeof(kStartCodePrefix));
     outscan += sizeof(kStartCodePrefix);
     // Then write the actual NAL unit from the input buffer.
-    SbMemoryCopy(outscan, inscan, nal_unit_length);
+    memcpy(outscan, inscan, nal_unit_length);
     inscan += nal_unit_length;
     data_left -= nal_unit_length;
     outscan += nal_unit_length;
@@ -266,11 +266,11 @@ bool H264ToAnnexBBitstreamConverter::WriteParamSet(
 
   // Write the 4 byte Annex B start code.
   *buf++ = 0;  // zero byte
-  SbMemoryCopy(buf, kStartCodePrefix, sizeof(kStartCodePrefix));
+  memcpy(buf, kStartCodePrefix, sizeof(kStartCodePrefix));
   buf += sizeof(kStartCodePrefix);
 
   // Copy the data.
-  SbMemoryCopy(buf, &param_set[0], size);
+  memcpy(buf, &param_set[0], size);
   buf += size;
 
   *out = buf;

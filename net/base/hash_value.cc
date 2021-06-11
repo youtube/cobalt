@@ -55,7 +55,7 @@ bool HashValue::FromString(const base::StringPiece value) {
   if (!base::Base64Decode(base64_str, &decoded) || decoded.size() != size())
     return false;
 
-  SbMemoryCopy(data(), decoded.data(), size());
+  memcpy(data(), decoded.data(), size());
   return true;
 }
 

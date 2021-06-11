@@ -182,7 +182,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
     return false;
   }
   out->resize(CBB_len(cbb.get()));
-  SbMemoryCopy(out->data(), CBB_data(cbb.get()), CBB_len(cbb.get()));
+  memcpy(out->data(), CBB_data(cbb.get()), CBB_len(cbb.get()));
   return true;
 }
 

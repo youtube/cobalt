@@ -41,7 +41,7 @@ size_t SpdyReadQueue::Dequeue(char* out, size_t len) {
     SpdyBuffer* buffer = queue_.front().get();
     size_t bytes_to_copy =
         std::min(len - bytes_copied, buffer->GetRemainingSize());
-    SbMemoryCopy(out + bytes_copied, buffer->GetRemainingData(), bytes_to_copy);
+    memcpy(out + bytes_copied, buffer->GetRemainingData(), bytes_to_copy);
     bytes_copied += bytes_to_copy;
     if (bytes_to_copy == buffer->GetRemainingSize())
       queue_.pop_front();

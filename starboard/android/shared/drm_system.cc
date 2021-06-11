@@ -128,7 +128,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
     SB_DCHECK(key_id_elements);
 
     SB_DCHECK(key_id_size <= sizeof(drm_key_ids[i].identifier));
-    SbMemoryCopy(drm_key_ids[i].identifier, key_id_elements, key_id_size);
+    memcpy(drm_key_ids[i].identifier, key_id_elements, key_id_size);
     env->ReleaseByteArrayElements(j_key_id, key_id_elements, JNI_ABORT);
     drm_key_ids[i].identifier_size = key_id_size;
 

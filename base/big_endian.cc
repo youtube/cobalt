@@ -22,7 +22,7 @@ bool BigEndianReader::Skip(size_t len) {
 bool BigEndianReader::ReadBytes(void* out, size_t len) {
   if (ptr_ + len > end_)
     return false;
-  SbMemoryCopy(out, ptr_, len);
+  memcpy(out, ptr_, len);
   ptr_ += len;
   return true;
 }
@@ -73,7 +73,7 @@ bool BigEndianWriter::Skip(size_t len) {
 bool BigEndianWriter::WriteBytes(const void* buf, size_t len) {
   if (ptr_ + len > end_)
     return false;
-  SbMemoryCopy(ptr_, buf, len);
+  memcpy(ptr_, buf, len);
   ptr_ += len;
   return true;
 }

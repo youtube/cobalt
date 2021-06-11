@@ -209,7 +209,7 @@ GLenum Program::UpdateUniform(GLint location,
     SbMemoryDeallocate(uniform->data);
     uniform->data = SbMemoryAllocate(DataSizeForType(count, elem_size, type));
   }
-  SbMemoryCopy(uniform->data, v, DataSizeForType(count, elem_size, type));
+  memcpy(uniform->data, v, DataSizeForType(count, elem_size, type));
 
   return GL_NO_ERROR;
 }

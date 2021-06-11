@@ -38,7 +38,7 @@ bool SPKIHash::FromString(base::StringPiece hash_string) {
     return false;
   }
 
-  SbMemoryCopy(data_, decoded.data(), decoded.size());
+  memcpy(data_, decoded.data(), decoded.size());
   return true;
 }
 

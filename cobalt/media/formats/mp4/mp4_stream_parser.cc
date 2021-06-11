@@ -572,7 +572,7 @@ void MP4StreamParser::OnEncryptedMediaInitData(
   std::vector<uint8_t> init_data(total_size);
   size_t pos = 0;
   for (size_t i = 0; i < headers.size(); i++) {
-    SbMemoryCopy(&init_data[pos], &headers[i].raw_box[0],
+    memcpy(&init_data[pos], &headers[i].raw_box[0],
                  headers[i].raw_box.size());
     pos += headers[i].raw_box.size();
   }

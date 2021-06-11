@@ -24,7 +24,7 @@ void* MappedFile::Init(const base::FilePath& name, size_t size) {
   buffer_ = SbMemoryAllocate(size);
   snapshot_ = SbMemoryAllocate(size);
   if (buffer_ && snapshot_ && Read(buffer_, size, 0)) {
-    SbMemoryCopy(snapshot_, buffer_, size);
+    memcpy(snapshot_, buffer_, size);
   } else {
     SbMemoryDeallocate(buffer_);
     SbMemoryDeallocate(snapshot_);
@@ -45,7 +45,7 @@ void MappedFile::Flush() {
   for (size_t offset = 0; offset < view_size_; offset += block_size) {
     size_t size = std::min(view_size_ - offset, block_size);
     if (memcmp(snapshot_ptr + offset, buffer_ptr + offset, size)) {
-      SbMemoryCopy(snapshot_ptr + offset, buffer_ptr + offset, size);
+      memcpy(snapshot_ptr + offset, buffer_ptr + offset, size);
       Write(snapshot_ptr + offset, size, offset);
     }
   }

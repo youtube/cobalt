@@ -622,7 +622,7 @@ Bfree
 	}
 
 #define Bcopy(x, y)                              \
-  SbMemoryCopy((char*)&x->sign, (char*)&y->sign, \
+  memcpy((char*)&x->sign, (char*)&y->sign, \
                y->wds * sizeof(Long) + 2 * sizeof(int))
 
         static Bigint* multadd

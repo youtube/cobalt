@@ -17,7 +17,7 @@ namespace {
 inline uint64_t DigestToUInt64(const base::MD5Digest& digest) {
   uint64_t value;
   DCHECK_GE(sizeof(digest.a), sizeof(value));
-  SbMemoryCopy(&value, digest.a, sizeof(value));
+  memcpy(&value, digest.a, sizeof(value));
   return base::NetToHost64(value);
 }
 

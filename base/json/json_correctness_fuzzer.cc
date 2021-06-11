@@ -29,7 +29,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Create a copy of input buffer, as otherwise we don't catch
   // overflow that touches the last byte (which is used in options).
   std::unique_ptr<char[]> input(new char[size - 1]);
-  SbMemoryCopy(input.get(), data, size - 1);
+  memcpy(input.get(), data, size - 1);
 
   base::StringPiece input_string(input.get(), size - 1);
 

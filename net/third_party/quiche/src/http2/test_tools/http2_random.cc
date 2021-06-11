@@ -20,7 +20,7 @@ Http2Random::Http2Random() {
 Http2Random::Http2Random(Http2StringPiece key) {
   Http2String decoded_key = Http2HexDecode(key);
   CHECK_EQ(sizeof(key_), decoded_key.size());
-  SbMemoryCopy(key_, decoded_key.data(), sizeof(key_));
+  memcpy(key_, decoded_key.data(), sizeof(key_));
 }
 
 Http2String Http2Random::Key() const {

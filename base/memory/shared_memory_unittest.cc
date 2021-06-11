@@ -374,7 +374,7 @@ TEST_P(SharedMemoryTest, GetReadOnlyHandle) {
 #endif
   ASSERT_TRUE(writable_shmem.Create(options));
   ASSERT_TRUE(writable_shmem.Map(options.size));
-  SbMemoryCopy(writable_shmem.memory(), contents.data(), contents.size());
+  memcpy(writable_shmem.memory(), contents.data(), contents.size());
   EXPECT_TRUE(writable_shmem.Unmap());
 
   SharedMemoryHandle readonly_handle = writable_shmem.GetReadOnlyHandle();
@@ -397,7 +397,7 @@ TEST_P(SharedMemoryTest, GetReadOnlyHandle) {
   // Make sure the writable instance is still writable.
   ASSERT_TRUE(writable_shmem.Map(contents.size()));
   StringPiece new_contents = "Goodbye";
-  SbMemoryCopy(writable_shmem.memory(), new_contents.data(),
+  memcpy(writable_shmem.memory(), new_contents.data(),
                new_contents.size());
   EXPECT_EQ(new_contents,
             StringPiece(static_cast<const char*>(writable_shmem.memory()),
@@ -476,7 +476,7 @@ TEST_P(SharedMemoryTest, ShareToSelf) {
 
   SharedMemory shmem;
   ASSERT_TRUE(shmem.CreateAndMapAnonymous(contents.size()));
-  SbMemoryCopy(shmem.memory(), contents.data(), contents.size());
+  memcpy(shmem.memory(), contents.data(), contents.size());
   EXPECT_TRUE(shmem.Unmap());
 
   SharedMemoryHandle shared_handle = shmem.handle().Duplicate();
@@ -532,14 +532,14 @@ TEST_P(SharedMemoryTest, ShareWithMultipleInstances) {
       shmem.requested_size());
 
   // |shmem| should be able to update the content.
-  SbMemoryCopy(shmem.memory(), kContents.data(), kContents.size());
+  memcpy(shmem.memory(), kContents.data(), kContents.size());
 
   ASSERT_EQ(kContents, shmem_contents);
   ASSERT_EQ(kContents, shared_contents);
   ASSERT_EQ(kContents, readonly_contents);
 
   // |shared| should also be able to update the content.
-  SbMemoryCopy(shared.memory(), ToLowerASCII(kContents).c_str(),
+  memcpy(shared.memory(), ToLowerASCII(kContents).c_str(),
                kContents.size());
 
   ASSERT_EQ(StringPiece(ToLowerASCII(kContents)), shmem_contents);
