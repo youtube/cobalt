@@ -592,7 +592,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
     const char* session_id =
         SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
     int session_id_size =
-        session_id ? static_cast<int>(SbStringGetLength(session_id)) : 0;
+        session_id ? static_cast<int>(strlen(session_id)) : 0;
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,

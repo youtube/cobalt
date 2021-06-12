@@ -50,7 +50,7 @@ bool HasTokensInOrder(const std::string& value,
       SB_DLOG(INFO) << "Token \"" << token << "\" not found in order.";
       return false;
     }
-    current_position = position + SbStringGetLength(token);
+    current_position = position + strlen(token);
   }
   return true;
 }

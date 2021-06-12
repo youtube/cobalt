@@ -1203,13 +1203,13 @@ void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
 #if defined(STARBOARD)
     SbLogRaw(message);
-    const size_t message_len = SbStringGetLength(message);
+    const size_t message_len = strlen(message);
     if (message_len > 0 && message[message_len - 1] != '\n') {
       SbLogRaw("\n");
     }
 #else
     size_t bytes_written = 0;
-    const size_t message_len = SbStringGetLength(message);
+    const size_t message_len = strlen(message);
     int rv;
     while (bytes_written < message_len) {
       rv = HANDLE_EINTR(

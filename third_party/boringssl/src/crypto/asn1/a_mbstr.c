@@ -97,7 +97,7 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
     size_t nchar = 0;
     char strbuf[32];
     if (len == -1)
-        len = OPENSSL_port_strlen((const char *)in);
+        len = strlen((const char *)in);
     if (!mask)
         mask = DIRSTRING_TYPE;
 

@@ -112,8 +112,8 @@ bool ReadTwoDigitDecimal(const char* str, T* output) {
 // "av01.0.05?.08", but "vp09.0.05M.08" or "vp09.0.05M.08." don't.
 // The function returns true when |format| matches |reference|.
 bool VerifyFormat(const char* format, const char* reference) {
-  auto format_size = SbStringGetLength(format);
-  auto reference_size = SbStringGetLength(reference);
+  auto format_size = strlen(format);
+  auto reference_size = strlen(reference);
   if (format_size < reference_size) {
     return false;
   }
@@ -143,7 +143,7 @@ bool VerifyFormat(const char* format, const char* reference) {
 // It works exactly the same as the above function, except that the size of
 // |format| has to be exactly the same as the size of |reference|.
 bool VerifyFormatStrictly(const char* format, const char* reference) {
-  if (SbStringGetLength(format) != SbStringGetLength(reference)) {
+  if (strlen(format) != strlen(reference)) {
     return false;
   }
   return VerifyFormat(format, reference);
@@ -172,8 +172,8 @@ bool ParseAv1Info(std::string codec,
   // expected sizes are known.
   const char kShortFormReference[] = "av01.0.05M.08";
   const char kLongFormReference[] = "av01.0.04M.10.0.110.09.16.09.0";
-  const size_t kShortFormSize = SbStringGetLength(kShortFormReference);
-  const size_t kLongFormSize = SbStringGetLength(kLongFormReference);
+  const size_t kShortFormSize = strlen(kShortFormReference);
+  const size_t kLongFormSize = strlen(kLongFormReference);
 
   // 1. Sanity check the format.
   if (SbStringCompare(codec.c_str(), "av01.", 5) != 0) {
@@ -290,7 +290,7 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
     return false;
   }
 
-  if (SbStringGetLength(codec) != 11 || !isxdigit(codec[9]) ||
+  if (strlen(codec) != 11 || !isxdigit(codec[9]) ||
       !isxdigit(codec[10])) {
     return false;
   }
@@ -325,7 +325,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
     ++codec;
   }
 
-  if (SbStringGetLength(codec) < 3) {
+  if (strlen(codec) < 3) {
     return false;
   }
 
@@ -387,7 +387,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
   ++codec;
 
   // Parse level in 2 or 3 digits decimal.
-  if (SbStringGetLength(codec) < 2) {
+  if (strlen(codec) < 2) {
     return false;
   }
   if (!ReadDecimalUntilDot(codec, level)) {
@@ -446,9 +446,9 @@ bool ParseVp09Info(const char* codec,
   const char kShortFormReference[] = "vp09.00.41.08";
   const char kMediumFormReference[] = "vp09.02.10.10.01.09.16.09";
   const char kLongFormReference[] = "vp09.02.10.10.01.09.16.09.01";
-  const size_t kShortFormSize = SbStringGetLength(kShortFormReference);
-  const size_t kMediumFormSize = SbStringGetLength(kMediumFormReference);
-  const size_t kLongFormSize = SbStringGetLength(kLongFormReference);
+  const size_t kShortFormSize = strlen(kShortFormReference);
+  const size_t kMediumFormSize = strlen(kMediumFormReference);
+  const size_t kLongFormSize = strlen(kLongFormReference);
 
   // 1. Sanity check the format.
   if (SbStringCompare(codec, "vp09.", 5) != 0) {
@@ -492,7 +492,7 @@ bool ParseVp09Info(const char* codec,
   *transfer_id = kSbMediaTransferIdBt709;
   *matrix_id = kSbMediaMatrixIdBt709;
 
-  if (SbStringGetLength(codec) == kShortFormSize) {
+  if (strlen(codec) == kShortFormSize) {
     return true;
   }
 
@@ -531,7 +531,7 @@ bool ParseVp09Info(const char* codec,
   }
 
   // 10. Return now if it is a well-formed medium form codec string.
-  if (SbStringGetLength(codec) == kMediumFormSize) {
+  if (strlen(codec) == kMediumFormSize) {
     return true;
   }
 

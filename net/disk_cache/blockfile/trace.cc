@@ -163,7 +163,7 @@ void DumpTrace(int num_traces) {
     for (int i = 0; i < num_traces; i++) {
       memcpy(line, s_trace_buffer->buffer[current], kEntrySize);
       line[kEntrySize] = '\0';
-      size_t length = SbStringGetLength(line);
+      size_t length = strlen(line);
       if (length) {
         line[length] = '\n';
         line[length + 1] = '\0';

@@ -35,7 +35,7 @@ inline v8::Local<v8::String> NewInternalString(v8::Isolate* isolate,
   }
   return v8::String::NewFromOneByte(
              isolate, reinterpret_cast<const uint8_t*>(string),
-             v8::NewStringType::kInternalized, SbStringGetLength(string))
+             v8::NewStringType::kInternalized, strlen(string))
       .ToLocalChecked();
 }
 

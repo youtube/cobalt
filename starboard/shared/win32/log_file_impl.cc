@@ -56,7 +56,7 @@ void CloseLogFile() {
 void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
   SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
             (creation_flags & kSbFileCreateAlways));
-  SB_DCHECK(SbStringGetLength(log_file_name) != 0);
+  SB_DCHECK(strlen(log_file_name) != 0);
   SB_DCHECK(SbStringFindCharacter(log_file_name, kSbFileSepChar) == nullptr);
   std::vector<char> out_path(kSbFileMaxPath + 1);
   out_path[0] = '\0';

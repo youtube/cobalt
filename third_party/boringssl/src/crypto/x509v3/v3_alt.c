@@ -513,7 +513,7 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
     if (is_string) {
         if (!(gen->d.ia5 = M_ASN1_IA5STRING_new()) ||
             !ASN1_STRING_set(gen->d.ia5, (unsigned char *)value,
-                             OPENSSL_port_strlen(value))) {
+                             strlen(value))) {
             OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
             goto err;
         }

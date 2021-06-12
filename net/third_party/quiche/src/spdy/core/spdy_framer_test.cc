@@ -2521,7 +2521,7 @@ TEST_P(SpdyFramerTest, CreateUnknown) {
   const char kDescription[] = "Unknown frame";
   const uint8_t kType = 0xaf;
   const uint8_t kFlags = 0x11;
-  const uint8_t kLength = SbStringGetLength(kDescription);
+  const uint8_t kLength = strlen(kDescription);
   const unsigned char kFrameData[] = {
       0x00,   0x00, kLength,        // Length: 13
       kType,                        //   Type: undefined
@@ -3131,7 +3131,7 @@ TEST_P(SpdyFramerTest, ProcessDataFrameWithPadding) {
   // Send the frame header.
   EXPECT_CALL(visitor,
               OnDataFrameHeader(
-                  1, kPaddingLen + SbStringGetLength(data_payload), false));
+                  1, kPaddingLen + strlen(data_payload), false));
   CHECK_EQ(kDataFrameMinimumSize,
            deframer_.ProcessInput(frame.data(), kDataFrameMinimumSize));
   CHECK_EQ(deframer_.state(),
@@ -4663,7 +4663,7 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
   EXPECT_EQ(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
   EXPECT_EQ(1, visitor->headers_frame_count_);
   EXPECT_EQ(1, visitor->data_frame_count_);
-  EXPECT_EQ(SbStringGetLength(four_score),
+  EXPECT_EQ(strlen(four_score),
             static_cast<unsigned>(visitor->data_bytes_));
 }
 
@@ -4744,7 +4744,7 @@ TEST_P(SpdyFramerTest, ProcessAtMostOneFrame) {
     // and none of the second frame.
 
     EXPECT_EQ(1, visitor->data_frame_count_);
-    EXPECT_EQ(SbStringGetLength(four_score),
+    EXPECT_EQ(strlen(four_score),
               static_cast<unsigned>(visitor->data_bytes_));
     EXPECT_EQ(0, visitor->headers_frame_count_);
   }

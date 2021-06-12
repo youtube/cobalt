@@ -45,7 +45,7 @@ void BasicTest(SbSystemPathId id,
   }
   if (result) {
     EXPECT_NE('\xCD', path[0]) << LOCAL_CONTEXT;
-    int len = static_cast<int>(SbStringGetLength(path.data()));
+    int len = static_cast<int>(strlen(path.data()));
     EXPECT_GT(len, 0) << LOCAL_CONTEXT;
   } else {
     EXPECT_EQ('\xCD', path[0]) << LOCAL_CONTEXT;
@@ -146,7 +146,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   EXPECT_TRUE(result);
   if (result) {
     EXPECT_NE('\xCD', path[0]);
-    int len = static_cast<int>(SbStringGetLength(path.data()));
+    int len = static_cast<int>(strlen(path.data()));
     EXPECT_GT(len, 0);
     // Delete a file and confirm that it does not exist.
     std::string sub_path =
@@ -195,7 +195,7 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   ASSERT_TRUE(result);
 
   EXPECT_NE('\xCD', path[0]);
-  int len = static_cast<int>(SbStringGetLength(path.data()));
+  int len = static_cast<int>(strlen(path.data()));
   EXPECT_GT(len, 0);
 
   SbFileInfo executable_file_info;

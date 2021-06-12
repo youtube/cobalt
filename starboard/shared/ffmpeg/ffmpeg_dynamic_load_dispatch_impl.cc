@@ -15,8 +15,6 @@
 // This file implements the FFMPEGDispatch interface with dynamic loading of
 // the libraries.
 
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-
 #include <dlfcn.h>
 
 #include <map>

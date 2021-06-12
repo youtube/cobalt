@@ -633,7 +633,7 @@ static int asn1_str2tag(const char *tagstr, int len)
     };
 
     if (len == -1)
-        len = OPENSSL_port_strlen(tagstr);
+        len = strlen(tagstr);
 
     tntmp = tnst;
     for (i = 0; i < sizeof(tnst) / sizeof(struct tag_name_st); i++, tntmp++) {

@@ -23,7 +23,7 @@ void SetupReplacement(
   if (str) {
     Component comp;
     if (str[0])
-      comp.len = static_cast<int>(SbStringGetLength(str));
+      comp.len = static_cast<int>(strlen(str));
     (replacements->*func)(str, comp);
   }
 }

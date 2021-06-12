@@ -713,7 +713,7 @@ bool IsValidDiskName(StringPiece candidate) {
     return false;
 
   // mmcblk[0-9]+ case
-  for (size_t i = SbStringGetLength(kMMCName); i < candidate.length(); ++i) {
+  for (size_t i = strlen(kMMCName); i < candidate.length(); ++i) {
     if (!isdigit(candidate[i]))
       return false;
   }

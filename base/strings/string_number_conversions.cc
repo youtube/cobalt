@@ -377,7 +377,7 @@ base::string16 NumberToString16(double value) {
 
   // The number will be ASCII. This creates the string using the "input
   // iterator" variant which promotes from 8-bit to 16-bit via "=".
-  return base::string16(&buffer[0], &buffer[SbStringGetLength(buffer)]);
+  return base::string16(&buffer[0], &buffer[strlen(buffer)]);
 }
 
 bool StringToInt(StringPiece input, int* output) {

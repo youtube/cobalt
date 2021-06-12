@@ -228,7 +228,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
-                              SbStringGetLength(max_video_capabilities) > 0) {
+                              strlen(max_video_capabilities) > 0) {
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {

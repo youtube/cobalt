@@ -78,9 +78,9 @@ bool ChannelIDVerifier::VerifyRaw(QuicStringPiece key,
   SHA256_CTX sha256;
   SHA256_Init(&sha256);
   if (is_channel_id_signature) {
-    SHA256_Update(&sha256, kContextStr, SbStringGetLength(kContextStr) + 1);
+    SHA256_Update(&sha256, kContextStr, strlen(kContextStr) + 1);
     SHA256_Update(&sha256, kClientToServerStr,
-                  SbStringGetLength(kClientToServerStr) + 1);
+                  strlen(kClientToServerStr) + 1);
   }
   SHA256_Update(&sha256, signed_data.data(), signed_data.size());
 

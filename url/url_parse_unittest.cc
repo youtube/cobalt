@@ -108,7 +108,7 @@ bool ComponentMatches(const char* input,
   if (component.len < 0)
     return false;  // Reference is not NULL but we don't have anything
 
-  if (SbStringGetLength(reference) != static_cast<size_t>(component.len))
+  if (strlen(reference) != static_cast<size_t>(component.len))
     return false;  // Lengths don't match
 
   // Now check the actual characters.
@@ -142,7 +142,7 @@ TEST(URLParser, Length) {
     "http:",
   };
   for (size_t i = 0; i < arraysize(length_cases); i++) {
-    int true_length = static_cast<int>(SbStringGetLength(length_cases[i]));
+    int true_length = static_cast<int>(strlen(length_cases[i]));
 
     Parsed parsed;
     ParseStandardURL(length_cases[i], true_length, &parsed);
@@ -201,7 +201,7 @@ TEST(URLParser, CountCharactersBefore) {
     {"file:///c:/foo", Parsed::PATH, true, 7},
   };
   for (size_t i = 0; i < arraysize(count_cases); i++) {
-    int length = static_cast<int>(SbStringGetLength(count_cases[i].url));
+    int length = static_cast<int>(strlen(count_cases[i].url));
 
     // Simple test to distinguish file and standard URLs.
     Parsed parsed;
@@ -320,7 +320,7 @@ TEST(URLParser, Standard) {
   Parsed parsed;
   for (size_t i = 0; i < arraysize(cases); i++) {
     const char* url = cases[i].input;
-    ParseStandardURL(url, static_cast<int>(SbStringGetLength(url)), &parsed);
+    ParseStandardURL(url, static_cast<int>(strlen(url)), &parsed);
     int port = ParsePort(url, parsed.port);
 
     EXPECT_TRUE(ComponentMatches(url, cases[i].scheme, parsed.scheme));
@@ -355,7 +355,7 @@ TEST(URLParser, PathURL) {
   Parsed parsed;
   for (size_t i = 0; i < arraysize(path_cases); i++) {
     const char* url = path_cases[i].input;
-    ParsePathURL(url, static_cast<int>(SbStringGetLength(url)), false, &parsed);
+    ParsePathURL(url, static_cast<int>(strlen(url)), false, &parsed);
 
     EXPECT_TRUE(ComponentMatches(url, path_cases[i].scheme, parsed.scheme))
         << i;
@@ -454,7 +454,7 @@ TEST(URLParser, ParseFileURL) {
   Parsed parsed;
   for (size_t i = 0; i < arraysize(file_cases); i++) {
     const char* url = file_cases[i].input;
-    ParseFileURL(url, static_cast<int>(SbStringGetLength(url)), &parsed);
+    ParseFileURL(url, static_cast<int>(strlen(url)), &parsed);
     int port = ParsePort(url, parsed.port);
 
     EXPECT_TRUE(ComponentMatches(url, file_cases[i].scheme, parsed.scheme))
@@ -515,7 +515,7 @@ TEST(URLParser, ExtractFileName) {
 
   for (size_t i = 0; i < arraysize(file_cases); i++) {
     const char* url = file_cases[i].input;
-    int len = static_cast<int>(SbStringGetLength(url));
+    int len = static_cast<int>(strlen(url));
 
     Parsed parsed;
     ParseStandardURL(url, len, &parsed);
@@ -535,7 +535,7 @@ static bool NthParameterIs(const char* url,
                            const char* expected_key,
                            const char* expected_value) {
   Parsed parsed;
-  ParseStandardURL(url, static_cast<int>(SbStringGetLength(url)), &parsed);
+  ParseStandardURL(url, static_cast<int>(strlen(url)), &parsed);
 
   Component query = parsed.query;
 
@@ -623,7 +623,7 @@ TEST(URLParser, MailtoUrl) {
   Parsed parsed;
   for (size_t i = 0; i < arraysize(mailto_cases); ++i) {
     const char* url = mailto_cases[i].input;
-    ParseMailtoURL(url, static_cast<int>(SbStringGetLength(url)), &parsed);
+    ParseMailtoURL(url, static_cast<int>(strlen(url)), &parsed);
     int port = ParsePort(url, parsed.port);
 
     EXPECT_TRUE(ComponentMatches(url, mailto_cases[i].scheme, parsed.scheme));
@@ -656,7 +656,7 @@ TEST(URLParser, FileSystemURL) {
   for (size_t i = 0; i < arraysize(filesystem_cases); i++) {
     const FileSystemURLParseCase* parsecase = &filesystem_cases[i];
     const char* url = parsecase->input;
-    ParseFileSystemURL(url, static_cast<int>(SbStringGetLength(url)), &parsed);
+    ParseFileSystemURL(url, static_cast<int>(strlen(url)), &parsed);
 
     EXPECT_TRUE(ComponentMatches(url, "filesystem", parsed.scheme));
     EXPECT_EQ(!parsecase->inner_scheme, !parsed.inner_parsed());

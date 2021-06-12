@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-
 #include <algorithm>
 #include <string>
 #include <vector>

@@ -47,7 +47,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   // number of channels, by passing channels to SbMediaAudioIsSupported and /
   // or SbMediaIsSupported.
 
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
       return false;
     }
@@ -118,7 +118,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   }
   SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
 
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone, key_system)) {
       return false;
     }
@@ -344,7 +344,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   auto codecs = mime_type.GetCodecs();
 
   // Pre-filter for |key_system|.
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, kSbMediaAudioCodecNone,
                             key_system)) {
       return kSbMediaSupportTypeNotSupported;

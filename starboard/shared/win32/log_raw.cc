@@ -27,7 +27,7 @@ void SbLogRaw(const char* message) {
   fprintf(stderr, "%s", message);
   OutputDebugStringA(message);
   sbwin32::WriteToLogFile(
-      message, static_cast<int>(SbStringGetLength(message)));
+      message, static_cast<int>(strlen(message)));
 
   starboard::shared::starboard::NetLogWrite(message);
 }

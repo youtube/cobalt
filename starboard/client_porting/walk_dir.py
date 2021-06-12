@@ -134,7 +134,6 @@ SB_MEMORY_REPLACEMENT_DICT = {
 SB_STRING_REPLACEMENT_DICT = {
     'atoi': 'SbStringAToI',
     'strcpy': 'SbStringCopyUnsafe',
-    'strlen': 'SbStringGetLength',
     'strncpy': 'SbStringCopy',
 }
 

@@ -261,7 +261,7 @@ void QuicSimpleServerStream::SendNotFoundResponse() {
   SpdyHeaderBlock headers;
   headers[":status"] = "404";
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(SbStringGetLength(kNotFoundResponseBody));
+      QuicTextUtils::Uint64ToString(strlen(kNotFoundResponseBody));
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
 }
 
@@ -278,7 +278,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
     headers[":status"] = QuicTextUtils::Uint64ToString(resp_code);
   }
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(SbStringGetLength(kErrorResponseBody));
+      QuicTextUtils::Uint64ToString(strlen(kErrorResponseBody));
   SendHeadersAndBody(std::move(headers), kErrorResponseBody);
 }
 

@@ -333,7 +333,7 @@ static bool MatchMagicNumber(const char* content,
   if (magic_entry.is_string) {
     if (content_strlen >= len) {
       // Do a case-insensitive prefix comparison.
-      DCHECK_EQ(SbStringGetLength(magic_entry.magic), len);
+      DCHECK_EQ(strlen(magic_entry.magic), len);
       match = base::EqualsCaseInsensitiveASCII(magic_entry.magic,
                                                base::StringPiece(content, len));
     }

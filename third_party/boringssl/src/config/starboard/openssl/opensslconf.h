@@ -249,7 +249,6 @@
 #define OPENSSL_port_strcpy(d, s) SbStringCopy((d), (s), INT_MAX)
 #define OPENSSL_port_strdup SbStringDuplicate
 #define OPENSSL_port_strerror(x) ""
-#define OPENSSL_port_strlen SbStringGetLength
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
 #define OPENSSL_port_strncmp SbStringCompare
 #define OPENSSL_port_strncpy SbStringCopy

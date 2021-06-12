@@ -83,7 +83,7 @@ bool LogEventProvider::LogMessage(logging::LogSeverity severity,
     // The line.
     event.SetField(2, sizeof(line), &line);
     // The file.
-    event.SetField(3, SbStringGetLength(file) + 1, file);
+    event.SetField(3, strlen(file) + 1, file);
     // And finally the message.
     event.SetField(4, message.length() + 1 - message_start,
         message.c_str() + message_start);

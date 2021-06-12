@@ -150,7 +150,6 @@
 #include <stddef.h>
 #include <string.h>
 #else
-#include "starboard/common/string.h"
 #include "starboard/memory.h"
 #endif  // STARBOARD
 
@@ -218,11 +217,7 @@ class LIBPROTOBUF_EXPORT StringPiece {
   StringPiece(const char* str)  // NOLINT(runtime/explicit)
       : ptr_(str), length_(0) {
     if (str != NULL) {
-#ifndef STARBOARD
       length_ = CheckedSsizeTFromSizeT(strlen(str));
-#else
-      length_ = CheckedSsizeTFromSizeT(SbStringGetLength(str));
-#endif  // defined(STARBOARD)
     }
   }
 
@@ -279,11 +274,7 @@ class LIBPROTOBUF_EXPORT StringPiece {
   void set(const char* str) {
     ptr_ = str;
     if (str != NULL)
-#ifndef STARBOARD
       length_ = CheckedSsizeTFromSizeT(strlen(str));
-#else
-      length_ = CheckedSsizeTFromSizeT(SbStringGetLength(str));
-#endif  // STARBOARD
     else
       length_ = 0;
   }

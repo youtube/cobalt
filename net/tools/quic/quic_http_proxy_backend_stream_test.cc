@@ -367,7 +367,7 @@ TEST_F(QuicHttpProxyBackendStreamTest, SendRequestToBackendOnRedirect) {
 TEST_F(QuicHttpProxyBackendStreamTest, SendRequestToBackendHandleGzip) {
   const char kGzipData[] =
       "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!";
-  uint64_t rawBodyLength = SbStringGetLength(kGzipData);
+  uint64_t rawBodyLength = strlen(kGzipData);
   spdy::SpdyHeaderBlock request_headers;
   request_headers[":path"] = std::string("/gzip-body?") + kGzipData;
   request_headers[":authority"] = "www.example.org";

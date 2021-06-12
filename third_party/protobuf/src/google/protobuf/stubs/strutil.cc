@@ -30,12 +30,6 @@
 
 // from google3/strings/strutil.cc
 
-#ifdef STARBOARD
-#ifdef INLINE_POEM_NAMESPACE
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-#endif  // INLINE_POEM_NAMESPACE
-#endif  // STARBOARD
-
 #ifndef STARBOARD
 
 #include <stdio.h>
@@ -44,7 +38,7 @@
 // platforms, and Starboard is not available there.  So we define these
 // "reverse poems" to move past this issue for host builds.  For why we don't
 // just use poems, see the comment in the #else clause.
-#define SbStringGetLength strlen
+
 #define SbStringCopyUnsafe strcpy
 #define PoemFindCharacterInString strchr
 #define SbStringFormatF snprintf
@@ -56,13 +50,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
-
-#ifndef INLINE_POEM_NAMESPACE
-#undef __builtin_strlen
-#define __builtin_strlen SbStringGetLength
-#undef strlen
-#define strlen SbStringGetLength
-#endif  // INLINE_POEM_NAMESPACE
 
 // We avoid using poems here because a subsequent #include of math.h may
 // result, on some platforms, of the indirect inclusion of stdlib.h, which
@@ -315,7 +302,7 @@ static void JoinStringsIterator(const ITERATOR& start,
                                 string* result) {
   GOOGLE_CHECK(result != NULL);
   result->clear();
-  int delim_length = SbStringGetLength(delim);
+  int delim_length = strlen(delim);
 
   // Precompute resulting length so we can reserve() memory in one shot.
   int length = 0;
@@ -1291,7 +1278,7 @@ void DelocalizeRadix(char* buffer) {
     // extra bytes.
     char* target = buffer;
     do { ++buffer; } while (!IsValidFloatChar(*buffer) && *buffer != '\0');
-    memmove(target, buffer, SbStringGetLength(buffer) + 1);
+    memmove(target, buffer, strlen(buffer) + 1);
   }
 }
 

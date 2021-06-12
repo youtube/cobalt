@@ -1204,9 +1204,9 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Disconnect socket to prevent reuse.
@@ -1231,9 +1231,9 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   // Verify socket has |tag2| applied.
   old_traffic = GetTaggedBytes(tag_val2);
   rv =
-      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Disconnect socket to prevent reuse.
@@ -1269,17 +1269,17 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   // Verify |handle_high_pri| has |tag2| applied.
   old_traffic = GetTaggedBytes(tag_val2);
   rv = handle_high_pri.socket()->Write(
-      write_buffer.get(), SbStringGetLength(kRequest), callback.callback(),
+      write_buffer.get(), strlen(kRequest), callback.callback(),
       TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Verify |handle| has |tag1| applied.
   old_traffic = GetTaggedBytes(tag_val1);
   rv =
-      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 }

@@ -324,7 +324,7 @@ class NetLogServer {
   }
 
   void OnLog(const char* msg) {
-    buffered_socket_writer_.Append(msg, SbStringGetLength(msg));
+    buffered_socket_writer_.Append(msg, strlen(msg));
     writer_thread_sema_.Put();
   }
 

@@ -429,7 +429,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailable) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
   size_t offset = 0;
   if (GetParam() == quic::QUIC_VERSION_99) {
     quic::QuicString header = ConstructDataHeader(data_len);
@@ -458,7 +458,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableAfterReadBody) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
 
   // Start to read the body.
   TestCompletionCallback callback;
@@ -514,7 +514,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableWithError) {
           quic::QUIC_STREAM_CANCELLED, 0));
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
 
   // Start to read the body.
   TestCompletionCallback callback;
@@ -555,7 +555,7 @@ TEST_P(QuicChromiumClientStreamTest, OnTrailers) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
   size_t offset = 0;
   if (GetParam() == quic::QUIC_VERSION_99) {
     quic::QuicString header = ConstructDataHeader(data_len);
@@ -581,7 +581,7 @@ TEST_P(QuicChromiumClientStreamTest, OnTrailers) {
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(data));
+      base::NumberToString(strlen(data));
 
   auto t = ProcessTrailers(trailers);
 
@@ -608,7 +608,7 @@ TEST_P(QuicChromiumClientStreamTest, MarkTrailersConsumedWhenNotifyDelegate) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
   size_t offset = 0;
   if (GetParam() == quic::QUIC_VERSION_99) {
     quic::QuicString header = ConstructDataHeader(data_len);
@@ -639,7 +639,7 @@ TEST_P(QuicChromiumClientStreamTest, MarkTrailersConsumedWhenNotifyDelegate) {
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(data));
+      base::NumberToString(strlen(data));
   quic::QuicHeaderList t = ProcessTrailers(trailers);
   EXPECT_FALSE(stream_->IsDoneReading());
 
@@ -668,7 +668,7 @@ TEST_P(QuicChromiumClientStreamTest, ReadAfterTrailersReceivedButNotDelivered) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = SbStringGetLength(data);
+  int data_len = strlen(data);
   size_t offset = 0;
   if (GetParam() == quic::QUIC_VERSION_99) {
     quic::QuicString header = ConstructDataHeader(data_len);
@@ -695,7 +695,7 @@ TEST_P(QuicChromiumClientStreamTest, ReadAfterTrailersReceivedButNotDelivered) {
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(data));
+      base::NumberToString(strlen(data));
 
   quic::QuicHeaderList t = ProcessTrailers(trailers);
 
@@ -891,7 +891,7 @@ TEST_P(QuicChromiumClientStreamTest, HeadersAndDataBeforeHandle) {
 
   size_t offset = 0;
   if (GetParam() == quic::QUIC_VERSION_99) {
-    quic::QuicString header = ConstructDataHeader(SbStringGetLength(data));
+    quic::QuicString header = ConstructDataHeader(strlen(data));
     stream2->OnStreamFrame(quic::QuicStreamFrame(stream_id,
                                                  /*fin=*/false,
                                                  /*offset=*/offset, header));

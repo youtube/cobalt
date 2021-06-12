@@ -254,7 +254,7 @@ static int SSL_SESSION_to_bytes_full(const SSL_SESSION *in, CBB *cbb,
     if (!CBB_add_asn1(&session, &child, kPSKIdentityTag) ||
         !CBB_add_asn1_octet_string(
             &child, (const uint8_t *)in->psk_identity.get(),
-            OPENSSL_port_strlen(in->psk_identity.get()))) {
+            strlen(in->psk_identity.get()))) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
       return 0;
     }
@@ -764,7 +764,7 @@ int SSL_SESSION_to_bytes(const SSL_SESSION *in, uint8_t **out_data,
     // one.
     static const char kNotResumableSession[] = "NOT RESUMABLE";
 
-    *out_len = OPENSSL_port_strlen(kNotResumableSession);
+    *out_len = strlen(kNotResumableSession);
     *out_data = (uint8_t *)BUF_memdup(kNotResumableSession, *out_len);
     if (*out_data == NULL) {
       return 0;

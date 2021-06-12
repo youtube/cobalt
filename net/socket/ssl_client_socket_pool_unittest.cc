@@ -929,9 +929,9 @@ TEST_F(SSLClientSocketPoolTest, Tag) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);
@@ -995,10 +995,10 @@ TEST_F(SSLClientSocketPoolTest, TagTwoSockets) {
   const char kRequest[] = "GET / HTTP/1.1\r\n\r\n";
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
-  rv = handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+  rv = handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                               callback2.callback(),
                               TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback2.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);
@@ -1076,9 +1076,9 @@ TEST_F(SSLClientSocketPoolTest, TagTwoSocketsFullPool) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
+      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+  EXPECT_EQ(static_cast<int>(strlen(kRequest)),
             callback.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);

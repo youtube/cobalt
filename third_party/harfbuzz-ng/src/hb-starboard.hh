@@ -36,7 +36,6 @@
 #define strcmp SbStringCompareAll
 #define strcpy SbStringCopyUnsafe
 #define strdup SbStringDuplicate
-#define strlen SbStringGetLength
 #define strncmp SbStringCompare
 #define strncpy SbStringCopy
 #define strstr SbStringFindString

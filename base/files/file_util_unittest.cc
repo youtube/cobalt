@@ -2843,8 +2843,8 @@ TEST_F(FileUtilTest, ReadFileToString) {
           .Append(FILE_PATH_LITERAL("ReadFileToStringTest"));
 
   // Create test file.
-  ASSERT_EQ(static_cast<int>(SbStringGetLength(kTestData)),
-            WriteFile(file_path, kTestData, SbStringGetLength(kTestData)));
+  ASSERT_EQ(static_cast<int>(strlen(kTestData)),
+            WriteFile(file_path, kTestData, strlen(kTestData)));
 
   EXPECT_TRUE(ReadFileToString(file_path, &data));
   EXPECT_EQ(kTestData, data);
@@ -2926,14 +2926,14 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   int fd = open(pipe_path.value().c_str(), O_WRONLY);
   CHECK_NE(-1, fd);
   size_t written = 0;
-  while (written < SbStringGetLength(kTestData)) {
+  while (written < strlen(kTestData)) {
     ssize_t res =
-        write(fd, kTestData + written, SbStringGetLength(kTestData) - written);
+        write(fd, kTestData + written, strlen(kTestData) - written);
     if (res == -1)
       break;
     written += res;
   }
-  CHECK_EQ(SbStringGetLength(kTestData), written);
+  CHECK_EQ(strlen(kTestData), written);
   CHECK_EQ(0, close(fd));
   return 0;
 }
@@ -3091,8 +3091,8 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
 
   DWORD written;
   EXPECT_TRUE(
-      ::WriteFile(ph, kTestData, SbStringGetLength(kTestData), &written, NULL));
-  EXPECT_EQ(SbStringGetLength(kTestData), written);
+      ::WriteFile(ph, kTestData, strlen(kTestData), &written, NULL));
+  EXPECT_EQ(strlen(kTestData), written);
   CloseHandle(ph);
   return 0;
 }

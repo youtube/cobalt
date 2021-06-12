@@ -278,12 +278,12 @@ int ssl_nid_to_group_id(uint16_t *out_group_id, int nid) {
 
 int ssl_name_to_group_id(uint16_t *out_group_id, const char *name, size_t len) {
   for (const auto &group : kNamedGroups) {
-    if (len == OPENSSL_port_strlen(group.name) &&
+    if (len == strlen(group.name) &&
         !OPENSSL_port_strncmp(group.name, name, len)) {
       *out_group_id = group.group_id;
       return 1;
     }
-    if (len == OPENSSL_port_strlen(group.alias) &&
+    if (len == strlen(group.alias) &&
         !OPENSSL_port_strncmp(group.alias, name, len)) {
       *out_group_id = group.group_id;
       return 1;

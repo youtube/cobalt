@@ -232,9 +232,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringFindString);
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringGetLength);
   REGISTER_SYMBOL(SbStringGetLengthWide);
-#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringParseDouble);
   REGISTER_SYMBOL(SbStringParseSignedInteger);
   REGISTER_SYMBOL(SbStringParseUInt64);

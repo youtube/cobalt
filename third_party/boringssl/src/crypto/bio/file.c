@@ -91,7 +91,7 @@
 #define BIO_FLAGS_UPLINK 0
 #endif
 
-
+#include <string.h>
 
 #include <openssl/opensslconf.h>
 #if !defined(OPENSSL_SYS_STARBOARD)
@@ -138,7 +138,7 @@ static FILE *file_fopen(const char *filename, const char *mode) {
   FILE *file = NULL;
 
 #if defined(_WIN32) && defined(CP_UTF8)
-  int sz, len_0 = (int)OPENSSL_port_strlen(filename) + 1;
+  int sz, len_0 = (int)strlen(filename) + 1;
   DWORD flags;
 
   /*
@@ -162,7 +162,7 @@ static FILE *file_fopen(const char *filename, const char *mode) {
     WCHAR *wfilename = _alloca(sz * sizeof(WCHAR));
 
     if (MultiByteToWideChar(CP_UTF8, flags, filename, len_0, wfilename, sz) &&
-        MultiByteToWideChar(CP_UTF8, 0, mode, OPENSSL_port_strlen(mode) + 1,
+        MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
                             wmode, sizeof(wmode) / sizeof(wmode[0])) &&
         (file = _wfopen(wfilename, wmode)) == NULL &&
         (OPENSSL_errno == ENOENT || OPENSSL_errno == EBADF)) {
@@ -583,7 +583,7 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
   }
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   if (buf[0] != '\0')
-    ret = OPENSSL_port_strlen(buf);
+    ret = strlen(buf);
 err:
   return (ret);
 }
@@ -591,7 +591,7 @@ err:
 static int MS_CALLBACK file_puts(BIO *bp, const char *str) {
   int n, ret;
 
-  n = OPENSSL_port_strlen(str);
+  n = strlen(str);
   ret = file_write(bp, str, n);
   return (ret);
 }

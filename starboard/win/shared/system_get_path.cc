@@ -140,7 +140,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   }
   SbDirectoryCreate(out_path);
 
-  size_t length = SbStringGetLength(out_path);
+  size_t length = strlen(out_path);
   if (length < 1 || length > path_size) {
     return false;
   }

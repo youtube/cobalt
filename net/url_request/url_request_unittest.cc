@@ -371,14 +371,14 @@ class PriorityMonitoringURLRequestJob : public URLRequestTestJob {
 bool ContainsString(const std::string& haystack, const char* needle) {
   std::string::const_iterator it =
       std::search(haystack.begin(), haystack.end(), needle,
-                  needle + SbStringGetLength(needle),
+                  needle + strlen(needle),
                   base::CaseInsensitiveCompareASCII<char>());
   return it != haystack.end();
 }
 
 std::unique_ptr<UploadDataStream> CreateSimpleUploadData(const char* data) {
   std::unique_ptr<UploadElementReader> reader(
-      new UploadBytesElementReader(data, SbStringGetLength(data)));
+      new UploadBytesElementReader(data, strlen(data)));
   return ElementsUploadDataStream::CreateWithReader(std::move(reader), 0);
 }
 
@@ -1373,7 +1373,7 @@ TEST_F(URLRequestTest, FileDirOutputSanity) {
   EXPECT_GT(info.size, 0);
   std::string sentinel_output = GetDirectoryListingEntry(
       base::string16(sentinel_name,
-                     sentinel_name + SbStringGetLength(sentinel_name)),
+                     sentinel_name + strlen(sentinel_name)),
       std::string(sentinel_name), false /* is_dir */, info.size,
 
       info.last_modified);
@@ -10128,7 +10128,7 @@ TEST_F(HTTPSRequestTest, HSTSCrossOriginAddHeaders) {
   url::Replacements<char> replacements;
   const char kNewScheme[] = "https";
   replacements.SetScheme(kNewScheme,
-                         url::Component(0, SbStringGetLength(kNewScheme)));
+                         url::Component(0, strlen(kNewScheme)));
   GURL hsts_https_url = hsts_http_url.ReplaceComponents(replacements);
 
   TestDelegate d;

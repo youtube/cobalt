@@ -95,6 +95,8 @@ The following starboard functions have been removed:
 * `SbDoubleFloor`
 * `SbDoubleIsFinite`
 * `SbDoubleIsNan`
+* `SbStringGetLength`
+* `SbStringGetLengthWide`
 * `SbStringParseDouble`
 * `SbStringParseSignedInteger`
 * `SbStringParseUInt64`

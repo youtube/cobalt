@@ -6747,7 +6747,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   for (int i = 0; i < 2; ++i) {
@@ -6830,7 +6830,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send a packet.
@@ -6892,7 +6892,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -6958,7 +6958,7 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -7349,7 +7349,7 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
       .WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7441,7 +7441,7 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
       .WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7507,7 +7507,7 @@ TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
   EXPECT_TRUE(connection_.connected());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send two packets.

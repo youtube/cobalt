@@ -24,7 +24,7 @@ const char* kNull = NULL;
 
 TEST(SbStringFindLastCharacterTest, SunnyDay) {
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(kTestString + SbStringGetLength(kTestString) - 10 + i,
+    EXPECT_EQ(kTestString + strlen(kTestString) - 10 + i,
               SbStringFindLastCharacter(kTestString, '0' + i));
   }
 }

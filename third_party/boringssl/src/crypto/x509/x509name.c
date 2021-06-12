@@ -363,7 +363,7 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
                                       len, type,
                                       OBJ_obj2nid(ne->object)) ? 1 : 0;
     if (len < 0)
-        len = OPENSSL_port_strlen((const char *)bytes);
+        len = strlen((const char *)bytes);
     i = ASN1_STRING_set(ne->value, bytes, len);
     if (!i)
         return (0);

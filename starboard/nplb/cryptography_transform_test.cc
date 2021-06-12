@@ -166,7 +166,7 @@ TEST_P(Aes, SunnyDayIdentity) {
     SbCryptographySetAuthenticatedData(encrypter, aad.get(), aad_len);
   }
 
-  const int kInputSize = static_cast<int>(SbStringGetLength(kClearText));
+  const int kInputSize = static_cast<int>(strlen(kClearText));
   const int kBufferSize = static_cast<int>(sizeof(kClearText));
   char* cipher_text = new char[kBufferSize];
   memset(cipher_text, 0, kBufferSize);
@@ -206,7 +206,7 @@ TEST_P(Aes, SunnyDayIdentity) {
                                   decrypted_text);
 
   EXPECT_EQ(kInputSize, count);
-  EXPECT_EQ(kInputSize, SbStringGetLength(decrypted_text));
+  EXPECT_EQ(kInputSize, strlen(decrypted_text));
   EXPECT_STREQ(kClearText, decrypted_text);
 
   delete[] decrypted_text;

@@ -373,7 +373,7 @@ bool tls1_set_curves_list(Array<uint16_t> *out_group_ids, const char *curves) {
     col = OPENSSL_port_strchr(ptr, ':');
     if (!ssl_name_to_group_id(
             &group_ids[i++], ptr,
-            col ? (size_t)(col - ptr) : OPENSSL_port_strlen(ptr))) {
+            col ? (size_t)(col - ptr) : strlen(ptr))) {
       return false;
     }
     if (col) {
@@ -603,7 +603,7 @@ static bool ext_sni_add_clienthello(SSL_HANDSHAKE *hs, CBB *out) {
       !CBB_add_u8(&server_name_list, TLSEXT_NAMETYPE_host_name) ||
       !CBB_add_u16_length_prefixed(&server_name_list, &name) ||
       !CBB_add_bytes(&name, (const uint8_t *)ssl->hostname.get(),
-                     OPENSSL_port_strlen(ssl->hostname.get())) ||
+                     strlen(ssl->hostname.get())) ||
       !CBB_flush(out)) {
     return false;
   }

@@ -37,7 +37,7 @@ namespace x64x11 {
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (SbStringGetLength(from_value) + 1 > value_length)
+  if (strlen(from_value) + 1 > value_length)
     return false;
   SbStringCopy(out_value, from_value, value_length);
   return true;

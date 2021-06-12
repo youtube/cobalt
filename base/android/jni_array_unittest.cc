@@ -333,7 +333,7 @@ TEST(JniArray, JavaArrayOfByteArrayToStringVector) {
     snprintf(text, sizeof text, "%d", i);
     ScopedJavaLocalRef<jbyteArray> byte_array =
         ToJavaByteArray(env, reinterpret_cast<uint8_t*>(text),
-                        static_cast<size_t>(SbStringGetLength(text)));
+                        static_cast<size_t>(strlen(text)));
     ASSERT_TRUE(byte_array.obj());
 
     env->SetObjectArrayElement(array.obj(), i, byte_array.obj());

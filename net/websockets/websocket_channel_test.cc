@@ -370,7 +370,7 @@ std::vector<std::unique_ptr<WebSocketFrame>> CreateFrameVector(
     const InitFrame& source_frame = source_frames[i];
     auto result_frame = std::make_unique<WebSocketFrame>(source_frame.opcode);
     size_t frame_length =
-        source_frame.data ? SbStringGetLength(source_frame.data) : 0;
+        source_frame.data ? strlen(source_frame.data) : 0;
     WebSocketFrameHeader& result_header = result_frame->header;
     result_header.final = (source_frame.final == FINAL_FRAME);
     result_header.masked = (source_frame.masked == MASKED);
@@ -432,7 +432,7 @@ class EqualsFramesMatcher : public ::testing::MatcherInterface<
         return false;
       }
       const size_t expected_length =
-          expected_frame.data ? SbStringGetLength(expected_frame.data) : 0;
+          expected_frame.data ? strlen(expected_frame.data) : 0;
       if (actual_frame.header.payload_length != expected_length) {
         *listener << "the payload length is "
                   << actual_frame.header.payload_length;
@@ -2537,7 +2537,7 @@ TEST_F(WebSocketChannelStreamTest, WaitingMessagesAreBatched) {
   }
 
   CreateChannelAndConnectSuccessfully();
-  for (size_t i = 0; i < SbStringGetLength(input_letters); ++i) {
+  for (size_t i = 0; i < strlen(input_letters); ++i) {
     channel_->SendFrame(true, WebSocketFrameHeader::kOpCodeText,
                         AsIOBuffer(std::string(1, input_letters[i])), 1U);
   }

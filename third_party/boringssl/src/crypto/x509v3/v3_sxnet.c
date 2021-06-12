@@ -194,7 +194,7 @@ int SXNET_add_id_INTEGER(SXNET **psx, ASN1_INTEGER *zone, char *user,
         return 0;
     }
     if (userlen == -1)
-        userlen = OPENSSL_port_strlen(user);
+        userlen = strlen(user);
     if (userlen > 64) {
         OPENSSL_PUT_ERROR(X509V3, X509V3_R_USER_TOO_LONG);
         return 0;
@@ -215,7 +215,7 @@ int SXNET_add_id_INTEGER(SXNET **psx, ASN1_INTEGER *zone, char *user,
     if (!(id = SXNETID_new()))
         goto err;
     if (userlen == -1)
-        userlen = OPENSSL_port_strlen(user);
+        userlen = strlen(user);
 
     if (!M_ASN1_OCTET_STRING_set(id->user, user, userlen))
         goto err;

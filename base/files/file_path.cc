@@ -1238,7 +1238,7 @@ StringType FilePath::GetHFSDecomposedForm(StringPieceType string) {
                                                           length);
     if (success) {
       // Reduce result.length() to actual string length.
-      result.resize(SbStringGetLength(result.c_str()));
+      result.resize(strlen(result.c_str()));
     } else {
       // An error occurred -> clear result.
       result.clear();

@@ -330,7 +330,7 @@ TEST(DhcpPacFileAdapterFetcher, MockDhcpRealFetch) {
 TEST(DhcpPacFileAdapterFetcher, SanitizeDhcpApiString) {
   base::test::ScopedTaskEnvironment scoped_task_environment;
 
-  const size_t kBaseUrlLen = SbStringGetLength(BASE_URL);
+  const size_t kBaseUrlLen = strlen(BASE_URL);
 
   // Default case.
   EXPECT_EQ(BASE_URL, DhcpPacFileAdapterFetcher::SanitizeDhcpApiString(

@@ -7480,7 +7480,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectHttpsServer) {
       "GET / HTTP/1.1\r\n"
       "Host: mail.example.org\r\n"
       "Connection: keep-alive\r\n\r\n";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(get_request));
+  quic::QuicString header = ConstructDataHeader(strlen(get_request));
   if (version_ != quic::QUIC_VERSION_99) {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -7498,7 +7498,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectHttpsServer) {
   const char get_response[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Length: 10\r\n\r\n";
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(get_response));
+  quic::QuicString header2 = ConstructDataHeader(strlen(get_response));
   mock_quic_data.AddRead(
       ASYNC, ConstructServerDataPacket(
                  2, GetNthClientInitiatedBidirectionalStreamId(0), false, false,
@@ -7507,7 +7507,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectHttpsServer) {
   mock_quic_data.AddRead(
       SYNCHRONOUS, ConstructServerDataPacket(
                        3, GetNthClientInitiatedBidirectionalStreamId(0), false,
-                       false, SbStringGetLength(get_response) + header2.length(),
+                       false, strlen(get_response) + header2.length(),
                        header3 + quic::QuicString("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(4, 3, 2, 1));
   mock_quic_data.AddRead(SYNCHRONOUS, ERR_IO_PENDING);  // No more data to read
@@ -7516,7 +7516,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectHttpsServer) {
       SYNCHRONOUS,
       ConstructClientRstPacket(5, GetNthClientInitiatedBidirectionalStreamId(0),
                                quic::QUIC_STREAM_CANCELLED,
-                               SbStringGetLength(get_request) + header.length()));
+                               strlen(get_request) + header.length()));
 
   mock_quic_data.AddSocketDataToFactory(&socket_factory_);
 
@@ -7676,7 +7676,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       "GET / HTTP/1.1\r\n"
       "Host: mail.example.org\r\n"
       "Connection: keep-alive\r\n\r\n";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(get_request_1));
+  quic::QuicString header = ConstructDataHeader(strlen(get_request_1));
   if (version_ != quic::QUIC_VERSION_99) {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -7693,18 +7693,18 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
             client_data_offset, {header, quic::QuicString(get_request_1)}));
   }
 
-  client_data_offset += SbStringGetLength(get_request_1) + header.length();
+  client_data_offset += strlen(get_request_1) + header.length();
 
   const char get_response_1[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Length: 10\r\n\r\n";
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(get_response_1));
+  quic::QuicString header2 = ConstructDataHeader(strlen(get_response_1));
   mock_quic_data.AddRead(
       ASYNC,
       ConstructServerDataPacket(
           2, GetNthClientInitiatedBidirectionalStreamId(0), false, false,
           server_data_offset, header2 + quic::QuicString(get_response_1)));
-  server_data_offset += SbStringGetLength(get_response_1) + header2.length();
+  server_data_offset += strlen(get_response_1) + header2.length();
 
   quic::QuicString header3 = ConstructDataHeader(10);
   mock_quic_data.AddRead(
@@ -7721,7 +7721,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       "GET /2 HTTP/1.1\r\n"
       "Host: mail.example.org\r\n"
       "Connection: keep-alive\r\n\r\n";
-  quic::QuicString header4 = ConstructDataHeader(SbStringGetLength(get_request_2));
+  quic::QuicString header4 = ConstructDataHeader(strlen(get_request_2));
   if (version_ == quic::QUIC_VERSION_99) {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -7729,7 +7729,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
             write_packet_index++, GetNthClientInitiatedBidirectionalStreamId(0),
             false, false, client_data_offset,
             {header4, quic::QuicString(get_request_2)}));
-    client_data_offset += header4.length() + SbStringGetLength(get_request_2);
+    client_data_offset += header4.length() + strlen(get_request_2);
   } else {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -7737,19 +7737,19 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
                                   GetNthClientInitiatedBidirectionalStreamId(0),
                                   false, false, client_data_offset,
                                   quic::QuicStringPiece(get_request_2)));
-    client_data_offset += SbStringGetLength(get_request_2);
+    client_data_offset += strlen(get_request_2);
   }
 
   const char get_response_2[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Length: 7\r\n\r\n";
-  quic::QuicString header5 = ConstructDataHeader(SbStringGetLength(get_response_2));
+  quic::QuicString header5 = ConstructDataHeader(strlen(get_response_2));
   mock_quic_data.AddRead(
       ASYNC,
       ConstructServerDataPacket(
           4, GetNthClientInitiatedBidirectionalStreamId(0), false, false,
           server_data_offset, header5 + quic::QuicString(get_response_2)));
-  server_data_offset += SbStringGetLength(get_response_2) + header5.length();
+  server_data_offset += strlen(get_response_2) + header5.length();
 
   quic::QuicString header6 = ConstructDataHeader(7);
   mock_quic_data.AddRead(
@@ -7841,7 +7841,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
       "GET / HTTP/1.1\r\n"
       "Host: mail.example.org\r\n"
       "Connection: keep-alive\r\n\r\n";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(get_request));
+  quic::QuicString header = ConstructDataHeader(strlen(get_request));
   if (version_ != quic::QUIC_VERSION_99) {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -7859,7 +7859,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
   const char get_response[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Length: 10\r\n\r\n";
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(get_response));
+  quic::QuicString header2 = ConstructDataHeader(strlen(get_response));
   mock_quic_data.AddRead(
       ASYNC, ConstructServerDataPacket(
                  2, GetNthClientInitiatedBidirectionalStreamId(0), false, false,
@@ -7868,7 +7868,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
   mock_quic_data.AddRead(
       SYNCHRONOUS, ConstructServerDataPacket(
                        3, GetNthClientInitiatedBidirectionalStreamId(0), false,
-                       false, SbStringGetLength(get_response) + header2.length(),
+                       false, strlen(get_response) + header2.length(),
                        header3 + quic::QuicString("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(4, 3, 2, 1));
 
@@ -7932,7 +7932,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
       SYNCHRONOUS,
       ConstructClientRstPacket(8, GetNthClientInitiatedBidirectionalStreamId(0),
                                quic::QUIC_STREAM_CANCELLED,
-                               SbStringGetLength(get_request) + header.length()));
+                               strlen(get_request) + header.length()));
   mock_quic_data.AddWrite(
       SYNCHRONOUS,
       ConstructClientRstPacket(9, GetNthClientInitiatedBidirectionalStreamId(1),
@@ -8111,7 +8111,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectBadCertificate) {
       "GET / HTTP/1.1\r\n"
       "Host: mail.example.org\r\n"
       "Connection: keep-alive\r\n\r\n";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(get_request));
+  quic::QuicString header = ConstructDataHeader(strlen(get_request));
   if (version_ != quic::QUIC_VERSION_99) {
     mock_quic_data.AddWrite(
         SYNCHRONOUS,
@@ -8128,7 +8128,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectBadCertificate) {
   const char get_response[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Length: 10\r\n\r\n";
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(get_response));
+  quic::QuicString header2 = ConstructDataHeader(strlen(get_response));
   mock_quic_data.AddRead(
       ASYNC, ConstructServerDataPacket(
                  3, GetNthClientInitiatedBidirectionalStreamId(1), false, false,
@@ -8138,7 +8138,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectBadCertificate) {
   mock_quic_data.AddRead(
       SYNCHRONOUS, ConstructServerDataPacket(
                        4, GetNthClientInitiatedBidirectionalStreamId(1), false,
-                       false, SbStringGetLength(get_response) + header2.length(),
+                       false, strlen(get_response) + header2.length(),
                        header3 + quic::QuicString("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(6, 4, 3, 1));
   mock_quic_data.AddRead(SYNCHRONOUS, ERR_IO_PENDING);  // No more data to read
@@ -8147,7 +8147,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectBadCertificate) {
       SYNCHRONOUS,
       ConstructClientRstPacket(7, GetNthClientInitiatedBidirectionalStreamId(1),
                                quic::QUIC_STREAM_CANCELLED,
-                               SbStringGetLength(get_request) + header.length()));
+                               strlen(get_request) + header.length()));
 
   mock_quic_data.AddSocketDataToFactory(&socket_factory_);
 

@@ -27,7 +27,7 @@ void MatchesProxyServerHelper(const char* failure_message,
                               bool* did_fail) {
   // If |expected_proxy| is empty, then we expect |actual_proxies| to be so as
   // well.
-  if (SbStringGetLength(expected_proxy) == 0) {
+  if (strlen(expected_proxy) == 0) {
     if (!actual_proxies.IsEmpty()) {
       *did_fail = true;
       *failure_details

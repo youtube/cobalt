@@ -24,8 +24,8 @@ const char kInitial[] = "ABCDEFGHIJ";
 
 void TestConcat(const char* initial, const char* source, bool is_short) {
   const int kDestinationOffset = 16;
-  int initial_length = static_cast<int>(SbStringGetLength(initial));
-  int source_length = static_cast<int>(SbStringGetLength(source));
+  int initial_length = static_cast<int>(strlen(initial));
+  int source_length = static_cast<int>(strlen(source));
   int destination_size =
       initial_length + source_length + kDestinationOffset * 2;
   int destination_limit = initial_length + source_length + 1;
@@ -43,7 +43,7 @@ void TestConcat(const char* initial, const char* source, bool is_short) {
 
   // Expected to be one less than the limit due to the null terminator.
   int expected_length = destination_limit - 1;
-  EXPECT_EQ(expected_length, SbStringGetLength(dest));
+  EXPECT_EQ(expected_length, strlen(dest));
 
   // Validate the memory before the destination isn't touched.
   for (int i = 0; i < kDestinationOffset; ++i) {

@@ -102,7 +102,7 @@ TEST(UTFStringConversionsTest, ConvertUTF8ToWide) {
     std::wstring converted;
     EXPECT_EQ(convert_cases[i].success,
               UTF8ToWide(convert_cases[i].utf8,
-                         SbStringGetLength(convert_cases[i].utf8), &converted));
+                         strlen(convert_cases[i].utf8), &converted));
     std::wstring expected(convert_cases[i].wide);
     EXPECT_EQ(expected, converted);
   }

@@ -121,7 +121,7 @@ char* mkdtemp(char* path) {
     return NULL;
   }
 
-  const int path_len = SbStringGetLength(path);
+  const int path_len = strlen(path);
 
   // The last six characters of 'path' must be XXXXXX.
   const base::StringPiece kSuffix("XXXXXX");

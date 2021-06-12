@@ -34,7 +34,7 @@ class JSONParserTest : public testing::Test {
   // owned by |owner|, returning a StringPiece to |owner|.
   StringPiece MakeNotNullTerminatedInput(const char* input,
                                          std::unique_ptr<char[]>* owner) {
-    size_t str_len = SbStringGetLength(input);
+    size_t str_len = strlen(input);
     owner->reset(new char[str_len]);
     memcpy(owner->get(), input, str_len);
     return StringPiece(owner->get(), str_len);

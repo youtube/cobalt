@@ -361,8 +361,8 @@ TEST(SafeSPrintfTest, DataTypes) {
   sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
   memset(
       addr, ' ',
-      (char*)memmove(addr + sizeof(addr) - SbStringGetLength(addr) - 1,
-                          addr, SbStringGetLength(addr) + 1) -
+      (char*)memmove(addr + sizeof(addr) - strlen(addr) - 1,
+                          addr, strlen(addr) + 1) -
           addr);
   SafeSPrintf(buf, "%19p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
@@ -405,7 +405,7 @@ void PrintLongString(char* buf, size_t sz) {
     // Various sanity checks:
     // The numbered of characters needed to print the full string should always
     // be bigger or equal to the bytes that have actually been output.
-    len = SbStringGetLength(tmp.get());
+    len = strlen(tmp.get());
     CHECK_GE(needed, len+1);
 
     // The number of characters output should always fit into the buffer that
@@ -493,7 +493,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // happen in a lot of different states.
   char ref[256];
   PrintLongString(ref, sizeof(ref));
-  for (size_t i = SbStringGetLength(ref) + 1; i; --i) {
+  for (size_t i = strlen(ref) + 1; i; --i) {
     char buf[sizeof(ref)];
     PrintLongString(buf, i);
     EXPECT_EQ(std::string(ref, i - 1), std::string(buf));
@@ -506,7 +506,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // Repeat the truncation test and verify that this other code path in
   // SafeSPrintf() works correctly, too.
 #if !defined(NDEBUG)
-  for (size_t i = SbStringGetLength(ref) + 1; i > 1; --i) {
+  for (size_t i = strlen(ref) + 1; i > 1; --i) {
     ScopedSafeSPrintfSSizeMaxSetter ssize_max_setter(i);
     char buf[sizeof(ref)];
     PrintLongString(buf, sizeof(buf));

@@ -186,7 +186,7 @@ v8::Local<v8::String> ScriptDataToV8String(
 v8::Local<v8::String> ASCIILiteralToV8String(v8::Isolate* isolate,
                                              const char* ascii) {
   DCHECK(base::IsStringASCII(ascii));
-  size_t length = SbStringGetLength(ascii);
+  size_t length = strlen(ascii);
   if (length <= kMaxStringBytesForCopy)
     return v8::String::NewFromUtf8(isolate, ascii, v8::NewStringType::kNormal,
                                    length).ToLocalChecked();
@@ -383,9 +383,9 @@ class SharedIsolateFactory {
         // and not V8, so tune down V8 to use as little memory as possible.
         static const char kOptimizeForSize[] = "--optimize_for_size";
         v8::V8::SetFlagsFromString(kOptimizeForSize,
-                                   SbStringGetLength(kOptimizeForSize));
+                                   strlen(kOptimizeForSize));
         static const char kNoOpt[] = "--noopt";
-        v8::V8::SetFlagsFromString(kNoOpt, SbStringGetLength(kNoOpt));
+        v8::V8::SetFlagsFromString(kNoOpt, strlen(kNoOpt));
 
         gin::IsolateHolder::Initialize(
             gin::IsolateHolder::kNonStrictMode,

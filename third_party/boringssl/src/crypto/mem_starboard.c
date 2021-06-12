@@ -165,7 +165,7 @@ size_t OPENSSL_strnlen(const char *s, size_t len) {
 }
 
 char *OPENSSL_strdup(const char *s) {
-  const size_t len = SbStringGetLength(s) + 1;
+  const size_t len = strlen(s) + 1;
   char *ret = OPENSSL_malloc(len);
   if (ret == NULL) {
     return NULL;

@@ -87,7 +87,7 @@
 #define ft_strcat   SbStringConcatUnsafe
 #define ft_strcmp   SbStringCompareAll
 #define ft_strcpy   SbStringCopyUnsafe
-#define ft_strlen   SbStringGetLength
+#define ft_strlen   strlen
 #define ft_strncmp  SbStringCompare
 #define ft_strncpy  SbStringCopy
 #define ft_strrchr  SbStringFindLastCharacter

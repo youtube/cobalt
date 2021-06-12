@@ -168,7 +168,7 @@ PKCS8_PRIV_KEY_INFO *PKCS8_decrypt(X509_SIG *pkcs8, const char *pass,
                                    int pass_len_in) {
   size_t pass_len;
   if (pass_len_in == -1 && pass != NULL) {
-    pass_len = OPENSSL_port_strlen(pass);
+    pass_len = strlen(pass);
   } else {
     pass_len = (size_t)pass_len_in;
   }
@@ -203,7 +203,7 @@ X509_SIG *PKCS8_encrypt(int pbe_nid, const EVP_CIPHER *cipher, const char *pass,
                         int iterations, PKCS8_PRIV_KEY_INFO *p8inf) {
   size_t pass_len;
   if (pass_len_in == -1 && pass != NULL) {
-    pass_len = OPENSSL_port_strlen(pass);
+    pass_len = strlen(pass);
   } else {
     pass_len = (size_t)pass_len_in;
   }
@@ -663,7 +663,7 @@ int PKCS12_get_key_and_certs(EVP_PKEY **out_key, STACK_OF(X509) *out_certs,
   ctx.out_key = out_key;
   ctx.out_certs = out_certs;
   ctx.password = password;
-  ctx.password_len = password != NULL ? OPENSSL_port_strlen(password) : 0;
+  ctx.password_len = password != NULL ? strlen(password) : 0;
 
   // Verify the MAC.
   {
@@ -977,7 +977,7 @@ static int add_bag_attributes(CBB *bag, const char *name, const uint8_t *key_id,
     }
     // Convert the friendly name to a BMPString.
     CBS name_cbs;
-    CBS_init(&name_cbs, (const uint8_t *)name, OPENSSL_port_strlen(name));
+    CBS_init(&name_cbs, (const uint8_t *)name, strlen(name));
     while (CBS_len(&name_cbs) != 0) {
       uint32_t c;
       if (!cbs_get_utf8(&name_cbs, &c) ||
@@ -1155,7 +1155,7 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
   // Note that |password| may be NULL to specify no password, rather than the
   // empty string. They are encoded differently in PKCS#12. (One is the empty
   // byte array and the other is NUL-terminated UCS-2.)
-  size_t password_len = password != NULL ? OPENSSL_port_strlen(password) : 0;
+  size_t password_len = password != NULL ? strlen(password) : 0;
 
   uint8_t key_id[EVP_MAX_MD_SIZE];
   unsigned key_id_len = 0;

@@ -1265,7 +1265,7 @@ TEST(StringUtilTest, ReplaceChars) {
     // Test with an input/output var of ample capacity; should
     // not realloc.
     std::string input_output = scenario.input;
-    input_output.reserve(SbStringGetLength(scenario.output) * 2);
+    input_output.reserve(strlen(scenario.output) * 2);
     const void* original_buffer = input_output.data();
     bool result = ReplaceChars(input_output, scenario.replace_chars,
                                scenario.replace_with, &input_output);

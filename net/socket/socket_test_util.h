@@ -146,7 +146,7 @@ struct MockReadWrite {
       : mode(ASYNC),
         result(0),
         data(data),
-        data_len(SbStringGetLength(data)),
+        data_len(strlen(data)),
         sequence_number(0) {}
 
   // Read/write success (inferred data length).
@@ -154,7 +154,7 @@ struct MockReadWrite {
       : mode(io_mode),
         result(0),
         data(data),
-        data_len(SbStringGetLength(data)),
+        data_len(strlen(data)),
         sequence_number(0) {}
 
   // Read/write success.
@@ -170,7 +170,7 @@ struct MockReadWrite {
       : mode(io_mode),
         result(0),
         data(data),
-        data_len(SbStringGetLength(data)),
+        data_len(strlen(data)),
         sequence_number(seq) {}
 
   // Read/write success with sequence information.

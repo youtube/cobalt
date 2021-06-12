@@ -55,7 +55,7 @@ static uint32_t Read32LE(const uint8_t* p) {
 // end of the buffer.
 static bool StartsWith(const uint8_t* buffer, size_t buffer_size,
                        const char* prefix) {
-  size_t prefix_size = SbStringGetLength(prefix);
+  size_t prefix_size = strlen(prefix);
   return (prefix_size <= buffer_size &&
           memcmp(buffer, prefix, prefix_size) == 0);
 }
@@ -606,7 +606,7 @@ static bool CheckHls(const uint8_t* buffer, int buffer_size) {
     // "#EXT-X-MEDIA-SEQUENCE:" somewhere in the buffer. Other playlists (like
     // WinAmp) only have additional lines with #EXTINF
     // (http://en.wikipedia.org/wiki/M3U).
-    int offset = SbStringGetLength(kHlsSignature);
+    int offset = strlen(kHlsSignature);
     while (offset < buffer_size) {
       if (buffer[offset] == '#') {
         if (StartsWith(buffer + offset, buffer_size - offset, kHls1) ||

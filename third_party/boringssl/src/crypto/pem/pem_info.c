@@ -173,7 +173,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
             xi->x_pkey = X509_PKEY_new();
             ptype = EVP_PKEY_RSA;
             pp = &xi->x_pkey->dec_pkey;
-            if ((int)OPENSSL_port_strlen(header) > 10) /* assume encrypted */
+            if ((int)strlen(header) > 10) /* assume encrypted */
                 raw = 1;
         } else
 #ifndef OPENSSL_NO_DSA
@@ -193,7 +193,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
             xi->x_pkey = X509_PKEY_new();
             ptype = EVP_PKEY_DSA;
             pp = &xi->x_pkey->dec_pkey;
-            if ((int)OPENSSL_port_strlen(header) > 10) /* assume encrypted */
+            if ((int)strlen(header) > 10) /* assume encrypted */
                 raw = 1;
         } else
 #endif
@@ -213,7 +213,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
             xi->x_pkey = X509_PKEY_new();
             ptype = EVP_PKEY_EC;
             pp = &xi->x_pkey->dec_pkey;
-            if ((int)OPENSSL_port_strlen(header) > 10) /* assume encrypted */
+            if ((int)strlen(header) > 10) /* assume encrypted */
                 raw = 1;
         } else {
             d2i = NULL;
@@ -342,7 +342,7 @@ int PEM_X509_INFO_write_bio(BIO *bp, X509_INFO *xi, EVP_CIPHER *enc,
             }
 
             /* create the right magic header stuff */
-            assert(OPENSSL_port_strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
+            assert(strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
             buf[0] = '\0';
             PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
             PEM_dek_info(buf, objstr, iv_len, (char *)iv);
