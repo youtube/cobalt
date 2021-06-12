@@ -155,8 +155,8 @@ ExportedSymbols::ExportedSymbols(
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryCompare);
   REGISTER_SYMBOL(SbMemoryCopy);
-#endif
   REGISTER_SYMBOL(SbMemoryFindByte);
+#endif
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
   REGISTER_SYMBOL(SbMemoryGetStackBounds);

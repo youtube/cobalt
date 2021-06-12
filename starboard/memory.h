@@ -300,7 +300,6 @@ SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
 SB_EXPORT int SbMemoryCompare(const void* buffer1,
                               const void* buffer2,
                               size_t count);
-#endif // SB_API_VERSION < 13
 
 // Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|
 // and returns either a pointer to the first found occurrence or |NULL| if
@@ -309,6 +308,8 @@ SB_EXPORT int SbMemoryCompare(const void* buffer1,
 SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
                                        int value,
                                        size_t count);
+
+#endif // SB_API_VERSION < 13
 
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.

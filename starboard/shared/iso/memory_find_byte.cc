@@ -16,6 +16,8 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
 const void* SbMemoryFindByte(const void* buffer, int value, size_t count) {
   return memchr(buffer, value, count);
 }
+#endif // SB_API_VERSION < 13
