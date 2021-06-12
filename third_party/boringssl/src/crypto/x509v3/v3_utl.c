@@ -174,7 +174,7 @@ static char *bignum_to_string(const BIGNUM *bn)
         return NULL;
     }
 
-    len = OPENSSL_port_strlen(tmp) + 3;
+    len = strlen(tmp) + 3;
     ret = OPENSSL_malloc(len);
     if (ret == NULL) {
         OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
@@ -428,7 +428,7 @@ static char *strip_spaces(char *name)
         p++;
     if (!*p)
         return NULL;
-    q = p + OPENSSL_port_strlen(p) - 1;
+    q = p + strlen(p) - 1;
     while ((q != p) && isspace((unsigned char)*q))
         q--;
     if (p != q)
@@ -481,7 +481,7 @@ unsigned char *string_to_hex(const char *str, long *len)
         OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_NULL_ARGUMENT);
         return NULL;
     }
-    if (!(hexbuf = OPENSSL_malloc(OPENSSL_port_strlen(str) >> 1)))
+    if (!(hexbuf = OPENSSL_malloc(strlen(str) >> 1)))
         goto err;
     for (p = (unsigned char *)str, q = hexbuf; *p;) {
         ch = *p++;
@@ -541,7 +541,7 @@ int name_cmp(const char *name, const char *cmp)
 {
     int len, ret;
     char c;
-    len = OPENSSL_port_strlen(cmp);
+    len = strlen(cmp);
     if ((ret = OPENSSL_port_strncmp(name, cmp, len)))
         return ret;
     c = name[len];

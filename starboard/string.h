@@ -29,6 +29,8 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 13
+
 // Returns the length, in characters, of |str|.
 //
 // |str|: A zero-terminated ASCII string.
@@ -40,6 +42,8 @@ SB_EXPORT size_t SbStringGetLength(const char* str);
 //
 // |str|: A zero-terminated ASCII string.
 SB_EXPORT size_t SbStringGetLengthWide(const wchar_t* str);
+
+#endif  // SB_API_VERSION < 13
 
 // Copies as much of a |source| string as possible and null-terminates it,
 // given that |destination_size| characters of storage are available. This

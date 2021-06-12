@@ -338,7 +338,7 @@ int ASN1_STRING_set(ASN1_STRING *str, const void *_data, int len)
         if (data == NULL)
             return (0);
         else
-            len = OPENSSL_port_strlen(data);
+            len = strlen(data);
     }
     if ((str->length <= len) || (str->data == NULL)) {
         c = str->data;

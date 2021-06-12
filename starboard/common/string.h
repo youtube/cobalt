@@ -20,7 +20,7 @@
 #define STARBOARD_COMMON_STRING_H_
 
 #include <stdarg.h>
-
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -56,7 +56,7 @@ SB_C_INLINE std::string HexEncode(const void* data,
   const char kDecToHex[] = "0123456789abcdef";
 
   std::string result;
-  auto delimiter_size = delimiter ? SbStringGetLength(delimiter) : 0;
+  auto delimiter_size = delimiter ? std::strlen(delimiter) : 0;
   result.reserve((delimiter_size + 2) * size);
 
   const uint8_t* data_in_uint8 = static_cast<const uint8_t*>(data);

@@ -263,7 +263,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return false;
   }
 
-  int length = SbStringGetLength(path.data());
+  int length = strlen(path.data());
   if (length < 1 || length > path_size) {
     return false;
   }

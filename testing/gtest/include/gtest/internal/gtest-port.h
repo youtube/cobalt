@@ -2481,7 +2481,7 @@ inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
 }
 
 inline size_t StrLen(const char *str) {
-  return SbStringGetLength(str);
+  return strlen(str);
 }
 
 inline const char *StrChr(const char *str, char c) {

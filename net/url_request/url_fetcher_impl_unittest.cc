@@ -384,7 +384,7 @@ class URLFetcherTest : public TestWithScopedTaskEnvironment {
     ++num_upload_streams_created_;
     std::vector<char> buffer(
         kCreateUploadStreamBody,
-        kCreateUploadStreamBody + SbStringGetLength(kCreateUploadStreamBody));
+        kCreateUploadStreamBody + strlen(kCreateUploadStreamBody));
     return ElementsUploadDataStream::CreateWithReader(
         std::unique_ptr<UploadElementReader>(
             new UploadOwnedBytesElementReader(&buffer)),
@@ -546,13 +546,13 @@ TEST_F(URLFetcherTest, SameThreadTest) {
   ASSERT_TRUE(delegate.fetcher()->GetResponseAsString(&data));
   EXPECT_EQ(kDefaultResponseBody, data);
 
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kDefaultResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kDefaultResponseBody)),
             delegate.fetcher()->GetReceivedResponseContentLength());
   std::string parsed_headers;
   base::ReplaceChars(delegate.fetcher()->GetResponseHeaders()->raw_headers(),
                      std::string("\0", 1), "\n\r", &parsed_headers);
   EXPECT_EQ(static_cast<int64_t>(parsed_headers.size() +
-                                 SbStringGetLength(kDefaultResponseBody)),
+                                 strlen(kDefaultResponseBody)),
             delegate.fetcher()->GetTotalReceivedBytes());
   EXPECT_EQ(ProxyServer::SCHEME_DIRECT,
             delegate.fetcher()->ProxyServerUsed().scheme());

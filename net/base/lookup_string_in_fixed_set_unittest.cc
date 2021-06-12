@@ -53,7 +53,7 @@ class LookupStringInFixedSetTest : public testing::TestWithParam<Expectation> {
  protected:
   template <size_t N>
   int LookupInGraph(const unsigned char(&graph)[N], const char* key) {
-    return LookupStringInFixedSet(graph, N, key, SbStringGetLength(key));
+    return LookupStringInFixedSet(graph, N, key, strlen(key));
   }
 };
 

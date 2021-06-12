@@ -1824,7 +1824,7 @@ gethex( CONST char **sp, U *rvp, int rounding, int sign)
 	if (!(s0 = decimalpoint_cache)) {
 		s0 = (unsigned char*)localeconv()->decimal_point;
                 if ((decimalpoint_cache = (unsigned char*)MALLOC(
-                         SbStringGetLength((CONST char*)s0) + 1))) {
+                         strlen((CONST char*)s0) + 1))) {
                   SbStringCopyUnsafe((char*)decimalpoint_cache,
                                      (CONST char*)s0);
                   s0 = decimalpoint_cache;

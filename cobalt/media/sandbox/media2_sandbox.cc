@@ -121,7 +121,7 @@ int SandboxMain(int argc, char** argv) {
       demuxer->AddId("audio", "audio/mp4; codecs=\"mp4a.40.2\"");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
-  int video_url_length = SbStringGetLength(argv[2]);
+  int video_url_length = strlen(argv[2]);
   if (video_url_length > 5 &&
       SbStringCompare(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
     status = demuxer->AddId("video", "video/webm; codecs=\"vp9\"");

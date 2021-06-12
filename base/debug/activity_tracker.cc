@@ -984,7 +984,7 @@ bool ThreadActivityTracker::CreateSnapshot(Snapshot* output_snapshot) const {
     // if the trailing NUL were missing. Now limit the length if the actual
     // name is shorter.
     output_snapshot->thread_name.resize(
-        SbStringGetLength(output_snapshot->thread_name.c_str()));
+        strlen(output_snapshot->thread_name.c_str()));
 
     // If the data ID has changed then the tracker has exited and the memory
     // reused by a new one. Try again.

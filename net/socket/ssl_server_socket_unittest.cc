@@ -316,7 +316,7 @@ TEST(FakeSocketTest, DataTransfer) {
   FakeSocket server(&channel_2, &channel_1);
 
   const char kTestData[] = "testing123";
-  const int kTestDataSize = SbStringGetLength(kTestData);
+  const int kTestDataSize = strlen(kTestData);
   const int kReadBufSize = 1024;
   scoped_refptr<IOBuffer> write_buf =
       base::MakeRefCounted<StringIOBuffer>(kTestData);

@@ -89,38 +89,6 @@ static SB_C_INLINE char* PoemFindLastCharacterInString(const char* str,
 extern "C" {
 #endif
 
-// Concatenates |source| onto the end of |out_destination|, presuming it has
-// atleast strlen(out_destination) + |num_chars_to_copy| + 1 total characters of
-// storage available. Returns |out_destination|.  This method is a drop-in
-// replacement for strncat.
-// Note: even if num_chars_to_copy == 0, we will still write a NULL character.
-// This is consistent with the language of linux's strncat man page:
-// "Therefore, the size of dest must be at least strlen(dest)+n+1."
-static SB_C_INLINE char* PoemStringConcat(char* out_destination,
-                                          const char* source,
-                                          int num_chars_to_copy) {
-  if (num_chars_to_copy <= 0)
-    return out_destination;
-
-  int destination_length = (int)(SbStringGetLength(out_destination));
-
-  int destination_size = destination_length + num_chars_to_copy + 1;
-  if (destination_size < 0) {  // Did we accidentally overflow?
-    destination_size = INT_MAX;
-  }
-  SbStringConcat(out_destination, source, destination_size);
-  return out_destination;
-}
-
-// Inline wrapper for an unsafe PoemStringConcat that assumes |out_destination|
-// is big enough. Returns |out_destination|.  Meant to be a drop-in replacement
-// for strcat.
-static SB_C_INLINE char* PoemStringConcatUnsafe(char* out_destination,
-                                                const char* source) {
-  return PoemStringConcat(out_destination, source,
-                          (int)SbStringGetLength(source));
-}
-
 // Inline wrapper for a drop-in replacement for |strncpy|.  This function
 // copies the null terminated string from src to dest.  If the src string is
 // shorter than num_chars_to_copy, then null padding is used.
@@ -149,27 +117,9 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 
   SB_DCHECK(dest_write_iterator_end >= dest_write_iterator);
   memset(dest_write_iterator, '\0',
-              dest_write_iterator_end - dest_write_iterator);
+         dest_write_iterator_end - dest_write_iterator);
 
   return dest;
-}
-
-// Inline wrapper for a drop-in replacement for |strcspn|. This function scans
-// str1 for the first occurrence of any character that is in str2. If a
-// character from str2 is found in str1, this function returns the number of
-// characters in str1 checked before the first occurrence of the str2 character.
-// If none of the str2 characters are found in str1, then the function returns
-// the length of str1.
-static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
-                                                    const char* str2) {
-  size_t length = SbStringGetLength(str1);
-  for (size_t i = 0; i < length; ++i) {
-    const char* result = SbStringFindCharacter(str2, str1[i]);
-    if (result) {
-      return i;
-    }
-  }
-  return length;
 }
 
 #ifdef __cplusplus
@@ -178,16 +128,10 @@ static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
 
 #if !defined(POEM_NO_EMULATION)
 
-#undef strlen
-#define strlen(s) SbStringGetLength(s)
 #undef strcpy
 #define strcpy(o, s) SbStringCopyUnsafe(o, s)
 #undef strncpy
 #define strncpy(o, s, ds) PoemStringCopyN(o, s, ds)
-#undef strcat
-#define strcat(o, s) PoemStringConcatUnsafe(o, s)
-#undef strncat
-#define strncat(o, s, ds) PoemStringConcat(o, s, ds)
 #undef strdup
 #define strdup(s) SbStringDuplicate(s)
 #undef strchr
@@ -201,7 +145,6 @@ static SB_C_INLINE size_t PoemGetSpanUntilCharacter(const char* str1,
 #undef strcmp
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 #undef strcspn
-#define strcspn(s1, s2) PoemGetSpanUntilCharacter(s1, s2)
 
 // TODO: Replace forward declarations with <cstring> once string_poem is
 // trimmed down.
@@ -210,7 +153,7 @@ extern "C" {
 #endif
 
 #ifndef memmove
-void *memmove(void *dest, const void *src, size_t n);
+void* memmove(void* dest, const void* src, size_t n);
 #endif
 
 #ifdef __cplusplus

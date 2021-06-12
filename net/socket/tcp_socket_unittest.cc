@@ -591,9 +591,9 @@ TEST_F(TCPSocketTest, CancelPendingReadIfReady) {
 
   TestCompletionCallback write_callback;
   int write_result = accepted_socket->Write(
-      write_buffer.get(), SbStringGetLength(kMsg), write_callback.callback(),
+      write_buffer.get(), strlen(kMsg), write_callback.callback(),
       TRAFFIC_ANNOTATION_FOR_TESTS);
-  const int msg_size = SbStringGetLength(kMsg);
+  const int msg_size = strlen(kMsg);
   ASSERT_EQ(msg_size, write_result);
 
   TestCompletionCallback read_callback2;
@@ -748,9 +748,9 @@ TEST_F(TCPSocketTest, Tag) {
       base::MakeRefCounted<StringIOBuffer>(kRequest1);
   TestCompletionCallback write_callback1;
   EXPECT_EQ(
-      socket_.Write(write_buffer1.get(), SbStringGetLength(kRequest1),
+      socket_.Write(write_buffer1.get(), strlen(kRequest1),
                     write_callback1.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-      static_cast<int>(SbStringGetLength(kRequest1)));
+      static_cast<int>(strlen(kRequest1)));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
 
   // Verify socket can be retagged with a new value and the current process's
@@ -762,9 +762,9 @@ TEST_F(TCPSocketTest, Tag) {
       base::MakeRefCounted<StringIOBuffer>(kRequest2);
   TestCompletionCallback write_callback2;
   EXPECT_EQ(
-      socket_.Write(write_buffer2.get(), SbStringGetLength(kRequest2),
+      socket_.Write(write_buffer2.get(), strlen(kRequest2),
                     write_callback2.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-      static_cast<int>(SbStringGetLength(kRequest2)));
+      static_cast<int>(strlen(kRequest2)));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 
   socket_.Close();
@@ -797,9 +797,9 @@ TEST_F(TCPSocketTest, TagAfterConnect) {
       base::MakeRefCounted<StringIOBuffer>(kRequest1);
   TestCompletionCallback write_callback1;
   EXPECT_EQ(
-      socket_.Write(write_buffer1.get(), SbStringGetLength(kRequest1),
+      socket_.Write(write_buffer1.get(), strlen(kRequest1),
                     write_callback1.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-      static_cast<int>(SbStringGetLength(kRequest1)));
+      static_cast<int>(strlen(kRequest1)));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
 
   // Verify socket can be retagged with a new value and the current process's
@@ -813,9 +813,9 @@ TEST_F(TCPSocketTest, TagAfterConnect) {
       base::MakeRefCounted<StringIOBuffer>(kRequest2);
   TestCompletionCallback write_callback2;
   EXPECT_EQ(
-      socket_.Write(write_buffer2.get(), SbStringGetLength(kRequest2),
+      socket_.Write(write_buffer2.get(), strlen(kRequest2),
                     write_callback2.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-      static_cast<int>(SbStringGetLength(kRequest2)));
+      static_cast<int>(strlen(kRequest2)));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 
   socket_.Close();

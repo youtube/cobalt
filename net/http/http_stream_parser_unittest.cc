@@ -1234,7 +1234,7 @@ TEST(HttpStreamParser, WebSocket101Response) {
                               read_buffer->capacity()));
 
   EXPECT_EQ(CountWriteBytes(writes), parser.sent_bytes());
-  EXPECT_EQ(CountReadBytes(reads) - static_cast<int64_t>(SbStringGetLength(
+  EXPECT_EQ(CountReadBytes(reads) - static_cast<int64_t>(strlen(
                                         "a fake websocket frame")),
             parser.received_bytes());
 }

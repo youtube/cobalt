@@ -109,7 +109,7 @@ void PEM_dek_info(char *buf, const char *type, int len, char *str)
     BUF_strlcat(buf, "DEK-Info: ", PEM_BUFSIZE);
     BUF_strlcat(buf, type, PEM_BUFSIZE);
     BUF_strlcat(buf, ",", PEM_BUFSIZE);
-    j = OPENSSL_port_strlen(buf);
+    j = strlen(buf);
     if (j + (len * 2) + 1 > PEM_BUFSIZE)
         return;
     for (i = 0; i < len; i++) {
@@ -338,7 +338,7 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
         if (kstr == (unsigned char *)buf)
             OPENSSL_cleanse(buf, PEM_BUFSIZE);
 
-        assert(OPENSSL_port_strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
+        assert(strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
 
         buf[0] = '\0';
         PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
@@ -540,14 +540,14 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
     int reason = ERR_R_BUF_LIB;
 
     EVP_EncodeInit(&ctx);
-    nlen = OPENSSL_port_strlen(name);
+    nlen = strlen(name);
 
     if ((BIO_write(bp, "-----BEGIN ", 11) != 11) ||
         (BIO_write(bp, name, nlen) != nlen) ||
         (BIO_write(bp, "-----\n", 6) != 6))
         goto err;
 
-    i = OPENSSL_port_strlen(header);
+    i = strlen(header);
     if (i > 0) {
         if ((BIO_write(bp, header, i) != i) || (BIO_write(bp, "\n", 1) != 1))
             goto err;
@@ -641,7 +641,7 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
         buf[++i] = '\0';
 
         if (OPENSSL_port_strncmp(buf, "-----BEGIN ", 11) == 0) {
-            i = OPENSSL_port_strlen(&(buf[11]));
+            i = strlen(&(buf[11]));
 
             if (OPENSSL_port_strncmp(&(buf[11 + i - 6]), "-----\n", 6) != 0)
                 continue;
@@ -735,7 +735,7 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
         dataB = tmpB;
         bl = hl;
     }
-    i = OPENSSL_port_strlen(nameB->data);
+    i = strlen(nameB->data);
     if ((OPENSSL_port_strncmp(buf, "-----END ", 9) != 0) ||
         (OPENSSL_port_strncmp(nameB->data, &(buf[9]), i) != 0) ||
         (OPENSSL_port_strncmp(&(buf[9 + i]), "-----\n", 6) != 0)) {
@@ -780,7 +780,7 @@ int PEM_def_callback(char *buf, int size, int rwflag, void *userdata)
     if (!buf || !userdata || size < 0) {
         return 0;
     }
-    size_t len = OPENSSL_port_strlen((char *)userdata);
+    size_t len = strlen((char *)userdata);
     if (len >= (size_t)size) {
         return 0;
     }

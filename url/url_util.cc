@@ -472,7 +472,7 @@ void DoAddScheme(const char* new_scheme, std::vector<std::string>* schemes) {
   DCHECK(!scheme_registries_locked)
       << "Trying to add a scheme after the lists have been locked.";
 
-  size_t scheme_len = SbStringGetLength(new_scheme);
+  size_t scheme_len = strlen(new_scheme);
   if (scheme_len == 0)
     return;
 
@@ -494,7 +494,7 @@ void DoAddSchemeWithType(const char* new_scheme,
   DCHECK(!scheme_registries_locked)
       << "Trying to add a scheme after the lists have been locked.";
 
-  size_t scheme_len = SbStringGetLength(new_scheme);
+  size_t scheme_len = strlen(new_scheme);
   if (scheme_len == 0)
     return;
 

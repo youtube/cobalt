@@ -66,7 +66,7 @@ class VideoTrack : public TrackBase {
            SbStringCompareAll(kind, "sign") == 0 ||
            SbStringCompareAll(kind, "subtitles") == 0 ||
            SbStringCompareAll(kind, "commentary") == 0 ||
-           SbStringGetLength(kind) == 0;
+           strlen(kind) == 0;
   }
 
   // Reset selected flag without notifying the media element.  This is used by

@@ -475,7 +475,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
         p = OPENSSL_port_strchr(hostptr, '/');
 
     if (!p)
-        hostlen = OPENSSL_port_strlen(hostptr);
+        hostlen = strlen(hostptr);
     else
         hostlen = p - hostptr;
 

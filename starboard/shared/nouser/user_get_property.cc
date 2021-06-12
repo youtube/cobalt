@@ -27,10 +27,10 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
 
   switch (property_id) {
     case kSbUserPropertyUserName:
-      return static_cast<int>(SbStringGetLength(user->name) + 1);
+      return static_cast<int>(strlen(user->name) + 1);
 
     case kSbUserPropertyUserId:
-      return static_cast<int>(SbStringGetLength(user->id) + 1);
+      return static_cast<int>(strlen(user->id) + 1);
 
     case kSbUserPropertyHomeDirectory: {
       std::vector<char> path(kSbFileMaxPath);
@@ -39,7 +39,7 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
                                                        path_size)) {
         return 0;
       }
-      return static_cast<int>(SbStringGetLength(path.data()));
+      return static_cast<int>(strlen(path.data()));
     }
 
     case kSbUserPropertyAvatarUrl:

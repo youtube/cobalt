@@ -26,7 +26,7 @@ class FtpCtrlResponseBufferTest : public testing::Test {
 
  protected:
   int PushDataToBuffer(const char* data) {
-    return buffer_.ConsumeData(data, SbStringGetLength(data));
+    return buffer_.ConsumeData(data, strlen(data));
   }
 
   FtpCtrlResponseBuffer buffer_;

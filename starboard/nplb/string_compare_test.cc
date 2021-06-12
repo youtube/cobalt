@@ -26,11 +26,11 @@ TEST(SbStringCompareTest, SunnyDay) {
   const char kString1[] = "0123456788";
   const char kString2[] = "0123456789";
   EXPECT_EQ(0,
-            SbStringCompare(kString1, kString1, SbStringGetLength(kString1)));
+            SbStringCompare(kString1, kString1, strlen(kString1)));
   EXPECT_GT(0,
-            SbStringCompare(kString1, kString2, SbStringGetLength(kString1)));
+            SbStringCompare(kString1, kString2, strlen(kString1)));
   EXPECT_LT(0,
-            SbStringCompare(kString2, kString1, SbStringGetLength(kString2)));
+            SbStringCompare(kString2, kString1, strlen(kString2)));
 }
 
 }  // namespace

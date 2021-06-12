@@ -732,7 +732,7 @@ TEST_F(QuicIetfFramerTest, StreamFrame) {
       "can do a simple strcmp to see if the "
       "input and output are the same!";
 
-  size_t transmit_packet_data_len = SbStringGetLength(transmit_packet_data) + 1;
+  size_t transmit_packet_data_len = strlen(transmit_packet_data) + 1;
   for (size_t i = 0; i < QUIC_ARRAYSIZE(stream_frame_to_test); ++i) {
     SCOPED_TRACE(i);
     struct stream_frame_variant* variant = &stream_frame_to_test[i];

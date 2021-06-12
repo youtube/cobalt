@@ -52,7 +52,7 @@ class DecodeBufferTest : public ::testing::Test {
 
 TEST_F(DecodeBufferTest, DecodesFixedInts) {
   const char data[] = "\x01\x12\x23\x34\x45\x56\x67\x78\x89\x9a";
-  DecodeBuffer b1(data, SbStringGetLength(data));
+  DecodeBuffer b1(data, strlen(data));
   EXPECT_EQ(1, b1.DecodeUInt8());
   EXPECT_EQ(0x1223u, b1.DecodeUInt16());
   EXPECT_EQ(0x344556u, b1.DecodeUInt24());

@@ -230,7 +230,7 @@ static bool FindPreferredExtension(const MimeInfo (&mappings)[num_mappings],
       const char* extensions = mapping.extensions;
       const char* extension_end = strchr(extensions, ',');
       int len = extension_end ? extension_end - extensions
-                              : SbStringGetLength(extensions);
+                              : strlen(extensions);
       *result = StringToFilePathStringType(base::StringPiece(extensions, len));
       return true;
     }

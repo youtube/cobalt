@@ -2080,7 +2080,7 @@ TEST_F(HttpCacheTest, RangeGET_ParallelValidationCouldConditionalize) {
   mock_transaction.data = kFullRangeData;
   std::string response_headers_str = base::StrCat(
       {"ETag: StrongOne\n", "Content-Length:",
-       base::IntToString(SbStringGetLength(kFullRangeData)), "\n"});
+       base::IntToString(strlen(kFullRangeData)), "\n"});
   mock_transaction.response_headers = response_headers_str.c_str();
 
   ScopedMockTransaction transaction(mock_transaction);

@@ -153,7 +153,7 @@ static int process_pci_value(CONF_VALUE *val,
             }
             OPENSSL_free(tmp_data2);
         } else if (OPENSSL_port_strncmp(val->value, "text:", 5) == 0) {
-            val_len = OPENSSL_port_strlen(val->value + 5);
+            val_len = strlen(val->value + 5);
             tmp_data = OPENSSL_realloc((*policy)->data,
                                        (*policy)->length + val_len + 1);
             if (tmp_data) {

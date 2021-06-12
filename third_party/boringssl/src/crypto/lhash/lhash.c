@@ -346,5 +346,5 @@ uint32_t lh_strhash(const char *c) {
     return 0;
   }
 
-  return OPENSSL_hash32(c, OPENSSL_port_strlen(c));
+  return OPENSSL_hash32(c, strlen(c));
 }

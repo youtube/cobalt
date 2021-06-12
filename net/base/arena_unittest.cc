@@ -21,7 +21,7 @@ const char kTestString[] = "This is a decently long test string.";
 
 TEST(UnsafeArenaTest, Memdup) {
   UnsafeArena arena(kDefaultBlockSize);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
   EXPECT_NE(c, kTestString);
@@ -30,7 +30,7 @@ TEST(UnsafeArenaTest, Memdup) {
 
 TEST(UnsafeArenaTest, MemdupLargeString) {
   UnsafeArena arena(10 /* block size */);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
   EXPECT_NE(c, kTestString);
@@ -55,7 +55,7 @@ TEST(UnsafeArenaTest, MultipleBlocks) {
 
 TEST(UnsafeArenaTest, UseAfterReset) {
   UnsafeArena arena(kDefaultBlockSize);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   char* c = arena.Memdup(kTestString, length);
   arena.Reset();
   c = arena.Memdup(kTestString, length);
@@ -66,7 +66,7 @@ TEST(UnsafeArenaTest, UseAfterReset) {
 
 TEST(UnsafeArenaTest, Free) {
   UnsafeArena arena(kDefaultBlockSize);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   // Freeing memory not owned by the arena should be a no-op, and freeing
   // before any allocations from the arena should be a no-op.
   arena.Free(const_cast<char*>(kTestString), length);
@@ -92,7 +92,7 @@ TEST(UnsafeArenaTest, Free) {
 
 TEST(UnsafeArenaTest, Alloc) {
   UnsafeArena arena(kDefaultBlockSize);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   char* c1 = arena.Alloc(length);
   char* c2 = arena.Alloc(2 * length);
   char* c3 = arena.Alloc(3 * length);
@@ -105,7 +105,7 @@ TEST(UnsafeArenaTest, Alloc) {
 
 TEST(UnsafeArenaTest, Realloc) {
   UnsafeArena arena(kDefaultBlockSize);
-  const size_t length = SbStringGetLength(kTestString);
+  const size_t length = strlen(kTestString);
   // Simple realloc that fits in the block.
   char* c1 = arena.Memdup(kTestString, length);
   char* c2 = arena.Realloc(c1, length, 2 * length);

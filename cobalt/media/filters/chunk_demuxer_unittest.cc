@@ -267,7 +267,7 @@ class ChunkDemuxerTest : public ::testing::Test {
       if (stream_flags & USE_ALTERNATE_TEXT_TRACK_ID)
         str[4] = kAlternateTextTrackNum;
 
-      const int len = SbStringGetLength(str);
+      const int len = strlen(str);
       DCHECK_EQ(len, 32);
       const uint8_t* const buf = reinterpret_cast<const uint8_t*>(str);
       text_track_entry = DecoderBuffer::CopyFrom(buf, len);

@@ -82,7 +82,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
 
   while (SbDirectoryGetNext(sb_certs_directory, dir_entry.data(),
                             dir_entry.size())) {
-    if (SbStringGetLength(dir_entry.data()) != kCertFileNameLength) {
+    if (strlen(dir_entry.data()) != kCertFileNameLength) {
       continue;
     }
     trusted_certs_on_disk.emplace(dir_entry.data());
@@ -91,7 +91,7 @@ std::unordered_set<std::string> GetCertNamesOnDisk() {
   SbDirectoryEntry dir_entry;
 
   while (SbDirectoryGetNext(sb_certs_directory, &dir_entry)) {
-    if (SbStringGetLength(dir_entry.name) != kCertFileNameLength) {
+    if (strlen(dir_entry.name) != kCertFileNameLength) {
       continue;
     }
     trusted_certs_on_disk.emplace(dir_entry.name);

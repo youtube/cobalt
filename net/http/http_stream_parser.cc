@@ -44,7 +44,7 @@ std::string GetResponseHeaderLines(const HttpResponseHeaders& headers) {
   while (header_line[0] != 0) {
     cr_separated_headers += header_line;
     cr_separated_headers += "\n";
-    header_line += SbStringGetLength(header_line) + 1;
+    header_line += strlen(header_line) + 1;
   }
   return cr_separated_headers;
 }

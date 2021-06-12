@@ -16,6 +16,10 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
+
 size_t SbStringGetLength(const char* str) {
   return strlen(str);
 }
+
+#endif  // SB_API_VERSION < 13

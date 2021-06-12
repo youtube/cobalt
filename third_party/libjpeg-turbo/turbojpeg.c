@@ -30,6 +30,7 @@
    libjpeg-turbo */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <jinclude.h>
 

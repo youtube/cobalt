@@ -58,10 +58,10 @@ bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
   }
 
   EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kContextStr,
-                   SbStringGetLength(ChannelIDVerifier::kContextStr) + 1);
+                   strlen(ChannelIDVerifier::kContextStr) + 1);
   EVP_DigestUpdate(
       md_ctx.get(), ChannelIDVerifier::kClientToServerStr,
-      SbStringGetLength(ChannelIDVerifier::kClientToServerStr) + 1);
+      strlen(ChannelIDVerifier::kClientToServerStr) + 1);
   EVP_DigestUpdate(md_ctx.get(), signed_data.data(), signed_data.size());
 
   size_t sig_len;
@@ -847,7 +847,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
 }
 
 QuicTag ParseTag(const char* tagstr) {
-  const size_t len = SbStringGetLength(tagstr);
+  const size_t len = strlen(tagstr);
   CHECK_NE(0u, len);
 
   QuicTag tag = 0;

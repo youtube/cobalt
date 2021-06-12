@@ -267,7 +267,7 @@ TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
       // Convert ASCII to FilePath::StringType.
       base::FilePath::StringType contained_result(
           test.contained_result,
-          test.contained_result + SbStringGetLength(test.contained_result));
+          test.contained_result + strlen(test.contained_result));
 
       bool found = base::ContainsValue(extensions, contained_result);
 

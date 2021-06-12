@@ -396,7 +396,7 @@ static ASN1_OBJECT *create_object_with_text_oid(int (*get_nid)(void),
   size_t len;
   CBB cbb;
   if (!CBB_init(&cbb, 32) ||
-      !CBB_add_asn1_oid_from_text(&cbb, oid, OPENSSL_port_strlen(oid)) ||
+      !CBB_add_asn1_oid_from_text(&cbb, oid, strlen(oid)) ||
       !CBB_finish(&cbb, &buf, &len)) {
     OPENSSL_PUT_ERROR(OBJ, OBJ_R_INVALID_OID_STRING);
     CBB_cleanup(&cbb);

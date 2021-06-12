@@ -151,8 +151,8 @@ TEST(JSONValueDeserializerTest, ReadProperJSONFromFile) {
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
   // Write it down in the file.
   FilePath temp_file(tempdir.GetPath().AppendASCII("test.json"));
-  ASSERT_EQ(static_cast<int>(SbStringGetLength(kProperJSON)),
-            WriteFile(temp_file, kProperJSON, SbStringGetLength(kProperJSON)));
+  ASSERT_EQ(static_cast<int>(strlen(kProperJSON)),
+            WriteFile(temp_file, kProperJSON, strlen(kProperJSON)));
 
   // Try to deserialize it through the serializer.
   JSONFileValueDeserializer file_deserializer(temp_file);
@@ -175,9 +175,9 @@ TEST(JSONValueDeserializerTest, ReadJSONWithCommasFromFile) {
   ASSERT_TRUE(tempdir.CreateUniqueTempDir());
   // Write it down in the file.
   FilePath temp_file(tempdir.GetPath().AppendASCII("test.json"));
-  ASSERT_EQ(static_cast<int>(SbStringGetLength(kProperJSONWithCommas)),
+  ASSERT_EQ(static_cast<int>(strlen(kProperJSONWithCommas)),
             WriteFile(temp_file, kProperJSONWithCommas,
-                      SbStringGetLength(kProperJSONWithCommas)));
+                      strlen(kProperJSONWithCommas)));
 
   // Try to deserialize it through the serializer.
   JSONFileValueDeserializer file_deserializer(temp_file);

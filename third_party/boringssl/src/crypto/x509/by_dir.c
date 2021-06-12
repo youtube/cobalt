@@ -229,7 +229,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
                 continue;
             for (j = 0; j < sk_BY_DIR_ENTRY_num(ctx->dirs); j++) {
                 ent = sk_BY_DIR_ENTRY_value(ctx->dirs, j);
-                if (OPENSSL_port_strlen(ent->dir) == len &&
+                if (strlen(ent->dir) == len &&
                     OPENSSL_port_strncmp(ent->dir, ss, len) == 0)
                     break;
             }
@@ -328,7 +328,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
             size_t idx;
             BY_DIR_HASH htmp, *hent;
             ent = sk_BY_DIR_ENTRY_value(ctx->dirs, i);
-            j = OPENSSL_port_strlen(ent->dir) + 1 + 8 + 6 + 1 + 1;
+            j = strlen(ent->dir) + 1 + 8 + 6 + 1 + 1;
             if (!BUF_MEM_grow(b, j)) {
                 OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
                 goto finish;
@@ -351,7 +351,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
             for (;;) {
                 char c = '/';
 #ifdef OPENSSL_SYS_VMS
-                c = ent->dir[OPENSSL_port_strlen(ent->dir) - 1];
+                c = ent->dir[strlen(ent->dir) - 1];
                 if (c != ':' && c != '>' && c != ']') {
                     /*
                      * If no separator is present, we assume the directory

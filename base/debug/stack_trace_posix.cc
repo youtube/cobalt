@@ -116,7 +116,7 @@ void DemangleSymbols(std::string* text) {
       // Insert the demangled symbol.
       text->insert(mangled_start, demangled_symbol.get());
       // Next time, we'll start right after the demangled symbol we inserted.
-      search_from = mangled_start + SbStringGetLength(demangled_symbol.get());
+      search_from = mangled_start + strlen(demangled_symbol.get());
     } else {
       // Failed to demangle.  Retry after the "_Z" we just found.
       search_from = mangled_start + 2;
@@ -223,7 +223,7 @@ void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
   ignore_result(
-      HANDLE_EINTR(write(STDERR_FILENO, output, SbStringGetLength(output))));
+      HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output))));
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {

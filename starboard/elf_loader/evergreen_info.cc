@@ -14,6 +14,8 @@
 
 #include "starboard/elf_loader/evergreen_info.h"
 
+#include <cstring>
+
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
@@ -32,7 +34,7 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
     return false;
   }
   if (evergreen_info != NULL && evergreen_info->base_address != 0 &&
-      SbStringGetLength(evergreen_info->file_path_buf) != 0) {
+      strlen(evergreen_info->file_path_buf) != 0) {
     g_evergreen_info = *evergreen_info;
     g_valid_info = true;
   } else {

@@ -208,7 +208,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from) {
     return 0;
   }
 
-  len = OPENSSL_port_strlen(from) + 1;
+  len = strlen(from) + 1;
   if (!BUF_MEM_grow(buf, len)) {
     goto err;
   }
@@ -320,7 +320,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from) {
         OPENSSL_PUT_ERROR(CONF, CONF_R_VARIABLE_HAS_NO_VALUE);
         goto err;
       }
-      size_t newsize = OPENSSL_port_strlen(p) + buf->length - (e - from);
+      size_t newsize = strlen(p) + buf->length - (e - from);
       if (newsize > MAX_CONF_VALUE_LENGTH) {
         OPENSSL_PUT_ERROR(CONF, CONF_R_VARIABLE_EXPANSION_TOO_LONG);
         goto err;
@@ -554,7 +554,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
     *p = '\0';
     BIO_gets(in, p, CONFBUFSIZE - 1);
     p[CONFBUFSIZE - 1] = '\0';
-    ii = i = OPENSSL_port_strlen(p);
+    ii = i = strlen(p);
     if (i == 0 && !again) {
       break;
     }
@@ -772,7 +772,7 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
       if (p) {
         tmpend = p - 1;
       } else {
-        tmpend = lstart + OPENSSL_port_strlen(lstart) - 1;
+        tmpend = lstart + strlen(lstart) - 1;
       }
       if (remove_whitespace) {
         while (isspace((unsigned char)*tmpend)) {

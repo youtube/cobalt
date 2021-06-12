@@ -568,7 +568,7 @@ int CBS_asn1_bitstring_has_bit(const CBS *cbs, unsigned bit) {
 static int add_decimal(CBB *out, uint64_t v) {
   char buf[DECIMAL_SIZE(uint64_t) + 1];
   BIO_snprintf(buf, sizeof(buf), "%" PRIu64, v);
-  return CBB_add_bytes(out, (const uint8_t *)buf, OPENSSL_port_strlen(buf));
+  return CBB_add_bytes(out, (const uint8_t *)buf, strlen(buf));
 }
 
 char *CBS_asn1_oid_to_text(const CBS *cbs) {

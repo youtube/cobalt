@@ -34,9 +34,9 @@ bool ChannelIDKeyChromium::Sign(quic::QuicStringPiece signed_data,
     return false;
   }
   const size_t len1 =
-      SbStringGetLength(quic::ChannelIDVerifier::kContextStr) + 1;
+      strlen(quic::ChannelIDVerifier::kContextStr) + 1;
   const size_t len2 =
-      SbStringGetLength(quic::ChannelIDVerifier::kClientToServerStr) + 1;
+      strlen(quic::ChannelIDVerifier::kClientToServerStr) + 1;
   std::vector<uint8_t> data(len1 + len2 + signed_data.size());
   memcpy(&data[0], quic::ChannelIDVerifier::kContextStr, len1);
   memcpy(&data[len1], quic::ChannelIDVerifier::kClientToServerStr, len2);

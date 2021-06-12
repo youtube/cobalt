@@ -66,7 +66,7 @@ class AudioTrack : public TrackBase {
            SbStringCompareAll(kind, "main-desc") == 0 ||
            SbStringCompareAll(kind, "translation") == 0 ||
            SbStringCompareAll(kind, "commentary") == 0 ||
-           SbStringGetLength(kind) == 0;
+           strlen(kind) == 0;
   }
 
   DEFINE_WRAPPABLE_TYPE(AudioTrack);

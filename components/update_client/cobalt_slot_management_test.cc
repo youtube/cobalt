@@ -139,10 +139,10 @@ TEST_F(CobaltSlotManagementTest, SelectMinVersionSlot) {
   }
 
   // In slot 2 create manifest v1.
-  CreateManifest("installation_2", kManifestV1, SbStringGetLength(kManifestV1));
+  CreateManifest("installation_2", kManifestV1, strlen(kManifestV1));
 
   // In slot 1 create manifest v2.
-  CreateManifest("installation_1", kManifestV2, SbStringGetLength(kManifestV2));
+  CreateManifest("installation_1", kManifestV2, strlen(kManifestV2));
 
   CobaltSlotManagement cobalt_slot_management;
   ASSERT_TRUE(cobalt_slot_management.Init(api_));
@@ -204,10 +204,10 @@ TEST_F(CobaltSlotManagementTest, CobaltFinishInstallation) {
 
 TEST_F(CobaltSlotManagementTest, GoodCobaltQuickUpdate) {
   // In slot 1 create manifest v1.
-  CreateManifest("installation_1", kManifestV1, SbStringGetLength(kManifestV1));
+  CreateManifest("installation_1", kManifestV1, strlen(kManifestV1));
 
   // In slot 2 create manifest v2.
-  CreateManifest("installation_2", kManifestV2, SbStringGetLength(kManifestV2));
+  CreateManifest("installation_2", kManifestV2, strlen(kManifestV2));
 
   // Mark slot 2 good for app 2.
   std::string slot_path = storage_path_;

@@ -124,7 +124,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
     ICUCharsetConverter converter(conv.converter());
 
     if (query_cases[i].input8) {
-      int len = static_cast<int>(SbStringGetLength(query_cases[i].input8));
+      int len = static_cast<int>(strlen(query_cases[i].input8));
       Component in_comp(0, len);
       std::string out_str;
 

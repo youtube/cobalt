@@ -45,7 +45,7 @@
 #   include "starboard/string.h"
 #   define uprv_wcscpy SbStringCopyWide
 #   define uprv_wcscat SbStringConcatWide
-#   define uprv_wcslen SbStringGetLengthWide
+#   define uprv_wcslen wcslen
 #elif U_HAVE_WCSCPY
 #   define uprv_wcscpy wcscpy
 #   define uprv_wcscat wcscat

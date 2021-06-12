@@ -204,7 +204,7 @@ void HttpResponseHeaders::Persist(base::Pickle* pickle,
   // Note raw_headers_ has embedded nulls instead of \n,
   // so this just copies the first header line.
   blob.assign(raw_headers_.c_str(),
-              SbStringGetLength(raw_headers_.c_str()) + 1);
+              strlen(raw_headers_.c_str()) + 1);
 
   for (size_t i = 0; i < parsed_.size(); ++i) {
     DCHECK(!parsed_[i].is_continuation());

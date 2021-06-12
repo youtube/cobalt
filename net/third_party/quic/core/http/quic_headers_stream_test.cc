@@ -581,7 +581,7 @@ TEST_P(QuicHeadersStreamTest, ProcessBadData) {
               CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA, _, _))
       .Times(::testing::AnyNumber());
   stream_frame_.data_buffer = kBadData;
-  stream_frame_.data_length = SbStringGetLength(kBadData);
+  stream_frame_.data_length = strlen(kBadData);
   headers_stream_->OnStreamFrame(stream_frame_);
 }
 

@@ -794,7 +794,7 @@ static enum ssl_hs_wait_t do_send_server_certificate(SSL_HANDSHAKE *hs) {
       size_t len =
           hs->config->psk_identity_hint == nullptr
               ? 0
-              : OPENSSL_port_strlen(hs->config->psk_identity_hint.get());
+              : strlen(hs->config->psk_identity_hint.get());
       if (!CBB_add_u16_length_prefixed(cbb.get(), &child) ||
           !CBB_add_bytes(&child,
                          (const uint8_t *)hs->config->psk_identity_hint.get(),

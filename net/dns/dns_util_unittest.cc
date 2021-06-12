@@ -10,7 +10,7 @@
 namespace {
 
 bool IsValidDNSDomainName(const char* name) {
-  size_t length = SbStringGetLength(name);
+  size_t length = strlen(name);
   for (size_t i = 0; i < length; ++i) {
     if (name[i] == '.') {
       if (i == 0 || name[i - 1] == '.') {
@@ -37,7 +37,7 @@ class DNSUtilTest : public testing::Test {
 // IncludeNUL converts a char* to a std::string and includes the terminating
 // NUL in the result.
 static std::string IncludeNUL(const char* in) {
-  return std::string(in, SbStringGetLength(in) + 1);
+  return std::string(in, strlen(in) + 1);
 }
 
 TEST_F(DNSUtilTest, DNSDomainFromDot) {

@@ -34,7 +34,7 @@ TEST(SbDrmUpdateServerCertificateTest, RainyDay) {
     if (SbDrmIsServerCertificateUpdatable(drm_system)) {
       SbDrmUpdateServerCertificate(drm_system, kSbDrmTicketInvalid + 1,
                                    kInvalidCertificate,
-                                   SbStringGetLength(kInvalidCertificate));
+                                   strlen(kInvalidCertificate));
     }
     SbDrmDestroySystem(drm_system);
   }

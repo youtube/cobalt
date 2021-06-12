@@ -12,7 +12,7 @@
 TEST(BuildTime, DateLooksValid) {
   char build_date[] = BUILD_DATE;
 
-  EXPECT_EQ(20u, SbStringGetLength(build_date));
+  EXPECT_EQ(20u, strlen(build_date));
   EXPECT_EQ(' ', build_date[3]);
   EXPECT_EQ(' ', build_date[6]);
   EXPECT_EQ(' ', build_date[11]);

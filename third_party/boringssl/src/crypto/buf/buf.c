@@ -152,7 +152,7 @@ char *BUF_strdup(const char *str) {
     return NULL;
   }
 
-  return BUF_strndup(str, OPENSSL_port_strlen(str));
+  return BUF_strndup(str, strlen(str));
 }
 
 size_t BUF_strnlen(const char *str, size_t max_len) {
@@ -206,7 +206,7 @@ size_t BUF_strlcpy(char *dst, const char *src, size_t dst_size) {
     *dst = 0;
   }
 
-  return l + OPENSSL_port_strlen(src);
+  return l + strlen(src);
 }
 
 size_t BUF_strlcat(char *dst, const char *src, size_t dst_size) {

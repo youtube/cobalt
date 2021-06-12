@@ -39,7 +39,7 @@ TEST(MD5, MD5SumEmtpyData) {
   MD5Digest digest;
   const char data[] = "";
 
-  MD5Sum(data, SbStringGetLength(data), &digest);
+  MD5Sum(data, strlen(data), &digest);
 
   int expected[] = {
     0xd4, 0x1d, 0x8c, 0xd9,
@@ -56,7 +56,7 @@ TEST(MD5, MD5SumOneByteData) {
   MD5Digest digest;
   const char data[] = "a";
 
-  MD5Sum(data, SbStringGetLength(data), &digest);
+  MD5Sum(data, strlen(data), &digest);
 
   int expected[] = {
     0x0c, 0xc1, 0x75, 0xb9,

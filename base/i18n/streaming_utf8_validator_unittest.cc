@@ -214,10 +214,10 @@ class PartialIterator {
 
   void Advance() {
     if (index_ < arraysize(valid) &&
-        prefix_length_ < SbStringGetLength(valid[index_]))
+        prefix_length_ < strlen(valid[index_]))
       ++prefix_length_;
     while (index_ < arraysize(valid) &&
-           prefix_length_ == SbStringGetLength(valid[index_])) {
+           prefix_length_ == strlen(valid[index_])) {
       ++index_;
       prefix_length_ = 1;
     }
@@ -309,7 +309,7 @@ TEST(StreamingUtf8ValidatorTest, NulIsValid) {
 TEST(StreamingUtf8ValidatorTest, HelloWorld) {
   static const char kHelloWorld[] = "Hello, World!";
   EXPECT_EQ(VALID_ENDPOINT, StreamingUtf8Validator().AddBytes(
-                                kHelloWorld, SbStringGetLength(kHelloWorld)));
+                                kHelloWorld, strlen(kHelloWorld)));
 }
 
 // Check that the Reset() method works.

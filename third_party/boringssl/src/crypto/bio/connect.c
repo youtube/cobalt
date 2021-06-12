@@ -141,7 +141,7 @@ static int split_host_and_port(char **out_host, char **out_port, const char *nam
     const char *colon = OPENSSL_port_strchr(name, ':');
     if (colon == NULL || OPENSSL_port_strchr(colon + 1, ':') != NULL) {  // IPv6 address
       host = name;
-      host_len = OPENSSL_port_strlen(name);
+      host_len = strlen(name);
     } else {  // host:port
       host = name;
       host_len = colon - name;

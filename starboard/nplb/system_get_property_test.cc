@@ -54,7 +54,7 @@ void BasicTest(SbSystemPropertyId id,
   }
   if (result) {
     EXPECT_NE('\xCD', value[0]) << LOCAL_CONTEXT;
-    int len = static_cast<int>(SbStringGetLength(value));
+    int len = static_cast<int>(strlen(value));
     EXPECT_GT(len, 0) << LOCAL_CONTEXT;
   } else {
     EXPECT_EQ('\xCD', value[0]) << LOCAL_CONTEXT;
@@ -144,7 +144,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
       SbSystemGetProperty(kSbSystemPropertySpeechApiKey, speech_api_key, kSize);
 
   if (!has_speech_key) {
-    EXPECT_EQ(0, SbStringGetLength(speech_api_key));
+    EXPECT_EQ(0, strlen(speech_api_key));
     return;
   }
 

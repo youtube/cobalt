@@ -207,7 +207,7 @@ MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery(
       minor_response_code(in_minor_response_code),
       context_info(in_context_info) {
   if (in_expected_input_token) {
-    expected_input_token.length = SbStringGetLength(in_expected_input_token);
+    expected_input_token.length = strlen(in_expected_input_token);
     expected_input_token.value = const_cast<char*>(in_expected_input_token);
   } else {
     expected_input_token.length = 0;
@@ -215,7 +215,7 @@ MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery(
   }
 
   if (in_output_token) {
-    output_token.length = SbStringGetLength(in_output_token);
+    output_token.length = strlen(in_output_token);
     output_token.value = const_cast<char*>(in_output_token);
   } else {
     output_token.length = 0;

@@ -61,12 +61,12 @@ void TraceToFile::BeginTracing(const FilePath& path,
 
 void TraceToFile::WriteFileHeader() {
   const char str[] = "{\"traceEvents\": [";
-  WriteFile(path_, str, static_cast<int>(SbStringGetLength(str)));
+  WriteFile(path_, str, static_cast<int>(strlen(str)));
 }
 
 void TraceToFile::AppendFileFooter() {
   const char str[] = "]}";
-  AppendToFile(path_, str, static_cast<int>(SbStringGetLength(str)));
+  AppendToFile(path_, str, static_cast<int>(strlen(str)));
 }
 
 void TraceToFile::TraceOutputCallback(const std::string& data) {

@@ -657,7 +657,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     QuicString hkdf_input;
     const QuicData& client_hello_serialized = out->GetSerialized();
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      SbStringGetLength(QuicCryptoConfig::kCETVLabel) + 1);
+                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
       hkdf_input.append(connection_id.data(), connection_id.length());
     hkdf_input.append(client_hello_serialized.data(),
                       client_hello_serialized.length());
@@ -722,7 +722,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
 
   QuicString hkdf_input;
   const size_t label_len =
-      SbStringGetLength(QuicCryptoConfig::kInitialLabel) + 1;
+      strlen(QuicCryptoConfig::kInitialLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
@@ -913,7 +913,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
 
   QuicString hkdf_input;
   const size_t label_len =
-      SbStringGetLength(QuicCryptoConfig::kForwardSecureLabel) + 1;
+      strlen(QuicCryptoConfig::kForwardSecureLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kForwardSecureLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
