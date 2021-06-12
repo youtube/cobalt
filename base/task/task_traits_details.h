@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "nb/cpp14oncpp11.h"
 
 namespace base {
 namespace trait_helpers {
@@ -183,21 +182,21 @@ struct BasicTraitFilter {
 
 template <typename ArgType>
 struct BooleanTraitFilter : public BasicTraitFilter<bool> {
-  CONSTEXPR BooleanTraitFilter() { this->value = false; }
-  CONSTEXPR BooleanTraitFilter(ArgType) { this->value = true; }
+  constexpr BooleanTraitFilter() { this->value = false; }
+  constexpr BooleanTraitFilter(ArgType) { this->value = true; }
 };
 
 template <typename ArgType, ArgType DefaultValue>
 struct EnumTraitFilter : public BasicTraitFilter<ArgType> {
-  CONSTEXPR EnumTraitFilter() { this->value = DefaultValue; }
-  CONSTEXPR EnumTraitFilter(ArgType arg) { this->value = arg; }
+  constexpr EnumTraitFilter() { this->value = DefaultValue; }
+  constexpr EnumTraitFilter(ArgType arg) { this->value = arg; }
 };
 
 // Tests whether multiple given argtument types are all valid traits according
 // to the provided ValidTraits. To use, define a ValidTraits
 template <typename ArgType>
 struct RequiredEnumTraitFilter : public BasicTraitFilter<ArgType> {
-  CONSTEXPR RequiredEnumTraitFilter(ArgType arg) { this->value = arg; }
+  constexpr RequiredEnumTraitFilter(ArgType arg) { this->value = arg; }
 };
 
 #ifdef STARBOARD

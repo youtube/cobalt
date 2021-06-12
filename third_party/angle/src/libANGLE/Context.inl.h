@@ -13,7 +13,6 @@
 
 #include "libANGLE/GLES1Renderer.h"
 #include "libANGLE/renderer/ContextImpl.h"
-#include "nb/cpp14oncpp11.h"
 
 #define ANGLE_HANDLE_ERR(X) \
     (void)(X);              \

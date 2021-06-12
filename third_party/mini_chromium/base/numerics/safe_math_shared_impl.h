@@ -15,7 +15,6 @@
 #include <type_traits>
 
 #include "base/numerics/safe_conversions.h"
-#include "nb/cpp14oncpp11.h"
 
 // Where available use builtin math overflow support on Clang and GCC.
 #if ((defined(__clang__) &&                                \
@@ -38,7 +37,7 @@ template <typename T, typename U>
 struct CheckedAddFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR bool Do(T, U, V*) {
+  static constexpr bool Do(T, U, V*) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<bool>();
   }
@@ -48,7 +47,7 @@ template <typename T, typename U>
 struct CheckedSubFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR bool Do(T, U, V*) {
+  static constexpr bool Do(T, U, V*) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<bool>();
   }
@@ -58,7 +57,7 @@ template <typename T, typename U>
 struct CheckedMulFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR bool Do(T, U, V*) {
+  static constexpr bool Do(T, U, V*) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<bool>();
   }
@@ -68,7 +67,7 @@ template <typename T, typename U>
 struct ClampedAddFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR V Do(T, U) {
+  static constexpr V Do(T, U) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<V>();
   }
@@ -78,7 +77,7 @@ template <typename T, typename U>
 struct ClampedSubFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR V Do(T, U) {
+  static constexpr V Do(T, U) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<V>();
   }
@@ -88,7 +87,7 @@ template <typename T, typename U>
 struct ClampedMulFastOp {
   static const bool is_supported = false;
   template <typename V>
-  static CONSTEXPR V Do(T, U) {
+  static constexpr V Do(T, U) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<V>();
   }
@@ -97,7 +96,7 @@ struct ClampedMulFastOp {
 template <typename T>
 struct ClampedNegFastOp {
   static const bool is_supported = false;
-  static CONSTEXPR T Do(T) {
+  static constexpr T Do(T) {
     // Force a compile failure if instantiated.
     return CheckOnFailure::template HandleFailure<T>();
   }
@@ -131,7 +130,7 @@ struct UnsignedOrFloatForSize<Numeric, false, true> {
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-CONSTEXPR T NegateWrapper(T value) {
+constexpr T NegateWrapper(T value) {
   using UnsignedT = typename std::make_unsigned<T>::type;
   // This will compile to a NEG on Intel, and is normal negation on ARM.
   return static_cast<T>(UnsignedT(0) - static_cast<UnsignedT>(value));
@@ -140,26 +139,26 @@ CONSTEXPR T NegateWrapper(T value) {
 template <
     typename T,
     typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
-CONSTEXPR T NegateWrapper(T value) {
+constexpr T NegateWrapper(T value) {
   return -value;
 }
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-CONSTEXPR typename std::make_unsigned<T>::type InvertWrapper(T value) {
+constexpr typename std::make_unsigned<T>::type InvertWrapper(T value) {
   return ~value;
 }
 
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-CONSTEXPR T AbsWrapper(T value) {
+constexpr T AbsWrapper(T value) {
   return static_cast<T>(SafeUnsignedAbs(value));
 }
 
 template <
     typename T,
     typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
-CONSTEXPR T AbsWrapper(T value) {
+constexpr T AbsWrapper(T value) {
   return value < 0 ? -value : value;
 }
 
@@ -202,7 +201,7 @@ struct ResultType {
 // solution, but it beats rewriting these over and over again.
 #define BASE_NUMERIC_ARITHMETIC_VARIADIC(CLASS, CL_ABBR, OP_NAME)       \
   template <typename L, typename R, typename... Args>                   \
-  CONSTEXPR CLASS##Numeric<                                             \
+  constexpr CLASS##Numeric<                                             \
       typename ResultType<CLASS##OP_NAME##Op, L, R, Args...>::type>     \
       CL_ABBR##OP_NAME(const L lhs, const R rhs, const Args... args) {  \
     return CL_ABBR##MathOp<CLASS##OP_NAME##Op, L, R, Args...>(lhs, rhs, \
@@ -214,7 +213,7 @@ struct ResultType {
   template <typename L, typename R,                                            \
             typename std::enable_if<Is##CLASS##Op<L, R>::value>::type* =       \
                 nullptr>                                                       \
-  CONSTEXPR                                                                    \
+  constexpr                                                                    \
       CLASS##Numeric<typename MathWrapper<CLASS##OP_NAME##Op, L, R>::type>     \
       operator OP(const L lhs, const R rhs) {                                  \
     return decltype(lhs OP rhs)::template MathOp<CLASS##OP_NAME##Op>(lhs,      \
@@ -223,7 +222,7 @@ struct ResultType {
   /* Assignment arithmetic operator implementation from CLASS##Numeric. */     \
   template <typename L>                                                        \
   template <typename R>                                                        \
-  CONSTEXPR CLASS##Numeric<L>& CLASS##Numeric<L>::operator CMP_OP(             \
+  constexpr CLASS##Numeric<L>& CLASS##Numeric<L>::operator CMP_OP(             \
       const R rhs) {                                                           \
     return MathOp<CLASS##OP_NAME##Op>(rhs);                                    \
   }                                                                            \

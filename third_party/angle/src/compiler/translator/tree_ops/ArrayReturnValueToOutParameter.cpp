@@ -14,7 +14,6 @@
 #include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -22,7 +21,7 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kReturnValueVariableName("angle_return");
+constexpr const ImmutableString kReturnValueVariableName("angle_return");
 
 class ArrayReturnValueToOutParameterTraverser : private TIntermTraverser
 {

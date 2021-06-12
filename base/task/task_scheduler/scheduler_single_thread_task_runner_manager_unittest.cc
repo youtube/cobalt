@@ -24,7 +24,6 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "nb/cpp14oncpp11.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
@@ -303,7 +302,7 @@ TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest,
 }
 
 TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest, ThreadNamesSet) {
-  CONSTEXPR TaskTraits foo_traits = {TaskPriority::BEST_EFFORT,
+  constexpr TaskTraits foo_traits = {TaskPriority::BEST_EFFORT,
                                      TaskShutdownBehavior::BLOCK_SHUTDOWN};
   scoped_refptr<SingleThreadTaskRunner> foo_task_runner =
       single_thread_task_runner_manager_
@@ -312,7 +311,7 @@ TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest, ThreadNamesSet) {
   foo_task_runner->PostTask(FROM_HERE,
                             BindOnce(&CaptureThreadName, &foo_captured_name));
 
-  CONSTEXPR TaskTraits user_blocking_traits = {
+  constexpr TaskTraits user_blocking_traits = {
       TaskPriority::USER_BLOCKING, MayBlock(),
       TaskShutdownBehavior::BLOCK_SHUTDOWN};
   scoped_refptr<SingleThreadTaskRunner> user_blocking_task_runner =

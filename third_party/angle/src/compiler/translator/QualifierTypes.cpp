@@ -8,7 +8,6 @@
 
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
-#include "nb/cpp14oncpp11.h"
 
 #include <algorithm>
 
@@ -18,33 +17,33 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kSpecifiedMultipleTimes(" specified multiple times");
-CONSTEXPR const ImmutableString kInvariantMultipleTimes(
+constexpr const ImmutableString kSpecifiedMultipleTimes(" specified multiple times");
+constexpr const ImmutableString kInvariantMultipleTimes(
     "The invariant qualifier specified multiple times.");
-CONSTEXPR const ImmutableString kPrecisionMultipleTimes(
+constexpr const ImmutableString kPrecisionMultipleTimes(
     "The precision qualifier specified multiple times.");
-CONSTEXPR const ImmutableString kLayoutMultipleTimes(
+constexpr const ImmutableString kLayoutMultipleTimes(
     "The layout qualifier specified multiple times.");
-CONSTEXPR const ImmutableString kLayoutAndInvariantDisallowed(
+constexpr const ImmutableString kLayoutAndInvariantDisallowed(
     "The layout qualifier and invariant qualifier cannot coexist in the same "
     "declaration according to the grammar.");
-CONSTEXPR const ImmutableString kInterpolationMultipleTimes(
+constexpr const ImmutableString kInterpolationMultipleTimes(
     "The interpolation qualifier specified multiple times.");
-CONSTEXPR const ImmutableString kOutputLayoutMultipleTimes(
+constexpr const ImmutableString kOutputLayoutMultipleTimes(
     "Output layout location specified multiple times.");
-CONSTEXPR const ImmutableString kInvariantQualifierFirst(
+constexpr const ImmutableString kInvariantQualifierFirst(
     "The invariant qualifier has to be first in the expression.");
-CONSTEXPR const ImmutableString kStorageAfterInterpolation(
+constexpr const ImmutableString kStorageAfterInterpolation(
     "Storage qualifiers have to be after interpolation qualifiers.");
-CONSTEXPR const ImmutableString kPrecisionAfterInterpolation(
+constexpr const ImmutableString kPrecisionAfterInterpolation(
     "Precision qualifiers have to be after interpolation qualifiers.");
-CONSTEXPR const ImmutableString kStorageAfterLayout(
+constexpr const ImmutableString kStorageAfterLayout(
     "Storage qualifiers have to be after layout qualifiers.");
-CONSTEXPR const ImmutableString kPrecisionAfterLayout(
+constexpr const ImmutableString kPrecisionAfterLayout(
     "Precision qualifiers have to be after layout qualifiers.");
-CONSTEXPR const ImmutableString kPrecisionAfterStorage(
+constexpr const ImmutableString kPrecisionAfterStorage(
     "Precision qualifiers have to be after storage qualifiers.");
-CONSTEXPR const ImmutableString kPrecisionAfterMemory(
+constexpr const ImmutableString kPrecisionAfterMemory(
     "Precision qualifiers have to be after memory qualifiers.");
 
 // GLSL ES 3.10 does not impose a strict order on type qualifiers and allows multiple layout

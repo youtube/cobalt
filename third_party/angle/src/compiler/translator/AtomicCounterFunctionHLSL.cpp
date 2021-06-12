@@ -13,17 +13,16 @@
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/InfoSink.h"
 #include "compiler/translator/IntermNode.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
 
 namespace
 {
-CONSTEXPR ImmutableString kAtomicCounter("atomicCounter");
-CONSTEXPR ImmutableString kAtomicCounterIncrement("atomicCounterIncrement");
-CONSTEXPR ImmutableString kAtomicCounterDecrement("atomicCounterDecrement");
-CONSTEXPR ImmutableString kAtomicCounterBaseName("_acbase_");
+constexpr ImmutableString kAtomicCounter("atomicCounter");
+constexpr ImmutableString kAtomicCounterIncrement("atomicCounterIncrement");
+constexpr ImmutableString kAtomicCounterDecrement("atomicCounterDecrement");
+constexpr ImmutableString kAtomicCounterBaseName("_acbase_");
 }  // namespace
 
 AtomicCounterFunctionHLSL::AtomicCounterFunctionHLSL(bool forceResolution)

@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "nb/cpp14oncpp11.h"
 #include "starboard/configuration.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -189,7 +188,7 @@ static_assert(sizeof(Optional<int>) == sizeof(internal::OptionalBase<int>),
 
 TEST(OptionalTest, DefaultConstructor) {
   {
-    CONSTEXPR Optional<float> o;
+    constexpr Optional<float> o;
     EXPECT_FALSE(o);
   }
 
@@ -206,7 +205,7 @@ TEST(OptionalTest, DefaultConstructor) {
 
 TEST(OptionalTest, CopyConstructor) {
   {
-    CONSTEXPR Optional<float> first(0.1f);
+    constexpr Optional<float> first(0.1f);
 #ifdef STARBOARD
     Optional<float> other(first);
 #else
@@ -248,8 +247,8 @@ TEST(OptionalTest, CopyConstructor) {
 
 TEST(OptionalTest, ValueConstructor) {
   {
-    CONSTEXPR float value = 0.1f;
-    CONSTEXPR Optional<float> o(value);
+    constexpr float value = 0.1f;
+    constexpr Optional<float> o(value);
 
     EXPECT_TRUE(o);
     EXPECT_EQ(value, o.value());
@@ -275,7 +274,7 @@ TEST(OptionalTest, ValueConstructor) {
 
 TEST(OptionalTest, MoveConstructor) {
   {
-    CONSTEXPR Optional<float> first(0.1f);
+    constexpr Optional<float> first(0.1f);
 #ifdef STARBOARD
     Optional<float> second(std::move(first));
 #else
@@ -347,8 +346,8 @@ TEST(OptionalTest, MoveConstructor) {
 
 TEST(OptionalTest, MoveValueConstructor) {
   {
-    CONSTEXPR float value = 0.1f;
-    CONSTEXPR Optional<float> o(std::move(value));
+    constexpr float value = 0.1f;
+    constexpr Optional<float> o(std::move(value));
 
     EXPECT_TRUE(o);
     EXPECT_EQ(0.1f, o.value());
@@ -441,7 +440,7 @@ TEST(OptionalTest, ConvertingMoveConstructor) {
 
 TEST(OptionalTest, ConstructorForwardArguments) {
   {
-    CONSTEXPR Optional<float> a(base::in_place, 0.1f);
+    constexpr Optional<float> a(base::in_place, 0.1f);
     EXPECT_TRUE(a);
     EXPECT_EQ(0.1f, a.value());
   }
@@ -559,7 +558,7 @@ TEST(OptionalTest, ForwardConstructor) {
 }
 
 TEST(OptionalTest, NulloptConstructor) {
-  CONSTEXPR Optional<int> a(base::nullopt);
+  constexpr Optional<int> a(base::nullopt);
   EXPECT_FALSE(a);
 }
 
@@ -1053,15 +1052,15 @@ TEST(OptionalTest, ValueOr) {
     EXPECT_EQ(0.0f, a.value_or(0.0f));
   }
 
-  // value_or() can be CONSTEXPR.
+  // value_or() can be constexpr.
   {
-    CONSTEXPR Optional<int> a(in_place, 1);
-    CONSTEXPR int value = a.value_or(10);
+    constexpr Optional<int> a(in_place, 1);
+    constexpr int value = a.value_or(10);
     EXPECT_EQ(1, value);
   }
   {
-    CONSTEXPR Optional<int> a;
-    CONSTEXPR int value = a.value_or(10);
+    constexpr Optional<int> a;
+    constexpr int value = a.value_or(10);
     EXPECT_EQ(10, value);
   }
 

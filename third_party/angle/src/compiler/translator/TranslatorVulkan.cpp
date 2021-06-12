@@ -31,7 +31,6 @@
 #include "compiler/translator/tree_util/ReplaceVariable.h"
 #include "compiler/translator/tree_util/RunAtTheEndOfShader.h"
 #include "compiler/translator/util.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -157,11 +156,11 @@ class DeclareDefaultUniformsTraverser : public TIntermTraverser
     bool mInDefaultUniform;
 };
 
-CONSTEXPR ImmutableString kFlippedPointCoordName    = ImmutableString("flippedPointCoord");
-CONSTEXPR ImmutableString kFlippedFragCoordName     = ImmutableString("flippedFragCoord");
-CONSTEXPR ImmutableString kEmulatedDepthRangeParams = ImmutableString("ANGLEDepthRangeParams");
-CONSTEXPR ImmutableString kUniformsBlockName        = ImmutableString("ANGLEUniformBlock");
-CONSTEXPR ImmutableString kUniformsVarName          = ImmutableString("ANGLEUniforms");
+constexpr ImmutableString kFlippedPointCoordName    = ImmutableString("flippedPointCoord");
+constexpr ImmutableString kFlippedFragCoordName     = ImmutableString("flippedFragCoord");
+constexpr ImmutableString kEmulatedDepthRangeParams = ImmutableString("ANGLEDepthRangeParams");
+constexpr ImmutableString kUniformsBlockName        = ImmutableString("ANGLEUniformBlock");
+constexpr ImmutableString kUniformsVarName          = ImmutableString("ANGLEUniforms");
 
 constexpr const char kViewport[]             = "viewport";
 constexpr const char kHalfRenderAreaHeight[] = "halfRenderAreaHeight";
