@@ -105,6 +105,7 @@ The following starboard functions have been removed:
 * `SbMemorySet`
 * `SbMemoryCompare`
 * `SbMemoryCopy`
+* `SbMemoryFindByte`
 
 ## Version 12
 ### Add support for platform-based UI navigation.

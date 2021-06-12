@@ -14,6 +14,8 @@
 
 #include "starboard/memory.h"
 
+#if SB_API_VERSION < 13
 const void* SbMemoryFindByte(const void* buffer, int value, size_t count) {
   return 0;
 }
+#endif // SB_API_VERSION < 13
