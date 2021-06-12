@@ -18,7 +18,6 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/stringprintf.h"
-#include "nb/cpp14oncpp11.h"
 #if defined(STARBOARD)
 #include "base/test/time_helpers.h"
 #endif  // defined(STARBOARD)
@@ -1288,16 +1287,16 @@ std::string AnyToString(Any any) {
 
 TEST(TimeDelta, Magnitude) {
   constexpr int64_t zero = 0;
-  STATIC_ASSERT(TimeDelta::FromMicroseconds(zero) ==
+  static_assert(TimeDelta::FromMicroseconds(zero) ==
                     TimeDelta::FromMicroseconds(zero).magnitude(),
                 "");
 
   constexpr int64_t one = 1;
   constexpr int64_t negative_one = -1;
-  STATIC_ASSERT(TimeDelta::FromMicroseconds(one) ==
+  static_assert(TimeDelta::FromMicroseconds(one) ==
                     TimeDelta::FromMicroseconds(one).magnitude(),
                 "");
-  STATIC_ASSERT(TimeDelta::FromMicroseconds(one) ==
+  static_assert(TimeDelta::FromMicroseconds(one) ==
                     TimeDelta::FromMicroseconds(negative_one).magnitude(),
                 "");
 
@@ -1305,11 +1304,11 @@ TEST(TimeDelta, Magnitude) {
       std::numeric_limits<int64_t>::max() - 1;
   constexpr int64_t min_int64_plus_two =
       std::numeric_limits<int64_t>::min() + 2;
-  STATIC_ASSERT(
+  static_assert(
       TimeDelta::FromMicroseconds(max_int64_minus_one) ==
           TimeDelta::FromMicroseconds(max_int64_minus_one).magnitude(),
       "");
-  STATIC_ASSERT(TimeDelta::FromMicroseconds(max_int64_minus_one) ==
+  static_assert(TimeDelta::FromMicroseconds(max_int64_minus_one) ==
                     TimeDelta::FromMicroseconds(min_int64_plus_two).magnitude(),
                 "");
 }
@@ -1424,12 +1423,12 @@ TEST(TimeDelta, NumericOperators) {
   constexpr double d = 0.5;
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) * d));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) / d),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) *= d));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) /= d),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
@@ -1438,12 +1437,12 @@ TEST(TimeDelta, NumericOperators) {
   constexpr float f = 0.5;
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) * f));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) / f),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) *= f));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) /= f),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
@@ -1452,12 +1451,12 @@ TEST(TimeDelta, NumericOperators) {
   constexpr int i = 2;
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) * i));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) / i),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) *= i));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) /= i),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
@@ -1466,12 +1465,12 @@ TEST(TimeDelta, NumericOperators) {
   constexpr int64_t i64 = 2;
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) * i64));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) / i64),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) *= i64));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) /= i64),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
@@ -1479,12 +1478,12 @@ TEST(TimeDelta, NumericOperators) {
 
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) * 0.5));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) / 0.5),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
             (TimeDelta::FromMilliseconds(1000) *= 0.5));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(2000) ==
+  static_assert(TimeDelta::FromMilliseconds(2000) ==
                     (TimeDelta::FromMilliseconds(1000) /= 0.5),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(500),
@@ -1492,12 +1491,12 @@ TEST(TimeDelta, NumericOperators) {
 
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) * 2));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) / 2),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
             (TimeDelta::FromMilliseconds(1000) *= 2));
-  STATIC_ASSERT(TimeDelta::FromMilliseconds(500) ==
+  static_assert(TimeDelta::FromMilliseconds(500) ==
                     (TimeDelta::FromMilliseconds(1000) /= 2),
                 "");
   EXPECT_EQ(TimeDelta::FromMilliseconds(2000),
@@ -1597,7 +1596,7 @@ TEST(TimeDelta, Overflows) {
   EXPECT_EQ(kOneSecond, (ticks_now + kOneSecond) - ticks_now);
 }
 
-CONSTEXPR TimeTicks TestTimeTicksConstexprCopyAssignment() {
+constexpr TimeTicks TestTimeTicksConstexprCopyAssignment() {
   TimeTicks a = TimeTicks::FromInternalValue(12345);
   TimeTicks b;
   b = a;
@@ -1618,12 +1617,12 @@ TEST(TimeTicks, ConstexprAndTriviallyCopiable) {
   static_assert(a.ToInternalValue() == b.ToInternalValue(), "");
 
   // Copy assignment.
-  STATIC_ASSERT(a.ToInternalValue() ==
+  static_assert(a.ToInternalValue() ==
                     TestTimeTicksConstexprCopyAssignment().ToInternalValue(),
                 "");
 }
 
-CONSTEXPR ThreadTicks TestThreadTicksConstexprCopyAssignment() {
+constexpr ThreadTicks TestThreadTicksConstexprCopyAssignment() {
   ThreadTicks a = ThreadTicks::FromInternalValue(12345);
   ThreadTicks b;
   b = a;
@@ -1644,12 +1643,12 @@ TEST(ThreadTicks, ConstexprAndTriviallyCopiable) {
   static_assert(a.ToInternalValue() == b.ToInternalValue(), "");
 
   // Copy assignment.
-  STATIC_ASSERT(a.ToInternalValue() ==
+  static_assert(a.ToInternalValue() ==
                     TestThreadTicksConstexprCopyAssignment().ToInternalValue(),
                 "");
 }
 
-CONSTEXPR TimeDelta TestTimeDeltaConstexprCopyAssignment() {
+constexpr TimeDelta TestTimeDeltaConstexprCopyAssignment() {
   TimeDelta a = TimeDelta::FromSeconds(1);
   TimeDelta b;
   b = a;
@@ -1670,7 +1669,7 @@ TEST(TimeDelta, ConstexprAndTriviallyCopiable) {
   static_assert(a == b, "");
 
   // Copy assignment.
-  STATIC_ASSERT(a == TestTimeDeltaConstexprCopyAssignment(), "");
+  static_assert(a == TestTimeDeltaConstexprCopyAssignment(), "");
 }
 
 TEST(TimeDeltaLogging, DCheckEqCompiles) {

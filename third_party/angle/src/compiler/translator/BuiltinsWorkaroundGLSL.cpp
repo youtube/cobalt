@@ -11,15 +11,14 @@
 #include "compiler/translator/Symbol.h"
 #include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/tree_util/BuiltIn.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
 
 namespace
 {
-CONSTEXPR const ImmutableString kGlInstanceIDString("gl_InstanceID");
-CONSTEXPR const ImmutableString kGlVertexIDString("gl_VertexID");
+constexpr const ImmutableString kGlInstanceIDString("gl_InstanceID");
+constexpr const ImmutableString kGlVertexIDString("gl_VertexID");
 
 class TBuiltinsWorkaroundGLSL : public TIntermTraverser
 {

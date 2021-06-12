@@ -9,7 +9,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -247,23 +246,23 @@ TEST(EstimateMemoryUsageTest, IsStandardContainerComplexIteratorTest) {
     virtual void method() = 0;
   };
 
-  STATIC_ASSERT(
+  static_assert(
       internal::IsStandardContainerComplexIterator<std::list<int>::iterator>(),
       "");
-  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
+  static_assert(internal::IsStandardContainerComplexIterator<
                     std::list<int>::const_iterator>(),
                 "");
-  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
+  static_assert(internal::IsStandardContainerComplexIterator<
                     std::list<int>::reverse_iterator>(),
                 "");
-  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
+  static_assert(internal::IsStandardContainerComplexIterator<
                     std::list<int>::const_reverse_iterator>(),
                 "");
 #ifndef STARBOARD
   // TODO: Non-conforming compilers do not compile with int as iterator.
-  STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<int>(), "");
+  static_assert(!internal::IsStandardContainerComplexIterator<int>(), "");
 #endif
-  STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<abstract*>(), "");
+  static_assert(!internal::IsStandardContainerComplexIterator<abstract*>(), "");
 }
 
 }  // namespace trace_event

@@ -1487,7 +1487,7 @@ TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
   struct {
     const TaskTraits traits;
     const char* const expected_histogram;
-  } static CONSTEXPR kTests[] = {
+  } static constexpr kTests[] = {
       {{TaskPriority::BEST_EFFORT},
        "TaskScheduler.TaskLatencyMicroseconds.Test."
        "BackgroundTaskPriority"},

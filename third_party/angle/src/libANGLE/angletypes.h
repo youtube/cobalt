@@ -17,7 +17,6 @@
 #include "libANGLE/Constants.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/RefCountObject.h"
-#include "nb/cpp14oncpp11.h"
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -404,7 +403,7 @@ enum class ComponentType
     InvalidEnum = 4,
 };
 
-CONSTEXPR_OR_INLINE ComponentType GLenumToComponentType(GLenum componentType)
+constexpr ComponentType GLenumToComponentType(GLenum componentType)
 {
     switch (componentType)
     {

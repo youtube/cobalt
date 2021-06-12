@@ -24,7 +24,6 @@
 #include "base/containers/queue.h"
 #include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
-#include "nb/cpp14oncpp11.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -167,16 +166,10 @@ TEST(STLUtilTest, Empty) {
   }
 
   {
-    CONSTEXPR std::initializer_list<int> il;
-#ifdef STARBOARD
-    // Added extra parentheses as well.
-    STATIC_ASSERT((std::is_same<bool, decltype(base::empty(il))>::value),
-                  "base::empty(il) should be of type bool");
-#else
+    constexpr std::initializer_list<int> il;
     static_assert(std::is_same<bool, decltype(base::empty(il))>::value,
                   "base::empty(il) should be of type bool");
-#endif
-    STATIC_ASSERT(base::empty(il), "base::empty(il) should be true");
+    static_assert(base::empty(il), "base::empty(il) should be true");
   }
 }
 
@@ -236,18 +229,11 @@ TEST(STLUtilTest, Data) {
   }
 
   {
-    CONSTEXPR std::initializer_list<int> il;
-#ifdef STARBOARD
-    // Added extra parentheses as well.
-    STATIC_ASSERT(
-        (std::is_same<decltype(il.begin()), decltype(base::data(il))>::value),
-        "base::data(il) should have the same type as il.begin()");
-#else
+    constexpr std::initializer_list<int> il;
     static_assert(
         std::is_same<decltype(il.begin()), decltype(base::data(il))>::value,
         "base::data(il) should have the same type as il.begin()");
-#endif
-    STATIC_ASSERT(il.begin() == base::data(il),
+    static_assert(il.begin() == base::data(il),
                   "base::data(il) should be equal to il.begin()");
   }
 }

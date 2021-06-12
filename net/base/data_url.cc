@@ -13,7 +13,6 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "nb/cpp14oncpp11.h"
 #include "net/base/escape.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_util.h"
@@ -53,8 +52,8 @@ bool DataURL::Parse(const GURL& url,
     ++iter;
   }
 
-  static CONSTEXPR base::StringPiece kBase64Tag("base64");
-  static CONSTEXPR base::StringPiece kCharsetTag("charset=");
+  static constexpr base::StringPiece kBase64Tag("base64");
+  static constexpr base::StringPiece kCharsetTag("charset=");
 
   bool base64_encoded = false;
   for (; iter != meta_data.cend(); ++iter) {

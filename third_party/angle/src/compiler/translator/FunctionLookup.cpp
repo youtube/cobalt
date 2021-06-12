@@ -10,7 +10,6 @@
 #include "compiler/translator/FunctionLookup.h"
 
 #include "compiler/translator/ImmutableStringBuilder.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -20,7 +19,7 @@ namespace
 
 const char kFunctionMangledNameSeparator = '(';
 
-CONSTEXPR const ImmutableString kEmptyName("");
+constexpr const ImmutableString kEmptyName("");
 
 // Helper function for GetMangledNames
 // Gets all ordered combinations of elements in list[currentIndex, end]

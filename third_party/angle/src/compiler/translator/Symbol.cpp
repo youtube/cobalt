@@ -14,7 +14,6 @@
 
 #include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/SymbolTable.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -22,11 +21,11 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kMainName("main");
-CONSTEXPR const ImmutableString kImageLoadName("imageLoad");
-CONSTEXPR const ImmutableString kImageStoreName("imageStore");
-CONSTEXPR const ImmutableString kImageSizeName("imageSize");
-CONSTEXPR const ImmutableString kAtomicCounterName("atomicCounter");
+constexpr const ImmutableString kMainName("main");
+constexpr const ImmutableString kImageLoadName("imageLoad");
+constexpr const ImmutableString kImageStoreName("imageStore");
+constexpr const ImmutableString kImageSizeName("imageSize");
+constexpr const ImmutableString kAtomicCounterName("atomicCounter");
 
 static const char kFunctionMangledNameSeparator = '(';
 

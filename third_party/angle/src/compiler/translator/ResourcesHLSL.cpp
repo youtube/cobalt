@@ -16,7 +16,6 @@
 #include "compiler/translator/UtilsHLSL.h"
 #include "compiler/translator/blocklayoutHLSL.h"
 #include "compiler/translator/util.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -24,7 +23,7 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kAngleDecorString("angle_");
+constexpr const ImmutableString kAngleDecorString("angle_");
 
 static const char *UniformRegisterPrefix(const TType &type)
 {

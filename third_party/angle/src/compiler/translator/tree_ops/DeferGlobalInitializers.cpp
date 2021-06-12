@@ -25,7 +25,6 @@
 #include "compiler/translator/tree_util/FindMain.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -33,7 +32,7 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kInitGlobalsString("initGlobals");
+constexpr const ImmutableString kInitGlobalsString("initGlobals");
 
 void GetDeferredInitializers(TIntermDeclaration *declaration,
                              bool initializeUninitializedGlobals,

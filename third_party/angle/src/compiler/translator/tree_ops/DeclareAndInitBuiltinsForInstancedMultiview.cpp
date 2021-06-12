@@ -19,7 +19,6 @@
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
 #include "compiler/translator/util.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -27,9 +26,9 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kViewIDVariableName("ViewID_OVR");
-CONSTEXPR const ImmutableString kInstanceIDVariableName("InstanceID");
-CONSTEXPR const ImmutableString kMultiviewBaseViewLayerIndexVariableName(
+constexpr const ImmutableString kViewIDVariableName("ViewID_OVR");
+constexpr const ImmutableString kInstanceIDVariableName("InstanceID");
+constexpr const ImmutableString kMultiviewBaseViewLayerIndexVariableName(
     "multiviewBaseViewLayerIndex");
 
 // Adds the InstanceID and ViewID_OVR initializers to the end of the initializers' sequence.

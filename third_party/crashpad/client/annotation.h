@@ -27,7 +27,6 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace crashpad {
 
@@ -98,7 +97,7 @@ class Annotation {
   //! \param[in] value A value used to create a user-defined type.
   //!
   //! \returns The value added to Type::kUserDefinedStart and casted.
-  CONSTEXPR static Type UserDefinedType(uint16_t value) {
+  constexpr static Type UserDefinedType(uint16_t value) {
     using UnderlyingType = std::underlying_type<Type>::type;
     // MSVS 2015 doesn't have full C++14 support and complains about local
     // variables defined in a constexpr function, which is valid. Avoid them
@@ -129,7 +128,7 @@ class Annotation {
   //! \param[in] value_ptr A pointer to the value for the annotation. The
   //!     pointer may not be changed once associated with an annotation, but
   //!     the data may be mutated.
-  CONSTEXPR Annotation(Type type, const char name[], void* const value_ptr)
+  constexpr Annotation(Type type, const char name[], void* const value_ptr)
       : link_node_(nullptr),
         name_(name),
         value_ptr_(value_ptr),
@@ -205,7 +204,7 @@ class StringAnnotation : public Annotation {
   //! \brief Constructs a new StringAnnotation with the given \a name.
   //!
   //! \param[in] name The Annotation name.
-  CONSTEXPR explicit StringAnnotation(const char name[])
+  constexpr explicit StringAnnotation(const char name[])
       : Annotation(Type::kString, name, value_), value_() {}
 
   //! \brief Constructs a new StringAnnotation with the given \a name.
@@ -224,7 +223,7 @@ class StringAnnotation : public Annotation {
   //!
   //! \param[in] name The Annotation name.
   //! \param[in] tag A constructor tag.
-  CONSTEXPR StringAnnotation(const char name[], Tag tag)
+  constexpr StringAnnotation(const char name[], Tag tag)
       : StringAnnotation(name) {}
 
   //! \brief Sets the Annotation's string value.

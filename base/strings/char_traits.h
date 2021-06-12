@@ -6,7 +6,6 @@
 #define BASE_STRINGS_CHAR_TRAITS_H_
 
 #include "base/compiler_specific.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -22,14 +21,14 @@ struct CharTraits {
   // Performs a lexographical comparison of the first N characters of |s1| and
   // |s2|. Returns 0 if equal, -1 if |s1| is less than |s2|, and 1 if |s1| is
   // greater than |s2|.
-  static CONSTEXPR int compare(const T* s1, const T* s2, size_t n) noexcept;
+  static constexpr int compare(const T* s1, const T* s2, size_t n) noexcept;
   // Returns the length of |s|, assuming null termination (and not including the
   // terminating null).
-  static CONSTEXPR size_t length(const T* s) noexcept;
+  static constexpr size_t length(const T* s) noexcept;
 };
 
 template <typename T>
-CONSTEXPR int CharTraits<T>::compare(const T* s1,
+constexpr int CharTraits<T>::compare(const T* s1,
                                      const T* s2,
                                      size_t n) noexcept {
   for (; n; --n, ++s1, ++s2) {
@@ -42,7 +41,7 @@ CONSTEXPR int CharTraits<T>::compare(const T* s1,
 }
 
 template <typename T>
-CONSTEXPR size_t CharTraits<T>::length(const T* s) noexcept {
+constexpr size_t CharTraits<T>::length(const T* s) noexcept {
   size_t i = 0;
   for (; *s; ++s)
     ++i;
@@ -54,7 +53,7 @@ CONSTEXPR size_t CharTraits<T>::length(const T* s) noexcept {
 #if defined(STARBOARD)
 template <>
 struct CharTraits<char> {
-  CONSTEXPR static int compare(const char* s1,
+  constexpr static int compare(const char* s1,
                                const char* s2,
                                size_t n) noexcept {
     for (; n; --n, ++s1, ++s2) {
@@ -66,7 +65,7 @@ struct CharTraits<char> {
     return 0;
   }
 
-  CONSTEXPR static size_t length(const char* s) noexcept {
+  constexpr static size_t length(const char* s) noexcept {
     size_t i = 0;
     for (; *s; ++s)
       ++i;

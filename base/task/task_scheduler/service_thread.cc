@@ -71,7 +71,7 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
   if (!task_tracker_)
     return;
 
-  static CONSTEXPR TaskTraits kReportedTraits[] = {
+  static constexpr TaskTraits kReportedTraits[] = {
       {TaskPriority::BEST_EFFORT},   {TaskPriority::BEST_EFFORT, MayBlock()},
       {TaskPriority::USER_VISIBLE},  {TaskPriority::USER_VISIBLE, MayBlock()},
       {TaskPriority::USER_BLOCKING}, {TaskPriority::USER_BLOCKING, MayBlock()}};

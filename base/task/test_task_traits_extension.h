@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/task/task_traits.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace base {
 
@@ -43,7 +42,7 @@ class TestTaskTraitsExtension {
         bool_trait_(trait_helpers::GetTraitFromArgList<TestExtensionBoolFilter>(
             args...)) {}
 
-  CONSTEXPR TaskTraitsExtensionStorage Serialize() const {
+  constexpr TaskTraitsExtensionStorage Serialize() const {
     return {kExtensionId, {{static_cast<uint8_t>(enum_trait_), bool_trait_}}};
   }
 

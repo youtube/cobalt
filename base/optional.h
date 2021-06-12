@@ -14,7 +14,6 @@
 #include "base/logging.h"
 #include "base/template_util.h"
 #include "base/thread_annotations.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace base {
 
@@ -252,7 +251,7 @@ class OptionalBase {
  protected:
   constexpr OptionalBase() = default;
 #if defined(STARBOARD)
-  CONSTEXPR OptionalBase(const OptionalBase& other) {
+  constexpr OptionalBase(const OptionalBase& other) {
     if (other.storage_.is_populated_)
       storage_.Init(other.storage_.value_);
   }
@@ -626,32 +625,32 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return *this;
   }
 
-  CONSTEXPR const T* operator->() const {
+  constexpr const T* operator->() const {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
   }
 
-  CONSTEXPR T* operator->() {
+  constexpr T* operator->() {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
   }
 
-  CONSTEXPR const T& operator*() const & {
+  constexpr const T& operator*() const & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  CONSTEXPR T& operator*() & {
+  constexpr T& operator*() & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  CONSTEXPR const T&& operator*() const && {
+  constexpr const T&& operator*() const && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
-  CONSTEXPR T&& operator*() && {
+  constexpr T&& operator*() && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
@@ -660,22 +659,22 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 
   constexpr bool has_value() const { return storage_.is_populated_; }
 
-  CONSTEXPR T& value() & {
+  constexpr T& value() & {
     CHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  CONSTEXPR const T& value() const & {
+  constexpr const T& value() const & {
     CHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-  CONSTEXPR T&& value() && {
+  constexpr T&& value() && {
     CHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
-  CONSTEXPR const T&& value() const && {
+  constexpr const T&& value() const && {
     CHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
@@ -693,7 +692,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   }
 
   template <class U>
-  CONSTEXPR T value_or(U&& default_value) && {
+  constexpr T value_or(U&& default_value) && {
     // TODO(mlamouri): add the following assert when possible:
     // static_assert(std::is_move_constructible<T>::value,
     //               "T must be move constructible");
@@ -758,7 +757,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 // while bool() casting is replaced by has_value() to meet the chromium
 // style guide.
 template <class T, class U>
-CONSTEXPR bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (lhs.has_value() != rhs.has_value())
     return false;
   if (!lhs.has_value())
@@ -767,7 +766,7 @@ CONSTEXPR bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-CONSTEXPR bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (lhs.has_value() != rhs.has_value())
     return true;
   if (!lhs.has_value())
@@ -776,7 +775,7 @@ CONSTEXPR bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-CONSTEXPR bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!rhs.has_value())
     return false;
   if (!lhs.has_value())
@@ -785,7 +784,7 @@ CONSTEXPR bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-CONSTEXPR bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!lhs.has_value())
     return true;
   if (!rhs.has_value())
@@ -794,7 +793,7 @@ CONSTEXPR bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-CONSTEXPR bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!lhs.has_value())
     return false;
   if (!rhs.has_value())
@@ -803,7 +802,7 @@ CONSTEXPR bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-CONSTEXPR bool operator>=(const Optional<T>& lhs, const Optional<U>& rhs) {
+constexpr bool operator>=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!rhs.has_value())
     return true;
   if (!lhs.has_value())

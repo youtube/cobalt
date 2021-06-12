@@ -29,7 +29,6 @@
 #include "base/stl_util.h"
 #include "base/strings/string16.h"
 #include "base/template_util.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 
 // Composable memory usage estimators.
@@ -276,7 +275,7 @@ struct IsComplexIteratorForContainer<
 #endif
 
 template <class I, template <class...> class... Containers>
-CONSTEXPR bool OneOfContainersComplexIterators() {
+constexpr bool OneOfContainersComplexIterators() {
   // We are forced to create a temporary variable to workaround a compilation
   // error in msvs.
   const bool all_tests[] = {
