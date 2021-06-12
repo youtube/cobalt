@@ -369,7 +369,8 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   if (sb_media_color_metadata.primaries == kSbMediaPrimaryIdCustom) {
     const float* custom_primary_matrix = color_space.custom_primary_matrix();
     SbMemoryCopy(sb_media_color_metadata.custom_primary_matrix,
-                 custom_primary_matrix, sizeof(custom_primary_matrix));
+                 custom_primary_matrix,
+                 sizeof(sb_media_color_metadata.custom_primary_matrix));
   }
 
   return sb_media_color_metadata;
