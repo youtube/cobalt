@@ -114,6 +114,10 @@ The following starboard functions have been removed:
 * `SbMemoryIsAligned`
 * `SbMemoryAlignToPageSize`
 
+### Add SbTimeMonotonic timestamp into SbEvent.
+
+### Remove SbTimeMonotonic timestamp from SbInputData.
+
 ## Version 12
 ### Add support for platform-based UI navigation.
 
