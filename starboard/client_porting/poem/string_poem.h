@@ -29,24 +29,6 @@
 // see:
 // http://stackoverflow.com/questions/10847176/should-i-define-static-inline-methods-in-header-file
 
-// Finds the last occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr, C++ signature
-inline char* PoemFindLastCharacterInString(char* str, int character) {
-  const char* const_str = static_cast<const char*>(str);
-  const char c = static_cast<char>(character);
-  return const_cast<char*>(SbStringFindLastCharacter(const_str, c));
-}
-
-// Finds the last occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr, C++ signature
-inline const char* PoemFindLastCharacterInString(const char* str,
-                                                 int character) {
-  const char c = static_cast<char>(character);
-  return SbStringFindLastCharacter(str, c);
-}
-
 // Finds the first occurrence of |character| in |str|, returning a pointer to
 // the found character in the given string, or NULL if not found.
 // Meant to be a drop-in replacement for strchr
@@ -75,14 +57,6 @@ static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
   return (char*)(strchr(str, character));
 }
 
-// Finds the last occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr
-static SB_C_INLINE char* PoemFindLastCharacterInString(const char* str,
-                                                       int character) {
-  // C-style cast used for C code
-  return (char*)(SbStringFindLastCharacter(str, character));
-}
 #endif
 
 #ifdef __cplusplus
@@ -136,8 +110,6 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define strdup(s) SbStringDuplicate(s)
 #undef strchr
 #define strchr(s, c) PoemFindCharacterInString(s, c)
-#undef strrchr
-#define strrchr(s, c) PoemFindLastCharacterInString(s, c)
 #undef strstr
 #define strstr(s, c) SbStringFindString(s, c)
 #undef strncmp

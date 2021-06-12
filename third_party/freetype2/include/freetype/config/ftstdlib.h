@@ -90,7 +90,7 @@
 #define ft_strlen   strlen
 #define ft_strncmp  SbStringCompare
 #define ft_strncpy  SbStringCopy
-#define ft_strrchr  SbStringFindLastCharacter
+#define ft_strrchr  strrchr
 #else
 #define ft_memcmp   memcmp
 #define ft_memcpy   memcpy

@@ -133,8 +133,6 @@ SB_EXPORT char* SbStringDuplicate(const char* source);
 // |character|: The character to find in the string.
 SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 
-#endif  // SB_API_VERSION < 13
-
 // Finds the last occurrence of a specified character in a string.
 // The return value is a pointer to the found character in the given string or
 // |NULL| if the character is not found. Note that this function's signature
@@ -144,6 +142,8 @@ SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 // |character|: The character to find in the string.
 SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
                                                 char character);
+
+#endif  // SB_API_VERSION < 13
 
 // Finds the first occurrence of |str2| in |str1|. The return value is a
 // pointer to the beginning of the found string or |NULL| if the string is

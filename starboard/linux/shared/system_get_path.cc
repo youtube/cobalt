@@ -124,7 +124,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   }
 
   char* last_slash =
-      const_cast<char *>(SbStringFindLastCharacter(out_path, '/'));
+      const_cast<char *>(strrchr(out_path, '/'));
   if (!last_slash) {
     return false;
   }
@@ -140,7 +140,7 @@ bool GetExecutableName(char* out_path, int path_size) {
     return false;
   }
 
-  const char* last_slash = SbStringFindLastCharacter(path.data(), '/');
+  const char* last_slash = strrchr(path.data(), '/');
   if (SbStringCopy(out_path, last_slash + 1, path_size) >= path_size) {
     return false;
   }

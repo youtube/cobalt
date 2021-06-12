@@ -229,8 +229,8 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringDuplicate);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringFindCharacter);
-#endif
   REGISTER_SYMBOL(SbStringFindLastCharacter);
+#endif
   REGISTER_SYMBOL(SbStringFindString);
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
