@@ -251,7 +251,6 @@
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
 #define OPENSSL_port_strncmp SbStringCompare
 #define OPENSSL_port_strncpy SbStringCopy
-#define OPENSSL_port_strrchr (char *)SbStringFindLastCharacter
 #define OPENSSL_port_time EzTimeTGetNow
 
 // OPENSSL wrapper functions that aren't defined globally.

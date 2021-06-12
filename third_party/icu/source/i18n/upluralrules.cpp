@@ -9,6 +9,8 @@
 
 #include "unicode/utypes.h"
 
+#include <cstring>
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/upluralrules.h"

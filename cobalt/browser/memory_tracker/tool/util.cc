@@ -197,7 +197,7 @@ size_t Segment::size() const { return std::distance(begin_, end_); }
 const char* BaseNameFast(const char* file_name) {
   // Case: Linux.
   const char* end_pos = file_name + strlen(file_name);
-  const char* last_forward_slash = SbStringFindLastCharacter(file_name, '/');
+  const char* last_forward_slash = strrchr(file_name, '/');
   if (last_forward_slash) {
     if (end_pos != last_forward_slash) {
       ++last_forward_slash;
@@ -206,7 +206,7 @@ const char* BaseNameFast(const char* file_name) {
   }
 
   // Case: Windows.
-  const char* last_backward_slash = SbStringFindLastCharacter(file_name, '\\');
+  const char* last_backward_slash = strrchr(file_name, '\\');
   if (last_backward_slash) {
     if (end_pos != last_backward_slash) {
       ++last_backward_slash;

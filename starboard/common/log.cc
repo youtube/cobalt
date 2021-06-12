@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <string>
+#include <cstring>
 
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/client_porting/poem/string_poem.h"

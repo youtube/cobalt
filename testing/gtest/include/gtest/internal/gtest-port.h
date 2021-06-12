@@ -2489,7 +2489,7 @@ inline const char *StrChr(const char *str, char c) {
 }
 
 inline const char *StrRChr(const char *str, char c) {
-  return SbStringFindLastCharacter(str, c);
+  return strrchr(str, c);
 }
 
 inline int StrNCmp(const char *s1, const char *s2, size_t n) {
@@ -2845,4 +2845,3 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 }  // namespace testing
 
 #endif  // GTEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_H_
-
