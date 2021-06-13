@@ -39,7 +39,6 @@
 // "reverse poems" to move past this issue for host builds.  For why we don't
 // just use poems, see the comment in the #else clause.
 
-#define SbStringCopyUnsafe strcpy
 #define SbStringFormatF snprintf
 #define SbStringFormatUnsafeF sprintf
 
@@ -1281,13 +1280,13 @@ char* DoubleToBuffer(double value, char* buffer) {
   GOOGLE_COMPILE_ASSERT(DBL_DIG < 20, DBL_DIG_is_too_big);
 
   if (value == numeric_limits<double>::infinity()) {
-    SbStringCopyUnsafe(buffer, "inf");
+    strcpy(buffer, "inf");
     return buffer;
   } else if (value == -numeric_limits<double>::infinity()) {
-    SbStringCopyUnsafe(buffer, "-inf");
+    strcpy(buffer, "-inf");
     return buffer;
   } else if (MathLimits<double>::IsNaN(value)) {
-    SbStringCopyUnsafe(buffer, "nan");
+    strcpy(buffer, "nan");
     return buffer;
   }
 
@@ -1399,13 +1398,13 @@ char* FloatToBuffer(float value, char* buffer) {
   GOOGLE_COMPILE_ASSERT(FLT_DIG < 10, FLT_DIG_is_too_big);
 
   if (value == numeric_limits<double>::infinity()) {
-    SbStringCopyUnsafe(buffer, "inf");
+    strcpy(buffer, "inf");
     return buffer;
   } else if (value == -numeric_limits<double>::infinity()) {
-    SbStringCopyUnsafe(buffer, "-inf");
+    strcpy(buffer, "-inf");
     return buffer;
   } else if (MathLimits<float>::IsNaN(value)) {
-    SbStringCopyUnsafe(buffer, "nan");
+    strcpy(buffer, "nan");
     return buffer;
   }
 

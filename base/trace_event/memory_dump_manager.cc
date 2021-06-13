@@ -448,7 +448,7 @@ void MemoryDumpManager::InvokeOnMemoryDump(MemoryDumpProviderInfo* mdpinfo,
   // crashes while invoking dump after a |dump_provider| is not unregistered
   // in safe way.
   char provider_name_for_debugging[16];
-  SbStringCopy(provider_name_for_debugging, mdpinfo->name,
+  strncpy(provider_name_for_debugging, mdpinfo->name,
                sizeof(provider_name_for_debugging) - 1);
   provider_name_for_debugging[sizeof(provider_name_for_debugging) - 1] = '\0';
   base::debug::Alias(provider_name_for_debugging);

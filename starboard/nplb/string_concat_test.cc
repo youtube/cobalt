@@ -36,7 +36,7 @@ void TestConcat(const char* initial, const char* source, bool is_short) {
   ASSERT_GT(1024, destination_size);
   char destination[1024] = {0};
   char* dest = destination + kDestinationOffset;
-  SbStringCopy(dest, initial, destination_limit);
+  starboard::strlcpy(dest, initial, destination_limit);
   int result = SbStringConcat(dest, source, destination_limit);
 
   EXPECT_EQ(initial_length + source_length, result);

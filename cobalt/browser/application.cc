@@ -565,12 +565,12 @@ bool AddCrashHandlerAnnotations() {
 
   CrashpadAnnotations crashpad_annotations;
   memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
-  SbStringCopy(crashpad_annotations.user_agent_string, user_agent.c_str(),
-               USER_AGENT_STRING_MAX_SIZE);
-  SbStringCopy(crashpad_annotations.product, product.c_str(),
-               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  SbStringCopy(crashpad_annotations.version, version.c_str(),
-               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
+          USER_AGENT_STRING_MAX_SIZE);
+  strncpy(crashpad_annotations.product, product.c_str(),
+          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  strncpy(crashpad_annotations.version, version.c_str(),
+          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
   bool result = static_cast<const CobaltExtensionCrashHandlerApi*>(
                     crash_handler_extension)
                     ->OverrideCrashpadAnnotations(&crashpad_annotations);

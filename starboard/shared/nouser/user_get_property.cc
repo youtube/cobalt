@@ -63,11 +63,11 @@ bool SbUserGetProperty(SbUser user,
                                                          value_size);
 
     case kSbUserPropertyUserName:
-      SbStringCopy(out_value, user->name, value_size);
+      starboard::strlcpy(out_value, user->name, value_size);
       return true;
 
     case kSbUserPropertyUserId:
-      SbStringCopy(out_value, user->id, value_size);
+      starboard::strlcpy(out_value, user->id, value_size);
       return true;
 
     case kSbUserPropertyAvatarUrl:

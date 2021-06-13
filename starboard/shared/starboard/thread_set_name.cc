@@ -18,6 +18,6 @@
 #include "starboard/shared/starboard/thread_name_internal.h"
 
 void SbThreadSetName(const char* name) {
-  SbStringCopy(starboard::shared::GetThreadName(), name,
-               starboard::shared::kMaxThreadName);
+  starboard::strlcpy(starboard::shared::GetThreadName(), name,
+                     starboard::shared::kMaxThreadName);
 }

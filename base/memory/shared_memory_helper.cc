@@ -131,8 +131,8 @@ bool PrepareMapFile(ScopedFD fd,
 
       // Put a marker at the start of our data so we can confirm where it
       // begins.
-      crash_ptr = SbStringCopy(crash_ptr, kFileDataMarker,
-                               strlen(kFileDataMarker));
+      crash_ptr = strncpy(crash_ptr, kFileDataMarker,
+                               SbStringGetLength(kFileDataMarker));
       for (int i = original_fd_limit; i >= 0; --i) {
         memset(buf, 0, arraysize(buf));
         memset(fd_path, 0, arraysize(fd_path));
@@ -144,7 +144,7 @@ bool PrepareMapFile(ScopedFD fd,
         }
 
         if (crash_ptr + count + 1 < crash_buffer + arraysize(crash_buffer)) {
-          crash_ptr = SbStringCopy(crash_ptr, buf, count + 1);
+          crash_ptr = strncpy(crash_ptr, buf, count + 1);
         }
         LOG(ERROR) << i << ": " << buf;
       }

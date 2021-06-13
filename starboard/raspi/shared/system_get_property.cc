@@ -116,7 +116,7 @@ bool CopyStringAndTestIfSuccess(char* out_value,
                                 const char* from_value) {
   if (strlen(from_value) + 1 > value_length)
     return false;
-  SbStringCopy(out_value, from_value, value_length);
+  starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
 

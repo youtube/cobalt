@@ -76,7 +76,7 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsNullTerminated) {
 TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
   const char* kPoisonLabel = "BadLabel";
   SbMicrophoneInfo info;
-  SbStringCopy(info.label, kPoisonLabel, SB_ARRAY_SIZE(info.label));
+  starboard::strlcpy(info.label, kPoisonLabel, SB_ARRAY_SIZE(info.label));
 
   if (SbMicrophoneGetAvailable(&info, 1) > 0) {
     ASSERT_TRUE(IsNullTerminated(info.label));

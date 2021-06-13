@@ -43,8 +43,6 @@ SB_EXPORT size_t SbStringGetLength(const char* str);
 // |str|: A zero-terminated ASCII string.
 SB_EXPORT size_t SbStringGetLengthWide(const wchar_t* str);
 
-#endif  // SB_API_VERSION < 13
-
 // Copies as much of a |source| string as possible and null-terminates it,
 // given that |destination_size| characters of storage are available. This
 // function is meant to be a drop-in replacement for |strlcpy|.
@@ -79,6 +77,8 @@ static SB_C_INLINE char* SbStringCopyUnsafe(char* out_destination,
 SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
                                const wchar_t* source,
                                int destination_size);
+
+#endif  // SB_API_VERSION < 13
 
 // Appends |source| to |out_destination| as long as |out_destination| has
 // enough storage space to hold the concatenated string.

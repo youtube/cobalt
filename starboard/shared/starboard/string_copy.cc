@@ -16,9 +16,13 @@
 
 #include "starboard/shared/starboard/lcpy.h"
 
+#if SB_API_VERSION < 13
+
 int SbStringCopy(char* out_destination,
                  const char* source,
                  int destination_size) {
   return starboard::shared::starboard::lcpyT<char>(out_destination, source,
                                                    destination_size);
 }
+
+#endif  // SB_API_VERSION >= 13

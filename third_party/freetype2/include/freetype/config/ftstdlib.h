@@ -77,33 +77,22 @@
 
 #define ft_memchr memchr
 
+#define ft_memcmp   memcmp
+#define ft_memcpy   memcpy
+#define ft_memmove  memmove
+#define ft_memset   memset
 #if defined(STARBOARD)
 #include "starboard/string.h"
-#include "starboard/memory.h"
-#define ft_memcmp   memcmp
-#define ft_memcpy   memcpy
-#define ft_memmove  memmove
-#define ft_memset   memset
 #define ft_strcat   SbStringConcatUnsafe
-#define ft_strcmp   strcmp
-#define ft_strcpy   SbStringCopyUnsafe
-#define ft_strlen   strlen
-#define ft_strncmp  strncmp
-#define ft_strncpy  SbStringCopy
-#define ft_strrchr  strrchr
 #else
-#define ft_memcmp   memcmp
-#define ft_memcpy   memcpy
-#define ft_memmove  memmove
-#define ft_memset   memset
 #define ft_strcat   strcat
+#endif
 #define ft_strcmp   strcmp
 #define ft_strcpy   strcpy
 #define ft_strlen   strlen
 #define ft_strncmp  strncmp
 #define ft_strncpy  strncpy
 #define ft_strrchr  strrchr
-#endif
 #define ft_strstr   strstr
   /**************************************************************************
    *

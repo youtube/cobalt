@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
@@ -132,8 +133,8 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
   } else {
     CrashpadAnnotations cobalt_version_info;
     memset(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
-    SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
-                 USER_AGENT_STRING_MAX_SIZE);
+    starboard::strlcpy(cobalt_version_info.user_agent_string,
+                       get_user_agent_func(), USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
         cobalt_version_info);
     SB_DLOG(INFO) << "Added user agent string to Crashpad.";

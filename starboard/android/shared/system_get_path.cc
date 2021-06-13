@@ -71,7 +71,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     }
 
     case kSbSystemPathTempDirectory: {
-      if (SbStringCopy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
+      if (starboard::strlcpy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
         return false;
       }
 
@@ -88,7 +88,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     // a) Unlike the .so itself, it has a valid timestamp of the app install.
     // b) Its parent directory is still a directory within our app package.
     case kSbSystemPathExecutableFile: {
-      if (SbStringCopy(path, g_app_lib_dir, kPathSize) >= kPathSize) {
+      if (starboard::strlcpy(path, g_app_lib_dir, kPathSize) >= kPathSize) {
         return false;
       }
       break;
@@ -104,6 +104,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path, path_size);
+  starboard::strlcpy(out_path, path, path_size);
   return true;
 }

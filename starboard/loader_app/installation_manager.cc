@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -150,7 +151,7 @@ int InstallationManager::GetAppKey(char* app_key, int app_key_length) {
     SB_LOG(ERROR) << "GetAppKey: not initialized";
     return IM_ERROR;
   }
-  SbStringCopy(app_key, app_key_.c_str(), app_key_length);
+  starboard::strlcpy(app_key, app_key_.c_str(), app_key_length);
   return IM_SUCCESS;
 }
 
