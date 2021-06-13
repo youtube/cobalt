@@ -37,6 +37,5 @@
 #define strdup SbStringDuplicate
 #define strncmp SbStringCompare
 #define strncpy SbStringCopy
-#define strstr SbStringFindString
 
 #endif  // HB_STARBOARD_HH

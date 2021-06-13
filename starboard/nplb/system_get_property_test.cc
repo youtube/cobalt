@@ -167,7 +167,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
     char value[kSize] = {0};
 
     if (SbSystemGetProperty(val, value, kSize)) {
-      ASSERT_FALSE(SbStringFindString(value, speech_api_key));
+      ASSERT_FALSE(strstr(value, speech_api_key));
     }
   }
 }
