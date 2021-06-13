@@ -418,8 +418,8 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
     const char *baseptr = (char *)base->data;
     const char *emlptr = (char *)eml->data;
 
-    const char *baseat = OPENSSL_port_strchr(baseptr, '@');
-    const char *emlat = OPENSSL_port_strchr(emlptr, '@');
+    const char *baseat = strchr(baseptr, '@');
+    const char *emlat = strchr(emlptr, '@');
     if (!emlat)
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
     /* Special case: inital '.' is RHS match */
@@ -458,7 +458,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 {
     const char *baseptr = (char *)base->data;
     const char *hostptr = (char *)uri->data;
-    const char *p = OPENSSL_port_strchr(hostptr, ':');
+    const char *p = strchr(hostptr, ':');
     int hostlen;
     /* Check for foo:// and skip past it */
     if (!p || (p[1] != '/') || (p[2] != '/'))
@@ -469,10 +469,10 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 
     /* Look for a port indicator as end of hostname first */
 
-    p = OPENSSL_port_strchr(hostptr, ':');
+    p = strchr(hostptr, ':');
     /* Otherwise look for trailing slash */
     if (!p)
-        p = OPENSSL_port_strchr(hostptr, '/');
+        p = strchr(hostptr, '/');
 
     if (!p)
         hostlen = strlen(hostptr);

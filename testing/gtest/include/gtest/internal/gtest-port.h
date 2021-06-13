@@ -2485,7 +2485,7 @@ inline size_t StrLen(const char *str) {
 }
 
 inline const char *StrChr(const char *str, char c) {
-  return SbStringFindCharacter(str, c);
+  return strchr(str, c);
 }
 
 inline const char *StrRChr(const char *str, char c) {

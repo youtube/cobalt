@@ -438,7 +438,7 @@ void ERR_error_string_n(uint32_t packed_error, char *buf, size_t len) {
     }
 
     for (i = 0; i < num_colons; i++) {
-      char *colon = OPENSSL_port_strchr(s, ':');
+      char *colon = strchr(s, ':');
       char *last_pos = &buf[len - 1] - num_colons + i;
 
       if (colon == NULL || colon > last_pos) {

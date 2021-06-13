@@ -14,6 +14,10 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 13
+
 const char* SbStringFindCharacter(const char* str, char character) {
   return NULL;
 }
+
+#endif  // SB_API_VERSION < 13

@@ -227,7 +227,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringCopy);
   REGISTER_SYMBOL(SbStringCopyWide);
   REGISTER_SYMBOL(SbStringDuplicate);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringFindCharacter);
+#endif
   REGISTER_SYMBOL(SbStringFindLastCharacter);
   REGISTER_SYMBOL(SbStringFindString);
   REGISTER_SYMBOL(SbStringFormat);

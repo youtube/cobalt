@@ -122,6 +122,8 @@ SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
 // |source|: The string to be copied.
 SB_EXPORT char* SbStringDuplicate(const char* source);
 
+#if SB_API_VERSION < 13
+
 // Finds the first occurrence of a |character| in |str|. The return value is a
 // pointer to the found character in the given string or |NULL| if the
 // character is not found. Note that this function's signature does NOT match
@@ -130,6 +132,8 @@ SB_EXPORT char* SbStringDuplicate(const char* source);
 // |str|: The string to search for the character.
 // |character|: The character to find in the string.
 SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
+
+#endif  // SB_API_VERSION < 13
 
 // Finds the last occurrence of a specified character in a string.
 // The return value is a pointer to the found character in the given string or

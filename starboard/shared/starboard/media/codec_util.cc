@@ -346,7 +346,7 @@ bool ParseH265Info(const char* codec, int* profile, int* level) {
   }
 
   // Read profile compatibility, up to 32 bits hex.
-  const char* dot = SbStringFindCharacter(codec, '.');
+  const char* dot = strchr(codec, '.');
   if (dot == NULL || dot - codec == 0 || dot - codec > 8) {
     return false;
   }

@@ -244,7 +244,6 @@
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
 #define OPENSSL_port_strcat(d, s) SbStringConcat((d), (s), INT_MAX)
-#define OPENSSL_port_strchr (char *)SbStringFindCharacter
 #define OPENSSL_port_strcmp SbStringCompareAll
 #define OPENSSL_port_strcpy(d, s) SbStringCopy((d), (s), INT_MAX)
 #define OPENSSL_port_strdup SbStringDuplicate

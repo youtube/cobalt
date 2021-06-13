@@ -32,7 +32,6 @@
 #define assert SB_DCHECK
 #define getenv(x) NULL
 #define snprintf SbStringFormatF
-#define strchr (char *)SbStringFindCharacter
 #define strcmp SbStringCompareAll
 #define strcpy SbStringCopyUnsafe
 #define strdup SbStringDuplicate
