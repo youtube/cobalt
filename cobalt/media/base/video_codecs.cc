@@ -207,7 +207,7 @@ bool ParseAv1CodecId(const std::string& codec_id, VideoCodecProfile* profile,
   //         std::vector<std::string> fields = base::SplitString(
   //             codec_id, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   //       once Chromium base rebase is finished.
-  if (SbStringFindCharacter(codec_id.c_str(), ' ') != nullptr) {
+  if (strchr(codec_id.c_str(), ' ') != nullptr) {
     return false;
   }
   if (SbStringFindString(codec_id.c_str(), "..") != nullptr) {

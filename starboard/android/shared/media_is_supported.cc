@@ -24,7 +24,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::JniEnvExt;
 
-  if (SbStringFindCharacter(key_system, ';')) {
+  if (strchr(key_system, ';')) {
     // TODO: Remove this check and enable key system with attributes support.
     return false;
   }

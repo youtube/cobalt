@@ -126,7 +126,7 @@ static int split_host_and_port(char **out_host, char **out_port, const char *nam
   *out_port = NULL;
 
   if (name[0] == '[') {  // bracketed IPv6 address
-    const char *close = OPENSSL_port_strchr(name, ']');
+    const char *close = strchr(name, ']');
     if (close == NULL) {
       return 0;
     }
@@ -138,8 +138,8 @@ static int split_host_and_port(char **out_host, char **out_port, const char *nam
       return 0;
     }
   } else {
-    const char *colon = OPENSSL_port_strchr(name, ':');
-    if (colon == NULL || OPENSSL_port_strchr(colon + 1, ':') != NULL) {  // IPv6 address
+    const char *colon = strchr(name, ':');
+    if (colon == NULL || strchr(colon + 1, ':') != NULL) {  // IPv6 address
       host = name;
       host_len = strlen(name);
     } else {  // host:port

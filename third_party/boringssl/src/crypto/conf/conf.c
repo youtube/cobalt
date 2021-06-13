@@ -765,7 +765,7 @@ int CONF_parse_list(const char *list, char sep, int remove_whitespace,
         lstart++;
       }
     }
-    p = OPENSSL_port_strchr(lstart, sep);
+    p = strchr(lstart, sep);
     if (p == lstart || !*lstart) {
       ret = list_cb(NULL, 0, arg);
     } else {

@@ -53,7 +53,7 @@ inline const char* PoemFindLastCharacterInString(const char* str,
 inline char* PoemFindCharacterInString(char* str, int character) {
   const char* const_str = static_cast<const char*>(str);
   const char c = static_cast<char>(character);
-  return const_cast<char*>(SbStringFindCharacter(const_str, c));
+  return const_cast<char*>(strchr(const_str, c));
 }
 
 // Finds the first occurrence of |character| in |str|, returning a pointer to
@@ -61,7 +61,7 @@ inline char* PoemFindCharacterInString(char* str, int character) {
 // Meant to be a drop-in replacement for strchr
 inline const char* PoemFindCharacterInString(const char* str, int character) {
   const char c = static_cast<char>(character);
-  return SbStringFindCharacter(str, c);
+  return strchr(str, c);
 }
 
 #else
@@ -72,7 +72,7 @@ inline const char* PoemFindCharacterInString(const char* str, int character) {
 static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
                                                    int character) {
   // C-style cast used for C code
-  return (char*)(SbStringFindCharacter(str, character));
+  return (char*)(strchr(str, character));
 }
 
 // Finds the last occurrence of |character| in |str|, returning a pointer to

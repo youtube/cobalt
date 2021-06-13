@@ -178,7 +178,7 @@ static AUTHORITY_INFO_ACCESS *v2i_AUTHORITY_INFO_ACCESS(X509V3_EXT_METHOD
             OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
             goto err;
         }
-        ptmp = OPENSSL_port_strchr(cnf->name, ';');
+        ptmp = strchr(cnf->name, ';');
         if (!ptmp) {
             OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_SYNTAX);
             goto err;

@@ -172,7 +172,7 @@ static int ssl_ctx_make_profiles(
   const char *col;
   const char *ptr = profiles_string;
   do {
-    col = OPENSSL_port_strchr(ptr, ':');
+    col = strchr(ptr, ':');
 
     const SRTP_PROTECTION_PROFILE *profile;
     if (!find_profile_by_name(

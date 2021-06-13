@@ -1110,7 +1110,7 @@ ASN1_OCTET_STRING *a2i_IPADDRESS_NC(const char *ipasc)
     unsigned char ipout[32];
     char *iptmp = NULL, *p;
     int iplen1, iplen2;
-    p = OPENSSL_port_strchr(ipasc, '/');
+    p = strchr(ipasc, '/');
     if (!p)
         return NULL;
     iptmp = BUF_strdup(ipasc);
@@ -1152,7 +1152,7 @@ int a2i_ipadd(unsigned char *ipout, const char *ipasc)
 {
     /* If string contains a ':' assume IPv6 */
 
-    if (OPENSSL_port_strchr(ipasc, ':')) {
+    if (strchr(ipasc, ':')) {
         if (!ipv6_from_asc(ipout, ipasc))
             return 0;
         return 16;

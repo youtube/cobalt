@@ -573,7 +573,7 @@ static int do_othername(GENERAL_NAME *gen, char *value, X509V3_CTX *ctx)
 {
     char *objtmp = NULL, *p;
     int objlen;
-    if (!(p = OPENSSL_port_strchr(value, ';')))
+    if (!(p = strchr(value, ';')))
         return 0;
     if (!(gen->d.otherName = OTHERNAME_new()))
         return 0;
