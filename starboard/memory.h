@@ -68,6 +68,8 @@ typedef enum SbMemoryMapFlags {
       kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
 } SbMemoryMapFlags;
 
+#if SB_API_VERSION < 13
+
 // Checks whether |memory| is aligned to |alignment| bytes.
 static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
                                                 size_t alignment) {
@@ -78,6 +80,8 @@ static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
 static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
   return (size + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
 }
+
+#endif  // SB_API_VERSION < 13
 
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
