@@ -143,8 +143,6 @@ SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
                                                 char character);
 
-#endif  // SB_API_VERSION < 13
-
 // Finds the first occurrence of |str2| in |str1|. The return value is a
 // pointer to the beginning of the found string or |NULL| if the string is
 // not found. This function is meant to be a drop-in replacement for |strstr|.
@@ -152,6 +150,8 @@ SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
 // |str1|: The string in which to search for the presence of |str2|.
 // |str2|: The string to locate in |str1|.
 SB_EXPORT const char* SbStringFindString(const char* str1, const char* str2);
+
+#endif  // SB_API_VERSION < 13
 
 // Compares two strings, ignoring differences in case. The return value is:
 // - |< 0| if |string1| is ASCII-betically lower than |string2|.

@@ -210,7 +210,7 @@ bool ParseAv1CodecId(const std::string& codec_id, VideoCodecProfile* profile,
   if (strchr(codec_id.c_str(), ' ') != nullptr) {
     return false;
   }
-  if (SbStringFindString(codec_id.c_str(), "..") != nullptr) {
+  if (strstr(codec_id.c_str(), "..") != nullptr) {
     return false;
   }
   std::vector<std::string> fields = base::SplitString(

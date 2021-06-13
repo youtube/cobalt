@@ -130,7 +130,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
   for (auto filename :
        (ignore_channels ? supported_filenames_channels_unchecked
                         : supported_filenames_channels_checked)) {
-    if (SbStringFindString(filename, "heaac") != nullptr) {
+    if (strstr(filename, "heaac") != nullptr) {
       continue;
     }
     test_params.push_back(filename);

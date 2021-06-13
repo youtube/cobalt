@@ -230,8 +230,8 @@ ExportedSymbols::ExportedSymbols(
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringFindCharacter);
   REGISTER_SYMBOL(SbStringFindLastCharacter);
-#endif
   REGISTER_SYMBOL(SbStringFindString);
+#endif
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
 #if SB_API_VERSION < 13

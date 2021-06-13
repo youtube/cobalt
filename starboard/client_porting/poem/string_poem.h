@@ -110,8 +110,6 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define strdup(s) SbStringDuplicate(s)
 #undef strchr
 #define strchr(s, c) PoemFindCharacterInString(s, c)
-#undef strstr
-#define strstr(s, c) SbStringFindString(s, c)
 #undef strncmp
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #undef strcmp
