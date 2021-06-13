@@ -587,7 +587,7 @@ class SandboxSymbolizeHelper {
         start_address = region.start;
         base_address = region.base;
         if (file_path && file_path_size > 0) {
-          SbStringCopy(file_path, region.path.c_str(), file_path_size);
+          strncpy(file_path, region.path.c_str(), file_path_size);
           // Ensure null termination.
           file_path[file_path_size - 1] = '\0';
         }

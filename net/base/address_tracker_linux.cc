@@ -112,7 +112,7 @@ char* AddressTrackerLinux::GetInterfaceName(int interface_index, char* buf) {
   ifr.ifr_ifindex = interface_index;
 
   if (ioctl(ioctl_socket.get(), SIOCGIFNAME, &ifr) == 0)
-    SbStringCopy(buf, ifr.ifr_name, IFNAMSIZ - 1);
+    strncpy(buf, ifr.ifr_name, IFNAMSIZ - 1);
   return buf;
 }
 

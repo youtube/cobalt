@@ -24,5 +24,5 @@ using starboard::shared::win32::SbThreadPrivate;
 
 void SbThreadGetName(char* buffer, int buffer_size) {
   SbThreadPrivate* thread_private = GetCurrentSbThreadPrivate();
-  SbStringCopy(buffer, thread_private->name_.c_str(), buffer_size);
+  starboard::strlcpy(buffer, thread_private->name_.c_str(), buffer_size);
 }

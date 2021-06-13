@@ -54,7 +54,7 @@ bool SbDirectoryGetNext(SbDirectory directory,
   }
 
 #if SB_API_VERSION >= 12
-  SbStringCopy(out_entry, dirent->d_name, out_entry_size);
+  starboard::strlcpy(out_entry, dirent->d_name, out_entry_size);
 #else   // SB_API_VERSION >= 12
   SbStringCopy(out_entry->name, dirent->d_name,
                SB_ARRAY_SIZE_INT(out_entry->name));

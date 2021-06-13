@@ -34,7 +34,7 @@ namespace nouser {
 // providing a single cookie store no matter what any particular web app does to
 // present signing in as different users.
 bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
-  int len = SbStringCopy(out_path, g_app_files_dir, path_size);
+  int len = starboard::strlcpy(out_path, g_app_files_dir, path_size);
   return len < path_size;
 }
 

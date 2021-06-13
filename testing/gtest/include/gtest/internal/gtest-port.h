@@ -2464,7 +2464,7 @@ inline int RmDir(const char* dir) { return SbFileDelete(dir); }
 inline bool IsDir(const StatStruct& st) { return st.is_directory; }
 
 inline const char* StrNCpy(char* dest, const char* src, size_t n) {
-  SbStringCopy(dest, src, static_cast<int>(n));
+  strncpy(dest, src, static_cast<int>(n));
   return dest;
 }
 

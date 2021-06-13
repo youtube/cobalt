@@ -75,7 +75,7 @@ class SymbolResolver {
 
     starboard::ScopedLock lock(mutex_);
     if (resolver_(address, &symbol)) {
-      SbStringCopy(out_buffer, symbol.c_str(), buffer_size);
+      starboard::strlcpy(out_buffer, symbol.c_str(), buffer_size);
       return true;
     } else {
       return false;

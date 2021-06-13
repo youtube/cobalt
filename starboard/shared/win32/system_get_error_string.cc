@@ -25,7 +25,7 @@ int SbSystemGetErrorString(SbSystemError error,
   std::ostringstream out;
   out << starboard::shared::win32::Win32ErrorCode(error);
   if (out_string != nullptr) {
-    SbStringCopy(out_string, out.str().c_str(), string_length);
+    starboard::strlcpy(out_string, out.str().c_str(), string_length);
   }
   return static_cast<int>(out.str().size());
 }

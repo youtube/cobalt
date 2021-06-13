@@ -72,6 +72,23 @@ SB_C_INLINE std::string HexEncode(const void* data,
   return result;
 }
 
+template <typename CHAR>
+static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {
+  for (int i = 0; i < dst_size; ++i) {
+    if ((dst[i] = src[i]) == 0)  // We hit and copied the terminating NULL.
+      return i;
+  }
+
+  // We were left off at dst_size.  We over copied 1 byte.  Null terminate.
+  if (dst_size != 0)
+    dst[dst_size - 1] = 0;
+
+  // Count the rest of the |src|, and return its length in characters.
+  while (src[dst_size])
+    ++dst_size;
+  return dst_size;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_STRING_H_

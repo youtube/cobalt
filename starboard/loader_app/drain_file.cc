@@ -21,6 +21,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/string.h"
@@ -137,7 +138,7 @@ void Rank(const char* dir, char* app_key, size_t len) {
 
   const std::string& ranking_app_key = ExtractAppKey(filenames.front());
 
-  if (SbStringCopy(app_key, ranking_app_key.c_str(), len) >= len)
+  if (starboard::strlcpy(app_key, ranking_app_key.c_str(), len) >= len)
     SB_LOG(ERROR) << "Returned value was truncated";
 }
 

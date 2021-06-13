@@ -66,10 +66,6 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 
 #if !defined(POEM_NO_EMULATION)
 
-#undef strcpy
-#define strcpy(o, s) SbStringCopyUnsafe(o, s)
-#undef strncpy
-#define strncpy(o, s, ds) PoemStringCopyN(o, s, ds)
 #undef strdup
 #define strdup(s) SbStringDuplicate(s)
 

@@ -88,8 +88,8 @@ bool SbDirectoryGetNext(SbDirectory directory,
   }
 
   bool success = true;
-  if (SbStringCopy(out_entry, next_directory_entries.rbegin()->c_str(),
-                   static_cast<int>(out_entry_size)) >= out_entry_size) {
+  if (starboard::strlcpy(out_entry, next_directory_entries.rbegin()->c_str(),
+                         static_cast<int>(out_entry_size)) >= out_entry_size) {
     success = false;
   }
   directory->next_directory_entries.pop_back();

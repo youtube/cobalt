@@ -104,7 +104,8 @@ GLenum Program::GetProgramiv(GLenum pname, GLint* params) {
 void Program::GetProgramInfoLog(GLsizei bufsize,
                                 GLsizei* length,
                                 GLchar* infolog) {
-  *length = SbStringCopy(infolog, link_results_.info_log.c_str(), bufsize);
+  *length = starboard::strlcpy(infolog, link_results_.info_log.c_str(),
+                               bufsize);
 }
 
 GLint Program::GetUniformLocation(const GLchar* name) {

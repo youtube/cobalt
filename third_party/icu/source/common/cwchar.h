@@ -43,7 +43,7 @@
 /* The following are not available on all systems, defined in wchar.h or string.h. */
 #if defined(STARBOARD)
 #   include "starboard/string.h"
-#   define uprv_wcscpy SbStringCopyWide
+#   define uprv_wcscpy wcscpy
 #   define uprv_wcscat SbStringConcatWide
 #   define uprv_wcslen wcslen
 #elif U_HAVE_WCSCPY

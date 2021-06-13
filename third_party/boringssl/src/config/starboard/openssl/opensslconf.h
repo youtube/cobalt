@@ -244,11 +244,9 @@
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
 #define OPENSSL_port_strcat(d, s) SbStringConcat((d), (s), INT_MAX)
-#define OPENSSL_port_strcpy(d, s) SbStringCopy((d), (s), INT_MAX)
 #define OPENSSL_port_strdup SbStringDuplicate
 #define OPENSSL_port_strerror(x) ""
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
-#define OPENSSL_port_strncpy SbStringCopy
 #define OPENSSL_port_time EzTimeTGetNow
 
 // Variables that need to be ported.

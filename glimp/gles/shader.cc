@@ -70,7 +70,8 @@ GLenum Shader::GetShaderiv(GLenum pname, GLint* params) {
 void Shader::GetShaderInfoLog(GLsizei bufsize,
                               GLsizei* length,
                               GLchar* infolog) {
-  *length = SbStringCopy(infolog, compile_results_.info_log.c_str(), bufsize);
+  *length = starboard::strlcpy(infolog, compile_results_.info_log.c_str(),
+                               bufsize);
 }
 
 }  // namespace gles

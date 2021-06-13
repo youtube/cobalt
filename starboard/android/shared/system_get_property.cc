@@ -42,7 +42,7 @@ bool CopyStringAndTestIfSuccess(char* out_value,
                                 const char* from_value) {
   if (strlen(from_value) + 1 > value_length)
     return false;
-  SbStringCopy(out_value, from_value, value_length);
+  starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
 
@@ -57,7 +57,7 @@ bool GetAndroidSystemProperty(const char* system_property_name,
   __system_property_get(system_property_name, out_value);
 
   if (strlen(out_value) == 0) {
-    SbStringCopy(out_value, default_value, value_length);
+    starboard::strlcpy(out_value, default_value, value_length);
   }
   return true;
 }

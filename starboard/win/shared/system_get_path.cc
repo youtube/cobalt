@@ -55,7 +55,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
   if (utf8_string.length() >= path_size) {
     return false;
   }
-  return SbStringCopy(out_path, utf8_string.c_str(), path_size);
+  return starboard::strlcpy(out_path, utf8_string.c_str(), path_size);
 }
 
 // Places up to |path_size| - 1 characters of the path to the directory
@@ -80,7 +80,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   if (utf8_string.length() >= path_size) {
     return false;
   }
-  return SbStringCopy(out_path, utf8_string.c_str(), path_size);
+  return starboard::strlcpy(out_path, utf8_string.c_str(), path_size);
 }
 
 bool GetRelativeDirectory(const char* relative_path,
@@ -102,7 +102,7 @@ bool GetRelativeDirectory(const char* relative_path,
   if (!CreateDirectoryHierarchy(NormalizeWin32Path(file_path.data()))) {
     return false;
   }
-  return SbStringCopy(out_path, file_path.data(), path_size);
+  return starboard::strlcpy(out_path, file_path.data(), path_size);
 }
 
 // Places up to |path_size| - 1 characters of the path to the content directory
@@ -135,7 +135,8 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   std::string utf8_string =
       starboard::shared::win32::wchar_tToUTF8(w_file_path.data());
 
-  if (SbStringCopy(out_path, utf8_string.c_str(), path_size) >= path_size) {
+  if (starboard::strlcpy(out_path, utf8_string.c_str(), path_size) >=
+      path_size) {
     return false;
   }
   SbDirectoryCreate(out_path);

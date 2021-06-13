@@ -39,9 +39,9 @@ bool SbFileAtomicReplace(const char* path,
     return false;
   }
 
-  std::vector<char> temp_path(kSbFileMaxPath);
+  std::vector<char> temp_path(kSbFileMaxPath + 1, 0);
 
-  SbStringCopy(temp_path.data(), path, kSbFileMaxPath);
+  starboard::strlcpy(temp_path.data(), path, kSbFileMaxPath);
   SbStringConcat(temp_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
   if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(

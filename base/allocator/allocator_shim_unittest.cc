@@ -315,7 +315,7 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
 #endif  // !OS_WIN && !OS_MACOSX
 
   char* realloc_ptr = static_cast<char*>(SbMemoryAllocate(10));
-  SbStringCopyUnsafe(realloc_ptr, "foobar");
+  strcpy(realloc_ptr, "foobar");
   void* old_realloc_ptr = realloc_ptr;
   SbMemoryReallocate_ptr =
       static_cast<char*>(SbMemoryReallocate(SbMemoryReallocate_ptr, 73));

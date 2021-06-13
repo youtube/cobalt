@@ -86,7 +86,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path.data(), path_size);
+  starboard::strlcpy(out_path, path.data(), path_size);
   return true;
 }
 
@@ -105,8 +105,8 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
     return true;
   }
 
-  if (SbStringCopy(out_path, evergreen_config->content_path_.c_str(),
-                   path_size) >= path_size) {
+  if (starboard::strlcpy(out_path, evergreen_config->content_path_.c_str(),
+                         path_size) >= path_size) {
     return false;
   }
   return true;
@@ -141,7 +141,7 @@ bool GetExecutableName(char* out_path, int path_size) {
   }
 
   const char* last_slash = strrchr(path.data(), '/');
-  if (SbStringCopy(out_path, last_slash + 1, path_size) >= path_size) {
+  if (starboard::strlcpy(out_path, last_slash + 1, path_size) >= path_size) {
     return false;
   }
   return true;
@@ -268,6 +268,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path.data(), path_size);
+  starboard::strlcpy(out_path, path.data(), path_size);
   return true;
 }

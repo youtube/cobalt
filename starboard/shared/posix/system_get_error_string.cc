@@ -41,5 +41,5 @@ int SbSystemGetErrorString(SbSystemError error,
     return strlen(result);
   }
 
-  return SbStringCopy(out_string, result, string_length);
+  return starboard::strlcpy(out_string, result, string_length);
 }

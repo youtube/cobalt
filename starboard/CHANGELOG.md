@@ -106,11 +106,14 @@ The following starboard functions have been removed:
 * `SbStringCompare`
 * `SbStringCompareAll`
 * `SbStringCompareWide`
-* `SbStringGetLength`
-* `SbStringGetLengthWide`
+* `SbStringCopy`
+* `SbStringCopyUnsafe`
+* `SbStringCopyWide`
 * `SbStringFindCharacter`
 * `SbStringFindLastCharacter`
 * `SbStringFindString`
+* `SbStringGetLength`
+* `SbStringGetLengthWide`
 * `SbStringParseDouble`
 * `SbStringParseSignedInteger`
 * `SbStringParseUInt64`

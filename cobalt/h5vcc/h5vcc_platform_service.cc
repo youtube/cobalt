@@ -42,7 +42,8 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
   scoped_refptr<H5vccPlatformService> service = new H5vccPlatformService(
       global_environment, platform_service_api, receive_callback);
   char* service_name_c_str = new char[kMaxNameLength];
-  SbStringCopy(service_name_c_str, service_name.c_str(), kMaxNameLength);
+  memset(service_name_c_str, 0, kMaxNameLength);
+  strncpy(service_name_c_str, service_name.c_str(), kMaxNameLength);
 
   ExtPlatformService platform_service = platform_service_api->Open(
       service, service_name_c_str, &H5vccPlatformService::Receive);
