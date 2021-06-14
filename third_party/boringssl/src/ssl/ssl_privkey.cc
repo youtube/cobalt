@@ -654,12 +654,12 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
         }
         buf[buf_used] = 0;
 
-        if (OPENSSL_port_strcmp(buf, "RSA") == 0) {
+        if (strcmp(buf, "RSA") == 0) {
           pkey_type = EVP_PKEY_RSA;
-        } else if (OPENSSL_port_strcmp(buf, "RSA-PSS") == 0 ||
-                   OPENSSL_port_strcmp(buf, "PSS") == 0) {
+        } else if (strcmp(buf, "RSA-PSS") == 0 ||
+                   strcmp(buf, "PSS") == 0) {
           pkey_type = EVP_PKEY_RSA_PSS;
-        } else if (OPENSSL_port_strcmp(buf, "ECDSA") == 0) {
+        } else if (strcmp(buf, "ECDSA") == 0) {
           pkey_type = EVP_PKEY_EC;
         } else {
           OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SIGNATURE_ALGORITHM);
@@ -686,7 +686,7 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
           // No '+' was seen thus this is a TLS 1.3-style name.
           bool found = false;
           for (const auto &candidate : kSignatureAlgorithmNames) {
-            if (OPENSSL_port_strcmp(candidate.name, buf) == 0) {
+            if (strcmp(candidate.name, buf) == 0) {
               assert(out_i < num_elements);
               (*out)[out_i++] = candidate.signature_algorithm;
               found = true;
@@ -700,13 +700,13 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
             return false;
           }
         } else {
-          if (OPENSSL_port_strcmp(buf, "SHA1") == 0) {
+          if (strcmp(buf, "SHA1") == 0) {
             hash_nid = NID_sha1;
-          } else if (OPENSSL_port_strcmp(buf, "SHA256") == 0) {
+          } else if (strcmp(buf, "SHA256") == 0) {
             hash_nid = NID_sha256;
-          } else if (OPENSSL_port_strcmp(buf, "SHA384") == 0) {
+          } else if (strcmp(buf, "SHA384") == 0) {
             hash_nid = NID_sha384;
-          } else if (OPENSSL_port_strcmp(buf, "SHA512") == 0) {
+          } else if (strcmp(buf, "SHA512") == 0) {
             hash_nid = NID_sha512;
           } else {
             OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SIGNATURE_ALGORITHM);

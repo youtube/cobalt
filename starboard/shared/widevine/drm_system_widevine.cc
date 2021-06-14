@@ -307,9 +307,9 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
   const std::string init_str(static_cast<const char*>(initialization_data),
                              initialization_data_size);
   wv3cdm::InitDataType init_type = wv3cdm::kWebM;
-  if (SbStringCompareAll("cenc", type) == 0) {
+  if (strcmp("cenc", type) == 0) {
     init_type = wv3cdm::kCenc;
-  } else if (SbStringCompareAll("webm", type) == 0) {
+  } else if (strcmp("webm", type) == 0) {
     init_type = wv3cdm::kWebM;
   } else {
     SB_NOTREACHED();

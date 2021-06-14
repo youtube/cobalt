@@ -123,7 +123,7 @@ int SandboxMain(int argc, char** argv) {
 
   int video_url_length = strlen(argv[2]);
   if (video_url_length > 5 &&
-      SbStringCompare(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
+      strncmp(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
     status = demuxer->AddId("video", "video/webm; codecs=\"vp9\"");
   } else {
     status = demuxer->AddId("video", "video/mp4; codecs=\"avc1.640028\"");

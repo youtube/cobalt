@@ -110,7 +110,7 @@ void SbFileAndroidTeardown() {
 bool IsAndroidAssetPath(const char* path) {
   size_t prefix_len = strlen(g_app_assets_dir);
   return path != NULL
-      && SbStringCompare(g_app_assets_dir, path, prefix_len) == 0
+      && strncmp(g_app_assets_dir, path, prefix_len) == 0
       && (path[prefix_len] == '/' || path[prefix_len] == '\0');
 }
 

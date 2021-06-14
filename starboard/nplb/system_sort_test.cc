@@ -40,7 +40,7 @@ TEST(SbSystemSortTest, SunnyDayLetters) {
   char buf[SB_ARRAY_SIZE(kSorted)] = {0};
   SbStringCopy(buf, kScrambled, SB_ARRAY_SIZE(buf));
   SbSystemSort(buf, SB_ARRAY_SIZE(buf) - 1, 1, &CharComparator);
-  EXPECT_TRUE(SbStringCompareAll(kSorted, kScrambled));
+  EXPECT_TRUE(strcmp(kSorted, kScrambled));
 }
 
 }  // namespace

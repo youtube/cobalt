@@ -1892,7 +1892,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     if (i > j)
       return 1;
   }
-  i = OPENSSL_port_strcmp(buff1, buff2);
+  i = strcmp(buff1, buff2);
   if (i == 0) /* wait a second then return younger :-) */
     return -1;
   else

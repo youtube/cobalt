@@ -14,6 +14,8 @@
 
 #include "starboard/shared/media_session/playback_state.h"
 
+#include <cstring>
+
 #include "cobalt/extension/media_session.h"
 #include "starboard/common/log.h"
 #include "starboard/string.h"
@@ -53,7 +55,7 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
         SbSystemGetExtension(kCobaltExtensionMediaSessionName));
   }
   if (g_extension &&
-      SbStringCompareAll(g_extension->name, kCobaltExtensionMediaSessionName) ==
+      strcmp(g_extension->name, kCobaltExtensionMediaSessionName) ==
           0 &&
       g_extension->version >= 1) {
     CobaltExtensionMediaSessionPlaybackState ext_state =

@@ -551,15 +551,15 @@ ssl_open_record_t ssl3_open_handshake(SSL *ssl, size_t *out_consumed,
     // wish to interpret them differently. (These do not overlap with
     // ClientHello or V2ClientHello.)
     const char *str = reinterpret_cast<const char*>(in.data());
-    if (OPENSSL_port_strncmp("GET ", str, 4) == 0 ||
-        OPENSSL_port_strncmp("POST ", str, 5) == 0 ||
-        OPENSSL_port_strncmp("HEAD ", str, 5) == 0 ||
-        OPENSSL_port_strncmp("PUT ", str, 4) == 0) {
+    if (strncmp("GET ", str, 4) == 0 ||
+        strncmp("POST ", str, 5) == 0 ||
+        strncmp("HEAD ", str, 5) == 0 ||
+        strncmp("PUT ", str, 4) == 0) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_HTTP_REQUEST);
       *out_alert = 0;
       return ssl_open_record_error;
     }
-    if (OPENSSL_port_strncmp("CONNE", str, 5) == 0) {
+    if (strncmp("CONNE", str, 5) == 0) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_HTTPS_PROXY_REQUEST);
       *out_alert = 0;
       return ssl_open_record_error;

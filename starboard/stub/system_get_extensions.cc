@@ -23,13 +23,13 @@
 #include "starboard/stub/javascript_cache.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::stub::GetConfigurationApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionFontName) == 0) {
+  if (strcmp(name, kCobaltExtensionFontName) == 0) {
     return starboard::stub::GetFontApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionJavaScriptCacheName) == 0) {
+  if (strcmp(name, kCobaltExtensionJavaScriptCacheName) == 0) {
     return starboard::stub::GetJavaScriptCacheApi();
   }
   return NULL;

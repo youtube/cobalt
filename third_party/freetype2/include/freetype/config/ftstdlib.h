@@ -85,10 +85,10 @@
 #define ft_memmove  memmove
 #define ft_memset   memset
 #define ft_strcat   SbStringConcatUnsafe
-#define ft_strcmp   SbStringCompareAll
+#define ft_strcmp   strcmp
 #define ft_strcpy   SbStringCopyUnsafe
 #define ft_strlen   strlen
-#define ft_strncmp  SbStringCompare
+#define ft_strncmp  strncmp
 #define ft_strncpy  SbStringCopy
 #define ft_strrchr  strrchr
 #else

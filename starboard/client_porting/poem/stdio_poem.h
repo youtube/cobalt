@@ -24,8 +24,6 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
-#define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
-
 // the following functions can have variable number of arguments
 // and, out of compatibility concerns, we chose to not use
 // __VA_ARGS__ functionality.

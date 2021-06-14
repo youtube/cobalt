@@ -266,6 +266,9 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
   return result;
 }
 
+
+#if SB_API_VERSION < 13
+
 // Compares the first |count| characters of two 16-bit character strings.
 // The return value is:
 // - |< 0| if |string1| is ASCII-betically lower than |string2|.
@@ -306,6 +309,8 @@ SB_EXPORT int SbStringCompare(const char* string1,
 // |string1|: The first 8-bit character string to compare.
 // |string2|: The second 8-bit character string to compare.
 SB_EXPORT int SbStringCompareAll(const char* string1, const char* string2);
+
+#endif  // SB_API_VERSION < 13
 
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
 // The return value specifies the number of successfully matched items, which

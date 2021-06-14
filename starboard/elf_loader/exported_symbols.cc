@@ -217,11 +217,15 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStorageOpenRecord);
   REGISTER_SYMBOL(SbStorageReadRecord);
   REGISTER_SYMBOL(SbStorageWriteRecord);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCompare);
   REGISTER_SYMBOL(SbStringCompareAll);
+#endif
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCompareWide);
+#endif
   REGISTER_SYMBOL(SbStringConcat);
   REGISTER_SYMBOL(SbStringConcatWide);
   REGISTER_SYMBOL(SbStringCopy);

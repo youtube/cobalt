@@ -262,7 +262,7 @@ static GENERAL_NAMES *v2i_issuer_alt(X509V3_EXT_METHOD *method,
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
         if (!name_cmp(cnf->name, "issuer") && cnf->value &&
-            !OPENSSL_port_strcmp(cnf->value, "copy")) {
+            !strcmp(cnf->value, "copy")) {
             if (!copy_issuer(ctx, gens))
                 goto err;
         } else {
@@ -332,11 +332,11 @@ static GENERAL_NAMES *v2i_subject_alt(X509V3_EXT_METHOD *method,
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
         if (!name_cmp(cnf->name, "email") && cnf->value &&
-            !OPENSSL_port_strcmp(cnf->value, "copy")) {
+            !strcmp(cnf->value, "copy")) {
             if (!copy_email(ctx, gens, 0))
                 goto err;
         } else if (!name_cmp(cnf->name, "email") && cnf->value &&
-                   !OPENSSL_port_strcmp(cnf->value, "move")) {
+                   !strcmp(cnf->value, "move")) {
             if (!copy_email(ctx, gens, 1))
                 goto err;
         } else {

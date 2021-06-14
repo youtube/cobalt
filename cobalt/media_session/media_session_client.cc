@@ -71,7 +71,7 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
   extension_ = static_cast<const CobaltExtensionMediaSessionApi*>(
       SbSystemGetExtension(kCobaltExtensionMediaSessionName));
   if (extension_) {
-    if (SbStringCompareAll(extension_->name,
+    if (strcmp(extension_->name,
                            kCobaltExtensionMediaSessionName) != 0 ||
         extension_->version < 1) {
       LOG(WARNING) << "Wrong MediaSession extension supplied";

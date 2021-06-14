@@ -287,14 +287,14 @@ int X509V3_get_value_bool(CONF_VALUE *value, int *asn1_bool)
     char *btmp;
     if (!(btmp = value->value))
         goto err;
-    if (!OPENSSL_port_strcmp(btmp, "TRUE") || !OPENSSL_port_strcmp(btmp, "true")
-        || !OPENSSL_port_strcmp(btmp, "Y") || !OPENSSL_port_strcmp(btmp, "y")
-        || !OPENSSL_port_strcmp(btmp, "YES") || !OPENSSL_port_strcmp(btmp, "yes")) {
+    if (!strcmp(btmp, "TRUE") || !strcmp(btmp, "true")
+        || !strcmp(btmp, "Y") || !strcmp(btmp, "y")
+        || !strcmp(btmp, "YES") || !strcmp(btmp, "yes")) {
         *asn1_bool = 0xff;
         return 1;
-    } else if (!OPENSSL_port_strcmp(btmp, "FALSE") || !OPENSSL_port_strcmp(btmp, "false")
-               || !OPENSSL_port_strcmp(btmp, "N") || !OPENSSL_port_strcmp(btmp, "n")
-               || !OPENSSL_port_strcmp(btmp, "NO") || !OPENSSL_port_strcmp(btmp, "no")) {
+    } else if (!strcmp(btmp, "FALSE") || !strcmp(btmp, "false")
+               || !strcmp(btmp, "N") || !strcmp(btmp, "n")
+               || !strcmp(btmp, "NO") || !strcmp(btmp, "no")) {
         *asn1_bool = 0;
         return 1;
     }
@@ -542,7 +542,7 @@ int name_cmp(const char *name, const char *cmp)
     int len, ret;
     char c;
     len = strlen(cmp);
-    if ((ret = OPENSSL_port_strncmp(name, cmp, len)))
+    if ((ret = strncmp(name, cmp, len)))
         return ret;
     c = name[len];
     if (!c || (c == '.'))
@@ -552,7 +552,7 @@ int name_cmp(const char *name, const char *cmp)
 
 static int sk_strcmp(const OPENSSL_STRING *a, const OPENSSL_STRING *b)
 {
-    return OPENSSL_port_strcmp(*a, *b);
+    return strcmp(*a, *b);
 }
 
 STACK_OF(OPENSSL_STRING) *X509_get1_email(X509 *x)

@@ -173,7 +173,7 @@ TEST_P(Aes, SunnyDayIdentity) {
   int count =
       SbCryptographyTransform(encrypter, kClearText, kInputSize, cipher_text);
   EXPECT_EQ(kInputSize, count);
-  EXPECT_NE(0, SbStringCompare(kClearText, cipher_text, kBufferSize));
+  EXPECT_NE(0, strncmp(kClearText, cipher_text, kBufferSize));
 
   EXPECT_STREQ(GetExpectedEncryptedValueHex(),
                HexDump(cipher_text, kBufferSize).c_str());

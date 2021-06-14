@@ -103,6 +103,9 @@ The following starboard functions have been removed:
 * `SbMemoryIsZero`
 * `SbMemoryMove`
 * `SbMemorySet`
+* `SbStringCompare`
+* `SbStringCompareAll`
+* `SbStringCompareWide`
 * `SbStringGetLength`
 * `SbStringGetLengthWide`
 * `SbStringFindCharacter`

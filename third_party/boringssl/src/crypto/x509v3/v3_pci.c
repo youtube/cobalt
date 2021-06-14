@@ -85,7 +85,7 @@ static int process_pci_value(CONF_VALUE *val,
 {
     int free_policy = 0;
 
-    if (OPENSSL_port_strcmp(val->name, "language") == 0) {
+    if (strcmp(val->name, "language") == 0) {
         if (*language) {
             OPENSSL_PUT_ERROR(X509V3,
                               X509V3_R_POLICY_LANGUAGE_ALREADY_DEFINED);
@@ -97,7 +97,7 @@ static int process_pci_value(CONF_VALUE *val,
             X509V3_conf_err(val);
             return 0;
         }
-    } else if (OPENSSL_port_strcmp(val->name, "pathlen") == 0) {
+    } else if (strcmp(val->name, "pathlen") == 0) {
         if (*pathlen) {
             OPENSSL_PUT_ERROR(X509V3,
                               X509V3_R_POLICY_PATH_LENGTH_ALREADY_DEFINED);
@@ -109,7 +109,7 @@ static int process_pci_value(CONF_VALUE *val,
             X509V3_conf_err(val);
             return 0;
         }
-    } else if (OPENSSL_port_strcmp(val->name, "policy") == 0) {
+    } else if (strcmp(val->name, "policy") == 0) {
         unsigned char *tmp_data = NULL;
         long val_len;
         if (!*policy) {
@@ -121,7 +121,7 @@ static int process_pci_value(CONF_VALUE *val,
             }
             free_policy = 1;
         }
-        if (OPENSSL_port_strncmp(val->value, "hex:", 4) == 0) {
+        if (strncmp(val->value, "hex:", 4) == 0) {
             unsigned char *tmp_data2 =
                 string_to_hex(val->value + 4, &val_len);
 
@@ -152,7 +152,7 @@ static int process_pci_value(CONF_VALUE *val,
                 goto err;
             }
             OPENSSL_free(tmp_data2);
-        } else if (OPENSSL_port_strncmp(val->value, "text:", 5) == 0) {
+        } else if (strncmp(val->value, "text:", 5) == 0) {
             val_len = strlen(val->value + 5);
             tmp_data = OPENSSL_realloc((*policy)->data,
                                        (*policy)->length + val_len + 1);

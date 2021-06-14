@@ -148,7 +148,7 @@ static int find_profile_by_name(const char *profile_name,
   const SRTP_PROTECTION_PROFILE *p = kSRTPProfiles;
   while (p->name) {
     if (len == strlen(p->name) &&
-        !OPENSSL_port_strncmp(p->name, profile_name, len)) {
+        !strncmp(p->name, profile_name, len)) {
       *pptr = p;
       return 1;
     }

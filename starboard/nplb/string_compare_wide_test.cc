@@ -18,6 +18,8 @@
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < 13
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -25,14 +27,13 @@ namespace {
 TEST(SbStringCompareWideTest, SunnyDay) {
   const wchar_t kString1[] = L"0123456788";
   const wchar_t kString2[] = L"0123456789";
-  EXPECT_EQ(0, SbStringCompareWide(kString1, kString1,
-                                   wcslen(kString1)));
-  EXPECT_GT(0, SbStringCompareWide(kString1, kString2,
-                                   wcslen(kString1)));
-  EXPECT_LT(0, SbStringCompareWide(kString2, kString1,
-                                   wcslen(kString2)));
+  EXPECT_EQ(0, SbStringCompareWide(kString1, kString1, wcslen(kString1)));
+  EXPECT_GT(0, SbStringCompareWide(kString1, kString2, wcslen(kString1)));
+  EXPECT_LT(0, SbStringCompareWide(kString2, kString1, wcslen(kString2)));
 }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 13

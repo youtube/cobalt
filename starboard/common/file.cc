@@ -14,6 +14,7 @@
 
 #include "starboard/common/file.h"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -58,8 +59,8 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
-    if (!SbStringCompareAll(entry.data(), ".") ||
-        !SbStringCompareAll(entry.data(), "..")) {
+    if (!strcmp(entry.data(), ".") ||
+        !strcmp(entry.data(), "..")) {
       continue;
     }
 
@@ -70,8 +71,8 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   SbDirectoryEntry entry;
 
   while (SbDirectoryGetNext(dir, &entry)) {
-    if (!SbStringCompareAll(entry.name, ".") ||
-        !SbStringCompareAll(entry.name, "..")) {
+    if (!strcmp(entry.name, ".") ||
+        !strcmp(entry.name, "..")) {
       continue;
     }
 

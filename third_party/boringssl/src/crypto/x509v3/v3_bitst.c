@@ -120,8 +120,8 @@ ASN1_BIT_STRING *v2i_ASN1_BIT_STRING(X509V3_EXT_METHOD *method,
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         val = sk_CONF_VALUE_value(nval, i);
         for (bnam = method->usr_data; bnam->lname; bnam++) {
-            if (!OPENSSL_port_strcmp(bnam->sname, val->name) ||
-                !OPENSSL_port_strcmp(bnam->lname, val->name)) {
+            if (!strcmp(bnam->sname, val->name) ||
+                !strcmp(bnam->lname, val->name)) {
                 if (!ASN1_BIT_STRING_set_bit(bs, bnam->bitnum, 1)) {
                     OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
                     M_ASN1_BIT_STRING_free(bs);

@@ -67,7 +67,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
       *system_font_config_directory != '\0' &&
       system_font_files_directory != NULL &&
       *system_font_files_directory != '\0' &&
-      (0 != SbStringCompareAll(cobalt_font_files_directory,
+      (0 != strcmp(cobalt_font_files_directory,
                                system_font_files_directory))) {
     TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
     ParseConfigAndBuildFamilies(system_font_config_directory,
@@ -81,7 +81,7 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
       static_cast<const CobaltExtensionFontApi*>(
           SbSystemGetExtension(kCobaltExtensionFontName));
   if (font_extension &&
-      SbStringCompareAll(font_extension->name, kCobaltExtensionFontName) == 0 &&
+      strcmp(font_extension->name, kCobaltExtensionFontName) == 0 &&
       font_extension->version >= 1) {
     std::vector<char> fallback_directory(kSbFileMaxPath);
     if (font_extension->GetPathFallbackFontDirectory(fallback_directory.data(),

@@ -255,7 +255,7 @@ static int short_name_cmp(const void *key, const void *element) {
   const char *name = (const char *) key;
   unsigned nid = *((unsigned*) element);
 
-  return OPENSSL_port_strcmp(name, kObjects[nid].sn);
+  return strcmp(name, kObjects[nid].sn);
 }
 
 int OBJ_sn2nid(const char *short_name) {
@@ -291,7 +291,7 @@ static int long_name_cmp(const void *key, const void *element) {
   const char *name = (const char *) key;
   unsigned nid = *((unsigned*) element);
 
-  return OPENSSL_port_strcmp(name, kObjects[nid].ln);
+  return strcmp(name, kObjects[nid].ln);
 }
 
 int OBJ_ln2nid(const char *long_name) {
@@ -494,7 +494,7 @@ static uint32_t hash_short_name(const ASN1_OBJECT *obj) {
 }
 
 static int cmp_short_name(const ASN1_OBJECT *a, const ASN1_OBJECT *b) {
-  return OPENSSL_port_strcmp(a->sn, b->sn);
+  return strcmp(a->sn, b->sn);
 }
 
 static uint32_t hash_long_name(const ASN1_OBJECT *obj) {
@@ -502,7 +502,7 @@ static uint32_t hash_long_name(const ASN1_OBJECT *obj) {
 }
 
 static int cmp_long_name(const ASN1_OBJECT *a, const ASN1_OBJECT *b) {
-  return OPENSSL_port_strcmp(a->ln, b->ln);
+  return strcmp(a->ln, b->ln);
 }
 
 // obj_add_object inserts |obj| into the various global hashes for run-time
