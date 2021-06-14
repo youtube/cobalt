@@ -71,22 +71,14 @@ inline bool CodedInputStream::InternalReadRawInline(void* buffer, int size) {
   int current_buffer_size;
   while ((current_buffer_size = BufferSize()) < size) {
     // Reading past end of buffer.  Copy what we have, then refresh.
-#ifndef STARBOARD
     memcpy(buffer, buffer_, current_buffer_size);
-#else
-    memcpy(buffer, buffer_, current_buffer_size);
-#endif  // STARBOARD
     buffer = reinterpret_cast<uint8*>(buffer) + current_buffer_size;
     size -= current_buffer_size;
     Advance(current_buffer_size);
     if (!Refresh()) return false;
   }
 
-#ifndef STARBOARD
   memcpy(buffer, buffer_, size);
-#else
-  memcpy(buffer, buffer_, size);
-#endif  // STARBOARD
   Advance(size);
 
   return true;

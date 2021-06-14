@@ -897,11 +897,7 @@ inline const uint8* CodedInputStream::ReadLittleEndian64FromArray(
     const uint8* buffer,
     uint64* value) {
 #if defined(PROTOBUF_LITTLE_ENDIAN)
-#ifndef STARBOARD
   memcpy(value, buffer, sizeof(*value));
-#else
-  memcpy(value, buffer, sizeof(*value));
-#endif  // STARBOARD
   return buffer + sizeof(*value);
 #else
   uint32 part0 = (static_cast<uint32>(buffer[0])      ) |
@@ -921,11 +917,7 @@ inline const uint8* CodedInputStream::ReadLittleEndian64FromArray(
 inline bool CodedInputStream::ReadLittleEndian32(uint32* value) {
 #if defined(PROTOBUF_LITTLE_ENDIAN)
   if (GOOGLE_PREDICT_TRUE(BufferSize() >= static_cast<int>(sizeof(*value)))) {
-#ifndef STARBOARD
     memcpy(value, buffer_, sizeof(*value));
-#else
-    memcpy(value, buffer_, sizeof(*value));
-#endif  // STARBOARD
     Advance(sizeof(*value));
     return true;
   } else {
@@ -939,11 +931,7 @@ inline bool CodedInputStream::ReadLittleEndian32(uint32* value) {
 inline bool CodedInputStream::ReadLittleEndian64(uint64* value) {
 #if defined(PROTOBUF_LITTLE_ENDIAN)
   if (GOOGLE_PREDICT_TRUE(BufferSize() >= static_cast<int>(sizeof(*value)))) {
-#ifndef STARBOARD
     memcpy(value, buffer_, sizeof(*value));
-#else
-    memcpy(value, buffer_, sizeof(*value));
-#endif  // STARBOARD
     Advance(sizeof(*value));
     return true;
   } else {
@@ -1121,11 +1109,7 @@ inline uint8* CodedOutputStream::WriteVarint32SignExtendedToArray(
 inline uint8* CodedOutputStream::WriteLittleEndian32ToArray(uint32 value,
                                                             uint8* target) {
 #if defined(PROTOBUF_LITTLE_ENDIAN)
-#ifndef STARBOARD
   memcpy(target, &value, sizeof(value));
-#else
-  memcpy(target, &value, sizeof(value));
-#endif  // STARBOARD
 #else
   target[0] = static_cast<uint8>(value);
   target[1] = static_cast<uint8>(value >>  8);
@@ -1138,11 +1122,7 @@ inline uint8* CodedOutputStream::WriteLittleEndian32ToArray(uint32 value,
 inline uint8* CodedOutputStream::WriteLittleEndian64ToArray(uint64 value,
                                                             uint8* target) {
 #if defined(PROTOBUF_LITTLE_ENDIAN)
-#ifndef STARBOARD
   memcpy(target, &value, sizeof(value));
-#else
-  memcpy(target, &value, sizeof(value));
-#endif  // STARBOARD
 #else
   uint32 part0 = static_cast<uint32>(value);
   uint32 part1 = static_cast<uint32>(value >> 32);
