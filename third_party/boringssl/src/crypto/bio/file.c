@@ -456,15 +456,15 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || \
     defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_WIN32_CYGWIN)
       if (!(num & BIO_FP_TEXT))
-        OPENSSL_port_strcat(p, "b");
+        strcat(p, "b");
       else
-        OPENSSL_port_strcat(p, "t");
+        strcat(p, "t");
 #endif
 #if defined(OPENSSL_SYS_NETWARE)
       if (!(num & BIO_FP_TEXT))
-        OPENSSL_port_strcat(p, "b");
+        strcat(p, "b");
       else
-        OPENSSL_port_strcat(p, "t");
+        strcat(p, "t");
 #endif
 #if defined(OPENSSL_SYS_STARBOARD)
       {

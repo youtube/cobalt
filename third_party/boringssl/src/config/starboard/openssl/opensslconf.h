@@ -243,7 +243,6 @@
 #define OPENSSL_port_realloc SbMemoryReallocate
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
-#define OPENSSL_port_strcat(d, s) SbStringConcat((d), (s), INT_MAX)
 #define OPENSSL_port_strdup SbStringDuplicate
 #define OPENSSL_port_strerror(x) ""
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN

@@ -225,10 +225,8 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCompareWide);
-#endif
   REGISTER_SYMBOL(SbStringConcat);
   REGISTER_SYMBOL(SbStringConcatWide);
-#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCopy);
   REGISTER_SYMBOL(SbStringCopyWide);
 #endif  // SB_API_VERSION >= 13

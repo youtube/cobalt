@@ -14,8 +14,12 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 13
+
 int SbStringConcat(char* out_destination,
                    const char* source,
                    int destination_size) {
   return 0;
 }
+
+#endif  // SB_API_VERSION < 13

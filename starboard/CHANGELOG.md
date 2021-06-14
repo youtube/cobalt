@@ -90,6 +90,9 @@ The following starboard functions have been removed:
 * `SbCharacterIsUpper`
 * `SbCharacterToLower`
 * `SbCharacterToUpper`
+* `SbStringConcat`
+* `SbStringConcatUnsafe`
+* `SbStringConcatWide`
 * `SbDoubleAbsolute`
 * `SbDoubleExponent`
 * `SbDoubleFloor`

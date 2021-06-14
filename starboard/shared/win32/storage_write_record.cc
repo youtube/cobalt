@@ -42,10 +42,11 @@ bool SbStorageWriteRecord(SbStorageRecord record,
           record->user, name, original_file_path.data(), kSbFileMaxPath)) {
     return false;
   }
+
   std::vector<char> temp_file_path(kSbFileMaxPath + 1, 0);
   starboard::strlcpy(temp_file_path.data(), original_file_path.data(),
                      kSbFileMaxPath);
-  SbStringConcat(temp_file_path.data(), kTempFileSuffix, kSbFileMaxPath);
+  starboard::strlcat(temp_file_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
   SbFileError error;
   SbFile temp_file = SbFileOpen(

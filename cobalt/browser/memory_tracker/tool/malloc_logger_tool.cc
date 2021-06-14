@@ -141,8 +141,8 @@ void MallocLoggerTool::LogRecord(const void* memory_block,
   }
 
   // Adds a "\n" at the end.
-  bytes_written = SbStringConcat(buff + buff_pos, "\"\n",
-                                 static_cast<int>(kRecordLimit - buff_pos));
+  bytes_written = starboard::strlcat(buff + buff_pos, "\"\n",
+                                     static_cast<int>(kRecordLimit - buff_pos));
   buff_pos += bytes_written;
   buffered_file_writer_->Append(buff, buff_pos);
 }

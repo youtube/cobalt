@@ -67,11 +67,12 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
     return;
   }
 
-  if (SbStringConcat(out_path.data(), kSbFileSepString, path_size) >=
+  if (starboard::strlcat(out_path.data(), kSbFileSepString, path_size) >=
       path_size) {
     return;
   }
-  if (SbStringConcat(out_path.data(), log_file_name, path_size) >= path_size) {
+  if (starboard::strlcat(out_path.data(), log_file_name, path_size) >=
+      path_size) {
     return;
   }
 

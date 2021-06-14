@@ -40,7 +40,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
   switch (path_id) {
     case kSbSystemPathContentDirectory: {
-      if (SbStringConcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
         return false;
       }
       break;
@@ -50,7 +50,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/cache", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path, "/cache", kPathSize) >= kPathSize) {
         return false;
       }
 
@@ -62,7 +62,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/log", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path, "/log", kPathSize) >= kPathSize) {
         return false;
       }
 

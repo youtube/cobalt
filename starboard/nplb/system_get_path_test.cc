@@ -120,7 +120,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     // Delete a directory and confirm that it does not exist.
     std::string sub_path =
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
-    EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
+    EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));
 
@@ -151,7 +151,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     // Delete a file and confirm that it does not exist.
     std::string sub_path =
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
-    EXPECT_GT(SbStringConcat(path.data(), sub_path.c_str(), kPathSize), 0);
+    EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));
 

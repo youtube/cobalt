@@ -95,8 +95,8 @@ std::string GetWidevineStoragePath() {
   auto path_size = path.size();
   SB_CHECK(
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
-      SbStringConcat(path.data(), kSbFileSepString, path_size) &&
-      SbStringConcat(path.data(), kWidevineStorageFileName, path_size));
+      ::starboard::strlcat(path.data(), kSbFileSepString, path_size) &&
+      ::starboard::strlcat(path.data(), kWidevineStorageFileName, path_size));
   return std::string(path.data());
 }
 

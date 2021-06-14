@@ -94,7 +94,7 @@ bool GetRelativeDirectory(const char* relative_path,
   if (!GetExecutableDirectory(file_path.data(), path_size)) {
     return false;
   }
-  if (SbStringConcat(file_path.data(), relative_path, kSbFileMaxPath) >=
+  if (starboard::strlcat(file_path.data(), relative_path, kSbFileMaxPath) >=
       path_size) {
     return false;
   }
