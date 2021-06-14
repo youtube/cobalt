@@ -40,7 +40,6 @@
 // just use poems, see the comment in the #else clause.
 
 #define SbStringCopyUnsafe strcpy
-#define PoemFindCharacterInString strchr
 #define SbStringFormatF snprintf
 #define SbStringFormatUnsafeF sprintf
 
@@ -50,14 +49,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
-
-// We avoid using poems here because a subsequent #include of math.h may
-// result, on some platforms, of the indirect inclusion of stdlib.h, which
-// will then conflict with our poem includes.
-#define POEM_NO_EMULATION
-// For access to PoemFindCharacterInString() as a replacement for strchr().
-#include "starboard/client_porting/poem/string_poem.h"
-#undef POEM_NO_EMULATION
 
 #endif  // STARBOARD
 
@@ -1258,7 +1249,7 @@ static inline bool IsValidFloatChar(char c) {
 void DelocalizeRadix(char* buffer) {
   // Fast check:  if the buffer has a normal decimal point, assume no
   // translation is needed.
-  if (PoemFindCharacterInString(buffer, '.') != NULL) return;
+  if (strchr(buffer, '.') != NULL) return;
 
   // Find the first unknown character.
   while (IsValidFloatChar(*buffer)) ++buffer;

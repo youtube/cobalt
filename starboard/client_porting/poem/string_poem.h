@@ -24,42 +24,6 @@
 #include "starboard/string.h"
 
 #ifdef __cplusplus
-
-// declaring the following 4 functions static inline is not necessary in C++
-// see:
-// http://stackoverflow.com/questions/10847176/should-i-define-static-inline-methods-in-header-file
-
-// Finds the first occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr
-inline char* PoemFindCharacterInString(char* str, int character) {
-  const char* const_str = static_cast<const char*>(str);
-  const char c = static_cast<char>(character);
-  return const_cast<char*>(strchr(const_str, c));
-}
-
-// Finds the first occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr
-inline const char* PoemFindCharacterInString(const char* str, int character) {
-  const char c = static_cast<char>(character);
-  return strchr(str, c);
-}
-
-#else
-
-// Finds the first occurrence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
-// Meant to be a drop-in replacement for strchr
-static SB_C_INLINE char* PoemFindCharacterInString(const char* str,
-                                                   int character) {
-  // C-style cast used for C code
-  return (char*)(strchr(str, character));
-}
-
-#endif
-
-#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -108,8 +72,6 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 #define strncpy(o, s, ds) PoemStringCopyN(o, s, ds)
 #undef strdup
 #define strdup(s) SbStringDuplicate(s)
-#undef strchr
-#define strchr(s, c) PoemFindCharacterInString(s, c)
 #undef strncmp
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
 #undef strcmp
