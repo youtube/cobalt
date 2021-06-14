@@ -15,15 +15,15 @@
 #include "starboard/accessibility.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/memory.h"
+#include "starboard/common/memory.h"
 
 using starboard::android::shared::JniEnvExt;
 
 bool SbAccessibilityGetDisplaySettings(
     SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
-      !SbMemoryIsZero(out_setting,
-                      sizeof(SbAccessibilityDisplaySettings))) {
+      !starboard::common::MemoryIsZero(
+          out_setting, sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
 

@@ -95,19 +95,25 @@ The following starboard functions have been removed:
 * `SbDoubleFloor`
 * `SbDoubleIsFinite`
 * `SbDoubleIsNan`
+* `SbMemoryAlignToPageSize`
+* `SbMemoryCompare`
+* `SbMemoryCopy`
+* `SbMemoryFindByte`
+* `SbMemoryIsAligned`
+* `SbMemoryIsZero`
+* `SbMemoryMove`
+* `SbMemorySet`
+* `SbStringGetLength`
+* `SbStringGetLengthWide`
+* `SbStringFindCharacter`
+* `SbStringFindLastCharacter`
+* `SbStringFindString`
 * `SbStringParseDouble`
 * `SbStringParseSignedInteger`
 * `SbStringParseUInt64`
 * `SbStringParseUnsignedInteger`
 * `SbSystemBinarySearch`
 * `SbSystemSort`
-* `SbMemoryMove`
-* `SbMemorySet`
-* `SbMemoryCompare`
-* `SbMemoryCopy`
-* `SbMemoryFindByte`
-* `SbMemoryIsAligned`
-* `SbMemoryAlignToPageSize`
 
 ### Add SbTimeMonotonic timestamp into SbEvent.
 

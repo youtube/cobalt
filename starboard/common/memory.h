@@ -31,6 +31,16 @@ static SB_C_FORCE_INLINE size_t MemoryAlignToPageSize(size_t size) {
   return (size + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
 }
 
+// Returns true if the first |count| bytes of |buffer| are set to zero.
+static SB_C_FORCE_INLINE bool MemoryIsZero(const void* buffer, size_t count) {
+  if (count == 0) {
+    return true;
+  }
+  const char* char_buffer = (const char*)(buffer);
+  return char_buffer[0] == 0 &&
+         memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
+}
+
 }  // namespace common
 }  // namespace starboard
 
