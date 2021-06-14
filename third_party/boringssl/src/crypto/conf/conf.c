@@ -81,14 +81,14 @@ static int conf_value_cmp(const CONF_VALUE *a, const CONF_VALUE *b) {
   int i;
 
   if (a->section != b->section) {
-    i = OPENSSL_port_strcmp(a->section, b->section);
+    i = strcmp(a->section, b->section);
     if (i) {
       return i;
     }
   }
 
   if (a->name != NULL && b->name != NULL) {
-    return OPENSSL_port_strcmp(a->name, b->name);
+    return strcmp(a->name, b->name);
   } else if (a->name == b->name) {
     return 0;
   } else {
@@ -675,7 +675,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *out_error_line) {
         goto err;
       }
 
-      if (OPENSSL_port_strcmp(psection, section) != 0) {
+      if (strcmp(psection, section) != 0) {
         if ((tv = get_section(conf, psection)) == NULL) {
           tv = NCONF_new_section(conf, psection);
         }

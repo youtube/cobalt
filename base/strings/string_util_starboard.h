@@ -48,7 +48,7 @@ inline int vsnprintf(char* buffer, size_t size,
 
 inline int strncmp16(const char16* s1, const char16* s2, size_t count) {
 #if defined(WCHAR_T_IS_UTF16)
-  return SbStringCompareWide(s1, s2, count);
+  return wcsncmp(s1, s2, count);
 #elif defined(WCHAR_T_IS_UTF32)
   return c16SbMemoryCompare(s1, s2, count);
 #endif

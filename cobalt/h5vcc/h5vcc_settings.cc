@@ -27,12 +27,12 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
   const char kQUIC[] = "QUIC";
 
-  if (SbStringCompare(name.c_str(), kMediaPrefix, sizeof(kMediaPrefix) - 1) ==
+  if (strncmp(name.c_str(), kMediaPrefix, sizeof(kMediaPrefix) - 1) ==
       0) {
     return media_module_ ? media_module_->SetConfiguration(name, value) : false;
   }
 
-  if (SbStringCompare(name.c_str(), kQUIC, sizeof(kQUIC) - 1) == 0) {
+  if (strncmp(name.c_str(), kQUIC, sizeof(kQUIC) - 1) == 0) {
     if (!network_module_) {
       return false;
     } else {

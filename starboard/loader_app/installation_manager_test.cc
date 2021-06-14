@@ -260,7 +260,7 @@ TEST_P(InstallationManagerTest, GetAppKey) {
   char app_key[MAX_APP_KEY_LENGTH];
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
   ASSERT_EQ(IM_SUCCESS, ImGetAppKey(app_key, MAX_APP_KEY_LENGTH));
-  ASSERT_EQ(0, SbStringCompare(kAppKey, app_key, MAX_APP_KEY_LENGTH));
+  ASSERT_EQ(0, strncmp(kAppKey, app_key, MAX_APP_KEY_LENGTH));
 }
 
 TEST_P(InstallationManagerTest, GetMaxNumInstallations) {

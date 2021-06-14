@@ -16,6 +16,10 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
+
 int SbStringCompare(const char* string1, const char* string2, size_t count) {
   return strncmp(string1, string2, count);
 }
+
+#endif  // SB_API_VERSION < 13

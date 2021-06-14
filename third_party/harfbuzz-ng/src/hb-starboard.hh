@@ -32,10 +32,8 @@
 #define assert SB_DCHECK
 #define getenv(x) NULL
 #define snprintf SbStringFormatF
-#define strcmp SbStringCompareAll
 #define strcpy SbStringCopyUnsafe
 #define strdup SbStringDuplicate
-#define strncmp SbStringCompare
 #define strncpy SbStringCopy
 
 #endif  // HB_STARBOARD_HH

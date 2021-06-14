@@ -34,7 +34,7 @@ Configuration::Configuration() {
       SbSystemGetExtension(kCobaltExtensionConfigurationName));
   if (configuration_api_) {
     // Verify it's the extension needed.
-    if (SbStringCompareAll(configuration_api_->name,
+    if (strcmp(configuration_api_->name,
                            kCobaltExtensionConfigurationName) != 0 ||
         configuration_api_->version < 1) {
       LOG(WARNING) << "Not using supplied cobalt configuration extension: "

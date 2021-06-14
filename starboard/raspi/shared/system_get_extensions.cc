@@ -39,13 +39,13 @@ const void* SbSystemGetExtension(const char* name) {
   }
 #endif
 
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::raspi::shared::GetConfigurationApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionGraphicsName) == 0) {
+  if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::raspi::shared::GetGraphicsApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionCrashHandlerName) == 0) {
+  if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();
   }
   return NULL;

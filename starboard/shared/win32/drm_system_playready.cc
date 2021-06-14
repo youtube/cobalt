@@ -162,7 +162,7 @@ void DrmSystemPlayready::GenerateSessionUpdateRequest(
     int initialization_data_size) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (SbStringCompareAll("cenc", type) != 0) {
+  if (strcmp("cenc", type) != 0) {
     SB_NOTREACHED() << "Invalid initialization data type " << type;
     return;
   }

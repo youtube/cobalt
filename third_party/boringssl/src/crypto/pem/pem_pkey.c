@@ -85,7 +85,7 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
         return NULL;
     p = data;
 
-    if (OPENSSL_port_strcmp(nm, PEM_STRING_PKCS8INF) == 0) {
+    if (strcmp(nm, PEM_STRING_PKCS8INF) == 0) {
         PKCS8_PRIV_KEY_INFO *p8inf;
         p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, &p, len);
         if (!p8inf)
@@ -97,7 +97,7 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
             *x = ret;
         }
         PKCS8_PRIV_KEY_INFO_free(p8inf);
-    } else if (OPENSSL_port_strcmp(nm, PEM_STRING_PKCS8) == 0) {
+    } else if (strcmp(nm, PEM_STRING_PKCS8) == 0) {
         PKCS8_PRIV_KEY_INFO *p8inf;
         X509_SIG *p8;
         int klen;
@@ -127,14 +127,14 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bp, EVP_PKEY **x, pem_password_cb *cb,
             *x = ret;
         }
         PKCS8_PRIV_KEY_INFO_free(p8inf);
-    } else if (OPENSSL_port_strcmp(nm, PEM_STRING_RSA) == 0) {
+    } else if (strcmp(nm, PEM_STRING_RSA) == 0) {
         /* TODO(davidben): d2i_PrivateKey parses PKCS#8 along with the
          * standalone format. This and the cases below probably should not
          * accept PKCS#8. */
         ret = d2i_PrivateKey(EVP_PKEY_RSA, x, &p, len);
-    } else if (OPENSSL_port_strcmp(nm, PEM_STRING_EC) == 0) {
+    } else if (strcmp(nm, PEM_STRING_EC) == 0) {
         ret = d2i_PrivateKey(EVP_PKEY_EC, x, &p, len);
-    } else if (OPENSSL_port_strcmp(nm, PEM_STRING_DSA) == 0) {
+    } else if (strcmp(nm, PEM_STRING_DSA) == 0) {
         ret = d2i_PrivateKey(EVP_PKEY_DSA, x, &p, len);
     }
  p8err:

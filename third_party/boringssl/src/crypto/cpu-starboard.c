@@ -51,7 +51,7 @@ static bool starboard_cpuid_setup_x86(void) {
     // OpenSSL has optimized AVX codepath enabled only on Intel CPUs
     // The flag is passed as a "synthetic" value in reserved bit, i.e. CPUID
     // never returns it. See https://github.com/openssl/openssl/commit/0c14980
-    if (!SbStringCompareAll(features.x86.vendor,"GenuineIntel"))  {
+    if (!strcmp(features.x86.vendor,"GenuineIntel"))  {
         OPENSSL_ia32cap_P[CPUID_01_REG_EDX] |= (1 << ID_01_EDX_IS_INTEL_BIT);
     }
 

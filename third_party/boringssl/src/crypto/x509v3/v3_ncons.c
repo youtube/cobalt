@@ -125,10 +125,10 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
         goto memerr;
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         val = sk_CONF_VALUE_value(nval, i);
-        if (!OPENSSL_port_strncmp(val->name, "permitted", 9) && val->name[9]) {
+        if (!strncmp(val->name, "permitted", 9) && val->name[9]) {
             ptree = &ncons->permittedSubtrees;
             tval.name = val->name + 10;
-        } else if (!OPENSSL_port_strncmp(val->name, "excluded", 8) && val->name[8]) {
+        } else if (!strncmp(val->name, "excluded", 8) && val->name[8]) {
             ptree = &ncons->excludedSubtrees;
             tval.name = val->name + 9;
         } else {
@@ -439,7 +439,7 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
             if ((baseat - baseptr) != (emlat - emlptr))
                 return X509_V_ERR_PERMITTED_VIOLATION;
             /* Case sensitive match of local part */
-            if (OPENSSL_port_strncmp(baseptr, emlptr, emlat - emlptr))
+            if (strncmp(baseptr, emlptr, emlat - emlptr))
                 return X509_V_ERR_PERMITTED_VIOLATION;
         }
         /* Position base after '@' */

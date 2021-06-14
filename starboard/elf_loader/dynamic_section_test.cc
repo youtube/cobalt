@@ -195,8 +195,8 @@ TEST_F(DynamicSectionTest, LookupNameById) {
   ASSERT_EQ(dynamic_section_memory.dynamic_table_, d.GetDynamicTable());
   ASSERT_EQ(2, d.GetDynamicTableSize());
 
-  ASSERT_EQ(0, SbStringCompareAll("test1", d.LookupNameById(0)));
-  ASSERT_EQ(0, SbStringCompareAll("test2", d.LookupNameById(1)));
+  ASSERT_EQ(0, strcmp("test1", d.LookupNameById(0)));
+  ASSERT_EQ(0, strcmp("test2", d.LookupNameById(1)));
 }
 
 }  // namespace

@@ -67,26 +67,26 @@ bool IsValidAsciiChar(char32_t c) {
 bool IsBlacklistedTag(const char* tag, int length) {
   switch (length) {
     case 9:
-      if (SbStringCompareAll(tag, "font-face") == 0) {
+      if (strcmp(tag, "font-face") == 0) {
         return true;
       }
       break;
     case 13:
-      if (SbStringCompareAll(tag, "font-face-src") == 0 ||
-          SbStringCompareAll(tag, "missing-glyph") == 0 ||
-          SbStringCompareAll(tag, "color-profile") == 0 ||
-          SbStringCompareAll(tag, "font-face-uri") == 0) {
+      if (strcmp(tag, "font-face-src") == 0 ||
+          strcmp(tag, "missing-glyph") == 0 ||
+          strcmp(tag, "color-profile") == 0 ||
+          strcmp(tag, "font-face-uri") == 0) {
         return true;
       }
       break;
     case 14:
-      if (SbStringCompareAll(tag, "font-face-name") == 0 ||
-          SbStringCompareAll(tag, "annotation-xml") == 0) {
+      if (strcmp(tag, "font-face-name") == 0 ||
+          strcmp(tag, "annotation-xml") == 0) {
         return true;
       }
       break;
     case 16:
-      if (SbStringCompareAll(tag, "font-face-format") == 0) {
+      if (strcmp(tag, "font-face-format") == 0) {
         return true;
       }
       break;

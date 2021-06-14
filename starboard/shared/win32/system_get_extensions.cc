@@ -21,10 +21,10 @@
 #include "starboard/shared/win32/graphics.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionGraphicsName) == 0) {
+  if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::shared::win32::GetGraphicsApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::shared::win32::GetConfigurationApi();
   }
   return NULL;

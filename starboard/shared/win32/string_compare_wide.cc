@@ -16,8 +16,11 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
+
 int SbStringCompareWide(const wchar_t* string1, const wchar_t* string2,
                         size_t count) {
   return wcsncmp(string1, string2, count);
 }
 
+#endif  // SB_API_VERSION < 13

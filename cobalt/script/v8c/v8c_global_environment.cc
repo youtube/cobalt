@@ -434,7 +434,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
       static_cast<const CobaltExtensionJavaScriptCacheApi*>(
           SbSystemGetExtension(kCobaltExtensionJavaScriptCacheName));
   if (javascript_cache_extension &&
-      SbStringCompareAll(javascript_cache_extension->name,
+      strcmp(javascript_cache_extension->name,
                          kCobaltExtensionJavaScriptCacheName) == 0 &&
       javascript_cache_extension->version >= 1) {
     TRACE_EVENT0("cobalt::script",

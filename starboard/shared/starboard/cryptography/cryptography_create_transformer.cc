@@ -40,7 +40,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     int initialization_vector_size,
     const void* key,
     int key_size) {
-  if (SbStringCompareAll(algorithm, kSbCryptographyAlgorithmAes) != 0) {
+  if (strcmp(algorithm, kSbCryptographyAlgorithmAes) != 0) {
     SB_DLOG(WARNING) << "Unsupported algorithm: " << algorithm;
     return kSbCryptographyInvalidTransformer;
   }

@@ -176,7 +176,7 @@ bool ParseAv1Info(std::string codec,
   const size_t kLongFormSize = strlen(kLongFormReference);
 
   // 1. Sanity check the format.
-  if (SbStringCompare(codec.c_str(), "av01.", 5) != 0) {
+  if (strncmp(codec.c_str(), "av01.", 5) != 0) {
     return false;
   }
   if (VerifyFormat(codec.c_str(), kLongFormReference)) {
@@ -236,7 +236,7 @@ bool ParseAv1Info(std::string codec,
 
   // 8. Parse chroma subsampling, which we only support 110.
   // Note that this value is not returned.
-  if (SbStringCompare(codec.c_str() + 16, "110", 3) != 0) {
+  if (strncmp(codec.c_str() + 16, "110", 3) != 0) {
     return false;
   }
 
@@ -285,8 +285,8 @@ bool ParseAv1Info(std::string codec,
 // spec but this function only parses "avc1" and "avc3".  This function returns
 // false when |codec| doesn't contain a valid codec string.
 bool ParseH264Info(const char* codec, int* profile, int* level) {
-  if (SbStringCompare(codec, "avc1.", 5) != 0 &&
-      SbStringCompare(codec, "avc3.", 5) != 0) {
+  if (strncmp(codec, "avc1.", 5) != 0 &&
+      strncmp(codec, "avc3.", 5) != 0) {
     return false;
   }
 
@@ -313,8 +313,8 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
 // Please see the comment in the code for interactions between the various
 // parts.
 bool ParseH265Info(const char* codec, int* profile, int* level) {
-  if (SbStringCompare(codec, "hev1.", 5) != 0 &&
-      SbStringCompare(codec, "hvc1.", 5) != 0) {
+  if (strncmp(codec, "hev1.", 5) != 0 &&
+      strncmp(codec, "hvc1.", 5) != 0) {
     return false;
   }
 
@@ -451,7 +451,7 @@ bool ParseVp09Info(const char* codec,
   const size_t kLongFormSize = strlen(kLongFormReference);
 
   // 1. Sanity check the format.
-  if (SbStringCompare(codec, "vp09.", 5) != 0) {
+  if (strncmp(codec, "vp09.", 5) != 0) {
     return false;
   }
   if (!VerifyFormatStrictly(codec, kLongFormReference) &&
@@ -553,19 +553,19 @@ bool ParseVp09Info(const char* codec,
 bool ParseVp9Info(const char* codec, int* profile) {
   SB_DCHECK(profile);
 
-  if (SbStringCompareAll(codec, "vp9") == 0) {
+  if (strcmp(codec, "vp9") == 0) {
     *profile = -1;
     return true;
   }
-  if (SbStringCompareAll(codec, "vp9.0") == 0) {
+  if (strcmp(codec, "vp9.0") == 0) {
     *profile = 0;
     return true;
   }
-  if (SbStringCompareAll(codec, "vp9.1") == 0) {
+  if (strcmp(codec, "vp9.1") == 0) {
     *profile = 1;
     return true;
   }
-  if (SbStringCompareAll(codec, "vp9.2") == 0) {
+  if (strcmp(codec, "vp9.2") == 0) {
     *profile = 2;
     return true;
   }
@@ -621,24 +621,24 @@ bool VideoConfig::operator!=(const VideoConfig& that) const {
 }
 
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
-  if (SbStringCompare(codec, "mp4a.40.", 8) == 0) {
+  if (strncmp(codec, "mp4a.40.", 8) == 0) {
     return kSbMediaAudioCodecAac;
   }
 #if SB_API_VERSION >= 12 || defined(SB_HAS_AC3_AUDIO)
   if (kSbHasAc3Audio) {
-    if (SbStringCompareAll(codec, "ac-3") == 0) {
+    if (strcmp(codec, "ac-3") == 0) {
       return kSbMediaAudioCodecAc3;
     }
-    if (SbStringCompareAll(codec, "ec-3") == 0) {
+    if (strcmp(codec, "ec-3") == 0) {
       return kSbMediaAudioCodecEac3;
     }
   }
 #endif  // SB_API_VERSION >= 12 ||
         // defined(SB_HAS_AC3_AUDIO)
-  if (SbStringCompare(codec, "opus", 4) == 0) {
+  if (strncmp(codec, "opus", 4) == 0) {
     return kSbMediaAudioCodecOpus;
   }
-  if (SbStringCompare(codec, "vorbis", 6) == 0) {
+  if (strncmp(codec, "vorbis", 6) == 0) {
     return kSbMediaAudioCodecVorbis;
   }
   return kSbMediaAudioCodecNone;
@@ -669,31 +669,31 @@ bool ParseVideoCodec(const char* codec_string,
   *transfer_id = kSbMediaTransferIdUnspecified;
   *matrix_id = kSbMediaMatrixIdUnspecified;
 
-  if (SbStringCompare(codec_string, "av01.", 5) == 0) {
+  if (strncmp(codec_string, "av01.", 5) == 0) {
     *codec = kSbMediaVideoCodecAv1;
     return ParseAv1Info(codec_string, profile, level, bit_depth, primary_id,
                         transfer_id, matrix_id);
   }
-  if (SbStringCompare(codec_string, "avc1.", 5) == 0 ||
-      SbStringCompare(codec_string, "avc3.", 5) == 0) {
+  if (strncmp(codec_string, "avc1.", 5) == 0 ||
+      strncmp(codec_string, "avc3.", 5) == 0) {
     *codec = kSbMediaVideoCodecH264;
     return ParseH264Info(codec_string, profile, level);
   }
-  if (SbStringCompare(codec_string, "hev1.", 5) == 0 ||
-      SbStringCompare(codec_string, "hvc1.", 5) == 0) {
+  if (strncmp(codec_string, "hev1.", 5) == 0 ||
+      strncmp(codec_string, "hvc1.", 5) == 0) {
     *codec = kSbMediaVideoCodecH265;
     return ParseH265Info(codec_string, profile, level);
   }
-  if (SbStringCompare(codec_string, "vp09.", 5) == 0) {
+  if (strncmp(codec_string, "vp09.", 5) == 0) {
     *codec = kSbMediaVideoCodecVp9;
     return ParseVp09Info(codec_string, profile, level, bit_depth, primary_id,
                          transfer_id, matrix_id);
   }
-  if (SbStringCompare(codec_string, "vp8", 3) == 0) {
+  if (strncmp(codec_string, "vp8", 3) == 0) {
     *codec = kSbMediaVideoCodecVp8;
     return true;
   }
-  if (SbStringCompare(codec_string, "vp9", 3) == 0) {
+  if (strncmp(codec_string, "vp9", 3) == 0) {
     *codec = kSbMediaVideoCodecVp9;
     return ParseVp9Info(codec_string, profile);
   }

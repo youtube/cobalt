@@ -485,10 +485,10 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  if (SbStringCompareAll(sample_info_1.mime, sample_info_2.mime) != 0) {
+  if (strcmp(sample_info_1.mime, sample_info_2.mime) != 0) {
     return false;
   }
-  if (SbStringCompareAll(sample_info_1.max_video_capabilities,
+  if (strcmp(sample_info_1.max_video_capabilities,
                          sample_info_2.max_video_capabilities) != 0) {
     return false;
   }

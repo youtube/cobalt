@@ -108,7 +108,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       char key1[PROP_VALUE_MAX] = "";
       SB_DCHECK(GetAndroidSystemProperty("ro.oem.key1", key1, PROP_VALUE_MAX,
                                          kUnknownValue));
-      if (SbStringCompareAll(key1, kUnknownValue) == 0 ||
+      if (strcmp(key1, kUnknownValue) == 0 ||
           strlen(key1) < 10) {
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kUnknownValue);

@@ -119,7 +119,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
   while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
     const char dot_dot_str[] = "..";
-    if (!SbStringCompare(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
+    if (!strncmp(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
     }
     ret.push_back(GenerateEntry(entry.data()));
@@ -129,7 +129,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
   while (SbDirectoryGetNext(dir, &entry)) {
     const char dot_dot_str[] = "..";
-    if (!SbStringCompare(entry.name, dot_dot_str, sizeof(dot_dot_str))) {
+    if (!strncmp(entry.name, dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
     }
     ret.push_back(GenerateEntry(entry.name));

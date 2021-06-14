@@ -21,8 +21,8 @@
 
 namespace {
 bool IsValidId(const char* posix_id) {
-  return !((posix_id == NULL) || (SbStringCompare("C", posix_id, 1) == 0) ||
-           (SbStringCompare("POSIX", posix_id, 5) == 0));
+  return !((posix_id == NULL) || (strncmp("C", posix_id, 1) == 0) ||
+           (strncmp("POSIX", posix_id, 5) == 0));
 }
 }
 

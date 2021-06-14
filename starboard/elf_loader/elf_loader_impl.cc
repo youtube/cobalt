@@ -34,7 +34,7 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
   if (s.size() < suffix.size()) {
     return false;
   }
-  return SbStringCompareAll(s.c_str() + (s.size() - suffix.size()),
+  return strcmp(s.c_str() + (s.size() - suffix.size()),
                             suffix.c_str()) == 0;
 }
 

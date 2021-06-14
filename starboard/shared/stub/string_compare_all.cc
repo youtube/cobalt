@@ -14,6 +14,10 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 13
+
 int SbStringCompareAll(const char* string1, const char* string2) {
   return 0;
 }
+
+#endif  // SB_API_VERSION < 13

@@ -24,13 +24,13 @@
 #include "starboard/common/string.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionPlatformServiceName) == 0) {
+  if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::android::shared::GetPlatformServiceApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::android::shared::GetConfigurationApi();
   }
-  if (SbStringCompareAll(name, kCobaltExtensionMediaSessionName) == 0) {
+  if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     return starboard::android::shared::GetMediaSessionApi();
   }
   return NULL;

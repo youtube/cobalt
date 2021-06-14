@@ -601,7 +601,7 @@ static STACK_OF(X509_VERIFY_PARAM) *param_table = NULL;
 
 static int param_cmp(const X509_VERIFY_PARAM **a, const X509_VERIFY_PARAM **b)
 {
-    return OPENSSL_port_strcmp((*a)->name, (*b)->name);
+    return strcmp((*a)->name, (*b)->name);
 }
 
 int X509_VERIFY_PARAM_add0_table(X509_VERIFY_PARAM *param)
@@ -657,7 +657,7 @@ const X509_VERIFY_PARAM *X509_VERIFY_PARAM_lookup(const char *name)
 
     limit = sizeof(default_table) / sizeof(X509_VERIFY_PARAM);
     for (i = 0; i < limit; i++) {
-        if (OPENSSL_port_strcmp(default_table[i].name, name) == 0) {
+        if (strcmp(default_table[i].name, name) == 0) {
             return &default_table[i];
         }
     }

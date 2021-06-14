@@ -45,7 +45,7 @@ bool IsValidSplashScreenFormat(const std::string& rel) {
   bool is_valid_format = true;
   while (tokenizer.GetNext()) {
     std::string token = tokenizer.token();
-    if (SbStringCompareAll(token.c_str(), "splashscreen") == 0) {
+    if (strcmp(token.c_str(), "splashscreen") == 0) {
       is_valid_format = true;
     } else {
       for (char const& c : token) {

@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "starboard/elf_loader/gnu_hash_table.h"
+
+#include <cstring>
+
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/string.h"
@@ -125,8 +128,7 @@ const Sym* GnuHashTable::LookupByName(const char* symbol_name,
     const uint32_t sym_hash = chain_[sym_index - sym_offset_];
     const char* sym_name = string_table + sym->st_name;
 
-    if ((sym_hash | 1) == (hash | 1) &&
-        !SbStringCompareAll(sym_name, symbol_name)) {
+    if ((sym_hash | 1) == (hash | 1) && !strcmp(sym_name, symbol_name)) {
       return sym;
     }
 

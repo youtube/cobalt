@@ -216,7 +216,7 @@ struct hash<const char*> {
 #ifndef STARBOARD
     return strcmp(a, b) < 0;
 #else
-    return SbStringCompareAll(a, b) < 0;
+    return strcmp(a, b) < 0;
 #endif  // STARBOARD
   }
 };
@@ -260,7 +260,7 @@ class CstringLess {
 #ifndef STARBOARD
     return strcmp(a, b) < 0;
 #else
-    return SbStringCompareAll(a, b) < 0;
+    return strcmp(a, b) < 0;
 #endif // STARBOARD
   }
 };
@@ -448,7 +448,7 @@ struct streq {
 #ifndef STARBOARD
     return strcmp(a, b) == 0;
 #else
-    return SbStringCompareAll(a, b) == 0;
+    return strcmp(a, b) == 0;
 #endif  // STARBOARD
   }
 };

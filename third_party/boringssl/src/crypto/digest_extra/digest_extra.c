@@ -232,8 +232,8 @@ const EVP_MD *EVP_get_digestbyname(const char *name) {
   for (unsigned i = 0; i < OPENSSL_ARRAY_SIZE(nid_to_digest_mapping); i++) {
     const char *short_name = nid_to_digest_mapping[i].short_name;
     const char *long_name = nid_to_digest_mapping[i].long_name;
-    if ((short_name && OPENSSL_port_strcmp(short_name, name) == 0) ||
-        (long_name && OPENSSL_port_strcmp(long_name, name) == 0)) {
+    if ((short_name && strcmp(short_name, name) == 0) ||
+        (long_name && strcmp(long_name, name) == 0)) {
       return nid_to_digest_mapping[i].md_func();
     }
   }

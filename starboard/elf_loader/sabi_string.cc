@@ -14,6 +14,8 @@
 
 #include "starboard/elf_loader/sabi_string.h"
 
+#include <cstring>
+
 #include "starboard/common/log.h"
 #include "starboard/string.h"
 
@@ -36,7 +38,7 @@ bool CheckSabi(const char* (*sabi_function)()) {
     return false;
   }
   SB_DLOG(INFO) << "sabi_function result: " << sabi_function();
-  if (SbStringCompareAll(sabi_function(), SB_SABI_JSON_ID) != 0) {
+  if (strcmp(sabi_function(), SB_SABI_JSON_ID) != 0) {
     SB_LOG(ERROR) << "Expected SB_SABI_JSON_ID=" << SB_SABI_JSON_ID;
     SB_LOG(ERROR) << "Actual   SB_SABI_JSON_ID=" << sabi_function();
     return false;

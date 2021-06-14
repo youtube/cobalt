@@ -81,7 +81,7 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
   if (SbMicrophoneGetAvailable(&info, 1) > 0) {
     ASSERT_TRUE(IsNullTerminated(info.label));
     size_t count = static_cast<size_t>(strlen(kPoisonLabel));
-    EXPECT_NE(0, SbStringCompare(info.label, kPoisonLabel, count));
+    EXPECT_NE(0, strncmp(info.label, kPoisonLabel, count));
   }
 }
 
