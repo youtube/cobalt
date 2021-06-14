@@ -61,7 +61,7 @@ class SystemWindow {
   void* GetWindowHandle();
 
   // Handles a single Starboard input event, dispatching any appropriate events.
-  void HandleInputEvent(const SbInputData& data);
+  void HandleInputEvent(const SbEvent* event);
 
   // Returns the primary SystemWindow currently in use by the application.
   // Only one SystemWindow is currently supported, and this method will return
@@ -71,9 +71,11 @@ class SystemWindow {
  private:
   void UpdateModifiers(SbKey key, bool pressed);
   InputEvent::Modifiers GetModifiers();
-  void DispatchInputEvent(const SbInputData& data, InputEvent::Type type,
-                          bool is_repeat);
-  void HandlePointerInputEvent(const SbInputData& data);
+
+  void DispatchInputEvent(const SbEvent* event,
+                          InputEvent::Type type, bool is_repeat);
+
+  void HandlePointerInputEvent(const SbEvent* event);
 
   base::EventDispatcher* event_dispatcher_;
 
