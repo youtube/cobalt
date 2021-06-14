@@ -188,6 +188,12 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
 
   result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
+      "framerate=60;",
+      "");
+  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+
+  result = SbMediaCanPlayMimeAndKeySystem(
       "video/mp4; codecs=\"avc1.4d402a\"; width=0; height=0; "
       "framerate=0; bitrate=0",
       "");
