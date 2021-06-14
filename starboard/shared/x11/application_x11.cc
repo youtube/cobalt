@@ -1162,7 +1162,9 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
 
   scoped_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
+#if SB_API_VERSION < 13
   data->timestamp = SbTimeGetMonotonicNow();
+#endif  // SB_API_VERSION < 13
   data->window = windows_[0];
   SB_DCHECK(SbWindowIsValid(data->window));
   data->type = paste_buffer_key_release_pending_ ? kSbInputEventTypeUnpress
@@ -1242,7 +1244,9 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
 
       scoped_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
+#if SB_API_VERSION < 13
       data->timestamp = SbTimeGetMonotonicNow();
+#endif  // SB_API_VERSION < 13
       data->window = FindWindow(x_key_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->type = x_event->type == KeyPress ? kSbInputEventTypePress
@@ -1268,7 +1272,9 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       }
       scoped_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
+#if SB_API_VERSION < 13
       data->timestamp = SbTimeGetMonotonicNow();
+#endif  // SB_API_VERSION < 13
       data->window = FindWindow(x_button_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->key = XButtonEventToSbKey(x_button_event);
@@ -1294,7 +1300,9 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
       scoped_ptr<SbInputData> data(new SbInputData());
       memset(data.get(), 0, sizeof(*data));
+#if SB_API_VERSION < 13
       data->timestamp = SbTimeGetMonotonicNow();
+#endif  // SB_API_VERSION < 13
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->pressure = NAN;
