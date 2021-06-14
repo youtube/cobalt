@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/memory.h"
 #include "starboard/decode_target.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/memory.h"
 
 // TODO: Consider unifying this with that of raspi/open_max and android, since
 // the only part that changes is the info struct size.
 bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                            SbDecodeTargetInfo* out_info) {
-  if (!SbMemoryIsZero(out_info, sizeof(*out_info))) {
+  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }

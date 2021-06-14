@@ -15,8 +15,8 @@
 #include "starboard/shared/win32/decode_target_internal.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 SbDecodeTargetPrivate::SbDecodeTargetPrivate() : refcount(1) {
   memset(&info, 0, sizeof(info));
@@ -50,7 +50,8 @@ SbDecodeTargetFormat SbDecodeTargetGetFormat(SbDecodeTarget decode_target) {
 
 bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                            SbDecodeTargetInfo* out_info) {
-  if (!out_info || !SbMemoryIsZero(out_info, sizeof(*out_info))) {
+  if (!out_info ||
+      !starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }

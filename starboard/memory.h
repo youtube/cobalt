@@ -56,8 +56,8 @@ extern "C" {
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
 typedef enum SbMemoryMapFlags {
-// No flags set: Reserves virtual address space. SbMemoryProtect() can later
-// make it accessible.
+  // No flags set: Reserves virtual address space. SbMemoryProtect() can later
+  // make it accessible.
   kSbMemoryMapProtectReserved = 0,
   kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
   kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
@@ -278,7 +278,6 @@ SB_EXPORT void* SbMemoryMove(void* destination,
                              const void* source,
                              size_t count);
 
-
 // Fills |count| sequential bytes starting at |destination|, with the unsigned
 // char coercion of |byte_value|. This function is meant to be a drop-in
 // replacement for |memset|.
@@ -313,7 +312,7 @@ SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
                                        int value,
                                        size_t count);
 
-#endif // SB_API_VERSION < 13
+#endif  // SB_API_VERSION < 13
 
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.
@@ -326,6 +325,8 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   return result;
 }
 
+#if SB_API_VERSION < 13
+
 // Returns true if the first |count| bytes of |buffer| are set to zero.
 static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
   if (count == 0) {
@@ -335,6 +336,8 @@ static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
   return char_buffer[0] == 0 &&
          memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
 }
+
+#endif  // SB_API_VERSION < 13
 
 /////////////////////////////////////////////////////////////////
 // Deprecated. Do not use.

@@ -16,7 +16,7 @@
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/memory.h"
+#include "starboard/common/memory.h"
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
@@ -24,8 +24,8 @@ using starboard::android::shared::ScopedLocalJavaRef;
 bool SbAccessibilityGetTextToSpeechSettings(
     SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
-      !SbMemoryIsZero(out_setting,
-                      sizeof(SbAccessibilityTextToSpeechSettings))) {
+      !starboard::common::MemoryIsZero(
+          out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
     return false;
   }
 
@@ -36,9 +36,8 @@ bool SbAccessibilityGetTextToSpeechSettings(
       env->CallStarboardObjectMethodOrAbort(
           "getTextToSpeechHelper",
           "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  out_setting->is_text_to_speech_enabled =
-      env->CallBooleanMethodOrAbort(j_tts_helper.Get(),
-          "isScreenReaderEnabled", "()Z");
+  out_setting->is_text_to_speech_enabled = env->CallBooleanMethodOrAbort(
+      j_tts_helper.Get(), "isScreenReaderEnabled", "()Z");
 
   return true;
 }

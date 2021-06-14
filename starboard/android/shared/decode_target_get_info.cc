@@ -13,12 +13,12 @@
 // limitations under the License.
 
 #include "starboard/android/shared/decode_target_internal.h"
+#include "starboard/common/memory.h"
 #include "starboard/decode_target.h"
-#include "starboard/memory.h"
 
 bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                            SbDecodeTargetInfo* out_info) {
-  if (!SbMemoryIsZero(out_info, sizeof(*out_info))) {
+  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }

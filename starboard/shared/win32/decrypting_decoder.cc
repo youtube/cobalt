@@ -19,8 +19,8 @@
 
 #include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
 
@@ -69,7 +69,7 @@ void AttachDrmDataToSample(ComPtr<IMFSample> sample,
                            int iv_size,
                            const SbDrmSubSampleMapping* subsample_mapping,
                            int subsample_count) {
-  if (iv_size == 16 && SbMemoryIsZero(iv + 8, 8)) {
+  if (iv_size == 16 && ::starboard::common::MemoryIsZero(iv + 8, 8)) {
     // For iv that is 16 bytes long but the the last 8 bytes is 0, we treat
     // it as an 8 bytes iv.
     iv_size = 8;

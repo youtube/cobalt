@@ -15,14 +15,14 @@
 #include "base/compiler_specific.h"
 
 #include "starboard/accessibility.h"
-#include "starboard/memory.h"
+#include "starboard/common/memory.h"
 
 #if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 bool SbAccessibilityGetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
-      !SbMemoryIsZero(caption_settings,
-                      sizeof(SbAccessibilityCaptionSettings))) {
+      !starboard::common::MemoryIsZero(
+          caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 

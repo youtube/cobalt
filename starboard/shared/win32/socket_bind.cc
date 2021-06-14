@@ -17,7 +17,7 @@
 #include <winsock2.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
+#include "starboard/common/memory.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 namespace sbwin32 = starboard::shared::win32;
@@ -25,10 +25,12 @@ namespace sbwin32 = starboard::shared::win32;
 namespace {
 
 bool IsIpv6InaddrAny(const SbSocketAddress* local_address) {
-  return SbMemoryIsZero(local_address->address, sbwin32::kAddressLengthIpv6);
+  return starboard::common::MemoryIsZero(local_address->address,
+                                         sbwin32::kAddressLengthIpv6);
 }
 bool IsIpv4InaddrAny(const SbSocketAddress* local_address) {
-  return SbMemoryIsZero(local_address->address, sbwin32::kAddressLengthIpv4);
+  return starboard::common::MemoryIsZero(local_address->address,
+                                         sbwin32::kAddressLengthIpv4);
 }
 
 }  // namespace
@@ -70,9 +72,9 @@ SbSocketError SbSocketBind(SbSocket socket,
                                            "IPV6_V6ONLY", false)) {
         // Silently ignore errors, assume the default behavior is as expected.
         socket->error = kSbSocketOk;
-    }
+      }
 
-    break;
+      break;
     case kSbSocketAddressTypeIpv4:
       socket->bound_to = IsIpv4InaddrAny(local_address)
                              ? SbSocketPrivate::BindTarget::kAny
