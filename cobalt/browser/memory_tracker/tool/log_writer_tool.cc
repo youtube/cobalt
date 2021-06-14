@@ -91,7 +91,7 @@ void LogWriterTool::OnMemoryAllocation(const void* memory_block, size_t size) {
     buff_pos += static_cast<size_t>(bytes_written);
   }
   // Adds a "\n" at the end.
-  SbStringConcat(buff + buff_pos, "\n", static_cast<int>(n - buff_pos));
+  starboard::strlcat(buff + buff_pos, "\n", static_cast<int>(n - buff_pos));
   buffered_file_writer_->Append(buff, strlen(buff));
 }
 

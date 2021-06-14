@@ -14,11 +14,12 @@
 
 #include "starboard/common/string.h"
 
-#include "starboard/shared/starboard/lcat.h"
+#if SB_API_VERSION < 13
 
 int SbStringConcat(char* out_destination,
                    const char* source,
                    int destination_size) {
-  return starboard::shared::starboard::lcatT<char>(out_destination, source,
-                                                   destination_size);
+  return starboard::strlcat<char>(out_destination, source, destination_size);
 }
+
+#endif  // SB_API_VERSION < 13

@@ -78,8 +78,6 @@ SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
                                const wchar_t* source,
                                int destination_size);
 
-#endif  // SB_API_VERSION < 13
-
 // Appends |source| to |out_destination| as long as |out_destination| has
 // enough storage space to hold the concatenated string.
 //
@@ -114,6 +112,8 @@ static SB_C_INLINE int SbStringConcatUnsafe(char* out_destination,
 SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
                                  const wchar_t* source,
                                  int destination_size);
+
+#endif  // SB_API_VERSION < 13
 
 // Copies |source| into a buffer that is allocated by this function and that
 // can be freed with SbMemoryDeallocate. This function is meant to be a drop-in

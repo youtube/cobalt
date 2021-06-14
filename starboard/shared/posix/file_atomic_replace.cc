@@ -41,7 +41,7 @@ bool SbFileAtomicReplace(const char* path,
   std::vector<char> temp_path(kSbFileMaxPath + 1, 0);
 
   starboard::strlcpy(temp_path.data(), path, kSbFileMaxPath);
-  SbStringConcat(temp_path.data(), kTempFileSuffix, kSbFileMaxPath);
+  starboard::strlcat(temp_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
   if (!::starboard::shared::starboard::SbFileAtomicReplaceWriteFile(
           temp_path.data(), data, data_size)) {

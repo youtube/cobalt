@@ -85,4 +85,4 @@ TEST(SbStringConcatWideTest, SunnyDayShort) {
 
 }  // namespace
 
-#endif  // SB_API_VERSION >= 13
+#endif  // SB_API_VERSION < 13

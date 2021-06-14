@@ -21,6 +21,8 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/types.h"
 
+#if SB_API_VERSION < 13
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -45,5 +47,7 @@ int lcpyT(CHAR* dst, const CHAR* src, int dst_size) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 13
 
 #endif  // STARBOARD_SHARED_STARBOARD_LCPY_H_

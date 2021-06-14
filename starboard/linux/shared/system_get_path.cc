@@ -169,7 +169,7 @@ bool GetContentDirectory(char* out_path, int path_size) {
   if (!GetExecutableDirectory(out_path, path_size)) {
     return false;
   }
-  if (SbStringConcat(out_path, "/content", path_size) >= path_size) {
+  if (starboard::strlcat(out_path, "/content", path_size) >= path_size) {
     return false;
   }
   return true;
@@ -202,7 +202,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetCacheDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
       if (!SbDirectoryCreate(path.data())) {
@@ -215,7 +215,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                            kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/log", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/log", kPathSize) >= kPathSize) {
         return false;
       }
       SbDirectoryCreate(path.data());
@@ -241,7 +241,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
         return false;
       }
       break;

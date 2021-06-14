@@ -76,17 +76,11 @@
 #include <string.h>
 
 #define ft_memchr memchr
-
 #define ft_memcmp   memcmp
 #define ft_memcpy   memcpy
 #define ft_memmove  memmove
 #define ft_memset   memset
-#if defined(STARBOARD)
-#include "starboard/string.h"
-#define ft_strcat   SbStringConcatUnsafe
-#else
 #define ft_strcat   strcat
-#endif
 #define ft_strcmp   strcmp
 #define ft_strcpy   strcpy
 #define ft_strlen   strlen
@@ -94,6 +88,7 @@
 #define ft_strncpy  strncpy
 #define ft_strrchr  strrchr
 #define ft_strstr   strstr
+
   /**************************************************************************
    *
    *                          file handling

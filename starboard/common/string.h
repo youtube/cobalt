@@ -89,6 +89,18 @@ static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {
   return dst_size;
 }
 
+template <typename CHAR>
+static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
+  int dst_length = 0;
+  for (; dst_length < dst_size; ++dst_length) {
+    if (dst[dst_length] == 0)
+      break;
+  }
+
+  return strlcpy<CHAR>(dst + dst_length, src, dst_size - dst_length) +
+         dst_length;
+}
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_STRING_H_

@@ -209,8 +209,9 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                     kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
     if (!SbFileExists(lib_path.data())) {
       // Try the compressed path if the binary doesn't exits.
-      SbStringConcat(lib_path.data(), starboard::elf_loader::kCompressionSuffix,
-                     kSbFileMaxPath);
+      starboard::strlcat(lib_path.data(),
+                         starboard::elf_loader::kCompressionSuffix,
+                         kSbFileMaxPath);
     }
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
