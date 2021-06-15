@@ -128,6 +128,11 @@ The following starboard functions have been removed:
 
 ### Remove SbTimeMonotonic timestamp from SbInputData.
 
+### Deprecated kSbSystemCapabilitySetsInputTimestamp from SbSystemCapabilityId.
+
+The new timestamp field from `SbEvent` will be used instead of the deprecated
+timestamp in `SbInputData`.
+
 ## Version 12
 ### Add support for platform-based UI navigation.
 
