@@ -49,8 +49,10 @@
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/extension/graphics.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
@@ -1850,6 +1852,22 @@ void BrowserModule::OnMaybeFreeze() {
 }
 
 ViewportSize BrowserModule::GetViewportSize() {
+  // If a custom render root transform is used, report the size of the
+  // transformed viewport.
+  math::Matrix3F viewport_transform = math::Matrix3F::Identity();
+  static const CobaltExtensionGraphicsApi* s_graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  float m00, m01, m02, m10, m11, m12, m20, m21, m22;
+  if (s_graphics_extension &&
+      strcmp(s_graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
+      s_graphics_extension->version >= 5 &&
+      s_graphics_extension->GetRenderRootTransform(&m00, &m01, &m02, &m10, &m11,
+                                                   &m12, &m20, &m21, &m22)) {
+    viewport_transform =
+        math::Matrix3F::FromValues(m00, m01, m02, m10, m11, m12, m20, m21, m22);
+  }
+
   // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
     math::Size target_size = renderer_module_->render_target_size();
@@ -1874,6 +1892,9 @@ ViewportSize BrowserModule::GetViewportSize() {
           options_.requested_viewport_size->device_pixel_ratio();
     }
 
+    target_size =
+        math::RoundOut(viewport_transform.MapRect(math::RectF(target_size)))
+            .size();
     ViewportSize v(target_size.width(), target_size.height(), diagonal_inches,
                    device_pixel_ratio);
     return v;
@@ -1882,6 +1903,7 @@ ViewportSize BrowserModule::GetViewportSize() {
   // If the system window exists, that's almost just as good.
   if (system_window_) {
     math::Size size = system_window_->GetWindowSize();
+    size = math::RoundOut(viewport_transform.MapRect(math::RectF(size))).size();
     ViewportSize v(size.width(), size.height(),
                    system_window_->GetDiagonalSizeInches(),
                    system_window_->GetDevicePixelRatio());
@@ -1890,7 +1912,14 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // Otherwise, we assume we'll get the viewport size that was requested.
   if (options_.requested_viewport_size) {
-    return *options_.requested_viewport_size;
+    math::Size requested_size =
+        math::RoundOut(viewport_transform.MapRect(math::RectF(
+                           options_.requested_viewport_size->width(),
+                           options_.requested_viewport_size->height())))
+            .size();
+    return ViewportSize(requested_size.width(), requested_size.height(),
+                        options_.requested_viewport_size->diagonal_inches(),
+                        options_.requested_viewport_size->device_pixel_ratio());
   }
 
   // TODO: Allow platforms to define the default window size and return that
@@ -1898,7 +1927,11 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  ViewportSize view_size(1280, 720);
+  math::Size default_size(1280, 720);
+  default_size =
+      math::RoundOut(viewport_transform.MapRect(math::RectF(default_size)))
+          .size();
+  ViewportSize view_size(default_size.width(), default_size.height());
   return view_size;
 }
 
