@@ -190,12 +190,14 @@ typedef enum SbSystemCapabilityId {
   // call.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
 
+#if SB_API_VERSION < 13
   // Whether this system sets the |timestamp| field of SbInputData. If the
   // system does not set this field, then it will automatically be set; however,
   // the relative time between input events likely will not be preserved, so
   // time-related calculations (e.g. velocity for move events) will be
   // incorrect.
   kSbSystemCapabilitySetsInputTimestamp,
+#endif  // SB_API_VERSION < 13
 
   // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
   // function in the relevant module.

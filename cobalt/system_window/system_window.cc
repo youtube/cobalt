@@ -106,21 +106,22 @@ void* SystemWindow::GetWindowHandle() {
 
 void SystemWindow::DispatchInputEvent(const SbEvent* event,
                                       InputEvent::Type type, bool is_repeat) {
-  // Use the current time unless it was overridden.
-  SbTimeMonotonic timestamp = 0;
-  bool use_input_timestamp =
-      SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
   DCHECK(event);
   DCHECK(event->data);
   SbInputData* input_data = static_cast<SbInputData*>(event->data);
   const SbInputData& data = *input_data;
-  if (use_input_timestamp) {
+
+  // Use the current time unless it was overridden.
+  SbTimeMonotonic timestamp = 0;
 #if SB_API_VERSION >= 13
-    timestamp = event->timestamp;
+  timestamp = event->timestamp;
 #else  // SB_API_VERSION >= 13
+  bool use_input_timestamp =
+      SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
+  if (use_input_timestamp) {
     timestamp = data.timestamp;
-#endif  // SB_API_VERSION >= 13
   }
+#endif  // SB_API_VERSION >= 13
   if (timestamp == 0) {
     timestamp = SbTimeGetMonotonicNow();
   }
