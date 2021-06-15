@@ -71,6 +71,9 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
           'CSS3FontsLayoutTests/Layout.Test/color_emojis_should_render_properly'
       ],
+      'crypto_unittests' : [
+          'P224.*'
+      ],
       'renderer_test': [
           # Instead of returning an error when allocating too much texture
           # memory, Android instead just terminates the process.  Since this
