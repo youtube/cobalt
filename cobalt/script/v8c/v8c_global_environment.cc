@@ -316,6 +316,35 @@ void V8cGlobalEnvironment::Bind(const std::string& identifier,
   DCHECK(set_result.FromJust());
 }
 
+void V8cGlobalEnvironment::BindTo(const std::string& identifier,
+                                  const scoped_refptr<Wrappable>& impl,
+                                  const std::string& local_object_name) {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::BindTo()");
+  TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK(impl);
+
+  EntryScope entry_scope(isolate_);
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(impl);
+  v8::Local<v8::Object> global_object = context->Global();
+
+  v8::Local<v8::String> local_object_string(
+      v8::String::NewFromUtf8(isolate_, local_object_name.c_str(),
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked());
+  v8::Local<v8::Object> local_object = v8::Local<v8::Object>::Cast(
+      global_object->Get(context, local_object_string).ToLocalChecked());
+
+  v8::Maybe<bool> set_result = local_object->Set(
+      context,
+      v8::String::NewFromUtf8(isolate_, identifier.c_str(),
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+      wrapper);
+  DCHECK(set_result.FromJust());
+}
+
 ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {
   DCHECK(script_value_factory_);
   return script_value_factory_.get();
@@ -435,7 +464,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
           SbSystemGetExtension(kCobaltExtensionJavaScriptCacheName));
   if (javascript_cache_extension &&
       strcmp(javascript_cache_extension->name,
-                         kCobaltExtensionJavaScriptCacheName) == 0 &&
+             kCobaltExtensionJavaScriptCacheName) == 0 &&
       javascript_cache_extension->version >= 1) {
     TRACE_EVENT0("cobalt::script",
                  "V8cGlobalEnvironment::CompileWithCaching()");
