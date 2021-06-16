@@ -263,6 +263,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   scoped_ptr<Event> scoped_event(event);
 
 #if SB_API_VERSION >= 13
+  SbTimeMonotonic timestamp = scoped_event->event->timestamp;
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
   switch (scoped_event->event->type) {
@@ -273,7 +274,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       break;
     case kSbEventTypeStart:
       if (state() != kStateUnstarted && state() != kStateStarted) {
-        Inject(new Event(kSbEventTypeFocus, NULL, NULL));
+        Inject(new Event(kSbEventTypeFocus, timestamp, NULL, NULL));
         return true;
       }
       break;
@@ -287,10 +288,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStopped:
           return true;
         case kStateFrozen:
-          Inject(new Event(kSbEventTypeUnfreeze, NULL, NULL));
+          Inject(new Event(kSbEventTypeUnfreeze, timestamp, NULL, NULL));
         // The fall-through is intentional.
         case kStateConcealed:
-          Inject(new Event(kSbEventTypeReveal, NULL, NULL));
+          Inject(new Event(kSbEventTypeReveal, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
         case kStateBlurred:
@@ -305,7 +306,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateUnstarted:
           return true;
         case kStateStarted:
-          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          Inject(new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
         case kStateBlurred:
@@ -322,7 +323,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
           return true;
         case kStateFrozen:
           OnResume();
-          Inject(new Event(kSbEventTypeUnfreeze, NULL, NULL));
+          Inject(new Event(kSbEventTypeUnfreeze, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
         case kStateConcealed:
@@ -338,10 +339,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateUnstarted:
           return true;
         case kStateStarted:
-          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          Inject(new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
         // The fall-through is intentional
         case kStateBlurred:
-          Inject(new Event(kSbEventTypeConceal, NULL, NULL));
+          Inject(new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
         case kStateConcealed:
@@ -370,13 +371,13 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateUnstarted:
           return true;
         case kStateStarted:
-          Inject(new Event(kSbEventTypeBlur, NULL, NULL));
+          Inject(new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
         // The fall-through is intentional.
         case kStateBlurred:
-          Inject(new Event(kSbEventTypeConceal, NULL, NULL));
+          Inject(new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
         // The fall-through is intentional.
         case kStateConcealed:
-          Inject(new Event(kSbEventTypeFreeze, NULL, NULL));
+          Inject(new Event(kSbEventTypeFreeze, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
         case kStateFrozen:
