@@ -121,6 +121,41 @@ target(final_executable_type, "elf_loader_sys_sandbox") {
   ]
 }
 
+target(gtest_target_type, "elf_loader_test") {
+  testonly = true
+  sources = [ "//starboard/common/test_main.cc" ]
+  deps = [
+    "//starboard",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+      target_cpu == "arm64") {
+    sources += [
+      "dynamic_section_test.cc",
+      "elf_header_test.cc",
+      "elf_loader_test.cc",
+      "lz4_file_impl_test.cc",
+      "program_table_test.cc",
+      "relocations_test.cc",
+    ]
+    deps += [
+      ":copy_elf_loader_testdata",
+      ":elf_loader",
+    ]
+  }
+}
+
+copy("copy_elf_loader_testdata") {
+  sources = [
+    "testdata/compressed.lz4",
+    "testdata/uncompressed",
+  ]
+  subdir = "starboard/elf_loader"
+  outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_target_relative}}" ]
+}
+
 static_library("evergreen_info") {
   sources = [
     "evergreen_info.cc",
