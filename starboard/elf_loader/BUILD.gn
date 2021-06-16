@@ -12,6 +12,89 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+_elf_loader_sources = [
+  "dynamic_section.cc",
+  "dynamic_section.h",
+  "elf_hash_table.cc",
+  "elf_hash_table.h",
+  "elf_header.cc",
+  "elf_header.h",
+  "elf_loader.cc",
+  "elf_loader.h",
+  "elf_loader_constants.cc",
+  "elf_loader_constants.h",
+  "exported_symbols.cc",
+  "file.h",
+  "file_impl.cc",
+  "file_impl.h",
+  "gnu_hash_table.cc",
+  "gnu_hash_table.h",
+  "lz4_file_impl.cc",
+  "lz4_file_impl.h",
+  "program_table.cc",
+  "program_table.h",
+  "relocations.cc",
+  "relocations.h",
+]
+
+config("elf_loader_config") {
+  include_dirs = [
+    "src/include",
+    "src/src",
+  ]
+}
+
+static_library("elf_loader") {
+  sources = _elf_loader_sources + [
+              "elf_loader_impl.cc",
+              "elf_loader_impl.h",
+            ]
+
+  configs += [ ":elf_loader_config" ]
+
+  deps = [
+    ":evergreen_config",
+    ":evergreen_info",
+    "//starboard",
+    "//third_party/lz4_lib:lz4",
+  ]
+}
+
+static_library("elf_loader_sys") {
+  # System loader based on dlopen/dlsym.
+  # Should be used only for debugging/troubleshooting.
+  sources = _elf_loader_sources + [
+              "elf_loader_impl.h",
+              "elf_loader_sys_impl.cc",
+              "elf_loader_sys_impl.h",
+            ]
+
+  configs += [ ":elf_loader_config" ]
+
+  deps = [
+    ":evergreen_config",
+    "//starboard",
+  ]
+
+  if (sb_is_evergreen_compatible) {
+    deps += [ "//third_party/crashpad/wrapper" ]
+  } else {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+  }
+}
+
+target(final_executable_type, "elf_loader_sandbox") {
+  sources = [ "sandbox.cc" ]
+  configs += [ ":elf_loader_config" ]
+
+  deps = [
+    ":elf_loader",
+    ":sabi_string",
+    "//cobalt/content/fonts:copy_font_data",
+    "//starboard",
+  ]
+}
+
 static_library("evergreen_info") {
   sources = [
     "evergreen_info.cc",
@@ -28,4 +111,13 @@ static_library("evergreen_config") {
   ]
 
   public_deps = [ "//starboard/common" ]
+}
+
+static_library("sabi_string") {
+  sources = [
+    "sabi_string.cc",
+    "sabi_string.h",
+  ]
+
+  deps = [ "//starboard/common" ]
 }
