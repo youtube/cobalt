@@ -20,7 +20,6 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/c_val_view.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
-#include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
@@ -51,7 +50,10 @@ class H5vcc : public script::Wrappable {
           updater_module(NULL),
 #endif
           account_manager(NULL),
-          event_dispatcher(NULL) {}
+          event_dispatcher(NULL),
+          user_agent_data(NULL),
+          global_environment(NULL) {
+    }
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
 #if SB_IS(EVERGREEN)
@@ -59,6 +61,8 @@ class H5vcc : public script::Wrappable {
 #endif
     account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
+    dom::NavigatorUAData* user_agent_data;
+    script::GlobalEnvironment* global_environment;
   };
 
   explicit H5vcc(const Settings& config);

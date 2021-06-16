@@ -119,6 +119,17 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
   virtual void Bind(const std::string& identifier,
                     const scoped_refptr<Wrappable>& impl) = 0;
 
+  // Dynamically bind a cpp object to a local JavaScript object with the
+  // supplied identifier.
+  // This method is useful for testing and debug purposes, as well as for
+  // dynamically injecting an API into a JavaScript environment.
+  //
+  // This static function must be implemented by the JavaScriptEngine
+  // implementation
+  virtual void BindTo(const std::string& identifier,
+                      const scoped_refptr<Wrappable>& impl,
+                      const std::string& local_object_name) = 0;
+
   // Get the ScriptValueFactory for this global environment. The
   // GlobalEnvironment instance retains ownership of the ScriptValueFactory and
   // should live longer than any ScriptValueFactory pointer.
@@ -128,7 +139,8 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
    public:
     ScopedPreventGarbageCollection(GlobalEnvironment* global_environment,
                                    Wrappable* wrappable)
-        : global_environment(global_environment->AsWeakPtr()), wrappable(wrappable) {
+        : global_environment(global_environment->AsWeakPtr()),
+          wrappable(wrappable) {
       global_environment->PreventGarbageCollection(
           base::WrapRefCounted(wrappable));
     }

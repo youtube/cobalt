@@ -17,7 +17,6 @@
 interface Navigator {};
 
 Navigator implements NavigatorID;
-Navigator implements NavigatorUA;
 Navigator implements NavigatorLanguage;
 Navigator implements NavigatorPlugins;
 Navigator implements NavigatorStorageUtils;

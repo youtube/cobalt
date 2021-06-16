@@ -46,6 +46,8 @@
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/navigator.h"
+#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
@@ -193,13 +195,6 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-scoped_refptr<script::Wrappable> CreateH5VCC(
-    const h5vcc::H5vcc::Settings& settings,
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
-}
-
 #if SB_API_VERSION < 12
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
@@ -244,6 +239,7 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(base::MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
+      account_manager_(account_manager),
       is_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(network_module),
@@ -364,16 +360,8 @@ BrowserModule::BrowserModule(const GURL& url,
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
                       "h5vcc"));
-  h5vcc::H5vcc::Settings h5vcc_settings;
-  h5vcc_settings.media_module = media_module_.get();
-  h5vcc_settings.network_module = network_module_;
-#if SB_IS(EVERGREEN)
-  h5vcc_settings.updater_module = updater_module_;
-#endif
-  h5vcc_settings.account_manager = account_manager;
-  h5vcc_settings.event_dispatcher = event_dispatcher_;
   options_.web_module_options.injected_window_attributes["h5vcc"] =
-      base::Bind(&CreateH5VCC, h5vcc_settings);
+      base::Bind(&BrowserModule::CreateH5vcc, base::Unretained(this));
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
@@ -2062,6 +2050,23 @@ void BrowserModule::GetParamMap(const std::string& url,
       next_is_value = false;
     }
   }
+}
+
+scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
+    const scoped_refptr<dom::Window>& window,
+    script::GlobalEnvironment* global_environment) {
+  h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.media_module = media_module_.get();
+  h5vcc_settings.network_module = network_module_;
+#if SB_IS(EVERGREEN)
+  h5vcc_settings.updater_module = updater_module_;
+#endif
+  h5vcc_settings.account_manager = account_manager_;
+  h5vcc_settings.event_dispatcher = event_dispatcher_;
+  h5vcc_settings.user_agent_data = window->navigator()->user_agent_data();
+  h5vcc_settings.global_environment = global_environment;
+
+  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
 }
 
 }  // namespace browser

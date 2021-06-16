@@ -472,6 +472,11 @@ class BrowserModule {
   // Returns the topic used, or an empty Optional if a topic isn't found.
   base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
 
+  // Function that creates the H5vcc object that will be injected into WebModule
+  scoped_refptr<script::Wrappable> CreateH5vcc(
+      const scoped_refptr<dom::Window>& window,
+      script::GlobalEnvironment* global_environment);
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
@@ -507,6 +512,8 @@ class BrowserModule {
   URLHandlerCollection url_handlers_;
 
   base::EventDispatcher* event_dispatcher_;
+
+  account::AccountManager* account_manager_;
 
   // Whether the browser module has yet rendered anything. On the very first
   // render, we hide the system splash screen.

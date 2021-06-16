@@ -13,6 +13,11 @@
 // limitations under the License.
 
 // https://wicg.github.io/ua-client-hints/#navigatorua
+// Accessing this interface through JavaScript via "navigator.userAgentData" is
+// currently disabled by default; we inject the interface via H5vccSettings
+// per user request.
+// In the future, we can enable this interface by default by adding "Navigator
+// implements NavigatorUA" to navigator.idl
 
 [NoInterfaceObject]
 interface NavigatorUA {
