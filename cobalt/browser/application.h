@@ -67,7 +67,8 @@ class Application {
   void OnNetworkEvent(const base::Event* event);
 
   // Called to handle an application event.
-  void OnApplicationEvent(SbEventType event_type);
+  void OnApplicationEvent(SbEventType event_type,
+                          SbTimeMonotonic timestamp);
 
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);

@@ -78,6 +78,8 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
+#include "starboard/event.h"
+#include "starboard/time.h"
 #include "starboard/system.h"
 #include "url/gurl.h"
 
@@ -1018,12 +1020,16 @@ void Application::Start() {
     return;
   }
 
+<<<<<<< HEAD   (66af4a Fix Switch Ninja failed error.)
   if (app_status_ != kConcealedAppStatus) {
     NOTREACHED() << __FUNCTION__ << ": Redundant call.";
     return;
   }
 
   OnApplicationEvent(kSbEventTypeStart);
+=======
+  OnApplicationEvent(kSbEventTypeStart, SbTimeGetMonotonicNow());
+>>>>>>> CHANGE (a92353 Cobalt: Modify OnApplicationEvent in browser::Application.)
 }
 
 void Application::Quit() {
@@ -1057,7 +1063,8 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type);
+      OnApplicationEvent(starboard_event->type,
+                         starboard_event->timestamp);
       break;
 #else
     case kSbEventTypePause:
@@ -1065,7 +1072,8 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type);
+      OnApplicationEvent(starboard_event->type,
+                         starboard_event->timestamp);
       break;
 #endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
@@ -1161,9 +1169,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   }
 }
 
-void Application::OnApplicationEvent(SbEventType event_type) {
+void Application::OnApplicationEvent(SbEventType event_type,
+                                     SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
+
   switch (event_type) {
     case kSbEventTypeStop:
       DLOG(INFO) << "Got quit event.";
