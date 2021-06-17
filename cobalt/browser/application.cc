@@ -1055,8 +1055,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type,
-                         starboard_event->timestamp);
+      OnApplicationEvent(starboard_event->type, SbTimeGetMonotonicNow());
       break;
 #endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
