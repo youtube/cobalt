@@ -53,18 +53,27 @@ class SplashScreen : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  void Blur() override { web_module_->Blur(); }
-  void Conceal(render_tree::ResourceProvider* resource_provider) override {
-    web_module_->Conceal(resource_provider);
+  void Blur(SbTimeMonotonic timestamp) override {
+    web_module_->Blur(timestamp);
   }
-  void Freeze() override { web_module_->Freeze(); }
-  void Unfreeze(render_tree::ResourceProvider* resource_provider) override {
-    web_module_->Unfreeze(resource_provider);
+  void Conceal(render_tree::ResourceProvider* resource_provider,
+               SbTimeMonotonic timestamp) override {
+    web_module_->Conceal(resource_provider, timestamp);
   }
-  void Reveal(render_tree::ResourceProvider* resource_provider) override {
-    web_module_->Reveal(resource_provider);
+  void Freeze(SbTimeMonotonic timestamp) override {
+    web_module_->Freeze(timestamp);
   }
-  void Focus() override { web_module_->Focus(); }
+  void Unfreeze(render_tree::ResourceProvider* resource_provider,
+                SbTimeMonotonic timestamp) override {
+    web_module_->Unfreeze(resource_provider, timestamp);
+  }
+  void Reveal(render_tree::ResourceProvider* resource_provider,
+              SbTimeMonotonic timestamp) override {
+    web_module_->Reveal(resource_provider, timestamp);
+  }
+  void Focus(SbTimeMonotonic timestamp) override {
+    web_module_->Focus(timestamp);
+  }
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 
