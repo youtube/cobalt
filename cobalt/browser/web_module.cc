@@ -1662,7 +1662,7 @@ void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
                             base::Unretained(impl_.get()), bytes));
 }
 
-void WebModule::Blur() {
+void WebModule::Blur(SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
@@ -1689,7 +1689,8 @@ void WebModule::Blur() {
   message_loop()->task_runner()->PostBlockingTask(FROM_HERE, impl_blur);
 }
 
-void WebModule::Conceal(render_tree::ResourceProvider* resource_provider) {
+void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
+                        SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
@@ -1702,7 +1703,7 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider) {
                             base::Unretained(impl_.get()), resource_provider));
 }
 
-void WebModule::Freeze() {
+void WebModule::Freeze(SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
@@ -1713,7 +1714,8 @@ void WebModule::Freeze() {
       base::Bind(&WebModule::Impl::Freeze, base::Unretained(impl_.get())));
 }
 
-void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider) {
+void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
+                         SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
@@ -1722,7 +1724,8 @@ void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider) {
                             base::Unretained(impl_.get()), resource_provider));
 }
 
-void WebModule::Reveal(render_tree::ResourceProvider* resource_provider) {
+void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
+                       SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
@@ -1731,7 +1734,7 @@ void WebModule::Reveal(render_tree::ResourceProvider* resource_provider) {
                             base::Unretained(impl_.get()), resource_provider));
 }
 
-void WebModule::Focus() {
+void WebModule::Focus(SbTimeMonotonic timestamp) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 

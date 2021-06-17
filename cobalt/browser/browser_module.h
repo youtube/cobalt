@@ -66,6 +66,7 @@
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
+#include "starboard/time.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -175,12 +176,12 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
   // LifecycleObserver-similar interface.
-  void Blur();
-  void Conceal();
-  void Freeze();
-  void Unfreeze();
-  void Reveal();
-  void Focus();
+  void Blur(SbTimeMonotonic timestamp);
+  void Conceal(SbTimeMonotonic timestamp);
+  void Freeze(SbTimeMonotonic timestamp);
+  void Unfreeze(SbTimeMonotonic timestamp);
+  void Reveal(SbTimeMonotonic timestamp);
+  void Focus(SbTimeMonotonic timestamp);
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
@@ -423,23 +424,19 @@ class BrowserModule {
 
   // Does all the steps for half of a Conceal that happen prior to
   // the app state update.
-  void ConcealInternal();
+  void ConcealInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Freeze that happen prior to
   // the app state update.
-  void FreezeInternal();
+  void FreezeInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Reveal that happen prior to
   // the app state update.
-  void RevealInternal();
-
-  // Does all the steps for half of a Start that happen prior to
-  // the app state update.
-  void StartInternal();
+  void RevealInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Unfreeze that happen prior to
   // the app state update.
-  void UnfreezeInternal();
+  void UnfreezeInternal(SbTimeMonotonic timestamp);
 
   // Check debug console, splash screen and web module if they are
   // ready to freeze at Concealed state. If so, call SystemRequestFreeze

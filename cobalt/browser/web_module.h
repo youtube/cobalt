@@ -382,12 +382,15 @@ class WebModule : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation
-  void Blur() override;
-  void Conceal(render_tree::ResourceProvider* resource_provider) override;
-  void Freeze() override;
-  void Unfreeze(render_tree::ResourceProvider* resource_provider) override;
-  void Reveal(render_tree::ResourceProvider* resource_provider) override;
-  void Focus() override;
+  void Blur(SbTimeMonotonic timestamp) override;
+  void Conceal(render_tree::ResourceProvider* resource_provider,
+               SbTimeMonotonic timestamp) override;
+  void Freeze(SbTimeMonotonic timestamp) override;
+  void Unfreeze(render_tree::ResourceProvider* resource_provider,
+                SbTimeMonotonic timestamp) override;
+  void Reveal(render_tree::ResourceProvider* resource_provider,
+              SbTimeMonotonic timestamp) override;
+  void Focus(SbTimeMonotonic timestamp) override;
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.

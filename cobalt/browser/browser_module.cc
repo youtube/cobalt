@@ -458,12 +458,12 @@ BrowserModule::~BrowserModule() {
   // currently be in, to prepare for shutdown.
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Blur();
+      Blur(0);
     // Intentional fall-through.
     case base::kApplicationStateBlurred:
-      Conceal();
+      Conceal(0);
     case base::kApplicationStateConcealed:
-      Freeze();
+      Freeze(0);
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";
@@ -1454,53 +1454,55 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   network_module_->SetProxy(proxy_rules);
 }
 
-void BrowserModule::Blur() {
+void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
   application_state_ = base::kApplicationStateBlurred;
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Blur(timestamp));
 }
 
-void BrowserModule::Conceal() {
+void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Conceal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
   application_state_ = base::kApplicationStateConcealed;
-  ConcealInternal();
+  ConcealInternal(timestamp);
   OnMaybeFreeze();
 }
 
-void BrowserModule::Focus() {
+void BrowserModule::Focus(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Focus(timestamp));
   application_state_ = base::kApplicationStateStarted;
 }
 
-void BrowserModule::Freeze() {
+void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateFrozen;
-  FreezeInternal();
+  FreezeInternal(timestamp);
 }
 
-void BrowserModule::Reveal() {
+void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateBlurred;
-  RevealInternal();
+  RevealInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze() {
+void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateFrozen);
   application_state_ = base::kApplicationStateConcealed;
-  UnfreezeInternal();
+  UnfreezeInternal(timestamp);
   NavigatePendingURL();
 }
 
@@ -1749,10 +1751,10 @@ void BrowserModule::UpdateScreenSize() {
   }
 }
 
-void BrowserModule::ConcealInternal() {
+void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Conceal(GetResourceProvider()));
+                    Conceal(GetResourceProvider(), timestamp));
 
   ResetResources();
 
@@ -1774,15 +1776,16 @@ void BrowserModule::ConcealInternal() {
   }
 }
 
-void BrowserModule::FreezeInternal() {
+void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeInternal()");
   FreezeMediaModule();
   // First freeze all our web modules which implies that they will release
   // their resource provider and all resources created through it.
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Freeze());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Freeze(timestamp));
 }
 
-void BrowserModule::RevealInternal() {
+void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
   DCHECK(!renderer_module_);
   if (!system_window_) {
@@ -1799,14 +1802,14 @@ void BrowserModule::RevealInternal() {
 
   // Set resource provider right after render module initialized.
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Reveal(GetResourceProvider()));
+                    Reveal(GetResourceProvider(), timestamp));
 
   if (qr_code_overlay_) {
     qr_code_overlay_->SetResourceProvider(GetResourceProvider());
   }
 }
 
-void BrowserModule::UnfreezeInternal() {
+void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
 // Set the Stub resource provider to media module and to web module
 // at Concealed state.
@@ -1815,7 +1818,7 @@ void BrowserModule::UnfreezeInternal() {
 #endif  // SB_API_VERSION >= 13
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Unfreeze(GetResourceProvider()));
+                    Unfreeze(GetResourceProvider(), timestamp));
 }
 
 void BrowserModule::OnMaybeFreeze() {
