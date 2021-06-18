@@ -1020,16 +1020,7 @@ void Application::Start() {
     return;
   }
 
-<<<<<<< HEAD   (66af4a Fix Switch Ninja failed error.)
-  if (app_status_ != kConcealedAppStatus) {
-    NOTREACHED() << __FUNCTION__ << ": Redundant call.";
-    return;
-  }
-
-  OnApplicationEvent(kSbEventTypeStart);
-=======
   OnApplicationEvent(kSbEventTypeStart, SbTimeGetMonotonicNow());
->>>>>>> CHANGE (a92353 Cobalt: Modify OnApplicationEvent in browser::Application.)
 }
 
 void Application::Quit() {
