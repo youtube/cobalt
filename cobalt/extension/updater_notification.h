@@ -51,7 +51,8 @@ typedef struct CobaltExtensionUpdaterNotificationApi {
   // and prompt the user to free some storage. The implementation
   // should keep track of the frequency of showing the prompt to the
   // user and try to minimize the number of user notifications.
-  void (*UpdaterState)(CobaltExtensionUpdaterNotificationState state);
+  void (*UpdaterState)(CobaltExtensionUpdaterNotificationState state,
+                       const char* current_evergreen_version);
 } CobaltExtensionUpdaterNotificationApi;
 
 #ifdef __cplusplus
