@@ -228,12 +228,15 @@ class WebModule::Impl {
 
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
-  void Blur();
-  void Conceal(render_tree::ResourceProvider* resource_provider);
-  void Freeze();
-  void Unfreeze(render_tree::ResourceProvider* resource_provider);
-  void Reveal(render_tree::ResourceProvider* resource_provider);
-  void Focus();
+  void Blur(SbTimeMonotonic timestamp);
+  void Conceal(render_tree::ResourceProvider* resource_provider,
+               SbTimeMonotonic timestamp);
+  void Freeze(SbTimeMonotonic timestamp);
+  void Unfreeze(render_tree::ResourceProvider* resource_provider,
+                SbTimeMonotonic timestamp);
+  void Reveal(render_tree::ResourceProvider* resource_provider,
+              SbTimeMonotonic timestamp);
+  void Focus(SbTimeMonotonic timestamp);
 
   void ReduceMemory();
   void GetJavaScriptHeapStatistics(
@@ -1145,13 +1148,14 @@ void WebModule::Impl::OnStopDispatchEvent(
       layout_manager_->IsRenderTreePending());
 }
 
-void WebModule::Impl::Blur() {
+void WebModule::Impl::Blur(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Blur()");
   SetApplicationState(base::kApplicationStateBlurred);
 }
 
 void WebModule::Impl::Conceal(
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Conceal()");
   SetResourceProvider(resource_provider);
 
@@ -1182,7 +1186,7 @@ void WebModule::Impl::Conceal(
   SetApplicationState(base::kApplicationStateConcealed);
 }
 
-void WebModule::Impl::Freeze() {
+void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Freeze()");
 
   // Clear out the loader factory's resource provider, possibly aborting any
@@ -1192,7 +1196,8 @@ void WebModule::Impl::Freeze() {
 }
 
 void WebModule::Impl::Unfreeze(
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unfreeze()");
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
@@ -1201,7 +1206,9 @@ void WebModule::Impl::Unfreeze(
   SetApplicationState(base::kApplicationStateConcealed);
 }
 
-void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
+void WebModule::Impl::Reveal(
+  render_tree::ResourceProvider* resource_provider,
+  SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Reveal()");
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
@@ -1216,7 +1223,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider) {
   SetApplicationState(base::kApplicationStateBlurred);
 }
 
-void WebModule::Impl::Focus() {
+void WebModule::Impl::Focus(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Focus()");
   synchronous_loader_interrupt_.Reset();
   SetApplicationState(base::kApplicationStateStarted);
@@ -1669,7 +1676,8 @@ void WebModule::Blur(SbTimeMonotonic timestamp) {
   impl_->CancelSynchronousLoads();
 
   auto impl_blur =
-      base::Bind(&WebModule::Impl::Blur, base::Unretained(impl_.get()));
+      base::Bind(&WebModule::Impl::Blur,
+                 base::Unretained(impl_.get()), timestamp);
 
 #if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
@@ -1700,7 +1708,8 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
   // application has had a chance to process the whole event.
   message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Conceal,
-                            base::Unretained(impl_.get()), resource_provider));
+                            base::Unretained(impl_.get()),
+                            resource_provider, timestamp));
 }
 
 void WebModule::Freeze(SbTimeMonotonic timestamp) {
@@ -1711,7 +1720,8 @@ void WebModule::Freeze(SbTimeMonotonic timestamp) {
   // application has had a chance to process the whole event.
   message_loop()->task_runner()->PostBlockingTask(
       FROM_HERE,
-      base::Bind(&WebModule::Impl::Freeze, base::Unretained(impl_.get())));
+      base::Bind(&WebModule::Impl::Freeze,
+                 base::Unretained(impl_.get()), timestamp));
 }
 
 void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
@@ -1721,7 +1731,8 @@ void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Unfreeze,
-                            base::Unretained(impl_.get()), resource_provider));
+                            base::Unretained(impl_.get()),
+                            resource_provider, timestamp));
 }
 
 void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
@@ -1731,7 +1742,8 @@ void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Reveal,
-                            base::Unretained(impl_.get()), resource_provider));
+                            base::Unretained(impl_.get()),
+                            resource_provider, timestamp));
 }
 
 void WebModule::Focus(SbTimeMonotonic timestamp) {
@@ -1740,7 +1752,8 @@ void WebModule::Focus(SbTimeMonotonic timestamp) {
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE,
-      base::Bind(&WebModule::Impl::Focus, base::Unretained(impl_.get())));
+      base::Bind(&WebModule::Impl::Focus,
+                 base::Unretained(impl_.get()), timestamp));
 }
 
 void WebModule::ReduceMemory() {
