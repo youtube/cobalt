@@ -534,9 +534,11 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   }
 }
 
-void Window::SetApplicationState(base::ApplicationState state) {
+void Window::SetApplicationState(base::ApplicationState state,
+                                 SbTimeMonotonic timestamp) {
   html_element_context_->application_lifecycle_state()->SetApplicationState(
       state);
+  performance_->SetApplicationState(state, timestamp);
 }
 
 bool Window::ReportScriptError(const script::ErrorReport& error_report) {

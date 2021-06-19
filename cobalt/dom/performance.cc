@@ -77,7 +77,7 @@ Performance::Performance(script::EnvironmentSettings* settings,
       timing_(new PerformanceTiming(clock, time_origin_)),
       memory_(new MemoryInfo()),
       lifecycle_timing_(
-          new PerformanceLifecycleTiming("lifecycle timing", 0.0, 0.0)),
+          new PerformanceLifecycleTiming("lifecycle timing", time_origin_)),
       resource_timing_buffer_size_limit_(
           Performance::kMaxResourceTimingBufferSize),
       resource_timing_buffer_current_size_(0),
@@ -102,8 +102,6 @@ DOMHighResTimeStamp Performance::MonotonicTimeToDOMHighResTimeStamp(
       ClampTimeStampMinimumResolution(time_origin,
       Performance::kPerformanceTimerMinResolutionInMicroseconds);
 
-  if (clamped_time < 0)
-    return 0.0;
   return clamped_time;
 }
 
@@ -611,6 +609,11 @@ void Performance::CreatePerformanceResourceTiming(
   QueuePerformanceEntry(resource_timing);
   // 3. Add entry to global's performance entry buffer.
   AddPerformanceResourceTimingEntry(resource_timing);
+}
+
+void Performance::SetApplicationState(base::ApplicationState state,
+                                      SbTimeMonotonic timestamp) {
+  lifecycle_timing_->SetApplicationState(state, timestamp);
 }
 
 }  // namespace dom
