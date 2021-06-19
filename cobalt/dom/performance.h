@@ -20,10 +20,9 @@
 #include <map>
 #include <string>
 
-#include "cobalt/base/clock.h"
 #include "base/time/default_tick_clock.h"
-#include "base/threading/thread.h"
-#include "base/threading/thread_checker.h"
+#include "cobalt/base/application_state.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
@@ -116,6 +115,9 @@ class Performance : public EventTarget {
   void UpdateRegisteredPerformanceObserverOptionsList(
       const scoped_refptr<PerformanceObserver>& observer,
       const PerformanceObserverInit& options);
+
+  void SetApplicationState(base::ApplicationState state,
+                           SbTimeMonotonic timestamp);
 
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);

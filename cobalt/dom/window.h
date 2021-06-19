@@ -358,7 +358,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   // Sets the current application state, forwarding on to the
   // ApplicationLifecycleState associated with it and its document, causing
   // precipitate events to be dispatched.
-  void SetApplicationState(base::ApplicationState state);
+  void SetApplicationState(base::ApplicationState state,
+                           SbTimeMonotonic timestamp);
 
   // Performs the steps specified for runtime script errors:
   //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors

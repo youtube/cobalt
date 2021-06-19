@@ -17,11 +17,11 @@
 
 #include <string>
 
+#include "base/time/time.h"
+#include "cobalt/base/application_state.h"
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
-
 #include "cobalt/script/wrappable.h"
-#include "net/base/load_timing_info.h"
 
 namespace cobalt {
 namespace dom {
@@ -31,10 +31,10 @@ class Performance;
 class PerformanceLifecycleTiming : public PerformanceEntry {
  public:
   PerformanceLifecycleTiming(const std::string& name,
-                            DOMHighResTimeStamp start_time,
-                            DOMHighResTimeStamp end_time);
+                             base::TimeTicks time_origin);
 
   // Web API.
+  DOMHighResTimeStamp app_preload() const;
   DOMHighResTimeStamp app_start() const;
   DOMHighResTimeStamp app_blur() const;
   DOMHighResTimeStamp app_focus() const;
@@ -42,7 +42,6 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   DOMHighResTimeStamp app_reveal() const;
   DOMHighResTimeStamp app_freeze() const;
   DOMHighResTimeStamp app_unfreeze() const;
-  DOMHighResTimeStamp app_stop() const;
   std::string current_state() const;
   std::string last_state() const;
 
@@ -51,11 +50,35 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
     return PerformanceEntry::kLifecycle;
   }
 
+  void SetApplicationState(base::ApplicationState state,
+                           SbTimeMonotonic timestamp);
+
   DEFINE_WRAPPABLE_TYPE(PerformanceLifecycleTiming);
 
  private:
-  std::string current_state_;
-  std::string last_state_;
+  void SetLifecycleTimingInfoState(base::ApplicationState state);
+  DOMHighResTimeStamp ReportDOMHighResTimeStamp(
+      SbTimeMonotonic timestamp) const;
+  base::ApplicationState GetLastState() const;
+ struct LifecycleTimingInfo {
+  SbTimeMonotonic app_preload = 0;
+  SbTimeMonotonic app_start = 0;
+  SbTimeMonotonic app_blur = 0;
+  SbTimeMonotonic app_conceal = 0;
+  SbTimeMonotonic app_focus = 0;
+  SbTimeMonotonic app_reveal = 0;
+  SbTimeMonotonic app_freeze = 0;
+  SbTimeMonotonic app_unfreeze = 0;
+
+  base::ApplicationState current_state =
+      base::kApplicationStateStopped;
+  base::ApplicationState last_state =
+      base::kApplicationStateStopped;
+ };
+
+  LifecycleTimingInfo lifecycle_timing_info_;
+
+  base::TimeTicks time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceLifecycleTiming);
 };

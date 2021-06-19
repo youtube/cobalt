@@ -224,7 +224,8 @@ class WebModule::Impl {
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
-  void SetApplicationState(base::ApplicationState state);
+  void SetApplicationState(base::ApplicationState state,
+                           SbTimeMonotonic timestamp);
 
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
@@ -1118,8 +1119,9 @@ void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
   window_->set_web_media_player_factory(media_module);
 }
 
-void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
-  window_->SetApplicationState(state);
+void WebModule::Impl::SetApplicationState(base::ApplicationState state,
+                                          SbTimeMonotonic timestamp) {
+  window_->SetApplicationState(state, timestamp);
 }
 
 void WebModule::Impl::SetResourceProvider(
@@ -1150,7 +1152,7 @@ void WebModule::Impl::OnStopDispatchEvent(
 
 void WebModule::Impl::Blur(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Blur()");
-  SetApplicationState(base::kApplicationStateBlurred);
+  SetApplicationState(base::kApplicationStateBlurred, timestamp);
 }
 
 void WebModule::Impl::Conceal(
@@ -1183,7 +1185,7 @@ void WebModule::Impl::Conceal(
   }
 
   loader_factory_->UpdateResourceProvider(resource_provider_);
-  SetApplicationState(base::kApplicationStateConcealed);
+  SetApplicationState(base::kApplicationStateConcealed, timestamp);
 }
 
 void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
@@ -1192,7 +1194,7 @@ void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
-  SetApplicationState(base::kApplicationStateFrozen);
+  SetApplicationState(base::kApplicationStateFrozen, timestamp);
 }
 
 void WebModule::Impl::Unfreeze(
@@ -1203,7 +1205,7 @@ void WebModule::Impl::Unfreeze(
   DCHECK(resource_provider);
 
   loader_factory_->Resume(resource_provider);
-  SetApplicationState(base::kApplicationStateConcealed);
+  SetApplicationState(base::kApplicationStateConcealed, timestamp);
 }
 
 void WebModule::Impl::Reveal(
@@ -1220,13 +1222,13 @@ void WebModule::Impl::Reveal(
   loader_factory_->UpdateResourceProvider(resource_provider_);
   layout_manager_->Resume();
 
-  SetApplicationState(base::kApplicationStateBlurred);
+  SetApplicationState(base::kApplicationStateBlurred, timestamp);
 }
 
 void WebModule::Impl::Focus(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Focus()");
   synchronous_loader_interrupt_.Reset();
-  SetApplicationState(base::kApplicationStateStarted);
+  SetApplicationState(base::kApplicationStateStarted, timestamp);
 }
 
 void WebModule::Impl::ReduceMemory() {
