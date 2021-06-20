@@ -116,8 +116,9 @@ socket:
 *   If `persistent` is `true`, then `socket` stays registered with `waiter`
     until SbSocketWaiterRemove() is called with `waiter` and `socket`.
 
-*   If `persistent` is `false`, then `socket` is removed after the next call to
-    `callback`, even if not all registered `interests` became ready.
+*   If `persistent` is `false`, then `socket` is removed before the next call to
+    `callback`, even if not all registered `interests` became ready, which
+    allows for adding it again in the `callback`.
 
 #### Declaration ####
 

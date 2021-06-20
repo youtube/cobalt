@@ -158,7 +158,7 @@ typedef void(* SbDrmSessionUpdatedFunc) (SbDrmSystem drm_system, void *context, 
 
 ### SbDrmSystem ###
 
-A handle to a DRM system which can be used with either an SbDecoder or a
+A handle to a DRM system which can be used with either an SbDecoder or an
 SbPlayer.
 
 #### Definition ####

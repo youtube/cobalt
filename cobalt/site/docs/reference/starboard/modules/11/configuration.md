@@ -22,7 +22,7 @@ stack variable.
 
 ### SB_ALIGNOF(type) ###
 
-Returns the alignment reqiured for any instance of the type indicated by `type`.
+Returns the alignment required for any instance of the type indicated by `type`.
 
 ### SB_ARRAY_SIZE(array) ###
 
@@ -147,21 +147,14 @@ functions (which take a va_list), pass 0 for dots_param. (This is undocumented
 but matches what the system C headers do.) (Partially taken from
 base/compiler_specific.h)
 
-### SB_RELEASE_CANDIDATE_API_VERSION ###
-
-The next API version to be frozen, but is still subject to emergency changes. It
-is reasonable to base a port on the Release Candidate API version, but be aware
-that small incompatible changes may still be made to it. The following will be
-uncommented when an API version is a release candidate.
-
 ### SB_RESTRICT ###
 
 Include the platform-specific configuration. This macro is set by GYP in
 starboard_base_target.gypi and passed in on the command line for all targets and
-all configurations. After version 12, we start to use runtime constants instead
+all configurations.After version 12, we start to use runtime constants instead
 of macros for certain platform dependent configurations. This file substitutes
 configuration macros for the corresponding runtime constants so we don't
-reference these constants when they aren't defined. Makes a pointer-typed
+reference these constants when they aren't defined.Makes a pointer-typed
 parameter restricted so that the compiler can make certain optimizations because
 it knows the pointers are unique.
 

@@ -292,66 +292,6 @@ coming from multiple sources.
 
 ## Functions ##
 
-### SbPlayerCreate ###
-
-Creates a player that will be displayed on `window` for the specified
-`video_codec` and `audio_codec`, acquiring all resources needed to operate it,
-and returning an opaque handle to it. The expectation is that a new player will
-be created and destroyed for every playback.
-
-This function returns the created player. Note the following:
-
-*   The associated decoder of the returned player should be assumed to not be in
-    `kSbPlayerDecoderStateNeedsData` until SbPlayerSeek() has been called on it.
-
-*   It is expected either that the thread that calls SbPlayerCreate is the same
-    thread that calls the other `SbPlayer` functions for that player, or that
-    there is a mutex guarding calls into each `SbPlayer` instance.
-
-*   If there is a platform limitation on how many players can coexist
-    simultaneously, then calls made to this function that attempt to exceed that
-    limit must return `kSbPlayerInvalid`. Multiple calls to SbPlayerCreate must
-    not cause a crash.
-
-`window`: The window that will display the player. `window` can be
-`kSbWindowInvalid` for platforms where video is only displayed on a particular
-window that the underlying implementation already has access to.
-
-`video_codec`: The video codec used for the player. If `video_codec` is
-`kSbMediaVideoCodecNone`, the player is an audio-only player. If `video_codec`
-is any other value, the player is an audio/video decoder. This can be set to
-`kSbMediaVideoCodecNone` to play a video with only an audio track.
-
-`audio_codec`: The audio codec used for the player. The caller must provide a
-populated `audio_sample_info` if audio codec is `kSbMediaAudioCodecAac`. Can be
-set to `kSbMediaAudioCodecNone` to play a video without any audio track. In such
-case `audio_sample_info` must be NULL.
-
-`drm_system`: If the media stream has encrypted portions, then this parameter
-provides an appropriate DRM system, created with `SbDrmCreateSystem()`. If the
-stream does not have encrypted portions, then `drm_system` may be
-`kSbDrmSystemInvalid`. `audio_sample_info`: Note that the caller must provide a
-populated `audio_sample_info` if the audio codec is `kSbMediaAudioCodecAac`.
-Otherwise, `audio_sample_info` can be NULL. See media.h for the format of the
-`SbMediaAudioSampleInfo` struct. Note that `audio_specific_config` is a pointer
-and the content it points to is no longer valid after this function returns. The
-implementation has to make a copy of the content if it is needed after the
-function returns. `max_video_capabilities`: This string communicates the max
-video capabilities required to the platform. The web app will not provide a
-video stream exceeding the maximums described by this parameter. Allows the
-platform to optimize playback pipeline for low quality video streams if it knows
-that it will never adapt to higher quality streams. The string uses the same
-format as the string passed in to SbMediaCanPlayMimeAndKeySystem(), for example,
-when it is set to "width=1920; height=1080; framerate=15;", the video will never
-adapt to resolution higher than 1920x1080 or frame per second higher than 15
-fps. When the maximums are unknown, this will be set to NULL.
-
-#### Declaration ####
-
-```
-SbPlayer SbPlayerCreate(SbWindow window, const SbPlayerCreationParam *creation_param, SbPlayerDeallocateSampleFunc sample_deallocate_func, SbPlayerDecoderStatusFunc decoder_status_func, SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func, void *context, SbDecodeTargetGraphicsContextProvider *context_provider)
-```
-
 ### SbPlayerDestroy ###
 
 Destroys `player`, freeing all associated resources.

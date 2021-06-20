@@ -87,6 +87,9 @@ title: "Starboard Module Reference: cpu_features.h"
 *   `bool has_vfp3`
 
     VFP version 3
+*   `bool has_vfp4`
+
+    VFP version 4
 *   `bool has_vfp3_d32`
 
     VFP version 3 with 32 D-registers.
@@ -95,7 +98,7 @@ title: "Starboard Module Reference: cpu_features.h"
     SDIV and UDIV hardware division in ARM mode.
 *   `bool has_aes`
 
-    Arm 64 feature flags
+    ###### Arm 64 feature flags  ######
 
     AES instructions.
 *   `bool has_crc32`

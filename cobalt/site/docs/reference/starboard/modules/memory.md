@@ -4,12 +4,14 @@ title: "Starboard Module Reference: memory.h"
 ---
 
 Defines functions for memory allocation, alignment, copying, and comparing.
-Porters
+
+## Porters ##
 
 All of the "Unchecked" and "Free" functions must be implemented, but they should
 not be called directly. The Starboard platform wraps them with extra accounting
 under certain circumstances.
-Porters and Application Developers
+
+## Porters and Application Developers ##
 
 Nobody should call the "Checked", "Unchecked" or "Free" functions directly
 because that evades Starboard's memory tracking. In both port implementations
@@ -43,16 +45,6 @@ the mapped memory can be used.
 *   `kSbMemoryMapProtectReadWrite`
 
 ## Functions ##
-
-### SbMemoryAlignToPageSize ###
-
-Rounds `size` up to kSbMemoryPageSize.
-
-#### Declaration ####
-
-```
-static size_t SbMemoryAlignToPageSize(size_t size)
-```
 
 ### SbMemoryAllocate ###
 
@@ -166,46 +158,6 @@ some packages.
 static void* SbMemoryCalloc(size_t count, size_t size)
 ```
 
-### SbMemoryCompare ###
-
-Compares the contents of the first `count` bytes of `buffer1` and `buffer2`.
-This function returns:
-
-*   `-1` if `buffer1` is "less-than" `buffer2`
-
-*   `0` if `buffer1` and `buffer2` are equal
-
-*   `1` if `buffer1` is "greater-than" `buffer2`.
-
-This function is meant to be a drop-in replacement for `memcmp`.
-
-`buffer1`: The first buffer to be compared. `buffer2`: The second buffer to be
-compared. `count`: The number of bytes to be compared.
-
-#### Declaration ####
-
-```
-int SbMemoryCompare(const void *buffer1, const void *buffer2, size_t count)
-```
-
-### SbMemoryCopy ###
-
-Copies `count` sequential bytes from `source` to `destination`, without support
-for the `source` and `destination` regions overlapping. This function is meant
-to be a drop-in replacement for `memcpy`.
-
-The function's behavior is undefined if `destination` or `source` are NULL, and
-the function is a no-op if `count` is 0. The return value is `destination`.
-
-`destination`: The destination of the copied memory. `source`: The source of the
-copied memory. `count`: The number of sequential bytes to be copied.
-
-#### Declaration ####
-
-```
-void* SbMemoryCopy(void *destination, const void *source, size_t count)
-```
-
 ### SbMemoryDeallocate ###
 
 Frees a previously allocated chunk of memory. If `memory` is NULL, then the
@@ -240,18 +192,6 @@ tracker. This function must be matched with SbMemoryAllocateNoReport().
 
 ```
 void SbMemoryDeallocateNoReport(void *memory)
-```
-
-### SbMemoryFindByte ###
-
-Finds the lower 8-bits of `value` in the first `count` bytes of `buffer` and
-returns either a pointer to the first found occurrence or `NULL` if the value is
-not found. This function is meant to be a drop-in replacement for `memchr`.
-
-#### Declaration ####
-
-```
-const void* SbMemoryFindByte(const void *buffer, int value, size_t count)
 ```
 
 ### SbMemoryFlush ###
@@ -306,26 +246,6 @@ The lowest addressable byte for the current thread.
 void SbMemoryGetStackBounds(void **out_high, void **out_low)
 ```
 
-### SbMemoryIsAligned ###
-
-Checks whether `memory` is aligned to `alignment` bytes.
-
-#### Declaration ####
-
-```
-static bool SbMemoryIsAligned(const void *memory, size_t alignment)
-```
-
-### SbMemoryIsZero ###
-
-Returns true if the first `count` bytes of `buffer` are set to zero.
-
-#### Declaration ####
-
-```
-static bool SbMemoryIsZero(const void *buffer, size_t count)
-```
-
 ### SbMemoryMap ###
 
 Allocates `size_bytes` worth of physical memory pages and maps them into an
@@ -345,24 +265,6 @@ the debugger on some platforms. The value can be up to 32 bytes.
 
 ```
 void* SbMemoryMap(int64_t size_bytes, int flags, const char *name)
-```
-
-### SbMemoryMove ###
-
-Copies `count` sequential bytes from `source` to `destination`, with support for
-the `source` and `destination` regions overlapping. This function is meant to be
-a drop-in replacement for `memmove`.
-
-The function's behavior is undefined if `destination` or `source` are NULL, and
-the function is a no-op if `count` is 0. The return value is `destination`.
-
-`destination`: The destination of the copied memory. `source`: The source of the
-copied memory. `count`: The number of sequential bytes to be copied.
-
-#### Declaration ####
-
-```
-void* SbMemoryMove(void *destination, const void *source, size_t count)
 ```
 
 ### SbMemoryProtect ###
@@ -426,24 +328,6 @@ DO NOT CALL. Call SbMemoryReallocate(...) instead.
 
 ```
 void* SbMemoryReallocateUnchecked(void *memory, size_t size)
-```
-
-### SbMemorySet ###
-
-Fills `count` sequential bytes starting at `destination`, with the unsigned char
-coercion of `byte_value`. This function is meant to be a drop-in replacement for
-`memset`.
-
-The function's behavior is undefined if `destination` is NULL, and the function
-is a no-op if `count` is 0. The return value is `destination`.
-
-`destination`: The destination of the copied memory. `count`: The number of
-sequential bytes to be set.
-
-#### Declaration ####
-
-```
-void* SbMemorySet(void *destination, int byte_value, size_t count)
 ```
 
 ### SbMemoryUnmap ###

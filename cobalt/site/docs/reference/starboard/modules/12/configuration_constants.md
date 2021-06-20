@@ -11,7 +11,7 @@ runtime decisions based on per platform configurations.
 
 ### kSbDefaultMmapThreshold ###
 
-Determines the threshhold of allocation size that should be done with mmap (if
+Determines the threshold of allocation size that should be done with mmap (if
 available), rather than allocated within the core heap.
 
 ### kSbFileAltSepChar ###
@@ -92,22 +92,6 @@ The maximum audio bitrate the platform can decode. The following value equals to
 
 The maximum video bitrate the platform can decode. The following value equals to
 8M bytes per seconds which is more than enough for compressed video.
-
-### kSbMediaMaximumVideoFrames ###
-
-Specify the number of video frames to be cached during playback. A large value
-leads to more stable fps but also causes the app to use more memory.
-
-### kSbMediaMaximumVideoPrerollFrames ###
-
-The encoded video frames are compressed in different ways, so their decoding
-time can vary a lot. Occasionally a single frame can take longer time to decode
-than the average time per frame. The player has to cache some frames to account
-for such inconsistency. The number of frames being cached are controlled by
-SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and SB_MEDIA_MAXIMUM_VIDEO_FRAMES.
-
-Specify the number of video frames to be cached before the playback starts. Note
-that setting this value too large may increase the playback start delay.
 
 ### kSbMediaVideoFrameAlignment ###
 
