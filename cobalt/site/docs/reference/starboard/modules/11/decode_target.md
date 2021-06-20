@@ -12,7 +12,8 @@ An SbDecodeTarget can be passed into any function which decodes video or image
 data. This allows the application to allocate fast graphics memory, and have
 decoding done directly into this memory, avoiding unnecessary memory copies, and
 also avoiding pushing data between CPU and GPU memory unnecessarily.
-SbDecodeTargetFormat
+
+## SbDecodeTargetFormat ##
 
 SbDecodeTargets support several different formats that can be used to decode
 into and render from. Some formats may be easier to decode into, and others may
@@ -20,7 +21,8 @@ be easier to render. Some may take less memory. Each decoder needs to support
 the SbDecodeTargetFormat passed into it, or the decode will produce an error.
 Each decoder provides a way to check if a given SbDecodeTargetFormat is
 supported by that decoder.
-SbDecodeTargetGraphicsContextProvider
+
+## SbDecodeTargetGraphicsContextProvider ##
 
 Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
@@ -34,7 +36,8 @@ needs to execute GLES commands like, for example, glGenTextures().
 
 The primary usage is likely to be the the SbPlayer implementation on some
 platforms.
-SbDecodeTarget Example
+
+## SbDecodeTarget Example ##
 
 Let's say that we are an application and we would like to use the interface
 defined in starboard/image.h to decode an imaginary "image/foo" image type.
@@ -71,11 +74,10 @@ SbDecodeTarget target = SbImageDecode(
 
 // If the decode works, you can get the texture out and render it.
 SbDecodeTargetInfo info;
-SbMemorySet(&info, 0, sizeof(info));
+memset(&info, 0, sizeof(info));
 SbDecodeTargetGetInfo(target, &info);
 GLuint texture =
     info.planes[kSbDecodeTargetPlaneRGBA].texture;
-
 ```
 
 ## Macros ##
@@ -118,8 +120,8 @@ premultiplied unless otherwise explicitly specified.
     order.
 *   `kSbDecodeTargetFormat1PlaneUYVY`
 
-    A decoder target format consisting of a single plane with pixels layed out
-    in the format UYVY. Since there are two Y values per sample, but only one U
+    A decoder target format consisting of a single plane with pixels laid out in
+    the format UYVY. Since there are two Y values per sample, but only one U
     value and only one V value, horizontally the Y resolution is twice the size
     of both the U and V resolutions. Vertically, they Y, U and V all have the
     same resolution. This is a YUV 422 format. When using this format with GL
@@ -399,3 +401,4 @@ Starboard implementations, if it is necessary.
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
 ```
+

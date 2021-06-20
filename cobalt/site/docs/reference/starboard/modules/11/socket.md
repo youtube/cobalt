@@ -276,8 +276,8 @@ loopback interface is a valid return value.
 If the destination address is ::, and its `type` is `kSbSocketAddressTypeIpv6`
 then any IPv6 local interface that is up and not loopback or a link-local IP is
 a valid return value. However, in the case of IPv6, the address with the biggest
-scope must be returned. E.g., a globally scoped and routable IP is prefered over
-a unique local address (ULA). Also, the IP address that is returned must be
+scope must be returned. E.g., a globally scoped and routable IP is preferred
+over a unique local address (ULA). Also, the IP address that is returned must be
 permanent.
 
 If destination address is NULL, then any IP address that is valid for

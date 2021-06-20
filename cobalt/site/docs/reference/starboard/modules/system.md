@@ -25,12 +25,6 @@ behavior of other APIs within the bounds of their operating range.
     Whether this system has the ability to report on GPU memory usage. If (and
     only if) a system has this capability will SbSystemGetTotalGPUMemory() and
     SbSystemGetUsedGPUMemory() be valid to call.
-*   `kSbSystemCapabilitySetsInputTimestamp`
-
-    Whether this system sets the `timestamp` field of SbInputData . If the
-    system does not set this field, then it will automatically be set; however,
-    the relative time between input events likely will not be preserved, so
-    time-related calculations (e.g. velocity for move events) will be incorrect.
 
 ### SbSystemConnectionType ###
 
@@ -158,10 +152,6 @@ string generation.
 *   `kSbSystemPropertyCertificationScope`
 
     The certification scope that identifies a group of devices.
-*   `kSbSystemPropertyBase64EncodedCertificationSecret`
-
-    The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
-    query parameters from the application startup URL.
 *   `kSbSystemPropertyChipsetModelNumber`
 
     The full model number of the main platform chipset, including any vendor-
@@ -306,6 +296,33 @@ null byte. `string_length`: The maximum length of the error string.
 
 ```
 int SbSystemGetErrorString(SbSystemError error, char *out_string, int string_length)
+```
+
+### SbSystemGetExtension ###
+
+Returns pointer to a constant global struct implementing the extension named
+`name`, if it is implemented. Otherwise return NULL.
+
+Extensions are used to implement behavior which is specific to the combination
+of application & platform. An extension relies on a header file in the
+"extension" subdirectory of an app, which is used by both the application and
+the Starboard platform to define an extension API struct. Since the header is
+used both above and below Starboard, it cannot include any files from above
+Starboard. It may depend on Starboard headers. That API struct has only 2
+required fields which must be first: a const char* `name`, storing the extension
+name, and a uint32_t `version` storing the version number of the extension. All
+other fields may be C types (including custom structs) or function pointers. The
+application will query for the function by name using SbSystemGetExtension, and
+the platform returns a pointer to the singleton instance of the extension
+struct. The singleton struct should be constant after initialization, since the
+application may only get the extension once, meaning updated values would be
+ignored. As the version of extensions are incremented, fields may be added to
+the end of the struct, but never removed (only deprecated).
+
+#### Declaration ####
+
+```
+const void* SbSystemGetExtension(const char *name)
 ```
 
 ### SbSystemGetLastError ###
@@ -517,6 +534,18 @@ to a debugger. The function returns `false` if neither of those cases is true.
 bool SbSystemIsDebuggerAttached()
 ```
 
+### SbSystemNetworkIsDisconnected ###
+
+Returns if the device is disconnected from network. "Disconnected" is chosen
+over connected because disconnection can be determined with more certainty than
+connection usually.
+
+#### Declaration ####
+
+```
+bool SbSystemNetworkIsDisconnected()
+```
+
 ### SbSystemRaisePlatformError ###
 
 Cobalt calls this function to notify the platform that an error has occurred in
@@ -545,20 +574,94 @@ if it is called.
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type, SbSystemPlatformErrorCallback callback, void *user_data)
 ```
 
-### SbSystemRequestPause ###
+### SbSystemRequestBlur ###
 
-Requests that the application move into the Paused state at the next convenient
+Requests that the application move into the Blurred state at the next convenient
 point. This should roughly correspond to "unfocused application" in a
 traditional window manager, where the application may be partially visible.
 
-This function eventually causes a `kSbEventTypePause` event to be dispatched to
-the application. Before the `kSbEventTypePause` event is dispatched, some work
+This function eventually causes a `kSbEventTypeBlur` event to be dispatched to
+the application. Before the `kSbEventTypeBlur` event is dispatched, some work
 may continue to be done, and unrelated system events may be dispatched.
 
 #### Declaration ####
 
 ```
-void SbSystemRequestPause()
+void SbSystemRequestBlur()
+```
+
+### SbSystemRequestConceal ###
+
+Requests that the application move into the Concealed state at the next
+convenient point. This should roughly correspond to "minimization" in a
+traditional window manager, where the application is no longer visible. However,
+the background tasks can still be running.
+
+This function eventually causes a `kSbEventTypeConceal` event to be dispatched
+to the application. Before the `kSbEventTypeConceal` event is dispatched, some
+work may continue to be done, and unrelated system events may be dispatched.
+
+In the Concealed state, the application will be invisible, but probably still be
+running background tasks. The expectation is that an external system event will
+bring the application out of the Concealed state.
+
+#### Declaration ####
+
+```
+void SbSystemRequestConceal()
+```
+
+### SbSystemRequestFocus ###
+
+Requests that the application move into the Started state at the next convenient
+point. This should roughly correspond to a "focused application" in a
+traditional window manager, where the application is fully visible and the
+primary receiver of input events.
+
+This function eventually causes a `kSbEventTypeFocus` event to be dispatched to
+the application. Before `kSbEventTypeFocus` is dispatched, some work may
+continue to be done, and unrelated system events may be dispatched.
+
+#### Declaration ####
+
+```
+void SbSystemRequestFocus()
+```
+
+### SbSystemRequestFreeze ###
+
+Requests that the application move into the Frozen state at the next convenient
+point.
+
+This function eventually causes a `kSbEventTypeFreeze` event to be dispatched to
+the application. Before the `kSbEventTypeSuspend` event is dispatched, some work
+may continue to be done, and unrelated system events may be dispatched.
+
+In the Frozen state, the application will be resident, but probably not running.
+The expectation is that an external system event will bring the application out
+of the Frozen state.
+
+#### Declaration ####
+
+```
+void SbSystemRequestFreeze()
+```
+
+### SbSystemRequestReveal ###
+
+Requests that the application move into the Blurred state at the next convenient
+point. This should roughly correspond to a "focused application" in a
+traditional window manager, where the application is fully visible and the
+primary receiver of input events.
+
+This function eventually causes a `kSbEventTypeReveal` event to be dispatched to
+the application. Before the `kSbEventTypeReveal` event is dispatched, some work
+may continue to be done, and unrelated system events may be dispatched.
+
+#### Declaration ####
+
+```
+void SbSystemRequestReveal()
 ```
 
 ### SbSystemRequestStop ###
@@ -576,43 +679,6 @@ is eventually terminated as a result of a call to this function.
 
 ```
 void SbSystemRequestStop(int error_level)
-```
-
-### SbSystemRequestSuspend ###
-
-Requests that the application move into the Suspended state at the next
-convenient point. This should roughly correspond to "minimization" in a
-traditional window manager, where the application is no longer visible.
-
-This function eventually causes a `kSbEventTypeSuspend` event to be dispatched
-to the application. Before the `kSbEventTypeSuspend` event is dispatched, some
-work may continue to be done, and unrelated system events may be dispatched.
-
-In the Suspended state, the application will be resident, but probably not
-running. The expectation is that an external system event will bring the
-application out of the Suspended state.
-
-#### Declaration ####
-
-```
-void SbSystemRequestSuspend()
-```
-
-### SbSystemRequestUnpause ###
-
-Requests that the application move into the Started state at the next convenient
-point. This should roughly correspond to a "focused application" in a
-traditional window manager, where the application is fully visible and the
-primary receiver of input events.
-
-This function eventually causes a `kSbEventTypeUnpause` event to be dispatched
-to the application. Before `kSbEventTypeUnpause` is dispatched, some work may
-continue to be done, and unrelated system events may be dispatched.
-
-#### Declaration ####
-
-```
-void SbSystemRequestUnpause()
 ```
 
 ### SbSystemSignWithCertificationSecretKey ###
@@ -633,12 +699,6 @@ will be undefined.
 
 ```
 bool SbSystemSignWithCertificationSecretKey(const uint8_t *message, size_t message_size_in_bytes, uint8_t *digest, size_t digest_size_in_bytes)
-```
-
-#### Declaration ####
-
-```
-void SbSystemSort(void *base, size_t element_count, size_t element_width, SbSystemComparator comparator)
 ```
 
 ### SbSystemSupportsResume ###
@@ -672,3 +732,4 @@ signal-safe on platforms that support signals.
 ```
 bool SbSystemSymbolize(const void *address, char *out_buffer, int buffer_size)
 ```
+

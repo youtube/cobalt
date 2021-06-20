@@ -3,8 +3,92 @@ layout: doc
 title: "Starboard Module Reference: event.h"
 ---
 
+For SB_API_VERSION >= 13
+
+Module Overview: Starboard Event module
+
 Defines the event system that wraps the Starboard main loop and entry point.
-The Starboard Application Lifecycle
+
+## The Starboard Application Lifecycle ##
+
+```
+               * ----------
+               |           |
+             Start         |
+               |           |
+               V           |
+         [===========]     |
+    ---> [  STARTED  ]     |
+   |     [===========]     |
+   |           |           |
+ Focus       Blur      Preload
+   |           |           |
+   |           V           |
+    ---- [===========]     |
+    ---> [  BLURRED  ]     |
+   |     [===========]     |
+   |           |           |
+ Reveal     Conceal        |
+   |           |           |
+   |           V           |
+   |     [===========]     |
+    ---- [ CONCEALED ] <---
+    ---> [===========]
+   |           |
+Unfreeze     Freeze
+   |           |
+   |           V
+   |     [===========]
+    ---- [  FROZEN   ]
+         [===========]
+               |
+              Stop
+               |
+               V
+         [===========]
+         [  STOPPED  ]
+         [===========]
+
+```
+
+The first event that a Starboard application receives is either `Start`
+(`kSbEventTypeStart`) or `Preload` (`kSbEventTypePreload`). `Start` puts the
+application in the `STARTED` state, whereas `Preload` puts the application in
+the `CONCEALED` state.
+
+In the `STARTED` state, the application is in the foreground and can expect to
+do all of the normal things it might want to do. Once in the `STARTED` state, it
+may receive a `Blur` event, putting the application into the `BLURRED` state.
+
+In the `BLURRED` state, the application is still visible, but has lost focus, or
+it is partially obscured by a modal dialog, or it is on its way to being shut
+down. The application should blur activity in this state. In this state, it can
+receive `Focus` to be brought back to the foreground state (`STARTED`), or
+`Conceal` to be pushed to the `CONCEALED` state.
+
+In the `CONCEALED` state, the application should behave as it should for an
+invisible program that can still run, and that can optionally access the network
+and playback audio, albeit potentially will have less CPU and memory available.
+The application may get switched from `CONCEALED` to `FROZEN` at any time, when
+the platform decides to do so.
+
+In the `FROZEN` state, the application is not visible. It should immediately
+release all graphics and video resources, and shut down all background activity
+(timers, rendering, etc). Additionally, the application should flush storage to
+ensure that if the application is killed, the storage will be up-to-date. The
+application may be killed at this point, but will ideally receive a `Stop` event
+for a more graceful shutdown.
+
+Note that the application is always expected to transition through `BLURRED`,
+`CONCEALED` to `FROZEN` before receiving `Stop` or being killed.
+
+For SB_API_VERSION < 13
+
+Module Overview: Starboard Event module
+
+Defines the event system that wraps the Starboard main loop and entry point.
+
+## The Starboard Application Lifecycle ##
 
 ```
     ---------- *
@@ -79,65 +163,68 @@ the type of the value pointed to by that data argument, if any.
 
 *   `kSbEventTypePreload`
 
-    Applications should perform initialization and prepare to react to
-    subsequent events, but must not initialize any graphics resources (through
-    GL or SbBlitter). The intent of this event is to allow the application to do
-    as much work as possible ahead of time, so that when the application is
-    first brought to the foreground, it's as fast as a resume.
-
-    The `kSbEventTypeStart` event may be sent at any time, regardless of
-    initialization state. Input events will not be sent in the `PRELOADING`
-    state. This event will only be sent once for a given process launch.
-    SbEventStartData is passed as the data argument.
-
-    The system may send `kSbEventTypeSuspend` in `PRELOADING` if it wants to
-    push the app into a lower resource consumption state. Applications can alo
-    call SbSystemRequestSuspend() when they are done preloading to request this.
+    The system may send `kSbEventTypePreload` in `UNSTARTED` if it wants to push
+    the app into a lower resource consumption state. Applications will also call
+    SbSystemRequestConceal() when they request this. The only events that should
+    be dispatched after a Preload event are Reveal or Freeze. No data argument.
 *   `kSbEventTypeStart`
 
     The first event that an application receives on startup when starting
-    normally (i.e. not being preloaded). Applications should perform
-    initialization, start running, and prepare to react to subsequent events.
-    Applications that wish to run and then exit must call
-    `SbSystemRequestStop()` to terminate. This event will only be sent once for
-    a given process launch. `SbEventStartData` is passed as the data argument.
-    In case of preload, the `SbEventStartData` will be the same as what was
-    passed to `kSbEventTypePreload`.
-*   `kSbEventTypePause`
+    normally. Applications should perform initialization, start running, and
+    prepare to react to subsequent events. Applications that wish to run and
+    then exit must call `SbSystemRequestStop()` to terminate. This event will
+    only be sent once for a given process launch. `SbEventStartData` is passed
+    as the data argument.
+*   `kSbEventTypeBlur`
 
     A dialog will be raised or the application will otherwise be put into a
-    background-but-visible or partially-obscured state (PAUSED). Graphics and
-    video resources will still be available, but the application should pause
+    background-but-visible or partially-obscured state (BLURRED). Graphics and
+    video resources will still be available, but the application could pause
     foreground activity like animations and video playback. Can only be received
-    after a Start event. The only events that should be dispatched after a Pause
-    event are Unpause or Suspend. No data argument.
-*   `kSbEventTypeUnpause`
+    after a Start event. The only events that should be dispatched after a Blur
+    event are Focus or Conceal. No data argument.
+*   `kSbEventTypeFocus`
 
     The application is returning to the foreground (STARTED) after having been
-    put in the PAUSED (e.g. partially-obscured) state. The application should
-    unpause foreground activity like animations and video playback. Can only be
-    received after a Pause or Resume event. No data argument.
-*   `kSbEventTypeSuspend`
+    put in the BLURRED (e.g. partially-obscured) state. The application should
+    resume foreground activity like animations and video playback. Can only be
+    received after a Blur or Reveal event. No data argument.
+*   `kSbEventTypeConceal`
 
-    The operating system will put the application into a Suspended state after
+    The operating system will put the application into the Concealed state after
+    this event is handled. The application is expected to be made invisible, but
+    background tasks can still be running, such as audio playback, or updating
+    of recommendations. Can only be received after a Blur or Reveal event. The
+    only events that should be dispatched after a Conceal event are Freeze or
+    Reveal. On some platforms, the process may also be killed after Conceal
+    without a Freeze event.
+*   `kSbEventTypeReveal`
+
+    The operating system will restore the application to the BLURRED state from
+    the CONCEALED state. This is the first event the application will receive
+    coming out of CONCEALED, and it can be received after a Conceal or Unfreeze
+    event. The application will now be in the BLURRED state. No data argument.
+*   `kSbEventTypeFreeze`
+
+    The operating system will put the application into the Frozen state after
     this event is handled. The application is expected to stop periodic
     background work, release ALL graphics and video resources, and flush any
     pending SbStorage writes. Some platforms will terminate the application if
-    work is done or resources are retained after suspension. Can only be
-    received after a Pause event. The only events that should be dispatched
-    after a Suspend event are Resume or Stop. On some platforms, the process may
-    also be killed after Suspend without a Stop event. No data argument.
-*   `kSbEventTypeResume`
+    work is done or resources are retained after freezing. Can be received after
+    a Conceal or Unfreeze event. The only events that should be dispatched after
+    a Freeze event are Unfreeze or Stop. On some platforms, the process may also
+    be killed after Freeze without a Stop event. No data argument.
+*   `kSbEventTypeUnfreeze`
 
-    The operating system has restored the application to the PAUSED state from
-    the SUSPENDED state. This is the first event the application will receive
-    coming out of SUSPENDED, and it will only be received after a Suspend event.
-    The application will now be in the PAUSED state. No data argument.
+    The operating system has restored the application to the CONCEALED state
+    from the FROZEN state. This is the first event the application will receive
+    coming out of FROZEN, and it will only be received after a Freeze event. The
+    application will now be in the CONCEALED state. NO data argument.
 *   `kSbEventTypeStop`
 
     The operating system will shut the application down entirely after this
-    event is handled. Can only be recieved after a Suspend event, in the
-    SUSPENDED state. No data argument.
+    event is handled. Can only be received after a Freeze event, in the FROZEN
+    state. No data argument.
 *   `kSbEventTypeInput`
 
     A user input event, including keyboard, mouse, gesture, or something else.
@@ -165,16 +252,17 @@ the type of the value pointed to by that data argument, if any.
     response to an application call to SbEventSchedule(), and it will call the
     callback directly, so SbEventHandle should never receive this event
     directly. The data type is an internally-defined structure.
-*   `kSbEventTypeAccessiblitySettingsChanged`
+*   `kSbEventTypeAccessibilitySettingsChanged`
 
     The platform's accessibility settings have changed. The application should
     query the accessibility settings using the appropriate APIs to get the new
     settings. Note this excludes captions settings changes, which causes
     kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the starboard
-    version has kSbEventTypeAccessiblityTextToSpeechSettingsChanged, then that
-    event should be used to signal text-to-speech settings changes instead;
+    version has kSbEventTypeAccessib(i)lityTextToSpeechSettingsChanged, then
+    that event should be used to signal text-to-speech settings changes instead;
     platforms using older starboard versions should use
-    kSbEventTypeAccessiblitySettingsChanged for text-to-speech settings changes.
+    kSbEventTypeAccessib(i)litySettingsChanged for text-to-speech settings
+    changes.
 *   `kSbEventTypeLowMemory`
 
     An optional event that platforms may send to indicate that the application
@@ -234,11 +322,29 @@ the type of the value pointed to by that data argument, if any.
     ticket value kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
-    SB_HAS(ON_SCREEN_KEYBOARD) One or more of the fields returned by
+    SB_HAS(ON_SCREEN_KEYBOARD)One or more of the fields returned by
     SbAccessibilityGetCaptionSettings has changed.
-*   `kSbEventTypeAccessiblityTextToSpeechSettingsChanged`
+*   `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 
     The platform's text-to-speech settings have changed.
+*   `kSbEventTypeOsNetworkDisconnected`
+
+    The platform has detected a network disconnection. There are likely to be
+    cases where the platform cannot detect the disconnection but the platform
+    should make a best effort to send an event of this type when the network
+    disconnects. This event is used to implement window.onoffline DOM event.
+*   `kSbEventTypeOsNetworkConnected`
+
+    The platform has detected a network connection. There are likely to be cases
+    where the platform cannot detect the connection but the platform should make
+    a best effort to send an event of this type when the device is just
+    connected to the internet. This event is used to implement window.ononline
+    DOM event.
+*   `kSbEventDateTimeConfigurationChanged`
+
+    The platform has detected a date and/or time configuration change (such as a
+    change in the timezone setting). This should trigger the application to re-
+    query the relevant APIs to update the date and time.
 
 ## Typedefs ##
 
@@ -281,6 +387,7 @@ Structure representing a Starboard event and its data.
 #### Members ####
 
 *   `SbEventType type`
+*   `SbTimeMonotonic timestamp`
 *   `void * data`
 
 ### SbEventStartData ###
