@@ -8,6 +8,7 @@ This document records all notable changes made to Cobalt since the last release.
    Cobalt code now requires C++14-compatible toolchains to compile. This
    requirement helps us stay updated with C++ standards and integrate
    third-party libraries much easier.
+   C++17 support is recommended, but not yet required to compile Cobalt.
 
  - **Updated lifecycle handling to support concealed mode.**
 

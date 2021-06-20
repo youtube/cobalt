@@ -315,6 +315,7 @@
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/starboard/common/common.gyp:common',
+        '<(DEPTH)/starboard/nplb/compiler_compliance/compiler_compliance.gyp:cpp14_supported',
         '<(DEPTH)/starboard/shared/starboard/media/media.gyp:media_util',
         '<(DEPTH)/starboard/shared/starboard/player/player.gyp:player_copy_test_data',
         '<(DEPTH)/starboard/shared/starboard/player/player.gyp:video_dmp',
@@ -330,9 +331,9 @@
             'media_set_audio_write_duration_test.cc',
           ],
         }],
-        ['sb_disable_cpp14_audit == 0', {
+        ['sb_disable_cpp17_audit == 0', {
           'dependencies': [
-            '<(DEPTH)/starboard/nplb/compiler_compliance/compiler_compliance.gyp:cpp14_supported',
+            '<(DEPTH)/starboard/nplb/compiler_compliance/compiler_compliance.gyp:cpp17_supported',
           ],
         }],
         ['gl_type != "none"', {

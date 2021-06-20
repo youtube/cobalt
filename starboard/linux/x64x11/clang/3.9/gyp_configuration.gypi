@@ -16,7 +16,8 @@
   'variables': {
     'sb_target_platform': 'linux-x64x11-clang-3-9',
     'cobalt_v8_emit_builtins_as_inline_asm': 1,
-    'sb_disable_cpp14_audit': 0,
+    # Required C++17 features are available in Clang-4.0 and newer
+    'sb_disable_cpp17_audit': 1,
   },
 
   'target_defaults': {
