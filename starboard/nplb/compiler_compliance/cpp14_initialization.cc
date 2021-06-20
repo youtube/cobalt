@@ -21,7 +21,7 @@ namespace nplb {
 namespace {
 
 struct DummyClass {
-  DummyClass(int a) : a_(a) {}
+  explicit DummyClass(int a) : a_(a) {}
   int a_;
 };
 typedef std::vector<DummyClass> DummyClasses;
@@ -31,6 +31,11 @@ typedef std::vector<DummyClass> DummyClasses;
 void NoInitializationBraces() {
   const DummyClasses dummy_classes;
 }
+
+// Verify constexpr initialization. Supported from Clang 3.9, GCC 4.6, VS2017
+// See: http://open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#253
+struct CheckInitializerTag {};
+static constexpr CheckInitializerTag kEmptyTag;
 
 }  // namespace
 }  // namespace nplb

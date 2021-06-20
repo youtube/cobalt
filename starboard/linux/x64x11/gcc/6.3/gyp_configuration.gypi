@@ -13,6 +13,10 @@
 # limitations under the License.
 
 {
+  'variables' : {
+    # Required C++17 features are available in GCC-7 and newer
+    'sb_disable_cpp17_audit': 1,
+  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-gcc-6-3_debug',
     'configurations': {
