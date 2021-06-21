@@ -92,14 +92,7 @@ NavigatorUAData::GetHighEntropyValues(script::Sequence<std::string> hints) {
   // Set other hints if specified
   for (script::Sequence<std::string>::iterator it = hints.begin();
        it != hints.end(); ++it) {
-    if ((*it).compare("brands") == 0) {
-      select_high_entropy_values_.set_brands(all_high_entropy_values_.brands());
-    } else if ((*it).compare("mobile") == 0) {
-      select_high_entropy_values_.set_mobile(all_high_entropy_values_.mobile());
-    } else if ((*it).compare("platform") == 0) {
-      select_high_entropy_values_.set_platform(
-          all_high_entropy_values_.platform());
-    } else if ((*it).compare("architecture") == 0) {
+    if ((*it).compare("architecture") == 0) {
       select_high_entropy_values_.set_architecture(
           all_high_entropy_values_.architecture());
     } else if ((*it).compare("bitness") == 0) {
