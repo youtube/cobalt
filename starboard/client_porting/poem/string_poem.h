@@ -23,65 +23,10 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// Inline wrapper for a drop-in replacement for |strncpy|.  This function
-// copies the null terminated string from src to dest.  If the src string is
-// shorter than num_chars_to_copy, then null padding is used.
-// Warning: As with strncpy spec, if there is no null character within the first
-// num_chars_to_copy in src, this function will write a null character at the
-// end.
-static SB_C_INLINE char* PoemStringCopyN(char* dest,
-                                         const char* src,
-                                         int num_chars_to_copy) {
-  SB_DCHECK(num_chars_to_copy >= 0);
-  if (num_chars_to_copy < 0) {
-    return dest;
-  }
-
-  char* dest_write_iterator = dest;
-  char* dest_write_iterator_end = dest + num_chars_to_copy;
-  const char* src_iterator = src;
-
-  while ((*src_iterator != '\0') &&
-         (dest_write_iterator != dest_write_iterator_end)) {
-    *dest_write_iterator = *src_iterator;
-
-    ++src_iterator;
-    ++dest_write_iterator;
-  }
-
-  SB_DCHECK(dest_write_iterator_end >= dest_write_iterator);
-  memset(dest_write_iterator, '\0',
-         dest_write_iterator_end - dest_write_iterator);
-
-  return dest;
-}
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
 #if !defined(POEM_NO_EMULATION)
 
 #undef strdup
 #define strdup(s) SbStringDuplicate(s)
-
-// TODO: Replace forward declarations with <cstring> once string_poem is
-// trimmed down.
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef memmove
-void* memmove(void* dest, const void* src, size_t n);
-#endif
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
 
 #endif  // POEM_NO_EMULATION
 
