@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/media/media_support_internal.h"
+
 #include "starboard/media.h"
 
 bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
