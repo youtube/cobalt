@@ -68,6 +68,7 @@
         'text_test.cc',
         'time_ranges_test.cc',
         'url_utils_test.cc',
+        'user_agent_data_test.cc',
         'window_test.cc',
         'xml_document_test.cc',
       ],
