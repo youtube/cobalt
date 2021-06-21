@@ -131,7 +131,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMediaIsSupported);
+#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);

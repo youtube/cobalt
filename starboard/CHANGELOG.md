@@ -134,6 +134,12 @@ The following starboard functions have been removed:
 The new timestamp field from `SbEvent` will be used instead of the deprecated
 timestamp in `SbInputData`.
 
+### Moved `SbMediaIsSupported()` from `media.h` to `media_support_internal.h`.
+
+It has never been used by Cobalt.  It is only used inside Starboard by functions
+like `CanPlayMimeAndKeySystem()`, and is no longer exposed as a Starboard
+interface function.
+
 ## Version 12
 ### Add support for platform-based UI navigation.
 

@@ -409,14 +409,14 @@ typedef struct SbMediaVideoSampleInfo {
   // key frames, but may change on any key frame.
   int frame_height;
 
-// HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
-// well as the Color Space, and Color elements: MatrixCoefficients,
-// BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
-// CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
-// ChromaSitingVert, Range, TransferCharacteristics, and Primaries
-// described here: https://matroska.org/technical/specs/index.html .
-// This will only be specified on frames where the HDR metadata and
-// color / color space might have changed (e.g. keyframes).
+  // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
+  // well as the Color Space, and Color elements: MatrixCoefficients,
+  // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
+  // CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
+  // ChromaSitingVert, Range, TransferCharacteristics, and Primaries
+  // described here: https://matroska.org/technical/specs/index.html .
+  // This will only be specified on frames where the HDR metadata and
+  // color / color space might have changed (e.g. keyframes).
   SbMediaColorMetadata color_metadata;
 } SbMediaVideoSampleInfo;
 
@@ -489,6 +489,7 @@ typedef struct SbMediaAudioSampleInfo {
 
 // --- Functions -------------------------------------------------------------
 
+#if SB_API_VERSION < 13
 // Indicates whether this platform supports decoding |video_codec| and
 // |audio_codec| along with decrypting using |key_system|. If |video_codec| is
 // |kSbMediaVideoCodecNone| or if |audio_codec| is |kSbMediaAudioCodecNone|,
@@ -503,6 +504,7 @@ typedef struct SbMediaAudioSampleInfo {
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system);
+#endif  // SB_API_VERSION < 13
 
 // Returns information about whether the playback of the specific media
 // described by |mime| and encrypted using |key_system| can be played.
