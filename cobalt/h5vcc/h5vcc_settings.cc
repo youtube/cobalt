@@ -39,6 +39,7 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
 
   if (name.compare(kNavigatorUAData) == 0 && value == 1) {
     global_environment_->BindTo("userAgentData", user_agent_data_, "navigator");
+    return true;
   }
 
   if (name.compare(kQUIC) == 0) {
