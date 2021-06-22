@@ -137,7 +137,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
   // NOTE: The following characters require locking when being accessed.
   bool is_character_map_generated_;
-  scoped_refptr<font_character_map::CharacterMap> character_map_;
+  font_character_map::CharacterMap character_map_;
 
   SkTArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
 
