@@ -101,7 +101,9 @@ template("proto_library") {
   # Platform files should have gotten filtered out in the sources assignment
   # when this template was invoked. If they weren't, it was on purpose and
   # this template shouldn't re-apply the filter.
-  set_sources_assignment_filter([])
+  if (!is_starboard) {
+    set_sources_assignment_filter([])
+  }
 
   if (host_os == "win") {
     host_executable_suffix = ".exe"
@@ -224,20 +226,34 @@ template("proto_library") {
   # Generate protobuf stubs.
   action(action_name) {
     visibility = [ ":$source_set_name" ]
-    script = "//tools/protoc_wrapper/protoc_wrapper.py"
+    if (is_starboard) {
+      script = "//tools/protoc_wrapper/gn_protoc_wrapper.py"
+    } else {
+      script = "//tools/protoc_wrapper/protoc_wrapper.py"
+    }
     sources = proto_sources
     outputs = get_path_info(protogens, "abspath")
     args = protos
 
-    protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
-    protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
-                  host_executable_suffix
+    if (is_starboard) {
+      args += [
+        "--protoc",
+        rebase_path("//tools/protoc", root_build_dir) + host_executable_suffix,
+      ]
+    } else {
+      protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
+      protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
+                    host_executable_suffix
+      args += [
+        # Wrapper should never pick a system protoc.
+        # Path should be rebased because |root_build_dir| for current toolchain
+        # may be different from |root_out_dir| of protoc built on host toolchain.
+        "--protoc",
+        "./" + rebase_path(protoc_path, root_build_dir),
+      ]
+    }
+
     args += [
-      # Wrapper should never pick a system protoc.
-      # Path should be rebased because |root_build_dir| for current toolchain
-      # may be different from |root_out_dir| of protoc built on host toolchain.
-      "--protoc",
-      "./" + rebase_path(protoc_path, root_build_dir),
       "--proto-in-dir",
       rebase_path(proto_in_dir, root_build_dir),
     ]
@@ -289,13 +305,18 @@ template("proto_library") {
       }
     }
 
-    # System protoc is not used so it's necessary to build a chromium one.
-    inputs = [
-      protoc_path,
-    ]
-    deps = [
-      protoc_label,
-    ]
+    if (is_starboard) {
+      inputs = []
+      deps = []
+    } else {
+      # System protoc is not used so it's necessary to build a chromium one.
+      inputs = [
+        protoc_path,
+      ]
+      deps = [
+        protoc_label,
+      ]
+    }
 
     if (generate_with_plugin) {
       inputs += [ plugin_path ]
@@ -344,6 +365,10 @@ template("proto_library") {
                            ])
 
     sources = get_target_outputs(":$action_name")
+
+    if (generate_python) {
+      sources -= [ get_path_info("$py_out_dir/${proto_path}_pb2.py", "abspath") ]
+    }
 
     if (defined(invoker.extra_configs)) {
       configs += invoker.extra_configs
