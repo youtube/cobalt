@@ -44,6 +44,7 @@ class UserAgentPlatformInfo {
   virtual const std::string& connection_type_string() const = 0;
   virtual const std::string& javascript_engine_version() const = 0;
   virtual const std::string& rasterizer_type() const = 0;
+  virtual const std::string& evergreen_type() const = 0;
   virtual const std::string& evergreen_version() const = 0;
 
   virtual const std::string& cobalt_version() const = 0;

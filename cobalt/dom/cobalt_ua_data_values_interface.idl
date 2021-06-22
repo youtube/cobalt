@@ -29,6 +29,7 @@ interface CobaltUADataValuesInterface {
   readonly attribute DOMString cobaltBuildConfiguration;
   readonly attribute DOMString jsEngineVersion;
   readonly attribute DOMString rasterizer;
+  readonly attribute DOMString evergreenType;
   readonly attribute DOMString evergreenVersion;
   readonly attribute DOMString starboardVersion;
   readonly attribute DOMString originalDesignManufacturer;
