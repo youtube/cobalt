@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2019 The Cobalt Authors. All Rights Reserved.
 #
@@ -15,12 +15,13 @@
 # limitations under the License.
 """Validates a specified Starboard ABI JSON file."""
 
-import _env  # pylint: disable=unused-import
-
 import argparse
+import os
 import sys
 
-from starboard.sabi import sabi_utils
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+
+from starboard.sabi import sabi_utils  # pylint:disable=wrong-import-position
 
 # Starboard ABI files are considered invalid unless 'jsonschema' is installed
 # and used to verify them.
@@ -56,8 +57,8 @@ def main():
   sabi_utils.AddSabiArguments(arg_parser)
   args, _ = arg_parser.parse_known_args()
   return ValidateSabi(
-      sabi_utils.LoadSabi(args.filename, args.platform),
-      sabi_utils.LoadSabiSchema(args.filename, args.platform))
+      sabi_utils.LoadSabi(args.filename),
+      sabi_utils.LoadSabiSchema(args.filename))
 
 
 if __name__ == '__main__':
