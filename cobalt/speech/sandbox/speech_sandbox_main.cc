@@ -29,7 +29,8 @@ SpeechSandbox* g_speech_sandbox = NULL;
 // The timeout is optional. If it is not set or set to 0, the application
 // doesn't shut down.
 void StartApplication(int argc, char** argv, const char* link,
-                      const base::Closure& quit_closure) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   if (argc != 3 && argc != 2) {
     LOG(ERROR) << "Usage: " << argv[0]
                << " <audio url|path> [timeout in seconds]";
