@@ -58,6 +58,9 @@ CobaltUADataValuesInterface::CobaltUADataValuesInterface(
   if (init_dict.has_rasterizer()) {
     rasterizer_ = init_dict.rasterizer();
   }
+  if (init_dict.has_evergreen_type()) {
+    evergreen_type_ = init_dict.evergreen_type();
+  }
   if (init_dict.has_evergreen_version()) {
     evergreen_version_ = init_dict.evergreen_version();
   }

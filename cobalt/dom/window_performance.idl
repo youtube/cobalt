@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/navigation-timing/#performance
+// https://www.w3.org/TR/2012/REC-navigation-timing-20121217/#performance
 
 partial interface Window {
   readonly attribute Performance performance;
