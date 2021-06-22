@@ -41,7 +41,8 @@ typedef int (*MainFunction)(int argc, char** argv);
 
 // A start-style function.
 typedef void (*StartFunction)(int argc, char** argv, const char* link,
-                              const base::Closure& quit_closure);
+                              const base::Closure& quit_closure,
+                              SbTimeMonotonic timestamp);
 
 // A function type that can be called at shutdown.
 typedef void (*StopFunction)();
