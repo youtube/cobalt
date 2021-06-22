@@ -449,9 +449,7 @@ static_library("starboard_platform") {
       "input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
-
-    # TODO: Migrate widevine to GN
-    # deps += [ "//starboard/android/shared/drm_system_extension" ]
+    deps += [ "//starboard/android/shared/drm_system_extension" ]
   } else {
     sources += [
       "drm_create_system.cc",
