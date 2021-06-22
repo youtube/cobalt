@@ -19,9 +19,11 @@
 #include <map>
 #include <utility>
 
+#include "SkMutex.h"
 #include "SkString.h"
 #include "SkTDArray.h"
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 
 // The font_character_map namespace contains all of the constants, typedefs, and
 // utility functions used with determining whether or not a font supports a
@@ -54,12 +56,45 @@ typedef std::pair<int16, int16> PageRange;
 // in non-overlapping ascending order.
 typedef SkTArray<PageRange> PageRanges;
 
-typedef std::bitset<kNumCharactersPerPage> PageCharacters;
-typedef std::map<int16, PageCharacters> CharacterMap;
-
 bool IsCharacterValid(SkUnichar character);
 int16 GetPage(SkUnichar character);
 unsigned char GetPageCharacterIndex(SkUnichar character);
+
+struct Character {
+  SkGlyphID id = 0;
+  bool is_set = false;
+};
+
+using PageCharacters = Character[kNumCharactersPerPage];
+class CharacterMap : public base::RefCountedThreadSafe<CharacterMap> {
+ public:
+  const Character Find(SkUnichar character) {
+    SkAutoMutexExclusive scoped_mutex(mutex_);
+
+    int16 page = GetPage(character);
+    std::map<int16, PageCharacters>::iterator page_iterator = data_.find(page);
+
+    if (page_iterator == data_.end()) return {};
+
+    unsigned char character_index = GetPageCharacterIndex(character);
+    return page_iterator->second[character_index];
+  }
+
+  void Insert(SkUnichar character, SkGlyphID glyph) {
+    SkAutoMutexExclusive scoped_mutex(mutex_);
+
+    int16 page = GetPage(character);
+    unsigned char character_index = GetPageCharacterIndex(character);
+    Character c;
+    c.id = glyph;
+    c.is_set = true;
+    data_[page][character_index] = c;
+  }
+
+ private:
+  std::map<int16, PageCharacters> data_;
+  mutable SkMutex mutex_;
+};
 
 }  // namespace font_character_map
 

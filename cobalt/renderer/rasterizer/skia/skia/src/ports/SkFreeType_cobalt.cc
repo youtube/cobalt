@@ -106,19 +106,9 @@ void GenerateCharacterMapFromFace(
   TRACE_EVENT0("cobalt::renderer", "GenerateCharacterMapFromFace");
 
   FT_UInt glyph_index;
-
-  int last_page = -1;
-  font_character_map::PageCharacters* page_characters = NULL;
-
   SkUnichar code_point = FT_Get_First_Char(face, &glyph_index);
   while (glyph_index) {
-    int page = font_character_map::GetPage(code_point);
-    if (page != last_page) {
-      page_characters = &(*character_map)[page];
-      last_page = page;
-    }
-    page_characters->set(font_character_map::GetPageCharacterIndex(code_point));
-
+    character_map->Insert(code_point, SkToU16(glyph_index));
     code_point = FT_Get_Next_Char(face, code_point, &glyph_index);
   }
 }
