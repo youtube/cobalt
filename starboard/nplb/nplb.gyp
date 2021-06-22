@@ -255,6 +255,7 @@
         'system_binary_search_test.cc',
         'system_clear_last_error_test.cc',
         'system_get_error_string_test.cc',
+        'system_get_connection_type_test.cc',
         'system_get_extension_test.cc',
         'system_get_last_error_test.cc',
         'system_get_locale_id_test.cc',
