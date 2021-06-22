@@ -129,7 +129,8 @@ cobalt::browser::Application* g_application = NULL;
 base::Thread* g_snapshot_thread = NULL;
 
 void StartApplication(int argc, char* argv[], const char* link,
-                      const base::Closure& quit_closure) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   logging::SetMinLogLevel(100);
 
   // Use null storage for our savegame so that we don't persist state from
