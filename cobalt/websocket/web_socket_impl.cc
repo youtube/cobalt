@@ -275,7 +275,6 @@ void WebSocketImpl::ProcessSendQueue() {
     SendQueueMessage message = send_queue_.front();
     size_t current_message_length = message.length - sent_size_of_top_message_;
     bool final = false;
-    bool continuation = sent_size_of_top_message_ > 0 ? true : false;
     if (current_quota_ < static_cast<int64_t>(current_message_length)) {
       // quota is not enough to send the top message.
       scoped_refptr<net::IOBuffer> new_io_buffer(
@@ -295,10 +294,7 @@ void WebSocketImpl::ProcessSendQueue() {
       current_quota_ -= current_message_length;
     }
     auto channel_state = websocket_channel_->SendFrame(
-        final,
-        continuation ? net::WebSocketFrameHeader::kOpCodeContinuation
-                     : message.op_code,
-        message.io_buffer, current_message_length);
+        final, message.op_code, message.io_buffer, current_message_length);
     if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
       websocket_channel_.reset();
     }
