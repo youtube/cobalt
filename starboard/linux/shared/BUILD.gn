@@ -394,7 +394,31 @@ static_library("starboard_platform_sources") {
   ]
   deps = [ "//third_party/boringssl:crypto" ]
 
-  if (!is_internal_build) {
+  if (is_internal_build) {
+    sources += [
+      "//starboard/linux/shared/drm_create_system.cc",
+      "//starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc",
+      "//starboard/shared/starboard/drm/drm_close_session.cc",
+      "//starboard/shared/starboard/drm/drm_destroy_system.cc",
+      "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
+      "//starboard/shared/starboard/drm/drm_get_metrics.cc",
+      "//starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/starboard/drm/drm_system_internal.h",
+      "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
+      "//starboard/shared/starboard/drm/drm_update_session.cc",
+      "//starboard/shared/widevine/drm_system_widevine.cc",
+      "//starboard/shared/widevine/drm_system_widevine.h",
+      "//starboard/shared/widevine/media_is_supported.cc",
+      "//starboard/shared/widevine/widevine_storage.cc",
+      "//starboard/shared/widevine/widevine_storage.h",
+      "//starboard/shared/widevine/widevine_timer.cc",
+      "//starboard/shared/widevine/widevine_timer.h",
+    ]
+    deps += [
+      "//starboard/shared/widevine:oemcrypto",
+      "//third_party/ce_cdm/cdm:widevine_ce_cdm_static",
+    ]
+  } else {
     sources += [
       "//starboard/shared/stub/drm_close_session.cc",
       "//starboard/shared/stub/drm_create_system.cc",
