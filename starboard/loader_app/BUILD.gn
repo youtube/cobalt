@@ -12,6 +12,204 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+_common_loader_app_sources = [
+  "loader_app.cc",
+  "loader_app_switches.cc",
+  "loader_app_switches.h",
+  "system_get_extension_shim.cc",
+  "system_get_extension_shim.h",
+]
+
+group("common_loader_app_dependencies") {
+  public_deps = [
+    ":app_key",
+    ":installation_manager",
+    ":slot_management",
+    "//starboard",
+    "//starboard/elf_loader:sabi_string",
+  ]
+}
+
+target(final_executable_type, "loader_app") {
+  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+      target_cpu == "arm64") {
+    sources = _common_loader_app_sources
+    deps = [
+      ":common_loader_app_dependencies",
+      "//cobalt/content/fonts:copy_font_data",
+      "//starboard/elf_loader",
+    ]
+  }
+}
+
+target(final_executable_type, "loader_app_sys") {
+  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+      target_cpu == "arm64") {
+    sources = _common_loader_app_sources
+
+    starboard_syms_path =
+        rebase_path("//starboard/starboard.syms", root_build_dir)
+    ldflags = [
+      "-Wl,--dynamic-list=$starboard_syms_path",
+      "-ldl",
+    ]
+    deps = [
+      ":common_loader_app_dependencies",
+      "//cobalt/content/fonts:copy_font_data",
+      "//starboard/elf_loader:elf_loader_sys",
+    ]
+  }
+}
+
+static_library("app_key_files") {
+  sources = [
+    "app_key_files.cc",
+    "app_key_files.h",
+  ]
+  deps = [ "//starboard" ]
+}
+
+target(gtest_target_type, "app_key_files_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "app_key_files_test.cc",
+  ]
+  deps = [
+    ":app_key_files",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+static_library("app_key") {
+  sources = [
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
+  ]
+  deps = [
+    "//starboard",
+    "//third_party/modp_b64",
+  ]
+}
+
+target(gtest_target_type, "app_key_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "app_key_test.cc",
+  ]
+  deps = [
+    ":app_key",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+static_library("drain_file") {
+  sources = [
+    "drain_file.cc",
+    "drain_file.h",
+  ]
+  deps = [ "//starboard/common" ]
+}
+
+target(gtest_target_type, "drain_file_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "drain_file_helper.cc",
+    "drain_file_helper.h",
+    "drain_file_test.cc",
+  ]
+  deps = [
+    ":drain_file",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+static_library("installation_store_proto") {
+  sources = [
+    "installation_store.pb.cc",
+    "installation_store.pb.h",
+  ]
+  public_deps = [ "//third_party/protobuf:protobuf_lite" ]
+}
+
+static_library("installation_manager") {
+  sources = [
+    "installation_manager.cc",
+    "installation_manager.h",
+  ]
+
+  include_dirs = [
+    # Get protobuf headers from the chromium tree.
+    "//third_party/protobuf/src",
+  ]
+
+  deps = [
+    ":installation_store_proto",
+    "//starboard",
+  ]
+
+  if (sb_evergreen_compatible_enable_lite) {
+    deps += [ ":pending_restart" ]
+  }
+}
+
+target(gtest_target_type, "installation_manager_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "installation_manager_test.cc",
+  ]
+  if (sb_evergreen_compatible_enable_lite) {
+    sources += [ "pending_restart_test.cc" ]
+  }
+  deps = [
+    ":installation_manager",
+    ":installation_store_proto",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+static_library("slot_management") {
+  sources = [
+    "slot_management.cc",
+    "slot_management.h",
+  ]
+  deps = [
+    ":app_key_files",
+    ":drain_file",
+    ":installation_manager",
+    "//starboard",
+    "//starboard/elf_loader",
+    "//starboard/elf_loader:sabi_string",
+  ]
+}
+
+target(gtest_target_type, "slot_management_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "slot_management_test.cc",
+  ]
+  deps = [
+    ":app_key_files",
+    ":drain_file",
+    ":installation_manager",
+    ":installation_store_proto",
+    ":slot_management",
+    "//starboard/elf_loader:sabi_string",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 static_library("pending_restart") {
   sources = [
     "pending_restart.cc",
