@@ -11,6 +11,21 @@ config("protobuf_config") {
   if (!is_win) {
     defines += [ "HAVE_PTHREAD" ]
   }
+
+  if (is_starboard) {
+    if (is_clang) {
+      cflags = [
+        # protobuf-3 contains a few functions that are unused.
+        "-Wno-unused-function",
+        # protobuf-3 mixes generated enum types.
+        "-Wno-enum-compare-switch",
+        # Used by older version of clang.
+        "-Wno-enum-compare",
+        # Older version of clang don't have -Wno-enum-compare-switch
+        "-Wno-unknown-warning-option",
+      ]
+    }
+  }
 }
 
 config("protobuf_warnings") {
@@ -139,7 +154,11 @@ if (is_win) {
 component("protobuf_lite") {
   sources = protobuf_lite_sources
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    deps = [ "//starboard/common" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -159,9 +178,11 @@ component("protobuf_lite") {
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
-  deps = [
-    "//build/config/sanitizers:deps",
-  ]
+  if (!is_starboard) {
+    deps = [
+      "//build/config/sanitizers:deps",
+    ]
+  }
 
   cflags = protobuf_lite_cflags
 
@@ -308,11 +329,14 @@ static_library("protobuf_full") {
     "src/google/protobuf/wrappers.pb.h",
   ]
 
-  deps = [
-    "//build/config/sanitizers:deps",
-  ]
-
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    deps = [ "//starboard/common" ]
+  } else {
+    deps = [
+      "//build/config/sanitizers:deps",
+    ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -526,7 +550,9 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/zip_writer.h",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+    }
     configs += [
       "//build/config/compiler:no_chromium_code",
 
@@ -553,7 +579,9 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/main.cc",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+    }
     configs += [ "//build/config/compiler:no_chromium_code" ]
 
     cflags = protobuf_lite_cflags
