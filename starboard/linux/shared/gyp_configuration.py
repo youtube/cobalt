@@ -101,3 +101,10 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       ],
       'starboard_platform_tests': [test_filter.FILTER_ALL],
   }
+  # Conditionally disables tests that require ipv6
+  if os.getenv('IPV6_AVAILABLE', '1') == '0':
+    __FILTERED_TESTS['nplb'] = [
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/1',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
+    ]
