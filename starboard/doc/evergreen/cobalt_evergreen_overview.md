@@ -9,6 +9,16 @@ Cobalt Evergreen is an end-to-end framework for cloud-based deployment of Cobalt
 updates without the need for supplemental Cobalt integration work on device
 platforms.
 
+There are two configurations available:
+*   Evergreen-Lite
+    *   Please read this document for general Evergreen details then see
+        Evergreen-Lite specific configuration details in
+        [cobalt_evergreen_lite_guide.md](cobalt_evergreen_lite_guide.md)
+*   Evergreen Full
+    *   Please continue reading below documentation for configuration details
+
+![Cobalt Evergreen Configurations](resources/cobalt_evergreen_configurations.png)
+
 For a bit of background context, as the number of Cobalt devices in the field
 increases there is a growing proliferation of version fragmentation. Many of
 these devices are unable to take advantage of the benefits of Cobalt
@@ -399,17 +409,17 @@ Image required for all slot configurations:
 ```
 .
 ├── content <--(kSbSystemPathContentDirectory)
-│   └── fonts <--(kSbSystemPathFontDirectory, `standard` or `limit` configuration, to be explained below)
-│   └── app
-│       └── cobalt <--(SLOT_0)
-│           ├── content <--(relative path defined in kSystemImageContentPath)
-│           │   ├── fonts <--(`empty` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
-│           │   ├── licenses
-│           │   ├── ssl
-│           ├── lib
-│           │   └── libcobalt.so <--(System image version of libcobalt.so)
-│           └── manifest.json
+│   └── fonts <--(kSbSystemPathFontDirectory, `standard` or `limit` configuration, to be explained below)
+│   └── app
+│       └── cobalt <--(SLOT_0)
+│           ├── content <--(relative path defined in kSystemImageContentPath)
+│           │   ├── fonts <--(`empty` configuration)
+│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
+│           │   ├── licenses
+│           │   ├── ssl
+│           ├── lib
+│           │   └── libcobalt.so <--(System image version of libcobalt.so)
+│           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
 └── crashpad_handler <--(Cobalt crash handler)
 ```
@@ -420,18 +430,18 @@ updates in an example 3-slot configuration:
 ```
 ├── .cobalt_storage <--(kSbSystemPathStorageDirectory)
     ├── cobalt_updater
-    │   └── prefs_<APP_KEY>.json
+    │   └── prefs_<APP_KEY>.json
     ├── installation_1 <--(SLOT_1 - currently unused)
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
-    │   ├── content
-    │   │   ├── fonts <--(`empty` configuration)
-    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
-    │   │   ├── licenses
-    │   │   ├── ssl
-    │   ├── lib
-    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
-    │   ├── manifest.fingerprint
-    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+    │   ├── content
+    │   │   ├── fonts <--(`empty` configuration)
+    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
+    │   │   ├── licenses
+    │   │   ├── ssl
+    │   ├── lib
+    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+    │   ├── manifest.fingerprint
+    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
     └── icu (default location shared by installation slots, to be explained below)
 ```
