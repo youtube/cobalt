@@ -138,6 +138,17 @@ void PerformanceLifecycleTiming::SetApplicationState(
   SetLifecycleTimingInfoState(state);
 }
 
+void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp) {
+  if (is_preload) {
+    lifecycle_timing_info_.app_preload = timestamp;
+    SetLifecycleTimingInfoState(base::kApplicationStateConcealed);
+  } else {
+    lifecycle_timing_info_.app_start = timestamp;
+    SetLifecycleTimingInfoState(base::kApplicationStateStarted);
+  }
+}
+
 base::ApplicationState PerformanceLifecycleTiming::GetLastState() const {
   return lifecycle_timing_info_.last_state;
 }

@@ -135,6 +135,9 @@ class Performance : public EventTarget {
   void SetApplicationState(base::ApplicationState state,
                            SbTimeMonotonic timestamp);
 
+  void SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp);
+
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);
 

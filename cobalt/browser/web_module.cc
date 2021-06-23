@@ -261,6 +261,9 @@ class WebModule::Impl {
   void DoSynchronousLayoutAndGetRenderTree(
       scoped_refptr<render_tree::Node>* render_tree);
 
+  void SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp);
+
  private:
   class DocumentLoadedObserver;
 
@@ -1022,6 +1025,13 @@ void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
   scoped_refptr<render_tree::Node> tree =
       window_->document()->DoSynchronousLayoutAndGetRenderTree();
   *render_tree = tree;
+}
+
+void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
+    bool is_preload, SbTimeMonotonic timestamp) {
+  DCHECK(window_);
+  window_->performance()->SetApplicationStartOrPreloadTimestamp(
+      is_preload, timestamp);
 }
 
 void WebModule::Impl::OnCspPolicyChanged() {
@@ -1808,6 +1818,22 @@ WebModule::DoSynchronousLayoutAndGetRenderTree() {
     impl_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
   }
   return render_tree;
+}
+
+void WebModule::SetApplicationStartOrPreloadTimestamp(
+    bool is_preload, SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::SetApplicationStartOrPreloadTimestamp()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  if (base::MessageLoop::current() != message_loop()) {
+    message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::SetApplicationStartOrPreloadTimestamp,
+                 base::Unretained(impl_.get()), is_preload, timestamp));
+  } else {
+    impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
+  }
 }
 
 }  // namespace browser

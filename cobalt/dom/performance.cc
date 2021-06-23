@@ -616,5 +616,11 @@ void Performance::SetApplicationState(base::ApplicationState state,
   lifecycle_timing_->SetApplicationState(state, timestamp);
 }
 
+void Performance::SetApplicationStartOrPreloadTimestamp(
+    bool is_preload, SbTimeMonotonic timestamp) {
+  lifecycle_timing_->SetApplicationStartOrPreloadTimestamp(
+      is_preload, timestamp);
+}
+
 }  // namespace dom
 }  // namespace cobalt

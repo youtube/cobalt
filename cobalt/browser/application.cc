@@ -591,7 +591,8 @@ struct RecordCheckerStub : public base::RecordHistogramChecker {
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
 
-Application::Application(const base::Closure& quit_closure, bool should_preload)
+Application::Application(const base::Closure& quit_closure, bool should_preload,
+                         SbTimeMonotonic timestamp)
     : message_loop_(base::MessageLoop::current()),
       quit_closure_(quit_closure)
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
@@ -851,6 +852,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 #endif
       options));
 
+  DCHECK(browser_module_);
+  browser_module_->SetApplicationStartOrPreloadTimestamp(should_preload,
+                                                         timestamp);
   UpdateUserAgent();
 
   // Register event callbacks.
@@ -1002,14 +1006,17 @@ Application::~Application() {
 #endif
 }
 
-void Application::Start() {
+void Application::Start(SbTimeMonotonic timestamp) {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
+        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this),
+                              timestamp));
     return;
   }
 
-  OnApplicationEvent(kSbEventTypeStart, SbTimeGetMonotonicNow());
+  OnApplicationEvent(kSbEventTypeStart, timestamp);
+  browser_module_->SetApplicationStartOrPreloadTimestamp(
+      false /*is_preload*/, timestamp);
 }
 
 void Application::Quit() {
