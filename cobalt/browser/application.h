@@ -52,11 +52,12 @@ class Application {
  public:
   // The passed in |quit_closure| can be called internally by the Application
   // to signal that it would like to quit.
-  Application(const base::Closure& quit_closure, bool should_preload);
+  Application(const base::Closure& quit_closure, bool should_preload,
+              SbTimeMonotonic timestamp);
   virtual ~Application();
 
   // Start from a preloaded state.
-  void Start();
+  void Start(SbTimeMonotonic timestamp);
   void Quit();
   void HandleStarboardEvent(const SbEvent* event);
 

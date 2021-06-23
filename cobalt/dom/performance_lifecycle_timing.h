@@ -52,6 +52,8 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
 
   void SetApplicationState(base::ApplicationState state,
                            SbTimeMonotonic timestamp);
+  void SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceLifecycleTiming);
 
