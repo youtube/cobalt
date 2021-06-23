@@ -19,6 +19,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'checks.h',
+        'crashpad_config_test.cc',
         'executable_memory_test.cc',
         'fonts_test.cc',
         'sabi_test.cc',
