@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#endif
-
 #include "cobalt/browser/application.h"
 
 #include <map>
@@ -79,8 +75,8 @@
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-#include "starboard/time.h"
 #include "starboard/system.h"
+#include "starboard/time.h"
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
@@ -1054,8 +1050,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type,
-                         starboard_event->timestamp);
+      OnApplicationEvent(starboard_event->type, starboard_event->timestamp);
       break;
 #else
     case kSbEventTypePause:
