@@ -13,7 +13,7 @@ There are two configurations available:
 *   Evergreen-Lite
     *   Please read this document for general Evergreen details then see
         Evergreen-Lite specific configuration details in
-        [cobalt_evergreen_lite_guide.md](cobalt_evergreen_lite_guide.md)
+        [cobalt_evergreen_lite.md](cobalt_evergreen_lite.md)
 *   Evergreen Full
     *   Please continue reading below documentation for configuration details
 
