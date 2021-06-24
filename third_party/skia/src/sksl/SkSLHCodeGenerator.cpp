@@ -18,7 +18,7 @@
 #include <set>
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_leaks_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #endif
 
 namespace SkSL {
